@@ -1,4 +1,5 @@
 import {
+    QueryExecutionContext,
     RedshiftAuthenticationType,
     WarehouseDatabaseListingNotSupportedError,
     WarehouseQueryError,
@@ -9,9 +10,10 @@ import {
 } from '@lightdash/common';
 /* eslint-disable prefer-arrow-callback, func-names */
 import * as pg from 'pg';
-import { PassThrough } from 'stream';
+import { PassThrough, Readable } from 'stream';
 import type { Mock } from 'vitest';
 import { warehouseClientFromCredentials } from '../warehouseClientFromCredentials';
+import QueryStream from './PgQueryStream';
 import {
     PostgresSqlBuilder,
     PostgresWarehouseClient,
@@ -29,6 +31,25 @@ import {
     expectedWarehouseSchemaWithNaiveTimestamp,
 } from './WarehouseClient.mock';
 
+const temporalFields = [
+    { name: 'day', dataTypeID: 1082 },
+    { name: 'midnight', dataTypeID: 1114 },
+    { name: 'springGap', dataTypeID: 1114 },
+    { name: 'beforeFallBack', dataTypeID: 1184 },
+    { name: 'afterFallBack', dataTypeID: 1184 },
+    { name: 'duplicate', dataTypeID: 1082 },
+    { name: 'duplicate', dataTypeID: 25 },
+];
+const temporalValues = [
+    '2024-07-01',
+    '2024-07-01 00:00:00.123456',
+    '2024-03-31 01:30:00',
+    '2024-10-27 01:30:00+01',
+    '2024-10-27 01:30:00+00',
+    '2024-07-01',
+    'text',
+];
+
 vi.mock('pg', async () => ({
     ...(await vi.importActual<{ default: typeof import('pg') }>('pg')).default,
     Pool: vi.fn(function () {
@@ -37,7 +58,7 @@ vi.mock('pg', async () => ({
                 callback(
                     null,
                     {
-                        query: vi.fn((arg: unknown) => {
+                        query: vi.fn((arg: string | QueryStream) => {
                             // Session statements (SET statement_timeout / timezone)
                             // are issued as plain string queries and must return a
                             // thenable, not a stream.
@@ -46,6 +67,16 @@ vi.mock('pg', async () => ({
                                     rows: [],
                                     fields: [],
                                 });
+                            }
+                            if (arg.cursor.text.startsWith('SELECT temporal')) {
+                                arg.handleRowDescription({
+                                    fields: temporalFields,
+                                });
+                                const { _result: result } = arg;
+                                const row = result.parseRow(temporalValues);
+                                return Readable.from([
+                                    { row, fields: temporalFields },
+                                ]);
                             }
                             const mockedStream = new PassThrough();
                             setTimeout(() => {
@@ -69,6 +100,58 @@ vi.mock('pg', async () => ({
 }));
 
 describe('PostgresWarehouseClient', () => {
+    describe.each(['UTC', 'Europe/London', 'America/New_York'])(
+        'temporal results under %s',
+        (timezone) => {
+            beforeEach(() => vi.stubEnv('TZ', timezone));
+            afterEach(() => vi.unstubAllEnvs());
+
+            const instants = {
+                beforeFallBack: new Date('2024-10-27T00:30:00.000Z'),
+                afterFallBack: new Date('2024-10-27T01:30:00.000Z'),
+            };
+
+            it('streams wall-clock values with full precision for materialization', async () => {
+                const warehouse = new PostgresWarehouseClient(credentials);
+                const write = vi.fn();
+                await warehouse.executeAsyncQuery(
+                    {
+                        sql: 'SELECT temporal',
+                        tags: {
+                            query_context:
+                                QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+                        },
+                    },
+                    write,
+                );
+                expect(write).toHaveBeenCalledTimes(1);
+                expect(write.mock.calls[0][0]).toEqual([
+                    {
+                        day: '2024-07-01',
+                        midnight: '2024-07-01 00:00:00.123456',
+                        springGap: '2024-03-31 01:30:00',
+                        duplicate: 'text',
+                        ...instants,
+                    },
+                ]);
+            });
+
+            it('returns the same Date values as the legacy UTC direct query', async () => {
+                const warehouse = new PostgresWarehouseClient(credentials);
+                const { rows } = await warehouse.runQuery('SELECT temporal');
+                expect(rows).toEqual([
+                    {
+                        day: new Date('2024-07-01T00:00:00.000Z'),
+                        midnight: new Date('2024-07-01T00:00:00.123Z'),
+                        springGap: new Date('2024-03-31T01:30:00.000Z'),
+                        duplicate: 'text',
+                        ...instants,
+                    },
+                ]);
+            });
+        },
+    );
+
     it('expect query rows', async () => {
         const warehouse = new PostgresWarehouseClient(credentials);
         const results = await warehouse.runQuery('fake sql');

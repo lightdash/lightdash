@@ -9,6 +9,7 @@ import {
     getWarehouseTableType,
     Metric,
     MetricType,
+    QueryExecutionContext,
     setCatalogTimestampDomain,
     SslConfiguration,
     SupportedDbtAdapter,
@@ -158,6 +159,40 @@ export const getPostgresTimestampDomain = (
 };
 
 const { builtins } = pg.types;
+const isNaiveTemporalOid = (oid: number) =>
+    oid === builtins.DATE || oid === builtins.TIMESTAMP;
+
+function getWarehouseTypeParser<T>(
+    oid: number,
+    format?: 'text',
+): (value: string) => T | string;
+function getWarehouseTypeParser<T>(
+    oid: number,
+    format: 'binary',
+): (value: Buffer) => T | string;
+function getWarehouseTypeParser(
+    oid: number,
+    format: 'text' | 'binary' = 'text',
+) {
+    if (format === 'binary') return types.getTypeParser(oid, format);
+    if (isNaiveTemporalOid(oid)) return (value: string) => value;
+    return types.getTypeParser(oid, format);
+}
+
+const warehouseQueryTypes: pg.CustomTypesConfig = {
+    getTypeParser: getWarehouseTypeParser,
+};
+
+const parseUtcTimestamp = types.getTypeParser(builtins.TIMESTAMPTZ);
+
+const toLegacyTemporalValue = (value: string, oid: number) => {
+    if (value === 'infinity' || value === '-infinity') {
+        return parseUtcTimestamp(value);
+    }
+    const suffix = oid === builtins.DATE ? ' 00:00:00Z' : 'Z';
+    return parseUtcTimestamp(value.replace(/( BC)?$/, `${suffix}$1`));
+};
+
 const POSTGRES_NAME_TOO_LONG_SQLSTATE = '42622';
 
 // Server-side ceiling for a single streamed query, bounded just under the
@@ -560,6 +595,7 @@ export class PostgresClient<
                         new QueryStream(
                             this.getSQLWithMetadata(sql, options?.tags),
                             options?.values,
+                            { types: warehouseQueryTypes },
                         ),
                     );
 
@@ -570,18 +606,40 @@ export class PostgresClient<
                         string,
                         { type: DimensionType }
                     > | null = null;
+                    const preserveWallClockText =
+                        options.tags?.query_context ===
+                        QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION;
+                    let legacyTemporalFields: QueryResult<AnyType>['fields'] =
+                        [];
 
                     const writable = createRowBatchWriter(
-                        (chunk: {
-                            row: AnyType;
+                        ({
+                            row,
+                            fields,
+                        }: {
+                            row: WarehouseResults['rows'][number];
                             fields: QueryResult<AnyType>['fields'];
                         }) => {
                             receivedRow = true;
                             if (cachedFields === null) {
                                 cachedFields =
                                     PostgresClient.convertQueryResultFields(
-                                        chunk.fields,
+                                        fields,
                                     );
+                                // Direct results keep the Date representation used by formatters and exports.
+                                if (!preserveWallClockText) {
+                                    const fieldsByName = new Map(
+                                        fields.map((field) => [
+                                            field.name,
+                                            field,
+                                        ]),
+                                    );
+                                    legacyTemporalFields = [
+                                        ...fieldsByName.values(),
+                                    ].filter(({ dataTypeID }) =>
+                                        isNaiveTemporalOid(dataTypeID),
+                                    );
+                                }
                                 reportPhase(
                                     'query',
                                     performance.now() - queryStart,
@@ -590,7 +648,22 @@ export class PostgresClient<
                                 startStep('fetch');
                             }
                             rowsFetched += 1;
-                            return chunk.row;
+                            if (legacyTemporalFields.length === 0) return row;
+
+                            const normalizedRow = { ...row };
+                            for (const {
+                                name,
+                                dataTypeID,
+                            } of legacyTemporalFields) {
+                                const value = row[name];
+                                if (typeof value === 'string') {
+                                    normalizedRow[name] = toLegacyTemporalValue(
+                                        value,
+                                        dataTypeID,
+                                    );
+                                }
+                            }
+                            return normalizedRow;
                         },
                         (rows) =>
                             streamCallback({ fields: cachedFields!, rows }),
