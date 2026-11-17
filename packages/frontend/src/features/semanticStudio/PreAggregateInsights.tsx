@@ -126,51 +126,67 @@ export const PreAggregateSample: FC<{
             : fieldId;
     };
     return (
-        <Box>
-            <Text fz="xs" c="dimmed" mb={4}>
-                Sample, read from the pre-aggregate
-            </Text>
-            <Box className={classes.sample}>
-                <Table fz="xs" verticalSpacing={4} horizontalSpacing="xs">
-                    <Table.Thead>
-                        <Table.Tr>
-                            {columns.map((fieldId) => (
-                                <Table.Th
-                                    key={fieldId}
-                                    data-numeric={metrics.includes(fieldId)}
-                                >
-                                    {label(fieldId)}
-                                </Table.Th>
-                            ))}
-                        </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                        {isLoading
-                            ? Array.from({ length: 3 }, (_, index) => (
-                                  <Table.Tr key={index}>
-                                      <Table.Td colSpan={columns.length}>
-                                          <Box className={classes.loadingRow} />
-                                      </Table.Td>
-                                  </Table.Tr>
-                              ))
-                            : data?.rows.map((row, index) => (
-                                  <Table.Tr key={index}>
-                                      {columns.map((fieldId) => (
-                                          <Table.Td
-                                              key={fieldId}
-                                              data-numeric={metrics.includes(
-                                                  fieldId,
-                                              )}
-                                          >
-                                              {row[fieldId]?.value.formatted ??
-                                                  ''}
-                                          </Table.Td>
-                                      ))}
-                                  </Table.Tr>
-                              ))}
-                    </Table.Tbody>
-                </Table>
-            </Box>
-        </Box>
+        <StudioSampleTable
+            caption="Sample, read from the pre-aggregate"
+            columns={columns.map((id) => ({
+                id,
+                label: label(id),
+                numeric: metrics.includes(id),
+            }))}
+            rows={(data?.rows ?? []).map((row) =>
+                columns.map((id) => row[id]?.value.formatted ?? ''),
+            )}
+            loading={isLoading}
+        />
     );
 };
+
+export const StudioSampleTable: FC<{
+    caption: string;
+    columns: { id: string; label: string; numeric: boolean }[];
+    rows: string[][];
+    loading: boolean;
+}> = ({ caption, columns, rows, loading }) => (
+    <Box>
+        <Text fz="xs" c="dimmed" mb={4}>
+            {caption}
+        </Text>
+        <Box className={classes.sample}>
+            <Table
+                aria-label={caption}
+                fz="xs"
+                verticalSpacing={4}
+                horizontalSpacing="xs"
+            >
+                <Table.Thead>
+                    <Table.Tr>
+                        {columns.map(({ id, label, numeric }) => (
+                            <Table.Th key={id} data-numeric={numeric}>
+                                {label}
+                            </Table.Th>
+                        ))}
+                    </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                    {loading
+                        ? Array.from({ length: 3 }, (_, index) => (
+                              <Table.Tr key={index}>
+                                  <Table.Td colSpan={columns.length}>
+                                      <Box className={classes.loadingRow} />
+                                  </Table.Td>
+                              </Table.Tr>
+                          ))
+                        : rows.map((row, index) => (
+                              <Table.Tr key={index}>
+                                  {columns.map(({ id, numeric }, column) => (
+                                      <Table.Td key={id} data-numeric={numeric}>
+                                          {row[column]}
+                                      </Table.Td>
+                                  ))}
+                              </Table.Tr>
+                          ))}
+                </Table.Tbody>
+            </Table>
+        </Box>
+    </Box>
+);

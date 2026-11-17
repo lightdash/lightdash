@@ -65,7 +65,7 @@ const useGet = <T extends ApiResponse['results']>(
     });
 };
 
-const useStatus = (projectUuid: string) =>
+export const useSemanticLayerStatus = (projectUuid: string) =>
     useGet<SemanticLayerStatus>(
         ['semantic-layer-status', projectUuid],
         projectUuid,
@@ -75,15 +75,15 @@ const useStatus = (projectUuid: string) =>
 
 /** Whether this person can change this project's models here. */
 export const useCanEditSemanticLayer = (projectUuid: string): boolean =>
-    useStatus(projectUuid)?.enabled === true;
+    useSemanticLayerStatus(projectUuid)?.enabled === true;
 
 /** Whether changes here go through a draft; false on a dbt project, where the agent edits the repository in a pull request. */
 export const useKeepsSemanticLayerDraft = (projectUuid: string): boolean =>
-    useStatus(projectUuid)?.appliesAs !== 'dbt_pull_request';
+    useSemanticLayerStatus(projectUuid)?.appliesAs !== 'dbt_pull_request';
 
 /** Whether applying a draft opens a pull request on the project's repository instead of going live. */
 export const useAppliesAsPullRequest = (projectUuid: string): boolean =>
-    useStatus(projectUuid)?.appliesAs === 'pull_request';
+    useSemanticLayerStatus(projectUuid)?.appliesAs === 'pull_request';
 
 /** The models whose YAML the project keeps; empty for someone who cannot change the project. */
 export const useSemanticLayerStoredModels = (
@@ -253,6 +253,7 @@ const useWrite = <TResult extends ApiResponse['results'], TInput>({
                     ...(changesLive
                         ? [
                               [MODEL_KEY, projectUuid],
+                              ['studio-materializations', projectUuid],
                               ['preAggregateMaterializations', projectUuid],
                           ]
                         : []),

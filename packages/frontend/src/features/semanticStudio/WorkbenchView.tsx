@@ -125,6 +125,7 @@ import {
     getModelCodeSearch,
     VIEW_PARAM,
 } from './modelCode';
+import { MaterializedBadge } from './ModelSourceCard';
 import { ModelCodeView, ModelTabs } from './ModelTabs';
 import { getPreAggregateStatus } from './preAggregateSummary';
 import {
@@ -162,6 +163,10 @@ import {
 } from './urls';
 import { useExploreFields } from './useExploreFields';
 import { useGoingLive } from './useGoingLive';
+import {
+    ModelMaterializationContext,
+    useModelMaterializationOverview,
+} from './useModelMaterialization';
 import { usePreAggregatesByModel } from './usePreAggregatesByModel';
 import {
     useKeepsSemanticLayerDraft,
@@ -357,6 +362,9 @@ const Tree: FC<{
                                     node.label
                                 )}
                             </Text>
+                            {node.ref.type === 'explore' && (
+                                <MaterializedBadge model={node.ref.exploreId} />
+                            )}
                             {node.ref.type === 'explore' ? (
                                 <DraftMarker
                                     model={node.ref.exploreId}
@@ -442,6 +450,11 @@ const ChildrenList: FC<{
                                     >
                                         {node.label}
                                     </Text>
+                                    {node.ref.type === 'explore' && (
+                                        <MaterializedBadge
+                                            model={node.ref.exploreId}
+                                        />
+                                    )}
                                 </Group>
                                 {describe ? (
                                     <Text
@@ -748,6 +761,7 @@ const MainPane: FC<{
                         >
                             {title}
                         </Title>
+                        {explore && <MaterializedBadge model={explore.id} />}
                         {isLiveSourcesPage ? <LiveSourceBetaBadge /> : null}
                     </Group>
                     <Group gap={4} wrap="nowrap" flex="none">
@@ -968,6 +982,7 @@ const CodeRail: FC<{
                         >
                             {file}.yml
                         </Text>
+                        <MaterializedBadge model={file} />
                         <DraftMarker model={file} isMine={drafted.has(file)} />
                     </Box>
                     {/* A pre-aggregate lives in its model's file; its row jumps to where it is defined. */}
@@ -1022,7 +1037,7 @@ const FILE_PARAM = 'file';
 const BUILD_MODEL_PROMPT =
     'Look through my warehouse and suggest the first model and metrics to add.';
 
-export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
+const WorkbenchBody: FC<SemanticStudioProps> = (props) => {
     const view = useSemanticStudio(props);
     const preAggregatesByModel = usePreAggregatesByModel(view.project.id);
     const [expanded, setExpanded] = useState<Set<string>>(() =>
@@ -2193,5 +2208,14 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 </ExternalSourceManager>
             </LiveSourceManager>
         </DraftMarksContext.Provider>
+    );
+};
+
+export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
+    const overview = useModelMaterializationOverview(props.project.id);
+    return (
+        <ModelMaterializationContext.Provider value={overview}>
+            <WorkbenchBody {...props} />
+        </ModelMaterializationContext.Provider>
     );
 };

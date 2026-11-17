@@ -201,6 +201,7 @@ const countMetrics = (part: unknown): number => {
 };
 
 type ModelSummary = {
+    materializes: boolean;
     label: string | null;
     dimensions: number;
     metrics: number;
@@ -217,6 +218,7 @@ const readModelSummary = (content: string): ModelSummary => {
             ? parsed.dimensions
             : [];
         return {
+            materializes: isRecord(parsed.materialize),
             label: typeof parsed.label === 'string' ? parsed.label : null,
             dimensions: dimensions.length,
             metrics: dimensions.reduce<number>(
@@ -237,6 +239,9 @@ const parseModel = (content: string): ModelSummary => {
     summaries.set(content, summary);
     return summary;
 };
+
+export const hasDraftMaterialization = (content: string | null) =>
+    content !== null && parseModel(content)?.materializes === true;
 
 export const count = (amount: number, noun: string) =>
     `${amount} ${noun}${amount === 1 ? '' : 's'}`;
