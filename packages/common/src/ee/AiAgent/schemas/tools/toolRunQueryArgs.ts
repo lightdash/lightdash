@@ -557,6 +557,18 @@ export const migrateRunQueryArgsV1ToV2 = (
     },
 });
 
+const parsePersistedRunQueryArgsV1 = (
+    raw: unknown,
+): ToolRunQueryArgsTransformed | null => {
+    const v1 = toolRunQueryArgsSchemaV1.safeParse(raw);
+    return v1.success
+        ? toolRunQueryArgsSchemaTransformed.parse({
+              ...migrateRunQueryArgsV1ToV2(v1.data),
+              mergeConfig: null,
+          })
+        : null;
+};
+
 // Existing persisted filter formats have one shared connector across every
 // category, so they cannot represent dimensions using AND while metrics use
 // OR. Keep this parser unchanged for existing records; the wider persistence
@@ -578,16 +590,16 @@ export const parsePersistedRunQueryArgs = (
         typeof raw === 'object' &&
         hasTopLevelCollections(raw)
     ) {
-        const v1 = toolRunQueryArgsSchemaV1.safeParse(raw);
-        if (v1.success)
-            return toolRunQueryArgsSchemaTransformed.parse({
-                ...migrateRunQueryArgsV1ToV2(v1.data),
-                mergeConfig: null,
-            });
+        const v1 = parsePersistedRunQueryArgsV1(raw);
+        if (v1) return v1;
     }
 
     const v2 = toolRunQueryArgsSchemaV2Transformed.safeParse(raw);
-    return v2.success ? { ...v2.data, mergeConfig: null } : null;
+    if (v2.success) return { ...v2.data, mergeConfig: null };
+
+    // Unchanged from before the defaults: input V2 rejects still gets the V1
+    // parse, which drops nested collections it cannot read.
+    return parsePersistedRunQueryArgsV1(raw);
 };
 
 export const TOOL_RENDER_CHART_DESCRIPTION = `Render a completed run_metric_query result in Lightdash's built-in chart app in MCP App-capable clients.
