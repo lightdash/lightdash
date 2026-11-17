@@ -37,6 +37,10 @@ import {
     LiveSourceActionsContext,
     type LiveSourceActions,
 } from './liveSourceActions';
+import {
+    LiveSourceCacheSettingsModal,
+    PurgeLiveSourceCacheModal,
+} from './LiveSourceCacheModals';
 import { type LiveSourceConnection } from './liveSourceRows';
 
 type Dialog =
@@ -45,6 +49,8 @@ type Dialog =
     | { kind: 'create'; connector: ApiConnectorType }
     | { kind: 'edit'; connection: LiveSourceConnection }
     | { kind: 'remove'; connection: LiveSourceConnection }
+    | { kind: 'cacheSettings'; connection: LiveSourceConnection }
+    | { kind: 'purgeCache'; connection: LiveSourceConnection }
     | { kind: 'connected'; connectionUuid: string };
 
 const RemoveLiveSourceModal: FC<{
@@ -122,6 +128,10 @@ export const LiveSourceManager: FC<{
             add: () => setDialog({ kind: 'pick' }),
             edit: (connection) => setDialog({ kind: 'edit', connection }),
             remove: (connection) => setDialog({ kind: 'remove', connection }),
+            cacheSettings: (connection) =>
+                setDialog({ kind: 'cacheSettings', connection }),
+            purgeCache: (connection) =>
+                setDialog({ kind: 'purgeCache', connection }),
             getReconnect: (connection) => {
                 const { connector } = connection.apiSource;
                 const { setup } = getLiveSource(connector);
@@ -348,6 +358,20 @@ const LiveSourceDialogs: FC<{
                 <SourceConnectedModal
                     projectUuid={projectUuid}
                     connectionUuid={dialog.connectionUuid}
+                    onClose={close}
+                />
+            )}
+            {dialog.kind === 'cacheSettings' && (
+                <LiveSourceCacheSettingsModal
+                    projectUuid={projectUuid}
+                    connection={dialog.connection}
+                    onClose={close}
+                />
+            )}
+            {dialog.kind === 'purgeCache' && (
+                <PurgeLiveSourceCacheModal
+                    projectUuid={projectUuid}
+                    connection={dialog.connection}
                     onClose={close}
                 />
             )}
