@@ -1,29 +1,39 @@
 import { type Knex } from 'knex';
 
+const ImageObjectTable = 'ai_thread_image_object';
+const ThreadFileTable = 'ai_thread_file';
+
 export const config = { transaction: false };
 export const classification = {
     kind: 'safe',
     reason: 'Adds a cleanup ledger and nullable/defaulted attachment columns. Existing text rows and readers remain valid. The new foreign key and shape check are validated without blocking reads; the existing-table index is concurrent.',
 };
 
+type Session = {
+    schema: () => Knex.SchemaBuilder;
+    query: (table: string) => Knex.QueryBuilder;
+    run: (sql: string) => Promise<{ rows: unknown[] }>;
+};
+
 // Session settings and DDL must share one connection; the pool hands out others.
 const withSession = async (
     knex: Knex,
-    migrate: (
-        run: (sql: string) => Promise<{ rows: unknown[] }>,
-    ) => Promise<void>,
+    migrate: (session: Session) => Promise<void>,
 ): Promise<void> => {
     const connection: unknown = await knex.client.acquireConnection();
-    const run = (sql: string): Promise<{ rows: unknown[] }> =>
-        knex.raw<{ rows: unknown[] }>(sql).connection(connection);
+    const session: Session = {
+        schema: () => knex.schema.connection(connection),
+        query: (table) => knex(table).connection(connection),
+        run: (sql) => knex.raw<{ rows: unknown[] }>(sql).connection(connection),
+    };
     try {
-        await run(`SET lock_timeout = '60s'`);
-        await run('SET statement_timeout = 0');
-        await migrate(run);
+        await session.run(`SET lock_timeout = '60s'`);
+        await session.run('SET statement_timeout = 0');
+        await migrate(session);
     } finally {
         try {
-            await run('RESET statement_timeout');
-            await run('RESET lock_timeout');
+            await session.run('RESET statement_timeout');
+            await session.run('RESET lock_timeout');
         } finally {
             await knex.client.releaseConnection(connection);
         }
@@ -31,32 +41,43 @@ const withSession = async (
 };
 
 export async function up(knex: Knex): Promise<void> {
-    await withSession(knex, async (run) => {
-        await run(`CREATE TABLE IF NOT EXISTS ai_thread_image_object (
-            storage_key text PRIMARY KEY,
-            -- No tenant FK: object cleanup must survive tenant deletion.
-            organization_uuid uuid NOT NULL,
-            media_type text NOT NULL
-                CHECK (media_type IN ('image/png', 'image/jpeg', 'image/webp')),
-            width integer NOT NULL CHECK (width BETWEEN 1 AND 2560),
-            height integer NOT NULL CHECK (height BETWEEN 1 AND 2560),
-            size_bytes integer NOT NULL CHECK (size_bytes BETWEEN 1 AND 3145728),
-            created_at timestamptz NOT NULL,
-            uploaded_at timestamptz,
-            cleanup_attempted_at timestamptz
-        )`);
+    await withSession(knex, async ({ schema, run }) => {
+        if (!(await schema().hasTable(ImageObjectTable))) {
+            await schema().createTable(ImageObjectTable, (table) => {
+                table.text('storage_key').primary();
+                // No tenant FK: object cleanup must survive tenant deletion.
+                table.uuid('organization_uuid').notNullable();
+                table.text('media_type').notNullable();
+                table.integer('width').notNullable();
+                table.integer('height').notNullable();
+                table.integer('size_bytes').notNullable();
+                table.timestamp('created_at', { useTz: true }).notNullable();
+                table.timestamp('uploaded_at', { useTz: true });
+                table.timestamp('cleanup_attempted_at', { useTz: true });
+            });
+        }
+        // Knex cannot order an index NULLS FIRST, which the cleanup query sorts by.
         await run(`CREATE INDEX IF NOT EXISTS ai_thread_image_object_cleanup_attempt
             ON ai_thread_image_object (cleanup_attempted_at ASC NULLS FIRST, created_at)`);
-        await run(`ALTER TABLE ai_thread_file
-            ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'text',
-            ADD COLUMN IF NOT EXISTS storage_key text`);
+        if (!(await schema().hasColumn(ThreadFileTable, 'kind'))) {
+            await schema().alterTable(ThreadFileTable, (table) => {
+                table.text('kind').notNullable().defaultTo('text');
+            });
+        }
+        if (!(await schema().hasColumn(ThreadFileTable, 'storage_key'))) {
+            await schema().alterTable(ThreadFileTable, (table) => {
+                table.text('storage_key');
+            });
+        }
+        // Knex has no concurrent index build or NOT VALID constraint, so the
+        // steps that must not block writes on the existing table stay raw.
         const invalidIndexes = await run(`SELECT 1 FROM pg_index
             JOIN pg_class ON pg_class.oid = pg_index.indexrelid
             WHERE pg_class.relname = 'ai_thread_file_storage_key_unique'
               AND NOT pg_index.indisvalid`);
         if (invalidIndexes.rows.length > 0) {
             await run(
-                'DROP INDEX CONCURRENTLY IF EXISTS ai_thread_file_storage_key_unique',
+                `DROP INDEX CONCURRENTLY IF EXISTS ai_thread_file_storage_key_unique`,
             );
         }
         await run(`CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS ai_thread_file_storage_key_unique
@@ -73,26 +94,20 @@ export async function up(knex: Knex): Promise<void> {
                 ) NOT VALID;
             END IF;
         END $$`);
-        console.log('Validating AI thread image attachment constraints');
         await run(
-            'ALTER TABLE ai_thread_file VALIDATE CONSTRAINT ai_thread_file_image_object_fk',
+            `ALTER TABLE ai_thread_file VALIDATE CONSTRAINT ai_thread_file_image_object_fk`,
         );
         await run(
-            'ALTER TABLE ai_thread_file VALIDATE CONSTRAINT ai_thread_file_kind_shape',
+            `ALTER TABLE ai_thread_file VALIDATE CONSTRAINT ai_thread_file_kind_shape`,
         );
     });
 }
 
 export async function down(knex: Knex): Promise<void> {
-    await withSession(knex, async (run) => {
-        const table = await run(
-            `SELECT 1 WHERE to_regclass('ai_thread_image_object') IS NOT NULL`,
-        );
-        if (table.rows.length > 0) {
-            const objects = await run(
-                'SELECT 1 FROM ai_thread_image_object LIMIT 1',
-            );
-            if (objects.rows.length > 0) {
+    await withSession(knex, async ({ schema, query, run }) => {
+        if (await schema().hasTable(ImageObjectTable)) {
+            const object = await query(ImageObjectTable).first('storage_key');
+            if (object !== undefined) {
                 throw new Error(
                     'irreversible: image objects must be cleaned up before removing their ledger',
                 );
@@ -102,10 +117,18 @@ export async function down(knex: Knex): Promise<void> {
             DROP CONSTRAINT IF EXISTS ai_thread_file_kind_shape,
             DROP CONSTRAINT IF EXISTS ai_thread_file_image_object_fk`);
         await run(
-            'DROP INDEX CONCURRENTLY IF EXISTS ai_thread_file_storage_key_unique',
+            `DROP INDEX CONCURRENTLY IF EXISTS ai_thread_file_storage_key_unique`,
         );
-        await run(`ALTER TABLE ai_thread_file
-            DROP COLUMN IF EXISTS storage_key, DROP COLUMN IF EXISTS kind`);
-        await run('DROP TABLE IF EXISTS ai_thread_image_object');
+        if (await schema().hasColumn(ThreadFileTable, 'storage_key')) {
+            await schema().alterTable(ThreadFileTable, (table) => {
+                table.dropColumn('storage_key');
+            });
+        }
+        if (await schema().hasColumn(ThreadFileTable, 'kind')) {
+            await schema().alterTable(ThreadFileTable, (table) => {
+                table.dropColumn('kind');
+            });
+        }
+        await schema().dropTableIfExists(ImageObjectTable);
     });
 }

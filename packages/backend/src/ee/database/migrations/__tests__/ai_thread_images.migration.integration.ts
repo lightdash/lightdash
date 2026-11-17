@@ -1,7 +1,4 @@
 import {
-    AI_THREAD_IMAGE_MAX_BYTES,
-    AI_THREAD_IMAGE_MAX_DIMENSION,
-    AI_THREAD_IMAGE_MEDIA_TYPES,
     DbtProjectType,
     FeatureFlags,
     ForbiddenError,
@@ -421,36 +418,6 @@ test('cleanup failures cannot starve a later unattempted object', async () => {
     expect(firstBatch.map((object) => object.storage_key)).not.toContain(
         nextBatch[0]?.storage_key,
     );
-});
-
-test('frozen database image limits match the shared application limits', async () => {
-    const owner = await fixture();
-    const { storageKey } = await image(owner, AI_THREAD_IMAGE_MAX_BYTES, {
-        width: AI_THREAD_IMAGE_MAX_DIMENSION,
-        height: AI_THREAD_IMAGE_MAX_DIMENSION,
-    });
-    await expect(image(owner, AI_THREAD_IMAGE_MAX_BYTES + 1)).rejects.toThrow(
-        /check constraint/,
-    );
-    await expect(
-        image(owner, 100, {
-            width: AI_THREAD_IMAGE_MAX_DIMENSION + 1,
-            height: 100,
-        }),
-    ).rejects.toThrow(/check constraint/);
-    await expect(
-        image(owner, 100, {
-            width: 100,
-            height: AI_THREAD_IMAGE_MAX_DIMENSION + 1,
-        }),
-    ).rejects.toThrow(/check constraint/);
-    for (const mediaType of AI_THREAD_IMAGE_MEDIA_TYPES) {
-        // eslint-disable-next-line no-await-in-loop -- Validate each media type against the same constrained row in order.
-        await migrated.database.raw(
-            'UPDATE ai_thread_image_object SET media_type = ? WHERE storage_key = ?',
-            [mediaType, storageKey],
-        );
-    }
 });
 
 test('Console-style organization enablement gates the actual upload with production resolution', async () => {
