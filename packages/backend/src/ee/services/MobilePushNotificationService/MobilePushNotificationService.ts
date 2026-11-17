@@ -149,6 +149,10 @@ export type MobilePushNotificationStore = {
         organizationUuid: string;
         userUuid: string;
     }): Promise<void>;
+    deleteInstallationsWithoutGrant(args: {
+        organizationUuid: string;
+        userUuid: string;
+    }): Promise<void>;
     upsertLiveActivity(activity: UpsertLiveActivity): Promise<void>;
     deleteLiveActivity(args: {
         liveActivityUuid: string;
@@ -304,12 +308,35 @@ export class MobilePushNotificationService {
         this.now = dependencies.now ?? (() => new Date());
     }
 
+    async revokeInstallationsWithoutGrant(user: {
+        userUuid: string;
+        organizationUuid: string;
+    }): Promise<void> {
+        try {
+            await this.mobilePushNotificationStore.deleteInstallationsWithoutGrant(
+                {
+                    organizationUuid: user.organizationUuid,
+                    userUuid: user.userUuid,
+                },
+            );
+        } catch (error) {
+            Logger.warn(
+                'Unable to remove mobile push installations of a denied session',
+                { error },
+            );
+        }
+    }
+
     private async assertMobileAppAccess(user: MobilePushUser): Promise<void> {
         const { organizationUuid } = user;
         if (
             organizationUuid != null &&
             !(await this.isMobileAppAccessEnabled(organizationUuid))
         ) {
+            await this.revokeInstallationsWithoutGrant({
+                userUuid: user.userUuid,
+                organizationUuid,
+            });
             throw new MobileOrgDisabledError(organizationUuid);
         }
     }

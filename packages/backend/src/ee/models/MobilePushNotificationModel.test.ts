@@ -790,6 +790,25 @@ describe('MobilePushNotificationModel grant checks', () => {
         expect(tracker.history.select).toHaveLength(1);
     });
 
+    it('deletes only the installations one person registered without a grant in one organization', async () => {
+        tracker.on.delete(MobilePushInstallationsTableName).responseOnce(1);
+
+        await model.deleteInstallationsWithoutGrant({
+            userUuid: 'user-uuid',
+            organizationUuid: 'organization-uuid',
+        });
+
+        expect(tracker.history.delete).toHaveLength(1);
+        const deleteQuery = tracker.history.delete[0];
+        expect(deleteQuery.sql).toContain('"oauth_client_id" is null');
+        expect(deleteQuery.sql).toContain('"organization_uuid" = $1');
+        expect(deleteQuery.sql).toContain('"user_uuid" = $2');
+        expect(deleteQuery.bindings).toEqual([
+            'organization-uuid',
+            'user-uuid',
+        ]);
+    });
+
     it('deletes the installations of one grant in one organization, whether or not the grant is live', async () => {
         tracker.on.delete(MobilePushInstallationsTableName).responseOnce(1);
 

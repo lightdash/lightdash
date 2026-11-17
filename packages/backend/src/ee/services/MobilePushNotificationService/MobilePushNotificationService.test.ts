@@ -113,6 +113,7 @@ const createDependencies = () => {
             MobilePushNotificationStore['findLiveActivityStartAttemptsDue']
         >(async () => []),
         deleteInstallation: vi.fn(async () => undefined),
+        deleteInstallationsWithoutGrant: vi.fn(async () => undefined),
         upsertLiveActivity: vi.fn(async () => undefined),
         deleteLiveActivity: vi.fn(async () => undefined),
         findActiveLiveActivitiesForThread: vi.fn<
@@ -1580,10 +1581,43 @@ describe('MobilePushNotificationService for an organization with mobile access o
         },
     );
 
+    it('removes the installations the denied person registered without a grant', async () => {
+        const { dependencies, service } = createDisabled();
+
+        await expect(registerInstallation(service)).rejects.toMatchObject(
+            denied,
+        );
+
+        expect(
+            dependencies.mobilePushNotificationStore
+                .deleteInstallationsWithoutGrant,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+            dependencies.mobilePushNotificationStore
+                .deleteInstallationsWithoutGrant,
+        ).toHaveBeenCalledWith({ organizationUuid, userUuid });
+    });
+
+    it('still answers with the code when that removal fails', async () => {
+        const { dependencies, service } = createDisabled();
+        dependencies.mobilePushNotificationStore.deleteInstallationsWithoutGrant.mockRejectedValue(
+            new Error('database down'),
+        );
+
+        await expect(registerInstallation(service)).rejects.toMatchObject(
+            denied,
+        );
+    });
+
     it('still registers an installation for another organization', async () => {
         const { dependencies, service } = createDisabled();
 
         await registerInstallation(service, otherOrganizationUuid);
+
+        expect(
+            dependencies.mobilePushNotificationStore
+                .deleteInstallationsWithoutGrant,
+        ).not.toHaveBeenCalled();
 
         expect(
             dependencies.mobilePushNotificationStore.upsertInstallation,

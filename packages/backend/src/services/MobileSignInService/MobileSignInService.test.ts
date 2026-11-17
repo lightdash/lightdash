@@ -140,6 +140,10 @@ const createService = ({
             enabled: flagValues[featureFlagId] ?? flagEnabled,
         })),
     };
+    const revokeInstallationsWithoutGrant = vi.fn(
+        async (_user: { userUuid: string; organizationUuid: string }) =>
+            undefined,
+    );
     const findSessionUserAndOrgByUuid = vi.fn(async () => user);
     const userModel = { findSessionUserAndOrgByUuid };
     const service = new MobileSignInService({
@@ -159,9 +163,13 @@ const createService = ({
         oauthModel: { getClient: vi.fn(async () => client as never) },
         getUserService: () => ({ getManagedSignIn }),
         getProjectService: () => ({ getProject }),
+        getMobilePushNotificationService: () => ({
+            revokeInstallationsWithoutGrant,
+        }),
     });
     return {
         service,
+        revokeInstallationsWithoutGrant,
         featureFlagModel: effectiveFeatureFlagModel,
         findSessionUserAndOrgByUuid,
         mobileSignInCodeModel,
@@ -2438,6 +2446,30 @@ describe('MobileSignInService.getAppAccess', () => {
         });
     });
 
+    it('removes the push installations the denied person registered without a grant', async () => {
+        const { service, revokeInstallationsWithoutGrant } = createService({
+            mobileAppAccessEnabled: false,
+        });
+
+        await expect(service.getAppAccess(sessionUser)).rejects.toMatchObject({
+            name: 'MobileOrgDisabledError',
+        });
+
+        expect(revokeInstallationsWithoutGrant).toHaveBeenCalledTimes(1);
+        expect(revokeInstallationsWithoutGrant).toHaveBeenCalledWith({
+            userUuid,
+            organizationUuid,
+        });
+    });
+
+    it('removes nothing for an enabled organization', async () => {
+        const { service, revokeInstallationsWithoutGrant } = createService();
+
+        await service.getAppAccess(sessionUser);
+
+        expect(revokeInstallationsWithoutGrant).not.toHaveBeenCalled();
+    });
+
     it('answers in every mode, also where QR sign-in is not offered', async () => {
         const { service } = createService({
             mode: LightdashMode.DEFAULT,
@@ -2453,7 +2485,7 @@ describe('MobileSignInService.getAppAccess', () => {
     it('refuses a person with no organization', async () => {
         const { service } = createService();
         await expectRefusal(
-            service.getAppAccess({ organizationUuid: undefined }),
+            service.getAppAccess({ userUuid, organizationUuid: undefined }),
             MobileSignInRefusal.ORGANIZATION_REQUIRED,
         );
     });
