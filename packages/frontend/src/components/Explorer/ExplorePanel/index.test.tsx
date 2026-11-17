@@ -4,7 +4,10 @@ import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createExplorerStore } from '../../../features/explorer/store';
+import {
+    createExplorerStore,
+    explorerActions,
+} from '../../../features/explorer/store';
 import { useExplore } from '../../../hooks/useExplore';
 import { renderWithProviders } from '../../../testing/testUtils';
 import ExplorePanel from './index';
@@ -91,8 +94,12 @@ const exploreQuery = (overrides: Partial<ExploreQuery>): ExploreQuery =>
         ...overrides,
     }) as unknown as ExploreQuery;
 
-const renderPanel = (appMocks?: Parameters<typeof renderWithProviders>[1]) => {
+const renderPanel = (
+    appMocks?: Parameters<typeof renderWithProviders>[1],
+    { isEditMode = true }: { isEditMode?: boolean } = {},
+) => {
     const store = createExplorerStore();
+    store.dispatch(explorerActions.setIsEditMode(isEditMode));
 
     return renderWithProviders(
         <MemoryRouter>
@@ -148,6 +155,35 @@ describe('ExplorePanel loading state', () => {
         renderPanel();
 
         expect(screen.queryByTestId('explore-tree')).not.toBeNull();
+    });
+});
+
+describe('ExplorePanel first-visit tour', () => {
+    const originalPath = window.location.pathname;
+    beforeEach(() => {
+        mockUseExplore.mockReset();
+        mockUseExplore.mockReturnValue(exploreQuery({ data: mockExplore }));
+        testState.merge = undefined;
+        localStorage.removeItem('ld.explorer.tour.v1');
+        window.history.pushState({}, '', '/projects/p/saved/chart-uuid');
+    });
+    afterEach(() => {
+        window.history.pushState({}, '', originalPath);
+    });
+
+    it('welcomes a first visit while building or editing', () => {
+        renderPanel(undefined, { isEditMode: true });
+
+        expect(screen.getByText('Meet the new Explorer')).toBeInTheDocument();
+    });
+
+    // A saved chart mounts this panel hidden in view mode
+    it('stays out of a saved chart that is only being viewed', () => {
+        renderPanel(undefined, { isEditMode: false });
+
+        expect(
+            screen.queryByText('Meet the new Explorer'),
+        ).not.toBeInTheDocument();
     });
 });
 
