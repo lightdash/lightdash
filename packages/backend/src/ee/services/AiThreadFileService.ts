@@ -57,6 +57,7 @@ const MAX_SWEEP_BATCHES = 10;
 const MAX_IMAGE_SWEEP_BATCHES = 50;
 const IMAGE_SWEEP_TIME_BUDGET_MS = 10 * 60 * 1000;
 const MAX_QUEUED_IMAGE_UPLOADS_PER_USER = AI_THREAD_IMAGES_MAX_PER_PROMPT * 2;
+const IMAGE_PREPARATION_TIMEOUT_MS = 60_000;
 const utf8Decoder = new TextDecoder('utf-8', { fatal: true });
 
 /** Strict UTF-8 decode, then BOM strip and CRLF/CR → LF. */
@@ -143,7 +144,25 @@ export class AiThreadFileService extends BaseService {
                 'Too many uploads at once. Wait for the current ones to finish.',
             );
         }
-        const turn = queue.tail.then(prepare);
+        // A preparation that never settles must not block the user's later uploads.
+        const turn = queue.tail.then(() => {
+            let timer: NodeJS.Timeout | undefined;
+            return Promise.race([
+                prepare(),
+                new Promise<never>((_, reject) => {
+                    timer = setTimeout(
+                        () =>
+                            reject(
+                                new Error(
+                                    'The image took too long to process. Please try again.',
+                                ),
+                            ),
+                        IMAGE_PREPARATION_TIMEOUT_MS,
+                    );
+                    timer.unref();
+                }),
+            ]).finally(() => clearTimeout(timer));
+        });
         this.imagePreparations.set(userUuid, {
             tail: turn.then(
                 () => undefined,
