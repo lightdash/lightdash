@@ -39,6 +39,7 @@ import { invalidateContent } from '../useContent';
 import { useProjectUuid } from '../useProjectUuid';
 import useQueryError from '../useQueryError';
 import useDashboardStorage from './useDashboardStorage';
+import { DASHBOARD_DRAFT_SAVED_TOAST } from './useSavedToDashboardToast';
 
 export const getDashboard = async (
     lightdashApi: LightdashApi,
@@ -577,11 +578,7 @@ export const useUpdateDashboard = (
                 if (showToastOnSuccess) {
                     showToastSuccess({
                         ...(updatedDashboard.hasUnpublishedChanges
-                            ? {
-                                  title: 'Dashboard draft saved for review',
-                                  subtitle:
-                                      'Only you can see these changes until a reviewer writes them back to the repo.',
-                              }
+                            ? DASHBOARD_DRAFT_SAVED_TOAST
                             : {
                                   title: `Success! Dashboard ${
                                       onlyUpdatedName ? 'name ' : ''

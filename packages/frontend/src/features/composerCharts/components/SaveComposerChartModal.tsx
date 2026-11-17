@@ -22,6 +22,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconChartBar } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useState, type FC } from 'react';
 import { v4 as uuid4 } from 'uuid';
 import { getDestinationDashboardTab } from '../../../components/common/Dashboard/destinationDashboardTab';
@@ -82,6 +83,7 @@ export const SaveComposerChartModal: FC<Props> = ({
     onSaved,
 }) => {
     const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
     const { user } = useApp();
     const { showToastApiError, showToastError } = useToaster();
     const showSavedToast = useSavedToDashboardToast();
@@ -236,6 +238,12 @@ export const SaveComposerChartModal: FC<Props> = ({
                     tabs: dashboard.tabs,
                 },
                 projectUuid,
+            );
+            // The toast links to the dashboard; don't serve it from a pre-save cache
+            await Promise.all(
+                [dashboard.uuid, updatedDashboard.slug].map((key) =>
+                    queryClient.resetQueries(['saved_dashboard_query', key]),
+                ),
             );
             showSavedToast({
                 projectUrlIdentifier: projectUuid,

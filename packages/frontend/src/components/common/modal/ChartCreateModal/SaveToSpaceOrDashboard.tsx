@@ -159,11 +159,14 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     // Saving to a dashboard lands on the new tile instead of the chart.
     const redirectToChartOnSuccess =
         redirectOnSuccess && saveDestination !== SaveDestination.Dashboard;
+    // Without a redirect, one toast links to the new tile instead.
+    const showsSavedToDashboardToast =
+        !redirectOnSuccess && saveDestination === SaveDestination.Dashboard;
     const { mutateAsync: createChart, isLoading: isSavingChart } =
         useCreateMutation({
             redirectOnSuccess: redirectToChartOnSuccess,
             showViewChartAction,
-            showToastOnSuccess: saveDestination !== SaveDestination.Dashboard,
+            showToastOnSuccess: !showsSavedToDashboardToast,
         });
     const showSavedToDashboardToast = useSavedToDashboardToast();
 
@@ -331,11 +334,11 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         projectUuid,
         false,
         undefined,
-        { showToastOnSuccess: false },
+        { showToastOnSuccess: redirectOnSuccess },
     );
     const { mutateAsync: createDashboard, isLoading: isCreatingDashboard } =
         useCreateDashboardMutation(projectUuid, false, {
-            showToastOnSuccess: false,
+            showToastOnSuccess: redirectOnSuccess,
         });
     const { mutateAsync: createSpace, isLoading: isCreatingSpace } =
         useCreateSpaceMutation(projectUuid);
@@ -600,7 +603,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                               projectUuid,
                           )
                         : await updateDashboard(updateFields);
-                if (projectUrlIdentifier) {
+                if (showsSavedToDashboardToast && projectUrlIdentifier) {
                     showSavedToDashboardToast({
                         projectUrlIdentifier,
                         dashboard: updatedDashboard,
@@ -685,6 +688,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             navigate,
             showToastSuccess,
             showSavedToDashboardToast,
+            showsSavedToDashboardToast,
             getUnsavedDashboardTiles,
             setUnsavedDashboardTiles,
             getDashboardActiveTabUuid,

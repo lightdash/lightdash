@@ -46,6 +46,18 @@ describe('useSavedToDashboardToast', () => {
         );
     });
 
+    it('says a draft was saved when the save is held for review', () => {
+        const { result } = renderHook(() => useSavedToDashboardToast());
+        result.current({
+            ...saved,
+            dashboard: { ...saved.dashboard, hasUnpublishedChanges: true },
+        });
+
+        expect(mocks.showToastSuccess.mock.calls[0][0].title).toBe(
+            'Dashboard draft saved for review',
+        );
+    });
+
     it('offers no way out of an embed', () => {
         mocks.isEmbedded = true;
 

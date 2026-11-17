@@ -6,6 +6,12 @@ import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import useToaster from '../toaster/useToaster';
 import { getTileLinkPath } from './useTileLink';
 
+export const DASHBOARD_DRAFT_SAVED_TOAST = {
+    title: 'Dashboard draft saved for review',
+    subtitle:
+        'Only you can see these changes until a reviewer writes them back to the repo.',
+};
+
 type SavedToDashboard = {
     projectUrlIdentifier: string;
     dashboard: Pick<Dashboard, 'name' | 'slug' | 'hasUnpublishedChanges'>;
@@ -13,7 +19,6 @@ type SavedToDashboard = {
     tabUuid: string | null;
 };
 
-/** Success toast for a chart saved onto a dashboard, with a link to its new tile. */
 export const useSavedToDashboardToast = () => {
     const navigate = useNavigate();
     const isEmbedded = useIsEmbedded();
@@ -28,12 +33,9 @@ export const useSavedToDashboardToast = () => {
         }: SavedToDashboard) => {
             showToastSuccess({
                 ...(dashboard.hasUnpublishedChanges
-                    ? {
-                          title: 'Dashboard draft saved for review',
-                          subtitle:
-                              'Only you can see these changes until a reviewer writes them back to the repo.',
-                      }
+                    ? DASHBOARD_DRAFT_SAVED_TOAST
                     : { title: `Saved to "${dashboard.name}"` }),
+                autoClose: 10000,
                 action: isEmbedded
                     ? undefined
                     : {
