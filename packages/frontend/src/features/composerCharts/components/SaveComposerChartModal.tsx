@@ -239,8 +239,8 @@ export const SaveComposerChartModal: FC<Props> = ({
                 },
                 projectUuid,
             );
-            // The toast links to the dashboard; don't serve it from a pre-save cache
-            await Promise.all(
+            // Reset marks the pre-save copy stale at once; the refetch needn't block closing
+            void Promise.all(
                 [dashboard.uuid, updatedDashboard.slug].map((key) =>
                     queryClient.resetQueries(['saved_dashboard_query', key]),
                 ),
