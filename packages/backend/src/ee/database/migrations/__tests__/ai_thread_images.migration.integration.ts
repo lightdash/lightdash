@@ -461,6 +461,15 @@ test('Console-style organization enablement gates the actual upload with product
         previewFeatureFlags: { enabled: false },
         enabledFeatureFlags: new Set<string>(),
         disabledFeatureFlags: new Set<string>(),
+        // The flag resolves to off on an instance without an uploads bucket.
+        uploads: {
+            s3: {
+                endpoint: 'http://localhost:9000',
+                bucket: 'uploads',
+                region: 'us-east-1',
+                expirationTime: 259200,
+            },
+        },
     };
     const flags = new FeatureFlagModel({
         database: migrated.database,
