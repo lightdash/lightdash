@@ -58,6 +58,11 @@
     height: var(--first-line);
 }
 
+/* The dot and the tick appear at once; Mantine slides and fades them in. */
+.optionMark * {
+    transition: none;
+}
+
 /* The number key that picks the option. */
 .optionKey {
     display: flex;

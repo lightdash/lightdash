@@ -98,16 +98,15 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
         });
     };
 
+    // Picking a picked option again unpicks it, for pick-one too.
     const pick = (label: string) => {
-        if (!question.multiSelect) {
-            setSelected([label]);
+        const others = current.selected.filter((value) => value !== label);
+        const wasPicked = others.length < current.selected.length;
+        if (wasPicked) {
+            setSelected(others);
             return;
         }
-        setSelected(
-            current.selected.includes(label)
-                ? current.selected.filter((value) => value !== label)
-                : [...current.selected, label],
-        );
+        setSelected(question.multiSelect ? [...others, label] : [label]);
     };
 
     const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -231,7 +230,7 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
                         <Radio.Group
                             name={groupName}
                             value={current.selected[0] ?? null}
-                            onChange={(label) => setSelected([label])}
+                            onChange={pick}
                             aria-label={question.question}
                         >
                             {optionList}
