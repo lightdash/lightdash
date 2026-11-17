@@ -1,4 +1,5 @@
 import { S3ServiceException } from '@aws-sdk/client-s3';
+import { NotFoundError } from '@lightdash/common';
 import { Readable } from 'stream';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { S3Client } from './S3Client';
@@ -38,7 +39,7 @@ describe('S3Client', () => {
         });
     });
 
-    describe('deleteFile', () => {
+    describe('missing objects and buckets', () => {
         const rejecting = (name: string) => {
             const client = createClient(undefined);
             // @ts-expect-error `s3` is protected; swapped for a stub to avoid network I/O
@@ -67,6 +68,21 @@ describe('S3Client', () => {
             await expect(
                 rejecting('NoSuchBucket').deleteFile('key'),
             ).rejects.toMatchObject({ name: 'NoSuchBucket' });
+        });
+
+        it.each(['NoSuchKey', 'NotFound'])(
+            'reads %s as a missing file',
+            async (name) => {
+                await expect(
+                    rejecting(name).getFileStream('key'),
+                ).rejects.toBeInstanceOf(NotFoundError);
+            },
+        );
+
+        it('does not report a missing bucket as a missing file', async () => {
+            await expect(
+                rejecting('NoSuchBucket').getFileStream('key'),
+            ).rejects.not.toBeInstanceOf(NotFoundError);
         });
     });
 });

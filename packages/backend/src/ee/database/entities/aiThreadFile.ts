@@ -40,6 +40,8 @@ export const AiThreadImageObjectTableName = 'ai_thread_image_object';
 export type DbAiThreadImageObject = {
     storage_key: string;
     organization_uuid: string;
+    /** Kept after the file row is deleted, so upload limits still count it. */
+    created_by_user_uuid: string;
     media_type: AiThreadImageMediaType;
     width: number;
     height: number;

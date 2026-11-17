@@ -13,7 +13,7 @@ import { type AiThreadFileWithContent } from '../../models/AiThreadFileModel';
 
 export type ResolvedThreadImage =
     | { status: 'available'; part: FilePart }
-    | { status: 'missing' | 'incomplete' };
+    | { status: 'missing' | 'incomplete' | 'omitted' };
 
 class ThreadImageIntegrityError extends Error {
     constructor(message: string) {
@@ -79,6 +79,21 @@ const readImageBytes = async (
         clearTimeout(timer);
     }
 };
+
+/** Marks every attached image with one status, without reading any bytes. */
+export const threadImagesWithoutBytes = (
+    contextMap: Map<string, AiPromptContext>,
+    status: 'missing' | 'omitted',
+): Map<string, ResolvedThreadImage> =>
+    new Map(
+        [...contextMap.values()].flatMap((context) =>
+            context.flatMap((item): [string, ResolvedThreadImage][] =>
+                item.type === 'thread_image'
+                    ? [[item.fileUuid, { status }]]
+                    : [],
+            ),
+        ),
+    );
 
 /** Only retained prompt contexts select bytes; files belonging to compacted turns are not fetched. */
 export const resolveThreadImages = async ({

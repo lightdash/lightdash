@@ -420,6 +420,24 @@ test('cleanup failures cannot starve a later unattempted object', async () => {
     );
 });
 
+test('deleting an unsent image does not give its upload slot back', async () => {
+    const owner = await fixture();
+    const { file } = await image(owner);
+    expect(await model.countRecentUploadsForUser(owner.userUuid, 60_000)).toBe(
+        1,
+    );
+    expect(
+        await model.deleteUnclaimed({
+            fileUuid: file.uuid,
+            userUuid: owner.userUuid,
+        }),
+    ).toBe(true);
+    expect(await model.countRecentUploadsForUser(owner.userUuid, 60_000)).toBe(
+        1,
+    );
+    expect(await model.countUnclaimedForUser(owner.userUuid)).toBe(0);
+});
+
 test('Console-style organization enablement gates the actual upload with production resolution', async () => {
     const owner = await fixture();
     const other = await fixture();

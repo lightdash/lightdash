@@ -4,6 +4,7 @@ import {
     AI_THREAD_IMAGE_MAX_DIMENSION,
     AI_THREAD_IMAGE_MAX_PIXELS,
     assertUnreachable,
+    sniffThreadImageMediaType,
     type AiThreadImageMediaType,
 } from '@lightdash/common';
 
@@ -36,24 +37,10 @@ const readBytes = (blob: Blob) =>
 const fourCC = (bytes: Uint8Array, offset: number) =>
     String.fromCharCode(...bytes.subarray(offset, offset + 4));
 
-const sniffMediaType = (bytes: Uint8Array): AiThreadImageMediaType | null => {
-    if (
-        [137, 80, 78, 71, 13, 10, 26, 10].every(
-            (value, index) => bytes[index] === value,
-        )
-    )
-        return 'image/png';
-    if (bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255)
-        return 'image/jpeg';
-    if (fourCC(bytes, 0) === 'RIFF' && fourCC(bytes, 8) === 'WEBP')
-        return 'image/webp';
-    return null;
-};
-
 /** Image MIME hints include unsupported images so they receive an honest format error, never a text upload. */
 export const isThreadImageFile = async (file: File) =>
     file.type.startsWith('image/') ||
-    sniffMediaType(await readBytes(file.slice(0, 12))) !== null;
+    sniffThreadImageMediaType(await readBytes(file.slice(0, 12))) !== null;
 
 const checkPixels = ({ width, height }: { width: number; height: number }) => {
     if (
@@ -250,7 +237,7 @@ export const normalizeThreadImage = async (
             'Choose an image up to 10 MiB. Export a smaller screenshot and try again.',
         );
     const bytes = await readBytes(file);
-    const mediaType = sniffMediaType(bytes);
+    const mediaType = sniffThreadImageMediaType(bytes);
     if (mediaType === null)
         throw new Error(
             'Only PNG, JPEG and WebP images can be attached. Export the screenshot in one of these formats.',

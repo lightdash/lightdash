@@ -3,6 +3,7 @@ import {
     AI_THREAD_FILE_MAX_NAME_LENGTH,
     AI_THREAD_FILE_MAX_UNCLAIMED_PER_USER,
     AI_THREAD_FILE_MAX_UPLOADS_PER_MINUTE,
+    AI_THREAD_IMAGES_MAX_PER_PROMPT,
     FeatureFlags,
     ForbiddenError,
     getErrorMessage,
@@ -51,6 +52,11 @@ export type AiThreadFileUploadInput = { fileName: string; bytes: Buffer };
 const UPLOAD_RATE_WINDOW_MS = 60 * 1000;
 const SWEEP_BATCH_SIZE = 100;
 const MAX_SWEEP_BATCHES = 10;
+// A user who uploads at the per-minute limit and deletes every image leaves
+// 1,800 orphans an hour; one run must be able to clear more than that.
+const MAX_IMAGE_SWEEP_BATCHES = 50;
+const IMAGE_SWEEP_TIME_BUDGET_MS = 10 * 60 * 1000;
+const MAX_QUEUED_IMAGE_UPLOADS_PER_USER = AI_THREAD_IMAGES_MAX_PER_PROMPT * 2;
 const utf8Decoder = new TextDecoder('utf-8', { fatal: true });
 
 /** Strict UTF-8 decode, then BOM strip and CRLF/CR → LF. */
@@ -98,6 +104,10 @@ export class AiThreadFileService extends BaseService {
     private readonly featureFlagModel: AiThreadFileServiceDependencies['featureFlagModel'];
     private readonly uploadsFileStorageClient: AiThreadFileServiceDependencies['uploadsFileStorageClient'];
     private readonly durableUploadsConfigured: boolean;
+    private readonly imagePreparations = new Map<
+        string,
+        { tail: Promise<void>; waiting: number }
+    >();
 
     constructor(dependencies: AiThreadFileServiceDependencies) {
         super();
@@ -114,6 +124,47 @@ export class AiThreadFileService extends BaseService {
         if (!(await this.aiAgentService.getIsCopilotEnabled(user)))
             throw new ForbiddenError('Copilot is not enabled');
         return user.organizationUuid;
+    }
+
+    /**
+     * Checks, decodes and records one image at a time per user, so parallel
+     * requests can neither slip past the quota together nor decode together.
+     */
+    private async prepareImageInTurn<T>(
+        userUuid: string,
+        prepare: () => Promise<T>,
+    ): Promise<T> {
+        const queue = this.imagePreparations.get(userUuid) ?? {
+            tail: Promise.resolve(),
+            waiting: 0,
+        };
+        if (queue.waiting >= MAX_QUEUED_IMAGE_UPLOADS_PER_USER) {
+            throw new TooManyRequestsError(
+                'Too many uploads at once. Wait for the current ones to finish.',
+            );
+        }
+        const turn = queue.tail.then(prepare);
+        this.imagePreparations.set(userUuid, {
+            tail: turn.then(
+                () => undefined,
+                () => undefined,
+            ),
+            waiting: queue.waiting + 1,
+        });
+        try {
+            return await turn;
+        } finally {
+            const current = this.imagePreparations.get(userUuid);
+            if (current !== undefined) {
+                if (current.waiting <= 1)
+                    this.imagePreparations.delete(userUuid);
+                else
+                    this.imagePreparations.set(userUuid, {
+                        ...current,
+                        waiting: current.waiting - 1,
+                    });
+            }
+        }
     }
 
     private async assertUploadQuota(userUuid: string): Promise<void> {
@@ -183,24 +234,33 @@ export class AiThreadFileService extends BaseService {
             );
         }
         const fileName = sanitizeThreadFileName(input.fileName);
-        await this.assertUploadQuota(user.userUuid);
-        const normalized = await normalizeThreadImage(input.bytes);
         const fileUuid = randomUUID();
-        const storageKey = `ai-chat-images/${organizationUuid}/${fileUuid}.${imageExtensions[normalized.mediaType]}`;
-        const file = await this.aiThreadFileModel.createImage({
-            fileUuid,
-            createdByUserUuid: user.userUuid,
-            fileName,
-            object: {
-                storage_key: storageKey,
-                organization_uuid: organizationUuid,
-                media_type: normalized.mediaType,
-                width: normalized.width,
-                height: normalized.height,
-                size_bytes: normalized.bytes.length,
-                created_at: new Date(),
+        const { file, normalized, storageKey } = await this.prepareImageInTurn(
+            user.userUuid,
+            async () => {
+                await this.assertUploadQuota(user.userUuid);
+                const image = await normalizeThreadImage(input.bytes);
+                const key = `ai-chat-images/${organizationUuid}/${fileUuid}.${imageExtensions[image.mediaType]}`;
+                return {
+                    normalized: image,
+                    storageKey: key,
+                    file: await this.aiThreadFileModel.createImage({
+                        fileUuid,
+                        createdByUserUuid: user.userUuid,
+                        fileName,
+                        object: {
+                            storage_key: key,
+                            organization_uuid: organizationUuid,
+                            media_type: image.mediaType,
+                            width: image.width,
+                            height: image.height,
+                            size_bytes: image.bytes.length,
+                            created_at: new Date(),
+                        },
+                    }),
+                };
             },
-        });
+        );
         const abortController = new AbortController();
         const timeout = setTimeout(() => abortController.abort(), 60_000);
         timeout.unref();
@@ -270,12 +330,20 @@ export class AiThreadFileService extends BaseService {
                 );
             return;
         }
-        for (let batch = 0; batch < MAX_SWEEP_BATCHES; batch += 1) {
+        const deadline = Date.now() + IMAGE_SWEEP_TIME_BUDGET_MS;
+        for (let batch = 0; batch < MAX_IMAGE_SWEEP_BATCHES; batch += 1) {
             const objects =
                 await this.aiThreadFileModel.findImageObjectsForCleanup(
                     attemptedBefore,
                 );
             for (const object of objects) {
+                // A stalled bucket must not hold the scheduler for hours.
+                if (Date.now() > deadline) {
+                    Logger.warn(
+                        'AI image cleanup ran out of time; the rest waits for the next run',
+                    );
+                    return;
+                }
                 await this.aiThreadFileModel.markImageCleanupAttempted(
                     object.storage_key,
                 );
@@ -294,15 +362,14 @@ export class AiThreadFileService extends BaseService {
                 } catch (error) {
                     Logger.error(
                         'Failed to delete an AI image object; cleanup will retry',
-                        {
-                            storageKey: object.storage_key,
-                            error: getErrorMessage(error),
-                        },
+                        // The key names the organization and file; the ledger's
+                        // cleanup_attempted_at already marks the stuck object.
+                        { error: getErrorMessage(error) },
                     );
                 }
             }
             if (objects.length < SWEEP_BATCH_SIZE) break;
-            if (batch === MAX_SWEEP_BATCHES - 1)
+            if (batch === MAX_IMAGE_SWEEP_BATCHES - 1)
                 Logger.warn('AI image cleanup reached its batch limit');
         }
     }

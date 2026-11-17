@@ -9,7 +9,11 @@ import { Readable } from 'node:stream';
 import sharp from 'sharp';
 import { type FileStorageClient } from '../../../clients/FileStorage/FileStorageClient';
 import { type AiThreadFileWithContent } from '../../models/AiThreadFileModel';
-import { resolveThreadImages, withoutFileParts } from './threadImageContext';
+import {
+    resolveThreadImages,
+    threadImagesWithoutBytes,
+    withoutFileParts,
+} from './threadImageContext';
 
 vi.mock('@sentry/node', () => ({ captureException: vi.fn() }));
 beforeEach(() => vi.clearAllMocks());
@@ -281,4 +285,12 @@ test('title history keeps the text of a turn and drops its files', () => {
         },
         { role: 'assistant', content: 'Done' },
     ]);
+});
+
+test('images can be marked unavailable without reading any bytes', async () => {
+    const { contextMap, storage } = await setup();
+    expect([...threadImagesWithoutBytes(contextMap, 'omitted')]).toEqual([
+        ['image-1', { status: 'omitted' }],
+    ]);
+    expect(storage.getFileStream).not.toHaveBeenCalled();
 });

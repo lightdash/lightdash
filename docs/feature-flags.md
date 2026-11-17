@@ -186,8 +186,9 @@ the proper fix is to use the standard resolver across entry points.
 ## AI conversation images
 
 `ai-thread-images` is off by default on Cloud, self-hosted instances and previews.
-It uses the standard resolver, without a custom handler. Prefer Console organization
-overrides; standard user overrides and the generic self-hosted ENV lists also apply.
+It resolves through a config handler that needs an uploads bucket (below). Prefer
+Console organization overrides; standard user overrides and the generic self-hosted
+ENV lists also apply.
 The upload action and new image context items are gated on the backend, and the
 composer uses the server-resolved flag. Existing text attachment routing is unchanged.
 
@@ -235,14 +236,25 @@ See [Claude request limits](https://platform.claude.com/docs/en/api/overview#req
 [Gemini inline requests](https://ai.google.dev/gemini-api/docs/image-understanding)
 and [OpenAI image inputs](https://developers.openai.com/api/docs/guides/images-vision).
 
-Server normalization preserves PNG pixels losslessly. JPEG/WebP containing
-metadata or orientation are re-encoded at high quality (92); this can make an
-originally lossless WebP lossy. Malformed images may need re-saving before upload.
+The server identifies an image by its leading bytes before decoding it, then always
+re-encodes it in its own format, so no metadata block (EXIF, XMP, IPTC, colour
+profile, comments) or appended data reaches the bucket or the model. PNG and
+lossless WebP keep their pixels exactly. JPEG and lossy WebP are re-encoded at
+quality 92, stepping down to 85 then 75 only when the result would exceed the size
+limit. Malformed images may need re-saving before upload.
 
 Application limits are 3 MiB and a 2560-pixel longest edge per uploaded image,
 5 images per prompt, 10 images and 12 MiB of image bytes per thread. Browser input
 limits are 10 MiB and 40 megapixels, checked from headers before decoding and again
 on the oriented bitmap. Backend decoding and validation remain mandatory. These are application limits, not universal provider limits.
+
+A user may start 30 uploads a minute. Images are counted from the cleanup ledger,
+so deleting an upload does not free its slot. One image per user is checked and
+decoded at a time on each backend process, and more than 10 waiting uploads from
+one user are refused. A missing uploads bucket is reported as a storage error, not
+as a missing image; if the bucket is unset after images exist, conversations carry
+on and the agent is told those images are unavailable. Title generation never reads
+image bytes.
 Preserve screenshot labels: proportional downscaling, no cropping/upscaling, no
 lossy fallback for PNG. Image bytes must not be recorded in model input telemetry
 or exception payloads; cost and audit metadata remain available.

@@ -89,12 +89,15 @@ export class AiThreadFileModel {
         fileName: string;
         object: Omit<
             DbAiThreadImageObject,
-            'uploaded_at' | 'cleanup_attempted_at'
+            'uploaded_at' | 'cleanup_attempted_at' | 'created_by_user_uuid'
         >;
     }): Promise<AiThreadFile> {
         return this.database.transaction(async (trx) => {
             const [image] = await trx(AiThreadImageObjectTableName)
-                .insert(args.object)
+                .insert({
+                    ...args.object,
+                    created_by_user_uuid: args.createdByUserUuid,
+                })
                 .returning('*');
             const [row] = await trx(AiThreadFileTableName)
                 .insert({
@@ -295,11 +298,21 @@ export class AiThreadFileModel {
         userUuid: string,
         windowMs: number,
     ): Promise<number> {
-        const [row] = await this.database(AiThreadFileTableName)
-            .where('created_by_user_uuid', userUuid)
-            .where('created_at', '>', new Date(Date.now() - windowMs))
-            .count<{ count: string }[]>({ count: '*' });
-        return Number(row?.count ?? 0);
+        const since = new Date(Date.now() - windowMs);
+        // Images are counted from their ledger, which outlives a deleted file
+        // row: removing an upload does not hand the slot back.
+        const [[documents], [images]] = await Promise.all([
+            this.database(AiThreadFileTableName)
+                .where('created_by_user_uuid', userUuid)
+                .where('kind', 'text')
+                .where('created_at', '>', since)
+                .count<{ count: string }[]>({ count: '*' }),
+            this.database(AiThreadImageObjectTableName)
+                .where('created_by_user_uuid', userUuid)
+                .where('created_at', '>', since)
+                .count<{ count: string }[]>({ count: '*' }),
+        ]);
+        return Number(documents?.count ?? 0) + Number(images?.count ?? 0);
     }
 
     async sweepExpiredUnclaimed(): Promise<number> {

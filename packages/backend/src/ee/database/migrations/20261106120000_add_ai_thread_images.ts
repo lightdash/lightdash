@@ -45,8 +45,9 @@ export async function up(knex: Knex): Promise<void> {
         if (!(await schema().hasTable(ImageObjectTable))) {
             await schema().createTable(ImageObjectTable, (table) => {
                 table.text('storage_key').primary();
-                // No tenant FK: object cleanup must survive tenant deletion.
+                // No tenant or user FK: object cleanup must survive their deletion.
                 table.uuid('organization_uuid').notNullable();
+                table.uuid('created_by_user_uuid').notNullable();
                 table.text('media_type').notNullable();
                 table.integer('width').notNullable();
                 table.integer('height').notNullable();
@@ -54,6 +55,11 @@ export async function up(knex: Knex): Promise<void> {
                 table.timestamp('created_at', { useTz: true }).notNullable();
                 table.timestamp('uploaded_at', { useTz: true });
                 table.timestamp('cleanup_attempted_at', { useTz: true });
+                // Serves the per-user upload rate count.
+                table.index(
+                    ['created_by_user_uuid', 'created_at'],
+                    'ai_thread_image_object_uploader_created_at',
+                );
             });
         }
         // Knex cannot order an index NULLS FIRST, which the cleanup query sorts by.

@@ -14,6 +14,25 @@ export const AI_THREAD_IMAGE_MEDIA_TYPES = [
 ] as const;
 export type AiThreadImageMediaType =
     (typeof AI_THREAD_IMAGE_MEDIA_TYPES)[number];
+
+const startsWith = (bytes: Uint8Array, signature: number[], offset = 0) =>
+    signature.every((value, index) => bytes[offset + index] === value);
+
+/** Identifies an image by its leading bytes, never by its name or declared type. */
+export const sniffThreadImageMediaType = (
+    bytes: Uint8Array,
+): AiThreadImageMediaType | null => {
+    if (startsWith(bytes, [137, 80, 78, 71, 13, 10, 26, 10]))
+        return 'image/png';
+    if (startsWith(bytes, [255, 216, 255])) return 'image/jpeg';
+    // "RIFF" <size> "WEBP"
+    if (
+        startsWith(bytes, [82, 73, 70, 70]) &&
+        startsWith(bytes, [87, 69, 66, 80], 8)
+    )
+        return 'image/webp';
+    return null;
+};
 export const AI_THREAD_FILE_MAX_NAME_LENGTH = 255;
 /** Total attached-file bytes a single prompt inlines into the model context. */
 export const AI_THREAD_FILE_INLINE_BUDGET_BYTES = 32 * 1024;
