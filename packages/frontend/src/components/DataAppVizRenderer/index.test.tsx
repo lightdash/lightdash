@@ -939,6 +939,12 @@ describe('DataAppVizRenderer', () => {
         expect(mocks.renderMetadataHook.mock.lastCall?.[2]).not.toMatchObject({
             hasUnpublishedChanges: true,
         });
+        expect(mocks.iframePreview).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                chartContext: { savedChartUuid: 'saved-chart-uuid' },
+            }),
+            undefined,
+        );
 
         mocks.vizContextOverrides.current = { hasUnpublishedChanges: true };
         view.rerender(rendererElement());
@@ -953,7 +959,10 @@ describe('DataAppVizRenderer', () => {
         });
         expect(mocks.iframePreview).toHaveBeenLastCalledWith(
             expect.objectContaining({
-                chartContext: { savedChartUuid: 'saved-chart-uuid' },
+                chartContext: {
+                    savedChartUuid: 'saved-chart-uuid',
+                    includeUnpublishedDraft: true,
+                },
             }),
             undefined,
         );

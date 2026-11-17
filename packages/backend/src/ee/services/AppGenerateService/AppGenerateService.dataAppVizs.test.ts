@@ -1507,6 +1507,44 @@ describe('AppGenerateService data app vizs', () => {
                 );
                 expect(findOpenDraft).toHaveBeenCalledTimes(1);
             });
+
+            it("authorizes an external fetch through the requester's own draft only when the chart context asks", async () => {
+                const account = {
+                    user: { userUuid: 'user-1' },
+                    organization: { organizationUuid: 'org-1' },
+                    authentication: { type: 'session' },
+                } as never;
+                const { deps, findOpenDraft } = draftDeps(boundDraft);
+                const service = buildService(draftAppModel(), deps);
+
+                await expect(
+                    service.assertCanAccessDataAppVisualization(
+                        account,
+                        'project-1',
+                        'data-app-viz-1',
+                        { savedChartUuid: 'chart-1' },
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+                expect(findOpenDraft).not.toHaveBeenCalled();
+
+                await expect(
+                    service.assertCanAccessDataAppVisualization(
+                        account,
+                        'project-1',
+                        'data-app-viz-1',
+                        {
+                            savedChartUuid: 'chart-1',
+                            includeUnpublishedDraft: true,
+                        },
+                    ),
+                ).resolves.toBeUndefined();
+                expect(findOpenDraft).toHaveBeenCalledWith(
+                    'project-1',
+                    'chart',
+                    'chart-1',
+                    'user-1',
+                );
+            });
         });
 
         it('resolves the template-filtered viz before checking the feature flag', async () => {

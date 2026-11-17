@@ -268,6 +268,11 @@ const DataAppVizRenderer: FC<Props> = ({
             ? {
                   savedChartUuid: renderSavedChartUuid,
                   chartVersionUuid,
+                  ...(!embedToken &&
+                      !chartVersionUuid &&
+                      hasUnpublishedChanges && {
+                          includeUnpublishedDraft: true,
+                      }),
               }
             : undefined;
     }, [
@@ -276,6 +281,7 @@ const DataAppVizRenderer: FC<Props> = ({
         documentTarget,
         renderSavedChartUuid,
         chartVersionUuid,
+        hasUnpublishedChanges,
     ]);
     // Embedded previews retain their recorded version; Chart Studio's
     // chart-less edit canvas previews the latest generated version.

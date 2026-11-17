@@ -433,7 +433,8 @@ export class AppGenerateController extends BaseController {
     }
 
     /**
-     * @param includeUnpublishedDraft Apply the requester's own unpublished draft of the chart
+     * Pass includeUnpublishedDraft=true to authorize against your own
+     * unpublished draft of the chart; omitted, the published chart is used.
      * @summary Get data app visualization render metadata for a saved chart
      */
     @Middlewares([
@@ -473,7 +474,8 @@ export class AppGenerateController extends BaseController {
     }
 
     /**
-     * @param includeUnpublishedDraft Apply the requester's own unpublished draft of the chart
+     * Pass includeUnpublishedDraft=true to authorize against your own
+     * unpublished draft of the chart; omitted, the published chart is used.
      * @summary Get a data app visualization preview token for a saved chart
      */
     @Middlewares([

@@ -11493,6 +11493,7 @@ export class AppGenerateService extends BaseService {
                 chartContext.savedChartUuid,
                 dataAppVizUuid,
                 chartContext.chartVersionUuid,
+                chartContext.includeUnpublishedDraft === true,
             );
         } else {
             await this.getAuthorizedDataAppVizForAuthoring(
