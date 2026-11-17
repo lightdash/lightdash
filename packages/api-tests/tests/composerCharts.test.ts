@@ -1419,6 +1419,9 @@ describe('Composer charts', () => {
             expect(
                 (await getChart(chart.uuid)).body.results.pipeline.nodes[0],
             ).toMatchObject({ sql: changedSql });
+            expect((await getDashboard(dashboard.uuid)).versionUuid).toBe(
+                current.versionUuid,
+            );
 
             expect((await admin.post(rollbackUrl, {})).status).toBe(200);
             expect((await getChart(chart.uuid)).body.results.pipeline).toEqual(

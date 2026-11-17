@@ -5006,7 +5006,7 @@ export class DashboardService
                 dashboardUuid: dashboardDao.uuid,
                 spaceUuid: dashboardDao.spaceUuid,
             });
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'manage',
@@ -5038,17 +5038,6 @@ export class DashboardService
             targetVersion,
             this.lightdashConfig.dashboard,
         );
-        await assertCanRollbackComposerCharts(
-            this.composerChartModel,
-            this.getComposerChartService,
-            account,
-            {
-                organizationUuid: dashboardDao.organizationUuid,
-                projectUuid: dashboardDao.projectUuid,
-            },
-            targetVersion,
-        );
-
         const agentIdentity = getContentWriteAgentIdentity({
             userUuid: user.userUuid,
             organizationUuid: dashboardDao.organizationUuid,
@@ -5056,6 +5045,17 @@ export class DashboardService
 
         // Rollback dashboard and all owned charts in a single transaction
         await this.savedChartModel.transaction(async (tx) => {
+            await assertCanRollbackComposerCharts(
+                this.composerChartModel,
+                this.getComposerChartService,
+                account,
+                {
+                    organizationUuid: dashboardDao.organizationUuid,
+                    projectUuid: dashboardDao.projectUuid,
+                },
+                targetVersion,
+                tx,
+            );
             // Rollback dashboard version
             await this.dashboardModel.addVersion(
                 dashboardDao.uuid,

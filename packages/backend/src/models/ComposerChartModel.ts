@@ -201,25 +201,45 @@ export class ComposerChartModel {
             .first();
     }
 
-    /** The pipeline a rollback to the dashboard version would restore, beside the current one; null when there is none. */
-    async getRollbackPipelines(
-        uuid: string,
+    /** Locks the charts against new versions, then returns each one's pipeline as of the dashboard version beside its current one. */
+    async lockRollbackPipelines(
+        uuids: string[],
         dashboardVersionUuid: string,
-    ): Promise<{ restored: unknown; current: unknown } | null> {
-        const [restored, current] = await Promise.all([
-            ComposerChartModel.versionAsOf(
-                this.database,
+        trx: Knex.Transaction,
+    ): Promise<{ uuid: string; restored: unknown; current: unknown }[]> {
+        // A version insert takes a key-share lock on its chart, which this waits for or blocks
+        await trx(ComposerChartsTableName)
+            .select('composer_chart_uuid')
+            .whereIn('composer_chart_uuid', uuids)
+            .orderBy('composer_chart_uuid')
+            .forUpdate();
+        const pipelines: {
+            uuid: string;
+            restored: unknown;
+            current: unknown;
+        }[] = [];
+        for (const uuid of uuids) {
+            /* eslint-disable no-await-in-loop */
+            const restored = await ComposerChartModel.versionAsOf(
+                trx,
                 uuid,
                 dashboardVersionUuid,
-            ),
-            this.database(ComposerChartVersionsTableName)
+            );
+            const current = await trx(ComposerChartVersionsTableName)
                 .select('pipeline')
                 .where('composer_chart_uuid', uuid)
                 .orderBy('created_at', 'desc')
-                .first(),
-        ]);
-        if (!restored || !current) return null;
-        return { restored: restored.pipeline, current: current.pipeline };
+                .first();
+            /* eslint-enable no-await-in-loop */
+            if (restored && current) {
+                pipelines.push({
+                    uuid,
+                    restored: restored.pipeline,
+                    current: current.pipeline,
+                });
+            }
+        }
+        return pipelines;
     }
 
     /** Appends a copy of the version current when the dashboard version was saved, if any. */

@@ -54,7 +54,7 @@ export const duplicateComposerChartTiles = async (
 
 /** A rollback that changes a chart's pipeline needs the user to be able to save that pipeline. */
 export const assertCanRollbackComposerCharts = async (
-    composerChartModel: Pick<ComposerChartModel, 'getRollbackPipelines'>,
+    composerChartModel: Pick<ComposerChartModel, 'lockRollbackPipelines'>,
     getComposerChartService: () => Pick<
         ComposerChartService,
         'assertCanRestore'
@@ -62,26 +62,25 @@ export const assertCanRollbackComposerCharts = async (
     account: RegisteredAccount,
     project: ProjectSubject,
     targetVersion: Pick<Dashboard, 'tiles' | 'versionUuid'>,
+    trx: Knex.Transaction,
 ) => {
+    const chartUuids = [...getComposerChartUuids(targetVersion.tiles)];
+    if (chartUuids.length === 0) return;
+    const pipelines = await composerChartModel.lockRollbackPipelines(
+        chartUuids,
+        targetVersion.versionUuid,
+        trx,
+    );
     await Promise.all(
-        [...getComposerChartUuids(targetVersion.tiles)].map(
-            async (chartUuid) => {
-                const pipelines = await composerChartModel.getRollbackPipelines(
-                    chartUuid,
-                    targetVersion.versionUuid,
-                );
-                if (
-                    pipelines &&
-                    !isEqual(pipelines.restored, pipelines.current)
-                ) {
-                    await getComposerChartService().assertCanRestore(
-                        account,
-                        project,
-                        pipelines.restored,
-                    );
-                }
-            },
-        ),
+        pipelines
+            .filter(({ restored, current }) => !isEqual(restored, current))
+            .map(({ restored }) =>
+                getComposerChartService().assertCanRestore(
+                    account,
+                    project,
+                    restored,
+                ),
+            ),
     );
 };
 

@@ -266,9 +266,10 @@ const catalogModel = {
 
 const composerChartModel = {
     deleteOrphans: vi.fn(async () => {}),
-    getRollbackPipelines: vi.fn(
-        async (): Promise<{ restored: unknown; current: unknown } | null> =>
-            null,
+    lockRollbackPipelines: vi.fn(
+        async (): Promise<
+            { uuid: string; restored: unknown; current: unknown }[]
+        > => [],
     ),
     rollbackToDashboardVersion: vi.fn(async () => {}),
 };
@@ -3241,10 +3242,13 @@ describe('DashboardService', () => {
         });
 
         test('refuses when a restored pipeline is one the user may not save', async () => {
-            composerChartModel.getRollbackPipelines.mockResolvedValueOnce({
-                restored: pipeline('select 1'),
-                current: pipeline('select 2'),
-            });
+            composerChartModel.lockRollbackPipelines.mockResolvedValueOnce([
+                {
+                    uuid: 'composer-chart-uuid',
+                    restored: pipeline('select 1'),
+                    current: pipeline('select 2'),
+                },
+            ]);
             composerChartService.assertCanRestore.mockRejectedValueOnce(
                 new ForbiddenError('requires SQL runner access'),
             );
@@ -3253,8 +3257,12 @@ describe('DashboardService', () => {
                 service.rollback(account, dashboard.uuid, 'old-version-uuid'),
             ).rejects.toThrowError('requires SQL runner access');
             expect(
-                composerChartModel.getRollbackPipelines,
-            ).toHaveBeenCalledWith('composer-chart-uuid', 'old-version-uuid');
+                composerChartModel.lockRollbackPipelines,
+            ).toHaveBeenCalledWith(
+                ['composer-chart-uuid'],
+                'old-version-uuid',
+                undefined,
+            );
             expect(composerChartService.assertCanRestore).toHaveBeenCalledWith(
                 account,
                 {
@@ -3270,10 +3278,13 @@ describe('DashboardService', () => {
         });
 
         test('restores a pipeline equal to the current one without the save check', async () => {
-            composerChartModel.getRollbackPipelines.mockResolvedValueOnce({
-                restored: pipeline('select 1'),
-                current: pipeline('select 1'),
-            });
+            composerChartModel.lockRollbackPipelines.mockResolvedValueOnce([
+                {
+                    uuid: 'composer-chart-uuid',
+                    restored: pipeline('select 1'),
+                    current: pipeline('select 1'),
+                },
+            ]);
 
             await service.rollback(account, dashboard.uuid, 'old-version-uuid');
 
@@ -3300,7 +3311,7 @@ describe('DashboardService', () => {
             await service.rollback(account, dashboard.uuid, 'old-version-uuid');
 
             expect(
-                composerChartModel.getRollbackPipelines,
+                composerChartModel.lockRollbackPipelines,
             ).not.toHaveBeenCalled();
             expect(
                 composerChartService.assertCanRestore,
