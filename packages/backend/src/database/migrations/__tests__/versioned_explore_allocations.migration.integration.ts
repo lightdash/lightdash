@@ -3,6 +3,8 @@ import {
     convertExplores,
     DEFAULT_SPOTLIGHT_CONFIG,
     DimensionType,
+    getItemId,
+    InlineErrorType,
     isExploreError,
     ProjectType,
     SupportedDbtAdapter,
@@ -801,8 +803,321 @@ test('deploy allocation rejects an unresolved joined dbt model with two sources'
         });
         await expect(allocation).rejects.toThrow(ConflictError);
         await expect(allocation).rejects.toThrow(
-            'Cannot resolve joined model "missing_orders" to an existing explore in this project. Refresh the project and compile again.',
+            'Cannot resolve joined model "missing_orders" in explore "reports": source "secondary" has no model with unique id "model.secondary.missing_orders". Deploy source "secondary" with that model first, or remove the join.',
         );
+    } finally {
+        await database('projects').where('project_uuid', projectUuid).delete();
+    }
+});
+
+const unresolvedJoinedExplores = async (
+    primaryUuid: string,
+    sourceUuid: string,
+) => {
+    const compiled = await compileRepeatedColumnExplores(
+        primaryUuid,
+        sourceUuid,
+        true,
+        false,
+    );
+    const reports = compiled.find(({ name }) => name === 'reports') as Explore;
+    delete reports.tables.orders__items;
+    const renamed = rewriteAllocatedExplore(
+        reports,
+        new Map([['orders', 'missing_orders']]),
+    );
+    delete renamed.tables.missing_orders.originalName;
+    delete renamed.tables.missing_orders.dbtModelUniqueId;
+    delete renamed.tables.missing_orders.canonicalName;
+    return compiled.map((explore) => (explore === reports ? renamed : explore));
+};
+
+const deployNaming = (): ExploreNaming => ({
+    mode: 'deploy',
+    models: [],
+    refreshedSourceUuids: [],
+    warnings: [],
+});
+
+test.each([
+    { source: 'secondary', originalName: undefined },
+    { source: 'secondary', originalName: 'missing_orders' },
+    { source: 'unknown', originalName: undefined },
+])(
+    'deploy allocation warns once and keeps an unbound joined table from $source with originalName $originalName',
+    async ({ source, originalName }) => {
+        const { projectUuid, primaryUuid } = await createLineageProject();
+        try {
+            const sourceUuid = await createRepeatedColumnSource(projectUuid);
+            const compiled = await unresolvedJoinedExplores(
+                primaryUuid,
+                sourceUuid,
+            );
+            const reports = compiled.find(
+                ({ name }) => name === 'reports',
+            ) as Explore;
+            const table = reports.tables.missing_orders;
+            if (originalName !== undefined) table.originalName = originalName;
+            if (source === 'unknown') {
+                table.dbtSourceUuid = randomUUID();
+                table.canonicalName = 'missing_orders';
+            }
+            const uploaded = structuredClone(table);
+            const result = await allocateLineageExplores(
+                projectUuid,
+                compiled,
+                deployNaming(),
+            );
+            const allocated = result.explores.find(
+                ({ name }) => name === 'reports',
+            ) as Explore;
+            expect(isExploreError(allocated)).toBe(false);
+            expect(allocated.tables.missing_orders).toEqual(uploaded);
+            const reason =
+                source === 'unknown'
+                    ? `source id "${table.dbtSourceUuid}" is not a source of this project`
+                    : 'source "secondary" has no model "missing_orders"';
+            const warning = `Joined table "missing_orders" in explore "reports" claims dbt source "${source === 'unknown' ? table.dbtSourceUuid : 'secondary'}", but ${reason}. The table keeps the name "missing_orders" and is not linked to a dbt model. If "missing_orders" is a dbt model, deploy the source that owns it and deploy again.`;
+            expect(result.warnings).toEqual([warning]);
+            expect(allocated.warnings).toEqual([
+                { type: InlineErrorType.MISSING_TABLE, message: warning },
+            ]);
+            expect(
+                await database('explore_name_allocations').where({
+                    project_uuid: projectUuid,
+                    model_name: 'missing_orders',
+                }),
+            ).toEqual([]);
+        } finally {
+            await database('projects')
+                .where('project_uuid', projectUuid)
+                .delete();
+        }
+    },
+);
+
+test('deploy allocation keeps unbound joined table keys and field ids across publishes', async () => {
+    const { projectUuid, primaryUuid } = await createLineageProject();
+    try {
+        const sourceUuid = await createRepeatedColumnSource(projectUuid);
+        const compiled = await unresolvedJoinedExplores(
+            primaryUuid,
+            sourceUuid,
+        );
+        const first = await allocateLineageExplores(
+            projectUuid,
+            structuredClone(compiled),
+            deployNaming(),
+        );
+        await database('cached_explore').insert(
+            first.explores.map((explore) => ({
+                project_uuid: projectUuid,
+                name: explore.name,
+                table_names: Object.keys(explore.tables ?? {}),
+                explore: JSON.stringify(explore),
+            })),
+        );
+        const second = await allocateLineageExplores(
+            projectUuid,
+            structuredClone(compiled),
+            deployNaming(),
+        );
+        const firstReports = first.explores.find(
+            ({ name }) => name === 'reports',
+        ) as Explore;
+        const secondReports = second.explores.find(
+            ({ name }) => name === 'reports',
+        ) as Explore;
+        expect(Object.keys(secondReports.tables)).toEqual(
+            Object.keys(firstReports.tables),
+        );
+        expect(secondReports.tables.missing_orders).toEqual(
+            firstReports.tables.missing_orders,
+        );
+        expect(
+            Object.keys(firstReports.tables.missing_orders.dimensions),
+        ).toContain('id');
+        expect(
+            getItemId(firstReports.tables.missing_orders.dimensions.id),
+        ).toBe('missing_orders_id');
+        expect(first.warnings).toHaveLength(1);
+        expect(second.warnings).toEqual(first.warnings);
+        expect(secondReports.warnings).toEqual(firstReports.warnings);
+        expect(
+            await database('explore_name_allocations').where({
+                project_uuid: projectUuid,
+                model_name: 'missing_orders',
+            }),
+        ).toEqual([]);
+    } finally {
+        await database('projects').where('project_uuid', projectUuid).delete();
+    }
+});
+
+test('deploy allocation rejects ambiguous joined models and rolls back all deploy rows', async () => {
+    const { projectUuid, primaryUuid } = await createLineageProject();
+    try {
+        const sourceUuid = await createRepeatedColumnSource(projectUuid);
+        const compiled = await compileRepeatedColumnExplores(
+            primaryUuid,
+            sourceUuid,
+            true,
+            false,
+        );
+        const orders = compiled.find(
+            ({ name }) => name === 'orders',
+        ) as Explore;
+        const reports = compiled.find(
+            ({ name }) => name === 'reports',
+        ) as Explore;
+        delete reports.tables.orders.dbtModelUniqueId;
+        delete reports.tables.orders.dbtPackageName;
+        const duplicate = structuredClone(orders);
+        duplicate.name = 'secondary_orders';
+        duplicate.dbtModelIdentity = {
+            ...orders.dbtModelIdentity!,
+            packageName: 'analytics',
+            uniqueId: 'model.analytics.orders',
+        };
+        compiled.push(duplicate);
+        const allocation = allocateLineageExplores(
+            projectUuid,
+            compiled,
+            deployNaming(),
+        );
+        await expect(allocation).rejects.toThrow(ConflictError);
+        await expect(allocation).rejects.toThrow(
+            'Cannot resolve joined model "orders" in explore "reports": 2 models match in source "secondary": "model.secondary.orders", "model.analytics.orders". Point the join at one model.',
+        );
+        const deployRows = await Promise.all(
+            [
+                'cached_explore',
+                'explore_name_allocations',
+                'cached_explore_staging',
+            ].map((tableName) =>
+                database(tableName).where('project_uuid', projectUuid),
+            ),
+        );
+        expect(deployRows).toEqual([[], [], []]);
+    } finally {
+        await database('projects').where('project_uuid', projectUuid).delete();
+    }
+});
+
+test('deploy allocation rejects a joined model that claims an unknown source', async () => {
+    const { projectUuid, primaryUuid } = await createLineageProject();
+    try {
+        const sourceUuid = await createRepeatedColumnSource(projectUuid);
+        const compiled = await compileRepeatedColumnExplores(
+            primaryUuid,
+            sourceUuid,
+            true,
+            false,
+        );
+        const reports = compiled.find(
+            ({ name }) => name === 'reports',
+        ) as Explore;
+        const unknownUuid = randomUUID();
+        reports.tables.orders.dbtSourceUuid = unknownUuid;
+        const allocation = allocateLineageExplores(
+            projectUuid,
+            compiled,
+            deployNaming(),
+        );
+        await expect(allocation).rejects.toThrow(ConflictError);
+        await expect(allocation).rejects.toThrow(
+            `Cannot resolve joined model "orders" in explore "reports": source id "${unknownUuid}" is not a source of this project. Project sources: "analytics", "secondary". Compile against this project and deploy again.`,
+        );
+    } finally {
+        await database('projects').where('project_uuid', projectUuid).delete();
+    }
+});
+
+test.each([
+    { use: 'owned', keyInUse: false },
+    { use: 'owned', keyInUse: true },
+    { use: 'reserved', keyInUse: false },
+    { use: 'reserved', keyInUse: true },
+])(
+    'deploy allocation rejects an unbound joined table with a newly $use name (key $keyInUse)',
+    async ({ use, keyInUse }) => {
+        const { projectUuid, primaryUuid } = await createLineageProject();
+        try {
+            const sourceUuid = await createRepeatedColumnSource(projectUuid);
+            const compiled = await unresolvedJoinedExplores(
+                primaryUuid,
+                sourceUuid,
+            );
+            const reports = compiled.find(
+                ({ name }) => name === 'reports',
+            ) as Explore;
+            reports.tables.missing_orders.canonicalName = 'orders';
+            if (keyInUse) {
+                const renamed = rewriteAllocatedExplore(
+                    reports,
+                    new Map([['missing_orders', 'orders']]),
+                );
+                renamed.tables.orders.originalName = 'missing_orders';
+                renamed.tables.orders.canonicalName = 'missing_orders';
+                compiled.splice(compiled.indexOf(reports), 1, renamed);
+            }
+            const orders = compiled.find(
+                ({ name }) => name === 'orders',
+            ) as Explore;
+            const duplicate = structuredClone(orders);
+            duplicate.name = 'analytics_orders';
+            duplicate.dbtModelIdentity = {
+                ...orders.dbtModelIdentity!,
+                sourceUuid: primaryUuid,
+                sourceName: 'analytics',
+                uniqueId: 'model.jaffle.orders',
+                packageName: 'jaffle',
+            };
+            duplicate.tables.orders.dbtSourceUuid = primaryUuid;
+            duplicate.tables.orders.dbtSourceName = 'analytics';
+            duplicate.tables.orders.dbtModelUniqueId = 'model.jaffle.orders';
+            duplicate.tables.orders.dbtPackageName = 'jaffle';
+            if (use === 'reserved') compiled.push(duplicate);
+            else compiled.splice(compiled.indexOf(orders), 1, duplicate);
+            const allocation = allocateLineageExplores(
+                projectUuid,
+                compiled,
+                deployNaming(),
+            );
+            await expect(allocation).rejects.toThrow(ConflictError);
+            await expect(allocation).rejects.toThrow(
+                `Cannot resolve joined model "${keyInUse ? 'missing_orders' : 'orders'}" in explore "reports": name "orders" ${use === 'reserved' ? 'is reserved because of an unresolved collision' : 'is owned by model "orders" from source "analytics" (model.jaffle.orders)'}. Rename the join alias.`,
+            );
+        } finally {
+            await database('projects')
+                .where('project_uuid', projectUuid)
+                .delete();
+        }
+    },
+);
+
+test('deploy allocation leaves unbound joined tables unchanged without extra sources or saved allocations', async () => {
+    const { projectUuid, primaryUuid } = await createLineageProject();
+    try {
+        const compiled = await unresolvedJoinedExplores(
+            primaryUuid,
+            randomUUID(),
+        );
+        const reports = compiled.find(
+            ({ name }) => name === 'reports',
+        ) as Explore;
+        const uploaded = structuredClone(reports.tables.missing_orders);
+        const result = await allocateLineageExplores(
+            projectUuid,
+            compiled,
+            deployNaming(),
+        );
+        const allocated = result.explores.find(
+            ({ name }) => name === 'reports',
+        ) as Explore;
+        expect(allocated.tables.missing_orders).toEqual(uploaded);
+        expect(result.warnings).toEqual([]);
+        expect(allocated.warnings ?? []).toEqual([]);
     } finally {
         await database('projects').where('project_uuid', projectUuid).delete();
     }
