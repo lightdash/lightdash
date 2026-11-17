@@ -4,7 +4,6 @@ import {
     parseModelDocument,
     WarehouseTypes,
 } from '@lightdash/common';
-import { PostgresWarehouseClient } from '@lightdash/warehouses';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { toModelPath } from '../../ee/services/SemanticStudioService/draftFold';
 import {
@@ -20,12 +19,9 @@ import {
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import { resolveCaCertFile } from '../../utils/duckdb/resolveCaCertFile';
-import {
-    ConnectionSurface,
-    WarehouseCredentialKind,
-} from '../WarehouseClientFactory/ConnectionContext';
 import { type WarehouseClientFactory } from '../WarehouseClientFactory/WarehouseClientFactory';
 import { buildModelMaterialization } from './buildModelMaterialization';
+import { withMaterializationWarehouse } from './withMaterializationWarehouse';
 
 export async function runModelMaterialization(
     intent: MaterializationBuildIntent,
@@ -38,7 +34,10 @@ export async function runModelMaterialization(
     }: {
         model: Pick<ModelMaterializationModel, 'claim' | 'fail' | 'promote'>;
         featureFlags: Pick<FeatureFlagModel, 'get'>;
-        projectModel: Pick<ProjectModel, 'get'>;
+        projectModel: Pick<
+            ProjectModel,
+            'get' | 'getWarehouseCredentialsForBinding'
+        >;
         warehouseClientFactory: Pick<
             WarehouseClientFactory,
             'withWarehouseClient'
@@ -91,37 +90,13 @@ export async function runModelMaterialization(
         const caCertFile = session.useSsl ? resolveCaCertFile() : null;
         if (session.useSsl && !caCertFile)
             throw new Error('Missing storage CA bundle');
-        const verified = await warehouseClientFactory.withWarehouseClient(
-            {
-                kind: 'binding',
-                projectUuid: attempt.projectUuid,
-                binding: { kind: 'original' },
-            },
-            {
-                organizationUuid: project.organizationUuid,
-                queryContext: null,
-                purpose: 'query',
-                aiAccess: 'enforce',
-                actor: {
-                    surface: ConnectionSurface.SCHEDULE,
-                    person: null,
-                    aiClient: null,
-                },
-            },
-            async ({
-                warehouseClient,
-                credentialKind,
-                warehouseCredentials,
-            }) => {
-                if (
-                    !(warehouseClient instanceof PostgresWarehouseClient) ||
-                    credentialKind !== WarehouseCredentialKind.SHARED ||
-                    warehouseCredentials.requireUserCredentials
-                ) {
-                    throw new Error(
-                        'Materialization requires a shared Postgres connection',
-                    );
-                }
+        const verified = await withMaterializationWarehouse(
+            projectModel,
+            warehouseClientFactory,
+            attempt.projectUuid,
+            project.organizationUuid,
+            attempt.modelName,
+            async (warehouseClient) => {
                 const { rows } = await warehouseClient.runQuery(catalogSql);
                 if (
                     rows.length !== 1 ||

@@ -51,7 +51,12 @@ const dependencies = () => ({
             enabled: true,
         }),
     },
-    projectModel: { get: vi.fn().mockResolvedValue(project) },
+    projectModel: {
+        get: vi.fn().mockResolvedValue(project),
+        getWarehouseCredentialsForBinding: vi
+            .fn()
+            .mockResolvedValue(project.warehouseConnection),
+    },
     warehouseClientFactory: { withWarehouseClient: vi.fn() },
     lightdashConfig: lightdashConfigMock,
 });
@@ -120,6 +125,37 @@ describe('scheduled model materialization', () => {
             );
         },
     );
+
+    test('builds with project credentials without a signed-in user', async () => {
+        const deps = dependencies();
+        const result = {
+            rowCount: 0,
+            byteCount: 10,
+            nativeSchema: [],
+            sourceReadAt: new Date(),
+        };
+        deps.warehouseClientFactory.withWarehouseClient.mockResolvedValue(
+            result,
+        );
+        deps.model.promote.mockResolvedValue(true);
+        await runModelMaterialization(intent, deps);
+        expect(
+            deps.projectModel.getWarehouseCredentialsForBinding,
+        ).toHaveBeenCalledWith(attempt.projectUuid, { kind: 'original' });
+        expect(
+            deps.warehouseClientFactory.withWarehouseClient,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                kind: 'resolved',
+                credentials: project.warehouseConnection,
+            }),
+            expect.objectContaining({
+                actor: expect.objectContaining({ person: null }),
+            }),
+            expect.any(Function),
+        );
+        expect(deps.model.promote).toHaveBeenCalledWith(attempt, result);
+    });
 
     test('stores and throws sanitized errors for infrastructure retries', async () => {
         const deps = dependencies();
