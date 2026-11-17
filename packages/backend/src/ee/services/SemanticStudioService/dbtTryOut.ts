@@ -102,7 +102,7 @@ export const markNewModels = (
     );
 
 /** The models whose SQL or YAML is among the changed files, which are relative to the dbt project. */
-// ponytail: a YAML file shared by several models marks them all, per-model YAML diffing if that over-reports
+// A YAML file shared by several models marks them all, per-model YAML diffing if that over-reports
 export const findChangedModels = (
     manifest: DbtManifest,
     changedFiles: string[],

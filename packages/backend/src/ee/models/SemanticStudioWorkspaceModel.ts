@@ -24,6 +24,7 @@ type WorkspaceRow = DbSemanticStudioWorkspace & {
 export type StudioThread = {
     organizationUuid: string;
     agentUuid: string | null;
+    title: string | null;
 };
 
 type Owner = { projectUuid: string; userUuid: string };
@@ -115,11 +116,12 @@ export class SemanticStudioWorkspaceModel {
             .andWhere('t.project_uuid', projectUuid)
             .andWhere('t.created_from', 'semantic_studio')
             .andWhere('wt.user_uuid', userUuid)
-            .first('t.organization_uuid', 't.agent_uuid');
+            .first('t.organization_uuid', 't.agent_uuid', 't.title');
         return row
             ? {
                   organizationUuid: row.organization_uuid,
                   agentUuid: row.agent_uuid,
+                  title: row.title,
               }
             : null;
     }
@@ -306,16 +308,16 @@ export class SemanticStudioWorkspaceModel {
                 [url],
             )
             .whereNull('finished_at')
-            // Checks load often; only a new state is an update.
+            // Open checks only update new state; terminal states also finish older unfinished records.
             .andWhereRaw(
-                '(pull_request_url IS DISTINCT FROM ? OR pull_request_state IS DISTINCT FROM ?)',
-                [url, state],
+                "(pull_request_url IS DISTINCT FROM ? OR pull_request_state IS DISTINCT FROM ? OR ? <> 'open')",
+                [url, state, state],
             )
             .update({
                 pull_request_url: url,
                 pull_request_state: state,
                 updated_at: now,
-                ...(state === 'merged'
+                ...(state !== 'open'
                     ? { is_active: false, finished_at: now }
                     : {}),
             });

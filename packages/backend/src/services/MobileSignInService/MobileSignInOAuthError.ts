@@ -19,12 +19,15 @@ export class MobileSignInOAuthError extends Error {
 
     readonly retryAfterSeconds: number | undefined;
 
+    readonly organizationUuid: string | undefined;
+
     constructor(
         error: MobileSignInOAuthErrorName,
         options: {
             description?: string;
             statusCode?: number;
             retryAfterSeconds?: number;
+            organizationUuid?: string;
         } = {},
     ) {
         super(options.description ? `${error}: ${options.description}` : error);
@@ -33,11 +36,22 @@ export class MobileSignInOAuthError extends Error {
         this.description = options.description;
         this.statusCode = options.statusCode ?? 400;
         this.retryAfterSeconds = options.retryAfterSeconds;
+        this.organizationUuid = options.organizationUuid;
     }
 
-    toJSON(): { error: string; error_description?: string } {
-        return this.description
-            ? { error: this.error, error_description: this.description }
-            : { error: this.error };
+    toJSON(): {
+        error: string;
+        error_description?: string;
+        organization_uuid?: string;
+    } {
+        return {
+            error: this.error,
+            ...(this.description
+                ? { error_description: this.description }
+                : {}),
+            ...(this.organizationUuid
+                ? { organization_uuid: this.organizationUuid }
+                : {}),
+        };
     }
 }

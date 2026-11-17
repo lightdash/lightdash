@@ -8,7 +8,7 @@ import {
 import { isEqual } from 'es-toolkit/compat';
 import { toModelPath } from './draftFold';
 
-// ponytail: a name match, so a window function reads as an aggregate too; parse the SQL if that turns up.
+// A name match, so a window function reads as an aggregate too; parse the SQL if that turns up.
 const AGGREGATE_CALL =
     /\b(sum|count|avg|min|max|median|count_if|approx_count_distinct|percentile_cont|percentile_disc|array_agg|string_agg|listagg)\s*\(/i;
 

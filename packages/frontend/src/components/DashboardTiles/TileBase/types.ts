@@ -23,6 +23,8 @@ export type TileBaseProps<T> = {
     mobileMenuItems?: ReactNode;
     onDelete: (tile: T) => void;
     onEdit: (tile: T) => void;
+    /** How this tile is copied to a grid cell, for tiles that need more than a copy of the tile */
+    onDuplicate?: (cell: { x: number; y: number }) => void;
     children?: ReactNode;
     extraHeaderElement?: ReactNode;
     visibleHeaderElement?: ReactNode;

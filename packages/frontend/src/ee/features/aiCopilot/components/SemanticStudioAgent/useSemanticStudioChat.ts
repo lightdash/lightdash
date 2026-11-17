@@ -18,6 +18,7 @@ export const useStoredStudioThread = (projectUuid: string) =>
     useLocalStorage<StoredThread | null>({
         key: `semantic-studio-agent-thread-${projectUuid}`,
         defaultValue: null,
+        getInitialValueInEffect: false,
     });
 
 /** Whether the chat is open on the change you are on; closing it is remembered per change. */
@@ -26,6 +27,7 @@ export const useChatOpen = (projectUuid: string) => {
     const [closed, setClosed] = useLocalStorage<string[]>({
         key: 'semantic-studio-chat-closed',
         defaultValue: [],
+        getInitialValueInEffect: false,
     });
     const change = stored?.threadUuid ?? 'new';
     const setIsOpen = useCallback(
@@ -86,10 +88,11 @@ export const useStudioAgent = (projectUuid: string) => {
     const isEnabled = useCanEditSemanticLayer(projectUuid);
     const { agent: defaultAgent, agents } = useDefaultAiAgent(projectUuid);
     const [stored, setStored] = useStoredStudioThread(projectUuid);
-    // ponytail: one chat back, not a history; the workspaces list holds the rest.
+    // One chat back, not a history; the workspaces list holds the rest.
     const [previous, setPrevious] = useLocalStorage<StoredThread | null>({
         key: `semantic-studio-agent-previous-thread-${projectUuid}`,
         defaultValue: null,
+        getInitialValueInEffect: false,
     });
     const { data: workspaces } = useStudioWorkspaces(projectUuid);
     const workspaceAction = useStudioWorkspaceAction(projectUuid);

@@ -928,6 +928,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ExternalConnectionController.proposeExternalConnectionConfig': [
         AgentCapability.Administration,
     ],
+    'ExternalConnectionController.purgeLiveSourceCache': [
+        AgentCapability.Administration,
+    ],
     'ExternalConnectionController.reattachLiveSource': [
         AgentCapability.Administration,
     ],
@@ -950,6 +953,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.Administration,
     ],
     'ExternalConnectionController.updateExternalConnection': [
+        AgentCapability.Administration,
+    ],
+    'ExternalConnectionController.updateLiveSourceCache': [
         AgentCapability.Administration,
     ],
     'ExternalConnectionController.updateLiveSourceFields': [
@@ -1103,6 +1109,9 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'MetricsExplorerController.runMetricSeries': [AgentCapability.Query],
     'MetricsExplorerController.runMetricTotal': [AgentCapability.Query],
+    'MobileAppAccessController.getMobileAppAccess': [
+        AgentCapability.ReadDiscover,
+    ],
     'MobilePushNotificationController.getMobilePushNotificationStatus': [
         AgentCapability.ReadDiscover,
     ],

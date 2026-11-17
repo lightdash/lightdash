@@ -1,4 +1,8 @@
-import { FilterOperator, type MetricQuery } from '@lightdash/common';
+import {
+    FilterOperator,
+    ProjectType,
+    type MetricQuery,
+} from '@lightdash/common';
 
 const sources = {
     activity: {
@@ -69,6 +73,7 @@ export type AnalyticsQuerySpec = {
 
 export type AnalyticsFilters = {
     projectUuid: string | null;
+    excludePreviewContent: boolean | null;
     start: string;
     end: string;
 };
@@ -561,6 +566,18 @@ export const buildAnalyticsQuery = (
                                   target: { fieldId: field('project_id') },
                                   operator: FilterOperator.EQUALS,
                                   values: [filters.projectUuid],
+                              },
+                          ]
+                        : []),
+                    ...(spec.source === 'inventory' &&
+                    filters.projectUuid === null &&
+                    filters.excludePreviewContent
+                        ? [
+                              {
+                                  id: 'exclude-preview-projects',
+                                  target: { fieldId: field('project_type') },
+                                  operator: FilterOperator.NOT_EQUALS,
+                                  values: [ProjectType.PREVIEW],
                               },
                           ]
                         : []),

@@ -1,6 +1,6 @@
 import { type Explore } from '@lightdash/common';
-import { describe, expect, it } from 'vitest';
-import { diffDraftFields } from './draftState';
+import { describe, expect, it, test } from 'vitest';
+import { describePublisher, diffDraftFields } from './draftState';
 
 const explore = (
     dimensions: Record<string, { sql: string; index: number }>,
@@ -66,5 +66,41 @@ describe('diffDraftFields', () => {
             'removed',
             'removed',
         ]);
+    });
+});
+
+describe('describePublisher', () => {
+    const at = new Date('2026-11-17T12:00:00Z');
+
+    test('names another person by name', () => {
+        expect(
+            describePublisher({ by: 'Grace Hopper', at, isYours: false }),
+        ).toEqual({
+            subject: 'Grace Hopper',
+            where: '',
+            option: 'Grace Hopper',
+            keepLabel: "Keep Grace Hopper's version",
+        });
+    });
+
+    test('reads your own publish from another change as yours, not someone else', () => {
+        expect(
+            describePublisher({ by: 'Grace Hopper', at, isYours: true }),
+        ).toEqual({
+            subject: 'You',
+            where: ' from another change',
+            option: 'You, in another change',
+            keepLabel: 'Keep the live version',
+        });
+    });
+
+    test('falls back to someone when the publisher is unknown', () => {
+        expect(describePublisher({ by: null, at, isYours: false })).toEqual(
+            expect.objectContaining({
+                subject: 'Someone',
+                option: 'Someone else',
+            }),
+        );
+        expect(describePublisher(null).subject).toBe('Someone');
     });
 });

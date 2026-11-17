@@ -1,53 +1,34 @@
-import { act, renderHook } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
-import {
-    NAVBAR_COMPACT_MEDIA_QUERY,
-    useCompactNavigation,
-} from './useCompactNavigation';
+import { renderHook } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { useCompactNavigation } from './useCompactNavigation';
+
+const mockViewportWidth = (width: number) =>
+    vi.spyOn(window, 'matchMedia').mockImplementation(
+        (query) =>
+            ({
+                matches: (() => {
+                    const maxWidth = /\(width < ([\d.]+)em\)/.exec(query);
+                    return maxWidth ? width < Number(maxWidth[1]) * 16 : false;
+                })(),
+                media: query,
+                onchange: null,
+                addListener: vi.fn(),
+                removeListener: vi.fn(),
+                addEventListener: vi.fn(),
+                removeEventListener: vi.fn(),
+                dispatchEvent: vi.fn(),
+            }) as MediaQueryList,
+    );
 
 describe('useCompactNavigation', () => {
-    it('keeps desktop navigation at 512px and collapses below it', () => {
-        let width = 512;
-        const listeners = new Set<(event: MediaQueryListEvent) => void>();
-        const matchMedia = vi.spyOn(window, 'matchMedia').mockImplementation(
-            (query) =>
-                ({
-                    matches:
-                        query === NAVBAR_COMPACT_MEDIA_QUERY && width < 32 * 16,
-                    media: query,
-                    onchange: null,
-                    addListener: vi.fn(),
-                    removeListener: vi.fn(),
-                    addEventListener: (
-                        _name: string,
-                        callback: (event: MediaQueryListEvent) => void,
-                    ) => {
-                        listeners.add(callback);
-                    },
-                    removeEventListener: (
-                        _name: string,
-                        callback: (event: MediaQueryListEvent) => void,
-                    ) => {
-                        listeners.delete(callback);
-                    },
-                    dispatchEvent: vi.fn(),
-                }) as MediaQueryList,
-        );
+    afterEach(() => vi.restoreAllMocks());
 
-        try {
-            const { result } = renderHook(() => useCompactNavigation());
-            expect(result.current).toBe(false);
-
-            act(() => {
-                width = 511;
-                listeners.forEach((listener) =>
-                    listener({ matches: true } as MediaQueryListEvent),
-                );
-            });
-
-            expect(result.current).toBe(true);
-        } finally {
-            matchMedia.mockRestore();
-        }
+    it.each([
+        [512, false],
+        [511, true],
+    ])('at %ipx wide, compact navigation is %s', (width, compact) => {
+        mockViewportWidth(width);
+        const { result } = renderHook(() => useCompactNavigation());
+        expect(result.current).toBe(compact);
     });
 });

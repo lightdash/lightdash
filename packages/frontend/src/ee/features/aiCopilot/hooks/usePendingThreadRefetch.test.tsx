@@ -133,6 +133,41 @@ describe('usePendingThreadRefetch', () => {
         expect(refetch).toHaveBeenCalledOnce();
     });
 
+    it('keeps reading a recorded pull request until its preview settles', () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-08-11T12:00:00.000Z'));
+        // The run itself started long ago; only the preview's own clock counts.
+        const withPreview = (previewPendingSince: string | null) => {
+            const thread = pendingThread('2026-08-11T11:00:00.000Z');
+            Object.assign(thread!.messages[0], {
+                toolResults: [
+                    {
+                        toolType: 'built-in',
+                        toolName: 'editDbtProject',
+                        metadata: {
+                            status: 'success',
+                            prUrl: 'https://github.com/acme/dbt/pull/7',
+                            previewPendingSince,
+                        },
+                        createdAt: '2026-08-11T11:00:00.000Z',
+                    },
+                ],
+            });
+            return thread;
+        };
+        const isPending = (previewPendingSince: string | null) =>
+            renderHook(() =>
+                usePendingThreadRefetch(
+                    withPreview(previewPendingSince),
+                    'thread-1',
+                    vi.fn(),
+                ),
+            ).result.current.isBackgroundWorkPending;
+
+        expect(isPending('2026-08-11T11:59:00.000Z')).toBe(true);
+        expect(isPending(null)).toBe(false);
+    });
+
     it('polls a pending thread while recovering its connection', async () => {
         vi.useFakeTimers();
         streamState.recovering = true;

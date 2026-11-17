@@ -262,6 +262,12 @@ export enum FeatureFlags {
      */
     MobileQrSignIn = 'mobile-qr-sign-in',
     /**
+     * Organization-scoped, on by default: the organization can use the mobile
+     * apps. An organization override set to off denies every mobile sign-in
+     * and every token issued to a mobile app. User overrides are ignored.
+     */
+    MobileAppAccess = 'mobile-app-access',
+    /**
      * Organization-scoped, off by default: BigQuery workload identity federation.
      * Only enable on instances whose pods run as their own Google service account.
      */

@@ -9,6 +9,7 @@ import {
     Kbd,
     Loader,
     Menu,
+    Stack,
     Text,
     TextInput,
     Tooltip,
@@ -65,11 +66,14 @@ import {
 } from './useStudioSources';
 import classes from './WorkbenchView.module.css';
 
-// ponytail: unsaved edits live for the tab only; leaving the page warns while any are kept.
-const unsavedEdits = new Map<string, string>();
+// Unsaved edits live for the tab only; leaving the page warns while any are kept.
+const unsavedEdits = new Map<
+    string,
+    { text: string; revision: string | null }
+>();
 let warnsOnLeave = false;
-const keepUnsaved = (key: string, text: string) => {
-    unsavedEdits.set(key, text);
+const keepUnsaved = (key: string, text: string, revision: string | null) => {
+    unsavedEdits.set(key, { text, revision });
     if (warnsOnLeave) return;
     warnsOnLeave = true;
     window.addEventListener('beforeunload', (event) => {
@@ -236,8 +240,9 @@ export const SourcesRail: FC<{
         if (!hasOverview && !selected && firstChange) open(firstChange);
     }, [hasOverview, selected, firstChange, open]);
     // The tree keeps its first options, so its listener reads the latest through a ref.
-    const latest = useRef({ open, selected, files: new Set<string>() });
-    latest.current = { open, selected, files: new Set(all) };
+    const fileSet = useMemo(() => new Set(all), [all]);
+    const latest = useRef({ open, selected, files: fileSet });
+    latest.current = { open, selected, files: fileSet };
     const { model } = useFileTree({
         paths: [],
         icons: SOURCE_ICONS,
@@ -261,6 +266,14 @@ export const SourcesRail: FC<{
             }),
         [model, all],
     );
+    // The open file can change from outside the tree, and a reset drops what was selected.
+    useEffect(() => {
+        const shown = model.getSelectedPaths();
+        if (!selected || !fileSet.has(selected) || shown.includes(selected))
+            return;
+        shown.forEach((path) => model.getItem(path)?.deselect());
+        model.getItem(selected)?.select();
+    }, [model, fileSet, selected]);
     useEffect(
         () =>
             model.setGitStatus(
@@ -454,7 +467,12 @@ export const SourcePane: FC<{
             (entry) => entry.path === path,
         ) ?? null;
     const isChangedFile = !!change && !change.isProposed;
-    const { data: file, isFetching } = useStudioSourceFile(
+    const {
+        data: file,
+        isFetching,
+        error: readError,
+        refetch,
+    } = useStudioSourceFile(
         target.projectUuid,
         target.prUrl,
         target.head,
@@ -490,29 +508,43 @@ export const SourcePane: FC<{
     const [justSaved, setJustSaved] = useState<{
         key: string;
         content: string;
+        revision: string;
     } | null>(null);
-    const loaded =
-        file?.content ??
-        (justSaved?.key === editKey ? justSaved.content : null);
+    const saved = justSaved?.key === editKey ? justSaved : null;
+    const loaded = file?.content ?? saved?.content ?? null;
+    const sourceRevision = useRef<string | null>(null);
+    // The revision is that of whatever is shown: the file once read, or what was just saved until then.
+    if (text === null) {
+        sourceRevision.current =
+            file?.content != null
+                ? file.revision
+                : (saved?.revision ?? file?.revision ?? null);
+    }
     const value = text ?? loaded ?? '';
     const isDirty = text !== null && text !== loaded;
+    // A proposal shown in the editor is the agent's until the person types over it.
+    const hasOwnEdits = isDirty && text !== offered;
+    const open = useRef({ key: editKey, path });
+    open.current = { key: editKey, path };
     // Null at first, so coming back to Sources brings back what was left unsaved.
     const shownKey = useRef<string | null>(null);
     useEffect(() => {
         if (shownKey.current === editKey) {
-            if (isDirty && text !== null) keepUnsaved(editKey, text);
+            if (hasOwnEdits && text !== null)
+                keepUnsaved(editKey, text, sourceRevision.current);
             else unsavedEdits.delete(editKey);
             return;
         }
         shownKey.current = editKey;
         const kept = unsavedEdits.get(editKey) ?? null;
-        setBase(kept);
-        setText(kept);
+        setBase(kept?.text ?? null);
+        setText(kept?.text ?? null);
+        if (kept) sourceRevision.current = kept.revision;
         setNotice(null);
         setProposedFrom(null);
         setOffered(null);
         setRevision((current) => current + 1);
-    }, [editKey, isDirty, text]);
+    }, [editKey, hasOwnEdits, text]);
     const linted = useDeferredValue(value);
     const markers = useMemo(
         () =>
@@ -531,18 +563,23 @@ export const SourcePane: FC<{
         if (codeRef.current?.getEditState())
             codeRef.current.setMarkers(markers);
     }, [markers]);
-    const proposed =
-        path && loaded !== null ? applyProposal(proposal, path, loaded) : null;
+    const proposed = useMemo(
+        () =>
+            path && loaded !== null
+                ? applyProposal(proposal, path, loaded)
+                : null,
+        [proposal, path, loaded],
+    );
     // Like an editor's agent: a proposal for the open file lands in it as an unsaved edit, once.
     useEffect(() => {
-        if (!proposed || proposed === offered || isDirty) return;
+        if (hasOwnEdits || proposed === offered) return;
         setOffered(proposed);
-        setProposedFrom(loaded);
+        setProposedFrom(proposed === null ? null : loaded);
         setBase(proposed);
         setText(proposed);
-        setLayout('diff');
+        if (proposed !== null) setLayout('diff');
         setRevision((current) => current + 1);
-    }, [proposed, offered, isDirty, loaded]);
+    }, [proposed, offered, hasOwnEdits, loaded]);
     const where = target.changeName ?? 'live';
 
     const reset = () => {
@@ -553,10 +590,16 @@ export const SourcePane: FC<{
     };
     const submit = () => {
         if (!path || !isDirty || save.isLoading || !target.canEdit) return;
+        // The save may land after another file is opened; it then leaves that file alone.
+        const savedKey = editKey;
+        const isStillOpen = () => open.current.key === savedKey;
+        const named = (message: string) =>
+            isStillOpen() ? message : `${fileName(path)}: ${message}`;
         save.mutate(
             {
                 path,
                 content: value,
+                revision: sourceRevision.current,
                 prUrl: target.prUrl,
                 threadUuid: target.threadUuid,
                 newChangeAgentUuid: target.newChangeAgentUuid,
@@ -564,26 +607,49 @@ export const SourcePane: FC<{
             {
                 onSuccess: (result) => {
                     if (result.status === 'failed') {
-                        setNotice({ tone: 'error', text: result.error });
+                        setNotice({ tone: 'error', text: named(result.error) });
                         return;
                     }
                     setJustSaved({
                         key: `${target.projectUuid}\n${result.prUrl}\n${path}`,
                         content: value,
+                        revision: result.revision,
                     });
-                    reset();
-                    setNotice(
-                        result.checked
-                            ? null
-                            : {
-                                  tone: 'info',
-                                  text: 'Saved. SQL is checked when dbt next builds the change.',
-                              },
-                    );
+                    unsavedEdits.delete(savedKey);
+                    // A save from live moves to its new change, and what is typed in another live file comes along.
+                    const liveKey = `${target.projectUuid}\n\n${open.current.path ?? ''}`;
+                    const typed = unsavedEdits.get(open.current.key);
+                    if (
+                        target.prUrl === null &&
+                        open.current.key === liveKey &&
+                        !isStillOpen() &&
+                        typed !== undefined
+                    ) {
+                        unsavedEdits.delete(open.current.key);
+                        keepUnsaved(
+                            `${target.projectUuid}\n${result.prUrl}\n${open.current.path ?? ''}`,
+                            typed.text,
+                            typed.revision,
+                        );
+                    }
+                    if (isStillOpen()) {
+                        reset();
+                        setNotice(
+                            result.checked
+                                ? null
+                                : {
+                                      tone: 'info',
+                                      text: 'Saved. SQL is checked when dbt next builds the change.',
+                                  },
+                        );
+                    }
                     onSaved(result.prUrl, result.thread);
                 },
                 onError: (error) =>
-                    setNotice({ tone: 'error', text: saveErrorText(error) }),
+                    setNotice({
+                        tone: 'error',
+                        text: named(saveErrorText(error)),
+                    }),
             },
         );
     };
@@ -618,6 +684,23 @@ export const SourcePane: FC<{
             <Text fz="sm" c="dimmed" ta="center" py="xl">
                 Pick a file to read or edit it.
             </Text>
+        );
+    }
+    // An unread file is not shown as an empty one, which could be typed in and saved over it.
+    if (readError && loaded === null && text === null) {
+        return (
+            <Stack align="center" gap="xs" py="xl">
+                <Text fz="sm" c="dimmed">
+                    {readError.error.message}
+                </Text>
+                <Button
+                    size="xs"
+                    variant="default"
+                    onClick={() => void refetch()}
+                >
+                    Try again
+                </Button>
+            </Stack>
         );
     }
     const compare = isChangedFile
@@ -827,7 +910,7 @@ export const SourcePane: FC<{
                     <CopyActionIcon value={value} copyLabel="Copy" />
                 </Group>
             </Group>
-            {proposed && proposed !== offered && isDirty ? (
+            {proposed && proposed !== offered && hasOwnEdits ? (
                 <Alert color="violet" radius={0} py={8}>
                     <Text fz="xs">
                         The agent proposed a change to this file. Discard your

@@ -2,7 +2,10 @@
  * Registry of app-wide feature tours whose seen-flag is persisted per user.
  * Add a key here to introduce a new tour; no schema change needed.
  */
-export const USER_ONBOARDING_TOURS = ['memoryTour'] as const;
+export const USER_ONBOARDING_TOURS = [
+    'memoryTour',
+    'dashboardEditTour',
+] as const;
 
 export type UserOnboardingTour = (typeof USER_ONBOARDING_TOURS)[number];
 

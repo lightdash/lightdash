@@ -30,6 +30,7 @@ import {
     githubRequestSchema,
     runGithubQuery,
 } from './run';
+import { summarizeGithubTest } from './testSummary';
 
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.GITHUB];
 const LABEL = CATALOG.messageLabel;
@@ -125,4 +126,5 @@ export const githubIntegration = defineLiveIntegration({
         }),
     run: runGithubQuery,
     toError: (response, settings) => toGithubError(response, settings),
+    summarizeTest: summarizeGithubTest,
 });

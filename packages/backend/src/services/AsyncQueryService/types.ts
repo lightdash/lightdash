@@ -180,6 +180,7 @@ export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
     // Silent-drop semantics for fields outside the chart's explore — unlike
     // filterOverrides, which fails the run on unknown fields.
     dashboardFilters?: DashboardFilters;
+    includeUnpublishedDraft?: boolean;
 };
 
 export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {

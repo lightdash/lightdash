@@ -433,6 +433,8 @@ export class AppGenerateController extends BaseController {
     }
 
     /**
+     * Pass includeUnpublishedDraft=true to authorize against your own
+     * unpublished draft of the chart; omitted, the published chart is used.
      * @summary Get data app visualization render metadata for a saved chart
      */
     @Middlewares([
@@ -453,6 +455,7 @@ export class AppGenerateController extends BaseController {
         @Path() savedChartUuid: UUID,
         @Path() dataAppVizUuid: string,
         @Query() chartVersionUuid?: UUID,
+        @Query() includeUnpublishedDraft?: boolean,
     ): Promise<ApiDataAppVizRenderMetadataResponse> {
         assertRegisteredAccount(req.account);
         const result =
@@ -462,6 +465,7 @@ export class AppGenerateController extends BaseController {
                 savedChartUuid,
                 dataAppVizUuid,
                 chartVersionUuid,
+                includeUnpublishedDraft,
             );
         return {
             status: 'ok',
@@ -470,6 +474,8 @@ export class AppGenerateController extends BaseController {
     }
 
     /**
+     * Pass includeUnpublishedDraft=true to authorize against your own
+     * unpublished draft of the chart; omitted, the published chart is used.
      * @summary Get a data app visualization preview token for a saved chart
      */
     @Middlewares([
@@ -491,6 +497,7 @@ export class AppGenerateController extends BaseController {
         @Path() dataAppVizUuid: string,
         @Path() version: number,
         @Query() chartVersionUuid?: UUID,
+        @Query() includeUnpublishedDraft?: boolean,
     ): Promise<ApiDataAppVizPreviewTokenResponse> {
         assertRegisteredAccount(req.account);
         const token =
@@ -501,6 +508,7 @@ export class AppGenerateController extends BaseController {
                 dataAppVizUuid,
                 version,
                 chartVersionUuid,
+                includeUnpublishedDraft,
             );
         return {
             status: 'ok',

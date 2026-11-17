@@ -88,9 +88,11 @@ const buildService = (overrides: {
     getRunStatus?: ReturnType<typeof vi.fn>;
     reviewRemediation?: unknown;
     previewUrl?: string | null;
+    threadCreatedFrom?: string;
 }) => {
     const prompt = {
         ...(overrides.isSlack ? SLACK_PROMPT : WEB_PROMPT),
+        threadCreatedFrom: overrides.threadCreatedFrom,
         response: 'prior response',
     };
     const promptFound = overrides.promptFound ?? true;
@@ -457,6 +459,48 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
                 }),
             }),
         );
+    });
+
+    it('records a Studio pull request before its preview is built', async () => {
+        const { service, updateToolResult, createPreviewForPullRequest } =
+            buildService({
+                previewUrl: 'https://preview.example.com',
+                threadCreatedFrom: 'semantic_studio',
+            });
+        createPreviewForPullRequest.mockImplementation(async () => {
+            expect(updateToolResult).toHaveBeenCalledTimes(1);
+            return { previewUrl: 'https://preview.example.com' };
+        });
+
+        await service.runEditDbtProjectPipeline(PAYLOAD);
+
+        expect(
+            updateToolResult.mock.calls.map(([, , { metadata }]) => [
+                metadata.previewUrl,
+                typeof metadata.previewPendingSince,
+            ]),
+        ).toEqual([
+            [null, 'string'],
+            ['https://preview.example.com', 'object'],
+        ]);
+    });
+
+    it('keeps a Studio pull request recorded when its preview is refused', async () => {
+        const { service, updateToolResult, createPreviewForPullRequest } =
+            buildService({ threadCreatedFrom: 'semantic_studio' });
+        createPreviewForPullRequest.mockRejectedValue(
+            new WritebackAgentAccessError(new Error('revoked')),
+        );
+
+        await expect(
+            service.runEditDbtProjectPipeline(PAYLOAD),
+        ).rejects.toBeInstanceOf(WritebackAgentAccessError);
+
+        expect(updateToolResult.mock.lastCall?.[2].metadata).toMatchObject({
+            status: 'success',
+            previewUrl: null,
+            previewPendingSince: null,
+        });
     });
 
     it('classifies a closed-PR error and does not rethrow', async () => {

@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config';
-import unitConfig from './vitest.config';
+import { baseConfig as unitConfig } from './vitest.config';
 
 // Opt-in live evaluation suites: each one skips unless its environment
 // variables are set, and they call real providers so they run serially.

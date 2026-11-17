@@ -62,6 +62,10 @@ export const ALL_PUSHDOWN_REFUSED: LiveCapabilities['pushdown'] = {
     dateZoom: 'refused',
 };
 
+/** A count in a setup test summary, as in "1,204". */
+export const formatTestCount = (count: number) =>
+    new Intl.NumberFormat('en-US').format(count);
+
 export const LIVE_RESPONSE_MAX_BYTES = 25 * 1024 * 1024;
 
 /** What a source can reach, whatever its stored connection says. */

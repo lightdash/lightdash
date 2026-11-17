@@ -55,6 +55,8 @@ export type VisualizationLayout = {
 // Inputs: results, fields, colours and flags. Stable while a chart is edited.
 export type VisualizationState = VisualizationInputs & {
     savedChartReference?: SavedChartReference;
+    // The saved chart on screen includes the viewer's own unpublished draft
+    hasUnpublishedChanges?: boolean;
     embeddedDashboardInteractivity?: EmbeddedDashboardInteractivity;
 };
 

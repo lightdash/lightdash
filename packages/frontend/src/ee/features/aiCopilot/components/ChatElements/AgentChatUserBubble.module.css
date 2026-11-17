@@ -53,6 +53,11 @@
     color: var(--mantine-color-text);
 }
 
+/* A single newline in a message is a line break, not markdown's soft wrap. */
+.markdown :global(p) {
+    white-space: pre-wrap;
+}
+
 .messageText {
     white-space: pre-wrap;
     overflow-wrap: anywhere;

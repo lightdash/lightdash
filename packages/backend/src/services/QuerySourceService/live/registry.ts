@@ -3,12 +3,14 @@ import {
     assertUnreachable,
     type ExternalConnectionApiSource,
 } from '@lightdash/common';
+import { attioIntegration } from './integrations/attio';
 import { ga4Integration } from './integrations/ga4';
 import { githubIntegration } from './integrations/github';
 import { googleAdsIntegration } from './integrations/googleAds';
 import { linkedInAdsIntegration } from './integrations/linkedInAds';
 import { metaAdsIntegration } from './integrations/metaAds';
 import { postHogIntegration } from './integrations/postHog';
+import { pylonIntegration } from './integrations/pylon';
 import { searchConsoleIntegration } from './integrations/searchConsole';
 import { youtubeAnalyticsIntegration } from './integrations/youtubeAnalytics';
 import { type LiveIntegration } from './types';
@@ -25,6 +27,8 @@ const LIVE_INTEGRATIONS: {
     [ApiConnectorType.YOUTUBE_ANALYTICS]: youtubeAnalyticsIntegration,
     [ApiConnectorType.LINKEDIN_ADS]: linkedInAdsIntegration,
     [ApiConnectorType.GITHUB]: githubIntegration,
+    [ApiConnectorType.PYLON]: pylonIntegration,
+    [ApiConnectorType.ATTIO]: attioIntegration,
 };
 
 export const getLiveIntegration = (

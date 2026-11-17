@@ -507,6 +507,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                 }
                 savedChartUuid={isEditMode ? undefined : savedChart?.uuid}
                 savedChartReference={savedChartReference}
+                hasUnpublishedChanges={!!savedChart?.hasUnpublishedChanges}
                 onChartConfigChange={handleSetChartConfig}
                 onChartTypeChange={handleSetChartType}
                 onPivotDimensionsChange={handleSetPivotFields}

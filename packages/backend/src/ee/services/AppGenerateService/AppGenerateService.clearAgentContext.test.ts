@@ -102,6 +102,7 @@ function buildService(
         appRuntimeS3: null,
         appThumbnailClient: buildAppThumbnailClientMock(),
         chartRegistryClient: {} as never,
+        contentDraftModel: {} as never,
         contentVerificationModel: {} as never,
     });
 

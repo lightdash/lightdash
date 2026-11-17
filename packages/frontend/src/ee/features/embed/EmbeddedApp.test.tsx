@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { cleanup, render } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { MemoryRouter } from 'react-router';

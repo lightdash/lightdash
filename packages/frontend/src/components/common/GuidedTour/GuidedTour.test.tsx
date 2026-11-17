@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { Button, Popover, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
@@ -25,6 +26,36 @@ describe('GuidedTour', () => {
             <GuidedTour steps={steps} opened={false} onClose={vi.fn()} />,
         );
         expect(screen.queryByText('Step one')).not.toBeInTheDocument();
+    });
+
+    it('rings every highlighted control of a centered step', async () => {
+        renderWithProviders(
+            <>
+                <button data-tour="first">First</button>
+                <button data-tour="second">Second</button>
+                <GuidedTour
+                    steps={[
+                        {
+                            target: null,
+                            highlights: [
+                                '[data-tour="first"]',
+                                '[data-tour="second"]',
+                                '[data-tour="missing"]',
+                            ],
+                            title: 'Two places',
+                            body: 'body',
+                        },
+                    ]}
+                    opened
+                    onClose={vi.fn()}
+                />
+            </>,
+        );
+        await waitFor(() =>
+            expect(
+                document.querySelectorAll('[data-tour-highlight]'),
+            ).toHaveLength(2),
+        );
     });
 
     it('walks forward and back through steps', async () => {

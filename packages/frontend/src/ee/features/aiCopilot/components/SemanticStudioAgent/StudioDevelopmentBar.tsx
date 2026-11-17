@@ -13,6 +13,7 @@ import MantineModal from '../../../../../components/common/MantineModal';
 import { DevelopmentBar } from '../../../../../features/semanticStudio/DevelopmentBar';
 import {
     getDevelopmentPreview,
+    isDevelopmentViewPinned,
     useDevelopmentView,
 } from '../../../../../features/semanticStudio/developmentView';
 import { rememberGoingLive } from '../../../../../features/semanticStudio/useGoingLive';
@@ -77,6 +78,7 @@ export const StudioDevelopmentBar: FC<{
     useEffect(() => {
         if (
             isTrying &&
+            !isDevelopmentViewPinned() &&
             previewProjectUuid &&
             getDevelopmentPreview() !== previewProjectUuid
         ) {
@@ -176,14 +178,16 @@ export const StudioDevelopmentBar: FC<{
                         merge(
                             { prUrl, sha: null },
                             {
-                                onSuccess: ({ compileJobUuid }) =>
+                                // A failed merge keeps the dialog, under the toast that says why.
+                                onSuccess: ({ compileJobUuid }) => {
+                                    setMerging(false);
                                     rememberGoingLive(
                                         queryClient,
                                         projectUuid,
                                         prUrl,
                                         compileJobUuid,
-                                    ),
-                                onSettled: () => setMerging(false),
+                                    );
+                                },
                             },
                         )
                     }

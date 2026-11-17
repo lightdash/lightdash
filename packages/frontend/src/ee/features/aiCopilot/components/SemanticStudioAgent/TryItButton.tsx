@@ -1,8 +1,19 @@
 import { Button, Tooltip } from '@mantine/core';
 import { IconPlayerPlay } from '@tabler/icons-react';
-import { lazy, Suspense, useEffect, useRef, useState, type FC } from 'react';
+import {
+    lazy,
+    Suspense,
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { useDevelopmentView } from '../../../../../features/semanticStudio/developmentView';
+import {
+    pinDevelopmentView,
+    useDevelopmentView,
+} from '../../../../../features/semanticStudio/developmentView';
 import {
     useStudioPullRequest,
     type StudioPullRequest,
@@ -40,29 +51,30 @@ export const TryIt: FC<{
     onClose: () => void;
 }> = ({ projectUuid, models, previewProjectUuid, prUrl, onClose }) => {
     const [isOn, setIsOn] = useDevelopmentView();
-    const turnOn = useRef({ isOn, setIsOn, previewProjectUuid });
+    // The preview the try started on: one that lands meanwhile would reload everything under it.
+    const [preview] = useState(previewProjectUuid);
+    const turnOn = useRef({ isOn, setIsOn, preview });
     useEffect(() => {
-        const {
-            isOn: wasOn,
-            setIsOn: set,
-            previewProjectUuid: preview,
-        } = turnOn.current;
-        set(true, preview);
+        const { isOn: wasOn, setIsOn: set, preview: tried } = turnOn.current;
+        const unpin = pinDevelopmentView();
+        set(true, tried);
         return () => {
+            unpin();
             if (!wasOn) set(false);
         };
     }, []);
-    return (
+    // Explore opens once the app reads the changes, so nothing is read live first and then again.
+    return isOn ? (
         <Suspense fallback={null}>
             <TryItModal
                 projectUuid={projectUuid}
                 models={models}
-                previewProjectUuid={previewProjectUuid}
+                previewProjectUuid={preview}
                 prUrl={prUrl}
                 onClose={onClose}
             />
         </Suspense>
-    );
+    ) : null;
 };
 
 /** Tries a pull request's changes in Explore, over the page, starting on its first changed model. */
@@ -73,7 +85,10 @@ export const TryItButton: FC<{
 }> = ({ projectUuid, pullRequest, look }) => {
     const { changedModels, previewProjectUuid, prUrl } = pullRequest;
     const [isTrying, setIsTrying] = useState(false);
+    const stopTrying = useCallback(() => setIsTrying(false), []);
+    // Without its preview, a teammate's change would be tried as your own changes, or as live.
     if (changedModels.length === 0) return null;
+    if (!pullRequest.isMine && !previewProjectUuid) return null;
     return (
         <>
             <Tooltip multiline w={240} label={HINT}>
@@ -91,7 +106,7 @@ export const TryItButton: FC<{
                     models={changedModels}
                     previewProjectUuid={previewProjectUuid}
                     prUrl={prUrl}
-                    onClose={() => setIsTrying(false)}
+                    onClose={stopTrying}
                 />
             ) : null}
         </>

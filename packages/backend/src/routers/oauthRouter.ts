@@ -5,6 +5,7 @@ import {
     generateOAuthRedirectPage,
     getErrorMessage,
     isManagedSignInError,
+    MOBILE_ORG_DISABLED_CODE,
     MOBILE_SIGN_IN_CODE_TOKEN_TYPE,
     OAuthIntrospectResponse,
     ParameterError,
@@ -14,6 +15,7 @@ import {
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import express, { type Router } from 'express';
+import { MobileOrgDisabledOAuthError } from '../auth/mobileAppAccess';
 import {
     oauthApiResource,
     oauthMcpResource,
@@ -26,7 +28,10 @@ import {
     unauthorisedInDemo,
 } from '../controllers/authentication';
 import Logger from '../logging/logger';
-import { DEFAULT_OAUTH_CLIENT_ID } from '../models/OAuth2Model';
+import {
+    DEFAULT_OAUTH_CLIENT_ID,
+    isMobileOAuthClient,
+} from '../models/OAuth2Model';
 import { MobileSignInOAuthError } from '../services/MobileSignInService/MobileSignInOAuthError';
 import { isClientIdMetadataDocumentUrl } from '../services/OAuthService/clientIdMetadataDocument';
 import { InvalidRedirectUriError } from '../services/OAuthService/InvalidRedirectUriError';
@@ -164,6 +169,52 @@ const sendMissingOrganizationResponse = async (
     return sendOAuthRedirectResponse(req, res, redirectUrl, message);
 };
 
+const refuseDisabledMobileOrg = async (
+    req: express.Request,
+    res: express.Response,
+    params: {
+        clientId: unknown;
+        redirectUri: unknown;
+        state: unknown;
+        organizationUuid: string;
+    },
+): Promise<boolean> => {
+    if (
+        typeof params.clientId !== 'string' ||
+        !(await getOAuthService(req).isMobileAppAccessDenied(
+            params.clientId,
+            params.organizationUuid,
+        ))
+    )
+        return false;
+    const redirectUrl = await getValidatedRedirectUrl(req, {
+        clientId: params.clientId,
+        redirectUri: params.redirectUri,
+    });
+    if (!redirectUrl) {
+        sendInvalidRedirectResponse(res);
+        return true;
+    }
+    redirectUrl.searchParams.set('error', 'access_denied');
+    redirectUrl.searchParams.set('error_description', MOBILE_ORG_DISABLED_CODE);
+    if (isMobileOAuthClient(redirectUrl.href)) {
+        redirectUrl.searchParams.set(
+            'organization_uuid',
+            params.organizationUuid,
+        );
+    }
+    if (typeof params.state === 'string' && params.state !== '') {
+        redirectUrl.searchParams.set('state', params.state);
+    }
+    await sendOAuthRedirectResponse(
+        req,
+        res,
+        redirectUrl,
+        'The mobile app is turned off for your organization. Redirecting you back to the app...',
+    );
+    return true;
+};
+
 // Get authorization - use OAuth2Server
 oauthRouter.get('/authorize', async (req, res, next) => {
     try {
@@ -199,6 +250,16 @@ oauthRouter.get('/authorize', async (req, res, next) => {
                 state,
             });
         }
+
+        if (
+            await refuseDisabledMobileOrg(req, res, {
+                clientId: client_id,
+                redirectUri: redirect_uri,
+                state,
+                organizationUuid: identity.organizationUuid,
+            })
+        )
+            return undefined;
 
         if (
             ((await getOAuthService(req).isSecurityStrict(req.user)) ||
@@ -351,6 +412,16 @@ oauthRouter.post('/authorize', async (req, res, next) => {
             });
         }
 
+        if (
+            await refuseDisabledMobileOrg(req, res, {
+                clientId: req.body.client_id,
+                redirectUri: req.body.redirect_uri,
+                state: req.body.state,
+                organizationUuid: identity.organizationUuid,
+            })
+        )
+            return undefined;
+
         const redirectUrl = await getValidatedRedirectUrl(req, {
             clientId: req.body.client_id,
             redirectUri: req.body.redirect_uri,
@@ -477,6 +548,10 @@ oauthRouter.post('/token', async (req, res, next) => {
                 : {}),
         });
     } catch (error) {
+        if (error instanceof MobileOrgDisabledOAuthError) {
+            res.status(error.code).json(error.toJSON());
+            return;
+        }
         Logger.error(`Token endpoint error: ${error}`);
         if (error instanceof MobileSignInGrantError) {
             if (error.retryAfterSeconds !== undefined) {
@@ -487,6 +562,9 @@ oauthRouter.post('/token', async (req, res, next) => {
                 ...(error.message === error.name
                     ? {}
                     : { error_description: error.message }),
+                ...(error.organizationUuid === undefined
+                    ? {}
+                    : { organization_uuid: error.organizationUuid }),
             });
             return;
         }

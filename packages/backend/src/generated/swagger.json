@@ -16436,7 +16436,10 @@
                     "meta_ads",
                     "google_ads",
                     "youtube_analytics",
-                    "linkedin_ads"
+                    "linkedin_ads",
+                    "github",
+                    "pylon",
+                    "attio"
                 ],
                 "type": "string"
             },
@@ -16606,6 +16609,58 @@
                 "required": ["adAccountId", "connector"],
                 "type": "object"
             },
+            "ApiConnectorType.GITHUB": {
+                "enum": ["github"],
+                "type": "string"
+            },
+            "GithubApiSource": {
+                "properties": {
+                    "repo": {
+                        "type": "string",
+                        "description": "The repository name, without the owner, e.g. lightdash."
+                    },
+                    "owner": {
+                        "type": "string",
+                        "description": "The user or organization that owns the repository, e.g. lightdash."
+                    },
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.GITHUB"
+                    }
+                },
+                "required": ["repo", "owner", "connector"],
+                "type": "object"
+            },
+            "ApiConnectorType.PYLON": {
+                "enum": ["pylon"],
+                "type": "string"
+            },
+            "PylonApiSource": {
+                "properties": {
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.PYLON"
+                    }
+                },
+                "required": ["connector"],
+                "type": "object",
+                "description": "A Pylon workspace; the API token decides which one."
+            },
+            "ApiConnectorType.ATTIO": {
+                "enum": ["attio"],
+                "type": "string"
+            },
+            "AttioApiSource": {
+                "properties": {
+                    "object": {
+                        "type": "string",
+                        "description": "The slug of the Attio object the source reads, e.g. companies or deals."
+                    },
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.ATTIO"
+                    }
+                },
+                "required": ["object", "connector"],
+                "type": "object"
+            },
             "ExternalConnectionApiSource": {
                 "anyOf": [
                     {
@@ -16628,6 +16683,15 @@
                     },
                     {
                         "$ref": "#/components/schemas/LinkedInAdsApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/GithubApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PylonApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/AttioApiSource"
                     }
                 ],
                 "description": "Connector settings of a live source; the server fixes its access rules."
@@ -16652,6 +16716,18 @@
                     },
                     "hasSecret": {
                         "type": "boolean"
+                    },
+                    "cachePurgedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "description": "Live sources: results fetched before this are never reused."
+                    },
+                    "cacheTtlSeconds": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Live sources: the admin's freshness window; null uses the integration's default."
                     },
                     "targetLabel": {
                         "type": "string",
@@ -17358,6 +17434,11 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "cacheHits": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Queries a stored result answered without calling the integration."
+                    },
                     "apiCalls": {
                         "type": "number",
                         "format": "double"
@@ -17369,6 +17450,7 @@
                 "required": [
                     "medianDurationMs",
                     "responseBytes",
+                    "cacheHits",
                     "apiCalls",
                     "externalConnectionUuid"
                 ],
@@ -17716,6 +17798,18 @@
                     }
                 ]
             },
+            "ApiUpdateLiveSourceCacheRequest": {
+                "properties": {
+                    "ttlSeconds": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    }
+                },
+                "required": ["ttlSeconds"],
+                "type": "object",
+                "description": "Null puts the source back on its integration's default."
+            },
             "LiveSourceFieldEditor": {
                 "properties": {
                     "at": {
@@ -17965,6 +18059,10 @@
             },
             "ExternalFetchSavedChartContext": {
                 "properties": {
+                    "includeUnpublishedDraft": {
+                        "type": "boolean",
+                        "description": "Authorize against the requester's own unpublished draft of the chart."
+                    },
                     "chartVersionUuid": {
                         "$ref": "#/components/schemas/UUID"
                     },
@@ -18035,10 +18133,64 @@
                 "required": ["path", "connectionAlias"],
                 "type": "object"
             },
+            "LiveSourceTestFact": {
+                "properties": {
+                    "value": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    }
+                },
+                "required": ["value", "label"],
+                "type": "object",
+                "description": "One thing a live data source test found, as in \"Pull requests: 1,204\"."
+            },
+            "LiveSourceTestCheck": {
+                "properties": {
+                    "facts": {
+                        "items": {
+                            "$ref": "#/components/schemas/LiveSourceTestFact"
+                        },
+                        "type": "array"
+                    },
+                    "detail": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "On failure, why and what to change; null on success."
+                    },
+                    "summary": {
+                        "type": "string",
+                        "description": "One line, as in \"Connected to lightdash/lightdash\"."
+                    },
+                    "ok": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["facts", "detail", "summary", "ok"],
+                "type": "object",
+                "description": "A live data source test result in words an admin reads, not raw JSON."
+            },
+            "ExternalConnectionTestResponse": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ExternalFetchResponse"
+                    },
+                    {
+                        "properties": {
+                            "liveCheck": {
+                                "$ref": "#/components/schemas/LiveSourceTestCheck",
+                                "description": "Set when the tested config is a live data source."
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
             "ApiTestExternalConnectionResponse": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/ExternalFetchResponse"
+                        "$ref": "#/components/schemas/ExternalConnectionTestResponse"
                     },
                     "status": {
                         "type": "string",
@@ -21499,6 +21651,12 @@
             },
             "ApiSourceIncompatibility": {
                 "properties": {
+                    "selectedOnly": {
+                        "type": "boolean",
+                        "enum": [true],
+                        "nullable": false,
+                        "description": "Only selected fields clash; filtering on them is fine. For APIs that\nfilter on a field they can't group by, like a search total by author."
+                    },
                     "reason": {
                         "type": "string"
                     },
@@ -31614,6 +31772,9 @@
                     },
                     {
                         "properties": {
+                            "includeUnpublishedDraft": {
+                                "type": "boolean"
+                            },
                             "dashboardFilters": {
                                 "$ref": "#/components/schemas/DashboardFilters"
                             },
@@ -38928,6 +39089,10 @@
                                                                 "type": "array",
                                                                 "nullable": true
                                                             },
+                                                            "previewPendingSince": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
                                                             "previewUrl": {
                                                                 "type": "string",
                                                                 "nullable": true
@@ -42668,9 +42833,13 @@
                     },
                     "path": {
                         "type": "string"
+                    },
+                    "revision": {
+                        "type": "string",
+                        "nullable": true
                     }
                 },
-                "required": ["content", "path"],
+                "required": ["content", "path", "revision"],
                 "type": "object"
             },
             "ApiSuccess_SemanticStudioSourceFile_": {
@@ -42694,6 +42863,10 @@
                 "anyOf": [
                     {
                         "properties": {
+                            "revision": {
+                                "type": "string",
+                                "description": "The revision of the file as saved, for the next save to be based on."
+                            },
                             "checked": {
                                 "type": "boolean"
                             },
@@ -42714,6 +42887,7 @@
                             }
                         },
                         "required": [
+                            "revision",
                             "checked",
                             "commitSha",
                             "prAction",
@@ -42773,6 +42947,11 @@
                     },
                     "path": {
                         "type": "string"
+                    },
+                    "revision": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The revision the edit was based on, null for a new file; older clients omit it and skip the check."
                     }
                 },
                 "required": ["threadUuid", "prUrl", "content", "path"],
@@ -43151,6 +43330,9 @@
                 "properties": {
                     "publishedSince": {
                         "properties": {
+                            "isYours": {
+                                "type": "boolean"
+                            },
                             "at": {
                                 "type": "string",
                                 "format": "date-time"
@@ -43160,10 +43342,10 @@
                                 "nullable": true
                             }
                         },
-                        "required": ["at", "by"],
+                        "required": ["isYours", "at", "by"],
                         "type": "object",
                         "nullable": true,
-                        "description": "The latest change someone else published to this model since this draft first touched it; null when none."
+                        "description": "The latest change published to this model since this draft first touched it, from another person or another of yours; null when none."
                     },
                     "alsoChanging": {
                         "items": {
@@ -57173,9 +57355,12 @@
                 "properties": {
                     "memoryTour": {
                         "type": "boolean"
+                    },
+                    "dashboardEditTour": {
+                        "type": "boolean"
                     }
                 },
-                "required": ["memoryTour"],
+                "required": ["memoryTour", "dashboardEditTour"],
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
@@ -57204,8 +57389,7 @@
             },
             "UserOnboardingTour": {
                 "type": "string",
-                "enum": ["memoryTour"],
-                "nullable": false
+                "enum": ["memoryTour", "dashboardEditTour"]
             },
             "ApiCompleteUserOnboardingTourRequest": {
                 "properties": {
@@ -69417,6 +69601,34 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "MobileAppAccess": {
+                "properties": {
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "enabled": {
+                        "type": "boolean",
+                        "enum": [true],
+                        "nullable": false
+                    }
+                },
+                "required": ["organizationUuid", "enabled"],
+                "type": "object"
+            },
+            "ApiMobileAppAccessResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/MobileAppAccess"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "MetricWithAssociatedTimeDimension": {
                 "allOf": [
                     {
@@ -79965,7 +80177,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.285.1",
+        "version": "3.301.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -114260,6 +114472,38 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/mobile/access": {
+            "get": {
+                "operationId": "getMobileAppAccess",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiMobileAppAccessResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Tells a mobile app whether the organization of the current sign-in can\nuse the mobile apps. A disabled organization gets a 401 with the code\nmobile_org_disabled",
+                "summary": "Get mobile app access",
+                "tags": ["Mobile"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/projects/{projectUuid}/metricsExplorer/{explore}/{metric}/runMetricTotal": {

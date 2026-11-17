@@ -1,3 +1,4 @@
+import { ProjectType } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import knex, { Knex } from 'knex';
 import { usageContentInventoryQuery } from './usageContentInventory';
@@ -41,7 +42,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
             });
             await db.raw('CREATE SCHEMA ??', [schema]);
             await db.raw(`
-                CREATE TABLE projects (project_id integer PRIMARY KEY, project_uuid uuid UNIQUE, organization_id integer, name text);
+                CREATE TABLE projects (project_id integer PRIMARY KEY, project_uuid uuid UNIQUE, organization_id integer, name text, project_type text NOT NULL DEFAULT '${ProjectType.DEFAULT}');
                 CREATE TABLE spaces (space_id integer PRIMARY KEY, space_uuid uuid UNIQUE, project_id integer, name text, deleted_at timestamptz);
                 CREATE TABLE dashboards (dashboard_id integer PRIMARY KEY, dashboard_uuid uuid UNIQUE, space_id integer, name text, created_at timestamptz, deleted_at timestamptz, owner_user_uuid uuid);
                 CREATE TABLE saved_queries (saved_query_id integer PRIMARY KEY, saved_query_uuid uuid UNIQUE, project_uuid uuid, space_id integer, dashboard_uuid uuid, name text, created_at timestamptz, deleted_at timestamptz);
@@ -88,7 +89,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                 INSERT INTO users VALUES(1,md5('user')::uuid,'An','Owner',true);
                 INSERT INTO organization_memberships VALUES(1,1);
                 UPDATE dashboards SET owner_user_uuid=md5('user')::uuid WHERE dashboard_id=1;
-                INSERT INTO projects VALUES(3,md5('same org project')::uuid,1,'Same org, different project');
+                INSERT INTO projects VALUES(3,md5('same org project')::uuid,1,'Same org, different project','${ProjectType.PREVIEW}');
                 INSERT INTO spaces VALUES(3,md5('same org space')::uuid,3,'Other project space',null), (4,md5('deleted space')::uuid,1,'Deleted space',now());
                 UPDATE dashboards SET space_id=3 WHERE dashboard_id=1004;
                 UPDATE dashboards SET space_id=4 WHERE dashboard_id=1003;
@@ -260,6 +261,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                 ).toMatchObject({
                     org_id: org,
                     project_name: 'Same org, different project',
+                    project_type: ProjectType.PREVIEW,
                     space_name: 'Other project space',
                     dashboard_references: 1,
                 });

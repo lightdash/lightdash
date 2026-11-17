@@ -74,6 +74,7 @@ export type ApiSemanticStudioSourcesResponse =
     ApiSuccess<SemanticStudioSources>;
 
 export type SemanticStudioSourceFile = {
+    revision: string | null;
     path: string;
     content: string | null;
 };
@@ -82,6 +83,8 @@ export type ApiSemanticStudioSourceFileResponse =
     ApiSuccess<SemanticStudioSourceFile>;
 
 export type SaveSemanticStudioSourceRequest = {
+    /** The revision the edit was based on, null for a new file; older clients omit it and skip the check. */
+    revision?: string | null;
     path: string;
     content: string;
     /** The change's open pull request to add the commit to, or null to open one. */
@@ -98,6 +101,8 @@ export type SemanticStudioSourceSave =
           prAction: 'opened' | 'updated';
           commitSha: string;
           checked: boolean;
+          /** The revision of the file as saved, for the next save to be based on. */
+          revision: string;
       }
     | { status: 'failed'; error: string };
 
@@ -186,8 +191,8 @@ export type SemanticLayerDraftModel = {
     reconciliation: SemanticLayerDraftReconciliation | null;
     /** Other people with unpublished changes to this model, and the parts each is changing; never the content. */
     alsoChanging: SemanticLayerDrafter[];
-    /** The latest change someone else published to this model since this draft first touched it; null when none. */
-    publishedSince: { by: string | null; at: Date } | null;
+    /** The latest change published to this model since this draft first touched it, from another person or another of yours; null when none. */
+    publishedSince: { by: string | null; at: Date; isYours: boolean } | null;
 };
 
 /** What became of a change that left the draft. */

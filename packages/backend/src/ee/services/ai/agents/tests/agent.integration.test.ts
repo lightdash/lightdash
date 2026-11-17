@@ -243,8 +243,9 @@ describeOrSkip.concurrent('agent integration tests', () => {
             );
         });
 
-        it.sequential(
+        it(
             'should handle multiple consecutive prompts in the same thread maintaining context',
+            { concurrent: false, timeout: TIMEOUT * 2 },
             async (test) => {
                 if (!specializedAgent) {
                     throw new Error('Specialized agent not created');
@@ -291,7 +292,6 @@ describeOrSkip.concurrent('agent integration tests', () => {
                     // Test passes if all prompts complete without error
                 });
             },
-            TIMEOUT * 2, // Double timeout for multiple prompts
         );
     });
 

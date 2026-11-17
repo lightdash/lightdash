@@ -40,6 +40,28 @@ export const findFieldLine = (
     return index === -1 ? null : index + 1;
 };
 
+const indentOf = (line: string) => line.length - line.trimStart().length;
+
+/** The 1-based lines of a field's whole definition in model YAML: its line and all nested under it. */
+export const findFieldBlock = (
+    content: string,
+    fieldName: string,
+): { start: number; end: number } | null => {
+    const start = findFieldLine(content, fieldName);
+    if (start === null) return null;
+    const lines = content.split('\n');
+    const indent = indentOf(lines[start - 1]);
+    const next = lines.findIndex(
+        (line, index) =>
+            index >= start && line.trim() !== '' && indentOf(line) <= indent,
+    );
+    const body = lines.slice(start, next === -1 ? lines.length : next);
+    return {
+        start,
+        end: start + body.findLastIndex((line) => line.trim() !== '') + 1,
+    };
+};
+
 /** A changed part in plain words: the key and what it is on, or the name of a whole field or join. */
 const describePart = (path: string): string => {
     if (path === '') return 'the whole model';
@@ -178,9 +200,16 @@ const countMetrics = (part: unknown): number => {
     return isRecord(part.metrics) ? Object.keys(part.metrics).length : 0;
 };
 
-const parseModel = (
-    content: string,
-): { label: string | null; dimensions: number; metrics: number } | null => {
+type ModelSummary = {
+    label: string | null;
+    dimensions: number;
+    metrics: number;
+} | null;
+
+// The review asks for the same documents on every render; cleared when it grows, an LRU if drafts get large.
+const summaries = new Map<string, ModelSummary>();
+
+const readModelSummary = (content: string): ModelSummary => {
     try {
         const parsed: unknown = load(content);
         if (!isRecord(parsed)) return null;
@@ -198,6 +227,15 @@ const parseModel = (
     } catch {
         return null;
     }
+};
+
+const parseModel = (content: string): ModelSummary => {
+    const known = summaries.get(content);
+    if (known !== undefined) return known;
+    if (summaries.size > 200) summaries.clear();
+    const summary = readModelSummary(content);
+    summaries.set(content, summary);
+    return summary;
 };
 
 export const count = (amount: number, noun: string) =>

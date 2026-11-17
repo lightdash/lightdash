@@ -5,6 +5,7 @@ import {
     type SavedMergeDefinition,
     type SavedMergeQuery,
 } from '@lightdash/common';
+import { type ContentDraftModel } from '../../models/ContentDraftModel';
 
 export type ChartDraftOverlay = Partial<
     Pick<
@@ -101,4 +102,27 @@ export const mergeDraftIntoChart = <T extends SavedChartDAO>(
             spaceUuid: draft.spaceUuid,
         }),
     };
+};
+
+// Only the draft's author sees it; an invalid draft falls back to the
+// published chart
+export const applyOpenChartDraft = async <T extends SavedChartDAO>(
+    contentDraftModel: Pick<ContentDraftModel, 'findOpenDraft'>,
+    userUuid: string,
+    chart: T,
+    onInvalidDraft: (draftUuid: string, error: unknown) => void,
+): Promise<T> => {
+    const draft = await contentDraftModel.findOpenDraft(
+        chart.projectUuid,
+        'chart',
+        chart.uuid,
+        userUuid,
+    );
+    if (!draft) return chart;
+    try {
+        return mergeDraftIntoChart(chart, draft.draft);
+    } catch (error) {
+        onInvalidDraft(draft.uuid, error);
+        return chart;
+    }
 };

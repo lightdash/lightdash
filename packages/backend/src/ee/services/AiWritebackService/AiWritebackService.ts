@@ -34,6 +34,7 @@ import {
     type WritebackMergeResult,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
+import { createHash } from 'node:crypto';
 import type {
     AiWritebackFailureStage,
     LightdashAnalytics,
@@ -1916,7 +1917,9 @@ export class AiWritebackService extends BaseService {
             dryRun,
             assertPublishAllowed,
             checkDbt,
+            expectedSource = null,
         }: {
+            expectedSource?: { path: string; revision: string | null } | null;
             dryRun: boolean;
             assertPublishAllowed: (() => Promise<void>) | null;
             /** Compiles a dbt change before it is committed; null commits without compiling. */
@@ -2001,6 +2004,20 @@ export class AiWritebackService extends BaseService {
                 connection.projectSubPath === '.'
                     ? ''
                     : `${connection.projectSubPath}/`;
+            if (expectedSource !== null) {
+                const current = await checkout.readFile(
+                    `${root}${expectedSource.path}`,
+                );
+                const revision =
+                    current === null
+                        ? null
+                        : createHash('sha256').update(current).digest('hex');
+                if (revision !== expectedSource.revision) {
+                    throw new ParameterError(
+                        'This file changed since you opened it. Reload it to see the latest version, then make your edit again.',
+                    );
+                }
+            }
             let listing: Promise<string[]> | null = null;
             const isNative =
                 connection.provider === PullRequestProvider.GITHUB &&

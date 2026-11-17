@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import {
     AGENT_IDENTITY_SETTINGS_PATH,
     CommercialFeatureFlags,

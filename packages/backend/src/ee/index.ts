@@ -1,9 +1,11 @@
 import express, { Express } from 'express';
 import { AppArguments } from '../App';
+import { isMobileAppAccessEnabled } from '../auth/mobileAppAccess';
 import {
     createPullRequestComment,
     getInstallationToken,
     getPullRequest,
+    getPullRequestComments,
 } from '../clients/github/Github';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
@@ -244,6 +246,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 const scheduler =
                     clients.getSchedulerClient() as CommercialSchedulerClient;
                 const apnsClient = clients.getApnsClient();
+                const isMobileAccessEnabled = (organizationUuid: string) =>
+                    isMobileAppAccessEnabled(
+                        models.getFeatureFlagModel(),
+                        organizationUuid,
+                    );
                 const reconciler = new MobilePushNotificationReconciler({
                     notificationStore,
                     threadStore,
@@ -251,6 +258,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     fcmClient: clients.getFcmClient(),
                     scheduler,
                     analytics: context.lightdashAnalytics,
+                    isMobileAppAccessEnabled: isMobileAccessEnabled,
                     completionAlert: undefined,
                 });
                 return new MobilePushNotificationService({
@@ -263,6 +271,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     reconciler,
                     analytics: context.lightdashAnalytics,
                     apnsClient,
+                    isMobileAppAccessEnabled: isMobileAccessEnabled,
                 });
             },
             oauthService: ({ models, context, repository }) =>
@@ -443,6 +452,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             models.getGithubAppInstallationsModel(),
                     }),
                     savedChartModel: models.getSavedChartModel(),
+                    jobModel: models.getJobModel(),
+                    writebackPreviewService:
+                        repository.getWritebackPreviewService<WritebackPreviewService>(),
                     aiWritebackService:
                         repository.getAiWritebackService<AiWritebackService>(),
                     fileStorageClient: clients.getFileStorageClient(),
@@ -561,6 +573,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         createPullRequestComment,
                         getInstallationToken,
                         getPullRequest,
+                        getPullRequestComments,
                     },
                 }),
             externalSourceService: ({ context, models, clients }) =>
@@ -684,6 +697,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     }),
                     contentVerificationModel:
                         models.getContentVerificationModel(),
+                    contentDraftModel: models.getContentDraftModel(),
                 }),
             roadmapService: ({ context }) =>
                 new RoadmapService({

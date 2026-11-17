@@ -244,6 +244,7 @@ export const OAUTH_UNCHECKED_OPERATIONS = {
     'AppStateController.deleteSharedState': 'write',
     'AppStateController.getSharedHistory': 'read',
     'MobilePushNotificationController.getMobilePushNotificationStatus': 'read',
+    'MobileAppAccessController.getMobileAppAccess': 'read',
     'SchedulerAiAugmentationController.upsertAugmentation': 'write',
     'SchedulerAiAugmentationController.deleteAugmentation': 'write',
     'SnowflakeController.ssoIsAuthenticated': 'read',

@@ -1,4 +1,4 @@
-import { FilterOperator } from '@lightdash/common';
+import { FilterOperator, ProjectType } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     analyticsDateRange,
@@ -26,6 +26,7 @@ describe('Analytics settings query scopes', () => {
                 start: '2026-11-06',
                 end: '2026-11-13',
                 projectUuid: 'reported-project',
+                excludePreviewContent: true,
             });
             expect(query.filters.dimensions).toEqual(
                 expect.objectContaining({
@@ -50,6 +51,7 @@ describe('Analytics settings query scopes', () => {
                     ]),
                 }),
             );
+            expect(JSON.stringify(query.filters)).not.toContain('project_type');
             expect(query.limit).toBeLessThanOrEqual(90);
             expect(query.additionalMetrics).toBeUndefined();
             expect(query.customDimensions).toBeUndefined();
@@ -64,11 +66,17 @@ describe('Analytics settings query scopes', () => {
             start: '2026-11-06',
             end: '2026-11-13',
             projectUuid: null,
+            excludePreviewContent: true,
         });
         expect(query.exploreName).toBe('content_inventory');
         expect(query.filters.dimensions).toEqual(
             expect.objectContaining({
                 and: expect.arrayContaining([
+                    expect.objectContaining({
+                        target: { fieldId: 'content_health_project_type' },
+                        operator: FilterOperator.NOT_EQUALS,
+                        values: [ProjectType.PREVIEW],
+                    }),
                     expect.objectContaining({
                         target: { fieldId: 'content_health_content_type' },
                         values: ['saved_chart', 'sql_chart', 'dashboard'],

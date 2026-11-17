@@ -107,6 +107,25 @@ const SOURCES: {
         },
         scan: {},
     },
+    {
+        name: 'Pylon',
+        apiSource: { connector: ApiConnectorType.PYLON },
+        scan: {},
+    },
+    {
+        name: 'Attio',
+        apiSource: { connector: ApiConnectorType.ATTIO, object: 'deals' },
+        scan: {
+            attioAttributes: {
+                data: [
+                    { api_slug: 'name', title: 'Deal name', type: 'text' },
+                    { api_slug: 'stage', title: 'Stage', type: 'status' },
+                    { api_slug: 'value', title: 'Value', type: 'currency' },
+                    { api_slug: 'count', title: 'Count', type: 'number' },
+                ],
+            },
+        },
+    },
 ];
 
 describe('live data source names', () => {

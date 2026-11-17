@@ -8,6 +8,9 @@ describeContentAsCodeSchemaContract({
         // Live API sources are configured in the app, not as code.
         'aiHint',
         'apiSource',
+        // A live data source's freshness window and last purge.
+        'cachePurgedAt',
+        'cacheTtlSeconds',
         'createdAt',
         'createdByUserUuid',
         'externalConnectionUuid',

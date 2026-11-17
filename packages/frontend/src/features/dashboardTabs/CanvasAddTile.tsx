@@ -56,7 +56,8 @@ const getTargetUnderPointer = ({
 }): AddTileTarget | null => {
     if (
         !(event.target instanceof Element) ||
-        event.target.closest('.react-grid-item')
+        // A tile, or the layer a copied tile is being placed on
+        event.target.closest('.react-grid-item, [data-tile-placement]')
     )
         return null;
 

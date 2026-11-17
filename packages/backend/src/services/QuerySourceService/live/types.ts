@@ -5,6 +5,7 @@ import type {
     DimensionType,
     Explore,
     ExternalConnectionAuthType,
+    LiveSourceTestFact,
     MetricQuery,
     TimeFrames,
     WarehouseSqlBuilder,
@@ -70,6 +71,15 @@ export type LiveIntegration<
     run: (args: LiveRunArgs<C, Request>) => Promise<LiveRunResult>;
     /** Turns a response outside 2xx into an error that says what to change. */
     toError: (response: LiveHttpResponse, settings: ApiSourceOf<C>) => Error;
+    /**
+     * Reads the setup dialog's test response into what an admin checks: the
+     * account it reached and a few counts. Null when the body is not the
+     * test's shape; omitted, a 2xx reads as plain "Connected to <label>".
+     */
+    summarizeTest?: (
+        body: unknown,
+        settings: ApiSourceOf<C>,
+    ) => LiveTestSummary | null;
     /** Reads fields the API reports itself; omitted when every field is built in. */
     scan?: {
         read: (args: {
@@ -159,6 +169,11 @@ export type LiveHttpRequest = {
     body: unknown;
 };
 
+export type LiveTestSummary = {
+    summary: string;
+    facts: LiveSourceTestFact[];
+};
+
 export type LiveHttpResponse = {
     status: number;
     /** Header names in lowercase. */
@@ -177,4 +192,6 @@ export type LiveConnectionCheck = {
 export type LiveScanResult = {
     ga4Metadata?: unknown;
     posthogProperties?: Record<'event' | 'person', unknown>;
+    /** Attio's attribute list for the source's object, as it returns it. */
+    attioAttributes?: unknown;
 };

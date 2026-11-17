@@ -324,11 +324,38 @@ import {
     getSchedulerPollingOptions,
     type DownloadAsyncQueryResultsArgs,
     type ExecuteAsyncQueryReturn,
+    type ExecuteAsyncSavedChartQueryArgs,
     type RunAsyncWarehouseQueryArgs,
     type RunDuckdbQueryArgs,
 } from './types';
 
 const projectUuid = '11111111-1111-4111-8111-111111111111';
+
+const sharedLiveCache = {
+    scope: { kind: 'source' as const },
+    ttlSeconds: 60,
+    purgedAt: null,
+};
+
+/** A finished live result as query history keeps it. */
+const storedLiveResult = (resultsCreatedAt: Date) => {
+    const queryHistory = {
+        status: QueryHistoryStatus.READY,
+        createdAt: resultsCreatedAt,
+        warehouseExecutionTimeMs: 254,
+        totalRowCount: 3,
+        resultsFileName: 'api-results.jsonl',
+        resultsCreatedAt,
+        resultsUpdatedAt: resultsCreatedAt,
+        resultsExpiresAt: null,
+        columns: null,
+    };
+    return {
+        queryUuid: 'earlier-uuid',
+        queryHistory,
+        ...queryHistory,
+    };
+};
 
 const noOpStrategy = new NoOpPreAggregateStrategy();
 
@@ -2055,18 +2082,9 @@ describe('AsyncQueryService', () => {
                 onboardingModel: onboarding,
                 queryHistoryModel: {
                     create: vi.fn(async () => ({ queryUuid: 'api-uuid' })),
-                    findMostRecentByCacheKey: vi.fn(async () => ({
-                        queryHistory: {
-                            status: QueryHistoryStatus.READY,
-                            warehouseExecutionTimeMs: 254,
-                        },
-                        totalRowCount: 3,
-                        resultsFileName: 'api-results.jsonl',
-                        resultsCreatedAt: now,
-                        resultsUpdatedAt: now,
-                        resultsExpiresAt: null,
-                        columns: null,
-                    })),
+                    findMostRecentByCacheKey: vi.fn(async () =>
+                        storedLiveResult(now),
+                    ),
                     recordResultProducer: vi.fn(),
                     update: vi.fn(),
                 } as unknown as QueryHistoryModel,
@@ -2082,6 +2100,7 @@ describe('AsyncQueryService', () => {
                 connectionUuid: 'connection-uuid',
                 source: {
                     integration: { connector: 'posthog' },
+                    cache: sharedLiveCache,
                     usage: () => ({
                         apiCalls: 0,
                         responseBytes: 0,
@@ -2193,18 +2212,9 @@ describe('AsyncQueryService', () => {
                 } as unknown as FeatureFlagModel,
                 queryHistoryModel: {
                     create: vi.fn(async () => ({ queryUuid: 'api-uuid' })),
-                    findMostRecentByCacheKey: vi.fn(async () => ({
-                        queryHistory: {
-                            status: QueryHistoryStatus.READY,
-                            warehouseExecutionTimeMs: 254,
-                        },
-                        totalRowCount: 3,
-                        resultsFileName: 'api-results.jsonl',
-                        resultsCreatedAt: now,
-                        resultsUpdatedAt: now,
-                        resultsExpiresAt: null,
-                        columns: null,
-                    })),
+                    findMostRecentByCacheKey: vi.fn(async () =>
+                        storedLiveResult(now),
+                    ),
                     recordResultProducer: vi.fn(),
                     update: vi.fn(),
                 } as unknown as QueryHistoryModel,
@@ -2221,6 +2231,7 @@ describe('AsyncQueryService', () => {
                 connectionUuid: 'connection-uuid',
                 source: {
                     integration: { connector: 'posthog' },
+                    cache: sharedLiveCache,
                     usage: () => ({
                         apiCalls: 0,
                         responseBytes: 0,
@@ -2240,6 +2251,154 @@ describe('AsyncQueryService', () => {
                 }),
                 sessionAccount,
             );
+        });
+    });
+
+    describe('live data source result sharing', () => {
+        const setup = ({
+            latest,
+            cache = sharedLiveCache,
+        }: {
+            latest: ReturnType<typeof storedLiveResult> | null;
+            cache?: Record<string, unknown>;
+        }) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                queryHistoryModel: {
+                    create: vi.fn(async () => ({ queryUuid: 'api-uuid' })),
+                    findMostRecentByCacheKey: vi.fn(async () => latest),
+                    updateStatusToError: vi.fn(),
+                    recordResultProducer: vi.fn(),
+                    update: vi.fn(),
+                } as unknown as QueryHistoryModel,
+            } as never);
+            vi.spyOn(service, 'getUserAttributes').mockResolvedValue({
+                userAttributes: {},
+                intrinsicUserAttributes: {},
+            });
+            const runLiveQuery = vi.fn(async () => undefined);
+            (service as AnyType).runLiveQuery = runLiveQuery;
+            const source = {
+                integration: {
+                    connector: 'posthog',
+                    limits: { timeoutMs: 1_000, callsPerQuery: 1 },
+                },
+                cache,
+                usage: () => ({
+                    apiCalls: 0,
+                    responseBytes: 0,
+                    providerStatus: null,
+                }),
+                logCall: vi.fn(async () => undefined),
+            };
+            const submit = (invalidateCache = false) =>
+                (service as AnyType).submitLiveQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    organizationUuid: 'org-uuid',
+                    source,
+                    payload: { kind: 'query', query: '{}' },
+                    limit: 10,
+                    cacheKeySql: '{"connectionUuid":"c","compiled":{}}',
+                    context: QueryExecutionContext.EXPLORE,
+                    querySurface: undefined,
+                    invalidateCache,
+                    history: {
+                        fields: {},
+                        requestParameters: {},
+                        metricQuery: {},
+                        explore: null,
+                    },
+                    toResult: vi.fn(),
+                });
+            return { service, source, runLiveQuery, submit };
+        };
+
+        test('keys a shared-credential source on the request alone, so every viewer shares results', async () => {
+            const { service, submit } = setup({ latest: null });
+            await submit();
+            expect(
+                service.queryHistoryModel.findMostRecentByCacheKey,
+            ).toHaveBeenCalledWith(
+                QueryHistoryModel.getCacheKey(projectUuid, {
+                    sql: '{"connectionUuid":"c","compiled":{}}',
+                    userUuid: null,
+                }),
+                projectUuid,
+                expect.anything(),
+            );
+        });
+
+        test('keeps results per viewer for a source that queries as each viewer', async () => {
+            const { service, submit } = setup({
+                latest: null,
+                cache: {
+                    ...sharedLiveCache,
+                    scope: { kind: 'viewer', userUuid: 'viewer-1' },
+                },
+            });
+            await submit();
+            expect(
+                service.queryHistoryModel.findMostRecentByCacheKey,
+            ).toHaveBeenCalledWith(
+                QueryHistoryModel.getCacheKey(projectUuid, {
+                    sql: '{"connectionUuid":"c","compiled":{}}',
+                    userUuid: 'viewer-1',
+                }),
+                projectUuid,
+                expect.anything(),
+            );
+        });
+
+        test('answers from fresh shared rows without calling the integration', async () => {
+            const { service, source, runLiveQuery, submit } = setup({
+                latest: storedLiveResult(new Date()),
+            });
+            const { reusable } = await submit();
+            expect(reusable).toMatchObject({
+                resultsFileName: 'api-results.jsonl',
+            });
+            expect(runLiveQuery).not.toHaveBeenCalled();
+            expect(source.logCall).toHaveBeenCalledWith(
+                expect.objectContaining({ cacheHit: true }),
+            );
+            expect(service.queryHistoryModel.update).toHaveBeenCalledWith(
+                'api-uuid',
+                projectUuid,
+                expect.objectContaining({
+                    status: QueryHistoryStatus.READY,
+                    results_file_name: 'api-results.jsonl',
+                }),
+                sessionAccount,
+            );
+        });
+
+        test('fetches again once rows are older than the source window', async () => {
+            const { runLiveQuery, submit } = setup({
+                latest: storedLiveResult(new Date(Date.now() - 120_000)),
+                cache: { ...sharedLiveCache, ttlSeconds: 60 },
+            });
+            await submit();
+            expect(runLiveQuery).toHaveBeenCalledTimes(1);
+        });
+
+        test('fetches again after the source cache is purged', async () => {
+            const { runLiveQuery, submit } = setup({
+                latest: storedLiveResult(new Date(Date.now() - 5_000)),
+                cache: { ...sharedLiveCache, purgedAt: new Date() },
+            });
+            await submit();
+            expect(runLiveQuery).toHaveBeenCalledTimes(1);
+        });
+
+        test('a forced refresh skips fresh rows', async () => {
+            const { service, runLiveQuery, submit } = setup({
+                latest: storedLiveResult(new Date()),
+            });
+            await submit(true);
+            expect(
+                service.queryHistoryModel.findMostRecentByCacheKey,
+            ).not.toHaveBeenCalled();
+            expect(runLiveQuery).toHaveBeenCalledTimes(1);
         });
     });
 
@@ -2393,7 +2552,10 @@ describe('AsyncQueryService', () => {
                 account: sessionAccount,
                 projectUuid,
                 organizationUuid: 'org-uuid',
-                source: { integration: { connector: 'ga4' } },
+                source: {
+                    integration: { connector: 'ga4' },
+                    cache: sharedLiveCache,
+                },
                 payload: { kind: 'query', query: '{}' },
                 limit: 10,
                 cacheKeySql: '{}',
@@ -15977,6 +16139,168 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    describe('executeAsyncSavedChartQuery with an unpublished draft', () => {
+        const account = {
+            ...sessionAccount,
+            user: {
+                ...sessionAccount.user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: ['view'] },
+                    { subject: 'SavedChart', action: ['view'] },
+                ]),
+            },
+        } as unknown as Account;
+
+        const publishedChart = {
+            uuid: 'savedChartUuid',
+            name: 'Published chart',
+            organizationUuid: projectSummary.organizationUuid,
+            projectUuid,
+            spaceUuid: 'spaceUuid',
+            tableName: validExplore.name,
+            metricQuery: metricQueryMock,
+            parameters: undefined,
+            pivotConfig: undefined,
+            chartConfig: { type: ChartType.CARTESIAN },
+            tableConfig: { columnOrder: [] },
+        };
+        const draftMetricQuery = { ...metricQueryMock, limit: 7 };
+        const draftChartConfig = { type: ChartType.TABLE };
+
+        const runWithDraft = async (
+            args: Pick<
+                ExecuteAsyncSavedChartQueryArgs,
+                'includeUnpublishedDraft' | 'versionUuid'
+            >,
+        ) => {
+            const findOpenDraft = vi.fn(async () => ({
+                uuid: 'draft-uuid',
+                draft: {
+                    metricQuery: draftMetricQuery,
+                    chartConfig: draftChartConfig,
+                    spaceUuid: 'draftedSpaceUuid',
+                },
+            }));
+            const resolveAccess = vi.fn(async () => ({
+                access: [],
+                inheritsFromOrgOrProject: true,
+            }));
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                spacePermissionService: {
+                    resolveAccess,
+                } as unknown as SpacePermissionService,
+                savedChartModel: {
+                    get: vi.fn(async () => publishedChart),
+                } as unknown as SavedChartModel,
+                analyticsModel: {
+                    addChartViewEvent: vi.fn(async () => {}),
+                } as unknown as AnalyticsModel,
+                contentDraftModel: {
+                    findOpenDraft,
+                } as unknown as ContentDraftModel,
+            } as never);
+            service['isResultIdentityEnabled'] = vi.fn(async () => false);
+            service.getExploreWithUserAccessControls = vi
+                .fn()
+                .mockResolvedValue({
+                    explore: validExplore,
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                });
+            (service as AnyType).getWarehouseCredentials = vi
+                .fn()
+                .mockResolvedValue(warehouseClientMock.credentials);
+            service.combineParameters = vi.fn().mockResolvedValue(undefined);
+            (service as AnyType).getMetricQueryFields = vi
+                .fn()
+                .mockResolvedValue({ fields: {} });
+            const prepareSpy = vi.fn().mockResolvedValue(
+                createQueryComposerMock({
+                    sql: 'SELECT 1',
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                    availableParameterDefinitions: {},
+                }),
+            );
+            (service as AnyType).prepareMetricQueryAsyncQueryArgs = prepareSpy;
+            service['executeAsyncQuery'] = vi.fn().mockResolvedValue({
+                queryUuid: 'queryUuid',
+                cacheMetadata: { cacheHit: false },
+            });
+
+            const result = await service.executeAsyncSavedChartQuery({
+                account,
+                projectUuid,
+                chartUuid: publishedChart.uuid,
+                context: QueryExecutionContext.CHART,
+                ...args,
+            });
+            return { result, prepareSpy, findOpenDraft, resolveAccess };
+        };
+
+        test("runs the requester's draft when asked for it", async () => {
+            const { result, prepareSpy, findOpenDraft } = await runWithDraft({
+                includeUnpublishedDraft: true,
+            });
+
+            expect(findOpenDraft).toHaveBeenCalledWith(
+                projectUuid,
+                'chart',
+                publishedChart.uuid,
+                sessionAccount.user.id,
+            );
+            expect(prepareSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ metricQuery: draftMetricQuery }),
+            );
+            expect(result.chartVisualization?.chartConfig).toEqual(
+                draftChartConfig,
+            );
+        });
+
+        test("authorizes against the published chart's space, not a drafted move", async () => {
+            const { resolveAccess } = await runWithDraft({
+                includeUnpublishedDraft: true,
+            });
+
+            expect(resolveAccess).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({
+                    spaceUuid: publishedChart.spaceUuid,
+                }),
+            );
+        });
+
+        test('runs the published chart when the draft is not asked for', async () => {
+            const { result, prepareSpy, findOpenDraft } = await runWithDraft(
+                {},
+            );
+
+            expect(findOpenDraft).not.toHaveBeenCalled();
+            expect(prepareSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ metricQuery: metricQueryMock }),
+            );
+            expect(result.chartVisualization?.chartConfig).toEqual(
+                publishedChart.chartConfig,
+            );
+        });
+
+        test('ignores the draft when a chart version is requested', async () => {
+            const { prepareSpy, findOpenDraft } = await runWithDraft({
+                includeUnpublishedDraft: true,
+                versionUuid: 'version-uuid',
+            });
+
+            expect(findOpenDraft).not.toHaveBeenCalled();
+            expect(prepareSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ metricQuery: metricQueryMock }),
+            );
+        });
+    });
+
     describe('executeAsyncSavedChartQuery for embedded AI agent tokens', () => {
         const writeSpaceUuid = 'write-space-uuid';
         const writeActorUuid = 'write-actor-uuid';
@@ -16147,6 +16471,25 @@ describe('AsyncQueryService', () => {
             );
             expect(prepareSpy).toHaveBeenCalledWith(
                 expect.objectContaining({ account }),
+            );
+        });
+
+        test('does not consult chart drafts for an embed token', async () => {
+            const { service, prepareSpy } = buildService();
+            const findOpenDraft = vi.fn();
+            (service as AnyType).contentDraftModel = { findOpenDraft };
+
+            await service.executeAsyncSavedChartQuery({
+                account: buildAiAgentAccount(),
+                projectUuid,
+                chartUuid: chart.uuid,
+                context: QueryExecutionContext.CHART,
+                includeUnpublishedDraft: true,
+            });
+
+            expect(findOpenDraft).not.toHaveBeenCalled();
+            expect(prepareSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ metricQuery: chart.metricQuery }),
             );
         });
 
@@ -16670,6 +17013,42 @@ describe('AsyncQueryService', () => {
             values: ['dashboard-value'],
             label: undefined,
         };
+
+        test("authorizes a tile against the published chart's space, not a drafted move", async () => {
+            const { service } = buildService();
+            const findOpenDraft = vi.fn(async () => ({
+                uuid: 'draft-uuid',
+                draft: { spaceUuid: 'draftedSpaceUuid' },
+            }));
+            (service as AnyType).contentDraftModel = { findOpenDraft };
+
+            await service.executeAsyncDashboardChartQuery({
+                account: authorizedAccount,
+                projectUuid,
+                tileUuid: 'tile-1',
+                chartUuid: mergedChart.uuid,
+                dashboardUuid: 'dashboard-uuid',
+                dashboardFilters: {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                dashboardSorts: [],
+                context: QueryExecutionContext.DASHBOARD,
+                invalidateCache: false,
+                limit: undefined,
+                parameters: undefined,
+                pivotResults: false,
+                includeUnpublishedDraft: true,
+            });
+
+            expect(findOpenDraft).toHaveBeenCalledOnce();
+            const { getSpaceSummary } = (service as AnyType).spaceModel;
+            expect(getSpaceSummary).toHaveBeenCalledWith('spaceUuid');
+            expect(getSpaceSummary).not.toHaveBeenCalledWith(
+                'draftedSpaceUuid',
+            );
+        });
 
         test('runs the merge with the tile filter pushed into both sources', async () => {
             const { service, mergeSpy, prepareSpy } = buildService();
@@ -24709,18 +25088,9 @@ describe('fresh stored result read boundary', () => {
             }),
         );
         Object.assign(f.service.queryHistoryModel, {
-            findMostRecentByCacheKey: vi.fn(async () => ({
-                queryHistory: {
-                    status: QueryHistoryStatus.READY,
-                    warehouseExecutionTimeMs: 10,
-                },
-                totalRowCount: 1,
-                resultsFileName: 'api-results.jsonl',
-                resultsCreatedAt: new Date(),
-                resultsUpdatedAt: new Date(),
-                resultsExpiresAt: null,
-                columns: null,
-            })),
+            findMostRecentByCacheKey: vi.fn(async () =>
+                storedLiveResult(new Date()),
+            ),
         });
         const { queryUuid } = await f.service.executeAsyncApiQuery({
             account: f.account,
@@ -24729,6 +25099,7 @@ describe('fresh stored result read boundary', () => {
             connectionUuid: 'connection-uuid',
             source: {
                 integration: { connector: 'posthog' },
+                cache: sharedLiveCache,
                 usage: () => ({
                     apiCalls: 0,
                     responseBytes: 0,

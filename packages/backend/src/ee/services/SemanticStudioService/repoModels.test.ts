@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
     getInstallationAccessToken,
     getLastCommit,
+    getPullRequest,
     getRepoTree,
 } from '../../../clients/github/Github';
 import {
@@ -16,6 +17,7 @@ vi.mock('../../../clients/github/Github', () => ({
         token: 'token',
         expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     })),
+    getPullRequest: vi.fn(async () => ({ merged: false, state: 'open' })),
     getLastCommit: vi.fn(async () => ({ sha: 'sha' })),
     getRepoTree: vi.fn(async () => ({ files: [], truncated: false })),
 }));
@@ -113,5 +115,46 @@ describe('describePullRequest', () => {
             describePullRequest(['a', 'b', 'c', 'd', 'e'].map((m) => result(m)))
                 .title,
         ).toBe('Update semantic layer: a, b, c and 2 more');
+    });
+});
+
+describe('getPullRequestState', () => {
+    it('reads PR state without CI checks and reuses the installation token', async () => {
+        const source = new RepoModelSource({
+            githubAppInstallationsModel: {
+                findInstallationId: async () => 'installation',
+            },
+        });
+        vi.mocked(getInstallationAccessToken).mockClear();
+        vi.mocked(getPullRequest).mockClear();
+        expect(
+            await source.getPullRequestState(
+                'org',
+                github,
+                'https://github.com/acme/analytics/pull/1',
+            ),
+        ).toBe('open');
+        expect(
+            await source.getPullRequestState(
+                'org',
+                github,
+                'https://github.com/acme/analytics/pull/2',
+            ),
+        ).toBe('open');
+        expect(getInstallationAccessToken).toHaveBeenCalledTimes(1);
+        expect(getPullRequest).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([
+        'https://github.com/other/analytics/pull/1',
+        'https://github.example/acme/analytics/pull/1',
+        'https://example.com/github.com/acme/analytics/pull/1',
+    ])('refuses a URL outside the configured repository: %s', async (url) => {
+        const findInstallationId = vi.fn();
+        const source = new RepoModelSource({
+            githubAppInstallationsModel: { findInstallationId },
+        });
+        expect(await source.getPullRequestState('org', github, url)).toBeNull();
+        expect(findInstallationId).not.toHaveBeenCalled();
     });
 });

@@ -24,9 +24,13 @@ import {
     getGridTotalRows,
     getViewModeActiveTabTiles,
     hasGridItemMoved,
+    getLayoutOnScreen,
     resolveDropOverlaps,
     getRowInsertion,
     getGapFill,
+    getSnapDwellRemaining,
+    getSnapRest,
+    SNAP_DWELL_MS,
     getAddTileSlot,
     getPointerCell,
     getPointerPosition,
@@ -40,6 +44,10 @@ import {
     keepResizedTileCorner,
     matchesSavedLayout,
     settleLayoutAfterEdit,
+    getCarriedTileCell,
+    getTilesWithTileAt,
+    getTilesWithTileWidth,
+    isClick,
 } from './gridUtils';
 
 const chart = (uuid: string, x: number, y: number, h = 6): DashboardTile => ({
@@ -615,6 +623,72 @@ describe('dropping a tile on empty space', () => {
             item('dragged', 0, 20),
         ];
         expect(fill(layout, 17, 1)).toBeNull();
+    });
+});
+
+describe('resting over a slot before snapping to it', () => {
+    const slot = { x: 0, y: 4, w: 12, h: 6 };
+    const resting = getSnapRest({
+        previous: null,
+        slot,
+        pointer: { clientX: 100, clientY: 100 },
+        now: 1000,
+    });
+
+    it('does not snap a tile that has just reached a slot', () => {
+        expect(getSnapDwellRemaining(resting, 1000)).toBe(SNAP_DWELL_MS);
+    });
+
+    it('snaps once the pointer has stayed put long enough', () => {
+        const later = getSnapRest({
+            previous: resting,
+            slot,
+            pointer: { clientX: 103, clientY: 98 },
+            now: 1000 + SNAP_DWELL_MS,
+        });
+        expect(getSnapDwellRemaining(later, 1000 + SNAP_DWELL_MS)).toBe(0);
+    });
+
+    it('starts waiting again when the pointer keeps moving', () => {
+        const later = getSnapRest({
+            previous: resting,
+            slot,
+            pointer: { clientX: 160, clientY: 100 },
+            now: 1000 + SNAP_DWELL_MS,
+        });
+        expect(getSnapDwellRemaining(later, 1000 + SNAP_DWELL_MS)).toBe(
+            SNAP_DWELL_MS,
+        );
+    });
+
+    it('starts waiting again over another slot', () => {
+        const later = getSnapRest({
+            previous: resting,
+            slot: { ...slot, x: 12 },
+            pointer: { clientX: 100, clientY: 100 },
+            now: 1000 + SNAP_DWELL_MS,
+        });
+        expect(getSnapDwellRemaining(later, 1000 + SNAP_DWELL_MS)).toBe(
+            SNAP_DWELL_MS,
+        );
+    });
+
+    it('lets go of a snap once the pointer moves on', () => {
+        const snapped = getSnapRest({
+            previous: resting,
+            slot,
+            pointer: { clientX: 100, clientY: 100 },
+            now: 1000 + SNAP_DWELL_MS,
+        });
+        const movedOn = getSnapRest({
+            previous: snapped,
+            slot,
+            pointer: { clientX: 100, clientY: 140 },
+            now: 1100 + SNAP_DWELL_MS,
+        });
+        expect(
+            getSnapDwellRemaining(movedOn, 1100 + SNAP_DWELL_MS),
+        ).toBeGreaterThan(0);
     });
 });
 
@@ -1524,5 +1598,135 @@ describe('add tile slot', () => {
     it('offers nothing over a tile or on an empty canvas', () => {
         expect(slotAt([tile(0, 0, 18, 9)], 3, 3)).toBeNull();
         expect(slotAt([], 3, 3)).toBeNull();
+    });
+});
+
+describe('getTilesWithTileWidth', () => {
+    const tile = (uuid: string, x: number, y: number, w: number) => ({
+        uuid,
+        x,
+        y,
+        w,
+        h: 4,
+    });
+
+    it('widens a tile from its left edge and moves the tiles it covers down', () => {
+        expect(
+            getTilesWithTileWidth(
+                [
+                    tile('a', 0, 0, 12),
+                    tile('b', 12, 0, 12),
+                    tile('c', 0, 4, 36),
+                ],
+                'a',
+                18,
+            ),
+        ).toEqual([
+            tile('a', 0, 0, 18),
+            tile('b', 12, 4, 12),
+            tile('c', 0, 8, 36),
+        ]);
+    });
+
+    it('pulls a tile left when its new width would leave the grid', () => {
+        expect(getTilesWithTileWidth([tile('a', 27, 0, 9)], 'a', 18)).toEqual([
+            tile('a', 18, 0, 18),
+        ]);
+    });
+
+    it('leaves the other tiles alone when a tile narrows', () => {
+        const tiles = [tile('a', 0, 0, 36), tile('b', 0, 4, 36)];
+        expect(getTilesWithTileWidth(tiles, 'a', 9)).toEqual([
+            tile('a', 0, 0, 9),
+            tiles[1],
+        ]);
+    });
+});
+
+describe('isClick', () => {
+    it('tells a press released in place from one that travelled', () => {
+        const pressed = { clientX: 100, clientY: 100 };
+        expect(isClick(pressed, { clientX: 102, clientY: 101 })).toBe(true);
+        expect(isClick(pressed, { clientX: 100, clientY: 112 })).toBe(false);
+    });
+});
+
+describe('placing a copied tile', () => {
+    const tile = (uuid: string, x: number, y: number, w: number) => ({
+        uuid,
+        x,
+        y,
+        w,
+        h: 4,
+    });
+
+    it('holds the tile by the middle of its top row and keeps it on the grid', () => {
+        expect(getCarriedTileCell({ x: 20, y: 7 }, { w: 12 })).toEqual({
+            x: 14,
+            y: 7,
+        });
+        expect(getCarriedTileCell({ x: 2, y: -3 }, { w: 12 })).toEqual({
+            x: 0,
+            y: 0,
+        });
+        expect(getCarriedTileCell({ x: 35, y: 0 }, { w: 12 })).toEqual({
+            x: 24,
+            y: 0,
+        });
+    });
+
+    it('puts the tile down and moves the tiles it covers below it', () => {
+        expect(
+            getTilesWithTileAt(
+                [
+                    tile('a', 0, 0, 18),
+                    tile('b', 18, 0, 18),
+                    tile('copy', 0, 4, 18),
+                ],
+                'copy',
+                { x: 18, y: 0 },
+            ),
+        ).toEqual([
+            tile('a', 0, 0, 18),
+            tile('b', 18, 4, 18),
+            tile('copy', 18, 0, 18),
+        ]);
+    });
+});
+
+describe('tiles stored on top of each other', () => {
+    const item = (i: string, x: number, y: number, w: number, h: number) => ({
+        i,
+        x,
+        y,
+        w,
+        h,
+    });
+
+    it('leaves tiles that do not overlap where they are', () => {
+        const layout = [item('a', 0, 0, 18, 9), item('b', 18, 0, 18, 9)];
+        expect(getLayoutOnScreen(layout)).toEqual(layout);
+    });
+
+    it('draws a tile stored under an earlier one below it', () => {
+        const result = getLayoutOnScreen([
+            item('table', 0, 36, 36, 9),
+            item('pie', 0, 37, 15, 9),
+        ]);
+        expect(result.find((tile) => tile.i === 'pie')?.y).toBe(45);
+    });
+
+    it('offers the space beside the tile where it is drawn', () => {
+        const slot = getAddTileSlot({
+            items: getLayoutOnScreen([
+                item('table', 0, 36, 36, 9),
+                item('pie', 0, 37, 15, 9),
+            ]),
+            cell: { x: 25, y: 50 },
+            cols: 36,
+            minSize: { w: 3, h: 1 },
+            defaultSize: { w: 15, h: 9 },
+        });
+        expect(slot).toEqual({ x: 15, y: 45, w: 21, h: 9 });
     });
 });

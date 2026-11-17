@@ -77,6 +77,44 @@ describe('AskUserQuestionCard', () => {
         ).not.toBeChecked();
     });
 
+    it('unpicks the option when an own answer is typed', () => {
+        renderCard([period]);
+        const option = screen.getByRole('radio', { name: /October 2022/ });
+
+        fireEvent.click(option);
+        expect(option).toBeChecked();
+        fireEvent.change(screen.getByLabelText('Your own answer'), {
+            target: { value: 'Q4 2022' },
+        });
+
+        expect(option).not.toBeChecked();
+    });
+
+    it('unpicks a picked option when it is clicked again', () => {
+        renderCard([period]);
+        const option = screen.getByRole('radio', { name: /October 2022/ });
+
+        fireEvent.click(option);
+        fireEvent.click(option);
+
+        expect(option).not.toBeChecked();
+        expect(
+            screen.getByRole('button', { name: 'Submit answer' }),
+        ).toBeDisabled();
+    });
+
+    it('unpicks a picked option when its number key is pressed again', () => {
+        renderCard([period]);
+        const card = document.activeElement as HTMLElement;
+
+        fireEvent.keyDown(card, { key: '2' });
+        fireEvent.keyDown(card, { key: '2' });
+
+        expect(
+            screen.getByRole('radio', { name: /October 2022/ }),
+        ).not.toBeChecked();
+    });
+
     it('steps through several questions and labels each answer', () => {
         const onSubmit = renderCard([period, metrics]);
 
