@@ -177,7 +177,11 @@ export class MobilePushNotificationModel {
         await this.database<DbMobilePushInstallation>(
             MobilePushInstallationsTableName,
         )
-            .where('oauth_client_id', args.clientId)
+            .where((query) => {
+                void query
+                    .where('oauth_client_id', args.clientId)
+                    .orWhereNull('oauth_client_id');
+            })
             .where('organization_uuid', args.organizationUuid)
             .whereIn(
                 'user_uuid',

@@ -809,7 +809,7 @@ describe('MobilePushNotificationModel grant checks', () => {
         ]);
     });
 
-    it('deletes the installations of one grant in one organization, whether or not the grant is live', async () => {
+    it("deletes the installations of one grant, and the same person's installations without a grant, in one organization", async () => {
         tracker.on.delete(MobilePushInstallationsTableName).responseOnce(1);
 
         await model.deleteInstallationsOfGrant({
@@ -820,7 +820,9 @@ describe('MobilePushNotificationModel grant checks', () => {
 
         expect(tracker.history.delete).toHaveLength(1);
         const deleteQuery = tracker.history.delete[0];
-        expect(deleteQuery.sql).toContain('"oauth_client_id" = $1');
+        expect(deleteQuery.sql).toContain(
+            '("oauth_client_id" = $1 or "oauth_client_id" is null)',
+        );
         expect(deleteQuery.sql).toContain('"organization_uuid" = $2');
         expect(deleteQuery.sql).toContain('"user_id" = $3');
         expect(deleteQuery.sql).not.toContain('oauth2_refresh_tokens');

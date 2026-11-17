@@ -1644,12 +1644,20 @@ describe('MobilePushNotificationService for an organization with mobile access o
         expect(
             dependencies.mobilePushNotificationStore.registerPushToStartToken,
         ).not.toHaveBeenCalled();
+        expect(
+            dependencies.mobilePushNotificationStore
+                .deleteInstallationsWithoutGrant,
+        ).toHaveBeenCalledWith({ organizationUuid, userUuid });
     });
 
     it('refuses a live activity registration', async () => {
         const { dependencies, service } = createDisabled();
 
         await expect(register(service)).rejects.toMatchObject(denied);
+        expect(
+            dependencies.mobilePushNotificationStore
+                .deleteInstallationsWithoutGrant,
+        ).toHaveBeenCalledWith({ organizationUuid, userUuid });
         expect(
             dependencies.mobilePushNotificationStore.findInstallation,
         ).not.toHaveBeenCalled();

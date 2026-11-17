@@ -2462,6 +2462,69 @@ describe('MobileSignInService.getAppAccess', () => {
         });
     });
 
+    it.each([
+        [
+            'the removal rejects',
+            () => ({
+                revokeInstallationsWithoutGrant: async () => {
+                    throw new Error('database down');
+                },
+            }),
+        ],
+        [
+            'the push service is not available',
+            () => {
+                throw new Error('service not available');
+            },
+        ],
+    ])(
+        'still answers with the code when %s',
+        async (_label, getPushService) => {
+            const warn = vi
+                .spyOn(Logger, 'warn')
+                .mockImplementation(() => Logger);
+            const service = new MobileSignInService({
+                analytics: { track: vi.fn() },
+                lightdashConfig: {
+                    siteUrl: 'https://app.example.test',
+                    smtp: undefined,
+                    mode: LightdashMode.CLOUD_BETA,
+                    trustProxy: true,
+                    lightdashSecret: 'test-lightdash-secret-0000',
+                },
+                mobileSignInCodeModel: {} as MobileSignInCodeModel,
+                mobileAppLinkModel: {
+                    incrementRateCounter: vi.fn(),
+                    getRateCount: vi.fn(),
+                },
+                featureFlagModel: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: false,
+                    })),
+                },
+                userModel: { findSessionUserAndOrgByUuid: vi.fn() },
+                oauthModel: { getClient: vi.fn() },
+                getUserService: () => ({ getManagedSignIn: vi.fn() }),
+                getProjectService: () => ({ getProject: vi.fn() }),
+                getMobilePushNotificationService: getPushService,
+            });
+
+            await expect(
+                service.getAppAccess(sessionUser),
+            ).rejects.toMatchObject({
+                name: 'MobileOrgDisabledError',
+                statusCode: 401,
+                data: { code: 'mobile_org_disabled', organizationUuid },
+            });
+            expect(warn).toHaveBeenCalledWith(
+                'Unable to remove mobile push installations of a denied session',
+                expect.anything(),
+            );
+            warn.mockRestore();
+        },
+    );
+
     it('removes nothing for an enabled organization', async () => {
         const { service, revokeInstallationsWithoutGrant } = createService();
 
@@ -2483,10 +2546,11 @@ describe('MobileSignInService.getAppAccess', () => {
     });
 
     it('refuses a person with no organization', async () => {
-        const { service } = createService();
+        const { service, revokeInstallationsWithoutGrant } = createService();
         await expectRefusal(
             service.getAppAccess({ userUuid, organizationUuid: undefined }),
             MobileSignInRefusal.ORGANIZATION_REQUIRED,
         );
+        expect(revokeInstallationsWithoutGrant).not.toHaveBeenCalled();
     });
 });

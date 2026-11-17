@@ -491,12 +491,19 @@ export class MobileSignInService extends BaseService {
                 user.organizationUuid,
             ))
         ) {
-            await this.getMobilePushNotificationService().revokeInstallationsWithoutGrant(
-                {
-                    userUuid: user.userUuid,
-                    organizationUuid: user.organizationUuid,
-                },
-            );
+            try {
+                await this.getMobilePushNotificationService().revokeInstallationsWithoutGrant(
+                    {
+                        userUuid: user.userUuid,
+                        organizationUuid: user.organizationUuid,
+                    },
+                );
+            } catch (error) {
+                this.logger.warn(
+                    'Unable to remove mobile push installations of a denied session',
+                    { error },
+                );
+            }
             throw new MobileOrgDisabledError(user.organizationUuid);
         }
         return { enabled: true, organizationUuid: user.organizationUuid };
