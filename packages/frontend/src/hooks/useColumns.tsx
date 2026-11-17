@@ -697,7 +697,14 @@ export const useColumns = (): TableColumn[] => {
             return [];
         }
 
-        const hasJoins = (exploreData?.joinedTables || []).length > 0;
+        // A table name under each header only helps when the columns come
+        // from more than one table
+        const tablesInResults = new Set(
+            Object.values(activeItemsMap)
+                .filter(isField)
+                .map((item) => item.table),
+        );
+        const hasColumnsFromSeveralTables = tablesInResults.size > 1;
 
         const validColumns = Object.entries(activeItemsMap).reduce<
             TableColumn[]
@@ -713,7 +720,8 @@ export const useColumns = (): TableColumn[] => {
                 isField(item) &&
                 item.table === MERGE_TABLE_NAME &&
                 isDimension(item);
-            const showTablePrefix = hasJoins || !!mergeResults;
+            const showTablePrefix =
+                hasColumnsFromSeveralTables || !!mergeResults;
             // Inline with the name, so it wraps with it and never drifts away
             const typeIcon = (
                 <FieldIcon
@@ -923,7 +931,6 @@ export const useColumns = (): TableColumn[] => {
         totalsError,
         isCalculatingTotals,
         totalsEnabledByDefault,
-        exploreData,
         parameters,
         timezone,
         mergeResults,
