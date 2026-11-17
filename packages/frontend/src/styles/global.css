@@ -6,8 +6,9 @@ body {
     background-color: var(--ld-color-page);
 }
 
-/* Native scrollbars match the themed ScrollArea: thin, quiet thumb, no track */
-* {
+/* Native scrollbars match the themed ScrollArea: thin, quiet thumb, no track.
+   Anchored on html so the SDK's scoped copy never matches inside a host page. */
+html * {
     scrollbar-width: thin;
     scrollbar-color: var(--mantine-color-ldGray-3) transparent;
 }

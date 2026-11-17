@@ -1,6 +1,7 @@
 import { getItemLabel, getItemMap, isField } from '@lightdash/common';
 import { Box, Text } from '@mantine/core';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import {
     explorerActions,
     selectAdditionalMetrics,
@@ -74,6 +75,7 @@ type ExplorerResultsProps = {
 };
 
 export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
+    const getUiString = useUiStrings();
     const dispatch = useExplorerDispatch();
     const columns = useColumns();
     const isEditMode = useExplorerSelector(selectIsEditMode);
@@ -556,7 +558,9 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         if (pivotTableQuery.isLoading || groupedResultsData?.isFetchingRows) {
             return (
                 <Box mih={200}>
-                    <RunningBar label="Loading chart results" />
+                    <RunningBar
+                        label={getUiString('explorer.loadingChartResults')}
+                    />
                 </Box>
             );
         }

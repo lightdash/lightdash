@@ -29,6 +29,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import {
     explorerActions,
@@ -231,6 +232,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
     const hasSelectedFields = useExplorerSelector(selectHasSelectedFields);
     // Without the heading there is no way to expand the card, so force it open
     const isOpen = minimal || isVisualizationExpanded || isFullscreen;
+    const getUiString = useUiStrings();
     // The nudge to visualize is for a first query: gone once the chart was opened
     const [hasOpenedChart, setHasOpenedChart] = useState(isOpen);
     if (isOpen && !hasOpenedChart) setHasOpenedChart(true);
@@ -696,7 +698,9 @@ const VisualizationCard: FC<Props> = memo((props) => {
                     {renderVisualization && (
                         <>
                             {isLoadingQueryResults && (
-                                <RunningBar label="Running query" />
+                                <RunningBar
+                                    label={getUiString('explorer.runningQuery')}
+                                />
                             )}
                             {isFirstLoad ? (
                                 <Box
@@ -709,7 +713,9 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                             loading
                                         />
                                         <Text fz="sm" fw={500}>
-                                            Loading chart
+                                            {getUiString(
+                                                'explorer.loadingChart',
+                                            )}
                                         </Text>
                                     </Stack>
                                 </Box>
@@ -721,6 +727,8 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                     </Stack>
                                 </Box>
                             ) : (
+                                // Advice a viewer cannot act on stays out of view mode
+                                isEditMode &&
                                 hasNothingToPlot && (
                                     <Box className={classes.staleCover}>
                                         <Stack gap={2} align="center">
