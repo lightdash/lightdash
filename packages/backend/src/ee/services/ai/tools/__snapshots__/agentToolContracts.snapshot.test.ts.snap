@@ -11788,6 +11788,12 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                         "null",
                       ],
                     },
+                    "previewPendingSince": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
                     "previewUrl": {
                       "type": [
                         "string",
@@ -12124,6 +12130,12 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                       ],
                     },
                     "prUrl": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "previewPendingSince": {
                       "type": [
                         "string",
                         "null",
