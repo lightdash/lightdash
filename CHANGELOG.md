@@ -1,3 +1,10 @@
+# [3.296.0](https://github.com/lightdash/lightdash/compare/3.295.1...3.296.0) (2026-11-17)
+
+
+### Features
+
+* **frontend:** list a model's pre-aggregates under its file in Semantic Studio ([#32793](https://github.com/lightdash/lightdash/issues/32793)) ([2952dd4](https://github.com/lightdash/lightdash/commit/2952dd4ffe98d3c06f64202dfbac4f8adb0a1dff))
+
 ## [3.295.1](https://github.com/lightdash/lightdash/compare/3.295.0...3.295.1) (2026-11-17)
 
 
