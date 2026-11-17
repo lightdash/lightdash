@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    coversEveryDimension,
     describeRefresh,
     getFieldLabel,
     getPreAggregateQuery,
@@ -222,5 +223,43 @@ describe('usageByDay', () => {
             { date: '2026-11-16', hits: 0, misses: 0 },
             { date: '2026-11-17', hits: 3, misses: 1 },
         ]);
+    });
+});
+
+describe('coversEveryDimension', () => {
+    const explore = {
+        baseTable: 'orders',
+        tables: {
+            orders: {
+                dimensions: {
+                    id: { name: 'id' },
+                    status: { name: 'status' },
+                    created: { name: 'created' },
+                    created_day: {
+                        name: 'created_day',
+                        timeIntervalBaseDimensionName: 'created',
+                    },
+                    secret: { name: 'secret', hidden: true },
+                },
+            },
+        },
+    };
+
+    it('is true when every visible dimension is kept, the time dimension included', () => {
+        expect(
+            coversEveryDimension(explore, {
+                dimensions: ['id', 'orders.status'],
+                timeDimension: 'created',
+            }),
+        ).toBe(true);
+    });
+
+    it('is false when a dimension is left out', () => {
+        expect(
+            coversEveryDimension(explore, {
+                dimensions: ['status'],
+                timeDimension: 'created',
+            }),
+        ).toBe(false);
     });
 });

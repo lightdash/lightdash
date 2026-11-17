@@ -14,6 +14,7 @@ import {
     Paper,
     Stack,
     Text,
+    Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import dayjs from 'dayjs';
@@ -31,17 +32,20 @@ import { useTimeAgo } from '../../hooks/useTimeAgo';
 import { formatDuration, formatFileSize } from '../../utils/formatters';
 import { VIEW_PARAM } from './modelCode';
 import { PreAggregateSample, UsageByDayChart } from './PreAggregateInsights';
+import classes from './PreAggregateInsights.module.css';
 import {
     describeRefresh,
     getFieldLabel,
     getPreAggregateQuery,
     getPreAggregateStatus,
     PRE_AGGREGATES_PAGE_SIZE as PAGE_SIZE,
+    coversEveryDimension,
     summariseUsage,
     usageByDay,
 } from './preAggregateSummary';
 
 const STATS_DAYS = 7;
+const MAX_LISTED = 6;
 
 const isMissReason = (reason: string): reason is PreAggregateMissReason =>
     reason in preAggregateMissReasonLabels;
@@ -102,6 +106,22 @@ const PreAggregateCard: FC<{
         ),
     ];
     const error = summary.definitionError ?? materialization?.errorMessage;
+    const isWhole = coversEveryDimension(explore, summary);
+    const refreshRule = describeRefresh(summary);
+    const meta = [
+        materialization?.materializedAt ? (
+            <BuiltAgo key="built" date={materialization.materializedAt} />
+        ) : (
+            (summary.externalTable ?? 'Not built yet')
+        ),
+        ...facts,
+        `${refreshRule.charAt(0).toLowerCase()}${refreshRule.slice(1)}`,
+        ...(hits > 0
+            ? [
+                  `served ${plural(hits, 'chart query', 'chart queries')} in the last ${STATS_DAYS} days`,
+              ]
+            : []),
+    ];
     return (
         <Paper p="md">
             <MaterializationDetailDrawer
@@ -112,78 +132,57 @@ const PreAggregateCard: FC<{
                 isRefreshing={refresh.isLoading || isBuilding}
             />
             <Stack gap="sm">
-                <Group justify="space-between" wrap="nowrap" gap="sm">
-                    <Group gap="xs" wrap="nowrap" miw={0}>
-                        <Text fw={500} truncate>
-                            {summary.preAggregateName}
-                        </Text>
-                        <Badge color={status.color} flex="none">
-                            {status.label}
-                        </Badge>
-                    </Group>
-                    <Group gap="xs" wrap="nowrap" flex="none">
-                        <Button
-                            size="xs"
-                            variant="subtle"
-                            color="gray"
-                            onClick={detail.open}
-                        >
-                            Details
-                        </Button>
-                        {explore && status.label === 'Ready' ? (
+                <Box>
+                    <Group justify="space-between" wrap="nowrap" gap="sm">
+                        <Group gap="xs" wrap="nowrap" miw={0}>
+                            <Text fw={500} truncate>
+                                {summary.preAggregateName}
+                            </Text>
+                            <Badge color={status.color} flex="none">
+                                {status.label}
+                            </Badge>
+                        </Group>
+                        <Group gap="xs" wrap="nowrap" flex="none">
                             <Button
-                                component="a"
-                                href={exploreHref(
-                                    projectUuid,
-                                    summary,
-                                    explore.baseTable,
-                                )}
-                                target="_blank"
                                 size="xs"
                                 variant="subtle"
                                 color="gray"
+                                onClick={detail.open}
                             >
-                                Try in Explore
+                                Details
                             </Button>
-                        ) : null}
-                        {summary.externalTable ||
-                        summary.definitionError ? null : (
-                            <Button
-                                size="xs"
-                                variant="default"
-                                flex="none"
-                                loading={refresh.isLoading || isBuilding}
-                                onClick={() =>
-                                    refresh.mutate(summary.preAggregateName)
-                                }
-                            >
-                                {materialization ? 'Rebuild' : 'Build'}
-                            </Button>
-                        )}
+                            {explore && status.label === 'Ready' ? (
+                                <Button
+                                    component="a"
+                                    href={exploreHref(
+                                        projectUuid,
+                                        summary,
+                                        explore.baseTable,
+                                    )}
+                                    target="_blank"
+                                    size="xs"
+                                    variant="subtle"
+                                    color="gray"
+                                >
+                                    Try in Explore
+                                </Button>
+                            ) : null}
+                            {summary.externalTable ||
+                            summary.definitionError ? null : (
+                                <Button
+                                    size="xs"
+                                    variant="default"
+                                    flex="none"
+                                    loading={refresh.isLoading || isBuilding}
+                                    onClick={() =>
+                                        refresh.mutate(summary.preAggregateName)
+                                    }
+                                >
+                                    {materialization ? 'Rebuild' : 'Build'}
+                                </Button>
+                            )}
+                        </Group>
                     </Group>
-                </Group>
-                <Box>
-                    <Text fz="sm">
-                        {summary.metrics
-                            .map((reference) =>
-                                getFieldLabel(explore, reference),
-                            )
-                            .join(', ')}
-                    </Text>
-                    {dimensions.length > 0 ? (
-                        <Text fz="sm" c="dimmed">
-                            by {dimensions.join(', ')}
-                        </Text>
-                    ) : null}
-                </Box>
-                {explore && status.label === 'Ready' ? (
-                    <PreAggregateSample
-                        projectUuid={projectUuid}
-                        summary={summary}
-                        baseTable={explore.baseTable}
-                    />
-                ) : null}
-                <Box>
                     <Text
                         fz="xs"
                         c="dimmed"
@@ -193,30 +192,74 @@ const PreAggregateCard: FC<{
                                 : undefined
                         }
                     >
-                        {[
-                            materialization?.materializedAt ? (
-                                <BuiltAgo
-                                    key="built"
-                                    date={materialization.materializedAt}
-                                />
-                            ) : (
-                                (summary.externalTable ?? 'Not built yet')
-                            ),
-                            ...facts,
-                        ].map((fact, index) => (
+                        {meta.map((fact, index) => (
                             <Fragment key={index}>
                                 {index > 0 ? ' · ' : null}
                                 {fact}
                             </Fragment>
                         ))}
                     </Text>
-                    <Text fz="xs" c="dimmed">
-                        {describeRefresh(summary)} ·{' '}
-                        {hits > 0
-                            ? `answered ${plural(hits, 'query', 'queries')} in the last ${STATS_DAYS} days`
-                            : `no queries answered in the last ${STATS_DAYS} days`}
-                    </Text>
                 </Box>
+                <Box>
+                    <Text fz="sm">
+                        {summary.metrics
+                            .map((reference) =>
+                                getFieldLabel(explore, reference),
+                            )
+                            .join(', ')}
+                    </Text>
+                    {isWhole ? (
+                        <Tooltip
+                            label={dimensions.join(', ')}
+                            multiline
+                            maw={360}
+                        >
+                            <Text fz="sm" c="dimmed" w="fit-content">
+                                by every dimension of the model
+                            </Text>
+                        </Tooltip>
+                    ) : dimensions.length > MAX_LISTED ? (
+                        <Text fz="sm" c="dimmed">
+                            by {dimensions.slice(0, MAX_LISTED - 1).join(', ')}{' '}
+                            <Tooltip
+                                label={dimensions
+                                    .slice(MAX_LISTED - 1)
+                                    .join(', ')}
+                                multiline
+                                maw={360}
+                            >
+                                <Text
+                                    span
+                                    inherit
+                                    td="underline"
+                                    className={classes.more}
+                                >
+                                    and {dimensions.length - MAX_LISTED + 1}{' '}
+                                    more
+                                </Text>
+                            </Tooltip>
+                        </Text>
+                    ) : dimensions.length > 0 ? (
+                        <Text fz="sm" c="dimmed">
+                            by {dimensions.join(', ')}
+                        </Text>
+                    ) : null}
+                </Box>
+                {isWhole ? (
+                    <Callout variant="info">
+                        This keeps every dimension, so it holds about as many
+                        rows as the model. Sums, counts and averages by any
+                        dimension are served from it. Distinct counts, medians
+                        and table calculations still run on the warehouse.
+                    </Callout>
+                ) : null}
+                {explore && status.label === 'Ready' ? (
+                    <PreAggregateSample
+                        projectUuid={projectUuid}
+                        summary={summary}
+                        baseTable={explore.baseTable}
+                    />
+                ) : null}
                 {error ? (
                     <Callout variant="danger" title="This could not be built">
                         {error}
@@ -259,6 +302,14 @@ export const ModelPreAggregates: FC<{
     );
     const usage = summariseUsage(allStats, exploreName);
     const total = usage.hits + usage.misses;
+    const days = usageByDay(
+        allStats,
+        exploreName,
+        dayjs().format('YYYY-MM-DD'),
+        STATS_DAYS,
+    );
+    // One day of queries makes a single bar, which says nothing a sentence does not.
+    const activeDays = days.filter((day) => day.hits + day.misses > 0).length;
     return (
         <Stack gap="md">
             {total > 0 ? (
@@ -266,7 +317,8 @@ export const ModelPreAggregates: FC<{
                     <Group gap="xl" align="flex-start">
                         <Box>
                             <Text fz="xs" c="dimmed">
-                                Last {STATS_DAYS} days
+                                Saved charts and dashboards, last {STATS_DAYS}{' '}
+                                days
                             </Text>
                             <Text fz="sm">
                                 {plural(usage.hits, 'query', 'queries')} of{' '}
@@ -278,16 +330,11 @@ export const ModelPreAggregates: FC<{
                                     %)
                                 </Text>
                             </Text>
-                            <Box mt="sm">
-                                <UsageByDayChart
-                                    days={usageByDay(
-                                        allStats,
-                                        exploreName,
-                                        dayjs().format('YYYY-MM-DD'),
-                                        STATS_DAYS,
-                                    )}
-                                />
-                            </Box>
+                            {activeDays >= 2 ? (
+                                <Box mt="sm">
+                                    <UsageByDayChart days={days} />
+                                </Box>
+                            ) : null}
                         </Box>
                         {usage.topMisses.length > 0 ? (
                             <Box>

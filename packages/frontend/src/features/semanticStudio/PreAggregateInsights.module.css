@@ -74,3 +74,9 @@
     border-radius: 4px;
     background: var(--mantine-color-default-hover);
 }
+
+.more {
+    cursor: help;
+    text-underline-offset: 3px;
+    text-decoration-style: dotted;
+}

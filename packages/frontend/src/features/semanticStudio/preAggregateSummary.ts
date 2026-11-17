@@ -38,6 +38,23 @@ export type LabelledExplore = {
     tables: Record<string, { dimensions: Labelled; metrics: Labelled }>;
 };
 
+type CoverageExplore = {
+    baseTable: string;
+    tables: Record<
+        string,
+        {
+            dimensions: Record<
+                string,
+                {
+                    name: string;
+                    hidden?: boolean;
+                    timeIntervalBaseDimensionName?: string;
+                }
+            >;
+        }
+    >;
+};
+
 /** How a pre-aggregate's field is named to people; its reference when the model does not have it. */
 export const getFieldLabel = (
     explore: LabelledExplore | undefined,
@@ -49,6 +66,28 @@ export const getFieldLabel = (
     return (
         table?.dimensions[name]?.label ?? table?.metrics[name]?.label ?? name
     );
+};
+
+/** Whether a pre-aggregate keeps every visible dimension of its model's own table, so it is about as large as the model. */
+export const coversEveryDimension = (
+    explore: CoverageExplore | undefined,
+    summary: Pick<
+        PreAggregateMaterializationSummary,
+        'dimensions' | 'timeDimension'
+    >,
+): boolean => {
+    const table = explore?.tables[explore.baseTable];
+    if (!table) return false;
+    const kept = new Set(
+        [...summary.dimensions, summary.timeDimension ?? ''].map((reference) =>
+            reference.split('.').at(-1),
+        ),
+    );
+    const own = Object.values(table.dimensions).filter(
+        (dimension) =>
+            !dimension.hidden && !dimension.timeIntervalBaseDimensionName,
+    );
+    return own.length > 1 && own.every((dimension) => kept.has(dimension.name));
 };
 
 export const describeRefresh = (
