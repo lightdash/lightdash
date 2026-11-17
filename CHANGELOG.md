@@ -1,3 +1,10 @@
+# [3.282.0](https://github.com/lightdash/lightdash/compare/3.281.0...3.282.0) (2026-11-17)
+
+
+### Features
+
+* ship the Adoption data app with Analytics ([#32624](https://github.com/lightdash/lightdash/issues/32624)) ([fa26df5](https://github.com/lightdash/lightdash/commit/fa26df57903930d6dc6268af28dd1f8ad2921d1a))
+
 # [3.281.0](https://github.com/lightdash/lightdash/compare/3.280.3...3.281.0) (2026-11-17)
 
 
