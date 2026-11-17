@@ -340,10 +340,7 @@ const AgentsRouterPage = () => {
             isAgentSidebarCollapsed={isSidebarCollapsed}
             setIsAgentSidebarCollapsed={setIsSidebarCollapsed}
             SidebarHeader={
-                <NewThreadButton
-                    to={`/projects/${projectUuid}/ai-agents`}
-                    isCollapsed={isSidebarCollapsed}
-                />
+                <NewThreadButton to={`/projects/${projectUuid}/ai-agents`} />
             }
             Sidebar={<AutoModeSidebar projectUuid={projectUuid!} />}
         >

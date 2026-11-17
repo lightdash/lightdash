@@ -172,7 +172,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
         }
     }, [Sidebar, isMobile, isAgentSidebarCollapsed, previewPaneId]);
 
-    // Collapsed sidebar takes no width; its controls move into the chat header
+    // Collapsed sidebar takes no width; its toggle moves into the chat header
     const sidebarOpener = !Sidebar ? null : isMobile ? (
         <SidebarButton
             aria-label="Open Ask AI sidebar"
@@ -188,24 +188,21 @@ export const AiAgentPageLayout: React.FC<Props> = ({
             onClick={toggleMobileSidebar}
         />
     ) : isAgentSidebarCollapsed ? (
-        <Group gap={2} wrap="nowrap" flex="0 0 auto">
-            <Tooltip label="Expand sidebar" position="bottom">
-                <SidebarButton
-                    aria-label="Expand Ask AI sidebar"
-                    size="xs"
-                    leftSection={
-                        <MantineIcon
-                            size="md"
-                            icon={IconLayoutSidebarLeftExpand}
-                            stroke={1.8}
-                            color="ldGray.7"
-                        />
-                    }
-                    onClick={toggleSidebar}
-                />
-            </Tooltip>
-            {SidebarHeader}
-        </Group>
+        <Tooltip label="Expand sidebar" position="bottom">
+            <SidebarButton
+                aria-label="Expand Ask AI sidebar"
+                size="xs"
+                leftSection={
+                    <MantineIcon
+                        size="md"
+                        icon={IconLayoutSidebarLeftExpand}
+                        stroke={1.8}
+                        color="ldGray.7"
+                    />
+                }
+                onClick={toggleSidebar}
+            />
+        </Tooltip>
     ) : null;
 
     return (

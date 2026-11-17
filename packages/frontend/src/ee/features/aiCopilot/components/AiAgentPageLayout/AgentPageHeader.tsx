@@ -1,5 +1,6 @@
 import { ActionIcon, Divider, Group, Tooltip } from '@mantine/core';
 import {
+    IconCirclePlus,
     IconNotebook,
     IconSettings,
     IconShare2,
@@ -19,6 +20,7 @@ type Props = {
     onOpenMemories?: () => void;
     isSharing?: boolean;
     settingsHref?: string;
+    newThreadHref?: string;
 };
 
 export const AgentPageHeader: FC<Props> = ({
@@ -28,6 +30,7 @@ export const AgentPageHeader: FC<Props> = ({
     onOpenMemories,
     isSharing,
     settingsHref,
+    newThreadHref,
 }) => {
     const settingsLinkState = useAgentSettingsLinkState();
     const isMobile = useAgentMaxWidth(768, {
@@ -39,7 +42,8 @@ export const AgentPageHeader: FC<Props> = ({
     const showMinimize = Boolean(onMinimize) && !isMobile;
     const showSettings = Boolean(settingsHref) && !isMobile;
     const hasAgentActions = showMemories || showSettings;
-    const hasThreadActions = Boolean(onShare) || showMinimize;
+    const hasThreadActions =
+        Boolean(newThreadHref) || Boolean(onShare) || showMinimize;
 
     return (
         <Group
@@ -93,6 +97,22 @@ export const AgentPageHeader: FC<Props> = ({
                         orientation="vertical"
                         className={styles.divider}
                     />
+                )}
+                {newThreadHref && (
+                    <Tooltip label="New thread" position="bottom">
+                        <ActionIcon
+                            component={Link}
+                            className={styles.threadAction}
+                            to={newThreadHref}
+                            aria-label="New thread"
+                        >
+                            <MantineIcon
+                                icon={IconCirclePlus}
+                                size={16}
+                                stroke={1.8}
+                            />
+                        </ActionIcon>
+                    </Tooltip>
                 )}
                 {onShare && (
                     <Tooltip label="Share thread" position="bottom">
