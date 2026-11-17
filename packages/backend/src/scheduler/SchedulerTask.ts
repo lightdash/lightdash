@@ -7192,7 +7192,6 @@ export default class SchedulerTask {
         );
     }
 
-    /** Runs a composer tile as the given account and downloads the rows the tile draws. */
     private async exportComposerChartTile({
         account,
         projectUuid,
