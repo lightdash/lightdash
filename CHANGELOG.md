@@ -1,3 +1,16 @@
+# [3.295.0](https://github.com/lightdash/lightdash/compare/3.294.3...3.295.0) (2026-11-17)
+
+
+### Bug Fixes
+
+* **ai:** show a Semantic Studio pull request merged or closed outside the app ([#32787](https://github.com/lightdash/lightdash/issues/32787)) ([982cdbf](https://github.com/lightdash/lightdash/commit/982cdbfb16d2fdaa46cb3484f32d5c7846bdb076))
+* **frontend:** stop Semantic Studio promising edits on models deployed from outside ([#32790](https://github.com/lightdash/lightdash/issues/32790)) ([a1f35f1](https://github.com/lightdash/lightdash/commit/a1f35f18fcc0f1f251859470fe2cf0b8356a009d))
+
+
+### Features
+
+* **frontend:** show a model's pre-aggregates in Semantic Studio ([#32788](https://github.com/lightdash/lightdash/issues/32788)) ([b8eaefe](https://github.com/lightdash/lightdash/commit/b8eaefe0cc24b602f29518758cbeecb0aa332870))
+
 ## [3.294.3](https://github.com/lightdash/lightdash/compare/3.294.2...3.294.3) (2026-11-17)
 
 
