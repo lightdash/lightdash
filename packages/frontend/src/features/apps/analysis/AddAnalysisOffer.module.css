@@ -1,0 +1,11 @@
+.offer {
+    margin-bottom: var(--mantine-spacing-xs);
+    padding: 6px 6px 6px 10px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+}
+
+.icon {
+    flex-shrink: 0;
+    color: var(--mantine-color-ldGray-6);
+}
