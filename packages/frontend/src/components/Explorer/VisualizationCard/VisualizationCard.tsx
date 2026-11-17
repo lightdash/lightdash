@@ -331,6 +331,12 @@ const VisualizationCard: FC<Props> = memo((props) => {
         }
     }, [dispatch, hasSavedChart]);
 
+    // Visualize lands on the chart types: nobody keeps the default as is
+    const handleVisualizeClick = useCallback(() => {
+        toggleSection();
+        handleConfigureClick();
+    }, [toggleSection, handleConfigureClick]);
+
     // Deep link (e.g. the removed-chart-type recovery hint): arrive in edit
     // mode with the config sidebar already open, then drop the param.
     const [searchParams, setSearchParams] = useSearchParams();
@@ -378,6 +384,8 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                 ? !current.descending
                                 : isMetric,
                     },
+                    // The clicked field leads; the other sorts break its ties
+                    ...sorts.filter((sort) => sort.fieldId !== fieldId),
                 ]),
             );
         },
@@ -491,7 +499,10 @@ const VisualizationCard: FC<Props> = memo((props) => {
                 isLoading={isLoadingQueryResults}
                 columnOrder={visualizationColumnOrder}
                 onSeriesContextMenu={onSeriesContextMenu}
-                onAxisSort={isEditMode ? handleAxisSort : undefined}
+                // A merged chart's fields may not exist in the query being sorted
+                onAxisSort={
+                    isEditMode && !mergeResults ? handleAxisSort : undefined
+                }
                 savedChartUuid={isEditMode ? undefined : savedChart?.uuid}
                 savedChartReference={savedChartReference}
                 onChartConfigChange={handleSetChartConfig}
@@ -512,7 +523,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
             >
                 <CollapsableCard
                     title="Chart"
-                    dropProps={fieldDrop.dropProps}
+                    dropProps={isEditMode ? fieldDrop.dropProps : undefined}
                     isDropActive={fieldDrop.isOver}
                     isOpen={isOpen}
                     disabled={!hasSelectedFields}
@@ -542,7 +553,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                 <>
                                     <ChartTypeSummary
                                         chartType={chartType}
-                                        onClick={toggleSection}
+                                        onClick={handleVisualizeClick}
                                     />
                                     <ExplorerHint
                                         name="visualize"

@@ -145,9 +145,17 @@ const ResultsCard: FC = memo(() => {
     const [headerBox, setHeaderBox] = useState({ top: 0, height: 37 });
     useLayoutEffect(() => {
         const host = edgeHostRef.current;
-        const thead = host?.querySelector('thead');
-        if (!showEdgeColumn || !host || !thead) return;
+        if (!showEdgeColumn || !host) return;
+        let observedHead: Element | null = null;
+        // The table can be swapped for an empty state, so find its header anew
         const measure = () => {
+            const thead = host.querySelector('thead');
+            if (thead !== observedHead) {
+                if (observedHead) observer.unobserve(observedHead);
+                if (thead) observer.observe(thead);
+                observedHead = thead;
+            }
+            if (!thead) return;
             const { top: headTop, height } = thead.getBoundingClientRect();
             const top = headTop - host.getBoundingClientRect().top;
             setHeaderBox((prev) =>
@@ -156,15 +164,15 @@ const ResultsCard: FC = memo(() => {
                     : { top, height },
             );
         };
-        measure();
         const observer = new ResizeObserver(measure);
-        observer.observe(thead);
+        observer.observe(host);
+        measure();
         return () => observer.disconnect();
     }, [showEdgeColumn, resultsIsOpen]);
     return (
         <CollapsableCard
             title="Results"
-            dropProps={fieldDrop.dropProps}
+            dropProps={isEditMode ? fieldDrop.dropProps : undefined}
             isDropActive={fieldDrop.isOver}
             isOpen={resultsIsOpen}
             onToggle={toggleCard}

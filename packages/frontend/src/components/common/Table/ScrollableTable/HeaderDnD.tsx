@@ -33,6 +33,8 @@ type HeaderDndProps = {
     children: ReactNode;
 };
 
+const DRAG_OUT_MIN_DISTANCE = 48;
+
 export const HeaderDnD: FC<HeaderDndProps> = ({ headerGroup, children }) => {
     const { table, onColumnOrderChange, onColumnRemove } = useTableContext();
     const rowRef = useRef<HTMLTableRowElement>(null);
@@ -68,13 +70,15 @@ export const HeaderDnD: FC<HeaderDndProps> = ({ headerGroup, children }) => {
     };
 
     // Dragged past the table's left edge, towards the fields sidebar
-    const isDraggedOut = ({ active }: DragMoveEvent | DragEndEvent) => {
+    const isDraggedOut = ({ active, delta }: DragMoveEvent | DragEndEvent) => {
         const dragged = active.rect.current.translated;
         const container = rowRef.current?.closest('table')?.parentElement;
         if (!onColumnRemove || !dragged || !container) return false;
+        // A column scrolled half out of view must still be dragged, not nudged
         return (
+            delta.x < -DRAG_OUT_MIN_DISTANCE &&
             dragged.left + dragged.width / 2 <
-            container.getBoundingClientRect().left
+                container.getBoundingClientRect().left
         );
     };
 

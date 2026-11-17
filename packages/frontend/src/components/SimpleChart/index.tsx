@@ -50,7 +50,12 @@ import {
     createChartTooltipController,
 } from './chartTooltipController';
 import classes from './SimpleChart.module.css';
-import { getAxisFields, withSortableAxes } from './sortableAxes';
+import {
+    getAxisFields,
+    isCategoryAxis,
+    NO_AXIS_FIELDS,
+    withSortableAxes,
+} from './sortableAxes';
 
 type EchartsBaseClickEvent = {
     // The component name clicked,
@@ -275,9 +280,19 @@ const SimpleChart: FC<SimpleChartProps> = memo(
         const layout = cartesianChartConfig?.validConfig?.layout;
         const configuredSeries =
             cartesianChartConfig?.validConfig?.eChartsConfig?.series;
+        // Row order only shows on a category axis: a time or value axis places
+        // each point by its value, so sorting would change nothing on screen
+        const hasCategoryAxis = isCategoryAxis(
+            (layout?.flipAxes
+                ? baseEChartsOptions?.yAxis
+                : baseEChartsOptions?.xAxis)?.[0],
+        );
         const axisFields = useMemo(
-            () => getAxisFields(layout, configuredSeries),
-            [layout, configuredSeries],
+            () =>
+                hasCategoryAxis
+                    ? getAxisFields(layout, configuredSeries)
+                    : NO_AXIS_FIELDS,
+            [hasCategoryAxis, layout, configuredSeries],
         );
         const primarySort = resultsData?.metricQuery?.sorts?.[0];
         const eChartsOptions = useMemo(
@@ -413,6 +428,8 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                 (e.componentType === 'xAxis' || e.componentType === 'yAxis')
             ) {
                 const fieldId = fields[e.componentType][e.componentIndex ?? 0];
+                // The chart re-renders for the new sort, so no mouseout follows
+                setSortHint(null);
                 if (fieldId) onSort(fieldId);
                 return;
             }

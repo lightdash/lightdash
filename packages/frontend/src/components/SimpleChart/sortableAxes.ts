@@ -8,6 +8,12 @@ export type AxisFields = {
     yAxis: Array<string | undefined>;
 };
 
+/** For a chart whose row order does not show, so no axis sorts. */
+export const NO_AXIS_FIELDS: AxisFields = { xAxis: [], yAxis: [] };
+
+export const isCategoryAxis = (axis: object | undefined) =>
+    !!axis && 'type' in axis && axis.type === 'category';
+
 type ChartLayout = { xField?: string; yField?: string[]; flipAxes?: boolean };
 type ChartSeries = { yAxisIndex?: number; encode: { yRef: { field: string } } };
 

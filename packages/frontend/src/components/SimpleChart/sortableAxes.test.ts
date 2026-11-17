@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { getAxisFields, withSortableAxes } from './sortableAxes';
+import {
+    getAxisFields,
+    isCategoryAxis,
+    withSortableAxes,
+} from './sortableAxes';
 
 describe('withSortableAxes', () => {
     it('makes each axis with a field clickable and marks the sorted title', () => {
@@ -63,5 +67,14 @@ describe('getAxisFields', () => {
             xAxis: ['status'],
             yAxis: ['revenue', undefined],
         });
+    });
+});
+
+describe('isCategoryAxis', () => {
+    it('is true only for a category axis, where row order shows', () => {
+        expect(isCategoryAxis({ type: 'category' })).toBe(true);
+        expect(isCategoryAxis({ type: 'time' })).toBe(false);
+        expect(isCategoryAxis({ type: 'value' })).toBe(false);
+        expect(isCategoryAxis(undefined)).toBe(false);
     });
 });

@@ -1,5 +1,5 @@
 import { Box } from '@mantine/core';
-import { type CSSProperties, type FC } from 'react';
+import { type FC } from 'react';
 import classes from './SqlSkeleton.module.css';
 
 type Token = { width: number; keyword: boolean };
@@ -31,7 +31,7 @@ const SqlSkeleton: FC = () => (
             <Box
                 key={index}
                 className={classes.line}
-                style={{ '--line-index': index } as CSSProperties}
+                __vars={{ '--line-index': String(index) }}
             >
                 <Box className={classes.lineNumber}>{index + 1}</Box>
                 <Box className={classes.code} data-indent={line.indent}>
@@ -40,11 +40,7 @@ const SqlSkeleton: FC = () => (
                             key={tokenIndex}
                             className={classes.token}
                             data-keyword={token.keyword || undefined}
-                            style={
-                                {
-                                    '--token-width': `${token.width}px`,
-                                } as CSSProperties
-                            }
+                            __vars={{ '--token-width': `${token.width}px` }}
                         />
                     ))}
                 </Box>

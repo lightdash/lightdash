@@ -9,11 +9,7 @@ body {
 /* Native scrollbars match the themed ScrollArea: thin, quiet thumb, no track */
 * {
     scrollbar-width: thin;
-    scrollbar-color: light-dark(
-            var(--mantine-color-gray-3),
-            var(--mantine-color-ldGray-3)
-        )
-        transparent;
+    scrollbar-color: var(--mantine-color-ldGray-3) transparent;
 }
 
 body {
