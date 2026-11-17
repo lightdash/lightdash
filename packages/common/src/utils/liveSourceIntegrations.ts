@@ -146,8 +146,6 @@ export const LIVE_INTEGRATION_CATALOG: {
             repo: z.string(),
         }),
         getTarget: ({ owner, repo }) => `${owner}/${repo}`,
-        agentQueryGuide:
-            'one JSON object of one of two kinds. A search: {"kind": "search", "type": "pr" or "issue", "q": GitHub search qualifiers such as is:open, is:merged, author:octocat, label:"bug", created:2026-10-01..2026-10-31 or NOT "word" in:title,body, "columns": fields to list from number, title, url, state, author, assignee, labels, draft, comments, created_at, updated_at, closed_at, merged_at and state_reason, or ["total_count"] alone for a count, and optionally "sort" (created, updated or comments) and "order" (asc or desc)}. The repository and the type are added for you, so never put repo:, org:, user: or is:pr in q. Search matches whole words and reads at most 1,000 results, so count with total_count rather than listing. Contributors: {"kind": "contributors", "columns": from author, week, commits, additions and deletions, and optionally "since" and "until" (YYYY-MM-DD), "authors" and "excludeAuthors"}. It reads default-branch commits per author and week, summed over the weeks when week is not a column; additions and deletions are 0 on repositories with 10,000 commits or more.',
     },
 };
 
