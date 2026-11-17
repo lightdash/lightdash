@@ -1,3 +1,10 @@
+# [3.299.0](https://github.com/lightdash/lightdash/compare/3.298.1...3.299.0) (2026-11-17)
+
+
+### Features
+
+* **live-sources:** show a plain-language live data source test result ([#32776](https://github.com/lightdash/lightdash/issues/32776)) ([2fc7b59](https://github.com/lightdash/lightdash/commit/2fc7b59aca046f278e0550b7981c2d69c2e56d86)), closes [#32775](https://github.com/lightdash/lightdash/issues/32775)
+
 ## [3.298.1](https://github.com/lightdash/lightdash/compare/3.298.0...3.298.1) (2026-11-17)
 
 
