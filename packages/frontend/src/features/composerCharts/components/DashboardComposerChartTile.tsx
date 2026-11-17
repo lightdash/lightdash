@@ -264,7 +264,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
           stage.error?.error.message ??
           (drawState.status === 'error' ? drawState.message : null));
     const isLoading =
-        !errorMessage && (!readyDraw || !results.hasFetchedAllRows);
+        errorMessage === null && (!readyDraw || !results.hasFetchedAllRows);
     const handleScreenshotReady = useCallback(
         () => markTileScreenshotReady(tile.uuid),
         [markTileScreenshotReady, tile.uuid],
@@ -280,7 +280,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
             title={title}
             chartName={tile.properties.chartName ?? undefined}
             isLoading={isLoading}
-            hasError={!!errorMessage}
+            hasError={errorMessage !== null}
             chartKind={
                 readyDraw
                     ? getChartKind(
@@ -300,7 +300,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                 </>
             }
         >
-            {errorMessage ? (
+            {errorMessage !== null ? (
                 <TileError
                     tileUuid={tile.uuid}
                     message={errorMessage}
