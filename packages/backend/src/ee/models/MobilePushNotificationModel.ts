@@ -169,6 +169,25 @@ export class MobilePushNotificationModel {
             .delete();
     }
 
+    async deleteInstallationsOfGrant(args: {
+        userId: number;
+        clientId: string;
+        organizationUuid: string;
+    }): Promise<void> {
+        await this.database<DbMobilePushInstallation>(
+            MobilePushInstallationsTableName,
+        )
+            .where('oauth_client_id', args.clientId)
+            .where('organization_uuid', args.organizationUuid)
+            .whereIn(
+                'user_uuid',
+                this.database(UserTableName)
+                    .select('user_uuid')
+                    .where('user_id', args.userId),
+            )
+            .delete();
+    }
+
     async upsertInstallation(args: {
         installationUuid: string;
         organizationUuid: string;

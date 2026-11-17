@@ -1,4 +1,8 @@
-import { NotFoundError, ParameterError } from '@lightdash/common';
+import {
+    MobileOrgDisabledError,
+    NotFoundError,
+    ParameterError,
+} from '@lightdash/common';
 import { type ApnsClient } from '../../../clients/Apns/ApnsClient';
 import { type MobilePushNotificationsConfig } from '../../../config/parseConfig';
 import {
@@ -167,7 +171,9 @@ const createDependencies = () => {
                 async () => ({ status: 'sent' }),
             ),
         },
-        isMobileAppAccessEnabled: vi.fn(async () => true),
+        isMobileAppAccessEnabled: vi.fn(
+            async (_organizationUuid: string) => true,
+        ),
         now: vi.fn(() => new Date('2026-08-31T12:00:00.000Z')),
     };
 };
@@ -1518,5 +1524,166 @@ describe('MobilePushNotificationService mobile grant lifecycle', () => {
                     .calls,
             ),
         ).not.toContain('push-to-start-token');
+    });
+});
+
+describe('MobilePushNotificationService for an organization with mobile access off', () => {
+    const otherOrganizationUuid = '00000000-0000-0000-0000-0000000000ff';
+    const createDisabled = (config?: { enabled: boolean }) => {
+        const dependencies = createDependencies();
+        dependencies.isMobileAppAccessEnabled.mockImplementation(
+            async (organization: string) => organization !== organizationUuid,
+        );
+        if (config)
+            dependencies.mobilePushNotificationsConfig = {
+                ...dependencies.mobilePushNotificationsConfig,
+                ...config,
+            };
+        return {
+            dependencies,
+            service: new MobilePushNotificationService(dependencies),
+        };
+    };
+    const denied = {
+        name: 'MobileOrgDisabledError',
+        statusCode: 401,
+        data: { code: 'mobile_org_disabled', organizationUuid },
+    };
+    const registerInstallation = (
+        service: MobilePushNotificationService,
+        organization = organizationUuid,
+    ) =>
+        service.registerInstallation({
+            user: { userUuid, organizationUuid: organization },
+            installationUuid,
+            platform: 'ios',
+            environment: 'sandbox',
+            deviceToken: validDeviceToken,
+            oauthClientId: null,
+        });
+
+    it.each([{ enabled: true }, { enabled: false }])(
+        'refuses a new installation with the code when push config is %o',
+        async (config) => {
+            const { dependencies, service } = createDisabled(config);
+
+            const error = await registerInstallation(service).catch(
+                (caught: unknown) => caught,
+            );
+
+            expect(error).toBeInstanceOf(MobileOrgDisabledError);
+            expect(error).toMatchObject(denied);
+            expect(
+                dependencies.mobilePushNotificationStore.upsertInstallation,
+            ).not.toHaveBeenCalled();
+            expect(dependencies.analytics.track).not.toHaveBeenCalled();
+        },
+    );
+
+    it('still registers an installation for another organization', async () => {
+        const { dependencies, service } = createDisabled();
+
+        await registerInstallation(service, otherOrganizationUuid);
+
+        expect(
+            dependencies.mobilePushNotificationStore.upsertInstallation,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                organizationUuid: otherOrganizationUuid,
+            }),
+        );
+    });
+
+    it('refuses a push-to-start token', async () => {
+        const { dependencies, service } = createDisabled();
+
+        await expect(
+            service.registerPushToStartToken({
+                user: { userUuid, organizationUuid },
+                installationUuid,
+                pushToken: pushToStartToken,
+            }),
+        ).rejects.toMatchObject(denied);
+        expect(
+            dependencies.mobilePushNotificationStore.findInstallation,
+        ).not.toHaveBeenCalled();
+        expect(
+            dependencies.mobilePushNotificationStore.registerPushToStartToken,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('refuses a live activity registration', async () => {
+        const { dependencies, service } = createDisabled();
+
+        await expect(register(service)).rejects.toMatchObject(denied);
+        expect(
+            dependencies.mobilePushNotificationStore.findInstallation,
+        ).not.toHaveBeenCalled();
+        expect(
+            dependencies.mobilePushNotificationStore.upsertLiveActivity,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('creates no start attempts for a new prompt', async () => {
+        const { dependencies, service } = createDisabled();
+
+        await service.startLiveActivitiesForPrompt({
+            user: { userUuid, organizationUuid },
+            projectUuid,
+            agentUuid,
+            threadUuid,
+            promptUuid,
+            originatingInstallationUuid: undefined,
+        });
+
+        expect(
+            dependencies.mobilePushNotificationStore
+                .createLiveActivityStartAttempts,
+        ).not.toHaveBeenCalled();
+        expect(
+            dependencies.scheduler.mobilePushLiveActivityStart,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('still lets the app remove its installation and its activity', async () => {
+        const { dependencies, service } = createDisabled();
+
+        await service.revokeInstallation({
+            user: { userUuid, organizationUuid },
+            installationUuid,
+        });
+        await service.revokeLiveActivity({
+            user: { userUuid, organizationUuid },
+            installationUuid,
+            projectUuid,
+            agentUuid,
+            threadUuid,
+            liveActivityUuid,
+        });
+
+        expect(
+            dependencies.mobilePushNotificationStore.deleteInstallation,
+        ).toHaveBeenCalledWith({
+            installationUuid,
+            organizationUuid,
+            userUuid,
+        });
+        expect(
+            dependencies.mobilePushNotificationStore.deleteLiveActivity,
+        ).toHaveBeenCalled();
+    });
+
+    it('registers again after the organization is turned back on', async () => {
+        const { dependencies, service } = createDisabled();
+        await expect(registerInstallation(service)).rejects.toMatchObject(
+            denied,
+        );
+
+        dependencies.isMobileAppAccessEnabled.mockResolvedValue(true);
+        await registerInstallation(service);
+
+        expect(
+            dependencies.mobilePushNotificationStore.upsertInstallation,
+        ).toHaveBeenCalledTimes(1);
     });
 });

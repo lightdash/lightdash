@@ -1,6 +1,7 @@
 import {
     isAiAppThreadCreatedFrom,
     MOBILE_PUSH_LIVE_ACTIVITY_START_MAX_ATTEMPTS,
+    MobileOrgDisabledError,
     NotFoundError,
     ParameterError,
 } from '@lightdash/common';
@@ -303,6 +304,16 @@ export class MobilePushNotificationService {
         this.now = dependencies.now ?? (() => new Date());
     }
 
+    private async assertMobileAppAccess(user: MobilePushUser): Promise<void> {
+        const { organizationUuid } = user;
+        if (
+            organizationUuid != null &&
+            !(await this.isMobileAppAccessEnabled(organizationUuid))
+        ) {
+            throw new MobileOrgDisabledError(organizationUuid);
+        }
+    }
+
     private track(event: MobilePushNotificationEvent): void {
         try {
             this.analytics.track(event);
@@ -424,6 +435,7 @@ export class MobilePushNotificationService {
         deviceToken: string;
         oauthClientId: string | null;
     }): Promise<void> {
+        await this.assertMobileAppAccess(args.user);
         if (!this.config.enabled) return;
         validateDeviceToken(args.platform, args.deviceToken);
         const { organizationUuid } = args.user;
@@ -464,6 +476,7 @@ export class MobilePushNotificationService {
         installationUuid: string;
         pushToken: string;
     }): Promise<void> {
+        await this.assertMobileAppAccess(args.user);
         if (!this.config.enabled) {
             throw new NotFoundError('Mobile push registration not found');
         }
@@ -512,6 +525,7 @@ export class MobilePushNotificationService {
         if (!this.config.enabled) return;
         const { organizationUuid } = args.user;
         if (organizationUuid == null) return;
+        if (!(await this.isMobileAppAccessEnabled(organizationUuid))) return;
         const environments = this.getConfiguredEnvironments();
         if (environments.length === 0) return;
         if (
@@ -824,6 +838,7 @@ export class MobilePushNotificationService {
     }
 
     async registerLiveActivity(args: RegisterLiveActivity): Promise<void> {
+        await this.assertMobileAppAccess(args.user);
         if (!this.config.enabled) return;
         const { organizationUuid } = args.user;
         if (organizationUuid == null) {
