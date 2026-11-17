@@ -6,7 +6,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 
 type Props = {
     message: string;
-    /** Version the preview falls back to; null when nothing was ever built. */
+    /** Version the preview falls back to; null when nothing was built or the failure is history. */
     fallbackVersion: number | null;
     /** Null hides Retry (e.g. the failed prompt had attachments). */
     onRetry: (() => void) | null;

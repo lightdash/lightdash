@@ -1336,7 +1336,11 @@ const AppGenerate: FC = () => {
         return (
             <BuildFailedCard
                 message={content}
-                fallbackVersion={latestReadyVersion?.version ?? null}
+                fallbackVersion={
+                    index === messages.length - 1
+                        ? (latestReadyVersion?.version ?? null)
+                        : null
+                }
                 onRetry={onRetry}
                 onEditPrompt={onEditPrompt}
                 disabled={isLoading}
