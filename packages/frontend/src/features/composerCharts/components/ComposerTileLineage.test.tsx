@@ -5,7 +5,7 @@ import {
     type ComposerChartPipeline,
     type ComposerChartRunResults,
 } from '@lightdash/common';
-import { within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import mockIntersectingObserver from '../../../testing/intersectingObserver';
 import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
@@ -95,6 +95,7 @@ describe('ComposerTileLineage', () => {
                 projectUuid="project"
                 pipeline={pipeline}
                 run={run}
+                runError={null}
             />,
         );
         expect(cell('orders').getByText('Recent orders')).toBeInTheDocument();
@@ -113,6 +114,7 @@ describe('ComposerTileLineage', () => {
                 projectUuid="project"
                 pipeline={pipeline}
                 run={run}
+                runError={null}
             />,
         );
         expect(
@@ -125,5 +127,20 @@ describe('ComposerTileLineage', () => {
                 exact: false,
             }),
         ).toBeInTheDocument();
+    });
+
+    it("shows the run's error when the run failed before any node ran", () => {
+        renderWithProviders(
+            <ComposerTileLineage
+                projectUuid="project"
+                pipeline={pipeline}
+                run={null}
+                runError='column "refund_amount" does not exist'
+            />,
+        );
+        expect(
+            screen.getByText('column "refund_amount" does not exist'),
+        ).toBeInTheDocument();
+        expect(cell('refunds').getByText('Refunds')).toBeInTheDocument();
     });
 });

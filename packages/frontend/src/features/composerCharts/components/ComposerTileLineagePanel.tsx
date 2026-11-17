@@ -16,6 +16,7 @@ type Props = {
     projectUuid: string;
     pipeline: ComposerChartPipeline;
     run: ComposerChartRunResults | null;
+    runError: string | null;
 };
 
 /** The tile's lineage in a side sheet, so the dashboard stays in view beside it. */

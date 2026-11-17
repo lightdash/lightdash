@@ -2,10 +2,13 @@ import {
     type ComposerChartPipeline,
     type ComposerChartRunResults,
 } from '@lightdash/common';
+import { Box, Stack } from '@mantine/core';
 import { useMemo, type FC } from 'react';
+import Callout from '../../../components/common/Callout';
 import { ComposerNodeResultTable } from '../../../ee/features/aiCopilot/components/ChatElements/AiComposerNodeResult';
 import { AiComposerLineage } from '../../../ee/features/aiCopilot/components/ChatElements/composerPipeline/AiComposerLineage';
 import { useComposerRunNodeStatuses } from '../../../ee/features/aiCopilot/components/ChatElements/useComposerRunNodeStatuses';
+import { useUiString } from '../../../ee/providers/Embed/useUiStrings';
 import { useInfiniteQueryResults } from '../../../hooks/useQueryResults';
 
 const NodeRows: FC<{ projectUuid: string; queryUuid: string }> = ({
@@ -29,6 +32,8 @@ type Props = {
     pipeline: ComposerChartPipeline;
     /** The tile's run; null while it loads or after it failed. */
     run: ComposerChartRunResults | null;
+    /** Why the run failed before any node ran; its nodes then carry no status. */
+    runError: string | null;
 };
 
 /** A composer tile's pipeline, read-only: each node's query, status, rows and error from the tile's run. */
@@ -36,7 +41,9 @@ export const ComposerTileLineage: FC<Props> = ({
     projectUuid,
     pipeline,
     run,
+    runError,
 }) => {
+    const runFailed = useUiString('tile.composerChart.lineageRunFailed');
     const nodeQueryUuids = useMemo(
         () =>
             run
@@ -57,7 +64,7 @@ export const ComposerTileLineage: FC<Props> = ({
         projectUuid,
         nodeQueryUuids,
     });
-    return (
+    const lineage = (
         <AiComposerLineage
             projectUuid={projectUuid}
             queries={pipeline.nodes}
@@ -73,5 +80,16 @@ export const ComposerTileLineage: FC<Props> = ({
             threadActions={null}
             initialFocusNodeId={null}
         />
+    );
+    if (runError === null) return lineage;
+    return (
+        <Stack gap={0} h="100%">
+            <Callout variant="danger" title={runFailed} m="md">
+                {runError}
+            </Callout>
+            <Box flex={1} mih={0}>
+                {lineage}
+            </Box>
+        </Stack>
     );
 };
