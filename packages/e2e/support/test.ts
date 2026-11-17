@@ -97,6 +97,30 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
                     'true',
                 );
             });
+            // The dashboard edit tour dims the page and swallows clicks
+            await context.route('**/api/v1/user/onboarding', async (route) => {
+                if (route.request().method() !== 'GET') {
+                    await route.fallback();
+                    return;
+                }
+                const response = await route.fetch();
+                const body: {
+                    results: { completedTours: Record<string, boolean> };
+                } = await response.json();
+                await route.fulfill({
+                    response,
+                    json: {
+                        ...body,
+                        results: {
+                            ...body.results,
+                            completedTours: {
+                                ...body.results.completedTours,
+                                dashboardEditTour: true,
+                            },
+                        },
+                    },
+                });
+            });
             await use();
         },
         { auto: true },
