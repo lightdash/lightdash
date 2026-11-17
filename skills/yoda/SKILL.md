@@ -1,6 +1,7 @@
 ---
 name: yoda
-description: Only when the user explicitly invokes /yoda or asks for "yoda" by name, or another skill (such as ld-dev) calls it to review a change — never for other artifacts, pages or explanations. Reviews a PR, branch, stack or local diff through Lightdash-specific lenses picked by triage, or describes its changes as json; also explains a system or investigates a bug. Output as text (default, Markdown), json, an HTML page shown inline or published, or a GitHub PR description kept in sync. Invoke as /yoda [review|json|explain|triage] [text|json|html|github] [quick|deep] [lens names] <PR(s), topic or question>, words in any order.
+description: Review a Lightdash PR, branch or diff through lenses, or explain a system, bug or change. /yoda [review|json|explain|triage] [text|json|html|github] [quick|deep] [lens names] <PR(s), topic or question>
+disable-model-invocation: true
 ---
 
 # yoda
