@@ -110,6 +110,10 @@ export const POSTHOG_REGION_ORIGINS = {
     eu: 'https://eu.posthog.com',
 } as const;
 
+/** The setup test's HogQL: one cheap read whose answer is worth showing. */
+export const POSTHOG_TEST_QUERY =
+    'SELECT count(DISTINCT event) FROM events WHERE timestamp > now() - INTERVAL 7 DAY';
+
 export const META_ADS_ORIGIN = 'https://graph.facebook.com';
 export const META_ADS_API_VERSION = 'v25.0';
 
@@ -449,9 +453,30 @@ export type ApiTestExternalConnectionConfigRequest = {
     config: CreateExternalConnection;
 };
 
+/** One thing a live data source test found, as in "Pull requests: 1,204". */
+export type LiveSourceTestFact = {
+    label: string;
+    value: string;
+};
+
+/** A live data source test result in words an admin reads, not raw JSON. */
+export type LiveSourceTestCheck = {
+    ok: boolean;
+    /** One line, as in "Connected to lightdash/lightdash". */
+    summary: string;
+    /** On failure, why and what to change; null on success. */
+    detail: string | null;
+    facts: LiveSourceTestFact[];
+};
+
+export type ExternalConnectionTestResponse = ExternalFetchResponse & {
+    /** Set when the tested config is a live data source. */
+    liveCheck?: LiveSourceTestCheck;
+};
+
 export type ApiTestExternalConnectionResponse = {
     status: 'ok';
-    results: ExternalFetchResponse;
+    results: ExternalConnectionTestResponse;
 };
 
 export type ApiProposeExternalConnectionConfigRequest = {

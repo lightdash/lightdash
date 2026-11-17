@@ -32,6 +32,7 @@ import {
     pylonRequestSchema,
     runPylonQuery,
 } from './run';
+import { summarizePylonTest } from './testSummary';
 
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.PYLON];
 const LABEL = CATALOG.messageLabel;
@@ -111,4 +112,5 @@ export const pylonIntegration = defineLiveIntegration({
         }),
     run: runPylonQuery,
     toError: (response) => toPylonError(response),
+    summarizeTest: summarizePylonTest,
 });

@@ -40,6 +40,7 @@ import {
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
     type ExternalConnectionSampleRequest,
+    type ExternalConnectionTestResponse,
     type ExternalFetchRequest,
     type ExternalFetchResponse,
     type GoogleLiveSourceChoice,
@@ -103,6 +104,7 @@ import {
 import { getLiveSourceQueryErrorCode } from '../../../services/QuerySourceService/live/query/outcome';
 import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
 import { getLiveIntegration } from '../../../services/QuerySourceService/live/registry';
+import { getLiveSourceTestCheck } from '../../../services/QuerySourceService/live/testCheck';
 import { type LiveScanResult } from '../../../services/QuerySourceService/live/types';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import {
@@ -3771,15 +3773,22 @@ export class ExternalConnectionService extends BaseService {
             body?: unknown;
         },
         account: RegisteredAccount,
-    ): Promise<ExternalFetchResponse> {
+    ): Promise<ExternalConnectionTestResponse> {
         try {
-            const result = await this.executeExternalFetch(
+            const { response } = await this.executeExternalFetch(
                 connection,
                 secret,
                 req,
                 { account, appUuid: null },
             );
-            return result.response;
+            if (!connection.apiSource) return response;
+            return {
+                ...response,
+                liveCheck: getLiveSourceTestCheck(
+                    connection.apiSource,
+                    response,
+                ),
+            };
         } catch (error) {
             if (error instanceof SecureFetchError) {
                 throw new ParameterError(
@@ -4012,7 +4021,7 @@ export class ExternalConnectionService extends BaseService {
             body?: unknown;
             config?: UpdateExternalConnection;
         },
-    ): Promise<ExternalFetchResponse> {
+    ): Promise<ExternalConnectionTestResponse> {
         const storedConnection = await this.loadConnectionForProject(
             connectionUuid,
             projectUuid,
@@ -4022,12 +4031,15 @@ export class ExternalConnectionService extends BaseService {
             storedConnection.projectUuid,
             storedConnection.organizationUuid,
         );
-        const connection = req.config
-            ? ExternalConnectionService.resolveConnectionUpdate(
-                  storedConnection,
-                  req.config,
-              )
-            : storedConnection;
+        // Live data sources test against the rules their edited settings get
+        const connection = withApiSourceAccessRules(
+            req.config
+                ? ExternalConnectionService.resolveConnectionUpdate(
+                      storedConnection,
+                      req.config,
+                  )
+                : storedConnection,
+        );
 
         // Method allowlist — mirror the runtime proxy so a test rejects a
         // disallowed method instead of silently sending it.
@@ -4076,7 +4088,7 @@ export class ExternalConnectionService extends BaseService {
             query?: Record<string, string>;
             body?: unknown;
         },
-    ): Promise<ExternalFetchResponse> {
+    ): Promise<ExternalConnectionTestResponse> {
         // Derive the org from the project — never trust the caller — so an org
         // admin cannot test against another org's project.
         const organizationUuid =
