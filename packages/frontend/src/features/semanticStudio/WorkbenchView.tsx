@@ -1346,6 +1346,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         ) : null;
     const showLive = () => {
         setIsTryingChanges(false);
+        setIsOnLive(true);
         switchView('models');
     };
     const showChanges = () =>

@@ -268,6 +268,19 @@ const MAX_USAGE_FIELDS = 40;
 const SOURCE_FILE =
     /^(dbt_project\.yml|(models|macros|snapshots|seeds|lightdash\/models)\/.+\.(ya?ml|sql))$/;
 
+/** A file Studio shows, named plainly: no `..`, `.` or empty segment can step outside its folder. */
+export const isSourcePath = (path: string): boolean =>
+    SOURCE_FILE.test(path) &&
+    path
+        .split('/')
+        .every((part) => part !== '' && part !== '.' && part !== '..');
+
+const assertSourcePath = (path: string) => {
+    if (!isSourcePath(path)) {
+        throw new ParameterError('That file cannot be opened here.');
+    }
+};
+
 const RECENT_WORKSPACE_MS = 14 * 24 * 60 * 60 * 1000;
 
 export class SemanticStudioService extends BaseService {
@@ -2123,7 +2136,7 @@ export class SemanticStudioService extends BaseService {
         const files = (await checkout.listFiles())
             .filter((path) => path.startsWith(root))
             .map((path) => path.slice(root.length))
-            .filter((path) => SOURCE_FILE.test(path))
+            .filter(isSourcePath)
             .sort();
         return { branch: checkout.branch, prUrl: checkout.prUrl, files };
     }
@@ -2134,6 +2147,7 @@ export class SemanticStudioService extends BaseService {
         prUrl: string | null,
         path: string,
     ): Promise<SemanticStudioSourceFile> {
+        assertSourcePath(path);
         await this.assertCanUseStudio(user, projectUuid);
         const { checkout, root } =
             await this.aiWritebackService.openStudioCheckout(
@@ -2144,17 +2158,29 @@ export class SemanticStudioService extends BaseService {
         return { path, content: await checkout.readFile(`${root}${path}`) };
     }
 
-    /**
-     * Saves a hand edit to one file the way the agent's scripts are saved: YAML is
-     * validated and compiled first, and it lands as one commit on the change's pull
-     * request, or opens one. SQL is committed unchecked, since only dbt can check it.
-     */
+    /** Commits a hand edit to your own change's pull request, or opens one; YAML is compiled first, SQL is left to dbt. */
     async saveSource(
         user: SessionUser,
         projectUuid: string,
         { path, content, prUrl, threadUuid }: SaveSemanticStudioSourceRequest,
     ): Promise<SemanticStudioSourceSave> {
+        assertSourcePath(path);
         await this.assertCanUseStudio(user, projectUuid);
+        if (prUrl !== null) {
+            const workspaces = await this.workspaceModel.findInProject(
+                projectUuid,
+                user.userUuid,
+            );
+            const isYours = workspaces.some(
+                (workspace) =>
+                    workspace.isMine && workspace.pullRequest?.url === prUrl,
+            );
+            if (!isYours) {
+                throw new ForbiddenError(
+                    'Only the person who started this change can edit it here.',
+                );
+            }
+        }
         const script = `repo.write(${JSON.stringify(path)}, ${JSON.stringify(content)});`;
         const args = {
             agentPermissionsApply: true,
@@ -2194,6 +2220,10 @@ export class SemanticStudioService extends BaseService {
         if (saved.status !== 'saved') {
             throw new ParameterError('The edit was checked but not saved.');
         }
+        const { prUrl: savedPrUrl, commitSha } = saved.result;
+        if (!savedPrUrl || !commitSha) {
+            throw new ParameterError('The edit was checked but not saved.');
+        }
         // A save that opens a pull request is a change of its own, so it is listed and can be come back to.
         if (threadUuid && saved.result.prAction === 'opened') {
             const owner = { projectUuid, userUuid: user.userUuid };
@@ -2229,9 +2259,9 @@ export class SemanticStudioService extends BaseService {
         }
         return {
             status: 'saved',
-            prUrl: saved.result.prUrl ?? '',
+            prUrl: savedPrUrl,
             prAction: saved.result.prAction === 'opened' ? 'opened' : 'updated',
-            commitSha: saved.result.commitSha ?? '',
+            commitSha,
             checked,
         };
     }

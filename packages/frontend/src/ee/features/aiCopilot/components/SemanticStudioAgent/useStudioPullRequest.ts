@@ -38,10 +38,7 @@ export type StudioPullRequest = {
     isMine: boolean;
 };
 
-/**
- * A change's pull request: the change's own record first, so hand saves, merges and others' changes count,
- * then what the agent's results in its conversation add. Without `shown`, the change your chat is on.
- */
+/** A change's pull request from its own record, then its conversation; without `shown`, the change your chat is on. */
 export const useStudioPullRequest = (
     projectUuid: string,
     shown?: SemanticStudioWorkspace | null,
@@ -93,12 +90,11 @@ export const useStudioPullRequest = (
             ),
         ),
     ].sort();
-    // A hand save tells no agent which models it changed, so they are read off the pull request's files.
+    // A hand save tells no agent which models it changed, so the pull request's files add theirs.
     const { data: diff } = useWholePullRequestDiff(
         projectUuid,
         prUrl ?? '',
         metadata?.commitSha ?? null,
-        agentModels.length === 0,
     );
     const diffModels = useMemo(
         () =>
@@ -118,7 +114,7 @@ export const useStudioPullRequest = (
         revision,
         additions: metadata?.additions ?? null,
         deletions: metadata?.deletions ?? null,
-        changedModels: agentModels.length > 0 ? agentModels : diffModels,
+        changedModels: [...new Set([...agentModels, ...diffModels])].sort(),
         previewProjectUuid: findPreviewProjectUuid(metadata?.previewUrl),
         ciChecks: ciChecks ?? null,
         state,

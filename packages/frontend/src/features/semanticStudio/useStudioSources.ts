@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type StoredThread } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import { getAiAgentApiBase } from '../../ee/features/aiCopilot/hooks/aiAgentRouting';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
+import { WORKSPACES_KEY } from './useStudioWorkspaces';
 
 const SOURCES_KEY = 'semantic-studio-sources';
 
@@ -72,25 +73,23 @@ export const useSaveStudioSource = (projectUuid: string) => {
     >({
         mutationFn: async ({ newChangeAgentUuid, ...body }) => {
             // ponytail: a save that then fails leaves a conversation no change points at.
-            const created =
+            const startThread = async (agentUuid: string) => {
+                const created = await lightdashApi<
+                    ApiAiAgentThreadCreateResponse['results']
+                >({
+                    url: `${getAiAgentApiBase(projectUuid)}/${agentUuid}/threads`,
+                    method: 'POST',
+                    body: JSON.stringify({
+                        createdFrom: 'semantic_studio',
+                        threadContext: `This change started with a hand edit to ${body.path}.`,
+                    }),
+                });
+                return { threadUuid: created.uuid, agentUuid };
+            };
+            const thread =
                 body.threadUuid === null && newChangeAgentUuid
-                    ? await lightdashApi<
-                          ApiAiAgentThreadCreateResponse['results']
-                      >({
-                          url: `${getAiAgentApiBase(projectUuid)}/${newChangeAgentUuid}/threads`,
-                          method: 'POST',
-                          body: JSON.stringify({
-                              createdFrom: 'semantic_studio',
-                              threadContext: `This change started with a hand edit to ${body.path}.`,
-                          }),
-                      })
+                    ? await startThread(newChangeAgentUuid)
                     : null;
-            const thread = created
-                ? {
-                      threadUuid: created.uuid,
-                      agentUuid: newChangeAgentUuid ?? '',
-                  }
-                : null;
             const saved = await lightdashApi<SemanticStudioSourceSave>({
                 url: `/projects/${projectUuid}/semantic-studio/sources/file`,
                 method: 'POST',
@@ -108,7 +107,7 @@ export const useSaveStudioSource = (projectUuid: string) => {
                 queryKey: ['pullRequestDiff', projectUuid],
             });
             void queryClient.invalidateQueries({
-                queryKey: ['semantic-studio-workspaces', projectUuid],
+                queryKey: [WORKSPACES_KEY, projectUuid],
             });
         },
     });

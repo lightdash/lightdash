@@ -319,6 +319,22 @@ describe('GithubProvider API checkout', () => {
         expect(checkout.headSha).toBe('pr-head-sha');
         expect(getBranchHeadSha).not.toHaveBeenCalled();
     });
+
+    it('refuses to read a finished pull request from a fork', async () => {
+        mockGetPullRequest.mockResolvedValue({
+            ...openPr,
+            merged: true,
+            headRepoFullName: 'fork/analytics',
+        });
+        await expect(
+            provider.openApiCheckout({
+                connection,
+                installation,
+                prUrl: 'https://github.com/acme/analytics/pull/7',
+                access: 'read',
+            }),
+        ).rejects.toThrow(/fork/);
+    });
 });
 
 describe('GithubProvider sandbox sync', () => {

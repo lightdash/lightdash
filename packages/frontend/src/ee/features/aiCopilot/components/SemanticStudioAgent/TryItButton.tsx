@@ -39,12 +39,18 @@ export const TryIt: FC<{
     prUrl: string | null;
     onClose: () => void;
 }> = ({ projectUuid, models, previewProjectUuid, prUrl, onClose }) => {
-    const [, setIsOn] = useDevelopmentView();
-    const turnOn = useRef({ setIsOn, previewProjectUuid });
+    const [isOn, setIsOn] = useDevelopmentView();
+    const turnOn = useRef({ isOn, setIsOn, previewProjectUuid });
     useEffect(() => {
-        const { setIsOn: set, previewProjectUuid: preview } = turnOn.current;
+        const {
+            isOn: wasOn,
+            setIsOn: set,
+            previewProjectUuid: preview,
+        } = turnOn.current;
         set(true, preview);
-        return () => set(false);
+        return () => {
+            if (!wasOn) set(false);
+        };
     }, []);
     return (
         <Suspense fallback={null}>

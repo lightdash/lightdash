@@ -34,6 +34,7 @@ import {
     type StoredDraftChange,
 } from '../../models/ProjectModelDocumentModel';
 import {
+    isSourcePath,
     SemanticStudioService,
     type SemanticStudioServiceArguments,
 } from './SemanticStudioService';
@@ -320,31 +321,35 @@ const setup = ({
     const unused = async (): Promise<never> => {
         throw new Error('not used in these tests');
     };
+    const findActive = async () =>
+        activeWorkspace && {
+            workspaceUuid: 'workspace-uuid',
+            projectUuid: PROJECT_UUID,
+            name: 'A change',
+            threadUuid: activeWorkspace.threadUuid,
+            agentUuid: null,
+            owner: { userUuid: USER_UUID, name: 'Someone' },
+            isMine: true,
+            isActive: true,
+            pullRequest: activeWorkspace.prUrl
+                ? { url: activeWorkspace.prUrl, state: null }
+                : null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            finishedAt: null,
+        };
     const args: SemanticStudioServiceArguments = {
         aiWritebackService: {
             openStudioCheckout: unused,
             saveWithScript: unused,
         },
         workspaceModel: {
-            findActive: async () =>
-                activeWorkspace && {
-                    workspaceUuid: 'workspace-uuid',
-                    projectUuid: PROJECT_UUID,
-                    name: 'A change',
-                    threadUuid: activeWorkspace.threadUuid,
-                    agentUuid: null,
-                    owner: { userUuid: USER_UUID, name: 'Someone' },
-                    isMine: true,
-                    isActive: true,
-                    pullRequest: activeWorkspace.prUrl
-                        ? { url: activeWorkspace.prUrl, state: null }
-                        : null,
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
-                    finishedAt: null,
-                },
+            findActive,
             findStudioThread: unused,
-            findInProject: unused,
+            findInProject: async () => {
+                const workspace = await findActive();
+                return workspace ? [workspace] : [];
+            },
             find: unused,
             start: unused,
             activate: unused,
@@ -2529,5 +2534,59 @@ dimensions:
                 service.undo(viewer, PROJECT_UUID, ['patched-orders']),
             ).rejects.toThrow(ForbiddenError);
         });
+    });
+});
+
+describe('saving a hand edit', () => {
+    const edit = (prUrl: string | null) => ({
+        path: 'models/orders.yml',
+        content: 'version: 2',
+        prUrl,
+        threadUuid: null,
+    });
+
+    it('refuses a pull request that is not your own change', async () => {
+        const context = setup();
+        await expect(
+            context.service.saveSource(
+                deployer,
+                PROJECT_UUID,
+                edit(PULL_REQUEST_URL),
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        context.setActiveWorkspace({
+            threadUuid: 'thread',
+            prUrl: PULL_REQUEST_URL,
+        });
+        await expect(
+            context.service.saveSource(
+                deployer,
+                PROJECT_UUID,
+                edit(PULL_REQUEST_URL),
+            ),
+        ).rejects.toThrow('not used in these tests');
+    });
+
+    it('refuses a path outside the project files', async () => {
+        const context = setup();
+        await expect(
+            context.service.saveSource(deployer, PROJECT_UUID, {
+                ...edit(null),
+                path: 'models/../profiles.yml',
+            }),
+        ).rejects.toThrow(ParameterError);
+    });
+});
+
+describe('isSourcePath', () => {
+    it('takes model and project files, and nothing that steps outside them', () => {
+        expect(isSourcePath('models/orders.yml')).toBe(true);
+        expect(isSourcePath('dbt_project.yml')).toBe(true);
+        expect(isSourcePath('macros/cents.sql')).toBe(true);
+        expect(isSourcePath('models/../profiles.yml')).toBe(false);
+        expect(isSourcePath('models/./x/../../.env.yml')).toBe(false);
+        expect(isSourcePath('models//orders.yml')).toBe(false);
+        expect(isSourcePath('profiles.yml')).toBe(false);
+        expect(isSourcePath('/etc/models/x.yml')).toBe(false);
     });
 });

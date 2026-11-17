@@ -594,13 +594,12 @@ export class GithubProvider implements GitProvider {
                 ...auth,
             });
             const isFinished = pr.merged || pr.state === 'closed';
-            if (isFinished && args.access === 'read') {
-                finishedHeadSha = pr.headSha;
-            } else if (isFinished) {
+            if (isFinished && args.access === 'write') {
                 throw new WritebackThreadPrClosedError(
                     pr.merged ? 'merged' : 'closed',
                 );
-            } else if (
+            }
+            if (
                 pr.headRepoFullName?.toLowerCase() !==
                 `${repo.owner}/${repo.repo}`.toLowerCase()
             ) {
@@ -608,6 +607,7 @@ export class GithubProvider implements GitProvider {
                     'This pull request comes from a fork, so it cannot be updated here.',
                 );
             }
+            if (isFinished) finishedHeadSha = pr.headSha;
             branch = pr.headRef;
         } else {
             branch =
@@ -692,7 +692,13 @@ export class GithubProvider implements GitProvider {
         const local = new Map(
             listing
                 .split('\0')
-                .filter((line) => line && !line.startsWith('120000 '))
+                // Links and submodules are not files the remote tree lists.
+                .filter(
+                    (line) =>
+                        line &&
+                        !line.startsWith('120000 ') &&
+                        !line.startsWith('160000 '),
+                )
                 .map((line) => {
                     const [meta, path] = line.split('\t');
                     return [path, meta.split(' ')[2]] as const;
