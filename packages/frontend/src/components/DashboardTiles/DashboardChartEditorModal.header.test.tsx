@@ -62,7 +62,17 @@ vi.mock('../Explorer', async () => {
     return { default: StoreProbe };
 });
 
-vi.mock('../Explorer/ExploreSideBar', () => ({ default: () => null }));
+// The sidebar hosts "Merge another query", which needs the merge context.
+vi.mock('../Explorer/ExploreSideBar', async () => {
+    const { useMergeSafe } =
+        await import('../../features/mergeQuery/context/useMerge');
+    const SidebarProbe = () => (
+        <div data-testid="sidebar-merge">
+            {useMergeSafe() ? 'ready' : 'missing'}
+        </div>
+    );
+    return { default: SidebarProbe };
+});
 
 vi.mock('../../hooks/useExplore', () => ({
     useExplore: () => ({ data: undefined, error: null }),
@@ -307,6 +317,15 @@ describe('DashboardChartEditorModal header', () => {
 
     afterEach(() => {
         browserRouters.splice(0).forEach((router) => router.dispose());
+    });
+
+    it('gives the sidebar the merge context', async () => {
+        renderModal(manageChartAbility);
+        await waitFor(() =>
+            expect(screen.getByTestId('sidebar-merge')).toHaveTextContent(
+                'ready',
+            ),
+        );
     });
 
     it('renames the chart and edits its description without leaving the editor', async () => {
