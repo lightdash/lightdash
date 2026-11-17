@@ -1,3 +1,11 @@
+## [3.283.2](https://github.com/lightdash/lightdash/compare/3.283.1...3.283.2) (2026-11-17)
+
+
+### Bug Fixes
+
+* **composer:** short error on errored composer tile, no toast in screenshots ([#32704](https://github.com/lightdash/lightdash/issues/32704)) ([76bbd30](https://github.com/lightdash/lightdash/commit/76bbd3048bc0f0a6cfbca1b0904fc1f24db46b1f))
+* **explorer:** keep the welcome tour out of a saved chart's view mode ([#32710](https://github.com/lightdash/lightdash/issues/32710)) ([5389aea](https://github.com/lightdash/lightdash/commit/5389aea4830674d2505647c836dfc87bcb53da1a))
+
 ## [3.283.1](https://github.com/lightdash/lightdash/compare/3.283.0...3.283.1) (2026-11-17)
 
 
