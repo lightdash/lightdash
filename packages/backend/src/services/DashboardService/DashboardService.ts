@@ -31,6 +31,7 @@ import {
     getErrorMessage,
     getExploreParameterDefinitions,
     getItemId,
+    getNewHandWrittenAdditionalMetrics,
     getParameterMirror,
     getParameterReferences,
     getQueryParameterReferences,
@@ -111,6 +112,7 @@ import {
     SchedulerDashboardUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
 import {
+    fromSession,
     getAccountWriteContext,
     getEmbedActorChartSpaceUuids,
     toSessionUser,
@@ -154,6 +156,7 @@ import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionC
 import { logAgentContentWrite } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
 import type { ComposerChartService } from '../ComposerChartService/ComposerChartService';
+import { getCustomMetricSqlPermissionMessage } from '../ProjectService/customMetricSqlPermission';
 import { assertCanSaveInDevelopmentView } from '../ProjectService/developmentView';
 import { convertDashboardParametersToValuesMap } from '../ProjectService/parameters';
 import type { ProjectService } from '../ProjectService/ProjectService';
@@ -207,7 +210,10 @@ type DashboardServiceArguments = {
     contentVerificationModel: ContentVerificationModel;
     projectService: Pick<
         ProjectService,
-        'findExplores' | 'projectParametersModel' | 'getQueryTimezoneForProject'
+        | 'findExplores'
+        | 'projectParametersModel'
+        | 'getQueryTimezoneForProject'
+        | 'getCustomMetricsNeedingPermission'
     >;
     getComposerChartService: () => Pick<
         ComposerChartService,
@@ -3735,6 +3741,48 @@ export class DashboardService
         const affected = await Promise.all(
             affectedCharts.map((chart) => this.savedChartModel.get(chart.uuid)),
         );
+
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('CustomFields', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                }),
+            )
+        ) {
+            const account = fromSession(user);
+            const savedMetric = registry[existingIndex];
+            // A metric no chart uses has no explore: changed SQL needs the permission
+            const needsPermission =
+                affected.length > 0
+                    ? (
+                          await Promise.all(
+                              affected.map((chart) =>
+                                  this.projectService.getCustomMetricsNeedingPermission(
+                                      {
+                                          account,
+                                          projectUuid: chart.projectUuid,
+                                          exploreName:
+                                              chart.metricQuery.exploreName,
+                                          additionalMetrics: [metric],
+                                          savedAdditionalMetrics: [savedMetric],
+                                      },
+                                  ),
+                              ),
+                          )
+                      ).some((metrics) => metrics.length > 0)
+                    : getNewHandWrittenAdditionalMetrics(
+                          [metric],
+                          [savedMetric],
+                          {},
+                      ).length > 0;
+            if (needsPermission) {
+                throw new ForbiddenError(
+                    getCustomMetricSqlPermissionMessage([metric]),
+                );
+            }
+        }
 
         const updatedRegistry = [
             ...registry.slice(0, existingIndex),

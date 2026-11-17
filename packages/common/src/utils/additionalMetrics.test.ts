@@ -15,6 +15,7 @@ import {
     getCompatibleDashboardMetrics,
     getHandWrittenAdditionalMetrics,
     getMissingAdditionalMetricReferences,
+    getNewHandWrittenAdditionalMetrics,
     mergeDashboardCustomMetrics,
     resolveAdditionalMetricsSql,
 } from './additionalMetrics';
@@ -591,5 +592,40 @@ describe('getHandWrittenAdditionalMetrics', () => {
                 tables,
             ),
         ).toHaveLength(1);
+    });
+});
+
+describe('getNewHandWrittenAdditionalMetrics', () => {
+    const tables: Explore['tables'] = {
+        orders: {
+            ...baseTable,
+            dimensions: {
+                amount: { name: 'amount', sql: '${TABLE}.amount' },
+            },
+        } as unknown as CompiledTable,
+    };
+    const metric = (name: string, sql: string): AdditionalMetric => ({
+        name,
+        table: 'orders',
+        type: MetricType.SUM,
+        sql,
+    });
+
+    it('keeps hand-written SQL the chart had not saved before', () => {
+        const added = getNewHandWrittenAdditionalMetrics(
+            [
+                metric('modelled', '${TABLE}.amount'),
+                metric('unchanged', '(SELECT 1)'),
+                metric('renamed', '(SELECT 1)'),
+                metric('changed', '(SELECT 2)'),
+            ],
+            [
+                metric('unchanged', '(SELECT 1)'),
+                metric('changed', '(SELECT 3)'),
+            ],
+            tables,
+        );
+
+        expect(added.map(({ name }) => name)).toEqual(['changed']);
     });
 });
