@@ -16,6 +16,7 @@ import {
     selectParameterReferences,
     selectParameters,
     selectQueryUuidHistory,
+    selectSavedChart,
     selectTableName,
     selectUnpivotedQueryArgs,
     selectUnpivotedQueryUuidHistory,
@@ -103,11 +104,18 @@ export const useExplorerQueryManager = ({
         explicitProjectUuid || embed?.projectUuid || routeProjectUuid!;
     const contextParam =
         useSearchParams<QueryExecutionContext>('context') || undefined;
+    // Set only when the chart was read with the viewer's own draft applied
+    const includeUnpublishedDraft =
+        useExplorerSelector(selectSavedChart)?.hasUnpublishedChanges;
     const viewModeQueryArgs = useMemo(() => {
         return savedQueryUuid
-            ? { chartUuid: savedQueryUuid, context: contextParam }
+            ? {
+                  chartUuid: savedQueryUuid,
+                  context: contextParam,
+                  includeUnpublishedDraft,
+              }
             : undefined;
-    }, [savedQueryUuid, contextParam]);
+    }, [savedQueryUuid, contextParam, includeUnpublishedDraft]);
 
     const dateZoomGranularity = useDateZoomGranularitySearch();
 

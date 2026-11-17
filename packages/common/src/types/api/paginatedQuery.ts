@@ -59,6 +59,9 @@ export type ExecuteAsyncSavedChartRequestParams =
         // dropped silently — a dashboard hosting a data-app tile filters
         // across explores and one mismatch shouldn't break the linked chart.
         dashboardFilters?: DashboardFilters;
+        // Run the caller's own unpublished chart draft instead of the
+        // published chart; ignored when a chart version is requested
+        includeUnpublishedDraft?: boolean;
     };
 
 export type ExecuteAsyncDashboardChartRequestParams =
