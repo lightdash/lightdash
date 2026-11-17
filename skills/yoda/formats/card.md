@@ -8,10 +8,12 @@ Show inline with `show_widget`; publish with the Artifact tool when a shareable 
 
 One card, segments split by hairlines, in this order:
 
-1. **Header:** card.html's blinking pixel Yoda (the yoda-1 Slack emoji, embedded), then the verdict in its colour (green approve, amber notes, red changes); the PR as `repo#N · short sha ↗` linked on the right, muted mono; the subject below.
-2. **Findings:** one block per finding, state (red Fix, amber Heads-up) then `lens · file:line` muted, then the finding markdown as muted prose with identifiers in mono.
+1. **Header:** card.html's blinking pixel Yoda (the yoda-1 Slack emoji, embedded), then the verdict in its colour (green approve, amber notes, red changes); the PR as `#N` linked on the right, muted mono; the subject below.
+2. **Findings:** one block per finding, state (red Fix, amber Heads-up) then the lens muted, then the finding markdown as muted prose with identifiers in mono.
    Omit the segment when there are none.
-3. **Testing:** `Testing` then the rating (red none or missing, amber thin, muted enough); verification rows below as muted lines.
+3. **Testing:** `Testing` then the rating (muted enough, amber thin, red missing).
+   Rows below follow the diff's row shape: green `✓` for a verification, amber `○` for a gap, then What, with How muted and right-aligned.
+   Gaps first, as the schema orders them; no rows when there are none.
 4. **Diff:** one linear list in schema order, without lens groups.
    Each row is a mark, the name in mono with extras muted beside it, the lens muted and right-aligned on the name line, and the note below.
    - Marks: `+` added on a green tint, `−` deleted on a red tint with the name struck through; modified rows have no mark and no tint.
