@@ -159,6 +159,19 @@ export const LIVE_INTEGRATION_CATALOG: {
         }),
         getTarget: () => 'Pylon workspace',
     },
+    [ApiConnectorType.ATTIO]: {
+        id: 'attio',
+        label: 'Attio',
+        messageLabel: 'Attio',
+        agentLabel: 'Attio',
+        description: 'Records of one CRM object, such as companies or deals',
+        setup: 'token',
+        settings: z.object({
+            connector: z.literal(ApiConnectorType.ATTIO),
+            object: z.string(),
+        }),
+        getTarget: ({ object }) => `Object ${object}`,
+    },
 };
 
 /** One integration's catalog entry, for a source of any connector. */

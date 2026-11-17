@@ -72,6 +72,12 @@ export type PylonApiSource = {
     connector: ApiConnectorType.PYLON;
 };
 
+export type AttioApiSource = {
+    connector: ApiConnectorType.ATTIO;
+    /** The slug of the Attio object the source reads, e.g. companies or deals. */
+    object: string;
+};
+
 /** Connector settings of a live source; the server fixes its access rules. */
 export type ExternalConnectionApiSource =
     | PostHogApiSource
@@ -82,7 +88,8 @@ export type ExternalConnectionApiSource =
     | YoutubeAnalyticsApiSource
     | LinkedInAdsApiSource
     | GithubApiSource
-    | PylonApiSource;
+    | PylonApiSource
+    | AttioApiSource;
 
 /** The settings of one integration's sources. */
 export type ApiSourceOf<C extends ApiConnectorType> = Extract<
@@ -127,6 +134,14 @@ export const PYLON_ISSUES_SEARCH_PATH = '/issues/search';
 export const PYLON_ACCOUNTS_SEARCH_PATH = '/accounts/search';
 export const PYLON_CONTACTS_SEARCH_PATH = '/contacts/search';
 export const PYLON_USERS_PATH = '/users';
+
+export const ATTIO_ORIGIN = 'https://api.attio.com';
+
+export const getAttioAttributesPath = (object: string) =>
+    `/v2/objects/${object}/attributes`;
+
+export const getAttioRecordsQueryPath = (object: string) =>
+    `/v2/objects/${object}/records/query`;
 
 /** HTTP methods an admin can opt a connection into. Single source of truth for
  *  the backend validation allowlist and the frontend method pickers. */

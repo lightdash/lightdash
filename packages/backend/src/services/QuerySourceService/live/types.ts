@@ -177,4 +177,6 @@ export type LiveConnectionCheck = {
 export type LiveScanResult = {
     ga4Metadata?: unknown;
     posthogProperties?: Record<'event' | 'person', unknown>;
+    /** Attio's attribute list for the source's object, as it returns it. */
+    attioAttributes?: unknown;
 };

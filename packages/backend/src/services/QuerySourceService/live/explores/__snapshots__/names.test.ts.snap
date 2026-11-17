@@ -1,5 +1,31 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`live data source names > Attio explore names and field ids never change 1`] = `
+{
+  "explores": [
+    {
+      "fieldIds": [
+        "attio_records_attribute_count",
+        "attio_records_count",
+        "attio_records_created_at",
+        "attio_records_created_at_month",
+        "attio_records_created_at_week",
+        "attio_records_created_at_year",
+        "attio_records_name",
+        "attio_records_record_id",
+        "attio_records_stage",
+        "attio_records_total_count",
+        "attio_records_total_value",
+        "attio_records_value",
+        "attio_records_web_url",
+      ],
+      "name": "attio_records",
+    },
+  ],
+  "reservedExploreNames": [],
+}
+`;
+
 exports[`live data source names > GitHub explore names and field ids never change 1`] = `
 {
   "explores": [
