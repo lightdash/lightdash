@@ -57,6 +57,7 @@ interface Props extends Pick<
     'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
 > {
     tile: DashboardSqlChartTile;
+    /** Hides the Ask AI action; the tile chrome itself stays unchanged. */
     minimal?: boolean;
     /**
      * Render via the embed-only API surface (JWT-authorized via dashboard
@@ -342,7 +343,6 @@ const SqlChartTile: FC<Props> = ({
                 hasError
                 title={tileTitle}
                 chartKind={null}
-                minimal={minimal}
                 {...rest}
             >
                 {(!savedSqlUuid || !isChartLoading) && (
@@ -385,7 +385,6 @@ const SqlChartTile: FC<Props> = ({
                     connections,
                     chartData.warehouseConnectionUuid,
                 )}
-                minimal={minimal}
                 {...askAiTileActions}
                 {...rest}
                 titleHref={`/projects/${effectiveProjectUuid}/sql-runner/${chartData.slug}`}
@@ -433,7 +432,6 @@ const SqlChartTile: FC<Props> = ({
                 chartData.warehouseConnectionUuid,
             )}
             fullWidth={chartData.config.type === ChartKind.TABLE}
-            minimal={minimal}
             {...askAiTileActions}
             {...rest}
             extraMenuItems={
