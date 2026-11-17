@@ -13,6 +13,8 @@ const serialFiles = [
     'tests/embedDashboard.test.ts',
     'tests/embedTimezone.test.ts',
     'tests/dataAppVizRender.test.ts',
+    // Assigns a temporary custom role on the seed project (projectPermissions).
+    'tests/chartCustomSqlSavePermissions.test.ts',
     // Toggles the org AI setting and a user attribute other files could read.
     'tests/dataAppAnalysisIsolation.test.ts',
     'tests/dashboardAnalysisIsolation.test.ts',
