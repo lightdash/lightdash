@@ -27,7 +27,11 @@ export function buildQueryArgs(options: {
     parameters: ParametersValuesMap | undefined;
     isEditMode: boolean;
     viewModeQueryArgs?:
-        | { chartUuid: string; context?: QueryExecutionContext }
+        | {
+              chartUuid: string;
+              context?: QueryExecutionContext;
+              includeUnpublishedDraft?: boolean;
+          }
         | { chartUuid: string; chartVersionUuid: string };
     dateZoomGranularity?: DateGranularity | string;
     minimal: boolean;

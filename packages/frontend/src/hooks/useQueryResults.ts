@@ -40,6 +40,7 @@ export type QueryResultsProps = {
     csvLimit?: number | null; // null = all results, capped by the org CSV cells limit
     chartUuid?: string;
     chartVersionUuid?: string;
+    includeUnpublishedDraft?: boolean;
     dateZoomGranularity?: DateGranularity | string;
     context?: QueryExecutionContext;
     invalidateCache?: boolean;
@@ -192,6 +193,8 @@ export const executeAsyncQuery = (
                 // query is attributed to the delivery, as dashboards do.
                 context: data.context ?? QueryExecutionContext.CHART,
                 chartUuid: data.chartUuid,
+                includeUnpublishedDraft:
+                    data.includeUnpublishedDraft || undefined,
                 limit: data.csvLimit,
                 invalidateCache: data.invalidateCache,
                 parameters: data.parameters,
