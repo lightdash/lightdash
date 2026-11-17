@@ -109,7 +109,7 @@ const DashboardChartEditorView: FC<
             isSidebarOpen
             {...rightSidebarProps}
             withFullHeight
-            withPaddedContent
+            noContentPadding
         >
             <DashboardChartEditorHeaderActions
                 onOpenChartPage={onOpenChartPage}
