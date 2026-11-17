@@ -1,3 +1,10 @@
+# [3.290.0](https://github.com/lightdash/lightdash/compare/3.289.4...3.290.0) (2026-11-17)
+
+
+### Features
+
+* **dashboards:** select a tile while editing to resize, duplicate or delete it ([#32750](https://github.com/lightdash/lightdash/issues/32750)) ([9d03af7](https://github.com/lightdash/lightdash/commit/9d03af74e8a5f90eae90d90ff855d26a6cce6c5d))
+
 ## [3.289.4](https://github.com/lightdash/lightdash/compare/3.289.3...3.289.4) (2026-11-17)
 
 
