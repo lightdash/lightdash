@@ -328,6 +328,9 @@
                     "additionalProperties": false,
                     "description": "From T, pick a set of properties whose keys are in the union K",
                     "properties": {
+                        "belongsToDashboard": {
+                            "type": "boolean"
+                        },
                         "chartName": {
                             "type": ["string", "null"]
                         },
