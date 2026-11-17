@@ -632,6 +632,27 @@ describe('AiAgentService.createPinnedContextMessage SQL charts', () => {
     });
 });
 
+describe('AiAgentService.createPinnedContextMessage composer charts', () => {
+    it('names the composer chart and how to read, run and edit it', () => {
+        const content = buildMessage([
+            {
+                type: 'composer_chart',
+                composerChartUuid: 'composer-1',
+                composerChartSlug: 'revenue-vs-target',
+                displayName: 'Revenue vs target',
+                pinnedVersionUuid: 'version-1',
+            },
+        ]);
+
+        expect(content).toContain(
+            '- Composer chart "Revenue vs target" (composerChartSlug: revenue-vs-target)',
+        );
+        expect(content).toContain('readContent (type composer_chart, slug)');
+        expect(content).toContain('editContent (type composer_chart)');
+        expect(content).toContain('chartType composer_chart');
+    });
+});
+
 describe('AiAgentService.createPinnedContextMessage attached documents', () => {
     const file = {
         type: 'thread_file' as const,

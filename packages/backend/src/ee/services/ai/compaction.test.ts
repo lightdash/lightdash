@@ -393,6 +393,34 @@ describe('AI context compaction helpers', () => {
         );
     });
 
+    it('serializes a pinned composer chart so the summary keeps its slug', () => {
+        const serialized = Compaction.serializeConversation([
+            {
+                role: 'user',
+                uuid: 'prompt-1',
+                threadUuid: 'thread-1',
+                message: 'Make this a bar chart.',
+                createdAt: new Date().toISOString(),
+                user: { uuid: 'user-1', name: 'Test User' },
+                context: [
+                    {
+                        type: 'composer_chart',
+                        composerChartUuid: 'composer-1',
+                        composerChartSlug: 'revenue-vs-target',
+                        displayName: 'Revenue vs target',
+                        pinnedVersionUuid: null,
+                    },
+                ],
+                steers: [],
+                hidden: false,
+            },
+        ]);
+
+        expect(serialized).toContain(
+            'composer chart Revenue vs target (revenue-vs-target; read it with readContent type composer_chart)',
+        );
+    });
+
     it('filters raw prompt rows after the latest compaction boundary', () => {
         const filtered = Compaction.filterThreadMessagesAfterCompaction(
             [

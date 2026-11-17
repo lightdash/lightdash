@@ -32,6 +32,9 @@ import TileBase from '../../../components/DashboardTiles/TileBase/index';
 import { TileFiltersPopover } from '../../../components/DashboardTiles/TileFiltersPopover';
 import { TileParametersPopover } from '../../../components/DashboardTiles/TileParametersPopover';
 import { NO_CELL_LIMITED_SCOPES } from '../../../components/ExportResults/exportCellEstimate';
+import { AskAiAgentButton } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
+import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
+import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
 import { useUiString } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardFiltersForTile from '../../../hooks/dashboard/useDashboardFiltersForTile';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -127,6 +130,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
     const { composerChartUuid } = tile.properties;
     const projectUuid = useProjectUuid();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
+    const isEmbedded = useIsEmbedded();
     const appliedParameterValues = useDashboardSelector(selectParameterValues);
     const {
         dashboardValues: parameters,
@@ -317,9 +321,24 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
         [markTileScreenshotErrored, tile.uuid],
     );
 
+    const askAiProps = {
+        projectUuid,
+        composerChartUuid: composerChartUuid ?? undefined,
+        dashboardUuid,
+        clickedFrom: 'dashboard_composer_chart_tile',
+    } as const;
+    const askAiTileActions =
+        !minimal && !isEmbedded
+            ? {
+                  titleLeftIcon: <AskAiAgentButton {...askAiProps} />,
+                  mobileMenuItems: <AskAiAgentMenuItem {...askAiProps} />,
+              }
+            : {};
+
     return (
         <TileBase
             {...props}
+            {...askAiTileActions}
             title={title}
             chartName={tile.properties.chartName ?? undefined}
             isLoading={isLoading}

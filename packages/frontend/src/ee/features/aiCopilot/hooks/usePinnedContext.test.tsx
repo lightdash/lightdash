@@ -9,11 +9,13 @@ const {
     useSavedQueryMock,
     useDashboardQueryMock,
     useSavedSqlChartMock,
+    useComposerChartMock,
 } = vi.hoisted(() => ({
     useGetAppMock: vi.fn(),
     useSavedQueryMock: vi.fn(),
     useDashboardQueryMock: vi.fn(),
     useSavedSqlChartMock: vi.fn(),
+    useComposerChartMock: vi.fn(),
 }));
 
 vi.mock('../../../../features/apps/hooks/useGetApp', () => ({
@@ -28,6 +30,12 @@ vi.mock('../../../../hooks/dashboard/useDashboard', () => ({
 vi.mock('../../../../features/sqlRunner/hooks/useSavedSqlCharts', () => ({
     useSavedSqlChart: useSavedSqlChartMock,
 }));
+vi.mock(
+    '../../../../features/composerCharts/hooks/useComposerChartRun',
+    () => ({
+        useComposerChart: useComposerChartMock,
+    }),
+);
 
 const projectUuid = 'project-1';
 
@@ -59,6 +67,7 @@ describe('usePinnedContext', () => {
         useSavedQueryMock.mockReset().mockReturnValue({ data: undefined });
         useDashboardQueryMock.mockReset().mockReturnValue({ data: undefined });
         useSavedSqlChartMock.mockReset().mockReturnValue({ data: undefined });
+        useComposerChartMock.mockReset().mockReturnValue({ data: undefined });
         useGetAppMock.mockReturnValue({ data: { pages: [app] } });
     });
 
@@ -169,6 +178,66 @@ describe('usePinnedContext', () => {
 
         const { result } = renderHook(
             () => usePinnedContext({ projectUuid, sqlChartUuid: 'sql-1' }),
+            { wrapper },
+        );
+
+        expect(result.current.isReady).toBe(false);
+        expect(result.current.contextInput).toEqual([]);
+    });
+
+    it('pins a composer chart with its dashboard, dashboard first', () => {
+        useGetAppMock.mockReturnValue({ data: undefined });
+        useDashboardQueryMock.mockReturnValue({ data: dashboard });
+        useComposerChartMock.mockReturnValue({
+            data: {
+                uuid: 'composer-1',
+                slug: 'revenue-vs-target',
+                name: 'Revenue vs target',
+                versionUuid: 'version-1',
+            },
+        });
+
+        const { result } = renderHook(
+            () =>
+                usePinnedContext({
+                    projectUuid,
+                    composerChartUuid: 'composer-1',
+                    dashboardUuidOrSlug: 'dashboard-1',
+                }),
+            { wrapper },
+        );
+
+        expect(result.current.isReady).toBe(true);
+        expect(result.current.contextInput).toEqual([
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-1',
+                dashboardSlug: 'orders',
+            },
+            {
+                type: 'composer_chart',
+                composerChartUuid: 'composer-1',
+                composerChartSlug: 'revenue-vs-target',
+            },
+        ]);
+        expect(result.current.previewItems[1]).toEqual({
+            type: 'composer_chart',
+            composerChartUuid: 'composer-1',
+            composerChartSlug: 'revenue-vs-target',
+            displayName: 'Revenue vs target',
+            pinnedVersionUuid: 'version-1',
+        });
+    });
+
+    it('is not ready until the composer chart resolves', () => {
+        useGetAppMock.mockReturnValue({ data: undefined });
+
+        const { result } = renderHook(
+            () =>
+                usePinnedContext({
+                    projectUuid,
+                    composerChartUuid: 'composer-1',
+                }),
             { wrapper },
         );
 

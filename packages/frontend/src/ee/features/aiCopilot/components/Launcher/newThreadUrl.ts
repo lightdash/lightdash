@@ -28,6 +28,9 @@ export const buildNewThreadUrl = ({
     if (pendingContext?.sqlChartUuid) {
         params.set('sqlChartUuid', pendingContext.sqlChartUuid);
     }
+    if (pendingContext?.composerChartUuid) {
+        params.set('composerChartUuid', pendingContext.composerChartUuid);
+    }
     if (pendingContext?.dashboardUuid) {
         params.set('dashboardUuid', pendingContext.dashboardUuid);
     }

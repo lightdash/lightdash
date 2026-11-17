@@ -88,6 +88,8 @@ export const getPromptContextItemKey = (
             return `document:${item.documentUuid}`;
         case 'sql_chart':
             return `sql_chart:${item.sqlChartUuid}`;
+        case 'composer_chart':
+            return `composer_chart:${item.composerChartUuid}`;
         case 'design':
             return designContextKey(item.designUuid);
         case 'skill':
@@ -104,6 +106,10 @@ export const getThemeContextItemLabel = (
 export const getSqlChartContextItemLabel = (
     item: Extract<AiPromptContextItem, { type: 'sql_chart' }>,
 ): string => item.displayName ?? item.sqlChartSlug ?? 'SQL chart';
+
+export const getComposerChartContextItemLabel = (
+    item: Extract<AiPromptContextItem, { type: 'composer_chart' }>,
+): string => item.displayName ?? item.composerChartSlug ?? 'Composer chart';
 
 export const getDataAppContextItemName = (
     item: Pick<
@@ -158,6 +164,8 @@ const getPromptContextItemLabel = (item: InlineReferenceItem) => {
             return item.displayName ?? item.documentSlug ?? 'Document';
         case 'sql_chart':
             return getSqlChartContextItemLabel(item);
+        case 'composer_chart':
+            return getComposerChartContextItemLabel(item);
         case 'skill':
             return `/${item.name}`;
         default:
@@ -215,6 +223,9 @@ export const getPromptContextItemHref = (
             return item.sqlChartSlug
                 ? `/projects/${projectUuid}/sql-runner/${item.sqlChartSlug}`
                 : null;
+        // A composer chart lives on its dashboard, which is pinned beside it.
+        case 'composer_chart':
+            return null;
         // A theme is an organization setting with no in-thread destination.
         case 'design':
             return null;
