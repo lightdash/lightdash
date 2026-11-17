@@ -167,6 +167,7 @@ const DataAppVizRenderer: FC<Props> = ({
         itemsMap,
         savedChartUuid,
         savedChartReference,
+        hasUnpublishedChanges,
         minimal,
         parameters,
         dateZoom,
@@ -235,6 +236,7 @@ const DataAppVizRenderer: FC<Props> = ({
             isEmbedded: !!embedToken,
             savedChartUuid: renderSavedChartUuid,
             chartVersionUuid,
+            hasUnpublishedChanges,
             document: documentTarget,
             composerChartUuid,
         }),
@@ -242,6 +244,7 @@ const DataAppVizRenderer: FC<Props> = ({
             embedToken,
             renderSavedChartUuid,
             chartVersionUuid,
+            hasUnpublishedChanges,
             documentTarget,
             composerChartUuid,
         ],
@@ -265,6 +268,11 @@ const DataAppVizRenderer: FC<Props> = ({
             ? {
                   savedChartUuid: renderSavedChartUuid,
                   chartVersionUuid,
+                  ...(!embedToken &&
+                      !chartVersionUuid &&
+                      hasUnpublishedChanges && {
+                          includeUnpublishedDraft: true,
+                      }),
               }
             : undefined;
     }, [
@@ -273,6 +281,7 @@ const DataAppVizRenderer: FC<Props> = ({
         documentTarget,
         renderSavedChartUuid,
         chartVersionUuid,
+        hasUnpublishedChanges,
     ]);
     // Embedded previews retain their recorded version; Chart Studio's
     // chart-less edit canvas previews the latest generated version.

@@ -553,6 +553,7 @@ export class QueryController extends BaseController {
                 pivotConfiguration: body.pivotConfiguration,
                 filterOverrides: body.filters,
                 dashboardFilters: body.dashboardFilters,
+                includeUnpublishedDraft: body.includeUnpublishedDraft,
             });
 
         return {

@@ -16034,6 +16034,7 @@ const models: TsoaRoute.Models = {
             'youtube_analytics',
             'linkedin_ads',
             'github',
+            'pylon',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -16246,6 +16247,22 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiConnectorType.PYLON': {
+        dataType: 'refEnum',
+        enums: ['pylon'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PylonApiSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                connector: { ref: 'ApiConnectorType.PYLON', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExternalConnectionApiSource: {
         dataType: 'refAlias',
         type: {
@@ -16259,6 +16276,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'YoutubeAnalyticsApiSource' },
                 { ref: 'LinkedInAdsApiSource' },
                 { ref: 'GithubApiSource' },
+                { ref: 'PylonApiSource' },
             ],
             validators: {},
         },
@@ -16923,6 +16941,7 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 responseBytes: { dataType: 'double', required: true },
+                cacheHits: { dataType: 'double', required: true },
                 apiCalls: { dataType: 'double', required: true },
                 externalConnectionUuid: { dataType: 'string', required: true },
             },
@@ -17560,6 +17579,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                includeUnpublishedDraft: { dataType: 'boolean' },
                 chartVersionUuid: { ref: 'UUID' },
                 savedChartUuid: { ref: 'UUID', required: true },
             },
@@ -29894,6 +29914,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        includeUnpublishedDraft: { dataType: 'boolean' },
                         dashboardFilters: { ref: 'DashboardFilters' },
                         filters: { ref: 'Filters' },
                         pivotConfiguration: { ref: 'PivotConfiguration' },
@@ -100793,6 +100814,11 @@ export function RegisterRoutes(app: Router) {
             name: 'chartVersionUuid',
             ref: 'UUID',
         },
+        includeUnpublishedDraft: {
+            in: 'query',
+            name: 'includeUnpublishedDraft',
+            dataType: 'boolean',
+        },
     };
     app.get(
         '/api/v1/ee/projects/:projectUuid/apps/visualizations/:dataAppVizUuid/charts/:savedChartUuid/render-metadata',
@@ -100876,6 +100902,11 @@ export function RegisterRoutes(app: Router) {
             in: 'query',
             name: 'chartVersionUuid',
             ref: 'UUID',
+        },
+        includeUnpublishedDraft: {
+            in: 'query',
+            name: 'includeUnpublishedDraft',
+            dataType: 'boolean',
         },
     };
     app.get(

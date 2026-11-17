@@ -67,6 +67,11 @@ export type GithubApiSource = {
     repo: string;
 };
 
+/** A Pylon workspace; the API token decides which one. */
+export type PylonApiSource = {
+    connector: ApiConnectorType.PYLON;
+};
+
 /** Connector settings of a live source; the server fixes its access rules. */
 export type ExternalConnectionApiSource =
     | PostHogApiSource
@@ -76,7 +81,8 @@ export type ExternalConnectionApiSource =
     | GoogleAdsApiSource
     | YoutubeAnalyticsApiSource
     | LinkedInAdsApiSource
-    | GithubApiSource;
+    | GithubApiSource
+    | PylonApiSource;
 
 /** The settings of one integration's sources. */
 export type ApiSourceOf<C extends ApiConnectorType> = Extract<
@@ -115,6 +121,12 @@ export const GITHUB_SEARCH_PATH = '/search/issues';
 
 export const getGithubContributorsPath = (owner: string, repo: string) =>
     `/repos/${owner}/${repo}/stats/contributors`;
+
+export const PYLON_ORIGIN = 'https://api.usepylon.com';
+export const PYLON_ISSUES_SEARCH_PATH = '/issues/search';
+export const PYLON_ACCOUNTS_SEARCH_PATH = '/accounts/search';
+export const PYLON_CONTACTS_SEARCH_PATH = '/contacts/search';
+export const PYLON_USERS_PATH = '/users';
 
 /** HTTP methods an admin can opt a connection into. Single source of truth for
  *  the backend validation allowlist and the frontend method pickers. */
@@ -366,6 +378,8 @@ export const EXTERNAL_CONNECTION_DEFAULTS = {
 export type ExternalFetchSavedChartContext = {
     savedChartUuid: UUID;
     chartVersionUuid?: UUID;
+    /** Authorize against the requester's own unpublished draft of the chart. */
+    includeUnpublishedDraft?: boolean;
 };
 
 /** A chart of a specific Document version rendering a chart type. */
@@ -513,6 +527,8 @@ export type ApiListExternalConnectionSamplesResponse = {
 export type ExternalConnectionApiUsage = {
     externalConnectionUuid: string;
     apiCalls: number;
+    /** Queries a stored result answered without calling the integration. */
+    cacheHits: number;
     responseBytes: number;
     /** Median time to fetch from the integration; null until it has been called. */
     medianDurationMs: number | null;

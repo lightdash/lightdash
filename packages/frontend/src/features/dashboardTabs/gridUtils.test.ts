@@ -24,6 +24,7 @@ import {
     getGridTotalRows,
     getViewModeActiveTabTiles,
     hasGridItemMoved,
+    getLayoutOnScreen,
     resolveDropOverlaps,
     getRowInsertion,
     getGapFill,
@@ -1690,5 +1691,42 @@ describe('placing a copied tile', () => {
             tile('b', 18, 4, 18),
             tile('copy', 18, 0, 18),
         ]);
+    });
+});
+
+describe('tiles stored on top of each other', () => {
+    const item = (i: string, x: number, y: number, w: number, h: number) => ({
+        i,
+        x,
+        y,
+        w,
+        h,
+    });
+
+    it('leaves tiles that do not overlap where they are', () => {
+        const layout = [item('a', 0, 0, 18, 9), item('b', 18, 0, 18, 9)];
+        expect(getLayoutOnScreen(layout)).toEqual(layout);
+    });
+
+    it('draws a tile stored under an earlier one below it', () => {
+        const result = getLayoutOnScreen([
+            item('table', 0, 36, 36, 9),
+            item('pie', 0, 37, 15, 9),
+        ]);
+        expect(result.find((tile) => tile.i === 'pie')?.y).toBe(45);
+    });
+
+    it('offers the space beside the tile where it is drawn', () => {
+        const slot = getAddTileSlot({
+            items: getLayoutOnScreen([
+                item('table', 0, 36, 36, 9),
+                item('pie', 0, 37, 15, 9),
+            ]),
+            cell: { x: 25, y: 50 },
+            cols: 36,
+            minSize: { w: 3, h: 1 },
+            defaultSize: { w: 15, h: 9 },
+        });
+        expect(slot).toEqual({ x: 15, y: 45, w: 21, h: 9 });
     });
 });

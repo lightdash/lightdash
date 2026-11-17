@@ -389,6 +389,23 @@ const doGridItemsOverlap = (a: Layout, b: Layout): boolean =>
     a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
 /**
+ * Where the grid draws tiles whose stored places overlap: in order, each one
+ * moves down until it is clear of the tiles before it.
+ */
+export const getLayoutOnScreen = (layout: Layout[]): Layout[] =>
+    layout.reduce<Layout[]>((placed, item) => {
+        const settle = (candidate: Layout): Layout => {
+            const blocker = placed.find((other) =>
+                doGridItemsOverlap(candidate, other),
+            );
+            return blocker
+                ? settle({ ...candidate, y: blocker.y + blocker.h })
+                : candidate;
+        };
+        return [...placed, settle(item)];
+    }, []);
+
+/**
  * Settles a drop made while tiles could overlap: the dropped tiles stay where
  * they were put, and every tile they cover moves down until nothing overlaps.
  */

@@ -107,6 +107,11 @@ const SOURCES: {
         },
         scan: {},
     },
+    {
+        name: 'Pylon',
+        apiSource: { connector: ApiConnectorType.PYLON },
+        scan: {},
+    },
 ];
 
 describe('live data source names', () => {

@@ -16437,7 +16437,8 @@
                     "google_ads",
                     "youtube_analytics",
                     "linkedin_ads",
-                    "github"
+                    "github",
+                    "pylon"
                 ],
                 "type": "string"
             },
@@ -16628,6 +16629,20 @@
                 "required": ["repo", "owner", "connector"],
                 "type": "object"
             },
+            "ApiConnectorType.PYLON": {
+                "enum": ["pylon"],
+                "type": "string"
+            },
+            "PylonApiSource": {
+                "properties": {
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.PYLON"
+                    }
+                },
+                "required": ["connector"],
+                "type": "object",
+                "description": "A Pylon workspace; the API token decides which one."
+            },
             "ExternalConnectionApiSource": {
                 "anyOf": [
                     {
@@ -16653,6 +16668,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/GithubApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PylonApiSource"
                     }
                 ],
                 "description": "Connector settings of a live source; the server fixes its access rules."
@@ -17383,6 +17401,11 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "cacheHits": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Queries a stored result answered without calling the integration."
+                    },
                     "apiCalls": {
                         "type": "number",
                         "format": "double"
@@ -17394,6 +17417,7 @@
                 "required": [
                     "medianDurationMs",
                     "responseBytes",
+                    "cacheHits",
                     "apiCalls",
                     "externalConnectionUuid"
                 ],
@@ -17990,6 +18014,10 @@
             },
             "ExternalFetchSavedChartContext": {
                 "properties": {
+                    "includeUnpublishedDraft": {
+                        "type": "boolean",
+                        "description": "Authorize against the requester's own unpublished draft of the chart."
+                    },
                     "chartVersionUuid": {
                         "$ref": "#/components/schemas/UUID"
                     },
@@ -31645,6 +31673,9 @@
                     },
                     {
                         "properties": {
+                            "includeUnpublishedDraft": {
+                                "type": "boolean"
+                            },
                             "dashboardFilters": {
                                 "$ref": "#/components/schemas/DashboardFilters"
                             },
@@ -80026,7 +80057,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.290.0",
+        "version": "3.294.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

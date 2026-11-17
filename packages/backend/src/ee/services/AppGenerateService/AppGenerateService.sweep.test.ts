@@ -40,6 +40,7 @@ function buildService() {
         appRuntimeS3: null,
         appThumbnailClient: {} as never,
         chartRegistryClient: {} as never,
+        contentDraftModel: {} as never,
         contentVerificationModel: {} as never,
     });
     return { service, appModel };

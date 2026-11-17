@@ -260,6 +260,17 @@ exports[`connector capability declarations > the summable tags 1`] = `
       "aggregation": "non_additive",
     },
   },
+  "pylon": {
+    "average_first_response_minutes": {
+      "aggregation": "non_additive",
+    },
+    "average_resolution_hours": {
+      "aggregation": "non_additive",
+    },
+    "count": {
+      "aggregation": "additive",
+    },
+  },
   "search_console": {
     "clicks": {
       "aggregation": "additive",

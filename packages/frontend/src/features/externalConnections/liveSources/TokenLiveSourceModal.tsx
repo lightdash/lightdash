@@ -14,6 +14,7 @@ import { useCreateExternalConnection } from '../hooks/useCreateExternalConnectio
 import { useTestConnectionConfig } from '../hooks/useTestConnectionConfig';
 import { useUpdateExternalConnection } from '../hooks/useUpdateExternalConnection';
 import {
+    normalizeAccountId,
     toTokenLiveSourceCreatePayload,
     toTokenLiveSourceUpdatePayload,
     useTokenLiveSourceForm,
@@ -50,7 +51,7 @@ export const TokenLiveSourceModal: FC<Props> = ({
             projectUuid,
             config: toTokenLiveSourceCreatePayload(definition, form.values),
             ...definition.getTestRequest(
-                definition.account.normalize(form.values.accountId),
+                normalizeAccountId(definition, form.values.accountId),
             ),
         });
     };
@@ -92,13 +93,15 @@ export const TokenLiveSourceModal: FC<Props> = ({
                     data-autofocus
                     {...form.getInputProps('name')}
                 />
-                <TextInput
-                    required
-                    label={definition.account.label}
-                    description={definition.account.description}
-                    placeholder={definition.account.placeholder}
-                    {...form.getInputProps('accountId')}
-                />
+                {definition.account && (
+                    <TextInput
+                        required
+                        label={definition.account.label}
+                        description={definition.account.description}
+                        placeholder={definition.account.placeholder}
+                        {...form.getInputProps('accountId')}
+                    />
+                )}
                 <PasswordInput
                     required={!isEditing}
                     label={definition.tokenLabel}

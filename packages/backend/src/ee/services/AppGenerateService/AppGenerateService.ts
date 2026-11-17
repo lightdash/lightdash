@@ -218,6 +218,7 @@ import {
     type PreviewChartVizBindingMapping,
 } from '../../../models/AppModel';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
+import { type ContentDraftModel } from '../../../models/ContentDraftModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OnContentVersionCreated } from '../../../models/OnContentVersionCreated';
@@ -248,6 +249,7 @@ import type { DocumentService } from '../../../services/DocumentService/Document
 import { omittedThemeFontGuidance } from '../../../services/OrganizationDesignService/restrictedAppleFonts';
 import type { ProjectService } from '../../../services/ProjectService/ProjectService';
 import type { PromoteService } from '../../../services/PromoteService/PromoteService';
+import { applyOpenChartDraft } from '../../../services/SavedChartsService/chartDraftOverlay';
 import type { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import {
@@ -522,6 +524,7 @@ type AppGenerateServiceDeps = {
     appThumbnailClient: AppThumbnailClient;
     chartRegistryClient: ChartRegistryClient;
     contentVerificationModel: ContentVerificationModel;
+    contentDraftModel: Pick<ContentDraftModel, 'findOpenDraft'>;
 };
 
 // Inputs for the AI agent's code-free data app read: manifest fields, the
@@ -901,6 +904,11 @@ export class AppGenerateService extends BaseService {
 
     private readonly contentVerificationModel: ContentVerificationModel;
 
+    private readonly contentDraftModel: Pick<
+        ContentDraftModel,
+        'findOpenDraft'
+    >;
+
     private readonly appThumbnailClient: AppThumbnailClient;
 
     private sandboxManager: SandboxManagerPort | undefined;
@@ -946,6 +954,7 @@ export class AppGenerateService extends BaseService {
         appThumbnailClient,
         chartRegistryClient,
         contentVerificationModel,
+        contentDraftModel,
     }: AppGenerateServiceDeps) {
         super();
         this.agentActionLogModel = agentActionLogModel;
@@ -980,6 +989,7 @@ export class AppGenerateService extends BaseService {
         this.appRuntimeS3 = appRuntimeS3;
         this.chartRegistryClient = chartRegistryClient;
         this.contentVerificationModel = contentVerificationModel;
+        this.contentDraftModel = contentDraftModel;
         this.appThumbnailClient = appThumbnailClient;
     }
 
@@ -11392,7 +11402,8 @@ export class AppGenerateService extends BaseService {
     /**
      * Viewing a saved chart that renders this viz. Authorization follows the
      * chart, so space-private charts stay private, and the chart must actually
-     * reference the requested viz.
+     * reference the requested viz, in its published config or, on request,
+     * in the requester's own open draft.
      */
     private async getAuthorizedDataAppVizForChart(
         user: SessionUser,
@@ -11400,6 +11411,7 @@ export class AppGenerateService extends BaseService {
         savedChartUuid: string,
         dataAppVizUuid: string,
         chartVersionUuid?: string,
+        includeUnpublishedDraft: boolean = false,
     ) {
         const dataAppViz = await resolveDataAppVisualizationForRender(
             this.appModel,
@@ -11415,11 +11427,24 @@ export class AppGenerateService extends BaseService {
 
         // Version history previews an older config, so authorize against the
         // version actually being rendered rather than the latest one.
-        const chart = await this.savedChartModel.get(
+        const publishedChart = await this.savedChartModel.get(
             savedChartUuid,
             chartVersionUuid,
             { projectUuid },
         );
+        const chart =
+            includeUnpublishedDraft && !chartVersionUuid
+                ? await applyOpenChartDraft(
+                      this.contentDraftModel,
+                      user.userUuid,
+                      publishedChart,
+                      (draftUuid, error) =>
+                          this.logger.warn(
+                              `Ignoring invalid chart draft ${draftUuid} while rendering its chart type`,
+                              error,
+                          ),
+                  )
+                : publishedChart;
         if (
             chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||
             chart.chartConfig.config?.dataAppVizUuid !== dataAppVizUuid
@@ -11468,6 +11493,7 @@ export class AppGenerateService extends BaseService {
                 chartContext.savedChartUuid,
                 dataAppVizUuid,
                 chartContext.chartVersionUuid,
+                chartContext.includeUnpublishedDraft === true,
             );
         } else {
             await this.getAuthorizedDataAppVizForAuthoring(
@@ -11619,6 +11645,7 @@ export class AppGenerateService extends BaseService {
         savedChartUuid: string,
         dataAppVizUuid: string,
         chartVersionUuid?: string,
+        includeUnpublishedDraft?: boolean,
     ): Promise<DataAppVizRenderMetadata> {
         const { dataAppViz, chart } =
             await this.getAuthorizedDataAppVizForChart(
@@ -11627,6 +11654,7 @@ export class AppGenerateService extends BaseService {
                 savedChartUuid,
                 dataAppVizUuid,
                 chartVersionUuid,
+                includeUnpublishedDraft,
             );
         const pinnedVersion = getDataAppVizVersionPin(chart.chartConfig);
         return this.resolveVizRenderMetadata(dataAppViz.app_id, pinnedVersion);
@@ -11639,6 +11667,7 @@ export class AppGenerateService extends BaseService {
         dataAppVizUuid: string,
         version: number,
         chartVersionUuid?: string,
+        includeUnpublishedDraft?: boolean,
     ): Promise<string> {
         const { dataAppViz, chart } =
             await this.getAuthorizedDataAppVizForChart(
@@ -11647,6 +11676,7 @@ export class AppGenerateService extends BaseService {
                 savedChartUuid,
                 dataAppVizUuid,
                 chartVersionUuid,
+                includeUnpublishedDraft,
             );
 
         await assertDataAppVizPreviewVersionAllowed(

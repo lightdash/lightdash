@@ -39,6 +39,7 @@ import {
 import { v4 as uuid4 } from 'uuid';
 import styles from '../components/common/Dashboard/Dashboard.module.css';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
+import { scrollToDashboardTileWhenMounted } from '../components/common/Dashboard/scrollToDashboardTile';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import MantineModal from '../components/common/MantineModal';
@@ -1165,6 +1166,19 @@ const Dashboard: FC = () => {
         isEditMode && editErgonomicsFlag.data?.enabled === true
             ? editFiltersVisibility
             : null;
+    const isEditErgonomicsEnabled = editErgonomicsFlag.data?.enabled === true;
+    const handleAddTilesFromToolbar = useCallback(
+        async (tiles: IDashboard['tiles'][number][]) => {
+            await handleAddTiles(tiles);
+            const [first] = tiles;
+            if (!first) return;
+            scrollToDashboardTileWhenMounted(first.uuid);
+            if (isEditErgonomicsEnabled) {
+                dashboardDispatch(dashboardEditActions.selectTile(first.uuid));
+            }
+        },
+        [handleAddTiles, isEditErgonomicsEnabled, dashboardDispatch],
+    );
 
     // With the flag on, dashboards always fit and viewers get no toggle
     const fitToScreenDefaultFlag = useServerFeatureFlag(
@@ -1351,7 +1365,7 @@ const Dashboard: FC = () => {
             // New uuid means a brand-new chart; an existing tile refreshes
             // itself via the update mutation's query cache reset.
             if (chart.uuid !== chartToEdit?.uuid) {
-                void handleAddTiles([
+                void handleAddTilesFromToolbar([
                     {
                         uuid: uuid4(),
                         type: DashboardTileTypes.SAVED_CHART,
@@ -1376,7 +1390,7 @@ const Dashboard: FC = () => {
         [
             chartToEdit,
             closeChartEditor,
-            handleAddTiles,
+            handleAddTilesFromToolbar,
             activeTab?.uuid,
             dashboardCustomMetrics,
             setDashboardCustomMetrics,
@@ -1590,7 +1604,7 @@ const Dashboard: FC = () => {
                 : null,
         onEditFiltersVisibilityChange: setEditFiltersVisibility,
         hasDashboardChanged,
-        onAddTiles: handleAddTiles,
+        onAddTiles: handleAddTilesFromToolbar,
         onNewChart:
             isChartEditorEnabled && isEditMode ? handleOpenNewChart : undefined,
         onSaveDashboard: () => {

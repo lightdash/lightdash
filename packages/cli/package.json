@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/cli",
-  "version": "3.290.0",
+  "version": "3.294.0",
   "description": "Lightdash CLI tool",
   "license": "MIT",
   "repository": {
@@ -85,6 +85,6 @@
     "tsrs": "0.21.0-ts7.1.0-beta",
     "tsx": "4.19.4",
     "typescript": "7.0.2",
-    "vitest": "4.1.11"
+    "vitest": "5.1.0"
   }
 }

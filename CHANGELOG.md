@@ -1,3 +1,53 @@
+# [3.294.0](https://github.com/lightdash/lightdash/compare/3.293.1...3.294.0) (2026-11-17)
+
+
+### Features
+
+* **semantic-studio:** show each explore's lineage and joins on the Semantic Layer page ([#32593](https://github.com/lightdash/lightdash/issues/32593)) ([2118a43](https://github.com/lightdash/lightdash/commit/2118a431309f63f14e155a2e284999c13f1ba490))
+
+## [3.293.1](https://github.com/lightdash/lightdash/compare/3.293.0...3.293.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **chart-types:** render custom chart type from an unpublished chart draft ([#32733](https://github.com/lightdash/lightdash/issues/32733)) ([52f4bbe](https://github.com/lightdash/lightdash/commit/52f4bbe1dde5e27a3d4849f3ae0321e5fc8142e8))
+* **charts:** run unpublished chart changes on the chart page in view mode ([#32737](https://github.com/lightdash/lightdash/issues/32737)) ([e38f19d](https://github.com/lightdash/lightdash/commit/e38f19d5fdf4b58434369f03709b9f4da535a3ce))
+
+# [3.293.0](https://github.com/lightdash/lightdash/compare/3.292.0...3.293.0) (2026-11-17)
+
+
+### Features
+
+* **live-sources:** add Pylon live integration ([#32746](https://github.com/lightdash/lightdash/issues/32746)) ([30b0116](https://github.com/lightdash/lightdash/commit/30b0116fa52b839987b36d1e8088be54fdfb1747))
+
+# [3.292.0](https://github.com/lightdash/lightdash/compare/3.291.0...3.292.0) (2026-11-17)
+
+
+### Features
+
+* **dashboards:** scroll to and select a tile added from the edit toolbar ([#32765](https://github.com/lightdash/lightdash/issues/32765)) ([b9cfa46](https://github.com/lightdash/lightdash/commit/b9cfa466986d2bc9fc7a68288ac9d41533b3ec10))
+
+# [3.291.0](https://github.com/lightdash/lightdash/compare/3.290.2...3.291.0) (2026-11-17)
+
+
+### Features
+
+* **live-sources:** count cache hits and tell refused, internal and integration errors apart ([#32745](https://github.com/lightdash/lightdash/issues/32745)) ([3e76a58](https://github.com/lightdash/lightdash/commit/3e76a581bc5fec929225986e80ab977dd41eb375))
+
+## [3.290.2](https://github.com/lightdash/lightdash/compare/3.290.1...3.290.2) (2026-11-17)
+
+
+### Bug Fixes
+
+* **dashboards:** add a heading in the hovered space and snap the add-tile placeholder to drawn tiles ([#32736](https://github.com/lightdash/lightdash/issues/32736)) ([5052240](https://github.com/lightdash/lightdash/commit/5052240385c36dda0b1a7886030ff68c8f3698ee))
+
+## [3.290.1](https://github.com/lightdash/lightdash/compare/3.290.0...3.290.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **headless-browser:** keep asset requests on http for a plain http internal host ([#32725](https://github.com/lightdash/lightdash/issues/32725)) ([40a6707](https://github.com/lightdash/lightdash/commit/40a6707da739a46f43e6cd8159a428c9bba6800f))
+
 # [3.290.0](https://github.com/lightdash/lightdash/compare/3.289.4...3.290.0) (2026-11-17)
 
 

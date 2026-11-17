@@ -324,6 +324,7 @@ import {
     getSchedulerPollingOptions,
     type DownloadAsyncQueryResultsArgs,
     type ExecuteAsyncQueryReturn,
+    type ExecuteAsyncSavedChartQueryArgs,
     type RunAsyncWarehouseQueryArgs,
     type RunDuckdbQueryArgs,
 } from './types';
@@ -15977,6 +15978,168 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    describe('executeAsyncSavedChartQuery with an unpublished draft', () => {
+        const account = {
+            ...sessionAccount,
+            user: {
+                ...sessionAccount.user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: ['view'] },
+                    { subject: 'SavedChart', action: ['view'] },
+                ]),
+            },
+        } as unknown as Account;
+
+        const publishedChart = {
+            uuid: 'savedChartUuid',
+            name: 'Published chart',
+            organizationUuid: projectSummary.organizationUuid,
+            projectUuid,
+            spaceUuid: 'spaceUuid',
+            tableName: validExplore.name,
+            metricQuery: metricQueryMock,
+            parameters: undefined,
+            pivotConfig: undefined,
+            chartConfig: { type: ChartType.CARTESIAN },
+            tableConfig: { columnOrder: [] },
+        };
+        const draftMetricQuery = { ...metricQueryMock, limit: 7 };
+        const draftChartConfig = { type: ChartType.TABLE };
+
+        const runWithDraft = async (
+            args: Pick<
+                ExecuteAsyncSavedChartQueryArgs,
+                'includeUnpublishedDraft' | 'versionUuid'
+            >,
+        ) => {
+            const findOpenDraft = vi.fn(async () => ({
+                uuid: 'draft-uuid',
+                draft: {
+                    metricQuery: draftMetricQuery,
+                    chartConfig: draftChartConfig,
+                    spaceUuid: 'draftedSpaceUuid',
+                },
+            }));
+            const resolveAccess = vi.fn(async () => ({
+                access: [],
+                inheritsFromOrgOrProject: true,
+            }));
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                spacePermissionService: {
+                    resolveAccess,
+                } as unknown as SpacePermissionService,
+                savedChartModel: {
+                    get: vi.fn(async () => publishedChart),
+                } as unknown as SavedChartModel,
+                analyticsModel: {
+                    addChartViewEvent: vi.fn(async () => {}),
+                } as unknown as AnalyticsModel,
+                contentDraftModel: {
+                    findOpenDraft,
+                } as unknown as ContentDraftModel,
+            } as never);
+            service['isResultIdentityEnabled'] = vi.fn(async () => false);
+            service.getExploreWithUserAccessControls = vi
+                .fn()
+                .mockResolvedValue({
+                    explore: validExplore,
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                });
+            (service as AnyType).getWarehouseCredentials = vi
+                .fn()
+                .mockResolvedValue(warehouseClientMock.credentials);
+            service.combineParameters = vi.fn().mockResolvedValue(undefined);
+            (service as AnyType).getMetricQueryFields = vi
+                .fn()
+                .mockResolvedValue({ fields: {} });
+            const prepareSpy = vi.fn().mockResolvedValue(
+                createQueryComposerMock({
+                    sql: 'SELECT 1',
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                    availableParameterDefinitions: {},
+                }),
+            );
+            (service as AnyType).prepareMetricQueryAsyncQueryArgs = prepareSpy;
+            service['executeAsyncQuery'] = vi.fn().mockResolvedValue({
+                queryUuid: 'queryUuid',
+                cacheMetadata: { cacheHit: false },
+            });
+
+            const result = await service.executeAsyncSavedChartQuery({
+                account,
+                projectUuid,
+                chartUuid: publishedChart.uuid,
+                context: QueryExecutionContext.CHART,
+                ...args,
+            });
+            return { result, prepareSpy, findOpenDraft, resolveAccess };
+        };
+
+        test("runs the requester's draft when asked for it", async () => {
+            const { result, prepareSpy, findOpenDraft } = await runWithDraft({
+                includeUnpublishedDraft: true,
+            });
+
+            expect(findOpenDraft).toHaveBeenCalledWith(
+                projectUuid,
+                'chart',
+                publishedChart.uuid,
+                sessionAccount.user.id,
+            );
+            expect(prepareSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ metricQuery: draftMetricQuery }),
+            );
+            expect(result.chartVisualization?.chartConfig).toEqual(
+                draftChartConfig,
+            );
+        });
+
+        test("authorizes against the published chart's space, not a drafted move", async () => {
+            const { resolveAccess } = await runWithDraft({
+                includeUnpublishedDraft: true,
+            });
+
+            expect(resolveAccess).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({
+                    spaceUuid: publishedChart.spaceUuid,
+                }),
+            );
+        });
+
+        test('runs the published chart when the draft is not asked for', async () => {
+            const { result, prepareSpy, findOpenDraft } = await runWithDraft(
+                {},
+            );
+
+            expect(findOpenDraft).not.toHaveBeenCalled();
+            expect(prepareSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ metricQuery: metricQueryMock }),
+            );
+            expect(result.chartVisualization?.chartConfig).toEqual(
+                publishedChart.chartConfig,
+            );
+        });
+
+        test('ignores the draft when a chart version is requested', async () => {
+            const { prepareSpy, findOpenDraft } = await runWithDraft({
+                includeUnpublishedDraft: true,
+                versionUuid: 'version-uuid',
+            });
+
+            expect(findOpenDraft).not.toHaveBeenCalled();
+            expect(prepareSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ metricQuery: metricQueryMock }),
+            );
+        });
+    });
+
     describe('executeAsyncSavedChartQuery for embedded AI agent tokens', () => {
         const writeSpaceUuid = 'write-space-uuid';
         const writeActorUuid = 'write-actor-uuid';
@@ -16147,6 +16310,25 @@ describe('AsyncQueryService', () => {
             );
             expect(prepareSpy).toHaveBeenCalledWith(
                 expect.objectContaining({ account }),
+            );
+        });
+
+        test('does not consult chart drafts for an embed token', async () => {
+            const { service, prepareSpy } = buildService();
+            const findOpenDraft = vi.fn();
+            (service as AnyType).contentDraftModel = { findOpenDraft };
+
+            await service.executeAsyncSavedChartQuery({
+                account: buildAiAgentAccount(),
+                projectUuid,
+                chartUuid: chart.uuid,
+                context: QueryExecutionContext.CHART,
+                includeUnpublishedDraft: true,
+            });
+
+            expect(findOpenDraft).not.toHaveBeenCalled();
+            expect(prepareSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ metricQuery: chart.metricQuery }),
             );
         });
 
@@ -16670,6 +16852,42 @@ describe('AsyncQueryService', () => {
             values: ['dashboard-value'],
             label: undefined,
         };
+
+        test("authorizes a tile against the published chart's space, not a drafted move", async () => {
+            const { service } = buildService();
+            const findOpenDraft = vi.fn(async () => ({
+                uuid: 'draft-uuid',
+                draft: { spaceUuid: 'draftedSpaceUuid' },
+            }));
+            (service as AnyType).contentDraftModel = { findOpenDraft };
+
+            await service.executeAsyncDashboardChartQuery({
+                account: authorizedAccount,
+                projectUuid,
+                tileUuid: 'tile-1',
+                chartUuid: mergedChart.uuid,
+                dashboardUuid: 'dashboard-uuid',
+                dashboardFilters: {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                dashboardSorts: [],
+                context: QueryExecutionContext.DASHBOARD,
+                invalidateCache: false,
+                limit: undefined,
+                parameters: undefined,
+                pivotResults: false,
+                includeUnpublishedDraft: true,
+            });
+
+            expect(findOpenDraft).toHaveBeenCalledOnce();
+            const { getSpaceSummary } = (service as AnyType).spaceModel;
+            expect(getSpaceSummary).toHaveBeenCalledWith('spaceUuid');
+            expect(getSpaceSummary).not.toHaveBeenCalledWith(
+                'draftedSpaceUuid',
+            );
+        });
 
         test('runs the merge with the tile filter pushed into both sources', async () => {
             const { service, mergeSpy, prepareSpy } = buildService();
