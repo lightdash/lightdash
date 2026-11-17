@@ -58,9 +58,9 @@ Missing tests off risky paths cause only a Gap and at most `thin`, never a findi
 
 - **Gap:** an uncovered serious worst case (main path or user-touching behaviour), a specific mock gap, or an unverified check under shared States.
   Use logical areas (“replay against real S3”), never test names.
-  Don't repeat a gap already explained by a finding; it still affects the rating.
+  A gap a finding already explains appears once, in the finding; it still affects the rating.
 - **Verification:** reviewer testing beyond the PR's own: live run, browser check, query.
-  Omit if none; never invent it.
+  Only testing someone actually ran; omit the row otherwise.
 - **How:** one or two words: gaps `mocked`, `none`, `unverified`; verification `live`, `browser`, `ran, pass`.
 
 ## Rating
@@ -74,7 +74,6 @@ Tests of another flow don't cover this one.
   Unavailable run results alone don't lower it.
 - **thin:** when missing doesn't apply: a mock hides a serious case, a serious case is uncovered beside a tested main path, or a non-cosmetic main path off risky paths lacks tests.
 - **missing:** a risky main path has neither test nor run.
-  Helper tests don't cover changed wiring.
 
 ## Coverage-drop Diff
 

@@ -39,8 +39,8 @@ Yoda sets neither model nor effort.
 ## Copy
 
 - State claims as facts with an actor and action (“Editors curate source fields”).
-  Use numbers, plain words and user-visible effects before internals; avoid vague benefits and filename headlines.
+  Lead with numbers, plain words and the user-visible effect; headlines name the behaviour, not the file.
 - Findings show concrete input/output, a changed cell or causal branch, not best-practice advice.
   Compare the same scenario in Before/After.
 - Refs and identifiers follow [lenses/README.md](lenses/README.md), Evidence and Public by default.
-- Findings never link to each other; don't mark untouched areas.
+- Each finding stands alone, and the review covers only what the change touched.
