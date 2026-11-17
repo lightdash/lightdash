@@ -149,6 +149,8 @@
         "tileMenu.exportImage": "Exportar imagen",
         "tileMenu.viewUnderlyingData": "Ver datos subyacentes",
         "tile.composerChart.notAvailable": "Este gráfico no está disponible aquí",
+        "tile.error.couldNotLoad": "Este gráfico no se pudo cargar",
+        "tile.error.showDetails": "Mostrar detalles",
         "tile.filters.dashboardApplied.singular": "Filtro del dashboard aplicado:",
         "tile.filters.dashboardApplied.plural": "Filtros del dashboard aplicados:",
         "tile.filters.chart.singular": "Filtro del gráfico:",

@@ -1,3 +1,10 @@
+## [3.283.1](https://github.com/lightdash/lightdash/compare/3.283.0...3.283.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **oauth:** keep window.opener for popup-based OAuth sign-in ([#32699](https://github.com/lightdash/lightdash/issues/32699)) ([93b33ee](https://github.com/lightdash/lightdash/commit/93b33ee6961e796ff00d576fa8fab7c0c87cd8e3))
+
 # [3.283.0](https://github.com/lightdash/lightdash/compare/3.282.0...3.283.0) (2026-11-17)
 
 

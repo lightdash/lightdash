@@ -122,6 +122,7 @@ import {
     initOtelTracing,
     shutdownOtelTracing,
 } from './tracing/tracing';
+import { oauthPopupCoopMiddleware } from './utils/oauthPopupCoop';
 import { personaliseSharedSignInError } from './utils/sharedSignInExpiry';
 import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
@@ -691,6 +692,8 @@ export default class App {
         } as const;
 
         expressApp.use(helmet(helmetConfig));
+        // Popup-based OAuth clients need window.opener to survive sign-in
+        expressApp.use(oauthPopupCoopMiddleware);
 
         // Allow site icons to be embedded cross-origin so MCP hosts
         // (e.g. claude.ai) can display them in connector listings. Claude

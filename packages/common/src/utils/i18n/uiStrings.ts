@@ -131,6 +131,8 @@ export const DEFAULT_UI_STRINGS = {
     'tileMenu.exportImage': 'Export image',
     'tileMenu.viewUnderlyingData': 'View underlying data',
     'tile.composerChart.notAvailable': 'This chart is not available here',
+    'tile.error.couldNotLoad': 'This chart could not load',
+    'tile.error.showDetails': 'Show details',
     'tile.filters.dashboardApplied.singular': 'Dashboard filter applied:',
     'tile.filters.dashboardApplied.plural': 'Dashboard filters applied:',
     'tile.filters.chart.singular': 'Chart filter:',

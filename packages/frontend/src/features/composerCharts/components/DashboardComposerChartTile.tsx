@@ -13,11 +13,7 @@ import {
 import { Menu } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import * as Sentry from '@sentry/react';
-import {
-    IconAlertCircle,
-    IconChartDots3,
-    IconTableExport,
-} from '@tabler/icons-react';
+import { IconChartDots3, IconTableExport } from '@tabler/icons-react';
 import {
     useCallback,
     useEffect,
@@ -59,6 +55,7 @@ import {
 import { getComposerTileFilterItems } from '../utils/composerTileFilterItems';
 import { getComposerTileParameterItems } from '../utils/composerTileParameterItems';
 import { ComposerChartVisualization } from './ComposerChartVisualization';
+import { ComposerTileErrorState } from './ComposerTileErrorState';
 
 type Props = Pick<
     ComponentProps<typeof TileBase>,
@@ -103,24 +100,18 @@ export const ComposerChartNotAvailableTile: FC<Props> = (props) => {
     );
 };
 
-const TileError: FC<{ tileUuid: string; message: string }> = ({
-    tileUuid,
-    message,
-}) => {
+const TileError: FC<{
+    tileUuid: string;
+    message: string;
+    minimal: boolean;
+}> = ({ tileUuid, message, minimal }) => {
     const markTileScreenshotErrored = useDashboardTileStatusContext(
         (c) => c.markTileScreenshotErrored,
     );
     useEffect(() => {
         markTileScreenshotErrored(tileUuid);
     }, [markTileScreenshotErrored, tileUuid]);
-    return (
-        <SuboptimalState
-            adaptive
-            icon={IconAlertCircle}
-            description={message}
-            data-testid="composer-chart-error"
-        />
-    );
+    return <ComposerTileErrorState message={message} minimal={minimal} />;
 };
 
 const DrawnComposerChartTile: FC<Props> = (props) => {
@@ -233,11 +224,15 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
         projectUuid,
         terminalQueryUuid,
         title,
+        null,
+        { toastErrors: false },
     );
     const stage = useInfiniteQueryResults(
         projectUuid,
         drawsFromStage ? displayedQueryUuid : undefined,
         title,
+        null,
+        { toastErrors: false },
     );
     const results = drawsFromStage ? stage : terminal;
     useEffect(() => {
@@ -285,16 +280,8 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
           terminal.error?.error.message ??
           stage.error?.error.message ??
           (drawState.status === 'error' ? drawState.message : null));
-    useEffect(() => {
-        // Draw errors are captured where they are thrown
-        if (errorMessage && drawState.status !== 'error') {
-            Sentry.captureException(new Error(errorMessage), {
-                tags: SENTRY_TAGS,
-            });
-        }
-    }, [errorMessage, drawState.status]);
     const isLoading =
-        !errorMessage && (!readyDraw || !results.hasFetchedAllRows);
+        errorMessage === null && (!readyDraw || !results.hasFetchedAllRows);
     const { user } = useApp();
     const canExportData = !!user.data?.ability?.can(
         'manage',
@@ -307,7 +294,9 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
     const [exportOpened, { open: openExport, close: closeExport }] =
         useDisclosure(false);
     const exportQueryUuid =
-        !errorMessage && results.hasFetchedAllRows ? displayedQueryUuid : null;
+        errorMessage === null && results.hasFetchedAllRows
+            ? displayedQueryUuid
+            : null;
     const handleScreenshotReady = useCallback(
         () => markTileScreenshotReady(tile.uuid),
         [markTileScreenshotReady, tile.uuid],
@@ -323,7 +312,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
             title={title}
             chartName={tile.properties.chartName ?? undefined}
             isLoading={isLoading}
-            hasError={!!errorMessage}
+            hasError={errorMessage !== null}
             chartKind={
                 readyDraw
                     ? getChartKind(
@@ -354,8 +343,12 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                 </>
             }
         >
-            {errorMessage ? (
-                <TileError tileUuid={tile.uuid} message={errorMessage} />
+            {errorMessage !== null ? (
+                <TileError
+                    tileUuid={tile.uuid}
+                    message={errorMessage}
+                    minimal={minimal}
+                />
             ) : (
                 readyDraw &&
                 results.hasFetchedAllRows &&
@@ -365,6 +358,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                         fallback={({ error }) => (
                             <TileError
                                 tileUuid={tile.uuid}
+                                minimal={minimal}
                                 message={
                                     error instanceof Error
                                         ? error.message
