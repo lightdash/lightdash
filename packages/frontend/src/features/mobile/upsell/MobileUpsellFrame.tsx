@@ -1,4 +1,4 @@
-import { Stack, Text, Title, UnstyledButton } from '@mantine/core';
+import { FocusTrap, Stack, Text, Title, UnstyledButton } from '@mantine/core';
 import { useDocumentVisibility } from '@mantine/hooks';
 import { useState, type ReactNode } from 'react';
 import { MOBILE_SIGN_IN_STRINGS } from '../mobileStrings';
@@ -89,6 +89,10 @@ const Pitch = ({
             data-mobile-upsell={variation}
             data-paused={visibility === 'hidden'}
         >
+            {/* The popover traps focus and would otherwise focus the first
+                button, Not interested, so one Enter would dismiss the pitch
+                and record a reason the user never chose. */}
+            <FocusTrap.InitialFocus />
             <div className={classes.pitch}>
                 <Title order={3} className={classes.headline}>
                     {copy.headline}

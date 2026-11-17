@@ -78,6 +78,49 @@ describe('MobileSignInMenu pitch dismiss', () => {
         expect(track).not.toHaveBeenCalled();
     });
 
+    it('does not put the first focus on Not interested when the popover opens', async () => {
+        renderMenu();
+        const dialog = await openMenu();
+        const control = await screen.findByRole('button', {
+            name: MOBILE_PITCH_DISMISS_STRINGS.action,
+        });
+
+        await waitFor(() =>
+            expect(dialog).toContainElement(
+                document.activeElement as HTMLElement,
+            ),
+        );
+        expect(control).not.toHaveFocus();
+
+        await userEvent.keyboard('{Enter}');
+
+        expect(
+            screen.queryByRole('group', { name: 'Why not?' }),
+        ).not.toBeInTheDocument();
+        expect(track).not.toHaveBeenCalled();
+        expect(window.localStorage.getItem(MOBILE_PITCH_DISMISSED_KEY)).toBe(
+            null,
+        );
+    });
+
+    it('returns focus to the phone button after a reason is picked', async () => {
+        renderMenu();
+        await openMenu();
+        await userEvent.click(
+            await screen.findByRole('button', {
+                name: MOBILE_PITCH_DISMISS_STRINGS.action,
+            }),
+        );
+
+        await userEvent.click(
+            screen.getByRole('button', {
+                name: MOBILE_PITCH_DISMISS_STRINGS.reasons.not_now,
+            }),
+        );
+
+        await waitFor(() => expect(openButton()).toHaveFocus());
+    });
+
     it('swaps the card for the Why not? prompt without tracking yet', async () => {
         renderMenu();
         await openMenu();

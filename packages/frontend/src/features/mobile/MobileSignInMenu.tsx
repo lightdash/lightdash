@@ -108,7 +108,15 @@ const MobileSignInPopover: FC<{
     const isConfirming = signIn.phase === 'claimed';
     const qrPlaceholder = previewSignIn ? <PreviewQrPattern /> : undefined;
     const dropdown = useRef<HTMLDivElement>(null);
+    const phoneButton = useRef<HTMLButtonElement>(null);
+    const returnFocusToButton = useRef(false);
     useKeepFocusInPopover(signIn.phase, dropdown);
+
+    useEffect(() => {
+        if (opened || !returnFocusToButton.current) return;
+        returnFocusToButton.current = false;
+        phoneButton.current?.focus();
+    }, [opened]);
 
     const open = () => {
         setOpened(true);
@@ -127,6 +135,7 @@ const MobileSignInPopover: FC<{
             properties: { reason, variation: pitch },
         });
         dismissPitch();
+        returnFocusToButton.current = true;
         close();
     };
 
@@ -166,6 +175,7 @@ const MobileSignInPopover: FC<{
                     disabled={opened}
                 >
                     <Button
+                        ref={phoneButton}
                         id={id}
                         aria-label={MOBILE_STRINGS.signInTitle}
                         aria-haspopup="dialog"
