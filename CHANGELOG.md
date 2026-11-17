@@ -1,3 +1,15 @@
+# [3.285.0](https://github.com/lightdash/lightdash/compare/3.284.0...3.285.0) (2026-11-17)
+
+
+### Bug Fixes
+
+* **mobile:** let users dismiss the phone app pitch with Not interested ([#32689](https://github.com/lightdash/lightdash/issues/32689)) ([e622557](https://github.com/lightdash/lightdash/commit/e622557387bfe9e93ea6b7a0b5efc7ed7c9ec22b))
+
+
+### Features
+
+* **composer:** export composer chart tiles in dashboard CSV and XLSX deliveries ([#32709](https://github.com/lightdash/lightdash/issues/32709)) ([7a0a819](https://github.com/lightdash/lightdash/commit/7a0a8199e35d3d9c27ce727968c21ca205ca457a))
+
 # [3.284.0](https://github.com/lightdash/lightdash/compare/3.283.2...3.284.0) (2026-11-17)
 
 
