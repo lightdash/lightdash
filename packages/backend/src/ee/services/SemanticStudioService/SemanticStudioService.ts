@@ -290,6 +290,7 @@ const assertSourcePath = (path: string) => {
 };
 
 const MAX_PULL_REQUEST_REFRESHES = 5;
+const PULL_REQUEST_REFRESH_MS = 55_000;
 const RECENT_WORKSPACE_MS = 14 * 24 * 60 * 60 * 1000;
 
 export class SemanticStudioService extends BaseService {
@@ -326,6 +327,9 @@ export class SemanticStudioService extends BaseService {
         string,
         Promise<SemanticLayerDraftApplyResult>
     >();
+
+    // ponytail: per process, so several API processes each ask once a minute; share it if provider limits bite.
+    private readonly pullRequestRefreshedAt = new Map<string, number>();
 
     constructor(args: SemanticStudioServiceArguments) {
         super();
@@ -2304,13 +2308,26 @@ export class SemanticStudioService extends BaseService {
                     workspace.pullRequest,
             )
             .sort((a, b) => Number(b.isActive) - Number(a.isActive))
+            // The list is read on every save and by every open tab; the provider is asked once a minute per pull request.
+            .filter(
+                (workspace) =>
+                    Date.now() -
+                        (this.pullRequestRefreshedAt.get(
+                            workspace.pullRequest?.url ?? '',
+                        ) ?? 0) >
+                    PULL_REQUEST_REFRESH_MS,
+            )
             .slice(0, MAX_PULL_REQUEST_REFRESHES);
         let changed = false;
+        const project =
+            pending.length > 0
+                ? await this.projectModel.get(projectUuid)
+                : null;
         await runWithConcurrency(pending, 1, async (workspace) => {
-            if (!workspace.pullRequest) return;
+            if (!workspace.pullRequest || !project) return;
             try {
-                const project = await this.projectModel.get(projectUuid);
                 const prUrl = workspace.pullRequest.url;
+                this.pullRequestRefreshedAt.set(prUrl, Date.now());
                 const state = await this.repoModels.getPullRequestState(
                     project.organizationUuid,
                     project.dbtConnection,
