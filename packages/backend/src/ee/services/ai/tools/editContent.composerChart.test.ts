@@ -6,7 +6,10 @@ import {
 import type { EditContentFn } from '../types/aiAgentDependencies';
 import { getEditContent } from './editContent';
 import { SQL_CHART_REJECTED_RESULT } from './sqlApprovals';
-import { type SqlChartSaving } from './sqlChartApproval';
+import {
+    COMPOSER_CHART_SQL_UNASKED_RESULT,
+    type SqlChartSaving,
+} from './sqlChartApproval';
 
 const prompt: AiWebAppPrompt = {
     organizationUuid: 'org-uuid',
@@ -185,5 +188,25 @@ describe('editContent composer charts', () => {
         await expect(
             needsApproval([{ op: 'replace', path: '/name', value: 'x' }]),
         ).resolves.toBe(false);
+    });
+
+    it('saves no SQL on Slack when the approval check failed but the edit then finds SQL', async () => {
+        const prepare = vi
+            .fn()
+            .mockRejectedValueOnce(new Error('database unavailable'))
+            .mockResolvedValue({ approvalSql: 'select 2' });
+        const { needsApproval, execute, save } = makeTool(
+            {
+                mode: 'thread_approval',
+                approval: makeApproval('approved', { slack: true }),
+            },
+            prepare,
+        );
+
+        await expect(needsApproval(sqlPatch)).resolves.toBe(false);
+        const output = await execute(sqlPatch);
+
+        expect(save).not.toHaveBeenCalled();
+        expect(output.result).toBe(COMPOSER_CHART_SQL_UNASKED_RESULT);
     });
 });

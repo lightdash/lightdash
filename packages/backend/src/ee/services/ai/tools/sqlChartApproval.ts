@@ -42,6 +42,9 @@ export const SQL_CHART_PREVIOUS_TIMEOUT_RESULT =
 export const SQL_CHART_DISABLED_RESULT =
     'Saving SQL charts needs SQL mode, which is not enabled for this agent. Do not retry; build the chart from an explore instead, or ask an admin to enable SQL mode.';
 
+export const COMPOSER_CHART_SQL_UNASKED_RESULT =
+    'The composer chart edit was not saved: its new SQL could not be checked for approval before running. Try the edit again.';
+
 export const SQL_CHART_APPROVAL_COPY: SqlApprovalCopy = {
     slackText: 'SQL chart approval',
     pendingProgress: 'Awaiting approval to save SQL chart...',
@@ -90,12 +93,14 @@ export const createSqlChartGate = (
               )
             : null;
 
+    // What needsApproval found for each composer edit, so execution cannot save SQL it never asked about.
+    const askedComposerSql = new Map<string, string | null | 'failed'>();
+
     /** The SQL a call asks to save; null when the call does not gate on it. */
     const getGatedSql = async (args: unknown): Promise<string | null> => {
         if (isComposerChartContentArgs(args)) {
-            // A refused edit asks nothing; running it reports the refusal.
             return getComposerChartEditSql
-                ? getComposerChartEditSql(args).catch(() => null)
+                ? getComposerChartEditSql(args)
                 : null;
         }
         return isSqlApprovalToolCall(toolName, args)
@@ -107,12 +112,22 @@ export const createSqlChartGate = (
     const needsApproval = async (
         args: unknown,
         { toolCallId }: { toolCallId: string },
-    ): Promise<boolean> =>
-        approvalGate !== null &&
-        approvalGate.needsNativeApproval({
-            toolCallId,
-            sql: await getGatedSql(args),
-        });
+    ): Promise<boolean> => {
+        if (approvalGate === null) return false;
+        if (!isComposerChartContentArgs(args)) {
+            return approvalGate.needsNativeApproval({
+                toolCallId,
+                sql: await getGatedSql(args),
+            });
+        }
+        // A refused edit asks nothing; running it reports the refusal.
+        const sql = await getGatedSql(args).catch(() => 'failed' as const);
+        askedComposerSql.set(toolCallId, sql);
+        return (
+            sql !== 'failed' &&
+            approvalGate.needsNativeApproval({ toolCallId, sql })
+        );
+    };
 
     // `approveSql` is null when the thread does not gate the call.
     const run = async <T extends ToolOutput>(
@@ -140,11 +155,27 @@ export const createSqlChartGate = (
             );
         };
         try {
+            const isComposerChart = isComposerChartContentArgs(args);
+            let gatedSql: string | null = null;
+            if ((isSqlChart || isComposerChart) && approvalGate) {
+                // A refused edit saves nothing; running it reports the refusal.
+                gatedSql = await getGatedSql(args).catch(() => null);
+                const asked = askedComposerSql.get(toolCallId);
+                askedComposerSql.delete(toolCallId);
+                if (
+                    isComposerChart &&
+                    gatedSql !== null &&
+                    asked !== undefined &&
+                    asked !== gatedSql
+                ) {
+                    return toolFailure(COMPOSER_CHART_SQL_UNASKED_RESULT);
+                }
+            }
             // For a composer chart, the service asks only when the edit adds warehouse SQL.
             const call =
-                (isSqlChart || isComposerChartContentArgs(args)) && approvalGate
+                (isSqlChart || isComposerChart) && approvalGate
                     ? await approvalGate.forToolCall(toolCallId, {
-                          sql: await getGatedSql(args),
+                          sql: gatedSql,
                       })
                     : null;
             const approveSql = call ? getSqlChartApproveSql(call) : null;
