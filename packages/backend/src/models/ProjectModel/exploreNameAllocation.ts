@@ -687,6 +687,7 @@ export const allocateStagedExploreNames = async (
                 add(identityOfTable(explore, name, table), name);
                 return;
             }
+            if (table.nestedFrom) return;
             const tableIdentity = identityOfTable(explore, name, table);
             if (!table.dbtModelUniqueId) return;
             add(
@@ -1017,6 +1018,7 @@ export const allocateStagedExploreNames = async (
         names.set(explore.name, assigned);
         Object.entries(explore.tables ?? {}).forEach(([name, table]) => {
             mapLineageNames(table, referenceNames, names);
+            if (table.nestedFrom) return;
             const tableIdentity = identityOfTable(explore, name, table);
             const tableOwnerKey = ownerKey(tableIdentity);
             conflict ??= blocked.get(tableOwnerKey);
