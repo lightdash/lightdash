@@ -528,7 +528,6 @@ const ValidDashboardChartTileMinimal: FC<{
             onSeriesContextMenu={onSeriesContextMenu}
             columnOrder={chart.tableConfig.columnOrder}
             savedChartUuid={chart.uuid}
-            hasUnpublishedChanges={!!chart.hasUnpublishedChanges}
             dashboardFilters={dashboardFilters}
             colorPalette={colorPalette}
             setEchartsRef={setEchartsRef}
