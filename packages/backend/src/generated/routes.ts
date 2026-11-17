@@ -47919,6 +47919,14 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 path: { dataType: 'string', required: true },
+                revision: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
             },
             validators: {},
         },
@@ -47949,6 +47957,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        revision: { dataType: 'string', required: true },
                         checked: { dataType: 'boolean', required: true },
                         commitSha: { dataType: 'string', required: true },
                         prAction: {
@@ -48023,6 +48032,13 @@ const models: TsoaRoute.Models = {
                 },
                 content: { dataType: 'string', required: true },
                 path: { dataType: 'string', required: true },
+                revision: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
             },
             validators: {},
         },

@@ -1,3 +1,10 @@
+## [3.298.1](https://github.com/lightdash/lightdash/compare/3.298.0...3.298.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **ai:** keep hand saves in Semantic Studio from overwriting newer edits or opening a second pull request ([#32786](https://github.com/lightdash/lightdash/issues/32786)) ([371687d](https://github.com/lightdash/lightdash/commit/371687de223227943a64b30e3cdd14bc0d5e9bfa))
+
 # [3.298.0](https://github.com/lightdash/lightdash/compare/3.297.0...3.298.0) (2026-11-17)
 
 
