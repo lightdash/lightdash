@@ -2253,6 +2253,7 @@ export class EmbedService extends BaseService {
                 dataAppViz.app_id,
             ),
             'embed',
+            dataAppViz.slug,
         );
     }
 
@@ -2383,6 +2384,7 @@ export class EmbedService extends BaseService {
                 dataAppViz.app_id,
             ),
             'embed',
+            dataAppViz.slug,
         );
     }
 

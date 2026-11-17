@@ -11580,6 +11580,7 @@ export class AppGenerateService extends BaseService {
                 dataAppViz.app_id,
             ),
             viewContext,
+            dataAppViz.slug,
         );
     }
 
@@ -11637,6 +11638,7 @@ export class AppGenerateService extends BaseService {
                 dataAppViz.app_id,
             ),
             'chart',
+            dataAppViz.slug,
         );
     }
 
@@ -11692,6 +11694,7 @@ export class AppGenerateService extends BaseService {
                 dataAppViz.app_id,
             ),
             'chart',
+            dataAppViz.slug,
         );
     }
 
@@ -11745,6 +11748,7 @@ export class AppGenerateService extends BaseService {
                 dataAppViz.app_id,
             ),
             'chart',
+            dataAppViz.slug,
         );
     }
 
@@ -12679,6 +12683,7 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             await this.externalConnectionModel.getBrowserImageOrigins(appUuid),
             viewContext,
+            app.slug,
         );
     }
 
@@ -12740,6 +12745,7 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             await this.externalConnectionModel.getBrowserImageOrigins(appUuid),
             'embed',
+            app.slug,
         );
 
         return { token, version: latestReady.version };

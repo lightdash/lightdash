@@ -29,7 +29,7 @@ const mint = (keyring: ReturnType<typeof secrets>) =>
 
 describe('app preview tokens across secret rotation', () => {
     test.each(['standalone', 'builder', 'embed', 'mcp'] as const)(
-        'retains signed %s view context',
+        'retains the slug and signed %s view context',
         (viewContext) => {
             const token = mintPreviewToken(
                 oldOnly,
@@ -40,10 +40,17 @@ describe('app preview tokens across secret rotation', () => {
                 'project',
                 [],
                 viewContext,
+                'analytics-project-adoption-app',
             );
             expect(
                 verifyPreviewToken(token, newActiveOldFallback, appUuid, 3),
-            ).toMatchObject({ ok: true, payload: { viewContext } });
+            ).toMatchObject({
+                ok: true,
+                payload: {
+                    viewContext,
+                    appSlug: 'analytics-project-adoption-app',
+                },
+            });
         },
     );
 
