@@ -15,7 +15,7 @@ import mockIntersectingObserver from '../../../../../../testing/intersectingObse
 import { renderWithProviders } from '../../../../../../testing/testUtils';
 import { type ComposerRunNodeStatus } from '../useComposerRunNodeStatuses';
 import { AiComposerLineage } from './AiComposerLineage';
-import { type PipelineNode } from './groupPipeline';
+import { type PipelineThreadActions } from './notebook/PipelineNotebook';
 
 vi.mock('../../../../../../hooks/useCompiledSql', () => ({
     useCompiledSqlFromMetricQuery: vi.fn(() => ({ data: undefined })),
@@ -76,8 +76,7 @@ const renderPanel = (props: {
     queries?: SourceQuery[];
     displayableNodeIds?: Set<string>;
     nodeStatuses?: Record<string, ComposerRunNodeStatus>;
-    chatNodeIds?: Set<string>;
-    onAddToChat?: ((node: PipelineNode) => void) | null;
+    threadActions?: PipelineThreadActions | null;
     initialFocusNodeId?: string | null;
 }) =>
     renderWithProviders(
@@ -88,8 +87,7 @@ const renderPanel = (props: {
             displayableNodeIds={new Set(['orders', 'amounts', 'joined'])}
             nodeStatuses={{}}
             renderNodeResult={(nodeId) => <div>rows of {nodeId}</div>}
-            chatNodeIds={new Set()}
-            onAddToChat={null}
+            threadActions={{ chatNodeIds: new Set(), onAddToChat: null }}
             initialFocusNodeId={null}
             {...props}
         />,
@@ -480,8 +478,7 @@ describe('AiComposerLineage steps', () => {
     it('adds a node to the chat until it is attached', () => {
         const onAddToChat = vi.fn();
         renderPanel({
-            onAddToChat,
-            chatNodeIds: new Set(['orders']),
+            threadActions: { onAddToChat, chatNodeIds: new Set(['orders']) },
         });
         expect(
             cell('orders').queryByRole('button', { name: 'Add to chat' }),

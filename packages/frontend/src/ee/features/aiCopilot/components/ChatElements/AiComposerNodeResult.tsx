@@ -1,5 +1,6 @@
 import { Box } from '@mantine/core';
 import { type FC } from 'react';
+import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { AiComposerResultError } from './AiComposerResultError';
 import { AiComposerResultTable } from './AiComposerResultTable';
@@ -32,20 +33,12 @@ type Props = {
     queryUuid: string;
 };
 
-/** A pipeline node's own rows, in the table every composer result uses. */
-export const AiComposerNodeResult: FC<Props> = ({
-    projectUuid,
-    agentUuid,
-    source,
-    queryUuid,
-}) => {
+/** A node's rows, in the table every composer result uses. */
+export const ComposerNodeResultTable: FC<{
+    projectUuid: string;
+    results: InfiniteQueryResults;
+}> = ({ projectUuid, results }) => {
     const uiStrings = useUiStrings();
-    const results = useComposerNodeResults({
-        projectUuid,
-        agentUuid,
-        source,
-        queryUuid,
-    });
     if (results.error) {
         return (
             <AiComposerResultError
@@ -66,5 +59,23 @@ export const AiComposerNodeResult: FC<Props> = ({
                 loadingMessage={uiStrings('aiAgent.composer.loadingResult')}
             />
         </Box>
+    );
+};
+
+/** A pipeline node's own rows, read through the agent's results route. */
+export const AiComposerNodeResult: FC<Props> = ({
+    projectUuid,
+    agentUuid,
+    source,
+    queryUuid,
+}) => {
+    const results = useComposerNodeResults({
+        projectUuid,
+        agentUuid,
+        source,
+        queryUuid,
+    });
+    return (
+        <ComposerNodeResultTable projectUuid={projectUuid} results={results} />
     );
 };

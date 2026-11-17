@@ -70,6 +70,14 @@ export type PipelineNotebookHandle = {
     hideLineage: () => void;
 };
 
+/** Actions a node offers inside an AI thread. */
+export type PipelineThreadActions = {
+    /** Nodes already attached to the chat input. */
+    chatNodeIds: ReadonlySet<string>;
+    /** Null when the pipeline can't be pinned to a chat. */
+    onAddToChat: ((node: PipelineNode) => void) | null;
+};
+
 export type PipelineNotebookProps = {
     ref?: Ref<PipelineNotebookHandle>;
     nodes: PipelineNode[];
@@ -79,10 +87,8 @@ export type PipelineNotebookProps = {
     /** Nodes with a result in the current run. */
     displayableNodeIds: ReadonlySet<string>;
     renderNodeResult: (nodeId: string) => ReactNode;
-    /** Nodes already attached to the chat input. */
-    chatNodeIds: ReadonlySet<string>;
-    /** Null when the pipeline can't be pinned to a chat. */
-    onAddToChat: ((node: PipelineNode) => void) | null;
+    /** Null outside a thread, e.g. on a dashboard tile: every node's SQL shows. */
+    threadActions: PipelineThreadActions | null;
     /** Selects the node in the lineage graph. */
     onSelectNode: (nodeId: string) => void;
     /** The lineage drawn in the notebook. */
@@ -111,18 +117,12 @@ const CellStatus: FC<{
 
 type CellProps = Omit<
     PipelineNotebookProps,
-    | 'ref'
-    | 'nodes'
-    | 'chatNodeIds'
-    | 'onSelectNode'
-    | 'onLineageChange'
-    | 'initialFocusNodeId'
+    'ref' | 'nodes' | 'onSelectNode' | 'onLineageChange' | 'initialFocusNodeId'
 > & {
     node: PipelineNode;
     resultsInitiallyOpen: boolean;
     /** The nodes this one reads. */
     references: PipelineNode[];
-    inChat: boolean;
     flashing: boolean;
     onJump: (nodeId: string) => void;
     onLineageHover: (hovering: boolean) => void;
@@ -137,8 +137,7 @@ const NotebookCell: FC<CellProps> = ({
     nodeStatuses,
     displayableNodeIds,
     renderNodeResult,
-    inChat,
-    onAddToChat,
+    threadActions,
     flashing,
     onJump,
     onLineageHover,
@@ -156,8 +155,13 @@ const NotebookCell: FC<CellProps> = ({
     const mergeView = useMergeNodeView(node.query, references, projectUuid);
     // Merges compile through an endpoint embed accounts cannot call
     const canViewSql =
-        canViewAgentSql &&
-        !(node.query.sourceType === QuerySourceType.MERGE && isEmbed);
+        !threadActions ||
+        (canViewAgentSql &&
+            !(node.query.sourceType === QuerySourceType.MERGE && isEmbed));
+    const onAddToChat =
+        threadActions && !threadActions.chatNodeIds.has(node.nodeId)
+            ? threadActions.onAddToChat
+            : null;
     const referenceQueries = references.map((reference) => reference.query);
     const getExploreUrl = getNodeExploreUrl(
         node.query,
@@ -235,7 +239,7 @@ const NotebookCell: FC<CellProps> = ({
                     )}
                 </Stack>
                 <Group gap="xxs" wrap="nowrap" className={styles.cellActions}>
-                    {onAddToChat && !inChat && (
+                    {onAddToChat && (
                         <Button
                             size="compact-xs"
                             variant="default"
@@ -247,7 +251,7 @@ const NotebookCell: FC<CellProps> = ({
                             {addToChatLabel}
                         </Button>
                     )}
-                    {getExploreUrl && exploreFromHere && (
+                    {threadActions && getExploreUrl && exploreFromHere && (
                         <Tooltip label={exploreLabel}>
                             <ActionIcon
                                 size="sm"
@@ -446,7 +450,6 @@ const HOVER_INTENT_MS = 150;
 export const PipelineNotebook: FC<PipelineNotebookProps> = ({
     ref,
     nodes,
-    chatNodeIds,
     onSelectNode,
     onLineageChange,
     initialFocusNodeId,
@@ -585,7 +588,6 @@ export const PipelineNotebook: FC<PipelineNotebookProps> = ({
                             const reference = nodesById.get(readId);
                             return reference ? [reference] : [];
                         })}
-                        inChat={chatNodeIds.has(node.nodeId)}
                         flashing={flashNodeId === node.nodeId}
                         resultsInitiallyOpen={
                             node.nodeId === initialFocusNodeId

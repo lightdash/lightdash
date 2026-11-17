@@ -253,13 +253,14 @@ const ComposerArtifact = ({
                                     withBorder={false}
                                 />
                             )}
-                            chatNodeIds={chatNodeIds}
-                            onAddToChat={(node) =>
-                                setChatNodeIds(
-                                    (current) =>
-                                        new Set([...current, node.nodeId]),
-                                )
-                            }
+                            threadActions={{
+                                chatNodeIds,
+                                onAddToChat: (node) =>
+                                    setChatNodeIds(
+                                        (current) =>
+                                            new Set([...current, node.nodeId]),
+                                    ),
+                            }}
                         />
                     ) : (
                         <Stack gap="md" h="100%" mih={0}>

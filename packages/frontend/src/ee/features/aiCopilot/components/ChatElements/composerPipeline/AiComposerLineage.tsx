@@ -312,8 +312,7 @@ type Props = Pick<
     | 'nodeStatuses'
     | 'displayableNodeIds'
     | 'renderNodeResult'
-    | 'chatNodeIds'
-    | 'onAddToChat'
+    | 'threadActions'
     | 'initialFocusNodeId'
 > & {
     queries: SourceQuery[];

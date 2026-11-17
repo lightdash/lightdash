@@ -475,8 +475,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                     />
                 ) : null;
             }}
-            chatNodeIds={chatNodeIds}
-            onAddToChat={onAddToChat}
+            threadActions={{ chatNodeIds, onAddToChat }}
         />
     );
 
