@@ -9,7 +9,7 @@ export const DASHBOARD_EDIT_TOUR_STEPS: GuidedTourStep[] = [
     },
     {
         target: '[data-tour="dashboard-edit-bar"]',
-        title: 'Meet the edit toolbar',
+        title: 'New edit toolbar',
         body: <ToolbarIntro />,
     },
     {
@@ -19,21 +19,21 @@ export const DASHBOARD_EDIT_TOUR_STEPS: GuidedTourStep[] = [
             '[data-tour="dashboard-edit-changes"]',
         ],
         title: 'Edit history',
-        body: 'Undo and redo your changes from the toolbar. Once you change something, Editing at the top lists every unsaved edit.',
+        body: 'Keep track of your changes with the new edit history. See what changed, and undo or redo without losing your work.',
     },
     {
         target: '[data-tour="dashboard-edit-tiles"]',
-        title: 'Add and tidy tiles',
-        body: 'Add a tile, or tidy the layout to close the gaps.',
+        title: 'Smart tile layout',
+        body: 'Keep adding tiles and rearrange them easily with the new tidy layout.',
     },
     {
         target: '[data-tour="dashboard-edit-canvas"]',
-        title: 'Zoom and guides',
-        body: 'Zoom out to arrange a long dashboard, and pick a grid, dots or column guides to line tiles up.',
+        title: 'Grid helpers',
+        body: 'Zoom out to see the full picture, and switch on a grid, dots or column guides to line your tiles up.',
     },
     {
         target: '[data-tour="dashboard-edit-filters"]',
-        title: 'Show or hide filters',
-        body: 'Collapse or hide the filters bar while you work on the layout.',
+        title: 'Focus on your tiles',
+        body: 'Make space by hiding filters while you edit. This only changes edit mode, viewers still see every filter.',
     },
 ];
