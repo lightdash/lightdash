@@ -1,5 +1,10 @@
 import { type Knex } from 'knex';
 
+export const classification = {
+    kind: 'safe',
+    reason: 'Creates an empty generation table and links the nullable active pointer on the new configuration table',
+} as const;
+
 const configs = 'model_materialization_configs';
 const generations = 'model_materialization_generations';
 

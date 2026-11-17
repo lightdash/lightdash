@@ -1,5 +1,10 @@
 import { type Knex } from 'knex';
 
+export const classification = {
+    kind: 'safe',
+    reason: 'Creates an empty configuration table referencing published native model documents and revisions',
+} as const;
+
 const configs = 'model_materialization_configs';
 
 export async function up(knex: Knex): Promise<void> {
