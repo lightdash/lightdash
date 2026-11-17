@@ -11857,6 +11857,58 @@ describe('AsyncQueryService', () => {
         );
     });
 
+    test('stores only attribution from the verified token on the async query', async () => {
+        const service = getMockedAsyncQueryService({
+            ...lightdashConfigMock,
+            usageEvents: { ...lightdashConfigMock.usageEvents, enabled: true },
+        });
+        const embed = buildEmbedAccount();
+        const account = {
+            ...embed,
+            authentication: {
+                ...embed.authentication,
+                data: {
+                    ...embed.authentication.data,
+                    user: { externalId: 'external-viewer' },
+                    userAttributes: { brand: 'brand-1', email: 'private' },
+                    usageAnalytics: { tenantAttribute: 'brand' },
+                },
+            },
+        };
+        const result = await service['createQueryHistory'](account, {
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            context: QueryExecutionContext.EMBED,
+            fields: {},
+            compiledSql: 'SELECT 1',
+            usedParameters: null,
+            metricQuery: metricQueryMock,
+            cacheKey: 'unchanged',
+            pivotConfiguration: null,
+            originalColumns: null,
+            requestParameters: {
+                query: metricQueryMock,
+                context: QueryExecutionContext.EXPLORE,
+                queryUsage: { embeddedUsage: { tenantId: 'forged' } } as never,
+            },
+        });
+        expect(result.queryUsage.embeddedUsage).toEqual({
+            externalUserId: 'external-viewer',
+            tenantAttribute: 'brand',
+            tenantId: 'brand-1',
+            tokenFingerprint: null,
+        });
+        expect(service.queryHistoryModel.create).toHaveBeenCalledWith(
+            account,
+            expect.objectContaining({
+                cacheKey: 'unchanged',
+                requestParameters: expect.objectContaining({
+                    queryUsage: result.queryUsage,
+                }),
+            }),
+        );
+    });
+
     test.each([false, true])(
         'terminal usage waits for upload and READY persistence (upload failure=%s)',
         async (uploadFails) => {

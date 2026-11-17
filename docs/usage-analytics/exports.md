@@ -20,6 +20,11 @@ to count starts, completions or failures separately. Completion describes file
 or Google Sheets generation, not receipt by a user. `job_id` is available for
 some flows, but there is no universal operation ID or retry deduplication.
 
+JWT-authenticated CSV and XLSX export events can also include
+[embedded viewer and tenant attribution](embedded-attribution.md). This
+identifies the actor requesting the export, which may differ from the actor
+that ran the original query.
+
 Metadata includes org/project/actor/query IDs, time, format, context, and
 optional job, table and row-count fields. Rows, SQL, filenames, URLs and errors
 are excluded.

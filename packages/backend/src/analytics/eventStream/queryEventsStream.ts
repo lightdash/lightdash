@@ -1,4 +1,8 @@
 import type { QueryCompletedEvent } from '../LightdashAnalytics';
+import {
+    embeddedUsageColumns,
+    embeddedUsageFields,
+} from './embeddedUsageColumns';
 import { buildEnvelope, ProjectionResult } from './projection';
 import { truncateQueryError } from './queryError';
 import type { CompactedStreamColumn } from './types';
@@ -15,6 +19,7 @@ export const queryEventsCompactedColumns: CompactedStreamColumn[] = [
     { name: 'event_ts', type: 'TIMESTAMP' },
     { name: 'schema_version', type: 'INTEGER' },
     { name: 'project_id', type: 'VARCHAR' },
+    ...embeddedUsageColumns,
     { name: 'query_id', type: 'VARCHAR' },
     { name: 'status', type: 'VARCHAR' },
     { name: 'error', type: 'VARCHAR' },
@@ -67,6 +72,7 @@ const projectQueryCompletedEvent = (
         stream: 'query_events',
         row: {
             ...buildEnvelope(payload, properties.organizationId),
+            ...embeddedUsageFields(properties.embeddedUsage),
             project_id: properties.projectId,
             query_id: properties.queryId,
             status: properties.status,

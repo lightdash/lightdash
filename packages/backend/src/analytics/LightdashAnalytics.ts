@@ -75,6 +75,7 @@ import {
     type DataAppTemplate,
     type DataAppViewContext,
     type DataAppViewOutcome,
+    type EmbeddedUsageAttribution,
     type FunnelChartDataInput,
     type MapChartLocation,
     type MapChartType,
@@ -110,6 +111,7 @@ import {
     type AiKeyManagement,
     type AiUsageEvent,
 } from './aiUsage';
+import { getEmbeddedUsageAttribution } from './embeddedUsage';
 import type { ContentViewMetadata } from './eventStream/contentViewsStream';
 import type { EventStreamSink } from './eventStream/EventStreamSink';
 import type {
@@ -814,6 +816,8 @@ export type QueryCompletedEvent = BaseTrack & {
         schedulerId?: string | null;
         /** Usage-store only; stripped before product analytics/event metrics. */
         semanticUsage?: SemanticQueryUsage;
+        /** Usage-store only; stripped before product analytics/event metrics. */
+        embeddedUsage?: EmbeddedUsageAttribution;
         /** Usage-store only; never sent to product analytics/event metrics. */
         errorMessage?: string | null;
         warehouseExecutionTimeMs: number | null;
@@ -3139,6 +3143,8 @@ export type DownloadCsv = BaseTrack & {
         | 'download_results.error';
     userId: string;
     properties: {
+        /** Usage-store only; stripped before product analytics/event metrics. */
+        embeddedUsage?: EmbeddedUsageAttribution;
         jobId?: string;
         queryId?: string;
         organizationId?: string;
@@ -5353,6 +5359,11 @@ export class LightdashAnalytics extends Analytics {
                 : payload,
         );
 
+        if (payload.properties && 'embeddedUsage' in payload.properties) {
+            const { embeddedUsage, ...properties } = payload.properties;
+            payload = { ...payload, properties } as typeof payload;
+        }
+
         if (
             payload.event === 'query.completed' &&
             payload.properties &&
@@ -5527,6 +5538,18 @@ export class LightdashAnalytics extends Analytics {
         // TODO: Could these be top-level fields rather than properties?
         payload.properties.organizationId =
             account.organization.organizationUuid;
+
+        if (
+            this.lightdashConfig.usageEvents.enabled &&
+            (payload.event === 'download_results.started' ||
+                payload.event === 'download_results.completed' ||
+                payload.event === 'download_results.error')
+        ) {
+            const embeddedUsage = getEmbeddedUsageAttribution(account);
+            if (embeddedUsage) {
+                payload.properties = { ...payload.properties, embeddedUsage };
+            }
+        }
 
         if (contentView) this.track(payload, contentView);
         else this.track(payload);
