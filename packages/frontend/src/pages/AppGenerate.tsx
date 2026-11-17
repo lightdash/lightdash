@@ -1330,11 +1330,7 @@ const AppGenerate: FC = () => {
 
     const renderFailedCard = (content: string, index: number) => {
         if (content === APP_VERSION_CANCELLED_BY_USER) {
-            return (
-                <StoppedDivider
-                    fallbackVersion={latestReadyVersion?.version ?? null}
-                />
-            );
+            return <StoppedDivider />;
         }
         const { onRetry, onEditPrompt } = failedTurnActions(index);
         return (

@@ -4,10 +4,9 @@ import { renderWithProviders } from '../../../testing/testUtils';
 import StoppedDivider from './StoppedDivider';
 
 describe('StoppedDivider', () => {
-    it('names the version the preview still shows', () => {
-        renderWithProviders(<StoppedDivider fallbackVersion={2} />);
+    it('marks the stopped build', () => {
+        renderWithProviders(<StoppedDivider />);
 
-        expect(screen.getByText(/Build stopped/)).toBeInTheDocument();
-        expect(screen.getByText('v2')).toBeInTheDocument();
+        expect(screen.getByRole('status')).toHaveTextContent('Build stopped');
     });
 });

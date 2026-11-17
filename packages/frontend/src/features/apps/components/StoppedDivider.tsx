@@ -3,13 +3,8 @@ import { IconHandStop } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 
-type Props = {
-    /** Version the preview still shows; null when nothing was ever built. */
-    fallbackVersion: number | null;
-};
-
 /** Marks a build the user stopped in the builder chat. */
-const StoppedDivider: FC<Props> = ({ fallbackVersion }) => (
+const StoppedDivider: FC = () => (
     <Divider
         my="md"
         labelPosition="center"
@@ -24,14 +19,6 @@ const StoppedDivider: FC<Props> = ({ fallbackVersion }) => (
                 />
                 <Text fz="xs" lh={1.4} c="dimmed">
                     Build stopped
-                    {fallbackVersion !== null && (
-                        <>
-                            , still on{' '}
-                            <Text span ff="monospace" fz="xs" c="gray.7">
-                                v{fallbackVersion}
-                            </Text>
-                        </>
-                    )}
                 </Text>
             </Group>
         }
