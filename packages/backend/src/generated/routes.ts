@@ -41793,6 +41793,26 @@ const models: TsoaRoute.Models = {
                                                                 },
                                                             ],
                                                         },
+                                                        previewPendingSince: {
+                                                            dataType: 'union',
+                                                            subSchemas: [
+                                                                {
+                                                                    dataType:
+                                                                        'string',
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        null,
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'undefined',
+                                                                },
+                                                            ],
+                                                        },
                                                         previewUrl: {
                                                             dataType: 'union',
                                                             subSchemas: [

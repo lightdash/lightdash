@@ -1,3 +1,10 @@
+## [3.294.3](https://github.com/lightdash/lightdash/compare/3.294.2...3.294.3) (2026-11-17)
+
+
+### Bug Fixes
+
+* **ai:** address Semantic Studio feedback on pull requests, previews and the code view ([#32761](https://github.com/lightdash/lightdash/issues/32761)) ([c7f57d7](https://github.com/lightdash/lightdash/commit/c7f57d7ec15b4715ca9e0642f3f833367b205cae))
+
 ## [3.294.2](https://github.com/lightdash/lightdash/compare/3.294.1...3.294.2) (2026-11-17)
 
 
