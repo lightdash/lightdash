@@ -117,6 +117,7 @@ import {
     softDeleteDashboardComposerCharts,
     toComposerChartTile,
 } from './composerChartTiles';
+import { leftJoinLatestDashboardVersion } from './latestDashboardVersion';
 import Transaction = Knex.Transaction;
 import { dismissOpenContentDrafts } from '../ContentDraftModel';
 import { cancelPendingContentReviewRequests } from '../ContentReviewRequestModel';
@@ -603,11 +604,7 @@ export class DashboardModel {
             .with(cteTableName, (queryBuilder) => {
                 void queryBuilder
                     .table(DashboardsTableName)
-                    .leftJoin(
-                        DashboardVersionsTableName,
-                        `${DashboardsTableName}.dashboard_id`,
-                        `${DashboardVersionsTableName}.dashboard_id`,
-                    )
+                    .modify(leftJoinLatestDashboardVersion)
                     .leftJoin(
                         SpaceTableName,
                         `${DashboardsTableName}.space_id`,
