@@ -411,6 +411,50 @@ export const resolveDropOverlaps = (
     return layout.map((item) => settledById.get(item.i) ?? item);
 };
 
+/** How long the pointer rests over a slot before the dragged tile takes it */
+export const SNAP_DWELL_MS = 400;
+/** A hand holding a tile still drifts, so resting allows this much travel */
+const SNAP_REST_RADIUS_PX = 12;
+
+export type SnapRest = {
+    slot: GridSlot;
+    /** Where the pointer came to rest */
+    pointer: PointerPosition;
+    since: number;
+};
+
+const isSameSlot = (a: GridSlot, b: GridSlot): boolean =>
+    a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
+
+/**
+ * Tracks the pointer resting over a slot it could snap to. Moving on, or
+ * reaching another slot, starts the rest again, so a tile carried across the
+ * canvas keeps its size and only one held in place snaps.
+ */
+export const getSnapRest = ({
+    previous,
+    slot,
+    pointer,
+    now,
+}: {
+    previous: SnapRest | null;
+    slot: GridSlot;
+    pointer: PointerPosition;
+    now: number;
+}): SnapRest => {
+    const isStillResting =
+        previous !== null &&
+        isSameSlot(previous.slot, slot) &&
+        Math.hypot(
+            pointer.clientX - previous.pointer.clientX,
+            pointer.clientY - previous.pointer.clientY,
+        ) <= SNAP_REST_RADIUS_PX;
+    return isStillResting ? previous : { slot, pointer, since: now };
+};
+
+export const getSnapDwellRemaining = (rest: SnapRest, now: number): number =>
+    Math.max(0, SNAP_DWELL_MS - (now - rest.since));
+
 /** The share of a tile's width, at each side, that offers a slot beside it */
 const SNAP_ZONE_WIDTH_RATIO = 0.25;
 
