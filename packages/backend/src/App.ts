@@ -122,6 +122,7 @@ import {
     initOtelTracing,
     shutdownOtelTracing,
 } from './tracing/tracing';
+import { isPlainHttpInternalHostRequest } from './utils/internalHttpHost';
 import { personaliseSharedSignInError } from './utils/sharedSignInExpiry';
 import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
@@ -688,7 +689,32 @@ export default class App {
             },
         } as const;
 
-        expressApp.use(helmet(helmetConfig));
+        // upgrade-insecure-requests rewrites every subresource to https, which
+        // a plain http INTERNAL_LIGHTDASH_HOST can't serve to the headless browser.
+        const helmetForRequest = (
+            config: typeof helmetConfig,
+        ): express.RequestHandler => {
+            const standard = helmet(config);
+            const internalHttp = helmet({
+                ...config,
+                contentSecurityPolicy: {
+                    ...config.contentSecurityPolicy,
+                    directives: {
+                        ...config.contentSecurityPolicy.directives,
+                        'upgrade-insecure-requests': null,
+                    },
+                },
+            });
+            return (req, res, next) =>
+                isPlainHttpInternalHostRequest(
+                    req,
+                    this.lightdashConfig.headlessBrowser.internalLightdashHost,
+                )
+                    ? internalHttp(req, res, next)
+                    : standard(req, res, next);
+        };
+
+        expressApp.use(helmetForRequest(helmetConfig));
 
         // Allow site icons to be embedded cross-origin so MCP hosts
         // (e.g. claude.ai) can display them in connector listings. Claude
@@ -717,7 +743,7 @@ export default class App {
                 embedFrameAncestors;
         });
 
-        expressApp.use('/embed/*', helmet(helmetConfigForEmbeds));
+        expressApp.use('/embed/*', helmetForRequest(helmetConfigForEmbeds));
 
         expressApp.use('/api/v1/file/*', (_req, res, next) => {
             res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
