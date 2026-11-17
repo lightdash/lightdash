@@ -802,6 +802,7 @@ const MainPane: FC<{
                         key={explore.id}
                         projectUuid={view.project.id}
                         modelName={explore.id}
+                        exploreName={explore.name}
                         lineage={
                             source?.kind === 'modelled' ? (
                                 <JoinDiagram

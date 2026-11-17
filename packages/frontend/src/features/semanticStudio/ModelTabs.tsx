@@ -21,6 +21,7 @@ import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
 } from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
+import useHealth from '../../hooks/health/useHealth';
 import { ChangeDiff } from './ChangeDiff';
 import {
     CHANGE_KIND_VERBS,
@@ -31,6 +32,7 @@ import {
     findFieldLine,
     VIEW_PARAM,
 } from './modelCode';
+import { ModelPreAggregates } from './ModelPreAggregates';
 import classes from './ModelTabs.module.css';
 import {
     useSemanticLayerDraft,
@@ -255,15 +257,18 @@ const HistoryPane: FC<{
 export const ModelTabs: FC<{
     projectUuid: string;
     modelName: string;
+    /** The explore queries run on; pre-aggregates are kept by this name. */
+    exploreName: string;
     fields: ReactNode;
     /** The explore's lineage: its upstream dbt models and its joins; null where it does not apply. */
     lineage?: ReactNode;
-}> = ({ projectUuid, modelName, fields, lineage = null }) => {
+}> = ({ projectUuid, modelName, exploreName, fields, lineage = null }) => {
     const { data: model } = useSemanticLayerModel(projectUuid, modelName);
     // A repository keeps its own history.
     const asPullRequest = useAppliesAsPullRequest(projectUuid);
     const hasHistory = !!model && !asPullRequest;
     const hasLineage = lineage !== null;
+    const hasPreAggregates = useHealth().data?.preAggregates.enabled === true;
     const [searchParams, setSearchParams] = useSearchParams();
     const requested = searchParams.get(VIEW_PARAM);
     const view =
@@ -271,25 +276,34 @@ export const ModelTabs: FC<{
             ? 'history'
             : hasLineage && requested === 'lineage'
               ? 'lineage'
-              : 'fields';
+              : hasPreAggregates && requested === 'pre-aggregates'
+                ? 'pre-aggregates'
+                : 'fields';
     return (
         <Tabs
             className={classes.root}
             value={view}
             onChange={(next) =>
                 setSearchParams(
-                    next === 'history' || next === 'lineage'
+                    next === 'history' ||
+                        next === 'lineage' ||
+                        next === 'pre-aggregates'
                         ? { [VIEW_PARAM]: next }
                         : {},
                     { replace: true },
                 )
             }
         >
-            {hasHistory || hasLineage ? (
+            {hasHistory || hasLineage || hasPreAggregates ? (
                 <Tabs.List mb="md">
                     <Tabs.Tab value="fields">Fields</Tabs.Tab>
                     {hasLineage ? (
                         <Tabs.Tab value="lineage">Lineage</Tabs.Tab>
+                    ) : null}
+                    {hasPreAggregates ? (
+                        <Tabs.Tab value="pre-aggregates">
+                            Pre-aggregates
+                        </Tabs.Tab>
                     ) : null}
                     {hasHistory ? (
                         <Tabs.Tab value="history">History</Tabs.Tab>
@@ -302,6 +316,14 @@ export const ModelTabs: FC<{
             {view === 'lineage' ? (
                 <Tabs.Panel value="lineage" className={classes.panel}>
                     {lineage}
+                </Tabs.Panel>
+            ) : null}
+            {view === 'pre-aggregates' ? (
+                <Tabs.Panel value="pre-aggregates" className={classes.panel}>
+                    <ModelPreAggregates
+                        projectUuid={projectUuid}
+                        exploreName={exploreName}
+                    />
                 </Tabs.Panel>
             ) : null}
             {model && view === 'history' ? (
