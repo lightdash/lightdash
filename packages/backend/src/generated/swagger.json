@@ -42545,6 +42545,162 @@
                 "required": ["name", "threadUuid"],
                 "type": "object"
             },
+            "SemanticStudioSources": {
+                "properties": {
+                    "files": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Paths relative to the dbt project, YAML and SQL only."
+                    },
+                    "prUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "branch": {
+                        "type": "string"
+                    }
+                },
+                "required": ["files", "prUrl", "branch"],
+                "type": "object",
+                "description": "A project's model files in its repository, at a change's pull request or the branch it deploys from."
+            },
+            "ApiSuccess_SemanticStudioSources_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticStudioSources"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticStudioSourcesResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticStudioSources_"
+            },
+            "SemanticStudioSourceFile": {
+                "properties": {
+                    "content": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "path": {
+                        "type": "string"
+                    }
+                },
+                "required": ["content", "path"],
+                "type": "object"
+            },
+            "ApiSuccess_SemanticStudioSourceFile_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticStudioSourceFile"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticStudioSourceFileResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticStudioSourceFile_"
+            },
+            "SemanticStudioSourceSave": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "checked": {
+                                "type": "boolean"
+                            },
+                            "commitSha": {
+                                "type": "string"
+                            },
+                            "prAction": {
+                                "type": "string",
+                                "enum": ["opened", "updated"]
+                            },
+                            "prUrl": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["saved"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "checked",
+                            "commitSha",
+                            "prAction",
+                            "prUrl",
+                            "status"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "error": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["failed"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["error", "status"],
+                        "type": "object"
+                    }
+                ],
+                "description": "`failed` carries why the edit was not saved; `checked` is false when only dbt can check it, such as SQL."
+            },
+            "ApiSuccess_SemanticStudioSourceSave_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticStudioSourceSave"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticStudioSourceSaveResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticStudioSourceSave_"
+            },
+            "SaveSemanticStudioSourceRequest": {
+                "properties": {
+                    "threadUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The Studio conversation the change belongs to, so Try it sees the edit."
+                    },
+                    "prUrl": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The change's open pull request to add the commit to, or null to open one."
+                    },
+                    "content": {
+                        "type": "string"
+                    },
+                    "path": {
+                        "type": "string"
+                    }
+                },
+                "required": ["threadUuid", "prUrl", "content", "path"],
+                "type": "object"
+            },
             "SemanticStudioWorkspaceRenameBody": {
                 "properties": {
                     "name": {
@@ -46689,10 +46845,29 @@
                 "type": "object",
                 "description": "Outcome of a pull request merge."
             },
-            "ApiMergePullRequestResponse": {
+            "WritebackMergeResult": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/MergePullRequestResult"
+                    },
+                    {
+                        "properties": {
+                            "compileJobUuid": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Null when none was started, as for a project not deployed from git."
+                            }
+                        },
+                        "required": ["compileJobUuid"],
+                        "type": "object"
+                    }
+                ],
+                "description": "A write-back merge, and the project compile it started so the change goes live."
+            },
+            "ApiWritebackMergeResponse": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/MergePullRequestResult"
+                        "$ref": "#/components/schemas/WritebackMergeResult"
                     },
                     "status": {
                         "type": "string",
@@ -79670,7 +79845,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.276.2",
+        "version": "3.278.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -94083,6 +94258,161 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/sources": {
+            "get": {
+                "operationId": "listSemanticStudioSources",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticStudioSourcesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "The project's YAML and SQL files, at a change's open pull request or the branch it deploys from.",
+                "summary": "List Semantic Studio source files",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "prUrl",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/sources/file": {
+            "get": {
+                "operationId": "readSemanticStudioSource",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticStudioSourceFileResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "One source file's contents.",
+                "summary": "Read a Semantic Studio source file",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "prUrl",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "saveSemanticStudioSource",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticStudioSourceSaveResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Saves an edit to one source file as a commit on a change's pull request, or opens one.",
+                "summary": "Save a Semantic Studio source file",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveSemanticStudioSourceRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/semantic-studio/workspaces/{workspaceUuid}": {

@@ -61,6 +61,7 @@ import {
     parseGithubConnection,
     parsePullNumber,
     parsePullRequestUrl,
+    quoteShellArgument,
 } from '../utils';
 import type {
     AdoptPullRequestArgs,
@@ -568,12 +569,15 @@ export class GithubProvider implements GitProvider {
         installation: GitInstallation;
         /** An open pull request to add the commit to, or null to open one. */
         prUrl: string | null;
+        /** Reading also opens a merged or closed pull request, at its last commit. */
+        access: 'read' | 'write';
     }): Promise<ApiCheckout> {
         const connection = asGithubConnection(args.connection);
         const auth = githubAuth(asGithubInstallation(args.installation));
         const repo = { owner: connection.owner, repo: connection.repo };
         let branch: string;
         let baseBranch: string | null = null;
+        let finishedHeadSha: string | null = null;
         if (args.prUrl) {
             const parsed = parsePullRequestUrl(args.prUrl);
             if (
@@ -589,7 +593,8 @@ export class GithubProvider implements GitProvider {
                 pullNumber: parsed.pullNumber,
                 ...auth,
             });
-            if (pr.merged || pr.state === 'closed') {
+            const isFinished = pr.merged || pr.state === 'closed';
+            if (isFinished && args.access === 'write') {
                 throw new WritebackThreadPrClosedError(
                     pr.merged ? 'merged' : 'closed',
                 );
@@ -602,6 +607,7 @@ export class GithubProvider implements GitProvider {
                     'This pull request comes from a fork, so it cannot be updated here.',
                 );
             }
+            if (isFinished) finishedHeadSha = pr.headSha;
             branch = pr.headRef;
         } else {
             branch =
@@ -609,7 +615,9 @@ export class GithubProvider implements GitProvider {
                 (await getRepoDefaultBranch({ ...repo, ...auth }));
             baseBranch = branch;
         }
-        const headSha = await getBranchHeadSha({ ...repo, branch, ...auth });
+        const headSha =
+            finishedHeadSha ??
+            (await getBranchHeadSha({ ...repo, branch, ...auth }));
         const readFileAt = async (path: string, commitSha: string) => {
             try {
                 // Saving over a file read as empty would erase it.
@@ -644,6 +652,95 @@ export class GithubProvider implements GitProvider {
                     ...auth,
                 }),
         };
+    }
+
+    /** Brings a resumed sandbox up to its pull request, so commits made outside the agent are neither hidden from it nor overwritten. */
+    async syncSandboxWithPullRequest(args: {
+        sandbox: SandboxHandle;
+        connection: GitConnection;
+        installation: GitInstallation;
+        prUrl: string;
+    }): Promise<string[]> {
+        const { sandbox } = args;
+        const connection = asGithubConnection(args.connection);
+        const installation = asGithubInstallation(args.installation);
+        const checkout = await this.openApiCheckout({
+            connection,
+            installation,
+            prUrl: args.prUrl,
+            access: 'write',
+        });
+        const remote = await getRepoTree({
+            owner: connection.owner,
+            repo: connection.repo,
+            branch: checkout.headSha,
+            ...githubAuth(installation),
+        });
+        const { stdout: localTree } = await sandbox.commands.run(
+            `git -C ${CWD} rev-parse 'HEAD^{tree}'`,
+        );
+        if (localTree.trim() === remote.sha) return [];
+        if (remote.truncated) {
+            throw new ParameterError(
+                'This pull request is too large to bring up to date. Start a new change to keep editing.',
+            );
+        }
+        const { stdout: listing } = await sandbox.commands.run(
+            `git -C ${CWD} ls-tree -r -z HEAD`,
+        );
+        // Blob hashes match across clones, so equal hashes mean equal files.
+        const local = new Map(
+            listing
+                .split('\0')
+                // Links and submodules are not files the remote tree lists.
+                .filter(
+                    (line) =>
+                        line &&
+                        !line.startsWith('120000 ') &&
+                        !line.startsWith('160000 '),
+                )
+                .map((line) => {
+                    const [meta, path] = line.split('\t');
+                    return [path, meta.split(' ')[2]] as const;
+                }),
+        );
+        const remoteFiles = new Map(
+            remote.files.map((file) => [file.path, file.sha]),
+        );
+        const changed = [
+            ...[...remoteFiles]
+                .filter(([path, sha]) => local.get(path) !== sha)
+                .map(([path]) => path),
+            ...[...local.keys()].filter((path) => !remoteFiles.has(path)),
+        ];
+        // ponytail: one read per file; a tarball fetch if large hand edits become common.
+        if (changed.length > 50) {
+            throw new ParameterError(
+                'This pull request changed too much outside the chat to continue it here. Start a new change to keep editing.',
+            );
+        }
+        if (changed.length === 0) return [];
+        await Promise.all(
+            changed.map(async (path) => {
+                const content = remoteFiles.has(path)
+                    ? await checkout.readFile(path)
+                    : null;
+                if (content === null) {
+                    await sandbox.files.remove(`${CWD}/${path}`);
+                } else {
+                    await sandbox.files.write(`${CWD}/${path}`, content);
+                }
+            }),
+        );
+        await sandbox.commands.run(
+            `git -C ${CWD} add --all -- ${changed.map(quoteShellArgument).join(' ')}`,
+        );
+        await commitLocal(
+            sandbox,
+            'Sync with the pull request',
+            installation.commitAuthor,
+        );
+        return changed;
     }
 
     /** Commits on top of what the checkout read, so a push in between fails rather than being overwritten. */

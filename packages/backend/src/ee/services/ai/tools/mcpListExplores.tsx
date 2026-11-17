@@ -2,7 +2,7 @@ import {
     ApiSourceExplore,
     Explore,
     listExploresToolDefinition,
-    LIVE_SOURCE_INTEGRATION_PROFILES,
+    LIVE_INTEGRATION_CATALOG,
     mcpToolListExploresOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -23,9 +23,7 @@ const toolDefinition = listExploresToolDefinition.for('mcp');
  */
 const renderLiveDataSource = (apiSource: ApiSourceExplore) => (
     <liveDataSource
-        integration={
-            LIVE_SOURCE_INTEGRATION_PROFILES[apiSource.integration].agentLabel
-        }
+        integration={LIVE_INTEGRATION_CATALOG[apiSource.integration].agentLabel}
         maxDimensions={apiSource.maxDimensions ?? undefined}
         maxMetrics={apiSource.maxMetrics ?? undefined}
         orFilters={apiSource.filterGroups.or}

@@ -28,6 +28,12 @@ import { useEmbedExploreKey } from '../useEmbedExploreKey';
 import classes from './EmbedExplore.module.css';
 import EmbedExploreContentStateEvent from './EmbedExploreContentStateEvent';
 
+// Query effects read the merge context, so they mount under the provider.
+const ExplorerEffects: FC = () => {
+    useExplorerQueryEffects();
+    return null;
+};
+
 const EmbedExploreView: FC<{
     exploreId: string;
     onExploreSelect?: (exploreName: string) => void;
@@ -48,32 +54,30 @@ const EmbedExploreView: FC<{
         enabled: isEditMode,
     });
 
-    // Run the query effects hook
-    useExplorerQueryEffects();
-
     return (
-        <Page
-            withContainerHeight={fitContainerHeight}
-            title={data ? data?.label : 'Tables'}
-            sidebar={
-                <ExploreSideBar
-                    onExploreClick={
-                        onExploreSelect
-                            ? (explore) => onExploreSelect(explore.name)
-                            : undefined
-                    }
-                    onBackToTables={onBackToTables}
-                />
-            }
-            isSidebarOpen={isEditMode}
-            {...rightSidebarProps}
-            withFullHeight
-            withPaddedContent
-        >
-            <MergeProvider readOnly={!isEditMode}>
+        <MergeProvider readOnly={!isEditMode}>
+            <ExplorerEffects />
+            <Page
+                withContainerHeight={fitContainerHeight}
+                title={data ? data?.label : 'Tables'}
+                sidebar={
+                    <ExploreSideBar
+                        onExploreClick={
+                            onExploreSelect
+                                ? (explore) => onExploreSelect(explore.name)
+                                : undefined
+                        }
+                        onBackToTables={onBackToTables}
+                    />
+                }
+                isSidebarOpen={isEditMode}
+                {...rightSidebarProps}
+                withFullHeight
+                withPaddedContent
+            >
                 <Explorer chartView={chartView} />
-            </MergeProvider>
-        </Page>
+            </Page>
+        </MergeProvider>
     );
 };
 

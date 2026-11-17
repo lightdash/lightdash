@@ -52,13 +52,14 @@ export const useWholePullRequestDiff = (
     projectUuid: string,
     prUrl: string,
     headSha: string | null,
+    enabled = true,
 ) => {
     const lightdashApi = useLightdashApi();
     return useQuery<PullRequestDiff, ApiError>({
         queryKey: ['pullRequestDiff', projectUuid, prUrl, 'whole', headSha],
         queryFn: () =>
             getPullRequestDiff(lightdashApi, projectUuid, prUrl, null),
-        enabled: !!projectUuid && !!prUrl,
+        enabled: enabled && !!projectUuid && !!prUrl,
         keepPreviousData: true,
         refetchOnWindowFocus: false,
         retry: false,

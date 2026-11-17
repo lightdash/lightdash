@@ -162,6 +162,26 @@ describe('useUpdateDashboard', () => {
         );
     });
 
+    it('stays quiet when the caller shows its own toast', async () => {
+        mockApi.mockResolvedValue({ ...dashboard, slug: 'my-dashboard' });
+
+        const { result } = renderHook(
+            () =>
+                useUpdateDashboard(
+                    dashboard.uuid,
+                    dashboard.projectUuid,
+                    false,
+                    undefined,
+                    { showToastOnSuccess: false },
+                ),
+            { wrapper: createWrapper() },
+        );
+
+        await result.current.mutateAsync({ name: 'Renamed dashboard' });
+
+        expect(showToastSuccess).not.toHaveBeenCalled();
+    });
+
     it('keeps the generic toast when the save is published', async () => {
         mockApi.mockResolvedValue({ ...dashboard, slug: 'my-dashboard' });
 

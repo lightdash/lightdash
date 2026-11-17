@@ -440,6 +440,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             models.getGithubAppInstallationsModel(),
                     }),
                     savedChartModel: models.getSavedChartModel(),
+                    aiWritebackService:
+                        repository.getAiWritebackService<AiWritebackService>(),
                     fileStorageClient: clients.getFileStorageClient(),
                 }),
             homepageRecommendedActionSkipsService: ({ models }) =>
@@ -581,14 +583,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 registry.register(
                     new ApiQuerySource({
                         asyncQueryService: repository.getAsyncQueryService(),
-                        getApiConnector: (
-                            account,
-                            projectUuid,
-                            connectionUuid,
-                        ) =>
+                        getLiveSource: (account, projectUuid, connectionUuid) =>
                             repository
                                 .getExternalConnectionService<ExternalConnectionService>()
-                                .getApiConnector(
+                                .getLiveSource(
                                     account,
                                     projectUuid,
                                     connectionUuid,
@@ -1603,14 +1601,14 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getPersistentDownloadFileService(),
                     organizationAccessService:
                         repository.getOrganizationAccessService(),
-                    getApiSourceConnector: (
+                    getLiveSourceForExplore: (
                         account,
                         projectUuid,
                         connectionUuid,
                     ) =>
                         repository
                             .getExternalConnectionService<ExternalConnectionService>()
-                            .getApiSourceConnector(
+                            .getLiveSourceForExplore(
                                 account,
                                 projectUuid,
                                 connectionUuid,

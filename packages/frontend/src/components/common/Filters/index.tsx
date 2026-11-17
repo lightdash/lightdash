@@ -7,7 +7,7 @@ import {
     getItemLabelWithoutTableName,
     getTotalFilterRules,
     hasNestedGroups,
-    LIVE_SOURCE_INTEGRATION_PROFILES,
+    LIVE_INTEGRATION_CATALOG,
     isAndFilterGroup,
     isFilterableField,
     isOrFilterGroup,
@@ -137,8 +137,8 @@ const getInvalidFilterRules = (
                           )?.label ?? filterRule.operator)
                         : null,
                     sourceLabel:
-                        LIVE_SOURCE_INTEGRATION_PROFILES[apiSource.integration]
-                            .label,
+                        LIVE_INTEGRATION_CATALOG[apiSource.integration]
+                            .messageLabel,
                 },
             ];
         }

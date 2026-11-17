@@ -44,9 +44,9 @@ import {
 } from '../services/AsyncQueryService/queryPollingSource';
 import type { WarehouseExecutionSource } from '../services/AsyncQueryService/types';
 import {
-    API_QUERY_OUTCOMES,
-    type ApiQueryOutcome,
-} from '../services/QuerySourceService/api/apiQueryOutcome';
+    LIVE_QUERY_OUTCOMES,
+    type LiveQueryOutcome,
+} from '../services/QuerySourceService/live/query/outcome';
 import {
     serializeOtelHttpMetrics,
     shutdownOtelHttpMetrics,
@@ -1029,7 +1029,7 @@ export default class PrometheusMetrics {
                 Object.values(ApiConnectorType).forEach((connector) => {
                     this.apiSourceInflightGauge?.set({ connector }, 0);
                     this.apiSourceTruncatedCounter?.inc({ connector }, 0);
-                    API_QUERY_OUTCOMES.forEach((outcome) => {
+                    LIVE_QUERY_OUTCOMES.forEach((outcome) => {
                         this.apiSourceRequestCounter?.inc(
                             { connector, outcome },
                             0,
@@ -2190,7 +2190,7 @@ export default class PrometheusMetrics {
 
     public observeApiSourceRequest(
         connector: ApiConnectorType,
-        outcome: ApiQueryOutcome,
+        outcome: LiveQueryOutcome,
         durationMs: number,
     ) {
         this.apiSourceRequestCounter?.inc({ connector, outcome });

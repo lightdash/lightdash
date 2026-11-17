@@ -120,6 +120,17 @@ export type ApiMergePullRequestResponse = {
     results: MergePullRequestResult;
 };
 
+/** A write-back merge, and the project compile it started so the change goes live. */
+export type WritebackMergeResult = MergePullRequestResult & {
+    /** Null when none was started, as for a project not deployed from git. */
+    compileJobUuid: string | null;
+};
+
+export type ApiWritebackMergeResponse = {
+    status: 'ok';
+    results: WritebackMergeResult;
+};
+
 /** Body for closing a write-back pull request from the chat PR card. */
 export type ClosePullRequestRequestBody = {
     /** The PR/MR URL of the write-back pull request to close. */

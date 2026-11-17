@@ -202,7 +202,7 @@ export const TryItModal: FC<{
     projectUuid: string;
     models: string[];
     previewProjectUuid: string | null;
-    prUrl: string;
+    prUrl: string | null;
     onClose: () => void;
 }> = ({ projectUuid, models, previewProjectUuid, prUrl, onClose }) => {
     const changeSet = useChangeSet(projectUuid, models, previewProjectUuid);
@@ -243,22 +243,32 @@ export const TryItModal: FC<{
     const { data: explores } = useExplores(projectUuid, true);
     const labelOf = (name: string) =>
         explores?.find((explore) => explore.name === name)?.label ?? name;
-    const number = /\/(\d+)\/?$/.exec(prUrl)?.[1];
+    const number = /\/(\d+)\/?$/.exec(prUrl ?? '')?.[1];
     const title = (
         <span className={classes.tryTitle}>
-            <Tooltip label="Only you see these changes until they are merged.">
+            <Tooltip
+                label={
+                    prUrl
+                        ? 'Only you see these changes until they are merged.'
+                        : 'Only you see these changes until they are published.'
+                }
+            >
                 <span>
                     Trying{' '}
-                    <Anchor
-                        href={prUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        underline="always"
-                        inherit
-                        c="inherit"
-                    >
-                        {number ? `#${number}` : 'the pull request'}
-                    </Anchor>
+                    {prUrl ? (
+                        <Anchor
+                            href={prUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            underline="always"
+                            inherit
+                            c="inherit"
+                        >
+                            {number ? `#${number}` : 'the pull request'}
+                        </Anchor>
+                    ) : (
+                        'your draft'
+                    )}
                 </span>
             </Tooltip>
             {models.length > 1 ? (
@@ -313,8 +323,6 @@ export const TryItModal: FC<{
                 modalBodyProps={{ px: 0, py: 0 }}
             >
                 <ModalHostedContext.Provider value={{ isModalHosted: true }}>
-                    {/* The modal says what is being tried, so the dock steps aside. */}
-                    <span data-studio-try-it hidden />
                     {changeSet ? (
                         <Page
                             withContainerHeight
