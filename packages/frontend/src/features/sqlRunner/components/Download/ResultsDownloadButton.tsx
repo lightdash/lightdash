@@ -60,6 +60,7 @@ const ResultsDownloadButton: FC<Props> = ({
                     chartName={chartName}
                     customLabels={downloadCustomLabels}
                     columnOrder={columnOrder}
+                    cellLimitApplies={false}
                 />
             </Popover.Dropdown>
         </Popover>

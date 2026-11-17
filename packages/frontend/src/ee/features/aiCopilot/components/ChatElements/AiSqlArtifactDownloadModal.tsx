@@ -47,6 +47,7 @@ export const AiSqlArtifactDownloadModal: FC<Props> = ({
             getDownloadQueryUuid={getDownloadQueryUuid}
             columnOrder={columnOrder}
             chartName={chartName}
+            cellLimitApplies={false}
         />
     );
 };

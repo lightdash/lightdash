@@ -560,6 +560,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                     columnOrder={columnOrder}
                     chartName={title}
                     hideLimitSelection
+                    cellLimitApplies={false}
                 />
             )}
         </Box>

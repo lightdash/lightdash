@@ -418,3 +418,30 @@ describe('ExportResults cell limit note', () => {
         ).not.toBeInTheDocument();
     });
 });
+
+describe('ExportResults cell limit note when the limit does not apply', () => {
+    afterEach(() => {
+        healthMock.query = undefined;
+    });
+
+    it('says the export is not capped instead of warning', () => {
+        healthMock.query = { csvCellsLimit: 100_000, exportTimeoutMs: 600_000 };
+        renderWithProviders(
+            <ExportResults
+                projectUuid={PROJECT_UUID}
+                totalResults={50_000}
+                getDownloadQueryUuid={vi.fn().mockResolvedValue(QUERY_UUID)}
+                columnOrder={['a', 'b', 'c', 'd', 'e']}
+                cellLimitApplies={false}
+                hideLimitSelection
+            />,
+        );
+
+        expect(screen.getByTestId('export-cell-limit-note')).toHaveTextContent(
+            "Export cell limit. This export isn't capped by your organization's 100,000-cell limit.",
+        );
+        expect(
+            screen.queryByTestId('export-cell-limit-warning'),
+        ).not.toBeInTheDocument();
+    });
+});

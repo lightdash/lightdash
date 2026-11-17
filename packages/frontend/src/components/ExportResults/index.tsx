@@ -73,6 +73,12 @@ export type ExportResultsProps = {
     showSubtotals?: boolean;
     hideLimitSelection?: boolean;
     forceShowLimitSelection?: boolean;
+    /**
+     * Whether the backend caps this export at the organization's cell limit.
+     * False for SQL queries and for downloads of an already-run query, which
+     * stream its stored results as they are.
+     */
+    cellLimitApplies?: boolean;
     renderDialogActions?: (renderProps: ExportCsvRenderProps) => ReactNode;
 };
 
@@ -94,6 +100,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
         showSubtotals,
         hideLimitSelection = false,
         forceShowLimitSelection = false,
+        cellLimitApplies = true,
         renderDialogActions,
     }) => {
         const lightdashApi = useLightdashApi();
@@ -493,6 +500,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                             totalResults={totalResults}
                             columnOrder={columnOrder}
                             csvCellsLimit={csvCellsLimit}
+                            cellLimitApplies={cellLimitApplies}
                         />
                     )}
 

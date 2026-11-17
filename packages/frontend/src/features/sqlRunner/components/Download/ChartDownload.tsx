@@ -94,7 +94,7 @@ export const ChartDownload: React.FC<Props> = memo(
                             />
                         )}
                         {downloadFormat === DownloadFileType.CSV && (
-                            <ExportResults {...rest} />
+                            <ExportResults {...rest} cellLimitApplies={false} />
                         )}
                     </Stack>
                 </Popover.Dropdown>

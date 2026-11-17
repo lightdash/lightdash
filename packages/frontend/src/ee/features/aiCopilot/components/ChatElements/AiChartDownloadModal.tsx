@@ -110,6 +110,7 @@ export const AiChartDownloadModal: FC<Props> = ({
             chartName={chartName ?? undefined}
             pivotConfig={executedQueryUuid ? undefined : downloadPivotConfig}
             hideLimitSelection={!!executedQueryUuid}
+            cellLimitApplies={!executedQueryUuid}
             customLabels={
                 tableConfig
                     ? getCustomLabelsFromColumnProperties(

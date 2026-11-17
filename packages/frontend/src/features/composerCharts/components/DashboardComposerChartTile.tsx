@@ -394,6 +394,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                     customLabels={getComposerChartExportLabels(run.fields)}
                     chartName={title}
                     hideLimitSelection
+                    cellLimitApplies={false}
                 />
             )}
         </TileBase>
