@@ -78,7 +78,7 @@ const AgentsRouterPage = () => {
         projectUuid,
     });
 
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
     const [isMemoriesModalOpen, setIsMemoriesModalOpen] = useState(false);
     const memoryEnabled = useAiAgentMemoryEnabled();
 

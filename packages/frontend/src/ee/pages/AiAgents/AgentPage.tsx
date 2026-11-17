@@ -67,7 +67,7 @@ const AgentPage = () => {
     });
 
     const [isAgentSidebarCollapsed, setIsAgentSidebarCollapsed] =
-        useState(false);
+        useState(true);
 
     const { data: agent, isLoading: isLoadingAgent } = useAiAgent(
         projectUuid!,
