@@ -148,7 +148,7 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
                     <Indicator size="xs" />
                 </Box>
                 <Box>
-                    <Text fz="sm" fw={500}>
+                    <Text size="sm" fw={500}>
                         {option.label}
                     </Text>
                     {option.description && (

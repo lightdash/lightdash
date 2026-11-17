@@ -12,6 +12,11 @@
 
 .optionRow,
 .ownAnswerRow {
+    /* Height of the label's first line (Text fz="sm"). */
+    --first-line: calc(
+        var(--mantine-font-size-sm) * var(--mantine-line-height-sm)
+    );
+
     display: grid;
     grid-template-columns: 20px minmax(0, 1fr) 20px;
     column-gap: var(--mantine-spacing-xs);
@@ -50,7 +55,7 @@
     align-items: center;
     justify-content: center;
     width: 20px;
-    height: 20px;
+    height: var(--first-line);
 }
 
 /* The number key that picks the option. */
@@ -60,6 +65,7 @@
     justify-content: center;
     width: 20px;
     height: 20px;
+    margin-top: calc((var(--first-line) - 20px) / 2);
     border-radius: var(--mantine-radius-sm);
     background-color: var(--mantine-color-ldGray-1);
     color: var(--mantine-color-dimmed);
@@ -74,9 +80,10 @@
 }
 
 .ownAnswerInput {
-    min-height: 20px;
+    min-height: var(--first-line);
     padding: 0;
-    line-height: 20px;
+    border-width: 0;
+    line-height: var(--first-line);
 }
 
 .footer {
