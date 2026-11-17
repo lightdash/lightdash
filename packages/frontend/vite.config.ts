@@ -148,6 +148,21 @@ export default defineConfig({
             VITE_REACT_QUERY_DEVTOOLS_ENABLED: 'false',
         },
         maxWorkers: '50%',
+        // What `--changed` treats as changed, and the files that make it run everything.
+        experimental: {
+            vcsProvider: path.resolve(
+                __dirname,
+                '../../scripts/vitest-changed-files.mjs',
+            ),
+        },
+        forceRerunTriggers: [
+            '**/package.json',
+            '**/pnpm-lock.yaml',
+            '**/{vitest,vite}.config.*',
+            '**/tsconfig*.json',
+            '**/packages/frontend/src/testing/**',
+            '**/scripts/vitest-changed-files.mjs',
+        ],
     },
     server: {
         port: FE_PORT,
