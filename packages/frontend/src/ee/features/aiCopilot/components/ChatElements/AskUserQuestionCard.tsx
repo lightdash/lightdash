@@ -139,9 +139,14 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
                 key={option.label}
                 value={option.label}
                 withBorder={false}
-                className={styles.row}
+                className={styles.optionRow}
             >
-                <Box component="span" className={styles.lead} aria-hidden>
+                <Box
+                    component="span"
+                    className={styles.optionKey}
+                    mod={{ round: !question.multiSelect }}
+                    aria-hidden
+                >
                     {i + 1}
                 </Box>
                 <Box>
@@ -154,15 +159,21 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
                         </Text>
                     )}
                 </Box>
-                <Box component="span" className={styles.check} aria-hidden>
+                <Box
+                    component="span"
+                    className={styles.optionCheck}
+                    aria-hidden
+                >
                     <MantineIcon icon={IconCheck} />
                 </Box>
             </OptionCard>
         );
     });
+    const optionList = <Stack gap="xxs">{options}</Stack>;
+    // A label, so a click anywhere on the row focuses the input.
     const ownAnswer = (
-        <Box className={styles.row}>
-            <Box component="span" className={styles.lead} aria-hidden>
+        <Box component="label" className={styles.ownAnswerRow}>
+            <Box component="span" className={styles.optionKey} aria-hidden>
                 <MantineIcon icon={IconPencil} size={14} />
             </Box>
             <Textarea
@@ -193,7 +204,7 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
             className={styles.card}
         >
             <Stack gap="xs" p="xs">
-                <Group justify="space-between" wrap="nowrap" px="xs" pt={4}>
+                <Group justify="space-between" wrap="nowrap" px="xs" pt="xxs">
                     <Text fz="xs" fw={500} c="dimmed">
                         {question.header}
                     </Text>
@@ -213,39 +224,36 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
                         </Text>
                     )}
                 </Box>
-                {question.multiSelect ? (
-                    <Checkbox.Group
-                        value={current.selected}
-                        onChange={setSelected}
-                        aria-label={question.question}
-                    >
-                        <Stack gap={2}>
-                            {options}
-                            {ownAnswer}
-                        </Stack>
-                    </Checkbox.Group>
-                ) : (
-                    <Radio.Group
-                        name={groupName}
-                        value={current.selected[0] ?? null}
-                        onChange={(label) => setSelected([label])}
-                        aria-label={question.question}
-                    >
-                        <Stack gap={2}>
-                            {options}
-                            {ownAnswer}
-                        </Stack>
-                    </Radio.Group>
-                )}
+                <Stack gap="xxs">
+                    {question.multiSelect ? (
+                        <Checkbox.Group
+                            value={current.selected}
+                            onChange={setSelected}
+                            aria-label={question.question}
+                        >
+                            {optionList}
+                        </Checkbox.Group>
+                    ) : (
+                        <Radio.Group
+                            name={groupName}
+                            value={current.selected[0] ?? null}
+                            onChange={(label) => setSelected([label])}
+                            aria-label={question.question}
+                        >
+                            {optionList}
+                        </Radio.Group>
+                    )}
+                    {ownAnswer}
+                </Stack>
                 <Group
                     justify="space-between"
                     wrap="nowrap"
                     className={styles.footer}
                 >
-                    <Text fz="xs" c="dimmed">
+                    <Text fz="xs" c="dimmed" className={styles.keyHint}>
                         1–{question.options.length} to pick, Enter to continue
                     </Text>
-                    <Group gap="xs" wrap="nowrap">
+                    <Group gap="xs" wrap="nowrap" ml="auto">
                         {index > 0 && (
                             <Button
                                 size="xs"

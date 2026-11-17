@@ -1,11 +1,12 @@
 import { Box } from '@mantine/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { fn } from 'storybook/test';
 import { AskUserQuestionCard } from '../ee/features/aiCopilot/components/ChatElements/AskUserQuestionCard';
 
 const meta: Meta<typeof AskUserQuestionCard> = {
-    title: 'AI agents/Ask user question card',
+    title: 'AI Agent/Ask user question card',
     component: AskUserQuestionCard,
-    args: { onSubmit: () => {} },
+    args: { onSubmit: fn() },
     decorators: [
         (renderStory) => (
             <Box w={640} p="md">
