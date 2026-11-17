@@ -88,6 +88,18 @@ const SOURCES = [
             metric: 'clicks',
         },
     },
+    {
+        apiSource: {
+            connector: ApiConnectorType.GITHUB,
+            owner: 'lightdash',
+            repo: 'lightdash',
+        },
+        fields: { dimension: 'author', other: 'assignee', metric: 'count' },
+        // A search total can't be split by a dimension, so cases filter on
+        // it instead of selecting it
+        date: 'created_at',
+        selectsDimension: false,
+    },
 ] as const;
 
 const CONNECTORS: ApiConnectorType[] = SOURCES.map(
@@ -366,8 +378,14 @@ const CASES: Case[] = [
             },
         }),
         // Search Console ORs the values in one regex filter
-        expected: {},
+        expected: {
+            [ApiConnectorType.GITHUB]: [
+                `GitHub matches one value per filter; filter ${fieldLabel(ApiConnectorType.GITHUB, id(ApiConnectorType.GITHUB, 'dimension'))} by one value at a time.`,
+            ],
+        },
         stale: {
+            // Never cached before capabilities, which allowed it
+            [ApiConnectorType.GITHUB]: [],
             [ApiConnectorType.SEARCH_CONSOLE]: [
                 `Search Console matches one value per filter; filter ${fieldLabel(ApiConnectorType.SEARCH_CONSOLE, id(ApiConnectorType.SEARCH_CONSOLE, 'dimension'))} by one value at a time.`,
             ],
@@ -470,6 +488,10 @@ const CASES: Case[] = [
     {
         name: 'a date operator the API lacks',
         code: 'live_source.refused.date_operator',
+        // GitHub has no date range, so its dates are ordinary filters
+        codes: {
+            [ApiConnectorType.GITHUB]: 'live_source.refused.filter_operator',
+        },
         query: (connector) => ({
             filters: {
                 dimensions: {

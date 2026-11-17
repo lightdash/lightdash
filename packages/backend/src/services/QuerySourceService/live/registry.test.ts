@@ -49,6 +49,11 @@ const SAMPLE_SETTINGS: {
         customerId: '1234567890',
         loginCustomerId: null,
     },
+    [ApiConnectorType.GITHUB]: {
+        connector: ApiConnectorType.GITHUB,
+        owner: 'lightdash',
+        repo: 'lightdash',
+    },
 };
 
 const SERVER_ERROR: LiveHttpResponse = {
