@@ -33,7 +33,6 @@ import {
 import assertUnreachable from '../../../../utils/assertUnreachable';
 import { currencies } from '../../../../utils/formatting';
 import { getItemId } from '../../../../utils/item';
-import { getLiveSourceAgentQueryGuide } from '../../../../utils/liveSourceIntegrations';
 import {
     filterExpressionInputSchema,
     filterExpressionsSchema,
@@ -555,21 +554,17 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
         limit: limitSchema,
     });
 
+    // Never offered: only parses api nodes in threads from before live data
+    // source explores, so nothing here is described for a model.
     const apiNodeSchema = z.object({
         sourceType: z.literal(QuerySourceType.API),
         nodeId: nodeIdSchema,
         ...nodeMetaSchema,
-        connectionUuid: z
-            .string()
-            .describe(
-                'The project connection the query is sent to, from the list in the tool description.',
-            ),
-        payload: z
-            .object({
-                kind: z.literal('query'),
-                query: z.string().describe(getLiveSourceAgentQueryGuide()),
-            })
-            .describe('What the API runs.'),
+        connectionUuid: z.string(),
+        payload: z.object({
+            kind: z.literal('query'),
+            query: z.string(),
+        }),
         limit: limitSchema,
     });
 
