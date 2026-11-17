@@ -538,7 +538,7 @@ type AiAgentToolsServiceDependencies = {
     savedSqlService: SavedSqlService;
     composerChartService: Pick<
         ComposerChartService,
-        'get' | 'run' | 'isEnabled'
+        'get' | 'runWithSavedDashboardState' | 'isEnabled'
     >;
     savedChartModel: SavedChartModel;
     coderService: CoderService;
@@ -4888,7 +4888,6 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
-    /** A bound run, as the tile runs it on a dashboard opened with its saved filters and parameters. */
     private runComposerChartQuery(
         context: AiAgentToolsRuntimeContext,
         args: Parameters<RunComposerChartQueryFn>[0],
@@ -4902,23 +4901,18 @@ export class AiAgentToolsService extends BaseService {
                 const { account } = context;
                 assertRegisteredAccount(account);
                 await context.onWarehouseQuery?.();
-                const { queries } = await this.composerChartService.run(
-                    account,
-                    context.projectUuid,
-                    summary.uuid,
-                    {
-                        dashboardUuid: dashboard.uuid,
-                        tileUuid,
-                        dashboardFilters: dashboard.filters,
-                        parameters: Object.fromEntries(
-                            Object.entries(dashboard.parameters ?? {}).map(
-                                ([key, { value }]) => [key, value],
-                            ),
-                        ),
-                        excludedParameterKeys: [],
-                        invalidateCache: context.invalidateQueryCache ?? false,
-                    },
-                );
+                const { queries } =
+                    await this.composerChartService.runWithSavedDashboardState(
+                        account,
+                        context.projectUuid,
+                        summary.uuid,
+                        {
+                            dashboardUuid: dashboard.uuid,
+                            tileUuid,
+                            invalidateCache:
+                                context.invalidateQueryCache ?? false,
+                        },
+                    );
                 const terminal = queries.find(
                     ({ nodeId }) => nodeId === summary.terminalNodeId,
                 );

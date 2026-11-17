@@ -3476,7 +3476,6 @@ describe('AiAgentToolsService', () => {
             slug: 'sales',
             spaceUuid: 'allowed-space-uuid',
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
-            parameters: { region: { parameterName: 'region', value: 'EMEA' } },
             tiles: [composerTile],
         };
         const storedComposerChart = {
@@ -3524,7 +3523,7 @@ describe('AiAgentToolsService', () => {
                 composerChartService: {
                     get: vi.fn().mockResolvedValue(storedComposerChart),
                     isEnabled: vi.fn().mockResolvedValue(flagEnabled),
-                    run,
+                    runWithSavedDashboardState: run,
                 },
                 asyncQueryService: {
                     getAsyncQueryResults,
@@ -3605,7 +3604,7 @@ describe('AiAgentToolsService', () => {
             ).rejects.toThrow(NotFoundError);
         });
 
-        it('runs a composer chart on its dashboard tile with the dashboard filters and returns its final node rows', async () => {
+        it('runs a composer chart on its dashboard tile with the saved dashboard state and returns its final node rows', async () => {
             const { service, run, getAsyncQueryResults } =
                 makeComposerService();
 
@@ -3623,9 +3622,6 @@ describe('AiAgentToolsService', () => {
                 {
                     dashboardUuid: 'dashboard-uuid',
                     tileUuid: 'tile-uuid',
-                    dashboardFilters: salesDashboard.filters,
-                    parameters: { region: 'EMEA' },
-                    excludedParameterKeys: [],
                     invalidateCache: false,
                 },
             );

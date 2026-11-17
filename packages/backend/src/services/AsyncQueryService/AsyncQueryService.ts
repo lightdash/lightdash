@@ -10318,8 +10318,9 @@ export class AsyncQueryService extends ProjectService {
         tileUuid: string;
         dashboardFilters: DashboardFilters;
         chartSavedValues: ParametersValuesMap;
-        parameters: ParametersValuesMap;
-        excludedParameterKeys: string[];
+        // Undefined: the dashboard's saved parameter state, as for a run with no app state.
+        parameters: ParametersValuesMap | undefined;
+        excludedParameterKeys: string[] | undefined;
     }): Promise<
         Pick<
             DashboardTileParameterInputs,
