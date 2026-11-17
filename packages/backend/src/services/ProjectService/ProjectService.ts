@@ -130,6 +130,7 @@ import {
     getMetrics,
     getModelInventoryFromManifest,
     getModelsFromManifest,
+    getNewHandWrittenAdditionalMetrics,
     getNextResultsCacheClearAt,
     getParameterReferences,
     getPersonSignIn,
@@ -9701,6 +9702,67 @@ export class ProjectService
                     .map(getCustomSqlFieldKey),
             ),
         };
+    }
+
+    /**
+     * Custom metrics a user without manage:CustomFields may not save: SQL that is
+     * not a modelled field, not already saved on this chart, and not saved on a
+     * chart `account` can view in the same project and explore.
+     */
+    public async getCustomMetricsNeedingPermission({
+        account,
+        projectUuid,
+        exploreName,
+        additionalMetrics,
+        savedAdditionalMetrics,
+    }: {
+        account: Account;
+        projectUuid: string;
+        exploreName: string;
+        additionalMetrics: AdditionalMetric[];
+        savedAdditionalMetrics: AdditionalMetric[];
+    }): Promise<AdditionalMetric[]> {
+        const savedKeys = new Set(
+            savedAdditionalMetrics.map(getCustomSqlFieldKey),
+        );
+        if (
+            additionalMetrics.every((metric) =>
+                savedKeys.has(getCustomSqlFieldKey(metric)),
+            )
+        ) {
+            return [];
+        }
+        let tables: Explore['tables'] = {};
+        try {
+            ({ tables } = await this.getExplore(
+                account,
+                projectUuid,
+                exploreName,
+            ));
+        } catch (error) {
+            if (!(error instanceof NotFoundError)) throw error;
+        }
+        const handWritten = getNewHandWrittenAdditionalMetrics(
+            additionalMetrics,
+            savedAdditionalMetrics,
+            tables,
+        );
+        if (handWritten.length === 0 || !account.isRegisteredUser()) {
+            return handWritten;
+        }
+        const { additionalMetricKeys } =
+            await this.findViewableCustomSqlProvenance({
+                account,
+                auditedAbility: this.createAuditedAbility(account),
+                projectUuid,
+                exploreName,
+                tableCalculationSqls: [],
+                customSqlDimensions: [],
+                additionalMetrics: handWritten,
+            });
+        return handWritten.filter(
+            (metric) => !additionalMetricKeys.has(getCustomSqlFieldKey(metric)),
+        );
     }
 
     /**

@@ -3,7 +3,6 @@ import {
     DimensionType,
     MetricType,
     type ChartAsCode,
-    type Explore,
 } from '@lightdash/common';
 import { CoderService } from './CoderService';
 
@@ -54,7 +53,7 @@ describe('content-as-code SQL permission detector', () => {
             CoderService.getChartContentAsCodePermissionChecks(
                 chart,
                 { metricQuery: chart.metricQuery },
-                {},
+                [],
             ),
         ).toEqual([]);
     });
@@ -131,7 +130,7 @@ describe('content-as-code SQL permission detector', () => {
             CoderService.getChartContentAsCodePermissionChecks(
                 next,
                 current,
-                {},
+                [],
             ),
         ).toEqual([
             {
@@ -147,50 +146,26 @@ describe('content-as-code SQL permission detector', () => {
         ]);
     });
 
-    it('detects new hand-written custom metric SQL only', () => {
-        const tables = {
-            orders: {
-                name: 'orders',
-                dimensions: {
-                    amount: { name: 'amount', sql: '${TABLE}.amount' },
-                },
-                metrics: {},
-            },
-        } as unknown as Explore['tables'];
-        const metric = (name: string, sql: string) => ({
-            name,
-            label: name,
+    it('reports the custom metrics that need permission', () => {
+        const written = {
+            name: 'written',
+            label: 'Written',
             table: 'orders',
             type: MetricType.SUM,
-            sql,
-        });
-        const next = {
-            ...baseChart,
-            metricQuery: {
-                ...baseChart.metricQuery,
-                additionalMetrics: [
-                    metric('modelled', '${TABLE}.amount'),
-                    metric('kept', '(SELECT 4242)'),
-                    metric('written', '(SELECT 4242 + 1)'),
-                ],
-            },
-        } as ChartAsCode;
+            sql: '(SELECT 4242 + 1)',
+        };
 
         expect(
             CoderService.getChartContentAsCodePermissionChecks(
-                next,
-                {
-                    metricQuery: {
-                        additionalMetrics: [metric('kept', '(SELECT 4242)')],
-                    },
-                },
-                tables,
+                baseChart,
+                null,
+                [written],
             ),
         ).toEqual([
             {
                 check: 'customMetricSql',
                 message:
-                    'Custom metrics written in SQL need permission to manage custom fields: written (chart slug "chart")',
+                    'Custom metrics written in SQL need permission to manage custom fields: Written (chart slug "chart")',
             },
         ]);
     });

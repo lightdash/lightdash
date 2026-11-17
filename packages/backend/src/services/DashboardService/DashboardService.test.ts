@@ -141,7 +141,9 @@ const savedSqlModel = {
 };
 
 const projectService = {
-    getExplore: vi.fn<ProjectService['getExplore']>(),
+    getCustomMetricsNeedingPermission: vi.fn<
+        ProjectService['getCustomMetricsNeedingPermission']
+    >(async () => []),
 };
 
 const projectModel = {
@@ -3211,46 +3213,53 @@ describe('DashboardService', () => {
                 [{ uuid: affectedChart.uuid, name: affectedChart.name }],
             );
             savedChartModel.get.mockResolvedValue(affectedChart as never);
-            projectService.getExplore.mockResolvedValue({
-                tables: {
-                    orders: {
-                        name: 'orders',
-                        dimensions: {
-                            amount: { name: 'amount', sql: '${TABLE}.amount' },
-                        },
-                        metrics: {},
-                    },
-                },
-            } as never);
         });
 
-        test('rejects hand-written SQL without CustomFields permission', async () => {
+        const writtenMetric = {
+            ...registryMetric,
+            sql: '(SELECT 4242 + 1)',
+        };
+
+        test('refuses a shared metric a chart using it would need permission for', async () => {
+            projectService.getCustomMetricsNeedingPermission.mockResolvedValueOnce(
+                [writtenMetric as never],
+            );
             await expect(
                 service.updateCustomMetric(user, dashboardUuid, {
-                    metric: {
-                        ...registryMetric,
-                        sql: '(SELECT 4242 + 1)',
-                    } as never,
+                    metric: writtenMetric as never,
                 }),
             ).rejects.toThrowError(
                 'Custom metrics written in SQL need permission to manage custom fields: Avg amount',
             );
+            expect(
+                projectService.getCustomMetricsNeedingPermission,
+            ).toHaveBeenCalledWith({
+                account: expect.anything(),
+                projectUuid: affectedChart.projectUuid,
+                exploreName: affectedChart.metricQuery.exploreName,
+                additionalMetrics: [writtenMetric],
+                savedAdditionalMetrics: [registryMetric],
+            });
             expect(
                 dashboardModel.updateLatestVersionConfig,
             ).not.toHaveBeenCalled();
             expect(savedChartModel.createVersion).not.toHaveBeenCalled();
         });
 
-        test('rejects hand-written SQL on a shared metric no chart uses', async () => {
+        test('saves a shared metric no chart using it needs permission for', async () => {
+            await service.updateCustomMetric(user, dashboardUuid, {
+                metric: writtenMetric as never,
+            });
+            expect(dashboardModel.updateLatestVersionConfig).toHaveBeenCalled();
+        });
+
+        test('refuses changed SQL on a shared metric no chart uses', async () => {
             dashboardModel.getDashboardOwnedChartsUsingMetric.mockResolvedValueOnce(
                 [],
             );
             await expect(
                 service.updateCustomMetric(user, dashboardUuid, {
-                    metric: {
-                        ...registryMetric,
-                        sql: '(SELECT 4242 + 1)',
-                    } as never,
+                    metric: writtenMetric as never,
                 }),
             ).rejects.toThrowError(
                 'Custom metrics written in SQL need permission to manage custom fields: Avg amount',

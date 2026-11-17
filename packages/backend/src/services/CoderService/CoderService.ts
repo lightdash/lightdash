@@ -182,7 +182,6 @@ import { BaseService } from '../BaseService';
 import type { ComposerChartService } from '../ComposerChartService/ComposerChartService';
 import { DashboardService } from '../DashboardService/DashboardService';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
-import { getCustomMetricExploreTables } from '../ProjectService/customMetricSqlPermission';
 import { getAvailableParameterDefinitions } from '../ProjectService/parameters';
 import { ProjectService } from '../ProjectService/ProjectService';
 import { PromoteService } from '../PromoteService/PromoteService';
@@ -418,16 +417,16 @@ export class CoderService extends BaseService {
     static getChartContentAsCodePermissionChecks(
         nextChart: ChartAsCode,
         currentChart: CurrentChartSqlItems | null,
-        exploreTables: Explore['tables'],
+        customMetricsNeedingPermission: AdditionalMetric[],
     ): ContentAsCodeSqlPermissionCheckResult[] {
         return getChartContentAsCodePermissionChecks(
             nextChart,
             currentChart,
-            exploreTables,
+            customMetricsNeedingPermission,
         );
     }
 
-    private async getChartExploreTables({
+    private async getChartCustomMetricsNeedingPermission({
         account,
         auditedAbility,
         project,
@@ -439,7 +438,7 @@ export class CoderService extends BaseService {
         project: Pick<Project, 'projectUuid' | 'organizationUuid'>;
         chart: ChartAsCode;
         savedAdditionalMetrics: AdditionalMetric[];
-    }): Promise<Explore['tables']> {
+    }): Promise<AdditionalMetric[]> {
         if (
             auditedAbility.can(
                 'manage',
@@ -449,22 +448,20 @@ export class CoderService extends BaseService {
                 }),
             )
         ) {
-            return {};
+            return [];
         }
-        return getCustomMetricExploreTables(
-            () => {
-                if (!this.projectService) {
-                    throw new Error(
-                        'ProjectService is required to check custom metric uploads',
-                    );
-                }
-                return this.projectService;
-            },
+        if (!this.projectService) {
+            throw new Error(
+                'ProjectService is required to check custom metric uploads',
+            );
+        }
+        return this.projectService.getCustomMetricsNeedingPermission({
             account,
-            project.projectUuid,
-            chart.metricQuery,
+            projectUuid: project.projectUuid,
+            exploreName: chart.metricQuery.exploreName,
+            additionalMetrics: chart.metricQuery.additionalMetrics ?? [],
             savedAdditionalMetrics,
-        );
+        });
     }
 
     directAccessService: DirectAccessService;
@@ -4769,7 +4766,7 @@ export class CoderService extends BaseService {
                     checks: CoderService.getChartContentAsCodePermissionChecks(
                         chartWithDefaults,
                         null,
-                        await this.getChartExploreTables({
+                        await this.getChartCustomMetricsNeedingPermission({
                             account: options.account ?? fromSession(user),
                             auditedAbility,
                             project,
@@ -5043,7 +5040,7 @@ export class CoderService extends BaseService {
                 checks: CoderService.getChartContentAsCodePermissionChecks(
                     chartWithDefaults,
                     savedChart,
-                    await this.getChartExploreTables({
+                    await this.getChartCustomMetricsNeedingPermission({
                         account: options.account ?? fromSession(user),
                         auditedAbility,
                         project,
