@@ -1,3 +1,11 @@
+# [3.286.0](https://github.com/lightdash/lightdash/compare/3.285.1...3.286.0) (2026-11-17)
+
+
+### Features
+
+* add the GitHub live integration ([#32707](https://github.com/lightdash/lightdash/issues/32707)) ([dd474e8](https://github.com/lightdash/lightdash/commit/dd474e8d5eb4dbdf40c2a70f53eb5e2a979ce964))
+* support integrations with several live explores ([#32706](https://github.com/lightdash/lightdash/issues/32706)) ([75a9e1b](https://github.com/lightdash/lightdash/commit/75a9e1b018211410248e6e5cdfa7bdc4c57e32a7))
+
 ## [3.285.1](https://github.com/lightdash/lightdash/compare/3.285.0...3.285.1) (2026-11-17)
 
 

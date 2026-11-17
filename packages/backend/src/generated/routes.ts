@@ -16031,6 +16031,7 @@ const models: TsoaRoute.Models = {
             'google_ads',
             'youtube_analytics',
             'linkedin_ads',
+            'github',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -16225,6 +16226,24 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiConnectorType.GITHUB': {
+        dataType: 'refEnum',
+        enums: ['github'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    GithubApiSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                repo: { dataType: 'string', required: true },
+                owner: { dataType: 'string', required: true },
+                connector: { ref: 'ApiConnectorType.GITHUB', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExternalConnectionApiSource: {
         dataType: 'refAlias',
         type: {
@@ -16237,6 +16256,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'GoogleAdsApiSource' },
                 { ref: 'YoutubeAnalyticsApiSource' },
                 { ref: 'LinkedInAdsApiSource' },
+                { ref: 'GithubApiSource' },
             ],
             validators: {},
         },
@@ -20472,6 +20492,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                selectedOnly: { dataType: 'enum', enums: [true] },
                 reason: { dataType: 'string', required: true },
                 with: {
                     dataType: 'array',
