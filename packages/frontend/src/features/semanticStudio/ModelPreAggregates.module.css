@@ -1,7 +1,0 @@
-.facts {
-    display: grid;
-    grid-template-columns: max-content 1fr;
-    column-gap: var(--mantine-spacing-md);
-    row-gap: 6px;
-    align-items: baseline;
-}
