@@ -1,3 +1,4 @@
+import { FeatureFlags } from '@lightdash/common';
 import { useLocalStorage } from '@mantine/hooks';
 import { useCallback } from 'react';
 import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
@@ -8,6 +9,7 @@ import {
     useStudioWorkspaces,
 } from '../../../../../features/semanticStudio/useStudioWorkspaces';
 import useToaster from '../../../../../hooks/toaster/useToaster';
+import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
 import { useDefaultAiAgent } from '../Launcher/useDefaultAiAgent';
 
@@ -29,17 +31,18 @@ export const useChatOpen = (projectUuid: string) => {
         defaultValue: [],
         getInitialValueInEffect: false,
     });
-    const change = stored?.threadUuid ?? 'new';
+    const newChat = `new-${projectUuid}`;
+    const change = stored?.threadUuid ?? newChat;
     const setIsOpen = useCallback(
         (isOpen: boolean) =>
             setClosed((current) => {
                 // Opening also reopens a blank new change, which starting one asks for before it has a thread.
                 const others = current.filter(
-                    (key) => key !== change && !(isOpen && key === 'new'),
+                    (key) => key !== change && !(isOpen && key === newChat),
                 );
                 return isOpen ? others : [...others, change].slice(-50);
             }),
-        [change, setClosed],
+        [change, newChat, setClosed],
     );
     return [!closed.includes(change), setIsOpen] as const;
 };
@@ -85,8 +88,14 @@ export const useFinishDiscardedWork = (projectUuid: string) => {
 };
 
 export const useStudioAgent = (projectUuid: string) => {
-    const isEnabled = useCanEditSemanticLayer(projectUuid);
-    const { agent: defaultAgent, agents } = useDefaultAiAgent(projectUuid);
+    const flag = useServerFeatureFlag(FeatureFlags.SemanticStudioEditing);
+    const canEdit = useCanEditSemanticLayer(projectUuid);
+    const isEnabled = flag.data?.enabled === true && canEdit;
+    const {
+        agent: defaultAgent,
+        agents,
+        isLoadingAgents,
+    } = useDefaultAiAgent(projectUuid);
     const [stored, setStored] = useStoredStudioThread(projectUuid);
     // One chat back, not a history; the workspaces list holds the rest.
     const [previous, setPrevious] = useLocalStorage<StoredThread | null>({
@@ -111,6 +120,7 @@ export const useStudioAgent = (projectUuid: string) => {
     };
     const storedAgent = agents.find(({ uuid }) => uuid === stored?.agentUuid);
     return {
+        isLoadingAgents,
         isEnabled,
         agent: storedAgent ?? defaultAgent ?? agents.at(0),
         thread:
@@ -134,10 +144,4 @@ export const useStudioAgent = (projectUuid: string) => {
             follow(previous);
         },
     };
-};
-
-/** Whether this project can talk to the agent, and whether it has already started. */
-export const useSemanticStudioChat = (projectUuid: string) => {
-    const { isEnabled, agent, thread } = useStudioAgent(projectUuid);
-    return { isAvailable: isEnabled && !!agent, hasThread: !!thread };
 };

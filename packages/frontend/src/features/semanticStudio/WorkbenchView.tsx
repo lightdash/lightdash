@@ -72,7 +72,6 @@ import {
 } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/StudioDevelopmentBar';
 import {
     useChatOpen,
-    useSemanticStudioChat,
     useStoredStudioThread,
     useStudioAgent,
 } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
@@ -205,7 +204,6 @@ type Pane =
     | 'workspaces'
     | 'review'
     | 'browse'
-    | 'intro'
     | 'buildFirst'
     | 'empty';
 
@@ -1099,13 +1097,15 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const { data: draft } = useSemanticLayerDraft(view.project.id);
     useDraftFreshness(view.project.id);
     const { data: project } = useProject(view.project.id);
-    const chat = useSemanticStudioChat(view.project.id);
-    const { startNewThread, agent: studioAgent } = useStudioAgent(
-        view.project.id,
-    );
+
+    const {
+        startNewThread,
+        agent: studioAgent,
+        isEnabled: hasChat,
+    } = useStudioAgent(view.project.id);
     const [isChatOpen, setIsChatOpen] = useChatOpen(view.project.id);
     const [askedPrompt, setAskedPrompt] = useState<string | null>(null);
-    const [hasStarted, setHasStarted] = useState(false);
+    const agentAvailable = hasChat && !!studioAgent;
     const hasDraft = (draft?.changes.length ?? 0) > 0;
     const draftMarks = useMemo<DraftMarks>(
         () => ({
@@ -1199,9 +1199,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         : null;
     useEffect(() => () => switchOff.current?.(), []);
     const isCode =
-        chat.isAvailable &&
-        keepsDraft &&
-        searchParams.get(VIEW_PARAM) === 'code';
+        agentAvailable && keepsDraft && searchParams.get(VIEW_PARAM) === 'code';
     const [isOnLive, setIsOnLive] = useState(false);
     // Opening a change's page, from anywhere, puts you on that change.
     useEffect(() => {
@@ -1210,7 +1208,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     // Every change is read in one place, Sources, starting on its overview; only your open one is edited there.
     const opensInSources =
         !isOnLive &&
-        chat.isAvailable &&
+        agentAvailable &&
         !keepsDraft &&
         !!changeOnPage &&
         (!!routeWorkspace ||
@@ -1218,7 +1216,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             isDefaultView);
     const isSources =
         opensInSources ||
-        (chat.isAvailable &&
+        (agentAvailable &&
             !keepsDraft &&
             searchParams.get(VIEW_PARAM) === 'sources');
     // When a save lands, the workspace opens its diff, so the change is reviewed where it was asked for.
@@ -1410,9 +1408,9 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
 
     const hasWarehouse = !!project?.warehouseConnection;
     const canBuildFirstModel =
-        isEmpty && hasWarehouse && chat.isAvailable && keepsDraft;
+        isEmpty && hasWarehouse && agentAvailable && keepsDraft;
     const canNudge =
-        chat.isAvailable && keepsDraft && hasWarehouse && modelled.length === 0;
+        agentAvailable && keepsDraft && hasWarehouse && modelled.length === 0;
     const pane = ((): Pane => {
         if (searchParams.get(VIEW_PARAM) === 'workspaces') return 'workspaces';
         if (isCode) return 'code';
@@ -1421,7 +1419,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         if (isReviewingDraft) return 'review';
         if (!isEmpty) return 'browse';
         if (!canBuildFirstModel) return 'empty';
-        return chat.hasThread || hasStarted ? 'buildFirst' : 'intro';
+        return 'buildFirst';
     })();
     // Reviewing changes takes the full width: the tree is for browsing models.
     const isReviewPane =
@@ -1478,7 +1476,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             );
         }
     };
-    // The chat belongs to a change: open on yours, closed on live, on someone else's and on the list.
     const isMyOpenWorkspace =
         !!shownWorkspace?.isMine &&
         !shownWorkspace.finishedAt &&
@@ -1493,11 +1490,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             !!development ||
             !!openedPrUrl ||
             isMyOpenWorkspace);
-    const hasChat =
-        chat.isAvailable &&
-        pane !== 'intro' &&
-        pane !== 'workspaces' &&
-        (keepsDraft || isOnMyChange);
     // What the chat is told the person has open: in the code view that is the file, not the page behind it.
     const sourceFile = searchParams.get(SOURCE_PARAM);
     // Coming back to Sources reopens the file left open there.
@@ -1521,12 +1513,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         ? view.selected.fieldId
                         : null,
             };
-    const openChat = () => {
-        // Asked from live or a teammate's change, the question starts a change of your own.
-        if (!keepsDraft && !isOnMyChange) startNewChange();
-        setHasStarted(true);
-        setIsChatOpen(true);
-    };
     const [attached, setAttached] = useState<StudioChatRef[]>([]);
     const attachToChat = (ref: StudioChatRef) => {
         setAttached((current) =>
@@ -1534,10 +1520,10 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 ? current
                 : [...current, ref],
         );
-        openChat();
+        setIsChatOpen(true);
     };
     const askFirst = (prompt: string) => {
-        openChat();
+        setIsChatOpen(true);
         setAskedPrompt(prompt);
     };
 
@@ -1786,7 +1772,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
 
     const renderPaneWithChat = () => (
         <AddToStudioChatContext.Provider
-            value={chat.isAvailable ? attachToChat : null}
+            value={agentAvailable ? attachToChat : null}
         >
             {renderPane()}
         </AddToStudioChatContext.Provider>
@@ -1892,8 +1878,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         }
                     />
                 );
-            case 'intro':
-                return <BuildFirstModel view={view} onAsk={askFirst} />;
             case 'buildFirst':
                 return (
                     <BuildFirstModel
@@ -1932,9 +1916,11 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 >
                     <Box
                         className={classes.shell}
-                        data-no-chat={!hasChat || !isChatOpen}
+                        data-no-chat={
+                            !hasChat || (!!studioAgent && !isChatOpen)
+                        }
                     >
-                        {pane === 'intro' ? null : (
+                        {hasChat && (
                             <SemanticStudioAgent
                                 projectUuid={view.project.id}
                                 {...openModel}
@@ -1955,7 +1941,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                             />
                         )}
                         <Box className={classes.workspace}>
-                            {pane === 'intro' || !chat.isAvailable ? null : (
+                            {!agentAvailable ? null : (
                                 <>
                                     <Group
                                         className={classes.toolbar}
