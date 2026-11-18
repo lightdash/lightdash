@@ -27,6 +27,7 @@ import {
     analyticsContentAsCode,
     analyticsDefaultSpace,
 } from '../../../analytics/systemExplores/sampleContent';
+import { analyticsLibraryChartBindings } from '../../../analytics/systemExplores/usageDashboards';
 import { trackSafely } from '../../../analytics/trackSafely';
 import { toSessionUser } from '../../../auth/account';
 import type { LightdashConfig } from '../../../config/parseConfig';
@@ -154,7 +155,11 @@ const expectedModelCounts = memoize(() =>
 
 const bundleSnapshotSlug = 'managed-content';
 const contentHash = memoize(() =>
-    getAnalyticsContentHash(createAnalyticsExplores(), analyticsContentAsCode),
+    getAnalyticsContentHash(
+        createAnalyticsExplores(),
+        analyticsContentAsCode,
+        analyticsLibraryChartBindings,
+    ),
 );
 
 const adoptionAppSnapshotSchema = z.object({

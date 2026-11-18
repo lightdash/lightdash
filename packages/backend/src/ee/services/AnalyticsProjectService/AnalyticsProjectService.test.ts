@@ -12,6 +12,7 @@ import {
     analyticsContentAsCode,
     analyticsDefaultSpace,
 } from '../../../analytics/systemExplores/sampleContent';
+import { analyticsLibraryChartBindings } from '../../../analytics/systemExplores/usageDashboards';
 import { fromSession } from '../../../auth/account';
 import { ANALYTICS_DATA_APP_SNAPSHOT_TYPE } from '../../../models/ContentAsCodeSnapshotModel';
 import * as analyticsExplores from '../../../services/ProjectService/analyticsProject/createAnalyticsExplores';
@@ -98,6 +99,7 @@ describe('AnalyticsProjectService', () => {
     const hash = getAnalyticsContentHash(
         analyticsExplores.createAnalyticsExplores(),
         analyticsContentAsCode,
+        analyticsLibraryChartBindings,
     );
     const findProcessingStatus = vi.fn();
     const service = new AnalyticsProjectService({

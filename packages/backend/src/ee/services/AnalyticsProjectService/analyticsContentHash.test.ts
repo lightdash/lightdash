@@ -1,3 +1,4 @@
+import type { LibraryChartBinding } from '../../../analytics/systemExplores/libraryCharts';
 import { analyticsContentAsCode } from '../../../analytics/systemExplores/sampleContent';
 import { createAnalyticsExplores } from '../../../services/ProjectService/analyticsProject/createAnalyticsExplores';
 import { getAnalyticsContentHash } from './analyticsContentHash';
@@ -7,6 +8,7 @@ describe('analytics content revision', () => {
         const hash = getAnalyticsContentHash(
             createAnalyticsExplores(),
             analyticsContentAsCode,
+            new Map(),
         );
         expect(
             getAnalyticsContentHash(
@@ -18,24 +20,37 @@ describe('analytics content revision', () => {
                         updatedAt: new Date(),
                     })),
                 })),
+                new Map(),
             ),
         ).toBe(hash);
     });
 
     it('detects SQL changes without changing field or content counts', () => {
         const explores = createAnalyticsExplores();
-        const hash = getAnalyticsContentHash(explores, analyticsContentAsCode);
+        const hash = getAnalyticsContentHash(
+            explores,
+            analyticsContentAsCode,
+            new Map(),
+        );
         const users = explores.find(({ name }) => name === 'user_activity')!;
         users.tables.lightdash_users.dimensions.name.sql =
             "COALESCE(${TABLE}.name, ${TABLE}.email, 'Unknown user')";
         expect(
-            getAnalyticsContentHash(explores, analyticsContentAsCode),
+            getAnalyticsContentHash(
+                explores,
+                analyticsContentAsCode,
+                new Map(),
+            ),
         ).not.toBe(hash);
     });
 
     it('detects a changed dashboard or chart with the same slugs', () => {
         const explores = createAnalyticsExplores();
-        const hash = getAnalyticsContentHash(explores, analyticsContentAsCode);
+        const hash = getAnalyticsContentHash(
+            explores,
+            analyticsContentAsCode,
+            new Map(),
+        );
         for (const content of [
             analyticsContentAsCode.map((bundle, index) =>
                 index === 0
@@ -58,7 +73,38 @@ describe('analytics content revision', () => {
                     : bundle,
             ),
         ]) {
-            expect(getAnalyticsContentHash(explores, content)).not.toBe(hash);
+            expect(
+                getAnalyticsContentHash(explores, content, new Map()),
+            ).not.toBe(hash);
         }
+    });
+
+    it('changes when a binding option changes', () => {
+        const explores = createAnalyticsExplores();
+        const bindingWith = (value: string) =>
+            new Map<string, LibraryChartBinding>([
+                [
+                    'd-c',
+                    {
+                        slug: 'heatmap',
+                        minVersion: '0.4.0',
+                        fieldMapping: { x: 'a', y: 'b', value: 'm' },
+                        optionValues: { colour: value },
+                    },
+                ],
+            ]);
+        expect(
+            getAnalyticsContentHash(
+                explores,
+                analyticsContentAsCode,
+                bindingWith('red'),
+            ),
+        ).not.toBe(
+            getAnalyticsContentHash(
+                explores,
+                analyticsContentAsCode,
+                bindingWith('blue'),
+            ),
+        );
     });
 });
