@@ -697,7 +697,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 ],
                 limit: 30,
                 description:
-                    'Captured retry count and overhead; incomplete token attribution is possible. Agent steps are not equivalent to retries.',
+                    'Requests and average request latency by captured retry count. Agent steps are not equivalent to retries.',
             },
         },
     },

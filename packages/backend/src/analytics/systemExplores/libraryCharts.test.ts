@@ -605,13 +605,15 @@ describe('legacyLibraryChartBindings', () => {
         ).toBe(
             'Top 24 person and model pairs by tokens over the selected period, so a person near the cut-off can be missing smaller models. People without a display name are grouped as Unknown user. Tokens are not monetary cost.',
         );
-        [
-            'agent-requests-trend',
-            'agent-retries-latency-and-consumption',
-        ].forEach((key) => {
-            expect(queryDescription(agentChart(key))).toBe(
-                chartDescription(agentChart(key)),
-            );
-        });
+        expect(queryDescription(agentChart('agent-requests-trend'))).toBe(
+            chartDescription(agentChart('agent-requests-trend')),
+        );
+        expect(
+            queryDescription(
+                agentChart('agent-retries-latency-and-consumption'),
+            ),
+        ).toBe(
+            'Requests and average request latency by captured retry count. Agent steps are not equivalent to retries.',
+        );
     });
 });
