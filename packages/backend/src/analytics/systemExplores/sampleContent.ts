@@ -163,6 +163,9 @@ const aiUsageContent = {
                 optionValues: {
                     valueAggregation: 'sum',
                     colorSparklineByTrend: false,
+                    showLabel: false,
+                    showCardBorder: false,
+                    showCardShadow: false,
                 },
                 query: {
                     dimensions: ['ai_usage_event_ts_day'],
@@ -193,6 +196,9 @@ const aiUsageContent = {
                     optionValues: {
                         valueAggregation: 'sum',
                         colorSparklineByTrend: false,
+                        showLabel: false,
+                        showCardBorder: false,
+                        showCardShadow: false,
                     },
                     query: {
                         dimensions: ['ai_usage_event_ts_day'],
@@ -220,7 +226,11 @@ const aiUsageContent = {
                     slug: 'big-number-with-sparkline-trend',
                     minVersion: '0.6.0',
                     fieldMapping: { value: 'ai_usage_unique_users' },
-                    optionValues: {},
+                    optionValues: {
+                        showLabel: false,
+                        showCardBorder: false,
+                        showCardShadow: false,
+                    },
                     query: null,
                 },
             },
@@ -243,6 +253,9 @@ const aiUsageContent = {
                     optionValues: {
                         valueAggregation: 'sum',
                         colorSparklineByTrend: false,
+                        showLabel: false,
+                        showCardBorder: false,
+                        showCardShadow: false,
                     },
                     query: {
                         dimensions: ['ai_usage_event_ts_day'],
@@ -367,7 +380,7 @@ const aiUsageContent = {
         ),
         chart(
             'tokens-by-feature',
-            'Where do tokens go?',
+            'Token use by feature',
             'ai_usage',
             'total_tokens_used',
             'feature',
@@ -378,26 +391,29 @@ const aiUsageContent = {
                 description:
                     'Tokens by feature over the selected period. Token volume is not monetary cost.',
                 libraryChart: {
-                    slug: 'chord-diagram',
-                    minVersion: '0.2.0',
+                    slug: 'heatmap',
+                    minVersion: '0.4.0',
                     fieldMapping: {
-                        source: 'ai_usage_feature',
-                        target: 'ai_usage_model',
+                        x: 'ai_usage_event_ts_day',
+                        y: 'ai_usage_feature',
                         value: 'ai_usage_total_tokens_used',
                     },
-                    optionValues: { totalLabel: 'Tokens' },
+                    optionValues: {},
                     query: {
-                        dimensions: ['ai_usage_feature', 'ai_usage_model'],
+                        dimensions: [
+                            'ai_usage_feature',
+                            'ai_usage_event_ts_day',
+                        ],
                         metrics: ['ai_usage_total_tokens_used'],
                         sorts: [
                             {
-                                fieldId: 'ai_usage_total_tokens_used',
-                                descending: true,
+                                fieldId: 'ai_usage_event_ts_day',
+                                descending: false,
                             },
                         ],
-                        limit: 200,
+                        limit: 5000,
                         description:
-                            'Tokens flowing from each feature to the models it used, over the selected period. Token volume is not monetary cost.',
+                            'Tokens per feature per day over the selected period. Token volume is not monetary cost.',
                     },
                 },
             },
@@ -414,11 +430,11 @@ const aiUsageTilePositions: Record<
     tokens: { x: 9, y: 0, w: 9, h: 3 },
     'ai-users': { x: 18, y: 0, w: 9, h: 3 },
     'output-tokens': { x: 27, y: 0, w: 9, h: 3 },
-    'tokens-by-feature': { x: 0, y: 3, w: 14, h: 12 },
-    'ai-calls-by-day': { x: 14, y: 3, w: 22, h: 6 },
-    'tokens-by-day': { x: 14, y: 9, w: 22, h: 6 },
-    'tokens-by-model': { x: 0, y: 15, w: 18, h: 8 },
-    'calls-by-model': { x: 18, y: 15, w: 18, h: 8 },
+    'tokens-by-feature': { x: 0, y: 3, w: 36, h: 7 },
+    'ai-calls-by-day': { x: 0, y: 10, w: 18, h: 7 },
+    'tokens-by-day': { x: 18, y: 10, w: 18, h: 7 },
+    'tokens-by-model': { x: 0, y: 17, w: 18, h: 8 },
+    'calls-by-model': { x: 18, y: 17, w: 18, h: 8 },
 };
 
 export const analyticsSampleDashboards = [

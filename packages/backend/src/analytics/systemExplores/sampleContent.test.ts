@@ -155,11 +155,11 @@ describe('analytics sample content', () => {
                         ['tokens', 9, 0, 9, 3],
                         ['ai-users', 18, 0, 9, 3],
                         ['output-tokens', 27, 0, 9, 3],
-                        ['tokens-by-feature', 0, 3, 14, 12],
-                        ['ai-calls-by-day', 14, 3, 22, 6],
-                        ['tokens-by-day', 14, 9, 22, 6],
-                        ['tokens-by-model', 0, 15, 18, 8],
-                        ['calls-by-model', 18, 15, 18, 8],
+                        ['tokens-by-feature', 0, 3, 36, 7],
+                        ['ai-calls-by-day', 0, 10, 18, 7],
+                        ['tokens-by-day', 18, 10, 18, 7],
+                        ['tokens-by-model', 0, 17, 18, 8],
+                        ['calls-by-model', 18, 17, 18, 8],
                     ].map(([key, x, y, w, h]) => ({
                         chartSlug: `${prefix}${key}`,
                         x,
@@ -174,7 +174,7 @@ describe('analytics sample content', () => {
             );
         });
 
-        it('falls back to a bar chart for tokens by feature and binds the chord diagram', () => {
+        it('falls back to a bar chart for tokens by feature and binds the heatmap', () => {
             const slug = 'lightdash-analytics-overview-tokens-by-feature';
             const tokensByFeature = analyticsContentAsCode
                 .flatMap(({ charts }) => charts)
@@ -184,8 +184,8 @@ describe('analytics sample content', () => {
                 'ai_usage_feature',
             ]);
             expect(analyticsLibraryChartBindings.get(slug)).toMatchObject({
-                slug: 'chord-diagram',
-                minVersion: '0.2.0',
+                slug: 'heatmap',
+                minVersion: '0.4.0',
             });
         });
 

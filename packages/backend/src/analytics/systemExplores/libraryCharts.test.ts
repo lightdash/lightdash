@@ -549,6 +549,24 @@ describe('legacyLibraryChartBindings', () => {
                     label: 'Colour by trend',
                     default: true,
                 },
+                {
+                    type: 'boolean',
+                    name: 'showLabel',
+                    label: 'showLabel',
+                    default: true,
+                },
+                {
+                    type: 'boolean',
+                    name: 'showCardBorder',
+                    label: 'showCardBorder',
+                    default: true,
+                },
+                {
+                    type: 'boolean',
+                    name: 'showCardShadow',
+                    label: 'showCardShadow',
+                    default: true,
+                },
             ],
             colorPalette: null,
         };

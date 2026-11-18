@@ -400,6 +400,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
             optionValues: {
                 valueAggregation: 'sum',
                 colorSparklineByTrend: false,
+                showLabel: false,
+                showCardBorder: false,
+                showCardShadow: false,
             },
             query: {
                 dimensions: ['agent_requests_requested_at_day'],
@@ -436,7 +439,11 @@ export const usageChartSpecs: UsageChartSpec[] = [
             slug: 'big-number-with-sparkline-trend',
             minVersion: '0.6.0',
             fieldMapping: { value: 'agent_requests_distinct_requesters' },
-            optionValues: {},
+            optionValues: {
+                showLabel: false,
+                showCardBorder: false,
+                showCardShadow: false,
+            },
             query: null,
         },
     },
