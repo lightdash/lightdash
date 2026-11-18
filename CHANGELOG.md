@@ -1,3 +1,19 @@
+# [3.311.0](https://github.com/lightdash/lightdash/compare/3.310.2...3.311.0) (2026-11-18)
+
+
+### Bug Fixes
+
+* **ai-agent:** create a SQL chart only when the user chooses one ([#32857](https://github.com/lightdash/lightdash/issues/32857)) ([71c804e](https://github.com/lightdash/lightdash/commit/71c804e7e0fbdf36daea8c3deee3b3fa9a2c9cca))
+* **ai-agent:** don't show unapproved SQL as a failed step ([#32856](https://github.com/lightdash/lightdash/issues/32856)) ([43baf16](https://github.com/lightdash/lightdash/commit/43baf16abb6f5c476aacaf438b88456c0627c945))
+
+
+### Features
+
+* **live-sources:** remove fields that cost extra API calls ([#32865](https://github.com/lightdash/lightdash/issues/32865)) ([1e1c6a7](https://github.com/lightdash/lightdash/commit/1e1c6a7f344a6aeddcc4329923d83d52a57322f2)), closes [#32864](https://github.com/lightdash/lightdash/issues/32864)
+* **semantic-studio:** compile a draft's branch on the worker ([#32866](https://github.com/lightdash/lightdash/issues/32866)) ([22c75a5](https://github.com/lightdash/lightdash/commit/22c75a562ecf9eaa704b2184ccf07bb34e800ddf))
+* **semantic-studio:** read and recompile the checked-out draft ([#32867](https://github.com/lightdash/lightdash/issues/32867)) ([d59d885](https://github.com/lightdash/lightdash/commit/d59d885495dd64709c690944029a9d712d0c4bf9))
+* **semantic-studio:** show the checked-out draft across the app ([#32868](https://github.com/lightdash/lightdash/issues/32868)) ([609b9ce](https://github.com/lightdash/lightdash/commit/609b9ce99cb103218f10dec0d6464af0af122adf))
+
 ## [3.310.2](https://github.com/lightdash/lightdash/compare/3.310.1...3.310.2) (2026-11-18)
 
 
