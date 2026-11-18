@@ -61,8 +61,8 @@
 }
 
 .node[data-base='true'] .nodeIcon {
-    background: var(--mantine-color-blue-0);
-    color: var(--mantine-color-blue-7);
+    background: var(--mantine-color-blue-light);
+    color: var(--mantine-color-blue-light-color);
 }
 
 .nodeText {
@@ -116,13 +116,47 @@
     pointer-events: none;
 }
 
+/* React Flow's own chrome defaults to light colours; follow the theme instead. */
+.flow {
+    --xy-background-pattern-color: var(--mantine-color-ldGray-3);
+    --xy-controls-button-background-color: var(--mantine-color-body);
+    --xy-controls-button-background-color-hover: var(
+        --mantine-color-default-hover
+    );
+    --xy-controls-button-color: var(--mantine-color-text);
+    --xy-controls-button-color-hover: var(--mantine-color-text);
+    --xy-controls-button-border-color: var(--mantine-color-default-border);
+    --xy-controls-box-shadow: var(--mantine-shadow-xs);
+}
+
+/* Attribution stays (license) but sits quietly in the corner, clear of nodes. */
+.flow :global(.react-flow__attribution) {
+    padding: 0 4px;
+    background: transparent;
+    font-size: var(--mantine-font-size-xs);
+    opacity: 0.6;
+}
+
+.flow :global(.react-flow__attribution) a {
+    color: var(--mantine-color-dimmed);
+}
+
 /* One colour per relationship, shared by edges, the legend and the details panel. */
 .flow,
 .details {
     --join-many-to-one: var(--mantine-color-ldGray-5);
-    --join-one-to-one: var(--mantine-color-teal-6);
-    --join-one-to-many: var(--mantine-color-violet-6);
-    --join-many-to-many: var(--mantine-color-yellow-7);
+    --join-one-to-one: light-dark(
+        var(--mantine-color-teal-6),
+        var(--mantine-color-teal-5)
+    );
+    --join-one-to-many: light-dark(
+        var(--mantine-color-violet-6),
+        var(--mantine-color-violet-4)
+    );
+    --join-many-to-many: light-dark(
+        var(--mantine-color-yellow-7),
+        var(--mantine-color-yellow-5)
+    );
     --join-unset: var(--mantine-color-ldGray-4);
     --join-lineage: var(--mantine-color-ldGray-4);
 }

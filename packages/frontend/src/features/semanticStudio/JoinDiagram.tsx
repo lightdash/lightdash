@@ -531,7 +531,7 @@ export const JoinDiagram: FC<{ projectUuid: string; exploreName: string }> = ({
                         elementsSelectable={false}
                         zoomOnScroll={false}
                         panOnScroll
-                        proOptions={{ hideAttribution: true }}
+                        attributionPosition="top-left"
                     >
                         <Background />
                         <Controls showInteractive={false} />
