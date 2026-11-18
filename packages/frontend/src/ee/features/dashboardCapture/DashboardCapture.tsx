@@ -60,12 +60,13 @@ import {
     imageToJpegBase64,
     tileTarget,
 } from './routeRequest';
-import { useSendCaptureToAgent } from './useSendCaptureToAgent';
+import {
+    FULL_CONVERSATION_NOTE,
+    useSendCaptureToAgent,
+} from './useSendCaptureToAgent';
 
 const UNTITLED = 'Untitled tile';
 const MAX_ROUTE_IMAGES = 5;
-const IMAGES_LEFT_OUT =
-    'Some screenshots were left out: this conversation has reached its image limit.';
 const IMAGES_NOTE =
     'The attached screenshots show the dashboard as I recorded it, with my red marks drawn on. Use them to see exactly what I was pointing at.';
 
@@ -225,9 +226,9 @@ const DashboardCapture: FC = () => {
                 ],
                 images,
             })
-                .then(({ imagesLeftOut }) => {
-                    if (imagesLeftOut > 0) {
-                        showToastInfo({ title: IMAGES_LEFT_OUT });
+                .then(({ outcome }) => {
+                    if (outcome === 'new-because-full') {
+                        showToastInfo({ title: FULL_CONVERSATION_NOTE });
                     }
                 })
                 .catch(() => {

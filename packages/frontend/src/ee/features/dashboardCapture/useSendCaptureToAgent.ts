@@ -10,8 +10,15 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../aiCopilot/store/hooks';
-import { captureThreadTarget, imagesThatStillFit } from './captureThreadTarget';
+import {
+    captureThreadTarget,
+    screenshotsFitInThread,
+} from './captureThreadTarget';
 import { uploadCaptureImages } from './uploadCaptureImages';
+
+/** Shown when a recording could not join the open conversation. */
+export const FULL_CONVERSATION_NOTE =
+    'The open conversation is full of screenshots, so this started a new one.';
 
 type SendInput = {
     /** The agent for a new thread. A continued thread keeps its own agent. */
@@ -24,9 +31,8 @@ type SendInput = {
 };
 
 type SendResult = {
-    continued: boolean;
-    /** Screenshots left out because the conversation is full of images. */
-    imagesLeftOut: number;
+    /** Whether the recording joined the open conversation or started one. */
+    outcome: 'continued' | 'new' | 'new-because-full';
 };
 
 /**
@@ -79,12 +85,7 @@ export const useSendCaptureToAgent = (projectUuid: string) => {
             context,
             images,
         }: SendInput): Promise<SendResult> => {
-            const threadId = openThreadId;
-            const already = threadId
-                ? (imagesSentRef.current.get(threadId) ?? 0)
-                : 0;
-            const room = imagesThatStillFit(already, images.length);
-            const imageUuids = await uploadCaptureImages(images.slice(0, room));
+            const imageUuids = await uploadCaptureImages(images);
             const fullContext: AiPromptContextInput = [
                 ...context,
                 ...imageUuids.map((fileUuid) => ({
@@ -93,23 +94,35 @@ export const useSendCaptureToAgent = (projectUuid: string) => {
                 })),
             ];
             const prompt = buildPrompt(imageUuids.length > 0);
-            const imagesLeftOut = Math.max(0, images.length - room);
+            const startNew = async () => {
+                const thread = await createThread({
+                    agentUuid,
+                    prompt,
+                    context: fullContext,
+                });
+                imagesSentRef.current.set(thread.uuid, imageUuids.length);
+            };
 
-            if (threadId && openAgentUuid) {
-                await sendMessage({ prompt, context: fullContext });
-                imagesSentRef.current.set(
-                    threadId,
-                    already + imageUuids.length,
-                );
-                return { continued: true, imagesLeftOut };
+            const threadId = openThreadId;
+            if (!threadId || !openAgentUuid) {
+                await startNew();
+                return { outcome: 'new' };
             }
-            const thread = await createThread({
-                agentUuid,
-                prompt,
-                context: fullContext,
-            });
-            imagesSentRef.current.set(thread.uuid, imageUuids.length);
-            return { continued: false, imagesLeftOut };
+            const already = imagesSentRef.current.get(threadId) ?? 0;
+            // A full conversation would drop screenshots, so start afresh.
+            if (!screenshotsFitInThread(already, imageUuids.length)) {
+                await startNew();
+                return { outcome: 'new-because-full' };
+            }
+            try {
+                await sendMessage({ prompt, context: fullContext });
+            } catch {
+                // Refused (for example, full of screenshots attached by hand).
+                await startNew();
+                return { outcome: 'new-because-full' };
+            }
+            imagesSentRef.current.set(threadId, already + imageUuids.length);
+            return { outcome: 'continued' };
         },
         [createThread, openAgentUuid, openThreadId, sendMessage],
     );

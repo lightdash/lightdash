@@ -10,7 +10,10 @@ import {
     type CaptureSurface,
 } from '../capture';
 import { imageToJpegBase64 } from '../dashboardCapture/routeRequest';
-import { useSendCaptureToAgent } from '../dashboardCapture/useSendCaptureToAgent';
+import {
+    FULL_CONVERSATION_NOTE,
+    useSendCaptureToAgent,
+} from '../dashboardCapture/useSendCaptureToAgent';
 
 type Props = {
     projectUuid: string;
@@ -38,7 +41,7 @@ const AppViewCapture = forwardRef<CaptureHostHandle, Props>(
                     const images = await Promise.all(
                         result.images.map(imageToJpegBase64),
                     ).catch((): string[] => []);
-                    const { imagesLeftOut } = await sendToAgent({
+                    const { outcome } = await sendToAgent({
                         agentUuid,
                         buildPrompt: (hasImages) =>
                             buildAppCapturePrompt({
@@ -49,10 +52,8 @@ const AppViewCapture = forwardRef<CaptureHostHandle, Props>(
                         context: [],
                         images,
                     });
-                    if (imagesLeftOut > 0) {
-                        showToastInfo({
-                            title: 'Some screenshots were left out: this conversation has reached its image limit.',
-                        });
+                    if (outcome === 'new-because-full') {
+                        showToastInfo({ title: FULL_CONVERSATION_NOTE });
                     }
                 } catch {
                     showToastError({
