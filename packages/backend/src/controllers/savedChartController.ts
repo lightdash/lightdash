@@ -322,7 +322,7 @@ Migrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash
         this.setStatus(200);
         await this.services
             .getSavedChartService()
-            .rollback(toSessionUser(req.account), chartUuid, versionUuid);
+            .rollback(req.account, chartUuid, versionUuid);
         return {
             status: 'ok',
             results: undefined,

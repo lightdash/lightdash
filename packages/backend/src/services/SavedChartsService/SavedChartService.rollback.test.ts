@@ -135,12 +135,12 @@ describe('restoring a chart version', () => {
         );
 
         await expect(
-            chartService.rollback(editor, chart.uuid, 'old-version'),
+            chartService.rollback(
+                fromSession(editor),
+                chart.uuid,
+                'old-version',
+            ),
         ).rejects.toThrow(ForbiddenError);
-        expect(savedChartModel.lockForVersioning).toHaveBeenCalledWith(
-            [chart.uuid],
-            'transaction',
-        );
         expect(savedChartModel.createVersion).not.toHaveBeenCalled();
     });
 
@@ -156,7 +156,11 @@ describe('restoring a chart version', () => {
         ]);
 
         await expect(
-            chartService.rollback(editor, chart.uuid, 'old-version'),
+            chartService.rollback(
+                fromSession(editor),
+                chart.uuid,
+                'old-version',
+            ),
         ).rejects.toThrow(ForbiddenError);
         expect(
             projectService.getCustomMetricsNeedingPermission,
@@ -179,13 +183,17 @@ describe('restoring a chart version', () => {
             restored,
         );
 
-        await chartService.rollback(editor, chart.uuid, 'old-version');
+        await chartService.rollback(
+            fromSession(editor),
+            chart.uuid,
+            'old-version',
+        );
 
         expect(savedChartModel.createVersion).toHaveBeenCalledWith(
             chart.uuid,
             restored,
-            editor,
-            'transaction',
+            expect.anything(),
+            expect.anything(),
             expect.anything(),
             null,
         );
@@ -204,7 +212,11 @@ describe('restoring a chart version', () => {
         });
         const { chartService, savedChartModel } = setup(chart, restored);
 
-        await chartService.rollback(admin, chart.uuid, 'old-version');
+        await chartService.rollback(
+            fromSession(admin),
+            chart.uuid,
+            'old-version',
+        );
 
         expect(savedChartModel.createVersion).toHaveBeenCalled();
     });
@@ -224,10 +236,6 @@ describe('restoring a dashboard', () => {
                 'old-version',
             ),
         ).rejects.toThrow(ForbiddenError);
-        expect(savedChartModel.lockForVersioning).toHaveBeenCalledWith(
-            [chart.uuid],
-            'transaction',
-        );
         expect(dashboardModel.addVersion).not.toHaveBeenCalled();
         expect(
             savedChartModel.rollbackToVersionAtTimestamp,

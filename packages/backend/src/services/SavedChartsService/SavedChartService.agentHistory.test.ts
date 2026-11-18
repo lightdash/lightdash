@@ -197,13 +197,17 @@ describe('version history agent identity', () => {
                 agentIdentityEnabled: true,
             });
             const restore = () =>
-                chartService.rollback(user, chart.uuid, 'old-version');
+                chartService.rollback(
+                    fromSession(user),
+                    chart.uuid,
+                    'old-version',
+                );
             if (agent) await agentExecutionContext.run(context, restore);
             else await restore();
             expect(savedChartModel.createVersion).toHaveBeenCalledWith(
                 chart.uuid,
                 { ...chart, agentIdentity: claim },
-                user,
+                expect.objectContaining({ userUuid: user.userUuid }),
                 'transaction',
                 expect.anything(),
                 agent ? context.claim : null,

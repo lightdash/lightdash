@@ -56,6 +56,7 @@ import {
     NotFoundError,
     ParameterError,
     ProjectType,
+    RegisteredAccount,
     SavedChart,
     SavedChartDAO,
     SchedulerAndTargets,
@@ -90,9 +91,9 @@ import {
     SchedulerUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
 import {
-    fromSession,
     getAccountWriteContext,
     getEmbedActorChartSpaceUuids,
+    toSessionUser,
 } from '../../auth/account';
 import { GoogleDriveClient } from '../../clients/Google/GoogleDriveClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
@@ -1091,7 +1092,7 @@ export class SavedChartService
         }
     }
 
-    /** New or changed custom SQL and merges in `next`, over `saved`, need the scopes that author them. */
+    /** Custom SQL and merges that `next` adds or changes over `saved` need the scopes that author them. */
     private async assertCanWriteChartSql(
         account: Account,
         auditedAbility: ReturnType<SavedChartService['createAuditedAbility']>,
@@ -1103,6 +1104,7 @@ export class SavedChartService
         saved: Pick<SavedChartDAO, 'metricQuery' | 'merge'>,
         next: Pick<SavedChartDAO, 'metricQuery' | 'merge'>,
     ): Promise<void> {
+        // CASL's subject() tags the object it is given, so each check gets a copy of projectContext
         const oldSqlDimensionsById = new Map(
             (saved.metricQuery.customDimensions ?? [])
                 .filter(isCustomSqlDimension)
@@ -1178,12 +1180,17 @@ export class SavedChartService
         );
     }
 
-    /** A restored version passes the checks a new version does, against the chart's current one. */
-    private async assertCanRestoreVersion(
+    /** Checks restoring a chart to a version as a write over its current one; returns both. */
+    private async assertCanRestore(
         account: Account,
-        current: SavedChartDAO,
-        restored: SavedChartDAO,
-    ): Promise<void> {
+        chartUuid: string,
+        versionUuid: string,
+        tx: Knex.Transaction,
+    ): Promise<{ current: SavedChartDAO; restored: SavedChartDAO }> {
+        const [current, restored] = await Promise.all([
+            this.savedChartModel.get(chartUuid, undefined, undefined, tx),
+            this.savedChartModel.get(chartUuid, versionUuid, undefined, tx),
+        ]);
         await this.assertCanWriteChartSql(
             account,
             this.createAuditedAbility(account),
@@ -1195,13 +1202,14 @@ export class SavedChartService
             current,
             restored,
         );
+        return { current, restored };
     }
 
-    /** Locks the charts against new versions, then checks restoring each to its version at `at`. */
+    /** Locks the charts against new versions, then checks restoring each to its version at `versionTimestamp`. */
     async lockAndAssertCanRestoreAt(
         account: Account,
         chartUuids: string[],
-        at: Date,
+        versionTimestamp: Date,
         tx: Knex.Transaction,
     ): Promise<void> {
         if (chartUuids.length === 0) return;
@@ -1211,24 +1219,16 @@ export class SavedChartService
                 const version =
                     await this.savedChartModel.getVersionSummaryAtTimestamp(
                         chartUuid,
-                        at,
+                        versionTimestamp,
                     );
-                if (!version) return;
-                const [current, restored] = await Promise.all([
-                    this.savedChartModel.get(
-                        chartUuid,
-                        undefined,
-                        undefined,
-                        tx,
-                    ),
-                    this.savedChartModel.get(
+                if (version) {
+                    await this.assertCanRestore(
+                        account,
                         chartUuid,
                         version.versionUuid,
-                        undefined,
                         tx,
-                    ),
-                ]);
-                await this.assertCanRestoreVersion(account, current, restored);
+                    );
+                }
             }),
         );
     }
@@ -3254,10 +3254,11 @@ export class SavedChartService
     }
 
     async rollback(
-        user: SessionUser,
+        account: RegisteredAccount,
         chartUuid: string,
         versionUuid: string,
     ): Promise<void> {
+        const user = toSessionUser(account);
         const { grantAudit, savedChart } = await this.checkUpdateAccess(
             user,
             chartUuid,
@@ -3265,22 +3266,11 @@ export class SavedChartService
         const { currentChartVersion, newChartVersion } =
             await this.savedChartModel.transaction(async (tx) => {
                 await this.savedChartModel.lockForVersioning([chartUuid], tx);
-                const current = await this.savedChartModel.get(
-                    chartUuid,
-                    undefined,
-                    undefined,
-                    tx,
-                );
-                const restored = await this.savedChartModel.get(
+                const { current, restored } = await this.assertCanRestore(
+                    account,
                     chartUuid,
                     versionUuid,
-                    undefined,
                     tx,
-                );
-                await this.assertCanRestoreVersion(
-                    fromSession(user),
-                    current,
-                    restored,
                 );
                 const created = await this.savedChartModel.createVersion(
                     chartUuid,

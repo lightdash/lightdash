@@ -7,6 +7,7 @@ import {
     type SpaceAccess,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { fromSession } from '../../auth/account';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
@@ -372,14 +373,14 @@ describe('SavedChartService direct-grant write parity', () => {
 
     it('rolls back a chart version using the authorized ownership snapshot', async () => {
         await service.rollback(
-            grantOnlyEditor,
+            fromSession(grantOnlyEditor),
             ownedChart.uuid,
             'version-uuid',
         );
         expect(savedChartModel.createVersion).toHaveBeenCalledWith(
             ownedChart.uuid,
             ownedChart,
-            grantOnlyEditor,
+            expect.objectContaining({ userUuid: grantOnlyEditor.userUuid }),
             'transaction',
             {
                 projectUuid: ownedChart.projectUuid,
@@ -420,12 +421,16 @@ describe('SavedChartService direct-grant write parity', () => {
             new ConflictError('Chart location changed'),
         );
         await expect(
-            service.rollback(grantOnlyEditor, ownedChart.uuid, 'version-uuid'),
+            service.rollback(
+                fromSession(grantOnlyEditor),
+                ownedChart.uuid,
+                'version-uuid',
+            ),
         ).rejects.toThrow(ConflictError);
         expect(savedChartModel.createVersion).toHaveBeenCalledWith(
             ownedChart.uuid,
             movedChart,
-            grantOnlyEditor,
+            expect.objectContaining({ userUuid: grantOnlyEditor.userUuid }),
             'transaction',
             {
                 projectUuid: ownedChart.projectUuid,
