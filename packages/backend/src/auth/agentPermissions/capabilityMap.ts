@@ -1084,6 +1084,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'SemanticStudioController.startWorkspace': [AgentCapability.DbtWriteback],
     'SemanticStudioController.leaveWorkspace': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getWorkspace': [AgentCapability.ReadDiscover],
+    'SemanticStudioController.getWorkspaceDraft': [
+        AgentCapability.DbtWriteback,
+    ],
     'SemanticStudioController.renameWorkspace': [AgentCapability.DbtWriteback],
     'SemanticStudioController.activateWorkspace': [
         AgentCapability.DbtWriteback,

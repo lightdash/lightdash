@@ -150,7 +150,11 @@ export const useExploreFields = ({
         source.kind === 'live' && canManageLive
             ? source.connectionUuid
             : undefined;
-    const compiled = useExploreByProjectUuid(explore.name, projectUuid);
+    const isAdded = draft?.contentBefore === null;
+    // A model the change adds has no live explore to read.
+    const compiled = useExploreByProjectUuid(explore.name, projectUuid, {
+        enabled: !isAdded,
+    });
     const live = useLiveSourceFields({
         projectUuid,
         connectionUuid: liveConnection ?? '',
@@ -168,6 +172,13 @@ export const useExploreFields = ({
                 );
             }
         }
+        if (isAdded) {
+            return draft.explore
+                ? compiledFields(draft.explore).map(
+                      (field): Field => ({ ...field, draftState: 'new' }),
+                  )
+                : undefined;
+        }
         if (!compiled.data) return undefined;
         return draft
             ? draftedFields(compiled.data, draft)
@@ -179,6 +190,7 @@ export const useExploreFields = ({
         explore.name,
         explore.label,
         draft,
+        isAdded,
     ]);
 
     const details = useMemo((): ExploreDetails | undefined => {

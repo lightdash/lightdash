@@ -86,4 +86,19 @@ describe('ProjectModelDocumentModel', () => {
             ]);
         },
     );
+
+    it("reads one workspace's draft without changes from before drafts had workspaces", async () => {
+        tracker.on.select('project_model_draft_changes').response([]);
+        await model.findWorkspaceDraftChanges({
+            projectUuid: 'project',
+            userUuid: 'user',
+            workspaceUuid: 'workspace',
+        });
+        const [{ sql, bindings }] = tracker.history.select;
+        expect(sql).toContain(
+            '"project_model_draft_changes"."workspace_uuid" = $1',
+        );
+        expect(sql).not.toContain('is null');
+        expect(bindings).toContain('workspace');
+    });
 });

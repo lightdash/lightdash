@@ -319,6 +319,7 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'SemanticStudioController.startWorkspace',
     'SemanticStudioController.leaveWorkspace',
     'SemanticStudioController.getWorkspace',
+    'SemanticStudioController.getWorkspaceDraft',
     'SemanticStudioController.renameWorkspace',
     'SemanticStudioController.activateWorkspace',
     'SemanticStudioController.finishWorkspace',

@@ -19,7 +19,7 @@ import {
     Center,
     Group,
     Loader,
-    SegmentedControl,
+    Paper,
     Text,
     TextInput,
     Title,
@@ -150,6 +150,7 @@ import {
     startStudioChatRefDrag,
     type StudioChatRef,
 } from './studioChatRefs';
+import { StudioCheckoutPicker } from './StudioCheckoutPicker';
 import { needsYou } from './studioRuns';
 import { StudioStageLine, type StudioStage } from './StudioStageLine';
 import { StudioWorkspacesList } from './StudioWorkspacesList';
@@ -163,6 +164,7 @@ import { useExploreFields } from './useExploreFields';
 import { useGoingLive } from './useGoingLive';
 import { usePreAggregatesByModel } from './usePreAggregatesByModel';
 import {
+    useCanEditSemanticLayer,
     useKeepsSemanticLayerDraft,
     useDraftFreshness,
     useSemanticLayerDraft,
@@ -176,6 +178,12 @@ import {
     type SemanticStudioProps,
     type ViewModel,
 } from './useSemanticStudio';
+import {
+    findCheckedOutModel,
+    isOpenWorkspace,
+    useCheckOut,
+    useStudioCheckout,
+} from './useStudioCheckout';
 import { useStudioRuns } from './useStudioRuns';
 import { SOURCE_PARAM } from './useStudioSources';
 import {
@@ -199,6 +207,7 @@ const ROW_HEIGHT = 28;
 /** What the workspace shows beside the rail. */
 type Pane =
     | 'code'
+    | 'changeSummary'
     | 'sources'
     | 'changes'
     | 'workspaces'
@@ -472,12 +481,13 @@ const ExploreBody: FC<{
     const explore = getExplore(view.project, exploreId);
     const source = getSource(view.project, explore.sourceId);
     const { data: draft } = useSemanticLayerDraft(view.project.id);
-    const modelDraft =
-        draft?.models.find(({ model }) => model === exploreId) ?? null;
+    const modelDraft = findCheckedOutModel(
+        useStudioCheckout().shown,
+        exploreId,
+    );
     const othersHere =
         draft?.othersDrafting.find(({ model }) => model === exploreId)
             ?.drafters ?? [];
-    const [isShowingLive, setIsShowingLive] = useState(false);
     const {
         fields: loaded,
         isLoading,
@@ -487,7 +497,7 @@ const ExploreBody: FC<{
         explore,
         source,
         canManageLive: view.permissions.live,
-        draft: isShowingLive ? null : modelDraft,
+        draft: modelDraft,
     });
     const allFields = useMemo(() => loaded ?? [], [loaded]);
     const groups = useMemo(() => fieldGroups(allFields), [allFields]);
@@ -539,29 +549,10 @@ const ExploreBody: FC<{
         <>
             {modelDraft || othersHere.length > 0 ? (
                 <Group gap="sm" mb="sm" wrap="nowrap">
-                    {modelDraft ? (
-                        <SegmentedControl
-                            size="xs"
-                            flex="none"
-                            value={isShowingLive ? 'live' : 'development'}
-                            onChange={(next) =>
-                                setIsShowingLive(next === 'live')
-                            }
-                            data={[
-                                {
-                                    value: 'development',
-                                    label: 'With my changes',
-                                },
-                                { value: 'live', label: 'Live' },
-                            ]}
-                        />
-                    ) : null}
                     <Text fz="xs" c="dimmed">
                         {[
                             modelDraft
-                                ? isShowingLive
-                                    ? 'What everyone sees now.'
-                                    : 'Only you see this until you publish.'
+                                ? 'Only you see this until you publish.'
                                 : null,
                             ...othersHere.map(
                                 ({ name, paths }) =>
@@ -652,6 +643,11 @@ const MainPane: FC<{
             ? getExplore(view.project, ref.exploreId)
             : null;
     const openFieldId = selected?.type === 'field' ? selected.fieldId : null;
+    // A model the checked-out change adds has no live explore to draw joins from yet.
+    const { shown: checkout } = useStudioCheckout();
+    const isAdded =
+        !!explore &&
+        findCheckedOutModel(checkout, explore.id)?.contentBefore === null;
     // The source whose settings this page links to. Every source of a kind
     // shares one settings page, so a kind links to it too.
     const source =
@@ -809,7 +805,7 @@ const MainPane: FC<{
                         modelName={explore.id}
                         exploreName={explore.name}
                         lineage={
-                            source?.kind === 'modelled' ? (
+                            source?.kind === 'modelled' && !isAdded ? (
                                 <JoinDiagram
                                     projectUuid={view.project.id}
                                     exploreName={explore.name}
@@ -818,7 +814,6 @@ const MainPane: FC<{
                         }
                         fields={
                             <ExploreBody
-                                // Its live or in-development switch belongs to one model.
                                 key={explore.id}
                                 view={view}
                                 exploreId={explore.id}
@@ -1097,6 +1092,11 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const { data: draft } = useSemanticLayerDraft(view.project.id);
     useDraftFreshness(view.project.id);
     const { data: project } = useProject(view.project.id);
+    // A dbt project has no draft and no model code here: its files are in its repository.
+    const keepsDraft = useKeepsSemanticLayerDraft(view.project.id);
+    const canEditModels = useCanEditSemanticLayer(view.project.id);
+    const checkout = useStudioCheckout().shown;
+    const checkedOutDraft = keepsDraft ? (checkout?.draft ?? null) : null;
 
     const {
         startNewThread,
@@ -1110,7 +1110,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const draftMarks = useMemo<DraftMarks>(
         () => ({
             labels: new Map(
-                (draft?.models ?? []).flatMap(
+                (checkedOutDraft?.models ?? []).flatMap(
                     ({ model, explore }): [string, string][] =>
                         explore?.label ? [[model, explore.label]] : [],
                 ),
@@ -1124,17 +1124,13 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 ),
             ),
         }),
-        [draft],
+        [checkedOutDraft, draft],
     );
     // With nothing live, what the draft adds is the page.
     const isBuildingFirstModel = isEmpty && hasDraft;
     // With changes to check and nothing else asked for, the changes are the page.
     const isDefaultView =
         view.selected === null && searchParams.get(VIEW_PARAM) === null;
-    const isReviewingDraft =
-        isBuildingFirstModel ||
-        (hasDraft &&
-            (searchParams.get(DRAFT_PARAM) === DRAFT_REVIEW || isDefaultView));
     const openExplore =
         view.selected?.type === 'explore' || view.selected?.type === 'field'
             ? view.selected.exploreId
@@ -1151,11 +1147,9 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         [view.project],
     );
     const drafted = useMemo(
-        () => new Set(draft?.models.map(({ model }) => model)),
-        [draft],
+        () => new Set(checkedOutDraft?.models.map(({ model }) => model)),
+        [checkedOutDraft],
     );
-    // A dbt project has no draft and no model code here: its files are in its repository.
-    const keepsDraft = useKeepsSemanticLayerDraft(view.project.id);
     const { data: workspaces } = useStudioWorkspaces(view.project.id);
     const [storedThread, setStoredThread] = useStoredStudioThread(
         view.project.id,
@@ -1172,6 +1166,20 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         allWorkspaces.find(
             ({ workspaceUuid }) => workspaceUuid === routeWorkspaceUuid,
         ) ?? null;
+    const isRouteCheckedOut =
+        !!routeWorkspace &&
+        routeWorkspace.workspaceUuid === checkout?.workspace?.workspaceUuid;
+    // A link to a change that is not checked out shows where it stands; its edits show once it is checked out.
+    const isLookingAtChange =
+        keepsDraft &&
+        checkout !== null &&
+        !!routeWorkspace &&
+        !isRouteCheckedOut;
+    const isReviewingDraft =
+        isBuildingFirstModel ||
+        (hasDraft &&
+            (searchParams.get(DRAFT_PARAM) === DRAFT_REVIEW ||
+                (isDefaultView && isRouteCheckedOut)));
     // A linked change is read from its own record, yours or someone else's; otherwise the one your chat is on.
     const pullRequest = useStudioPullRequest(
         view.project.id,
@@ -1258,13 +1266,19 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             { navigateTo }: { navigateTo: boolean },
         ) => {
             // Someone else's change is only looked at: your chat and active change stay as they are.
-            if (target.isMine && target.agentUuid) {
+            if (!keepsDraft && target.isMine && target.agentUuid) {
                 setStoredThread({
                     threadUuid: target.threadUuid,
                     agentUuid: target.agentUuid,
                 });
             }
-            if (target.isMine && !target.isActive && !target.finishedAt) {
+            // Where changes are drafts here, only the picker or a check out action changes the checkout.
+            if (
+                !keepsDraft &&
+                target.isMine &&
+                !target.isActive &&
+                !target.finishedAt
+            ) {
                 workspaceAction.mutate({
                     kind: 'activate',
                     workspaceUuid: target.workspaceUuid,
@@ -1279,7 +1293,13 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 );
             }
         },
-        [navigate, setStoredThread, view.project.id, workspaceAction],
+        [
+            keepsDraft,
+            navigate,
+            setStoredThread,
+            view.project.id,
+            workspaceAction,
+        ],
     );
     // A link to one of your workspaces opens it, here and in the chat.
     const openedFromRoute = useRef<string | null>(null);
@@ -1300,7 +1320,13 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             };
         }
         if (isMerged) return { step: 'live', update: goingLive };
-        if (hasProposal || (keepsDraft && hasDraft && !isBuildingFirstModel)) {
+        if (
+            hasProposal ||
+            (keepsDraft &&
+                hasDraft &&
+                !isBuildingFirstModel &&
+                !isLookingAtChange)
+        ) {
             return { step: 'proposed' };
         }
         if (hasClosedPullRequest) {
@@ -1381,10 +1407,16 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         view.project.id,
         isCode,
     );
-    const files = useMemo(
-        () => [...new Set([...drafted, ...(stored?.models ?? [])])].sort(),
-        [drafted, stored],
-    );
+    const files = useMemo(() => {
+        const removed = new Set(
+            checkedOutDraft?.models
+                .filter(({ contentAfter }) => contentAfter === null)
+                .map(({ model }) => model),
+        );
+        return [...new Set([...drafted, ...(stored?.models ?? [])])]
+            .filter((name) => !removed.has(name))
+            .sort();
+    }, [checkedOutDraft, drafted, stored]);
     const requestedFile = searchParams.get(FILE_PARAM);
     const file =
         files.find((name) => name === requestedFile) ??
@@ -1414,6 +1446,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const pane = ((): Pane => {
         if (searchParams.get(VIEW_PARAM) === 'workspaces') return 'workspaces';
         if (isCode) return 'code';
+        if (isLookingAtChange) return 'changeSummary';
         if (isSources) return 'sources';
         if (isChanges) return 'changes';
         if (isReviewingDraft) return 'review';
@@ -1423,7 +1456,10 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     })();
     // Reviewing changes takes the full width: the tree is for browsing models.
     const isReviewPane =
-        pane === 'changes' || pane === 'review' || pane === 'workspaces';
+        pane === 'changes' ||
+        pane === 'review' ||
+        pane === 'workspaces' ||
+        pane === 'changeSummary';
     // Live is what is published; Changes is everything in flight, and an open change gets its own bar.
     const isChangesView = isReviewPane;
     const isChangeOpen =
@@ -1620,7 +1656,19 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     };
     // Like a git branch: which change you are on, or live, and the way to the others.
     const isChangeInSources = pane === 'sources' && !!sourcesPrUrl;
-    const changePicker = keepsDraft ? null : (
+    const { checkOut, isBusy: isCheckingOut } = useCheckOut(view.project.id);
+    const changePicker = keepsDraft ? (
+        canEditModels ? (
+            <StudioCheckoutPicker
+                projectUuid={view.project.id}
+                onShowChanges={hasChangesTab ? showChanges : null}
+                onNewChange={() => {
+                    startNewThread();
+                    setIsChatOpen(true);
+                }}
+            />
+        ) : null
+    ) : (
         <Menu
             position="bottom-end"
             width={260}
@@ -1741,7 +1789,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         {changeName}
                     </Title>
                 </Tooltip>
-                {changeActions}
+                {isLookingAtChange ? null : changeActions}
             </div>
             <div className={classes.changeMeta}>
                 {shownWorkspace ? (
@@ -1796,8 +1844,55 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         onOpen={(target) =>
                             openWorkspace(target, { navigateTo: true })
                         }
+                        onCheckOut={keepsDraft ? checkOut : null}
+                        isCheckingOut={isCheckingOut}
                     />
                 );
+            case 'changeSummary':
+                return routeWorkspace ? (
+                    <StudioChanges
+                        header={
+                            <>
+                                {changeHeader}
+                                {routeWorkspace.isMine &&
+                                isOpenWorkspace(routeWorkspace) ? (
+                                    <Paper p="md">
+                                        <Group
+                                            justify="space-between"
+                                            wrap="nowrap"
+                                            gap="sm"
+                                        >
+                                            <Text fz="sm">
+                                                Check out this change to see it
+                                                in Models and Code, then review
+                                                and publish it.
+                                            </Text>
+                                            <Button
+                                                size="xs"
+                                                flex="none"
+                                                loading={isCheckingOut}
+                                                onClick={() =>
+                                                    checkOut(routeWorkspace)
+                                                }
+                                            >
+                                                Check out
+                                            </Button>
+                                        </Group>
+                                    </Paper>
+                                ) : !routeWorkspace.isMine &&
+                                  isOpenWorkspace(routeWorkspace) ? (
+                                    <Text fz="sm" c="dimmed">
+                                        Only {routeWorkspace.owner.name} sees
+                                        these edits until they publish them.
+                                    </Text>
+                                ) : null}
+                            </>
+                        }
+                        projectUuid={view.project.id}
+                        pullRequest={null}
+                        proposal={[]}
+                    />
+                ) : null;
             case 'code':
                 return file ? (
                     <ModelCodeView
@@ -2001,18 +2096,38 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                             ml="auto"
                                         >
                                             {keepsDraft ? (
-                                                !isChatOpen ? (
-                                                    <Button
-                                                        size="xs"
-                                                        variant="default"
-                                                        flex="none"
-                                                        onClick={() =>
-                                                            setIsChatOpen(true)
-                                                        }
-                                                    >
-                                                        Build
-                                                    </Button>
-                                                ) : null
+                                                <>
+                                                    {hasDraft &&
+                                                    pane !== 'review' &&
+                                                    pane !== 'changeSummary' ? (
+                                                        <Button
+                                                            size="xs"
+                                                            variant="default"
+                                                            flex="none"
+                                                            onClick={() =>
+                                                                switchView(
+                                                                    'changes',
+                                                                )
+                                                            }
+                                                        >
+                                                            Review changes
+                                                        </Button>
+                                                    ) : null}
+                                                    {!isChatOpen ? (
+                                                        <Button
+                                                            size="xs"
+                                                            variant="default"
+                                                            flex="none"
+                                                            onClick={() =>
+                                                                setIsChatOpen(
+                                                                    true,
+                                                                )
+                                                            }
+                                                        >
+                                                            Build
+                                                        </Button>
+                                                    ) : null}
+                                                </>
                                             ) : (
                                                 <>
                                                     {hasChat && !isChatOpen ? (
@@ -2167,7 +2282,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                         data-full={
                                             pane === 'code' ||
                                             pane === 'sources' ||
-                                            pane === 'changes'
+                                            pane === 'changes' ||
+                                            pane === 'changeSummary'
                                         }
                                     >
                                         {renderPaneWithChat()}

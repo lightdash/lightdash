@@ -399,7 +399,23 @@ const setup = ({
                 const workspace = await findActive();
                 return [...workspaces, ...(workspace ? [workspace] : [])];
             },
-            find: unused,
+            find: async (workspaceUuid, userUuid) =>
+                workspaceUuid.startsWith('workspace-')
+                    ? {
+                          workspaceUuid,
+                          projectUuid: PROJECT_UUID,
+                          name: 'A change',
+                          threadUuid: workspaceUuid.slice('workspace-'.length),
+                          agentUuid: null,
+                          owner: { userUuid: USER_UUID, name: 'Someone' },
+                          isMine: userUuid === USER_UUID,
+                          isActive: false,
+                          pullRequest: null,
+                          createdAt: new Date(),
+                          updatedAt: new Date(),
+                          finishedAt: null,
+                      }
+                    : null,
             start: startWorkspace,
             activate: unused,
             leave: unused,
@@ -472,6 +488,12 @@ const setup = ({
                         draftWorkspaces.get(change.draftChangeUuid) ?? null;
                     return madeIn === null || madeIn === workspaceUuid;
                 }),
+            findWorkspaceDraftChanges: async ({ workspaceUuid }) =>
+                drafts.filter(
+                    (change) =>
+                        draftWorkspaces.get(change.draftChangeUuid) ===
+                        workspaceUuid,
+                ),
             findOtherDrafters: async () => otherDrafters,
             withPublishLock: async (_owner, publish) => publish(),
             findDraftState: async () => ({ versions: [], changes: [] }),
@@ -2120,6 +2142,50 @@ describe('SemanticStudioService', () => {
                 'legacy',
                 'draft-2',
             ]);
+        });
+
+        it("reads one workspace's changes alone, whichever is active, without changes from before workspaces", async () => {
+            const context = setup();
+            context.drafts.push({
+                draftChangeUuid: 'legacy',
+                baseVersions: null,
+                promptUuid: null,
+                question: null,
+                createdAt: new Date(),
+                models: [draftModel('label: Legacy\n')],
+            });
+            await proposeIn(context, 'thread-1', REVENUE_YAML);
+            await proposeIn(context, 'thread-2', 'label: Orders\n');
+            const first = await context.service.getWorkspaceDraft(
+                deployer,
+                PROJECT_UUID,
+                context.workspaceOf('thread-1'),
+            );
+            expect(
+                first.changes.map(({ draftChangeUuid }) => draftChangeUuid),
+            ).toEqual(['draft-2']);
+            expect(first.models[0].contentAfter).toContain('revenue');
+            const second = await context.service.getWorkspaceDraft(
+                deployer,
+                PROJECT_UUID,
+                context.workspaceOf('thread-2'),
+            );
+            expect(
+                second.changes.map(({ draftChangeUuid }) => draftChangeUuid),
+            ).toEqual(['draft-3']);
+            expect(second.models[0].contentAfter).not.toContain('revenue');
+        });
+
+        it("refuses to read someone else's workspace", async () => {
+            const context = setup();
+            await proposeIn(context, 'thread-1', REVENUE_YAML);
+            await expect(
+                context.service.getWorkspaceDraft(
+                    { ...deployer, userUuid: 'someone-else' },
+                    PROJECT_UUID,
+                    context.workspaceOf('thread-1'),
+                ),
+            ).rejects.toThrow("This change is someone else's");
         });
 
         it('publishes only the active workspace and finishes that workspace', async () => {

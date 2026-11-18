@@ -63,6 +63,9 @@ type DraftPerson = { projectUuid: string; userUuid: string };
 /** A person's draft is the one of their active Studio workspace; null when they have none. */
 export type DraftOwner = DraftPerson & { workspaceUuid: string | null };
 
+/** One workspace's draft alone, without changes from before drafts had workspaces. */
+export type WorkspaceDraftOwner = DraftPerson & { workspaceUuid: string };
+
 export type DraftImpactCheck = {
     draftHash: string;
     status: DraftImpactCheckStatus;
@@ -237,7 +240,38 @@ export class ProjectModelDocumentModel {
 
     /** A person's draft on a project, oldest first. */
     async findDraftChanges(owner: DraftOwner): Promise<StoredDraftChange[]> {
-        return ProjectModelDocumentModel.openDraftChanges(this.database, owner)
+        return ProjectModelDocumentModel.selectDraftChanges(
+            ProjectModelDocumentModel.openDraftChanges(this.database, owner),
+        );
+    }
+
+    async findWorkspaceDraftChanges({
+        projectUuid,
+        userUuid,
+        workspaceUuid,
+    }: WorkspaceDraftOwner): Promise<StoredDraftChange[]> {
+        return ProjectModelDocumentModel.selectDraftChanges(
+            this.database(ProjectModelDraftChangesTableName)
+                .where(
+                    `${ProjectModelDraftChangesTableName}.workspace_uuid`,
+                    workspaceUuid,
+                )
+                .where(
+                    `${ProjectModelDraftChangesTableName}.project_uuid`,
+                    projectUuid,
+                )
+                .where(
+                    `${ProjectModelDraftChangesTableName}.created_by_user_uuid`,
+                    userUuid,
+                )
+                .where(`${ProjectModelDraftChangesTableName}.status`, 'draft'),
+        );
+    }
+
+    private static selectDraftChanges(
+        query: ReturnType<typeof ProjectModelDocumentModel.openDraftChanges>,
+    ): Promise<StoredDraftChange[]> {
+        return query
             .leftJoin(
                 AiPromptTableName,
                 `${AiPromptTableName}.ai_prompt_uuid`,
