@@ -146,6 +146,8 @@ const setup = ({
     previewCompile = null,
     publishedSince = new Map(),
     enabled = true,
+    materializationAllowed = true,
+    requireUserCredentials = false,
     dbtConnection = { type: DbtProjectType.NONE },
     appInstalled = true,
     exploreTypes = [],
@@ -174,6 +176,8 @@ const setup = ({
         { by: string | null; at: Date; isYours: boolean }
     >;
     enabled?: boolean;
+    materializationAllowed?: boolean;
+    requireUserCredentials?: boolean;
     /** A repository connection makes `stored` the models in that repository. */
     dbtConnection?: Project['dbtConnection'];
     appInstalled?: boolean;
@@ -227,6 +231,11 @@ const setup = ({
     );
     const runSqlQuery = vi.fn(
         async (_user: SessionUser, _projectUuid: string, sql: string) => {
+            if (sql.includes('AS materialization_allowed'))
+                return {
+                    fields: {},
+                    rows: [{ materialization_allowed: materializationAllowed }],
+                };
             if (rejectSql && sql.includes(rejectSql))
                 throw new Error(`relation "${rejectSql}" does not exist`);
             if (sql.includes('duplicate_keys'))
@@ -380,6 +389,7 @@ const setup = ({
             }
         },
     );
+    const studioEditing = { enabled };
     const args: SemanticStudioServiceArguments = {
         aiWritebackService: {
             openStudioCheckout: unused,
@@ -410,7 +420,10 @@ const setup = ({
             recordPullRequestState,
         },
         featureFlagModel: {
-            get: async () => ({ id: 'semantic-studio-editing', enabled }),
+            get: async ({ featureFlagId }) => ({
+                id: featureFlagId,
+                enabled: studioEditing.enabled,
+            }),
         },
         projectModel: {
             get: async (projectUuid) =>
@@ -428,6 +441,15 @@ const setup = ({
                           organizationUuid: ORGANIZATION_UUID,
                           upstreamProjectUuid: undefined,
                           type: ProjectType.DEFAULT,
+                          warehouseConnection: {
+                              type: WarehouseTypes.POSTGRES,
+                              host: 'localhost',
+                              port: 5432,
+                              dbname: 'warehouse',
+                              schema: 'public',
+                              user: 'reader',
+                              requireUserCredentials,
+                          },
                           createdByUserUuid: USER_UUID,
                           dbtConnection,
                       },
@@ -604,6 +626,7 @@ const setup = ({
     };
     const service = new SemanticStudioService(args);
     return {
+        studioEditing,
         service,
         workspaces,
         getPullRequestState,
@@ -1707,6 +1730,84 @@ describe('SemanticStudioService', () => {
     });
 
     describe('settling the draft', () => {
+        it.each([
+            {
+                options: {
+                    requireUserCredentials: true,
+                },
+                error: 'shared warehouse connection',
+            },
+            {
+                options: {
+                    materializationAllowed: false,
+                },
+                error: 'row-level security',
+            },
+        ])(
+            'rejects an ineligible materialization at Publish ($error)',
+            async ({ options, error }) => {
+                const context = setup(options);
+                await context.service.proposeDraftChange(
+                    deployer,
+                    PROJECT_UUID,
+                    [
+                        draftModel('materialize: { max_rows: 100 }'),
+                        draftModel('label: Line items', { name: 'orders' }),
+                    ],
+                    null,
+                );
+                context.queueImpactCheck.mockClear();
+                const result = await context.service.applyDraft(
+                    deployer,
+                    PROJECT_UUID,
+                    null,
+                );
+                expect(result.failures).toEqual([
+                    { model: 'orders', error: expect.stringContaining(error) },
+                ]);
+                expect(context.commitCalls).toHaveLength(0);
+                expect(context.setExplores).not.toHaveBeenCalled();
+                expect(context.queueImpactCheck).not.toHaveBeenCalled();
+            },
+        );
+
+        it('blocks publishing an existing materialization draft when Studio editing is switched off', async () => {
+            const context = setup();
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel('materialize: { max_rows: 100 }')],
+                null,
+            );
+            context.studioEditing.enabled = false;
+            context.queueImpactCheck.mockClear();
+            await expect(
+                context.service.applyDraft(deployer, PROJECT_UUID, null),
+            ).rejects.toThrow('This feature is not enabled');
+            expect(context.commitCalls).toHaveLength(0);
+            expect(context.setExplores).not.toHaveBeenCalled();
+            expect(context.queueImpactCheck).not.toHaveBeenCalled();
+        });
+
+        it('publishes a materialization after the organization and warehouse checks pass', async () => {
+            const context = setup();
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel('materialize: { max_rows: 100 }')],
+                null,
+            );
+            const result = await context.service.applyDraft(
+                deployer,
+                PROJECT_UUID,
+                null,
+            );
+            expect(result.failures).toEqual([]);
+            expect(context.commitCalls[0].documents[0].content).toContain(
+                'materialize:',
+            );
+        });
+
         it('applies every change as one change set that names the latest question', async () => {
             const context = setup();
             await context.service.proposeDraftChange(

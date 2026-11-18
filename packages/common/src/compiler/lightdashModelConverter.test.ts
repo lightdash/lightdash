@@ -1,8 +1,41 @@
+import { parseModelDocument } from '../lightdash/applyModelFragment';
 import { DimensionType } from '../types/field';
 import type { LightdashModel } from '../types/lightdashModel';
 import { convertLightdashModelToDbtModel } from './lightdashModelConverter';
 
 describe('convertLightdashModelToDbtModel', () => {
+    const yaml =
+        'type: model\nname: orders\nsql_from: raw.orders\ndimensions: []\n';
+    const converted = (block: string) =>
+        convertLightdashModelToDbtModel(
+            parseModelDocument(yaml + block, 'orders.yml'),
+        ).meta;
+
+    it('retains the live model shape when materialize is absent', () => {
+        expect(converted('')).not.toHaveProperty('materialize');
+    });
+
+    it('defaults on_change while preserving an explicit false', () => {
+        expect(converted('materialize: {max_rows: 1}')).toHaveProperty(
+            'materialize.refresh.on_change',
+            true,
+        );
+        expect(
+            converted(
+                'materialize: {max_rows: 1, refresh: {on_change: false}}',
+            ),
+        ).toHaveProperty('materialize.refresh.on_change', false);
+    });
+
+    it.each([
+        '{}',
+        '{max_rows: 0}',
+        '{max_rows: 1.5}',
+        '{max_rows: 3, refresh: {on_change: no}}',
+    ])('rejects invalid policy %s', (block) => {
+        expect(() => converted(`materialize: ${block}`)).toThrow();
+    });
+
     it('preserves pre-aggregates in model meta', () => {
         const model: LightdashModel = {
             type: 'model',

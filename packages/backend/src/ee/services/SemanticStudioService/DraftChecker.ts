@@ -15,6 +15,7 @@ import {
     type DimensionType,
     type Explore,
     type ExploreError,
+    type LightdashModel,
     type MetricQuery,
     type SessionUser,
     type TablePartitioning,
@@ -27,6 +28,10 @@ import { type ProjectService } from '../../../services/ProjectService/ProjectSer
 import { type WarehouseSqlBuilderSettings } from '../../../services/ProjectService/warehouseSqlBuilderSettings';
 import { toModelPath, withWrites } from './draftFold';
 import { findChangedFields, findColumnError } from './draftLint';
+import {
+    materializationCatalogCheck,
+    materializationModelError,
+} from './materializationSource';
 import {
     findCatalogTable,
     getRowCountSql,
@@ -169,6 +174,31 @@ export class DraftChecker {
 
     constructor(projectService: DraftCheckerProjectService) {
         this.projectService = projectService;
+    }
+
+    async findMaterializationError(
+        user: SessionUser,
+        projectUuid: string,
+        model: LightdashModel,
+    ): Promise<string | null> {
+        const error = materializationModelError(model);
+        if (error) return error;
+        const sql = materializationCatalogCheck(model.sql_from);
+        if (sql === null)
+            return 'Materialization requires a supported SELECT over schema-qualified raw tables.';
+        try {
+            const { rows } = await this.projectService.runSqlQuery(
+                user,
+                projectUuid,
+                sql,
+                { kind: 'original' },
+            );
+            if (rows.length === 1 && rows[0].materialization_allowed === true)
+                return null;
+        } catch {
+            return 'Could not verify warehouse row security for this model.';
+        }
+        return 'Materialization requires ordinary warehouse tables without row-level security.';
     }
 
     /** Compiles every given model document into explores, in the project's warehouse dialect; the same documents compile once. */

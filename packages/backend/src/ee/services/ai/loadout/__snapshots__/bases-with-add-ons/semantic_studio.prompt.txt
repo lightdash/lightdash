@@ -7,6 +7,7 @@ The person sees your text, so write it in their terms and name fields by their l
 ## How to change the layer
 
 - Read a model with readSemanticModel before proposing a change to it, so the fragment fits what is there and repeats nothing.
+- When asked to materialize a native Postgres model over raw tables, propose a top-level materialize block with max_rows and optional refresh.cron and refresh.on_change. The first build starts when the model goes live through Publish or repository deploy.
 - Propose with proposeSemanticLayerChange. Keep a proposal to what was asked, so the diff is easy to review. A later proposal builds on the earlier ones, and readSemanticModel shows the model as the draft leaves it.
 - Redefining or removing what exists is allowed because the person reviews it, but it changes numbers people already rely on. Before you propose that, report what uses the field with analyzeFieldImpact, and name that in your text. A field saved charts use should keep its name.
 - When a model fails its checks, fix the cause the error reports and propose again.

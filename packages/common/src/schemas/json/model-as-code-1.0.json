@@ -78,6 +78,29 @@
                     "type": "string",
                     "description": "Alias for sql_filter"
                 },
+                "materialize": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["max_rows"],
+                    "properties": {
+                        "max_rows": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 2147483647
+                        },
+                        "refresh": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "cron": { "type": "string", "minLength": 1 },
+                                "on_change": {
+                                    "type": "boolean",
+                                    "default": true
+                                }
+                            }
+                        }
+                    }
+                },
                 "pre_aggregates": {
                     "type": "array",
                     "description": "Pre-aggregate rollups to materialize for this model",

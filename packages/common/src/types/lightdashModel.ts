@@ -82,6 +82,10 @@ export type LightdashModel = Omit<
 > & {
     type: 'model' | 'model/v1beta' | 'model/v1';
     name: string;
+    materialize?: {
+        max_rows: number;
+        refresh?: { cron?: string; on_change?: boolean };
+    };
     sql_from: string; // SQL query or table reference (e.g., 'schema.table' or 'SELECT ...')
     label?: string;
     description?: string;

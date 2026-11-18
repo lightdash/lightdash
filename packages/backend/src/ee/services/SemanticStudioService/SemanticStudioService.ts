@@ -15,9 +15,11 @@ import {
     JobStatusType,
     NotFoundError,
     ParameterError,
+    parseModelDocument,
     ProjectType,
     readModelPart,
     ValidationTarget,
+    WarehouseTypes,
     type DbtManifest,
     type Explore,
     type ExploreError,
@@ -93,7 +95,7 @@ import {
     usesAnyModel,
     type DraftCheckerProjectService,
 } from './DraftChecker';
-import { foldDraft, withWrites } from './draftFold';
+import { foldDraft, toModelPath, withWrites } from './draftFold';
 import {
     findDraftedPaths,
     findRefusedPaths,
@@ -115,6 +117,8 @@ type ModelProject = Pick<
     | 'upstreamProjectUuid'
     | 'type'
     | 'createdByUserUuid'
+    | 'warehouseConnection'
+    | 'connectionRoute'
 > & { dbtConnection: Project['dbtConnection'] };
 
 export type SemanticStudioServiceArguments = {
@@ -1816,11 +1820,52 @@ export class SemanticStudioService extends BaseService {
                 await this.recordDraftApplied(owner, result);
             }
             // What is left of the draft now sits on different live models.
-            await this.queueDraftImpactCheckAfterChange(user, projectUuid);
+            if (result.failures.length === 0)
+                await this.queueDraftImpactCheckAfterChange(user, projectUuid);
             return result;
         })().finally(() => this.publishing.delete(key));
         this.publishing.set(key, publish);
         return publish;
+    }
+
+    private async findMaterializationFailures(
+        user: SessionUser,
+        projectUuid: string,
+        writes: Map<string, string | null>,
+    ): Promise<{ model: string; error: string }[]> {
+        const models = [...writes].flatMap(([name, content]) => {
+            if (content === null) return [];
+            const model = parseModelDocument(content, toModelPath(name));
+            return model.materialize ? [model] : [];
+        });
+        if (models.length === 0) return [];
+        const project = await this.projectModel.get(projectUuid);
+        let projectError: string | null = null;
+        if (
+            project.dbtConnection.type !== DbtProjectType.NONE ||
+            project.warehouseConnection?.type !== WarehouseTypes.POSTGRES
+        )
+            projectError =
+                'Materialization requires an app-held Postgres model.';
+        else if (
+            project.warehouseConnection.requireUserCredentials ||
+            project.connectionRoute === 'multi'
+        )
+            projectError =
+                'Materialization requires a single shared warehouse connection.';
+        const checks = await runWithConcurrency(models, 4, async (model) => ({
+            model: model.name,
+            error:
+                projectError ??
+                (await this.checker.findMaterializationError(
+                    user,
+                    projectUuid,
+                    model,
+                )),
+        }));
+        return checks.flatMap(({ model, error }) =>
+            error === null ? [] : [{ model, error }],
+        );
     }
 
     private applyDraftOnce(
@@ -1867,6 +1912,13 @@ export class SemanticStudioService extends BaseService {
                     pullRequestUrl: null,
                 };
             }
+            const failures = await this.findMaterializationFailures(
+                user,
+                projectUuid,
+                draft.writes,
+            );
+            if (failures.length > 0)
+                return { exploreCount: null, failures, pullRequestUrl: null };
             const check = await this.checker.check(
                 user,
                 projectUuid,
@@ -2075,6 +2127,17 @@ export class SemanticStudioService extends BaseService {
                 }
                 writes.set(name, contentBefore);
             });
+        const failures = await this.findMaterializationFailures(
+            user,
+            projectUuid,
+            writes,
+        );
+        if (failures.length > 0)
+            throw new ParameterError(
+                failures
+                    .map(({ model, error }) => `${model}: ${error}`)
+                    .join('. '),
+            );
         const { explores } = await this.checker.compile(
             projectUuid,
             withWrites(live, writes),
