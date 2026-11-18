@@ -29,13 +29,9 @@ import {
     IconArrowLeft,
     IconArrowUpRight,
     IconBolt,
-    IconCheck,
-    IconChevronDown,
     IconChevronRight,
     IconFileCode,
-    IconGitBranch,
     IconMessage,
-    IconPlus,
     IconRefresh,
     IconSearch,
 } from '@tabler/icons-react';
@@ -150,7 +146,7 @@ import {
     startStudioChatRefDrag,
     type StudioChatRef,
 } from './studioChatRefs';
-import { StudioCheckoutPicker } from './StudioCheckoutPicker';
+import { DraftPickerMenu, StudioCheckoutPicker } from './StudioCheckoutPicker';
 import { needsYou } from './studioRuns';
 import { StudioStageLine, type StudioStage } from './StudioStageLine';
 import { StudioWorkspacesList } from './StudioWorkspacesList';
@@ -1471,17 +1467,17 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     // What waits on you wins, then a save under way, then how many are in flight.
     const changesBadge =
         waitingOnYou > 0 ? (
-            <span
-                className={classes.tabBadge}
-                data-tone="attention"
-                aria-label={`${waitingOnYou} need you`}
-            >
-                {waitingOnYou}
-            </span>
+            <Tooltip label={`${waitingOnYou} of your drafts need you`}>
+                <span className={classes.tabBadge} data-tone="attention">
+                    {waitingOnYou}
+                </span>
+            </Tooltip>
         ) : saving ? (
             <span className={classes.busyDot} aria-label="Saving" />
         ) : runs.length > 0 ? (
-            <span className={classes.tabBadge}>{runs.length}</span>
+            <Tooltip label={`${runs.length} of your drafts are open`}>
+                <span className={classes.tabBadge}>{runs.length}</span>
+            </Tooltip>
         ) : null;
     const showLive = () => {
         setIsTryingChanges(false);
@@ -1684,41 +1680,21 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             />
         ) : null
     ) : (
-        <Menu
-            position="bottom-end"
-            width={260}
-            classNames={{ itemLabel: classes.pickerLabel }}
-        >
-            <Menu.Target>
-                <Button
-                    size="xs"
-                    variant="subtle"
-                    color="gray"
-                    flex="0 1 auto"
-                    miw={0}
-                    maw={420}
-                    className={classes.pickerTitle}
-                    leftSection={<MantineIcon icon={IconGitBranch} size={14} />}
-                    rightSection={
-                        <Group gap={6} wrap="nowrap">
-                            {changesBadge}
-                            <MantineIcon icon={IconChevronDown} size={12} />
-                        </Group>
-                    }
-                >
-                    <Text span inherit truncate>
-                        {sourcesTarget.changeName
-                            ? `Draft: ${sourcesTarget.changeName}`
-                            : isOnMyChange
-                              ? changeName
-                                  ? `Draft: ${changeName}`
-                                  : 'New draft'
-                              : 'Published'}
-                    </Text>
-                </Button>
-            </Menu.Target>
-            <Menu.Dropdown>
-                {branchCompile && compileDescription ? (
+        <DraftPickerMenu
+            currentName={
+                sourcesTarget.changeName ??
+                (isOnMyChange ? (changeName ?? 'New draft') : null)
+            }
+            drafts={myOpenChanges.map((target) => ({
+                id: target.workspaceUuid,
+                name: target.name,
+                isCurrent:
+                    !!sourcesPrUrl && sourcesPrUrl === target.pullRequest?.url,
+            }))}
+            isBusy={false}
+            status={changesBadge}
+            header={
+                branchCompile && compileDescription ? (
                     <>
                         <Box px="sm" py={6}>
                             <Text fz="xs" fw={500}>
@@ -1746,55 +1722,19 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                 Compile again
                             </Menu.Item>
                         ) : null}
-                        <Menu.Divider />
                     </>
-                ) : null}
-                <Menu.Item
-                    leftSection={<span className={classes.liveDot} />}
-                    rightSection={
-                        isOnMyChange ? null : (
-                            <MantineIcon icon={IconCheck} size={14} />
-                        )
-                    }
-                    onClick={pickLive}
-                >
-                    Published
-                </Menu.Item>
-                {myOpenChanges.length > 0 ? (
-                    <Menu.Label>Your drafts</Menu.Label>
-                ) : null}
-                {myOpenChanges.map((target) => (
-                    <Menu.Item
-                        key={target.workspaceUuid}
-                        leftSection={
-                            <MantineIcon icon={IconGitBranch} size={14} />
-                        }
-                        rightSection={
-                            sourcesPrUrl &&
-                            sourcesPrUrl === target.pullRequest?.url ? (
-                                <MantineIcon icon={IconCheck} size={14} />
-                            ) : null
-                        }
-                        onClick={() => pickChange(target)}
-                        title={target.name}
-                    >
-                        <Text span inherit truncate>
-                            {target.name}
-                        </Text>
-                    </Menu.Item>
-                ))}
-                <Menu.Divider />
-                {hasChangesTab ? (
-                    <Menu.Item onClick={showChanges}>All drafts</Menu.Item>
-                ) : null}
-                <Menu.Item
-                    leftSection={<MantineIcon icon={IconPlus} size={14} />}
-                    onClick={startNewChange}
-                >
-                    New draft
-                </Menu.Item>
-            </Menu.Dropdown>
-        </Menu>
+                ) : null
+            }
+            onPublished={pickLive}
+            onPick={(id) => {
+                const target = myOpenChanges.find(
+                    ({ workspaceUuid }) => workspaceUuid === id,
+                );
+                if (target) pickChange(target);
+            }}
+            onNew={startNewChange}
+            onShowAll={hasChangesTab ? showChanges : null}
+        />
     );
     const changeUrl =
         development?.prUrl ??
