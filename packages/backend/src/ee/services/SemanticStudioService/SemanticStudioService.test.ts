@@ -1319,15 +1319,8 @@ describe('SemanticStudioService', () => {
 
     describe('trying a dbt change before its preview', () => {
         const project = {
-            manifestJson: JSON.stringify({
-                nodes: {},
-                metadata: { adapter_type: 'postgres' },
-                metrics: {},
-                docs: {},
-            }),
-            lightdashConfigYaml: 'spotlight:\n  default_visibility: show\n',
-            changedFiles: [],
             prUrl: 'https://github.com/acme/shop/pull/1',
+            explores: [TRY_OUT_EXPLORE],
         };
         const dbt = (overrides: Parameters<typeof setup>[0] = {}) =>
             setup({ dbtConnection: DBT_IN_GITHUB, ...overrides });
@@ -1340,17 +1333,11 @@ describe('SemanticStudioService', () => {
                     PROJECT_UUID,
                 ),
             ).toBeNull();
-            await context.service.saveDbtTryOut(
+            await context.service.saveDbtScriptTryOut(
                 repoWriter,
                 PROJECT_UUID,
-                project,
                 null,
-            );
-            expect(context.compileExploresFromManifest).toHaveBeenCalledWith(
-                repoWriter,
-                PROJECT_UUID,
-                expect.anything(),
-                project.lightdashConfigYaml,
+                project,
             );
             expect(
                 (
@@ -1370,11 +1357,11 @@ describe('SemanticStudioService', () => {
 
         it('is forgotten once its own pull request closes, not another one', async () => {
             const context = dbt();
-            await context.service.saveDbtTryOut(
+            await context.service.saveDbtScriptTryOut(
                 repoWriter,
                 PROJECT_UUID,
-                project,
                 null,
+                project,
             );
             await context.service.retireDbtTryOut(
                 repoWriter,
@@ -1402,11 +1389,11 @@ describe('SemanticStudioService', () => {
 
         it("reads the active workspace's own change, not an older one for another pull request", async () => {
             const context = dbt();
-            await context.service.saveDbtTryOut(
+            await context.service.saveDbtScriptTryOut(
                 repoWriter,
                 PROJECT_UUID,
-                project,
                 null,
+                project,
             );
             context.setActiveWorkspace({
                 threadUuid: 'thread-2',
@@ -1418,11 +1405,11 @@ describe('SemanticStudioService', () => {
                     PROJECT_UUID,
                 ),
             ).toBeNull();
-            await context.service.saveDbtTryOut(
+            await context.service.saveDbtScriptTryOut(
                 repoWriter,
                 PROJECT_UUID,
-                project,
                 'thread-2',
+                project,
             );
             expect(
                 (
@@ -1448,11 +1435,11 @@ describe('SemanticStudioService', () => {
 
         it('stands in for a preview that has not compiled yet', async () => {
             const context = dbt({ previewExplores: {} });
-            await context.service.saveDbtTryOut(
+            await context.service.saveDbtScriptTryOut(
                 repoWriter,
                 PROJECT_UUID,
-                project,
                 null,
+                project,
             );
             expect(
                 (
@@ -1482,11 +1469,11 @@ describe('SemanticStudioService', () => {
                     },
                     previewCompile,
                 });
-                await context.service.saveDbtTryOut(
+                await context.service.saveDbtScriptTryOut(
                     repoWriter,
                     PROJECT_UUID,
-                    project,
                     null,
+                    project,
                 );
                 const explores = await context.service.findPreviewExplores(
                     repoWriter,
@@ -1500,23 +1487,6 @@ describe('SemanticStudioService', () => {
                 ).toEqual([shown]);
             },
         );
-
-        it('compiles nothing for someone who cannot change the project, or a manifest that is not JSON', async () => {
-            const context = dbt();
-            await context.service.saveDbtTryOut(
-                deployer,
-                PROJECT_UUID,
-                project,
-                null,
-            );
-            await context.service.saveDbtTryOut(
-                repoWriter,
-                PROJECT_UUID,
-                { ...project, manifestJson: '{not json' },
-                null,
-            );
-            expect(context.compileExploresFromManifest).not.toHaveBeenCalled();
-        });
     });
 
     describe('the order of a draft', () => {
