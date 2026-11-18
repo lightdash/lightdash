@@ -149,7 +149,7 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
             wrap="nowrap"
         >
             <Group gap="xs">
-                <Text fz={12} fw={600} c={color}>
+                <Text fz={13} fw={600} c={color}>
                     {label}
                 </Text>
                 {helpButton && (
