@@ -1,3 +1,10 @@
+## [3.306.2](https://github.com/lightdash/lightdash/compare/3.306.1...3.306.2) (2026-11-18)
+
+
+### Bug Fixes
+
+* **dashboards:** let dashboards already over a limit be saved ([#32840](https://github.com/lightdash/lightdash/issues/32840)) ([c9f15d5](https://github.com/lightdash/lightdash/commit/c9f15d545f98a2997301f2873f8fff4ab46e1983))
+
 ## [3.306.1](https://github.com/lightdash/lightdash/compare/3.306.0...3.306.1) (2026-11-18)
 
 
