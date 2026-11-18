@@ -14,6 +14,7 @@ import {
 export const ATTIO_PAGE_SIZE = 500;
 export const ATTIO_MAX_PAGES = 20;
 export const ATTIO_MAX_RECORDS = ATTIO_PAGE_SIZE * ATTIO_MAX_PAGES - 1;
+export const ATTIO_RESPONSE_BYTES_PER_QUERY = 50 * 1024 * 1024;
 
 /** Attributes the built-in fields already read. */
 const BUILT_IN_SLUGS = new Set(['record_id', 'created_at']);

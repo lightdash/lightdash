@@ -284,6 +284,8 @@ export const compileAttioQuery = ({
         columns,
         ...(filter ? { filter } : {}),
         ...(sorts ? { sorts } : {}),
+        // Rows sorted here need every match, so a read past the cap is refused up front
+        ...(localSorts.length > 0 ? { readsAllRecords: true } : {}),
     };
     return { query: JSON.stringify(request), localSorts };
 };

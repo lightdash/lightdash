@@ -26,6 +26,7 @@ import {
     ATTIO_MAX_PAGES,
     ATTIO_MAX_RECORDS,
     ATTIO_RECORDS_EXPLORE,
+    ATTIO_RESPONSE_BYTES_PER_QUERY,
     withAttioAttributeFields,
 } from './explores';
 import { attioRequestSchema, runAttioQuery, scanAttioAttributes } from './run';
@@ -55,7 +56,10 @@ export const attioIntegration = defineLiveIntegration({
         concurrentCalls: 3,
         callsPerMinute: 600,
         callsPerHour: 20_000,
-        callsPerQuery: ATTIO_MAX_PAGES,
+        // One more call checks for a record past the cap, see run.ts
+        callsPerQuery: ATTIO_MAX_PAGES + 1,
+        // Attio returns every attribute of a record, often 10 KB or more
+        responseBytesPerQuery: ATTIO_RESPONSE_BYTES_PER_QUERY,
         timeoutMs: 30_000,
         maxRows: ATTIO_MAX_RECORDS,
     },

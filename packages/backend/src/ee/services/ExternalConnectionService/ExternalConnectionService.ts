@@ -70,6 +70,7 @@ import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { SavedChartModel } from '../../../models/SavedChartModel';
 import { BaseService } from '../../../services/BaseService';
 import {
+    assertLiveResponseBudget,
     createLiveCalls,
     type LiveCallUsage,
     type LiveTransport,
@@ -2426,9 +2427,19 @@ export class ExternalConnectionService extends BaseService {
                     `This query needs more than ${limits.callsPerQuery} ${label} API calls. Narrow it with filters or a shorter time range.`,
                 );
             }
-            return this.apiSourceCallLimiter.run(connection, limits, () =>
-                sendOnce(request),
+            const response = await this.apiSourceCallLimiter.run(
+                connection,
+                limits,
+                () => sendOnce(request),
             );
+            if (isPerQuery) {
+                assertLiveResponseBudget({
+                    label,
+                    limits,
+                    responseBytes: usage.responseBytes,
+                });
+            }
+            return response;
         };
         return {
             integration,
