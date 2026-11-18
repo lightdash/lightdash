@@ -114,6 +114,12 @@ export type QueryResultReader = { authMethod: AuthType | null } & (
 
 export type AnalyticsActivityWindow = { start: string; end: string };
 
+export type ModelMaterializationPin = {
+    configUuid: string;
+    generationUuid: string;
+    policyEpoch: number;
+};
+
 export type QueryHistory = {
     agentIdentity: AgentIdentityClaim | null;
     warehouseConnectionUuid?: string | null;
@@ -161,6 +167,7 @@ export type QueryHistory = {
         };
         cacheSourceQueryUuid?: string;
         externalSourceReferences?: string[];
+        modelMaterialization?: ModelMaterializationPin;
         /** Stamps a node row of a bound composer chart run; readers re-check view on the chart. */
         composerChartSource?: ComposerChartRunSource;
     };

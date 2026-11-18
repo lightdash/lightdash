@@ -41,6 +41,8 @@ describe('Model materialization persistence', () => {
     });
     afterAll(async () => migrated?.destroy());
 
+    const materializedDocument =
+        'type: model\nname: orders\nsql_from: raw.orders\ndimensions: []\nmaterialize: {max_rows: 10}\nexplores: {summary: {label: Summary}}\n';
     async function fixture() {
         const {
             rows: [{ project_uuid: projectUuid }],
@@ -62,7 +64,7 @@ describe('Model materialization persistence', () => {
                 project_uuid: projectUuid,
                 name: 'orders',
                 document_version: 1,
-                content: 'payload',
+                content: materializedDocument,
             })
             .returning('project_model_document_uuid');
         const [revision] = await db('project_model_revisions')
@@ -71,11 +73,12 @@ describe('Model materialization persistence', () => {
                     set.project_model_change_set_uuid,
                 name: 'orders',
                 document_version: 1,
-                content_after: 'payload',
+                content_after: materializedDocument,
                 content_before: null,
             })
             .returning('project_model_revision_uuid');
         return {
+            projectUuid,
             documentUuid: doc.project_model_document_uuid,
             revisionUuid: revision.project_model_revision_uuid,
             buildFingerprint: 'build',
@@ -389,6 +392,68 @@ describe('Model materialization persistence', () => {
                 ModelMaterializationModel.recordIntent(trx, config),
             ),
         ).toBeNull();
+    });
+
+    test('pins a queued named explore to its original copy across activation', async () => {
+        const { config, intent } = await publish();
+        const { projectUuid } = config;
+        expect(await model.getServingCopy(projectUuid, 'missing')).toBeNull();
+        expect(await model.getServingCopy(projectUuid, 'orders')).toEqual({
+            status: 'pending',
+        });
+        const a = await claim(intent);
+        await model.promote(a, verified);
+        const selected = await model.getServingCopy(projectUuid, 'orders');
+        if (selected?.status !== 'ready')
+            throw new Error('Expected a ready copy');
+        expect(selected.content).toEqual(materializedDocument);
+        expect(selected.pin.generationUuid).toBe(a.generationUuid);
+        await db('model_materialization_configs')
+            .where('config_uuid', intent.configUuid)
+            .update({ active_generation_uuid: null });
+        const b = await claim(intent);
+        await model.promote(b, verified);
+        expect(await model.getServingCopy(projectUuid, 'orders')).toMatchObject(
+            { objectKey: b.objectKey },
+        );
+        expect(
+            await model.getPinnedObjectKey(
+                projectUuid,
+                'summary',
+                selected.pin,
+            ),
+        ).toBe(a.objectKey);
+        await expect(
+            model.getPinnedObjectKey(projectUuid, 'unknown', selected.pin),
+        ).rejects.toThrow('unavailable');
+        const other = await fixture();
+        await expect(
+            model.getPinnedObjectKey(other.projectUuid, 'orders', selected.pin),
+        ).rejects.toThrow('unavailable');
+        await db('model_materialization_configs')
+            .where('config_uuid', intent.configUuid)
+            .update({ policy_epoch: 2 });
+        await expect(
+            model.getPinnedObjectKey(projectUuid, 'orders', selected.pin),
+        ).rejects.toThrow('unavailable');
+    });
+
+    test('refuses an incompatible generation or an obsolete document revision', async () => {
+        const { config, intent } = await publish();
+        const attempt = await claim(intent);
+        await model.promote(attempt, verified);
+        await db('model_materialization_configs')
+            .where('config_uuid', intent.configUuid)
+            .update({ compatibility_fingerprint: 'changed' });
+        await expect(
+            model.getServingCopy(config.projectUuid, 'orders'),
+        ).rejects.toThrow('incompatible');
+        await db('project_model_documents')
+            .where('project_model_document_uuid', config.documentUuid)
+            .increment('document_version');
+        await expect(
+            model.getServingCopy(config.projectUuid, 'orders'),
+        ).rejects.toThrow('revision has changed');
     });
 
     test('failed attempts retry with new keys, and expired or forged tokens cannot promote', async () => {

@@ -201,6 +201,16 @@ export class QueryComposer {
         return this.queryBuilder;
     }
 
+    getMetricSqlForBase(
+        base: Pick<QueryComposerContext, 'explore' | 'warehouseSqlBuilder'>,
+        columnLimit: number,
+    ): string {
+        return new QueryComposer(this.definition, {
+            ...this.context,
+            ...base,
+        }).getSql({ columnLimit });
+    }
+
     /** The explore the query runs against. */
     getExplore(): Explore {
         return this.context.explore;

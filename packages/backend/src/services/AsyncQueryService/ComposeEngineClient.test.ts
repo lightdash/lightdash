@@ -126,6 +126,28 @@ describe('ComposeEngineClient', () => {
         },
     );
 
+    test('isolates a materialized model query to its exact generation and bounds memory and threads', () => {
+        const createDuckdbWarehouseClient = vi.fn(() => warehouseClientMock);
+        const client = new ComposeEngineClient({
+            resolveCaCertFile,
+            lightdashConfig: withPreAggregateBucket,
+            createDuckdbWarehouseClient,
+        });
+        const scope =
+            's3://preagg-bucket/model-materializations/config/generation.parquet';
+        client.createExecutionWarehouseClient({
+            storage: 'modelMaterializations',
+            scope,
+        });
+        expect(createDuckdbWarehouseClient).toHaveBeenCalledWith(
+            expect.objectContaining({
+                objectStorageOnly: true,
+                s3Config: { ...preAggregateSession, scope: [scope] },
+                resourceLimits: { memoryLimit: '512MB', threads: 2 },
+            }),
+        );
+    });
+
     test('configures the shared results session from the results S3 config', () => {
         const createDuckdbWarehouseClient = vi.fn(() => warehouseClientMock);
         const client = new ComposeEngineClient({

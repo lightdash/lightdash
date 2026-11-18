@@ -15,12 +15,14 @@ import {
     BinType,
     buildAgentIdentityClaim,
     ChartType,
+    compileLightdashModels,
     CreateWarehouseCredentials,
     CustomDimensionType,
     DashboardTileTypes,
     DatabricksAuthenticationType,
     DateGranularity,
     DbtProjectType,
+    DEFAULT_SPOTLIGHT_CONFIG,
     DimensionType,
     DownloadFileType,
     DuckdbConnectionType,
@@ -43,6 +45,7 @@ import {
     getReferencedDimension,
     getReferencedMetric,
     getUserAttributeRegex,
+    isExploreError,
     isMergeMetricSource,
     lightdashVariablePattern,
     MAX_RESULTS_CACHE_INVALIDATION_EXPLORES,
@@ -56,6 +59,7 @@ import {
     OrganizationAccessStatus,
     ParameterError,
     parameterRegex,
+    parseModelDocument,
     PersistentDownloadFileAccessMode,
     PersonSignInProvider,
     PossibleAbilities,
@@ -427,6 +431,7 @@ const createQueryComposerMock = ({
     }) as unknown as QueryComposer;
 
 const projectModel = {
+    hasActiveMaterializedTable: vi.fn(async () => false),
     getWithSensitiveFields: vi.fn(async () => projectWithSensitiveFields),
     get: vi.fn(async () => projectWithSensitiveFields),
     getSummary: vi.fn(async () => projectSummary),
@@ -586,6 +591,10 @@ const getMockedAsyncQueryService = (
     // nodes reach the same mocks a direct call would
     let querySourceService: QuerySourceService | undefined;
     const service: AsyncQueryService = new AsyncQueryService({
+        modelMaterializationModel: {
+            getServingCopy: vi.fn().mockResolvedValue(null),
+            getPinnedObjectKey: vi.fn(),
+        },
         dbtSourceRefCatalogModel: {} as never,
         refreshTokenRotation: overrides.refreshTokenRotation ?? {
             run: vi.fn(),
@@ -22499,6 +22508,27 @@ describe('fresh stored result read boundary', () => {
         service.exportsStorageClient.isEnabled = vi.fn(() => true);
         return { service, access, account, history, reload, currentUser, page };
     };
+    test('reads a completed copy after flag disable and still applies current viewer access', async () => {
+        const f = setupRead();
+        f.history.requestParameters.modelMaterialization = {
+            configUuid: 'config',
+            generationUuid: 'first',
+            policyEpoch: 1,
+        };
+        const read = () =>
+            f.service.getAsyncQueryResults({
+                account: f.account,
+                projectUuid,
+                queryUuid: f.history.queryUuid,
+            });
+        await expect(read()).resolves.toMatchObject({
+            status: QueryHistoryStatus.READY,
+        });
+        f.currentUser.ability = new Ability<PossibleAbilities>([]);
+        await expect(read()).rejects.toBeInstanceOf(ForbiddenError);
+        expect(f.page).toHaveBeenCalledTimes(1);
+    });
+
     test('checks a result against the unpublished model the development view ran it on', async () => {
         const f = setupRead();
         vi.mocked(f.service.projectModel.getExploreFromCache).mockRejectedValue(
@@ -25442,9 +25472,16 @@ describe('fresh execution producer to result reader', () => {
                     _account: Account,
                     args: Parameters<QueryHistoryModel['create']>[1],
                 ) => {
-                    expect(
-                        args.requestParameters.resultProducer,
-                    ).toBeUndefined();
+                    if (args.requestParameters.modelMaterialization) {
+                        expect(
+                            args.requestParameters.resultProducer
+                                ?.credentialOwner.kind,
+                        ).toBe('shared_connection');
+                    } else {
+                        expect(
+                            args.requestParameters.resultProducer,
+                        ).toBeUndefined();
+                    }
                     const queryUuid = `00000000-0000-4000-8000-${String(rows.size).padStart(12, '0')}`;
                     rows.set(queryUuid, {
                         ...args,
@@ -25773,6 +25810,140 @@ describe('fresh execution producer to result reader', () => {
         });
         return { service, account, rows, execute, client };
     };
+    it('serves saved charts, dashboard tiles, underlying data and totals from the copy and runs pending models live', async () => {
+        const { service, account, rows, execute, client } = setup(
+            false,
+            false,
+            false,
+            false,
+        );
+        const content = `type: model
+name: a
+sql_from: raw.items
+materialize: {max_rows: 20}
+dimensions:
+  - {name: dim1, type: string, sql: '\${TABLE}.category'}
+  - {name: amount, type: number, sql: '\${TABLE}.amount', metrics: {met1: {type: sum}}}`;
+        const [live] = await compileLightdashModels({
+            models: [parseModelDocument(content, 'models/a.yml')],
+            warehouseSqlBuilder: warehouses.warehouseSqlBuilderFromType(
+                WarehouseTypes.POSTGRES,
+            ),
+            lightdashProjectConfig: { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        });
+        if (isExploreError(live)) throw new Error('Invalid test model');
+        const metricQuery = {
+            ...metricQueryMock,
+            exploreName: live.name,
+            tableCalculations: [],
+        };
+        const chart = await service.savedChartModel.get(savedChart.uuid);
+        vi.mocked(service.savedChartModel.get).mockResolvedValue({
+            ...chart,
+            tableName: live.name,
+            metricQuery,
+        });
+        vi.mocked(service.projectModel.getExploreFromCache).mockResolvedValue(
+            live,
+        );
+        vi.mocked(service.projectModel.findExploresFromCache).mockResolvedValue(
+            { [live.name]: live },
+        );
+        const ready = {
+            status: 'ready' as const,
+            content,
+            objectKey: 'model-materializations/config/first.parquet',
+            pin: {
+                configUuid: 'config',
+                generationUuid: 'first',
+                policyEpoch: 1,
+            },
+        };
+        let pending = false;
+        Object.assign(service, {
+            modelMaterializationModel: {
+                getServingCopy: async () =>
+                    pending ? { status: 'pending' } : ready,
+            },
+        });
+        vi.mocked(service.featureFlagModel.get).mockImplementation(
+            async ({ featureFlagId }) => ({
+                id: featureFlagId,
+                enabled: featureFlagId === FeatureFlags.SemanticStudioEditing,
+            }),
+        );
+        const copyExecute = vi.fn(execute.getMockImplementation()!);
+        vi.mocked(
+            service['composeEngineClient'].createExecutionWarehouseClient,
+        ).mockReturnValue({ ...client, executeAsyncQuery: copyExecute });
+        const common = { account, projectUuid, invalidateCache: true };
+        const check = async ({ queryUuid }: { queryUuid: string }) => {
+            await vi.waitFor(() =>
+                expect(rows.get(queryUuid)).toMatchObject({
+                    status: QueryHistoryStatus.READY,
+                    requestParameters: { modelMaterialization: ready.pin },
+                }),
+            );
+            expect(copyExecute.mock.lastCall?.[0].sql).toContain(
+                ready.objectKey,
+            );
+            expect(execute).not.toHaveBeenCalled();
+            return queryUuid;
+        };
+        const source = await check(
+            await service.executeAsyncSavedChartQuery({
+                ...common,
+                chartUuid: chart.uuid,
+                context: QueryExecutionContext.CHART,
+            }),
+        );
+        await check(
+            await service.executeAsyncDashboardChartQuery({
+                ...common,
+                chartUuid: chart.uuid,
+                dashboardUuid,
+                tileUuid: 'tile',
+                dashboardFilters: {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                dashboardSorts: [],
+                context: QueryExecutionContext.DASHBOARD,
+            }),
+        );
+        await check(
+            await service.executeAsyncUnderlyingDataQuery({
+                ...common,
+                underlyingDataSourceQueryUuid: source,
+                context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                filters: {},
+            }),
+        );
+        await check(
+            await service.executeAsyncCalculateTotalFromQueryHistory({
+                ...common,
+                queryUuid: source,
+                kind: 'grandTotal',
+            }),
+        );
+        expect(copyExecute).toHaveBeenCalledTimes(4);
+        pending = true;
+        const { queryUuid } = await service.executeAsyncMetricQuery({
+            ...common,
+            metricQuery,
+            context: QueryExecutionContext.EXPLORE,
+        });
+        await vi.waitFor(() =>
+            expect(rows.get(queryUuid)?.status).toBe(QueryHistoryStatus.READY),
+        );
+        expect(
+            rows.get(queryUuid)?.requestParameters.modelMaterialization,
+        ).toBeUndefined();
+        expect(execute.mock.lastCall?.[0].sql).toContain('raw.items');
+        expect(copyExecute).toHaveBeenCalledTimes(4);
+    });
+
     const round24Controls = (f: ReturnType<typeof setup>) => {
         const controls = {
             userAttributes: { region: ['EU'], unrelated: ['before'] },
@@ -32541,6 +32712,269 @@ describe('external source explore queries on the worker', () => {
         expect(args.warehouseClientOverride?.executionSource).toBe(
             'external_source_duckdb',
         );
+    });
+
+    it.each([false, true])(
+        'pins normal metric submissions and salts cache keys (worker enabled: %s)',
+        async (enabled) => {
+            const service = getMockedAsyncQueryService({
+                ...lightdashConfigMock,
+                natsWorker: { ...lightdashConfigMock.natsWorker, enabled },
+            });
+            const content = `type: model
+name: items
+sql_from: raw.items
+materialize: {max_rows: 20}
+dimensions:
+  - {name: amount, type: number, sql: '\${TABLE}.amount', metrics: {total: {type: sum}}}`;
+            const [live] = await compileLightdashModels({
+                models: [parseModelDocument(content, 'models/items.yml')],
+                warehouseSqlBuilder: warehouses.warehouseSqlBuilderFromType(
+                    WarehouseTypes.POSTGRES,
+                ),
+                lightdashProjectConfig: { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+            });
+            if (isExploreError(live)) throw new Error('Invalid test model');
+            const pin = {
+                configUuid: 'config',
+                generationUuid: 'first',
+                policyEpoch: 1,
+            };
+            const copy = () => ({
+                status: 'ready' as const,
+                content,
+                objectKey: `model-materializations/config/${pin.generationUuid}.parquet`,
+                pin: { ...pin },
+            });
+            const getServingCopy = vi.fn(async () => copy());
+            const warehouseCredentials = {
+                ...postgresConnection,
+                requireUserCredentials: false,
+                userWarehouseCredentialsUuid: undefined,
+            };
+            Object.assign(service, {
+                getWarehouseCredentialsWithConnection: vi.fn(async () => ({
+                    warehouseCredentials,
+                    warehouseConnectionUuid: null,
+                    connectionRoute: {
+                        route: 'single',
+                        originalWarehouseConnectionUuid: null,
+                    },
+                    aiPlan: null,
+                })),
+                modelMaterializationModel: { getServingCopy },
+            });
+            vi.mocked(service.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId === FeatureFlags.SemanticStudioEditing,
+                }),
+            );
+            vi.spyOn(
+                service,
+                'getExploreWithUserAccessControls',
+            ).mockResolvedValue({
+                explore: live,
+                userAccessControls: {
+                    userAttributes: {},
+                    intrinsicUserAttributes: {},
+                },
+            });
+            vi.spyOn(service, 'getUserAttributes').mockResolvedValue({
+                userAttributes: {},
+                intrinsicUserAttributes: {},
+            });
+            const run = vi
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
+            const submitMetric = () =>
+                service.executeAsyncMetricQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    context: QueryExecutionContext.EXPLORE,
+                    metricQuery: {
+                        exploreName: 'items',
+                        dimensions: [],
+                        metrics: ['items_total'],
+                        filters: {},
+                        sorts: [],
+                        tableCalculations: [],
+                        limit: 20,
+                    },
+                });
+            await submitMetric();
+            const create = vi.mocked(service.queryHistoryModel.create);
+            const first = create.mock.lastCall![1];
+            expect(first.requestParameters).toMatchObject({
+                modelMaterialization: pin,
+                resultProducer: {
+                    credentialOwner: { kind: 'shared_connection' },
+                },
+            });
+            expect(first.compiledSql).toContain(
+                '__lightdash_materialized_model',
+            );
+            expect(first.compiledSql).not.toContain('raw.items');
+            expect(first.modelMaterializationLiveSql).toContain('raw.items');
+            expect(first.requestParameters).not.toHaveProperty(
+                'modelMaterializationLiveSql',
+            );
+            if (enabled) {
+                expect(
+                    service.natsClient.enqueueExternalSourceQuery,
+                ).toHaveBeenCalledOnce();
+                expect(run).not.toHaveBeenCalled();
+            } else {
+                await vi.waitFor(() => expect(run).toHaveBeenCalledOnce());
+                const [args] = run.mock.calls[0];
+                expect(args.query).toContain('first.parquet');
+                expect(args.warehouseClientOverride?.executionSource).toBe(
+                    'model_materialization_duckdb',
+                );
+                expect(args.resultProducerOverride?.credentialOwner.kind).toBe(
+                    'shared_connection',
+                );
+            }
+            expect(
+                service.natsClient.enqueueWarehouseQuery,
+            ).not.toHaveBeenCalled();
+            pin.generationUuid = 'second';
+            await submitMetric();
+            const secondKey = create.mock.lastCall![1].cacheKey;
+            expect(first.cacheKey).not.toEqual(secondKey);
+            pin.policyEpoch += 1;
+            await submitMetric();
+            expect(create.mock.lastCall![1].cacheKey).not.toEqual(secondKey);
+            vi.mocked(service.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled: false,
+                }),
+            );
+            getServingCopy.mockClear();
+            await submitMetric();
+            const fresh = create.mock.lastCall![1];
+            expect(fresh.compiledSql).toBe(first.modelMaterializationLiveSql);
+            expect(
+                fresh.requestParameters.modelMaterialization,
+            ).toBeUndefined();
+            expect(getServingCopy).not.toHaveBeenCalled();
+            expect(fresh.cacheKey).not.toBe(first.cacheKey);
+        },
+    );
+
+    it('executes the queued generation after the active generation changes', async () => {
+        const f = setup();
+        const pin = {
+            configUuid: 'config',
+            generationUuid: 'first',
+            policyEpoch: 1,
+        };
+        const versions = new Map([
+            ['first', 'model-materializations/config/first.parquet'],
+            ['second', 'model-materializations/config/second.parquet'],
+        ]);
+        const model = {
+            getPinnedObjectKey: vi.fn(
+                async (
+                    _projectUuid: string,
+                    _modelName: string,
+                    requested: typeof pin,
+                ) => versions.get(requested.generationUuid) ?? null,
+            ),
+        };
+        Object.assign(f.service, { modelMaterializationModel: model });
+        f.history.requestParameters = {
+            ...f.history.requestParameters,
+            externalSourceReferences: undefined,
+            modelMaterialization: pin,
+            resultProducer: {
+                version: 1,
+                warehouseConnectionUuid: null,
+                agentIdentity: null,
+                credentialOwner: {
+                    kind: 'shared_connection',
+                    identityFingerprint: 'shared',
+                },
+            },
+        };
+        vi.mocked(f.service.featureFlagModel.get).mockImplementation(
+            async ({ featureFlagId }) => ({
+                id: featureFlagId,
+                enabled: featureFlagId === FeatureFlags.SemanticStudioEditing,
+            }),
+        );
+        await f.service.runAsyncExternalSourceQueryFromHistory(
+            f.history.queryUuid,
+            'worker',
+        );
+        expect(model.getPinnedObjectKey).toHaveBeenCalledWith(
+            projectUuid,
+            f.history.metricQuery.exploreName,
+            pin,
+        );
+        const scope =
+            's3://mock_preagg_bucket/model-materializations/config/first.parquet';
+        expect(f.createExecutionWarehouseClient).toHaveBeenCalledWith({
+            storage: 'modelMaterializations',
+            scope,
+        });
+        const [args] = f.run.mock.calls[0];
+        expect(args.query).toContain(scope);
+        expect(args.resultProducerOverride?.credentialOwner).toEqual({
+            kind: 'shared_connection',
+            identityFingerprint: 'shared',
+        });
+        expect(args.query).not.toContain('second.parquet');
+        expect(args.warehouseClientOverride?.executionSource).toBe(
+            'model_materialization_duckdb',
+        );
+        expect(f.resolver).not.toHaveBeenCalled();
+    });
+
+    it('runs the authorized live SQL in a private cache partition when the flag is disabled after enqueue', async () => {
+        const f = setup();
+        f.history.cacheKey = 'generation-key';
+        f.history.requestParameters = {
+            ...f.history.requestParameters,
+            modelMaterialization: {
+                configUuid: 'config',
+                generationUuid: 'first',
+                policyEpoch: 1,
+            },
+        };
+        vi.mocked(f.service.featureFlagModel.get).mockImplementation(
+            async ({ featureFlagId }) => ({
+                id: featureFlagId,
+                enabled: false,
+            }),
+        );
+        const sql = 'SELECT sum(amount) FROM raw.items WHERE category = 7';
+        Object.assign(f.service.queryHistoryModel, {
+            getMaterializationLiveSql: vi.fn(async () => sql),
+        });
+        await expect(
+            f.service.runAsyncExternalSourceQueryFromHistory(
+                f.history.queryUuid,
+                'worker',
+            ),
+        ).resolves.toBe(true);
+        const key = `${f.history.queryUuid}.live`;
+        expect(f.service.queryHistoryModel.update).toHaveBeenCalledWith(
+            f.history.queryUuid,
+            projectUuid,
+            { cache_key: key, compiled_sql: sql },
+            expect.anything(),
+        );
+        const [args] = f.run.mock.calls[0];
+        expect(args).toMatchObject({
+            cacheKey: key,
+            query: sql,
+            userUuid: f.history.createdByUserUuid,
+        });
+        expect(args.warehouseClientOverride).toBeUndefined();
+        expect(f.createExecutionWarehouseClient).not.toHaveBeenCalled();
     });
 
     it('records the stored warehouse connection on the result producer', async () => {

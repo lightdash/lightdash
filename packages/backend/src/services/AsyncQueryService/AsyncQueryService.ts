@@ -190,6 +190,7 @@ import {
     type LiveSourceUpstreamErrorCode,
     type MergeQueryChart,
     type MergeQueryExecutionMode,
+    type ModelMaterializationPin,
     type Organization,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -268,6 +269,7 @@ import {
 } from '../../logging/winston';
 import { ContentDraftModel } from '../../models/ContentDraftModel';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
+import { type ModelMaterializationModel } from '../../models/ModelMaterializationModel';
 import {
     mapQueryHistoryRowToListItem,
     QueryHistoryModel,
@@ -474,6 +476,10 @@ import {
     getUnpivotedColumns,
 } from './getUnpivotedColumns';
 import {
+    compileMaterializedModelExplore,
+    MATERIALIZED_MODEL_RELATION,
+} from './materializedModelExplore';
+import {
     applyDashboardFiltersToMergeQuery,
     applyFilterOverridesToMergeQuery,
     formatRefusedMergeDashboardFilters,
@@ -638,6 +644,13 @@ type ExternalSourceBinding =
       }
     | { error: string };
 
+type FileExecutionPlan = {
+    warehouseQuery: string;
+    objectScope: string;
+    preAggregateResolved?: false;
+    preAggregateResolveReason?: string;
+} & ({ target: 'external_source' } | { target: 'model_materialization' });
+
 type AsyncQueryExecutionPlan =
     | {
           target: 'warehouse';
@@ -660,13 +673,7 @@ type AsyncQueryExecutionPlan =
           preAggregateResolved?: false;
           preAggregateResolveReason?: string;
       }
-    | {
-          target: 'external_source';
-          warehouseQuery: string;
-          objectScope: string;
-          preAggregateResolved?: false;
-          preAggregateResolveReason?: string;
-      }
+    | FileExecutionPlan
     | {
           target: 'error';
           error: string;
@@ -674,7 +681,13 @@ type AsyncQueryExecutionPlan =
           preAggregateResolveReason?: string;
       };
 
+type MaterializationReader = Pick<
+    ModelMaterializationModel,
+    'getServingCopy' | 'getPinnedObjectKey'
+>;
+
 type AsyncQueryServiceArguments = ProjectServiceArguments & {
+    modelMaterializationModel: MaterializationReader;
     getDocumentService: () => DocumentService;
     getComposerChartService: () => Pick<ComposerChartService, 'assertCanView'>;
     contentDraftModel: ContentDraftModel;
@@ -939,8 +952,23 @@ export class AsyncQueryService extends ProjectService {
 
     private readonly getLiveSourceForExplore: AsyncQueryServiceArguments['getLiveSourceForExplore'];
 
+    private readonly modelMaterializationModel: MaterializationReader;
+
+    private readonly materializationBindings = new WeakMap<
+        Explore,
+        {
+            pin: ModelMaterializationPin;
+            objectKey: string;
+            liveBase: {
+                explore: Explore;
+                warehouseSqlBuilder: WarehouseSqlBuilder;
+            };
+        } | null
+    >();
+
     constructor(args: AsyncQueryServiceArguments) {
         super(args);
+        this.modelMaterializationModel = args.modelMaterializationModel;
         this.contentDraftModel = args.contentDraftModel;
         this.queryHistoryModel = args.queryHistoryModel;
         this.downloadAuditModel = args.downloadAuditModel;
@@ -1039,18 +1067,28 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    /**
-     * External source queries always run on the DuckDB engine with the file
-     * reference bound as a CTE. The compiled SQL can carry user-authored
-     * fragments (custom metrics, table calculations), so file access is
-     * re-validated before the server-built CTE is attached.
-     */
-    private static resolveExternalSourceExecutionPlan(
+    private bindMaterializationObject(
+        objectKey: string | null,
+    ): { cte: string; objectScope: string } | { error: string } {
+        const bucket = this.lightdashConfig.preAggregates.s3?.bucket;
+        if (!bucket || !objectKey) {
+            return { error: 'The pinned model materialization is unavailable' };
+        }
+        const objectScope = `s3://${bucket}/${objectKey}`;
+        const uri = objectScope.replaceAll("'", "''");
+        return {
+            cte: `${quoteDuckdbIdentifier(MATERIALIZED_MODEL_RELATION)} AS (SELECT * FROM read_parquet('${uri}', hive_partitioning=false))`,
+            objectScope,
+        };
+    }
+
+    private static resolveFileExecutionPlan(
         query: string,
-        reference: ExternalSourceBinding,
+        reference: { cte: string; objectScope: string } | { error: string },
+        target: 'external_source' | 'model_materialization',
     ): Extract<
         AsyncQueryExecutionPlan,
-        { target: 'external_source' | 'error' }
+        { target: 'external_source' | 'model_materialization' | 'error' }
     > {
         if ('error' in reference) {
             return { target: 'error', error: reference.error };
@@ -1061,7 +1099,7 @@ export class AsyncQueryService extends ProjectService {
             return { target: 'error', error: getErrorMessage(e) };
         }
         return {
-            target: 'external_source',
+            target,
             warehouseQuery: AsyncQueryService.wrapSqlWithReferenceCtes(query, [
                 reference.cte,
             ]),
@@ -1069,28 +1107,90 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    /**
-     * Execute an external source query on the shared DuckDB engine. The
-     * wrapped SQL (file CTE attached) travels only here — the stored
-     * compiled_sql keeps the plain query against the table name.
-     */
-    private async runExternalSourceQuery(
+    private async runLiveIfMaterializationDisabled(
+        args: RunAsyncWarehouseQueryArgs,
+        submittedSql: string | null,
+    ): Promise<boolean> {
+        const cacheKey = `${args.queryUuid}.live`;
+        if (args.cacheKey !== cacheKey) {
+            const { enabled } = await this.featureFlagModel.get({
+                user: { organizationUuid: args.organizationUuid },
+                featureFlagId: FeatureFlags.SemanticStudioEditing,
+            });
+            if (enabled) return false;
+        }
+        const liveSql =
+            submittedSql ??
+            (await this.queryHistoryModel.getMaterializationLiveSql(
+                args.queryUuid,
+            ));
+        if (!liveSql)
+            throw new ParameterError(
+                'The authorized live query is unavailable.',
+            );
+
+        await this.queryHistoryModel.update(
+            args.queryUuid,
+            args.projectUuid,
+            {
+                cache_key: cacheKey,
+                compiled_sql: liveSql,
+            },
+            {
+                user: { id: args.userUuid },
+                isRegisteredUser: () => args.isRegisteredUser,
+            },
+        );
+        await this.runAsyncWarehouseQuery({
+            ...args,
+            query: liveSql,
+            cacheKey,
+        });
+        return true;
+    }
+
+    private async runFileQuery(
         warehouseArgs: RunAsyncWarehouseQueryArgs,
-        objectScope: string,
+        plan: FileExecutionPlan,
+        producer: QueryResultProducer | null,
+        liveSql: string | null = null,
     ): Promise<void> {
         try {
+            if (
+                plan.target === 'model_materialization' &&
+                liveSql !== null &&
+                (await this.runLiveIfMaterializationDisabled(
+                    warehouseArgs,
+                    liveSql,
+                ))
+            )
+                return;
+            if (
+                plan.target === 'model_materialization' &&
+                producer?.credentialOwner.kind !== 'shared_connection'
+            ) {
+                throw new ForbiddenError(
+                    'Model materialization requires a shared warehouse result identity',
+                );
+            }
             const warehouseClient =
                 this.composeEngineClient.createExecutionWarehouseClient({
-                    storage: 'externalSources',
-                    scope: objectScope,
+                    storage:
+                        plan.target === 'model_materialization'
+                            ? 'modelMaterializations'
+                            : 'externalSources',
+                    scope: plan.objectScope,
                 });
             await this.runAsyncWarehouseQuery({
                 ...warehouseArgs,
                 warehouseClientOverride: {
                     client: warehouseClient,
-                    executionSource: 'external_source_duckdb',
+                    executionSource:
+                        plan.target === 'model_materialization'
+                            ? 'model_materialization_duckdb'
+                            : 'external_source_duckdb',
                 },
-                resultProducerOverride: {
+                resultProducerOverride: producer ?? {
                     version: 1,
                     warehouseConnectionUuid:
                         warehouseArgs.warehouseConnectionUuid ?? null,
@@ -1139,30 +1239,62 @@ export class AsyncQueryService extends ProjectService {
             return false;
         }
         let args: RunAsyncWarehouseQueryArgs;
-        let binding: ExternalSourceBinding;
+        let executionPlan: ReturnType<
+            typeof AsyncQueryService.resolveFileExecutionPlan
+        >;
+        let producer: QueryResultProducer | null = null;
         let warehouseConnectionUuid: string | null;
         try {
             args = await this.buildWarehouseQueryArgs(
                 queryUuid,
                 queryTagsOverride,
+                'file',
             );
             const query = await this.getQueryHistoryFromHistory(queryUuid);
             // The result producer is matched on it when a later reader reuses the result
             warehouseConnectionUuid = query.warehouseConnectionUuid ?? null;
-            const [tableUuid] =
-                query.requestParameters.externalSourceReferences ?? [];
-            if (!tableUuid) {
-                throw new NotFoundError(
-                    `External source reference not found in query_history for ${queryUuid}`,
+            const pin = query.requestParameters.modelMaterialization;
+            if (pin) {
+                producer = query.requestParameters.resultProducer ?? null;
+                if (
+                    await this.runLiveIfMaterializationDisabled(
+                        { ...args, warehouseConnectionUuid },
+                        null,
+                    )
+                )
+                    return true;
+                const objectKey =
+                    await this.modelMaterializationModel.getPinnedObjectKey(
+                        args.projectUuid,
+                        query.metricQuery.exploreName,
+                        pin,
+                    );
+                executionPlan = AsyncQueryService.resolveFileExecutionPlan(
+                    args.query,
+                    this.bindMaterializationObject(objectKey),
+                    'model_materialization',
+                );
+            } else {
+                const [tableUuid] =
+                    query.requestParameters.externalSourceReferences ?? [];
+                if (!tableUuid) {
+                    throw new NotFoundError(
+                        `External source reference not found in query_history for ${queryUuid}`,
+                    );
+                }
+                // Access was checked at submit; this only rebinds the file
+                const binding = await this.bindExternalSourceTable(
+                    args.projectUuid,
+                    tableUuid,
+                    query.metricQuery.exploreName,
+                    null,
+                );
+                executionPlan = AsyncQueryService.resolveFileExecutionPlan(
+                    args.query,
+                    binding,
+                    'external_source',
                 );
             }
-            // Access was checked at submit; this only rebinds the file
-            binding = await this.bindExternalSourceTable(
-                args.projectUuid,
-                tableUuid,
-                query.metricQuery.exploreName,
-                null,
-            );
         } catch (error) {
             await this.queryHistoryModel.updateClaimedQueryToError(
                 queryUuid,
@@ -1170,11 +1302,6 @@ export class AsyncQueryService extends ProjectService {
             );
             throw error;
         }
-        const executionPlan =
-            AsyncQueryService.resolveExternalSourceExecutionPlan(
-                args.query,
-                binding,
-            );
         if (executionPlan.target === 'error') {
             await this.queryHistoryModel.updateClaimedQueryToError(
                 queryUuid,
@@ -1182,13 +1309,14 @@ export class AsyncQueryService extends ProjectService {
             );
             return true;
         }
-        await this.runExternalSourceQuery(
+        await this.runFileQuery(
             {
                 ...args,
                 query: executionPlan.warehouseQuery,
                 warehouseConnectionUuid,
             },
-            executionPlan.objectScope,
+            executionPlan,
+            producer,
         );
         return true;
     }
@@ -1424,6 +1552,74 @@ export class AsyncQueryService extends ProjectService {
         return enabled;
     }
 
+    private async resolveMetricQueryBase(
+        organizationUuid: string,
+        projectUuid: string,
+        explore: Explore,
+        warehouseCredentials: ResolvedWarehouseCredentials,
+        aiPlan: AiExecutionPlan | null,
+    ) {
+        const live = {
+            explore,
+            warehouseSqlBuilder: getSqlBuilderForExplore(
+                explore,
+                warehouseCredentials,
+            ),
+        };
+        if (explore.type && explore.type !== ExploreType.DEFAULT) return live;
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.SemanticStudioEditing,
+            user: { organizationUuid },
+        });
+        if (!enabled) return live;
+        const joined = Object.entries(explore.tables)
+            .filter(([key]) => key !== explore.baseTable)
+            .map(([, table]) => table.originalName ?? table.name);
+        if (
+            joined.length &&
+            (await this.projectModel.hasActiveMaterializedTable(
+                projectUuid,
+                joined,
+            ))
+        )
+            throw new NotSupportedError(
+                'Queries that join a materialized model are unsupported.',
+            );
+        const baseTable = explore.tables[explore.baseTable];
+        const copy = await this.modelMaterializationModel.getServingCopy(
+            projectUuid,
+            baseTable?.originalName ?? explore.baseTable,
+        );
+        if (!copy) return live;
+        if (
+            warehouseCredentials.type !== WarehouseTypes.POSTGRES ||
+            (aiPlan && aiPlan.identity !== 'marked_person') ||
+            warehouseCredentials.userWarehouseCredentialsUuid ||
+            warehouseCredentials.requireUserCredentials
+        )
+            throw new ForbiddenError(
+                'Materialized models require a shared warehouse connection',
+            );
+        const result =
+            copy.status === 'pending'
+                ? { ...live, explore: { ...explore } }
+                : await compileMaterializedModelExplore({
+                      content: copy.content,
+                      explore,
+                      startOfWeek: warehouseCredentials.startOfWeek ?? null,
+                  });
+        this.materializationBindings.set(
+            result.explore,
+            copy.status === 'ready'
+                ? { pin: copy.pin, objectKey: copy.objectKey, liveBase: live }
+                : null,
+        );
+        const snapshot = this.unfilteredExploreSnapshots.get(explore);
+        if (snapshot)
+            this.unfilteredExploreSnapshots.set(result.explore, snapshot);
+        return result;
+    }
+
     private async getPreAggregationRoutingDecision({
         metricQuery,
         explore,
@@ -1443,6 +1639,8 @@ export class AsyncQueryService extends ProjectService {
         aiPlan: AiExecutionPlan | null;
         warehouseCredentials: ResolvedWarehouseCredentials;
     }): Promise<PreAggregationRoutingDecision> {
+        if (this.materializationBindings.has(explore))
+            return { target: 'warehouse' };
         const identityChecksEnabled =
             identityEnabled ?? (await this.isResultIdentityEnabled(account));
         const bypassPreAggregates =
@@ -6244,8 +6442,17 @@ export class AsyncQueryService extends ProjectService {
     private async buildWarehouseQueryArgs(
         queryUuid: string,
         queryTagsOverride?: RunQueryTags,
+        target: 'warehouse' | 'file' = 'warehouse',
     ): Promise<RunAsyncWarehouseQueryArgs> {
         const query = await this.getQueryHistoryFromHistory(queryUuid);
+        if (
+            target === 'warehouse' &&
+            query.requestParameters.modelMaterialization
+        ) {
+            throw new ParameterError(
+                'This query requires the pinned model materialization',
+            );
+        }
         const actor = AsyncQueryService.getQueryHistoryActor(query);
         const queryTags =
             queryTagsOverride ?? AsyncQueryService.buildQueryTags(query);
@@ -6903,6 +7110,9 @@ export class AsyncQueryService extends ProjectService {
                     assertIsAccountWithOrg(account);
 
                     const explore = queryComposer.getExplore();
+                    const binding = this.materializationBindings.get(explore);
+                    const materializationPin = binding?.pin;
+                    const materializationObjectKey = binding?.objectKey ?? null;
                     const metricQuery = queryComposer.getMetricQuery();
                     const fieldsMap = queryComposer.getFields();
                     const pivotConfiguration =
@@ -6953,10 +7163,15 @@ export class AsyncQueryService extends ProjectService {
                         );
                     }
 
-                    const query = queryComposer.getSql({
-                        columnLimit:
-                            this.lightdashConfig.pivotTable.maxColumnLimit,
-                    });
+                    const columnLimit =
+                        this.lightdashConfig.pivotTable.maxColumnLimit;
+                    const query = queryComposer.getSql({ columnLimit });
+                    const liveSql = binding
+                        ? queryComposer.getMetricSqlForBase(
+                              binding.liveBase,
+                              columnLimit,
+                          )
+                        : null;
                     span.setAttribute('generatedSql', query);
 
                     const onboardingFlow = await this.getOnboardingFlow({
@@ -7088,7 +7303,7 @@ export class AsyncQueryService extends ProjectService {
                           })()
                         : null;
                     let requesterProducer: QueryResultProducer | null = null;
-                    if (identityEnabled) {
+                    if (identityEnabled || materializationPin) {
                         const claim =
                             agentIdentity ??
                             buildQueryAgentIdentity(
@@ -7137,6 +7352,11 @@ export class AsyncQueryService extends ProjectService {
                             account,
                             context,
                         ));
+                    const externalTableSalt =
+                        externalSourceReference &&
+                        'cacheKeySalt' in externalSourceReference
+                            ? externalSourceReference.cacheKeySalt
+                            : undefined;
                     const sharedCacheKey = QueryHistoryModel.getCacheKey(
                         projectUuid,
                         {
@@ -7147,11 +7367,9 @@ export class AsyncQueryService extends ProjectService {
                                     ? account.user.id
                                     : null,
                             dataTimezone: resolvedDataTimezone,
-                            externalSourceSalt:
-                                externalSourceReference &&
-                                'cacheKeySalt' in externalSourceReference
-                                    ? externalSourceReference.cacheKeySalt
-                                    : undefined,
+                            externalSourceSalt: materializationPin
+                                ? `model:${materializationPin.generationUuid}:${materializationPin.policyEpoch}`
+                                : externalTableSalt,
                             warehouseConnectionUuid:
                                 warehouseConnectionUuid ?? undefined,
                             aiPrincipalUuid: aiPrincipalUuid ?? undefined,
@@ -7209,6 +7427,9 @@ export class AsyncQueryService extends ProjectService {
                         context,
                         fields: fieldsMap,
                         compiledSql: query,
+                        ...(liveSql
+                            ? { modelMaterializationLiveSql: liveSql }
+                            : {}),
                         requestParameters: executionRequestParameters,
                         usedParameters: queryComposer.getUsedParameters(),
                         // Persist the gated display timezone (matches
@@ -7245,6 +7466,10 @@ export class AsyncQueryService extends ProjectService {
                                 resultEffectiveParameters,
                                 resultSource: args.resultSource,
                                 composerChartSource: args.composerChartSource,
+                                modelMaterialization: materializationPin,
+                                ...(materializationPin && requesterProducer
+                                    ? { resultProducer: requesterProducer }
+                                    : {}),
                                 externalSourceReferences:
                                     externalSourceReference &&
                                     'tableUuid' in externalSourceReference
@@ -7301,7 +7526,8 @@ export class AsyncQueryService extends ProjectService {
                             | 'warehouse'
                             | 'pre_aggregate_duckdb'
                             | 'pre_aggregate_warehouse'
-                            | 'external_source_duckdb',
+                            | 'external_source_duckdb'
+                            | 'model_materialization_duckdb',
                     ) =>
                         this.analytics.trackAccount(account, {
                             event: 'query.executed',
@@ -7476,35 +7702,50 @@ export class AsyncQueryService extends ProjectService {
                     }
 
                     const resolveStart = Date.now();
-                    const executionPlan = externalSourceReference
-                        ? AsyncQueryService.resolveExternalSourceExecutionPlan(
-                              query,
-                              externalSourceReference,
-                          )
-                        : await this.resolveAsyncQueryExecutionPlan({
-                              projectUuid,
-                              warehouseQuery: query,
-                              metricQuery,
-                              timezone: timezone ?? 'UTC',
-                              dateZoom,
-                              parameters: queryComposer.getParameters(),
-                              routingTarget: routingTarget ?? 'warehouse',
-                              preAggregationRoute,
-                              executionExplore,
-                              fieldsMap,
-                              pivotConfiguration,
-                              startOfWeek: warehouseCredentials.startOfWeek,
-                              userAccessControls:
-                                  queryComposer.getUserAccessControls(),
-                              availableParameterDefinitions:
-                                  queryComposer.getAvailableParameterDefinitions(),
-                              queryUuid: queryHistoryUuid,
-                              useTimezoneAwareDateTrunc:
-                                  queryComposer.getUseTimezoneAwareDateTrunc(),
-                              ...(requesterProducer
-                                  ? { resultProducer: requesterProducer }
-                                  : {}),
-                          });
+                    let executionPlan: AsyncQueryExecutionPlan;
+                    if (materializationPin) {
+                        executionPlan =
+                            AsyncQueryService.resolveFileExecutionPlan(
+                                query,
+                                this.bindMaterializationObject(
+                                    materializationObjectKey,
+                                ),
+                                'model_materialization',
+                            );
+                    } else if (externalSourceReference) {
+                        executionPlan =
+                            AsyncQueryService.resolveFileExecutionPlan(
+                                query,
+                                externalSourceReference,
+                                'external_source',
+                            );
+                    } else {
+                        executionPlan =
+                            await this.resolveAsyncQueryExecutionPlan({
+                                projectUuid,
+                                warehouseQuery: query,
+                                metricQuery,
+                                timezone: timezone ?? 'UTC',
+                                dateZoom,
+                                parameters: queryComposer.getParameters(),
+                                routingTarget: routingTarget ?? 'warehouse',
+                                preAggregationRoute,
+                                executionExplore,
+                                fieldsMap,
+                                pivotConfiguration,
+                                startOfWeek: warehouseCredentials.startOfWeek,
+                                userAccessControls:
+                                    queryComposer.getUserAccessControls(),
+                                availableParameterDefinitions:
+                                    queryComposer.getAvailableParameterDefinitions(),
+                                queryUuid: queryHistoryUuid,
+                                useTimezoneAwareDateTrunc:
+                                    queryComposer.getUseTimezoneAwareDateTrunc(),
+                                ...(requesterProducer
+                                    ? { resultProducer: requesterProducer }
+                                    : {}),
+                            });
+                    }
                     const resolveMs = Date.now() - resolveStart;
 
                     this.logger.info(
@@ -7575,6 +7816,10 @@ export class AsyncQueryService extends ProjectService {
                             executionPlan.preAggregateExecution === 'duckdb'
                                 ? 'pre_aggregate_duckdb'
                                 : 'pre_aggregate_warehouse';
+                    } else if (
+                        executionPlan.target === 'model_materialization'
+                    ) {
+                        executedSource = 'model_materialization_duckdb';
                     } else if (executionPlan.target === 'external_source') {
                         executedSource = 'external_source_duckdb';
                     }
@@ -7660,10 +7905,16 @@ export class AsyncQueryService extends ProjectService {
                                         preAggregateExecution:
                                             executionPlan.preAggregateExecution,
                                     });
+                                case 'model_materialization':
                                 case 'external_source':
-                                    return this.runExternalSourceQuery(
+                                    return this.runFileQuery(
                                         warehouseArgs,
-                                        executionPlan.objectScope,
+                                        executionPlan,
+                                        executionPlan.target ===
+                                            'model_materialization'
+                                            ? requesterProducer
+                                            : null,
+                                        liveSql,
                                     );
                                 case 'materialization':
                                 case 'warehouse':
@@ -7692,7 +7943,8 @@ export class AsyncQueryService extends ProjectService {
 
                     if (
                         this.lightdashConfig.natsWorker.enabled &&
-                        executionPlan.target === 'external_source'
+                        (executionPlan.target === 'external_source' ||
+                            executionPlan.target === 'model_materialization')
                     ) {
                         await this.enqueueOnDuckdbWorker({
                             queryUuid: queryHistoryUuid,
@@ -7709,7 +7961,8 @@ export class AsyncQueryService extends ProjectService {
                         });
                     } else if (
                         this.lightdashConfig.natsWorker.enabled &&
-                        executionPlan.target !== 'external_source'
+                        executionPlan.target !== 'external_source' &&
+                        executionPlan.target !== 'model_materialization'
                     ) {
                         this.logger.info(
                             `Enqueueing query ${queryHistoryUuid} on NATS JetStream (${executionPlan.target})`,
@@ -8292,10 +8545,14 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        const warehouseSqlBuilder = getSqlBuilderForExplore(
-            explore,
-            warehouseCredentials,
-        );
+        const { explore: executionBase, warehouseSqlBuilder } =
+            await this.resolveMetricQueryBase(
+                organizationUuid,
+                projectUuid,
+                explore,
+                warehouseCredentials,
+                aiPlan,
+            );
 
         // Combine default parameter values with request parameters first
         const combinedParameters = await this.combineParameters(
@@ -8333,7 +8590,7 @@ export class AsyncQueryService extends ProjectService {
             account,
             metricQuery,
             dateZoom,
-            explore,
+            explore: executionBase,
             warehouseSqlBuilder,
             parameters: combinedParameters,
             projectUuid,
@@ -8391,7 +8648,7 @@ export class AsyncQueryService extends ProjectService {
             aiPlan,
             warehouseCredentials,
             metricQuery: effectiveMetricQuery,
-            explore,
+            explore: executionBase,
             context,
             forceWarehouse: usePreAggregateCache === false,
         });
@@ -8418,6 +8675,7 @@ export class AsyncQueryService extends ProjectService {
         const reuseIdentityEnabled = identityEnabled;
         if (
             reuseQueryUuid &&
+            !this.materializationBindings.has(executionBase) &&
             !(
                 reuseIdentityEnabled &&
                 (reuseReader.kind === 'agent' || reuseAgentIdentity !== null)
@@ -9165,10 +9423,14 @@ export class AsyncQueryService extends ProjectService {
             ...getAccountAgentIdentityFacts(account),
         });
 
-        const warehouseSqlBuilder = getSqlBuilderForExplore(
-            explore,
-            warehouseCredentials,
-        );
+        const { explore: executionBase, warehouseSqlBuilder } =
+            await this.resolveMetricQueryBase(
+                organizationUuid,
+                projectUuid,
+                explore,
+                warehouseCredentials,
+                aiPlan,
+            );
 
         const combinedParameters = await this.combineParameters(
             projectUuid,
@@ -9180,7 +9442,7 @@ export class AsyncQueryService extends ProjectService {
         const queryComposer = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery,
-            explore,
+            explore: executionBase,
             warehouseSqlBuilder,
             parameters: combinedParameters,
             projectUuid,
@@ -9716,10 +9978,14 @@ export class AsyncQueryService extends ProjectService {
             ...getAccountAgentIdentityFacts(account),
         });
 
-        const warehouseSqlBuilder = getSqlBuilderForExplore(
-            explore,
-            warehouseCredentials,
-        );
+        const { explore: executionBase, warehouseSqlBuilder } =
+            await this.resolveMetricQueryBase(
+                savedChartOrganizationUuid,
+                projectUuid,
+                explore,
+                warehouseCredentials,
+                aiPlan,
+            );
 
         // Combine default parameter values, saved chart parameters, and request parameters first
         const combinedParameters = await this.combineParameters(
@@ -9731,7 +9997,7 @@ export class AsyncQueryService extends ProjectService {
 
         const { fields } = await this.getMetricQueryFields({
             metricQuery: metricQueryWithLimit,
-            explore,
+            explore: executionBase,
             warehouseSqlBuilder,
             projectUuid,
         });
@@ -9749,7 +10015,7 @@ export class AsyncQueryService extends ProjectService {
         const queryComposer = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: metricQueryWithLimit,
-            explore,
+            explore: executionBase,
             warehouseSqlBuilder,
             parameters: combinedParameters,
             projectUuid,
@@ -9768,7 +10034,7 @@ export class AsyncQueryService extends ProjectService {
             aiPlan,
             warehouseCredentials,
             metricQuery: metricQueryWithLimit,
-            explore,
+            explore: executionBase,
             context,
             // TODO: allow per-chart preference to bypass pre-aggregate cache
             forceWarehouse: false,
@@ -10744,10 +11010,14 @@ export class AsyncQueryService extends ProjectService {
                 this.projectParametersModel.find(projectUuid),
         ]);
 
-        const warehouseSqlBuilder = getSqlBuilderForExplore(
-            explore,
-            warehouseCredentials,
-        );
+        const { explore: executionBase, warehouseSqlBuilder } =
+            await this.resolveMetricQueryBase(
+                organizationUuid,
+                projectUuid,
+                explore,
+                warehouseCredentials,
+                aiPlan,
+            );
 
         const combinedParameters = await this.resolveDashboardTileParameters({
             projectUuid,
@@ -10771,7 +11041,7 @@ export class AsyncQueryService extends ProjectService {
 
         const { fields, dateZoomApplied } = await this.getMetricQueryFields({
             metricQuery: metricQueryWithLimit,
-            explore,
+            explore: executionBase,
             warehouseSqlBuilder,
             projectUuid,
             dateZoom,
@@ -10789,7 +11059,7 @@ export class AsyncQueryService extends ProjectService {
         const queryComposer = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: metricQueryWithLimit,
-            explore,
+            explore: executionBase,
             dateZoom,
             warehouseSqlBuilder,
             parameters: combinedParameters,
@@ -10813,7 +11083,7 @@ export class AsyncQueryService extends ProjectService {
             aiPlan,
             warehouseCredentials,
             metricQuery: metricQueryWithLimit,
-            explore,
+            explore: executionBase,
             context,
             // TODO: allow dashboard-level option to bypass pre-aggregate cache
             forceWarehouse: false,
@@ -10996,10 +11266,14 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        const warehouseSqlBuilder = getSqlBuilderForExplore(
-            explore,
-            warehouseCredentials,
-        );
+        const { explore: executionBase, warehouseSqlBuilder } =
+            await this.resolveMetricQueryBase(
+                organizationUuid,
+                projectUuid,
+                explore,
+                warehouseCredentials,
+                aiPlan,
+            );
 
         // Combine parameters early so we can filter dimensions by parameter availability
         const combinedParameters = await this.combineParameters(
@@ -11184,7 +11458,7 @@ export class AsyncQueryService extends ProjectService {
         const queryComposer = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: underlyingDataMetricQueryWithLimit,
-            explore,
+            explore: executionBase,
             dateZoom,
             warehouseSqlBuilder,
             parameters: combinedParameters,
@@ -17271,16 +17545,20 @@ export class AsyncQueryService extends ProjectService {
             context,
         });
 
-        const warehouseSqlBuilder = getSqlBuilderForExplore(
-            explore,
-            warehouseCredentials,
-        );
+        const { explore: executionBase, warehouseSqlBuilder } =
+            await this.resolveMetricQueryBase(
+                organizationUuid,
+                projectUuid,
+                explore,
+                warehouseCredentials,
+                aiPlan,
+            );
 
         const queryComposer = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery,
             dateZoom,
-            explore,
+            explore: executionBase,
             warehouseSqlBuilder,
             parameters,
             projectUuid,
@@ -17297,7 +17575,7 @@ export class AsyncQueryService extends ProjectService {
             aiPlan,
             warehouseCredentials,
             metricQuery,
-            explore,
+            explore: executionBase,
             context,
             forceWarehouse: false,
         });

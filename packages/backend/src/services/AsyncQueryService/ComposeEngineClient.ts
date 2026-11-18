@@ -50,12 +50,14 @@ const SCOPED_SESSION_RESOURCE_LIMITS: DuckdbResourceLimits = {
  */
 export type ComposeEngineSession =
     | { storage: 'results'; scope: string[] | null }
-    | { storage: 'externalSources'; scope: string | null };
+    | { storage: 'externalSources'; scope: string | null }
+    | { storage: 'modelMaterializations'; scope: string };
 
 type ComposeEngineStorage = ComposeEngineSession['storage'];
 
 type CreateComposeEngineWarehouseClientArgs = {
     s3Config: DuckdbS3SessionConfig;
+    objectStorageOnly?: boolean;
     sharedResourceLimits?: DuckdbResourceLimits;
     resourceLimits?: DuckdbResourceLimits;
     instanceCacheKey?: string;
@@ -130,6 +132,7 @@ export class ComposeEngineClient {
                 DuckdbWarehouseClient.createForPreAggregate(
                     { type: 'duckdb_s3', s3Config: warehouseArgs.s3Config },
                     {
+                        objectStorageOnly: warehouseArgs.objectStorageOnly,
                         sharedResourceLimits:
                             warehouseArgs.sharedResourceLimits,
                         resourceLimits: warehouseArgs.resourceLimits,
@@ -185,6 +188,16 @@ export class ComposeEngineClient {
                 }
                 return this.withCaCertFile(sessionConfig);
             }
+            case 'modelMaterializations': {
+                const sessionConfig = getDuckdbRuntimeConfig(
+                    this.lightdashConfig.preAggregates.s3,
+                );
+                if (!sessionConfig)
+                    throw new MissingConfigError(
+                        'Model materialization needs pre-aggregates object storage',
+                    );
+                return this.withCaCertFile(sessionConfig);
+            }
             case 'externalSources': {
                 const { s3 } = this.lightdashConfig.preAggregates;
                 const sessionConfig = getDuckdbRuntimeConfig(s3);
@@ -216,6 +229,10 @@ export class ComposeEngineClient {
                 return COMPOSE_ENGINE_INSTANCE_CACHE_KEY;
             case 'externalSources':
                 return EXTERNAL_SOURCES_QUERY_INSTANCE_CACHE_KEY;
+            case 'modelMaterializations':
+                throw new Error(
+                    'A materialized model requires an exact object scope',
+                );
             default:
                 return assertUnreachable(
                     storage,
@@ -230,6 +247,8 @@ export class ComposeEngineClient {
         switch (session.storage) {
             case 'results':
                 return session.scope;
+            case 'modelMaterializations':
+                return [session.scope];
             case 'externalSources':
                 return session.scope === null ? null : [session.scope];
             default:
@@ -260,8 +279,17 @@ export class ComposeEngineClient {
             }
             return this.createDuckdbWarehouseClient({
                 s3Config: { ...s3Config, scope },
+                ...(session.storage === 'modelMaterializations'
+                    ? { objectStorageOnly: true }
+                    : {}),
                 resourceLimits:
-                    this.sharedResourceLimits ?? SCOPED_SESSION_RESOURCE_LIMITS,
+                    session.storage === 'modelMaterializations'
+                        ? {
+                              ...SCOPED_SESSION_RESOURCE_LIMITS,
+                              ...this.sharedResourceLimits,
+                          }
+                        : (this.sharedResourceLimits ??
+                          SCOPED_SESSION_RESOURCE_LIMITS),
                 // Only external sources carry a per-organization cap today
                 organizationConcurrencyLimit:
                     session.storage === 'externalSources'

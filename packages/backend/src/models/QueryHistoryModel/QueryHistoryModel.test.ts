@@ -44,6 +44,63 @@ describe('QueryHistoryModel connection attribution', () => {
 });
 
 describe('QueryHistoryModel', () => {
+    test('keeps the live fallback out of public history and composed-query specs', async () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        const account = buildAccount();
+        const liveSql = 'SELECT amount FROM raw.items';
+        const spec = { kind: 'modelMaterialization', liveSql };
+        tracker.on.insert('query_history').response([{ query_uuid: 'query' }]);
+        tracker.on.select('query_history').response({
+            query_uuid: 'query',
+            project_uuid: 'project',
+            created_by_user_uuid: account.user.id,
+            duckdb_execution: spec,
+        });
+        try {
+            const model = new QueryHistoryModel({ database });
+            const metricQuery = {
+                exploreName: 'items',
+                dimensions: [],
+                metrics: [],
+                sorts: [],
+                filters: {},
+                tableCalculations: [],
+                limit: 5,
+            };
+            await model.create(account, {
+                organizationUuid: 'org',
+                projectUuid: 'project',
+                context: QueryExecutionContext.EXPLORE,
+                compiledSql: 'SELECT amount FROM reserved_relation',
+                metricQuery,
+                fields: {},
+                requestParameters: {
+                    context: QueryExecutionContext.EXPLORE,
+                    query: metricQuery,
+                },
+                usedParameters: null,
+                cacheKey: 'key',
+                pivotConfiguration: null,
+                originalColumns: null,
+                modelMaterializationLiveSql: liveSql,
+            });
+            expect(tracker.history.insert[0].bindings).toContainEqual(
+                JSON.stringify(spec),
+            );
+            await expect(
+                model.getMaterializationLiveSql('query'),
+            ).resolves.toBe(liveSql);
+            await expect(model.getDuckdbExecution('query')).resolves.toBeNull();
+            const history = await model.get('query', 'project', account);
+            expect(JSON.stringify(history)).not.toContain(liveSql);
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    });
+
     test.each([
         {
             excludeAgentProduced: true,

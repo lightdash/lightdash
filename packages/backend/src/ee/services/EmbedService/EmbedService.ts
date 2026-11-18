@@ -1286,6 +1286,7 @@ export class EmbedService extends BaseService {
 
                 const results =
                     await this.projectService.getResultsFromCacheOrWarehouse({
+                        explore: filteredExplore,
                         projectUuid,
                         userUuid: null,
                         user: {

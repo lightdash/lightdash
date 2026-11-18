@@ -11968,6 +11968,7 @@ export class ProjectService
         warehouseClient,
         query,
         metricQuery,
+        explore,
         resolvedTimezone,
         queryTags,
         invalidateCache,
@@ -11985,6 +11986,7 @@ export class ProjectService
         warehouseClient: WarehouseClient;
         query: AnyType;
         metricQuery: MetricQuery;
+        explore: Explore;
         queryTags: Omit<RunQueryTags, 'query_context'>; // We already have context in the context parameter
         invalidateCache?: boolean;
         bypassResultsCache?: boolean;
@@ -11997,6 +11999,22 @@ export class ProjectService
             'ProjectService.getResultsFromCacheOrWarehouse',
             {},
             async (span) => {
+                const { enabled } = await this.featureFlagModel.get({
+                    featureFlagId: FeatureFlags.SemanticStudioEditing,
+                    user: { organizationUuid: user.organizationUuid },
+                });
+                if (
+                    enabled &&
+                    (await this.projectModel.hasActiveMaterializedTable(
+                        projectUuid,
+                        Object.values(explore.tables).map(
+                            (table) => table.originalName ?? table.name,
+                        ),
+                    ))
+                )
+                    throw new ParameterError(
+                        'This execution path does not support materialized models.',
+                    );
                 // Key on the resolved timezone (not the raw setting) so the
                 // cache reflects project/user fallbacks and invalidates when the
                 // project timezone changes.
@@ -12440,6 +12458,7 @@ export class ProjectService
                             );
                             const { rows, cacheMetadata } =
                                 await this.getResultsFromCacheOrWarehouse({
+                                    explore,
                                     projectUuid,
                                     userUuid,
                                     user: {

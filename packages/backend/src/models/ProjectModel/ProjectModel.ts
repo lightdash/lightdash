@@ -3575,6 +3575,24 @@ export class ProjectModel {
         return row?.warehouse_connection_uuid ?? null;
     }
 
+    async hasActiveMaterializedTable(
+        projectUuid: string,
+        tableNames: string[],
+    ): Promise<boolean> {
+        if (tableNames.length === 0) return false;
+        const active = await this.database('model_materialization_configs as c')
+            .join(
+                'project_model_documents as d',
+                'd.project_model_document_uuid',
+                'c.document_uuid',
+            )
+            .where('d.project_uuid', projectUuid)
+            .whereIn('d.name', tableNames)
+            .whereNotNull('c.active_generation_uuid')
+            .first('c.config_uuid');
+        return Boolean(active);
+    }
+
     async getExploreFromCache(
         projectUuid: string,
         exploreName: string,

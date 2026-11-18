@@ -70,6 +70,8 @@ export type TrustedQueryResultParameters = Pick<
     | 'resultEffectiveParameters'
     | 'cacheSourceQueryUuid'
     | 'externalSourceReferences'
+    | 'modelMaterialization'
+    | 'resultProducer'
     | 'analyticsActivityWindow'
     | 'composerChartSource'
 >;
@@ -90,6 +92,7 @@ export const getQueryResultRequestParameters = (
     resultEffectiveParameters: undefined,
     cacheSourceQueryUuid: undefined,
     externalSourceReferences: undefined,
+    modelMaterialization: undefined,
     analyticsActivityWindow: undefined,
     composerChartSource: undefined,
     ...trusted,

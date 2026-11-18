@@ -63,7 +63,10 @@ export type DbQueryHistory = {
     pre_aggregate_execution: PreAggregateExecutionEngine | null; // engine for pre_aggregate_compiled_sql
     pre_aggregate_fallback_reason: PreAggregateFallbackReason | null; // non-null ⇒ matched but served from source warehouse
     processing_started_at: Date | null; // when the NATS worker picked up the job
-    duckdb_execution: DuckdbExecutionSpec | null; // how a DuckDB source query runs, for the worker to rebuild it
+    duckdb_execution:
+        | DuckdbExecutionSpec
+        | { kind: 'modelMaterialization'; liveSql: string }
+        | null; // how a DuckDB source query runs, for the worker to rebuild it
     // Copied out of the JSON columns so queries can filter and join on them without detoasting.
     request_chart_uuid: string | null;
     request_saved_sql_uuid: string | null;

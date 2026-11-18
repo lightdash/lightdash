@@ -2385,6 +2385,22 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
 
         await DuckdbWarehouseClient.hardenInstance(db);
 
+        if (this.objectStorageOnly) {
+            const paths = this.s3Config?.scope;
+            if (!paths?.length)
+                throw new Error(
+                    'A scoped DuckDB session requires object paths',
+                );
+            const escape = DuckdbWarehouseClient.escapeDuckdbString;
+            await db.run(
+                `SET allowed_paths = [${paths.map((uri) => `'${escape(uri)}'`).join(', ')}]`,
+            );
+            await db.run(`SET allowed_directories = ['${escape(tempDir)}/']`);
+            await db.run("SET allowed_configs = ['TimeZone']");
+            await db.run('SET enable_external_access = false');
+            await db.run('SET lock_configuration = true');
+        }
+
         this.logger?.info(
             `DuckDB isolated bootstrap: memory_limit=${this.resourceLimits?.memoryLimit ?? 'default'} threads=${this.resourceLimits?.threads ?? 'default'} s3=${this.s3Config ? 'configured' : 'none'} ducklake=${this.ducklakeConfig ? 'configured' : 'none'}`,
         );
