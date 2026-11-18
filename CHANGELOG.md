@@ -1,3 +1,10 @@
+# [3.314.0](https://github.com/lightdash/lightdash/compare/3.313.0...3.314.0) (2026-11-18)
+
+
+### Features
+
+* **data-apps:** emit events from an embedded app to the host page ([#32827](https://github.com/lightdash/lightdash/issues/32827)) ([73ee9ad](https://github.com/lightdash/lightdash/commit/73ee9ad43b445bc6f895150263e9084b2a45617b))
+
 # [3.313.0](https://github.com/lightdash/lightdash/compare/3.312.0...3.313.0) (2026-11-18)
 
 
