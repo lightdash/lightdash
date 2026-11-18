@@ -30,8 +30,6 @@ const SAME_IN_EITHER_VIEW = new Set([
 ]);
 
 const PROJECT_IN_PATH = /\/projects\/([^/]+)/;
-// Studio shows the checkout itself, and its Try switch decides what it reads.
-const STUDIO_PATH = /\/projects\/[^/]+\/semantic-layer(?=\/|$)/;
 
 const findProjectInPath = (pathname: string): string | null =>
     PROJECT_IN_PATH.exec(pathname)?.[1] ?? null;
@@ -75,8 +73,8 @@ export const getDevelopmentViewHeaders = (): Record<string, string> => {
                 ...(preview ? { [DEVELOPMENT_PREVIEW_HEADER]: preview } : {}),
             };
         }
-        return isOnFor(localStorage.getItem(CHECKOUT_STORAGE_KEY), pathname) &&
-            !STUDIO_PATH.test(pathname)
+        // A checked-out draft is what every page of its project reads, Studio included.
+        return isOnFor(localStorage.getItem(CHECKOUT_STORAGE_KEY), pathname)
             ? { [DEVELOPMENT_VIEW_HEADER]: 'true' }
             : {};
     } catch {
