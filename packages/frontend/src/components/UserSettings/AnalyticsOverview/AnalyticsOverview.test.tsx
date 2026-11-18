@@ -299,7 +299,7 @@ describe('Analytics settings overview', () => {
         await userEvent.click(screen.getByRole('tab', { name: 'Queries' }));
         expect(screen.getByTitle('Queries dashboard')).toHaveAttribute(
             'src',
-            '/minimal/projects/analytics-slug/dashboards/lightdash-analytics-query-activity',
+            '/minimal/projects/analytics-slug/dashboards/lightdash-analytics-query-activity?hideTabs=true',
         );
         expect(screen.queryByText('Last 30 days')).not.toBeInTheDocument();
         expect(

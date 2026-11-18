@@ -481,6 +481,7 @@ const AnalyticsOverview = ({
                             aria-hidden={!isShown || undefined}
                         >
                             <AnalyticsDashboardEmbed
+                                projectUuid={projectUuid}
                                 projectUrlIdentifier={projectUrlIdentifier}
                                 slug={slug}
                                 name={opened.name}

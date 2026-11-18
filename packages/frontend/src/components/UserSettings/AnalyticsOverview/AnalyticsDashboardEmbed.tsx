@@ -1,6 +1,7 @@
 import { DASHBOARD_GRID_CLASS } from '@lightdash/common';
-import { Box, Center, Loader } from '@mantine/core';
-import { useEffect, useState } from 'react';
+import { Box, Center, Loader, SegmentedControl } from '@mantine/core';
+import { useEffect, useMemo, useState } from 'react';
+import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import classes from './AnalyticsOverview.module.css';
 
 const LOADING_HEIGHT = 480;
@@ -49,40 +50,90 @@ const useDashboardFrame = () => {
             stopWatching();
         };
     }, [frame]);
-    return { ref: setFrame, height };
+    return { ref: setFrame, frame, height };
 };
 
 const AnalyticsDashboardEmbed = ({
+    projectUuid,
     projectUrlIdentifier,
     slug,
     name,
 }: {
+    projectUuid: string;
     projectUrlIdentifier: string;
     slug: string;
     name: string;
 }) => {
     const fit = useDashboardFrame();
     const isLoading = fit.height === null;
+    const dashboard = useDashboardQuery({ uuidOrSlug: slug, projectUuid });
+    const tabs = useMemo(
+        () =>
+            (dashboard.data?.tabs ?? [])
+                .filter((tab) => !tab.hidden)
+                .toSorted((a, b) => a.order - b.order),
+        [dashboard.data?.tabs],
+    );
+    const [chosenTab, setChosenTab] = useState<string | null>(null);
+    const path = `/minimal/projects/${projectUrlIdentifier}/dashboards/${slug}`;
+    // The tabs are offered here, in the style of this page, so the dashboard is asked to leave its own out
+    const query = '?hideTabs=true';
+    const openTab = (tabUuid: string) => {
+        setChosenTab(tabUuid);
+        // The dashboard moves to the tab where it is, with no reload: its address changes and it is told to look
+        const view = fit.frame?.contentWindow;
+        if (!view) return;
+        view.history.replaceState(
+            view.history.state,
+            '',
+            `${path}/view/tabs/${tabUuid}${query}`,
+        );
+        view.dispatchEvent(
+            new PopStateEvent('popstate', { state: view.history.state }),
+        );
+    };
     return (
-        <Box pos="relative" className={classes.dashboardEmbed}>
-            {isLoading && (
-                <Center
-                    h={LOADING_HEIGHT}
-                    role="status"
-                    aria-label={`Loading ${name} dashboard`}
-                >
-                    <Loader size="sm" />
-                </Center>
+        <Box>
+            {tabs.length > 1 && (
+                <Box className={classes.dashboardTabs}>
+                    <SegmentedControl
+                        size="xs"
+                        withItemsBorders={false}
+                        classNames={{
+                            label: classes.dateOption,
+                            root: classes.dateControl,
+                            indicator: classes.dateIndicator,
+                        }}
+                        aria-label={`${name} sections`}
+                        value={chosenTab ?? tabs[0].uuid}
+                        onChange={openTab}
+                        data={tabs.map((tab) => ({
+                            value: tab.uuid,
+                            label: tab.name,
+                        }))}
+                    />
+                </Box>
             )}
-            <iframe
-                ref={fit.ref}
-                src={`/minimal/projects/${projectUrlIdentifier}/dashboards/${slug}`}
-                title={`${name} dashboard`}
-                height={fit.height ?? LOADING_HEIGHT}
-                scrolling="no"
-                className={classes.dashboardFrame}
-                data-loading={isLoading || undefined}
-            />
+            <Box pos="relative" className={classes.dashboardFrameBox}>
+                {isLoading && (
+                    <Center
+                        h={LOADING_HEIGHT}
+                        role="status"
+                        aria-label={`Loading ${name} dashboard`}
+                    >
+                        <Loader size="sm" />
+                    </Center>
+                )}
+                <iframe
+                    ref={fit.ref}
+                    src={`${path}${query}`}
+                    title={`${name} dashboard`}
+                    height={fit.height ?? LOADING_HEIGHT}
+                    scrolling="no"
+                    className={classes.dashboardFrame}
+                    data-loading={isLoading || undefined}
+                />
+            </Box>
         </Box>
     );
 };

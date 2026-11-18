@@ -137,9 +137,14 @@
     visibility: hidden;
 }
 
-.dashboardEmbed {
-    /* The dashboard pads itself by one grid gap; pull it out so its tiles line up with the tabs */
-    margin-inline: calc(-1 * var(--mantine-spacing-sm));
+.dashboardFrameBox {
+    /* The dashboard insets its tiles by half a grid gap; pull it out so they line up with the tabs */
+    margin-inline: -5px;
+}
+
+.dashboardTabs {
+    overflow-x: auto;
+    margin-bottom: var(--mantine-spacing-xs);
 }
 
 .dashboardFrame {
