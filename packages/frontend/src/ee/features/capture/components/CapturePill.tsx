@@ -1,6 +1,7 @@
 import { IconX } from '@tabler/icons-react';
 import { forwardRef, useEffect, useState } from 'react';
 import { formatClock } from '../buildSummary';
+import { CAPTURE_IGNORE_ATTRIBUTE } from '../frameSource';
 import { type VoiceState } from '../types';
 import { type VoiceOffReason } from '../useVoiceRecorder';
 import classes from './CapturePill.module.css';
@@ -61,6 +62,7 @@ const CapturePill = forwardRef<HTMLDivElement, Props>(
                 ref={ref}
                 className={classes.wrapper}
                 data-hidden={hidden}
+                {...{ [CAPTURE_IGNORE_ATTRIBUTE]: '' }}
                 tabIndex={-1}
                 role="status"
             >
