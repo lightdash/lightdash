@@ -13,9 +13,9 @@ import {
     CHECKOUT_KEY,
     DRAFT_KEY,
     useCanEditSemanticLayer,
+    WORKSPACES_KEY,
 } from './useSemanticLayerModel';
 
-export const WORKSPACES_KEY = 'semantic-studio-workspaces';
 const toUrl = (projectUuid: string, path: string) =>
     `/projects/${projectUuid}/semantic-studio/workspaces${path}`;
 

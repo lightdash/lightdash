@@ -80,6 +80,7 @@ export const useSemanticLayerStatus = (projectUuid: string) =>
     ).data;
 
 export const CHECKOUT_KEY = 'semantic-studio-checkout';
+export const WORKSPACES_KEY = 'semantic-studio-workspaces';
 
 /** The draft this person has checked out, which the whole app shows them; null on what is published. */
 export const useDraftCheckout = (projectUuid: string | undefined) =>
@@ -320,9 +321,18 @@ export const useRefreshSemanticLayerDraft = (projectUuid: string) => {
     const queryClient = useQueryClient();
     return useCallback(
         () =>
-            queryClient.invalidateQueries({
-                queryKey: [DRAFT_KEY, projectUuid],
-            }),
+            // The agent's edit can start a draft and check it out, so everything that reads the draft moves with it.
+            Promise.all(
+                [
+                    [DRAFT_KEY, projectUuid],
+                    [DRAFT_STATE_KEY, projectUuid],
+                    [CHECKOUT_KEY, projectUuid],
+                    [WORKSPACES_KEY, projectUuid],
+                    ['tables'],
+                ].map((queryKey) =>
+                    queryClient.invalidateQueries({ queryKey }),
+                ),
+            ),
         [queryClient, projectUuid],
     );
 };

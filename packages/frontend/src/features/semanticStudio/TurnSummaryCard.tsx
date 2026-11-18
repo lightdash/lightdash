@@ -37,6 +37,7 @@ import {
     useSemanticLayerDraft,
     useSemanticLayerDraftImpact,
 } from './useSemanticLayerModel';
+import { useStudioCheckout } from './useStudioCheckout';
 
 const KIND_LABELS: Record<FieldChange['kind'], string> = {
     dimension: 'Dimension',
@@ -201,6 +202,7 @@ export const TurnSummaryCard: FC<{
     isLatest: boolean;
 }> = ({ projectUuid, proposals, onAsk, isLatest }) => {
     const { data: draft } = useSemanticLayerDraft(projectUuid);
+    const { shown: checkedOut } = useStudioCheckout();
     const { data: impact } = useSemanticLayerDraftImpact(projectUuid, null);
     const refresh = useRefreshSemanticLayerDraft(projectUuid);
     const discard = useDiscardDraftChange(projectUuid);
@@ -235,11 +237,11 @@ export const TurnSummaryCard: FC<{
         return modelUrl(model);
     };
     const issues = proposals.flatMap(listProposalIssues);
+    // The draft's own name, as the picker shows it; the model is named on its rows.
     const name =
         proposals.find(({ startedChange }) => startedChange)?.startedChange
             ?.name ??
-        groups[0]?.title ??
-        null;
+        (phase.kind === 'draft' ? (checkedOut?.workspace?.name ?? null) : null);
 
     const isDraft = phase.kind === 'draft';
     const safety = isDraft ? getSafety(phase.error, impact) : null;
