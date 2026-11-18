@@ -391,7 +391,7 @@ const ChangesSwitch: FC<{
         label={
             unavailableReason ??
             (isOnMyChanges
-                ? 'Explore, charts and dashboards are reading your changes. Only you see this. Click to go back to live.'
+                ? 'Explore, charts and dashboards are reading your changes. Only you see this. Click to go back to Published.'
                 : 'Try your changes in Explore, charts and dashboards. Only you see it.')
         }
     >

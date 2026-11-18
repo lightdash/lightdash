@@ -252,7 +252,7 @@ const IMPACT_CHECK_TIMEOUT_MS = 10 * 60 * 1000;
 
 const NO_IMPACT: SemanticLayerDraftImpact = { status: 'done', breaks: [] };
 
-const UNTITLED_WORKSPACE_NAME = 'Untitled change';
+const UNTITLED_WORKSPACE_NAME = 'Untitled';
 
 /** Identifies a draft on top of what is live, so a check of one is not read as a check of another. */
 const hashDraft = (

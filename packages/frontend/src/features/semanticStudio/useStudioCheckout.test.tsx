@@ -106,7 +106,7 @@ const shownUuid = (state: ReturnType<typeof useStudioCheckout>) =>
     state.shown?.workspace?.workspaceUuid ?? null;
 
 describe('useStudioCheckoutState', () => {
-    it('keeps the current change on screen until the next has loaded, from A to B to Live', async () => {
+    it('keeps the current change on screen until the next has loaded, from A to B to Published', async () => {
         const { result, checkOut, answer } = setup('A');
         await answer('A', draftA);
         await waitFor(() => expect(shownUuid(result.current)).toBe('A'));
@@ -141,7 +141,7 @@ describe('useStudioCheckoutState', () => {
     });
 });
 
-describe('the checkout leaving Live', () => {
+describe('the checkout leaving Published', () => {
     it('says which change an agent edit started and checked out', async () => {
         showToastInfo.mockClear();
         const { result, checkOut, answer } = setup(null);
@@ -151,7 +151,7 @@ describe('the checkout leaving Live', () => {
         await waitFor(() => expect(shownUuid(result.current)).toBe('A'));
         expect(showToastInfo).toHaveBeenCalledTimes(1);
         expect(showToastInfo).toHaveBeenCalledWith({
-            title: 'Now on Change A',
+            title: 'Now on draft: Change A',
         });
     });
 

@@ -20,7 +20,7 @@ export const nameFromRequest = (request: string | undefined): string => {
             .split('\n')
             .map((text) => text.trim())
             .find((text) => text && !/, lines \d+ to \d+:$/.test(text)) ?? '';
-    if (!line) return 'Untitled change';
+    if (!line) return 'Untitled';
     const named = line.charAt(0).toUpperCase() + line.slice(1);
     return named.length > NAME_LENGTH
         ? `${named.slice(0, NAME_LENGTH - 1).trimEnd()}…`

@@ -42,13 +42,13 @@ const picker = (state: StudioCheckoutState) => (
     </StudioCheckoutProvider>
 );
 
-const trigger = () => screen.getByRole('button', { name: /Change|Live/ });
+const trigger = () => screen.getByRole('button', { name: /Draft|Published/ });
 
 describe('StudioCheckoutPicker', () => {
-    it('checks out B from A, keeps A until B has loaded, then goes back to Live', async () => {
+    it('checks out B from A, keeps A until B has loaded, then goes back to Published', async () => {
         const user = userEvent.setup();
         const { rerender } = renderWithProviders(picker(on(A)));
-        expect(trigger()).toHaveTextContent('Change A');
+        expect(trigger()).toHaveTextContent('Draft: Change A');
 
         await user.click(trigger());
         await user.click(
@@ -67,11 +67,13 @@ describe('StudioCheckoutPicker', () => {
         rerender(picker(on(B)));
         expect(trigger()).toHaveTextContent('Change B');
         expect(screen.getByRole('status')).toHaveTextContent(
-            'Change B is checked out',
+            'Draft: Change B is checked out',
         );
 
         await user.click(trigger());
-        await user.click(await screen.findByRole('menuitem', { name: 'Live' }));
+        await user.click(
+            await screen.findByRole('menuitem', { name: 'Published' }),
+        );
         expect(mutate).toHaveBeenLastCalledWith(
             { kind: 'leave' },
             expect.anything(),
@@ -83,12 +85,12 @@ describe('StudioCheckoutPicker', () => {
         renderWithProviders(picker(on(A)));
         await user.click(trigger());
         await user.click(
-            await screen.findByRole('menuitem', { name: 'New change' }),
+            await screen.findByRole('menuitem', { name: 'New draft' }),
         );
         expect(mutate).toHaveBeenLastCalledWith(
             {
                 kind: 'start',
-                body: { threadUuid: null, name: 'Untitled change' },
+                body: { threadUuid: null, name: 'Untitled' },
             },
             expect.anything(),
         );
