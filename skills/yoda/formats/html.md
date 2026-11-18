@@ -1,32 +1,29 @@
 # HTML
 
-Render [canonical JSON](json.md) with [text.md](text.md)'s section visibility, ordering, tables and identifier treatment.
-Show inline with `show_widget`; publish with the Artifact tool when a shareable link/page is requested.
-Both use the same markup, with different theme tokens.
+Render [canonical JSON](json.md) as one segmented card, using [assets/template.html](../assets/template.html) as the template.
+Copy its markup, class names and tokens, and replace its reference content with the review.
+Show inline with `show_widget`; publish with the Artifact tool when a shareable link is requested.
 
-## Layout
+## Segments
 
-One column with generous spacing:
+One card, segments split by hairlines, in this order:
 
-1. **Header:** subject, muted PR/branch identity, author and the bare head hash (no `head` label); no badges.
-2. **Signal:** labels muted, values as small pills.
-   Verdict green/amber/red for approve/notes/changes; Testing grey/amber/red for enough/thin/missing; Impact (highest diff impact) red/amber/blue/grey for breaking/notable/minor/none. No summary prose.
-3. **Findings:** headed `Findings · N` with the count; lens/state above markdown; red left edge for Fix, amber for Heads-up.
-4. **Testing:** headed `Testing · N` with the row count; kind, What, How table; kind muted on its first row, How small muted mono.
-   Testing and Diff tables share fixed column widths (first column, mark column, text), so columns line up across sections.
-5. **Diff:** Breaking/Notable tables headed with impact and count, in impact colour.
-   Minor follows as its own table, headed `Minor · N` in muted grey, not collapsed.
-   Three columns: muted lens (first row only), mono change mark without background, then name/extras/note joined by ` · `.
-   Only identifier names get pills.
-   Change marks use git-added/removed/modified tokens, falling back to success/danger/warning. Rows stay quiet.
-6. **Footer:** hairline, muted line count; no CI line.
+1. **Header:** the pixel Yoda ([assets/yoda.png](../assets/yoda.png), 16px, embedded as a base64 data URI), then the verdict in its colour (green approve, amber notes, red changes); the PR as `#N` linked on the right, muted mono; the subject below.
+2. **Findings:** one block per finding, state (red Fix, amber Heads-up) then the lens muted, then the finding markdown as muted prose with identifiers in mono.
+   Omit the segment when there are none.
+3. **Testing:** `Testing` then the rating (muted enough, amber thin, red missing).
+   Rows below follow the diff's row shape: green `✓` for a verification, amber `○` for a gap, then What, with How muted and right-aligned.
+   Gaps first, as the schema orders them; no rows when there are none.
+4. **Diff:** one linear list in schema order, without lens groups.
+   Each row is a mark, the name in mono with extras muted beside it, the lens muted and right-aligned on the name line, and the note below.
+   - Marks: `+` added on a green tint, `−` deleted on a red tint with the name struck through; modified rows have no mark and no tint.
+   - Impact: breaking adds a red `breaking` word after the name; notable is plain; minor mutes the name and note.
+
+No counts, badges, pills, borders on rows, tables, collapsing or footer.
 
 ## Theme
 
-- Use tokens, never raw element colours: `--fix`, `--heads`, `--ok`, `--accent`, `--line`, `--muted` and soft status variants.
-- **Inline:** call `read_me`; map tokens to widget variables (`--text-danger`, `--text-warning`, `--text-success`, `--text-accent`, `--border`, `--text-secondary`, background variants).
-  Transparent background, no page padding.
-- **Published:** load `artifact-design`; define light/dark `:root` tokens, a two-to-four-word title and icon `review`.
-- Outside Diff, red means Fix/changes/missing; amber Heads-up/notes/thin; green approve; grey enough/checked/clear.
-  Diff uses impact-header and git-mark colours.
-- Finding identifiers/routes/flags/numbers: mono pills on `--surface-1`, hairline border, small radius.
+- **Published:** keep the template's `:root` tokens and dark mode, title and icon `review`.
+- **Inline:** call `read_me`; drop the page background and map tokens to widget variables (`--text-success`, `--bg-success`, `--text-danger`, `--bg-danger`, `--text-warning`, `--text-muted`, `--text-secondary`, `--border`, `--surface-2`).
+  Render the card directly, with no backdrop around it.
+  Give every row an explicit background and prefix any custom properties (`--yoda-*`), since the host defines short names like `--t`.
