@@ -17840,12 +17840,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     aiWritebackEnabled = false;
                 }
 
-                // On a dbt project Semantic Studio proposes first: the pull request tools join only the turn the person asks for one.
                 if (
                     semanticStudioStatus !== null &&
-                    (!semanticStudioStatus.enabled ||
-                        (!semanticStudioDrafts &&
-                            !options.toolHints?.includes('editDbtProject')))
+                    !semanticStudioStatus.enabled
                 ) {
                     aiWritebackEnabled = false;
                 }

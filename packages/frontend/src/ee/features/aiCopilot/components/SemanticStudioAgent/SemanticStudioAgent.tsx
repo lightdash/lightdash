@@ -10,13 +10,11 @@ import {
     Center,
     Group,
     Loader,
-    Stack,
     Text,
     Tooltip,
 } from '@mantine/core';
 import {
     IconArrowBackUp,
-    IconGitPullRequest,
     IconMessagePlus,
     IconLayoutSidebarRightCollapse,
     IconPlus,
@@ -62,11 +60,6 @@ import {
     useStudioThread,
     type StoredThread,
 } from './useSemanticStudioChat';
-import {
-    useStudioPendingChange,
-    useStudioProposal,
-    useStudioPullRequest,
-} from './useStudioPullRequest';
 
 type OpenModel = { modelName: string | null; fieldName: string | null };
 
@@ -297,14 +290,6 @@ const ExistingThread: FC<
         onAttachedSent();
     };
     useAskedPrompt({ prompt, onPromptTaken }, (message) => send({ message }));
-    const keepsDraft = useKeepsSemanticLayerDraft(projectUuid);
-    const pullRequest = useStudioPullRequest(projectUuid);
-    // A save under way already has the proposal, so it is not offered twice.
-    const pendingChange = useStudioPendingChange(projectUuid);
-    const proposal = useStudioProposal(projectUuid);
-    // Unknown counts as open, so a slow or unavailable status check never offers a second pull request.
-    const isClosed = !!pullRequest?.ciChecks && !pullRequest.isOpen;
-    const isRequestingPullRequest = useRef(false);
     if (isLoading || !thread) {
         return (
             <Center flex={1}>
@@ -322,60 +307,6 @@ const ExistingThread: FC<
             agentUuid={agent.uuid}
             renderArtifactsInline
         >
-            {!keepsDraft && !isBusy && !pendingChange && proposal.length > 0 ? (
-                <div className={classes.pullRequestPrompt}>
-                    <Stack className={classes.pullRequestCard} gap="sm">
-                        <Group gap="sm" wrap="nowrap">
-                            <span className={classes.pullRequestIcon}>
-                                <MantineIcon
-                                    icon={IconGitPullRequest}
-                                    size={16}
-                                />
-                            </span>
-                            <Stack gap={0} flex={1} miw={0}>
-                                <Text fz="sm" fw={500}>
-                                    {pullRequest && !isClosed
-                                        ? 'Add this to your pull request?'
-                                        : 'Happy with this change?'}
-                                </Text>
-                                <Text fz="xs" c="dimmed">
-                                    {!pullRequest
-                                        ? 'You can try it once its pull request opens.'
-                                        : isClosed
-                                          ? 'Your last pull request is closed, so this opens a new one.'
-                                          : 'Commits it to the same pull request.'}
-                                </Text>
-                            </Stack>
-                        </Group>
-                        <Button
-                            size="xs"
-                            fullWidth
-                            onClick={() => {
-                                if (isRequestingPullRequest.current) return;
-                                isRequestingPullRequest.current = true;
-                                void sendMessage({
-                                    enableSqlMode: sqlMode,
-                                    prompt: !pullRequest
-                                        ? 'Open the pull request.'
-                                        : isClosed
-                                          ? 'Open a new pull request.'
-                                          : 'Save this to the pull request.',
-                                    // The pull request tools only join a turn that carries this hint.
-                                    toolHints: ['editDbtProject'],
-                                }).finally(() => {
-                                    isRequestingPullRequest.current = false;
-                                });
-                            }}
-                        >
-                            {!pullRequest
-                                ? 'Open pull request'
-                                : isClosed
-                                  ? 'Open new pull request'
-                                  : 'Save to pull request'}
-                        </Button>
-                    </Stack>
-                </div>
-            ) : null}
             {thread.messages.length === 0 && !isBusy ? (
                 <Text fz="xs" c="dimmed" ta="center" px="md" pb="xs">
                     You edited this change by hand. Ask for more here, or merge

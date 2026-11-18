@@ -376,13 +376,12 @@ export const getSystemPromptV2 = (
                           schema: args.warehouseSchema ?? null,
                       }
                     : null,
-                // Only a dbt project's Studio thread reads the repository; the writeback tools join the turn that opens the pull request.
+                // Only a dbt project's Studio thread reads the repository; it saves when the writeback tools load.
                 dbt:
                     promptSections.has('repoFs') ||
                     promptSections.has('aiWriteback')
                         ? {
-                              opensPullRequest:
-                                  promptSections.has('aiWriteback'),
+                              saves: promptSections.has('aiWriteback'),
                               codeMode: semanticStudioCodeMode,
                               sections: [
                                   ...(promptSections.has('aiWriteback')
