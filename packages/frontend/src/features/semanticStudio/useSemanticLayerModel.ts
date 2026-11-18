@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     FeatureFlags,
     type ApiError,
     type ApiResponse,
@@ -13,6 +14,7 @@ import {
     type SemanticLayerModelCode,
     type SemanticLayerStatus,
     type SemanticLayerStoredModels,
+    type SemanticStudioBranchCompile,
     type SemanticStudioCheckout,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -78,7 +80,7 @@ export const useSemanticLayerStatus = (projectUuid: string) =>
 export const CHECKOUT_KEY = 'semantic-studio-checkout';
 
 /** The draft this person has checked out, which the whole app shows them; null on what is published. */
-const useDraftCheckout = (projectUuid: string | undefined) =>
+export const useDraftCheckout = (projectUuid: string | undefined) =>
     useGet<SemanticStudioCheckout | null>(
         [CHECKOUT_KEY, projectUuid ?? null],
         projectUuid ?? '',
@@ -109,10 +111,29 @@ export const useDraftCheckoutView = (
     return data ?? null;
 };
 
+/** What a draft's branch compile tells the person; null once it is ready. */
+export const describeBranchCompile = (
+    compile: SemanticStudioBranchCompile,
+): string | null => {
+    switch (compile.status) {
+        case 'ready':
+            return null;
+        case 'compiling':
+            return compile.hasExplores
+                ? 'Compiling the latest edit.'
+                : 'Compiling. Published models show until it is ready.';
+        case 'failed':
+            return 'The latest compile failed.';
+        default:
+            return assertUnreachable(compile.status, 'Unknown compile status');
+    }
+};
+
 /** Compiles the checked-out draft's branch again. */
 export const useCompileCheckout = (projectUuid: string) => {
     const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
     return useMutation<SemanticStudioCheckout | null, ApiError>({
         mutationFn: () =>
             lightdashApi<SemanticStudioCheckout | null>({
@@ -122,6 +143,11 @@ export const useCompileCheckout = (projectUuid: string) => {
             }),
         onSuccess: (checkout) =>
             queryClient.setQueryData([CHECKOUT_KEY, projectUuid], checkout),
+        onError: ({ error }) =>
+            showToastApiError({
+                title: 'Could not compile again',
+                apiError: error,
+            }),
     });
 };
 

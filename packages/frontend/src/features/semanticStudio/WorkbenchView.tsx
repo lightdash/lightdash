@@ -27,6 +27,7 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import {
+    IconAlertTriangle,
     IconArrowLeft,
     IconArrowUpRight,
     IconBolt,
@@ -37,6 +38,7 @@ import {
     IconGitBranch,
     IconMessage,
     IconPlus,
+    IconRefresh,
     IconSearch,
 } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -164,7 +166,10 @@ import { useExploreFields } from './useExploreFields';
 import { useGoingLive } from './useGoingLive';
 import { usePreAggregatesByModel } from './usePreAggregatesByModel';
 import {
+    describeBranchCompile,
     useCanEditSemanticLayer,
+    useCompileCheckout,
+    useDraftCheckout,
     useKeepsSemanticLayerDraft,
     useDraftFreshness,
     useSemanticLayerDraft,
@@ -1668,6 +1673,17 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     // Like a git branch: which change you are on, or live, and the way to the others.
     const isChangeInSources = pane === 'sources' && !!sourcesPrUrl;
     const { checkOut, isBusy: isCheckingOut } = useCheckOut(view.project.id);
+    const { data: draftCheckout } = useDraftCheckout(view.project.id);
+    const compileAgain = useCompileCheckout(view.project.id);
+    // The compile belongs to the server checkout, so it shows only on that draft.
+    const branchCompile =
+        isOnMyChange &&
+        draftCheckout?.workspaceUuid === shownWorkspace?.workspaceUuid
+            ? (draftCheckout?.branchCompile ?? null)
+            : null;
+    const compileDescription = branchCompile
+        ? describeBranchCompile(branchCompile)
+        : null;
     const changePicker = keepsDraft ? (
         canEditModels ? (
             <StudioCheckoutPicker
@@ -1691,8 +1707,23 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     maw={420}
                     className={classes.pickerTitle}
                     leftSection={<MantineIcon icon={IconGitBranch} size={14} />}
+                    aria-busy={branchCompile?.status === 'compiling'}
                     rightSection={
                         <Group gap={6} wrap="nowrap">
+                            {branchCompile?.status === 'compiling' ? (
+                                <Loader
+                                    size={12}
+                                    color="gray"
+                                    aria-label={compileDescription ?? undefined}
+                                />
+                            ) : branchCompile?.status === 'failed' ? (
+                                <MantineIcon
+                                    icon={IconAlertTriangle}
+                                    size={14}
+                                    color="yellow"
+                                    aria-label={compileDescription ?? undefined}
+                                />
+                            ) : null}
                             {changesBadge}
                             <MantineIcon icon={IconChevronDown} size={12} />
                         </Group>
@@ -1710,6 +1741,37 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 </Button>
             </Menu.Target>
             <Menu.Dropdown>
+                {branchCompile && compileDescription ? (
+                    <>
+                        <Box px="sm" py={6}>
+                            <Text fz="xs" fw={500}>
+                                {compileDescription}
+                            </Text>
+                            {branchCompile.error ? (
+                                <Text
+                                    fz="xs"
+                                    c="dimmed"
+                                    lineClamp={3}
+                                    title={branchCompile.error}
+                                >
+                                    {branchCompile.error}
+                                </Text>
+                            ) : null}
+                        </Box>
+                        {branchCompile.status === 'failed' ? (
+                            <Menu.Item
+                                leftSection={
+                                    <MantineIcon icon={IconRefresh} size={14} />
+                                }
+                                disabled={compileAgain.isLoading}
+                                onClick={() => compileAgain.mutate()}
+                            >
+                                Compile again
+                            </Menu.Item>
+                        ) : null}
+                        <Menu.Divider />
+                    </>
+                ) : null}
                 <Menu.Item
                     leftSection={<span className={classes.liveDot} />}
                     rightSection={
