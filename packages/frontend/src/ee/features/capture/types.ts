@@ -18,6 +18,8 @@ export type CaptureMark = {
     target: CaptureTarget | null;
     /** What an arrow ends on. Null for other shapes. */
     arrowTo: CaptureTarget | null;
+    /** Everything the strokes passed over, in drawing order, no repeats in a row. */
+    trail: CaptureTarget[];
 };
 
 // atMs is when the phrase started (its first interim result).

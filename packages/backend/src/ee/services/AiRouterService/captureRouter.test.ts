@@ -16,20 +16,29 @@ const request: ApiCaptureRouteRequest = {
     marks: [
         {
             number: 1,
+            image: 1,
             shape: 'arrow',
             at: { tileUuid: 'tbl', cell: null },
             arrowTo: { tileUuid: 'rev', cell: null },
+            path: [
+                { tileUuid: 'tbl', cell: null },
+                { tileUuid: null, cell: { x: 4, y: 6 } },
+                { tileUuid: 'rev', cell: null },
+            ],
             speech: 'move this up here',
         },
         {
             number: 2,
+            image: 2,
             shape: 'underline',
             at: { tileUuid: 'ord', cell: null },
             arrowTo: null,
+            path: [{ tileUuid: 'ord', cell: null }],
             speech: 'why did cancelled orders jump in March',
         },
     ],
     looseSpeech: ['and that is all'],
+    images: ['aaaa', 'bbbb'],
 };
 
 describe('buildCaptureRoutingPrompt', () => {
@@ -40,12 +49,15 @@ describe('buildCaptureRoutingPrompt', () => {
             '- rev "Revenue by month" at x=0 y=0, w=18 h=6',
         );
         expect(prompt).toContain(
-            '1. arrow from tile tbl to tile rev: "move this up here"',
+            '1. (image 1) arrow from tile tbl to tile rev; drawn across tile tbl, then empty space at x=4 y=6, then tile rev: "move this up here"',
         );
         expect(prompt).toContain(
-            '2. underline on tile ord: "why did cancelled orders jump in March"',
+            '2. (image 2) underline on tile ord; drawn across tile ord: "why did cancelled orders jump in March"',
         );
         expect(prompt).toContain('- "and that is all"');
+        expect(prompt).toContain(
+            '2 screenshots are attached, in order, with the numbered red marks drawn on them.',
+        );
     });
 
     it('describes empty cells and unknown places', () => {
@@ -54,20 +66,25 @@ describe('buildCaptureRoutingPrompt', () => {
             marks: [
                 {
                     number: 1,
+                    image: 0,
                     shape: 'arrow',
                     at: { tileUuid: 'rev', cell: null },
                     arrowTo: { tileUuid: null, cell: { x: 18, y: 14 } },
+                    path: [],
                     speech: '',
                 },
                 {
                     number: 2,
+                    image: 0,
                     shape: 'circle',
                     at: { tileUuid: null, cell: null },
                     arrowTo: null,
+                    path: [],
                     speech: 'what is this',
                 },
             ],
             looseSpeech: [],
+            images: [],
         });
         expect(prompt).toContain(
             '1. arrow from tile rev to empty space at x=18 y=14 (nothing said)',

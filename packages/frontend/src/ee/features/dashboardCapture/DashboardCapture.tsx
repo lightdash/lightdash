@@ -21,7 +21,15 @@ import { useUpdateDashboard } from '../../../hooks/dashboard/useDashboard';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
-import { openDefaultAgentPanel } from '../aiCopilot/store/aiAgentLauncherSlice';
+import { useLauncherDock } from '../aiCopilot/components/Launcher/useLauncherDock';
+import {
+    useCreateAgentThreadMutation,
+    useProjectAiAgents,
+} from '../aiCopilot/hooks/useProjectAiAgents';
+import {
+    openDefaultAgentPanel,
+    openPanel,
+} from '../aiCopilot/store/aiAgentLauncherSlice';
 import { useAiAgentStoreDispatch } from '../aiCopilot/store/hooks';
 import {
     CaptureHost,
@@ -37,10 +45,12 @@ import {
     buildRouteRequest,
     cellAtPoint,
     cellTarget,
+    imageToJpegBase64,
     tileTarget,
 } from './routeRequest';
 
 const UNTITLED = 'Untitled tile';
+const MAX_ROUTE_IMAGES = 6;
 
 const plural = (count: number, word: string): string =>
     `${count} ${word}${count === 1 ? '' : 's'}`;
@@ -106,9 +116,92 @@ const DashboardCapture: FC = () => {
         DashboardTile[] | null
     >(null);
 
+    const { data: agents } = useProjectAiAgents({
+        projectUuid,
+        redirectOnUnauthorized: false,
+    });
+    const agentUuid = agents?.[0]?.uuid ?? null;
+    const { addItem: addDockItem } = useLauncherDock(projectUuid);
+    const openedFirstThreadRef = useRef(true);
+    const { mutateAsync: createThread } = useCreateAgentThreadMutation(
+        projectUuid ?? '',
+        {
+            skipNavigation: true,
+            onCreated: (thread) => {
+                addDockItem({
+                    threadId: thread.uuid,
+                    agentUuid: thread.agentUuid,
+                    title: thread.firstMessage.message,
+                });
+                if (openedFirstThreadRef.current) return;
+                openedFirstThreadRef.current = true;
+                agentDispatch(
+                    openPanel({
+                        threadId: thread.uuid,
+                        agentUuid: thread.agentUuid,
+                    }),
+                );
+            },
+        },
+    );
+
     const { mutate: saveDashboard, isLoading: isSaving } = useUpdateDashboard(
         dashboard?.uuid,
         projectUuid,
+    );
+
+    // Each question becomes its own analysis: a thread per question, all
+    // docked in the launcher, with the first one opened.
+    const sendQuestions = useCallback(
+        (
+            questions: CaptureQuestion[],
+            tiles: DashboardTile[],
+            dashboardUuid: string,
+        ) => {
+            const chartUuidFor = (question: CaptureQuestion) => {
+                const about = tiles.find(
+                    (tile) =>
+                        question.tileUuids.includes(tile.uuid) &&
+                        isDashboardChartTileType(tile),
+                );
+                return about && isDashboardChartTileType(about)
+                    ? (about.properties.savedChartUuid ?? undefined)
+                    : undefined;
+            };
+            if (!agentUuid) {
+                // No agent list yet: fall back to one combined prompt.
+                agentDispatch(
+                    openDefaultAgentPanel({
+                        pendingContext: {
+                            dashboardUuid,
+                            chartUuid: chartUuidFor(questions[0]),
+                        },
+                        pendingPrompt: questionsToPrompt(questions),
+                    }),
+                );
+                return;
+            }
+            openedFirstThreadRef.current = false;
+            questions.forEach((question) => {
+                const chartUuid = chartUuidFor(question);
+                void createThread({
+                    agentUuid,
+                    prompt: question.text,
+                    context: [
+                        { type: 'dashboard', dashboardUuid },
+                        ...(chartUuid
+                            ? [{ type: 'chart' as const, chartUuid }]
+                            : []),
+                    ],
+                }).catch(() => {
+                    showToastError({
+                        title: 'Could not send a question to the agent',
+                        subtitle: question.text,
+                    });
+                });
+            });
+        },
+        [agentDispatch, agentUuid, createThread, showToastError],
     );
 
     const handleCapture = useCallback(
@@ -120,6 +213,11 @@ const DashboardCapture: FC = () => {
             );
             setIsSorting(true);
             try {
+                const images = await Promise.all(
+                    result.images
+                        .slice(0, MAX_ROUTE_IMAGES)
+                        .map(imageToJpegBase64),
+                );
                 const route = await routeCapture(
                     projectUuid,
                     buildRouteRequest({
@@ -135,6 +233,7 @@ const DashboardCapture: FC = () => {
                         })),
                         marks: result.marks,
                         transcript: result.transcript,
+                        images,
                     }),
                 );
 
@@ -149,24 +248,7 @@ const DashboardCapture: FC = () => {
                 }
 
                 if (route.questions.length > 0) {
-                    const about = tiles.find(
-                        (tile) =>
-                            route.questions[0].tileUuids.includes(tile.uuid) &&
-                            isDashboardChartTileType(tile),
-                    );
-                    const chartUuid =
-                        about && isDashboardChartTileType(about)
-                            ? (about.properties.savedChartUuid ?? undefined)
-                            : undefined;
-                    agentDispatch(
-                        openDefaultAgentPanel({
-                            pendingContext: {
-                                dashboardUuid: dashboard.uuid,
-                                chartUuid,
-                            },
-                            pendingPrompt: questionsToPrompt(route.questions),
-                        }),
-                    );
+                    sendQuestions(route.questions, tiles, dashboard.uuid);
                 }
 
                 if (layout.applied === 0 && route.questions.length === 0) {
@@ -194,9 +276,9 @@ const DashboardCapture: FC = () => {
         },
         [
             activeTabUuid,
-            agentDispatch,
             dashboard,
             projectUuid,
+            sendQuestions,
             setDashboardTiles,
             showToastError,
             showToastInfo,
@@ -221,7 +303,8 @@ const DashboardCapture: FC = () => {
                               window.innerWidth,
                               window.innerHeight,
                           ),
-                      captureImages: false,
+                      // Pictures let the sorter see what was marked inside a chart.
+                      captureImages: true,
                       resolveTarget: (point) =>
                           targetAtPoint(point, tilesRef.current),
                       transcribe: (audio) =>

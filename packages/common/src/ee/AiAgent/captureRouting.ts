@@ -19,10 +19,14 @@ export type CaptureRoutePlace = {
 /** One drawn mark from a point-and-talk capture and the words said with it. */
 export type CaptureRouteMark = {
     number: number;
+    /** Which attached screenshot shows this mark, from 1. Zero when none. */
+    image: number;
     shape: string;
     at: CaptureRoutePlace;
     /** Where an arrow ends. Null for marks that are not arrows. */
     arrowTo: CaptureRoutePlace | null;
+    /** Everything the stroke passed over, in the order it was drawn. */
+    path: CaptureRoutePlace[];
     speech: string;
 };
 
@@ -33,6 +37,8 @@ export type ApiCaptureRouteRequest = {
     marks: CaptureRouteMark[];
     /** Things said that were not attached to any mark. */
     looseSpeech: string[];
+    /** Screenshots with the marks drawn on, as base64 JPEG, in order. */
+    images: string[];
 };
 
 /** A layout change the page applies itself, without an agent. */

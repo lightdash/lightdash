@@ -15,6 +15,7 @@ const mark = (
     arrow: null,
     target: null,
     arrowTo: null,
+    trail: [],
     ...o,
 });
 

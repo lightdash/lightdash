@@ -33,6 +33,7 @@ export type CaptureAction =
           atMs: number;
           target: CaptureTarget | null;
           arrowTo: CaptureTarget | null;
+          trail: CaptureTarget[];
       }
     | { type: 'reset' };
 
@@ -95,6 +96,7 @@ export const captureReducer = (
                 ...classifyMark(drawing.strokes),
                 target: action.target,
                 arrowTo: action.arrowTo,
+                trail: action.trail,
             };
             return {
                 ...state,

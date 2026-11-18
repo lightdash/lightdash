@@ -37,6 +37,7 @@ const hold = (
         atMs: atMs + 1000,
         target: null,
         arrowTo: null,
+        trail: [],
     });
 };
 
@@ -63,6 +64,7 @@ describe('captureReducer', () => {
                     shape: 'arrow',
                     target: null,
                     arrowTo: null,
+                    trail: [],
                 },
             ],
         });
@@ -101,12 +103,17 @@ describe('captureReducer', () => {
             atMs: 500,
             target: { kind: 'tile', id: 'abc', label: 'Revenue tile' },
             arrowTo: { kind: 'tile', id: 'def', label: 'Orders tile' },
+            trail: [
+                { kind: 'tile', id: 'abc', label: 'Revenue tile' },
+                { kind: 'tile', id: 'def', label: 'Orders tile' },
+            ],
         });
         expect(s).toMatchObject({
             marks: [
                 {
                     target: { kind: 'tile', id: 'abc' },
                     arrowTo: { kind: 'tile', id: 'def' },
+                    trail: [{ id: 'abc' }, { id: 'def' }],
                 },
             ],
         });
@@ -123,6 +130,7 @@ describe('captureReducer', () => {
             atMs: 1100,
             target: null,
             arrowTo: null,
+            trail: [],
         });
         expect(s).toMatchObject({ marks: [], imageCount: 0, drawing: null });
     });
@@ -156,6 +164,7 @@ describe('captureReducer', () => {
                 atMs: 5,
                 target: null,
                 arrowTo: null,
+                trail: [],
             }),
         ).toEqual(s);
     });

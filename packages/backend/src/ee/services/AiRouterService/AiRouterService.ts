@@ -34,7 +34,10 @@ import { selectAgent, type RoutingAskedFrom } from '../ai/agents/agentSelector';
 import { getModel } from '../ai/models';
 import { OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
 import { type AiAgentService } from '../AiAgentService/AiAgentService';
-import { routeCaptureWithModel } from './captureRouter';
+import {
+    buildCaptureRoutingPrompt,
+    routeCaptureWithModel,
+} from './captureRouter';
 
 type Deps = {
     analytics: LightdashAnalytics;
@@ -306,7 +309,11 @@ export class AiRouterService extends BaseService {
     ): Promise<CaptureRoute> {
         const organizationUuid = AiRouterService.organizationUuidOf(account);
         this.assertViewAiAgent(account, organizationUuid, projectUuid);
-        if (request.tiles.length > 200 || request.marks.length > 50) {
+        if (
+            request.tiles.length > 200 ||
+            request.marks.length > 50 ||
+            request.images.length > 6
+        ) {
             throw new ParameterError('Capture is too large to route');
         }
         const copilotConfig =
@@ -316,7 +323,12 @@ export class AiRouterService extends BaseService {
                 credentialUuid: null,
             });
         const { model } = getModel(copilotConfig);
-        return routeCaptureWithModel({ model, request });
+        this.logger.info(
+            `Capture route request:\n${buildCaptureRoutingPrompt(request)}`,
+        );
+        const route = await routeCaptureWithModel({ model, request });
+        this.logger.info(`Capture route result: ${JSON.stringify(route)}`);
+        return route;
     }
 
     async getConfig(account: RegisteredAccount): Promise<AiRouter> {

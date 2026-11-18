@@ -2623,13 +2623,20 @@ export class AppGenerateService extends BaseService {
             chunks.push(buffer);
         }
 
-        return transcribeCaptureAudio({
+        const words = await transcribeCaptureAudio({
             apiKey: openai.apiKey,
             baseUrl: openai.baseUrl ?? null,
             audio: Buffer.concat(chunks),
             filename,
             mimeType: declaredMimeType,
         });
+        this.logger.info(
+            `Capture transcription: ${received} bytes of ${declaredMimeType}, ${words.length} words: ${words
+                .map((word) => word.text)
+                .join(' ')
+                .slice(0, 500)}`,
+        );
+        return words;
     }
 
     async uploadFile(

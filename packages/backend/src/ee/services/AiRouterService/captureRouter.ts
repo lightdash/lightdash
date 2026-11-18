@@ -49,6 +49,8 @@ const SYSTEM_PROMPT = `You sort a point-and-talk capture made on a dashboard int
 
 The user drew numbered marks on dashboard tiles while talking. Each mark comes with the words said while it was drawn.
 
+Marks are hand-drawn in one stroke, so the shape guess is rough. "Drawn across" lists what the stroke passed over in order: where it starts is usually the thing the user means by "this", and where it ends is usually where they want it to go. A stroke that circles one tile and then runs to another place is a request to move that tile there, even when the shape says "circle" or "scribble". Trust the words over the shape.
+
 Pile 1, "layout": requests to rearrange the dashboard. These are done directly by the page, so express them as operations:
 - move: put a tile at a grid position (x = column, y = row). Use this when an arrow ends on empty space.
 - swap: trade places with another tile. Use this when the user moves a tile onto, or to the place of, another tile.
@@ -56,6 +58,8 @@ Pile 1, "layout": requests to rearrange the dashboard. These are done directly b
 Only use tile ids from the list. Do not invent layout changes nobody asked for.
 
 Pile 2, "questions": anything asking about the data, a number, a trend or why something happened. Rewrite each as a complete question that names the chart, because the agent will not see the marks. List the tiles it is about.
+
+When screenshots are attached, look at them: the red ink shows exactly what the user marked. A mark may be on one part of a chart (a single bar, a point on a line, one number, a legend entry, a table row) rather than the whole tile. In a question, name that specific thing, with its label and value as read from the screenshot, so the agent knows which data point is meant. A layout request is always about whole tiles.
 
 Ignore filler and anything that is neither. Either pile may be empty. Speech is machine-transcribed and may mishear words.`;
 
@@ -76,10 +80,15 @@ export const buildCaptureRoutingPrompt = (
         const where = mark.arrowTo
             ? `from ${describePlace(mark.at)} to ${describePlace(mark.arrowTo)}`
             : `on ${describePlace(mark.at)}`;
+        const across =
+            mark.path.length > 0
+                ? `; drawn across ${mark.path.map(describePlace).join(', then ')}`
+                : '';
         const speech = mark.speech.trim()
             ? `: "${mark.speech.trim()}"`
             : ' (nothing said)';
-        return `${mark.number}. ${mark.shape} ${where}${speech}`;
+        const image = mark.image > 0 ? `(image ${mark.image}) ` : '';
+        return `${mark.number}. ${image}${mark.shape} ${where}${across}${speech}`;
     });
     const loose = request.looseSpeech.map((text) => `- "${text}"`);
 
@@ -87,6 +96,11 @@ export const buildCaptureRoutingPrompt = (
         `Dashboard: ${request.dashboardName} (${request.gridColumns} columns)`,
         'Tiles:',
         ...tiles,
+        ...(request.images.length > 0
+            ? [
+                  `${request.images.length} screenshot${request.images.length === 1 ? ' is' : 's are'} attached, in order, with the numbered red marks drawn on them.`,
+              ]
+            : []),
         'Marks, in the order drawn:',
         ...(marks.length > 0 ? marks : ['(none)']),
         'Said without a mark:',
@@ -172,7 +186,19 @@ export const routeCaptureWithModel = async ({
     const result = await generateText({
         model,
         system: SYSTEM_PROMPT,
-        prompt: buildCaptureRoutingPrompt(request),
+        messages: [
+            {
+                role: 'user',
+                content: [
+                    { type: 'text', text: buildCaptureRoutingPrompt(request) },
+                    ...request.images.map((image) => ({
+                        type: 'image' as const,
+                        image,
+                        mediaType: 'image/jpeg',
+                    })),
+                ],
+            },
+        ],
         output: Output.object({ schema: RawCaptureRouteSchema }),
     });
     return sanitizeCaptureRoute(result.output, request);

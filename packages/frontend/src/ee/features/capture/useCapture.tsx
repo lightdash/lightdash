@@ -32,6 +32,7 @@ import { useVoiceRecorder } from './useVoiceRecorder';
 import { wordsToPhrases } from './wordsToPhrases';
 
 const FADE_MS = 600;
+const TRAIL_SAMPLES = 24;
 const IDLE: CaptureState = { status: 'idle' };
 
 const STREAM_ERROR_TITLES: Record<TabFrameError, string> = {
@@ -232,11 +233,31 @@ export const useCapture = (
                     }),
                 );
             }
+            // Sample the strokes to learn what they passed over, in order.
+            const trail: CaptureTarget[] = [];
+            if (resolveTarget) {
+                const points = hold.strokes.flatMap((stroke) => stroke.points);
+                const step = Math.max(
+                    1,
+                    Math.floor(points.length / TRAIL_SAMPLES),
+                );
+                for (let i = 0; i < points.length; i += step) {
+                    const hit = resolveTarget(toViewport(points[i]));
+                    const last = trail[trail.length - 1];
+                    if (
+                        hit &&
+                        (hit.kind !== last?.kind || hit.id !== last?.id)
+                    ) {
+                        trail.push(hit);
+                    }
+                }
+            }
             const done = dispatch({
                 type: 'shiftUp',
                 atMs: endMs,
                 target,
                 arrowTo,
+                trail,
             });
             if (done.status !== 'recording') return;
 
