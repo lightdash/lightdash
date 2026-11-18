@@ -66,7 +66,11 @@ import ResizableSplitter from '../components/common/ResizableSplitter';
 import { getChartIcon } from '../components/common/ResourceIcon/utils';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import { getAiAgentThreadPath } from '../ee/features/aiCopilot/hooks/aiAgentRouting';
-import CaptureSpike from '../ee/features/capture/CaptureSpike';
+import {
+    useCapture,
+    type CaptureResult,
+    type CaptureSurface,
+} from '../ee/features/capture';
 import AddAnalysisOffer from '../features/apps/analysis/AddAnalysisOffer';
 import AnalysisOffChip from '../features/apps/analysis/AnalysisOffChip';
 import { useDataAppAnalysisAvailability } from '../features/apps/analysis/useDataAppAnalysisAvailability';
@@ -77,6 +81,7 @@ import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import {
     AttachButton,
     ModelPicker,
+    CaptureButton,
     ScreenshotButton,
     SelectedAttachmentSection,
     SelectedDashboardSection,
@@ -162,6 +167,10 @@ import {
 } from '../features/apps/utils/appFileAttachments';
 import { getAppPageGate } from '../features/apps/utils/appPageGate';
 import { getBuildStageIndex } from '../features/apps/utils/buildStage';
+import {
+    imagesThatFit,
+    summaryToContent,
+} from '../features/apps/utils/captureAttachments';
 import {
     emptyChatMessage,
     mergeChatMessages,
@@ -1207,6 +1216,27 @@ const AppGenerate: FC = () => {
     const [analysisInUseScope, setAnalysisInUseScope] = useState<string | null>(
         null,
     );
+
+    // Point-and-talk capture: the preview area is the drawable surface.
+    const previewContentRef = useRef<HTMLDivElement>(null);
+    const captureHandlerRef = useRef<(result: CaptureResult) => void>(() => {});
+    const captureAvailable = Boolean(
+        previewApp && captureFlag.data?.enabled && capturesEnabled,
+    );
+    const captureSurface = useMemo<CaptureSurface | null>(
+        () =>
+            captureAvailable
+                ? {
+                      getRegion: () =>
+                          previewContentRef.current?.getBoundingClientRect() ??
+                          new DOMRect(),
+                      resolveTarget: null,
+                      onCapture: (result) => captureHandlerRef.current(result),
+                  }
+                : null,
+        [captureAvailable],
+    );
+    const capture = useCapture(captureSurface);
     const handleInsightsInUse = useCallback(
         () => setAnalysisInUseScope(previewScope),
         [previewScope],
@@ -1735,6 +1765,25 @@ const AppGenerate: FC = () => {
                 },
             ];
         });
+    };
+
+    captureHandlerRef.current = (result) => {
+        const { fit, dropped } = imagesThatFit(
+            result.images,
+            fileAttachments.length,
+            MAX_APP_FILES_PER_VERSION,
+        );
+        fit.forEach((image) => void handleFileAttach(image, 'screenshot'));
+        if (dropped > 0) {
+            showToastWarning({
+                title: `${dropped} capture images did not fit`,
+                subtitle: `You can attach up to ${MAX_APP_FILES_PER_VERSION} files per message.`,
+            });
+        }
+        promptEditorRef.current?.insertContent(
+            summaryToContent(result.summary),
+        );
+        promptEditorRef.current?.focus();
     };
 
     const handlePaste = (e: React.ClipboardEvent) => {
@@ -3460,11 +3509,17 @@ const AppGenerate: FC = () => {
                                                                     }
                                                                 />
                                                             )}
-                                                        {previewApp &&
-                                                            captureFlag.data
-                                                                ?.enabled && (
-                                                                <CaptureSpike />
-                                                            )}
+                                                        {captureSurface && (
+                                                            <CaptureButton
+                                                                onClick={
+                                                                    capture.start
+                                                                }
+                                                                disabled={
+                                                                    isSubmitting ||
+                                                                    capture.isRecording
+                                                                }
+                                                            />
+                                                        )}
                                                     </>
                                                 )
                                             }
@@ -3622,6 +3677,7 @@ const AppGenerate: FC = () => {
                                 )}
 
                             <Box
+                                ref={previewContentRef}
                                 className={classes.previewContent}
                                 // Walkthrough result for create:DataApp: a
                                 // finished app in the builder, the seeded one
@@ -3635,6 +3691,7 @@ const AppGenerate: FC = () => {
                                 data-tour-return="none"
                                 data-tour-resultdocs="data-apps.mdx#restoring-an-earlier-version:1"
                             >
+                                {capture.element}
                                 {previewApp ? (
                                     <AppPreview
                                         ref={previewRef}
