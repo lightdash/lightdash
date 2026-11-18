@@ -1,3 +1,17 @@
+# [3.322.0](https://github.com/lightdash/lightdash/compare/3.321.1...3.322.0) (2026-11-18)
+
+
+### Bug Fixes
+
+* **semantic-studio:** keep a native model's formatting when a change is applied ([#32912](https://github.com/lightdash/lightdash/issues/32912)) ([b9d9bf5](https://github.com/lightdash/lightdash/commit/b9d9bf5502a7c0925a5c5843ede5e50f17b2a2e5))
+* **semantic-studio:** make Try it open Explore on a native draft ([#32913](https://github.com/lightdash/lightdash/issues/32913)) ([ab495b0](https://github.com/lightdash/lightdash/commit/ab495b0f3b825da510ac1cdf86b4a2916680b780))
+
+
+### Features
+
+* **semantic-studio:** end a native proposal with its steps and a link to review ([#32903](https://github.com/lightdash/lightdash/issues/32903)) ([f3cd8ec](https://github.com/lightdash/lightdash/commit/f3cd8ec6b475bcbb44092bda312179227515c12e))
+* **semantic-studio:** publish a native draft in a repository by merging its pull request ([#32914](https://github.com/lightdash/lightdash/issues/32914)) ([1ab832f](https://github.com/lightdash/lightdash/commit/1ab832f539ef765f62ac9d867342751f149c5175))
+
 ## [3.321.1](https://github.com/lightdash/lightdash/compare/3.321.0...3.321.1) (2026-11-18)
 
 

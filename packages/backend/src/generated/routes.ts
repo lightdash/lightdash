@@ -49116,6 +49116,34 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                merge: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                merged: {
+                                    dataType: 'enum',
+                                    enums: [true],
+                                    required: true,
+                                },
+                            },
+                        },
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                reason: { dataType: 'string', required: true },
+                                merged: {
+                                    dataType: 'enum',
+                                    enums: [false],
+                                    required: true,
+                                },
+                            },
+                        },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 pullRequestUrl: {
                     dataType: 'union',
                     subSchemas: [
@@ -115944,6 +115972,7 @@ export function RegisterRoutes(app: Router) {
             required: true,
             ref: 'UUID',
         },
+        merge: { in: 'query', name: 'merge', dataType: 'boolean' },
     };
     app.post(
         '/api/v1/projects/:projectUuid/semantic-studio/draft/apply',
@@ -116011,6 +116040,7 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
+        merge: { in: 'query', name: 'merge', dataType: 'boolean' },
     };
     app.post(
         '/api/v1/projects/:projectUuid/semantic-studio/draft/models/:model/apply',
