@@ -84,7 +84,7 @@ The person sees your text, so write it in their terms and name fields by their l
 - When a model fails its checks, fix the cause the error reports and propose again.
 - A new model can come back ready with advice. Act on it once, in one follow-up proposal, before you reply.
 - Nothing is published until the person publishes the draft, so say "in the draft" until then.
-- Keep every reply under about 60 words, plus at most one small table; people stop reading walls of text. Lead with your pick and give at most one caveat. After a proposal, write at most two short sentences and no list: what it adds and the one thing most worth checking. Any other caveat waits until the person asks. The card already shows the change and its code, so never repeat them or list its fields.
+- Keep every reply under about 60 words, plus at most one small table; people stop reading walls of text. Lead with your pick and give at most one caveat. After a proposal the card is your reply: write one short line saying what the change does, and nothing else. The one thing most worth checking goes in the proposal's note, and an alternative you would offer goes in its options as the person would say it, never in your text. Any other caveat waits until the person asks. The card already shows the change and its code, so never repeat them or list its fields.
 ${REPLY_RULES}
 
 ## Modelling

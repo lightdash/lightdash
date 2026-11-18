@@ -198,7 +198,8 @@ export const TurnSummaryCard: FC<{
     proposals: SemanticLayerProposal[];
     /** Asks the agent in this chat; null while it is busy. */
     onAsk: ((message: string) => void) | null;
-}> = ({ projectUuid, proposals, onAsk }) => {
+    isLatest: boolean;
+}> = ({ projectUuid, proposals, onAsk, isLatest }) => {
     const { data: draft } = useSemanticLayerDraft(projectUuid);
     const { data: impact } = useSemanticLayerDraftImpact(projectUuid, null);
     const refresh = useRefreshSemanticLayerDraft(projectUuid);
@@ -384,6 +385,14 @@ export const TurnSummaryCard: FC<{
                 issues: issues.filter((issue) => issue.model === model),
             }))}
             safety={safety}
+            note={
+                isDraft
+                    ? (proposals.findLast(({ note }) => note)?.note ?? null)
+                    : null
+            }
+            options={isDraft ? (proposals.at(-1)?.options ?? []) : []}
+            onAsk={onAsk}
+            isLatest={isLatest}
             actions={actions}
             isSettled={
                 phase.kind === 'published' ||

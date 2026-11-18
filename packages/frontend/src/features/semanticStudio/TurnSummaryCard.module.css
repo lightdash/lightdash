@@ -80,3 +80,17 @@
 .wrap {
     overflow-wrap: anywhere;
 }
+
+/* An earlier turn's card, folded to its header until it is opened. */
+.fold {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 6px var(--mantine-spacing-xs);
+}
+
+.fold:hover,
+.fold:focus-visible {
+    background: var(--mantine-color-default-hover);
+}

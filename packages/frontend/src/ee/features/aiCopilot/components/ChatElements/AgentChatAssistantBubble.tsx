@@ -978,6 +978,7 @@ const AssistantBubbleContent: FC<{
                     projectUuid={projectUuid}
                     proposals={semanticLayerProposals}
                     onAsk={askStudio}
+                    isLatest={isLastMessage}
                 />
             ) : (
                 semanticLayerProposals.map((proposal, index) => (
@@ -995,6 +996,7 @@ const AssistantBubbleContent: FC<{
                     agentUuid={agentUuid}
                     threadUuid={message.threadUuid}
                     startedAt={message.createdAt}
+                    isLatest={isLastMessage}
                 />
             )}
             {editRepoMetadata && (

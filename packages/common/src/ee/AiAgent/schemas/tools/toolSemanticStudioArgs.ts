@@ -51,6 +51,18 @@ export const toolProposeSemanticLayerChangeArgsSchema = z.object({
         .describe(
             'A short name for the change, describing the request. Used only when this edit starts a new change.',
         ),
+    note: z
+        .string()
+        .nullable()
+        .describe(
+            'The one thing about this change most worth checking, under 15 words, shown on its card; null when nothing is.',
+        ),
+    options: z
+        .array(z.string().trim().min(1))
+        .max(2)
+        .describe(
+            'At most two things the person might ask for next instead, each written as they would say it in under 8 words. Each shows as a button that sends it. Empty for none.',
+        ),
 });
 
 export type ToolProposeSemanticLayerChangeArgs = z.infer<
@@ -109,6 +121,9 @@ const proposalMetadataSchema = z.object({
         .object({ workspaceUuid: z.string(), name: z.string() })
         .nullable()
         .default(null),
+    // Absent on results stored before a change carried a note and offers.
+    note: z.string().nullable().default(null),
+    options: z.array(z.string()).default([]),
 });
 
 const proposalStructuredContentSchema = proposalMetadataSchema.pick({
