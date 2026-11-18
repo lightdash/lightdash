@@ -90,7 +90,6 @@ export const getEditDbtProject = ({
                 }
                 const { aiWritebackRunUuid, inSandbox } = started;
 
-                // In Studio the save's card says where it stands, so the agent does not narrate it.
                 const studioResult = inSandbox
                     ? 'Started the change. It needs dbt to run, so it is saved in a sandbox and takes a few minutes; the pull request opens in the background. Tell the person it will take a few minutes, briefly. Until it opens, listWorkstreams shows it as a change still being opened.'
                     : 'Started saving the change to the draft. Its card shows the person the files, your note, your options and when it is saved, so write nothing more. Until it is saved, listWorkstreams shows it as a change still being opened.';

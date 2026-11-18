@@ -257,13 +257,13 @@ const BlockedNotice: FC<{ blocker: SemanticLayerBlocker }> = ({ blocker }) => {
             case 'no_access':
                 return null;
             case 'unsupported_connection':
-                return "Models can't be changed here: this project's dbt connection is not one that can be written to.";
+                return "Read-only. This dbt connection can't be written to.";
             case 'no_repository_access':
-                return "You can browse models. Changing them needs write access to this project's repository.";
+                return 'Read-only. You need write access to the repository.';
             case 'github_app_missing':
                 return (
                     <>
-                        Changing models here needs the GitHub App.{' '}
+                        Read-only until the GitHub App is installed.{' '}
                         <Anchor
                             component={Link}
                             to="/generalSettings/integrations"
@@ -274,9 +274,9 @@ const BlockedNotice: FC<{ blocker: SemanticLayerBlocker }> = ({ blocker }) => {
                     </>
                 );
             case 'models_from_outside':
-                return "These models were deployed from outside this app, so they can't be changed here yet.";
+                return 'Read-only. These models were deployed from outside this app.';
             case 'preview_project':
-                return 'This is a preview of a pull request. Change models from the project it previews.';
+                return 'Read-only. This is a preview of a pull request.';
             default:
                 return assertUnreachable(blocker, 'Unknown blocker');
         }
@@ -1936,7 +1936,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     >
                         <Button
                             size="xs"
-                            variant="default"
+                            variant="subtle"
+                            color="gray"
                             loading={isRetryingStored}
                             onClick={() => void retryStored()}
                         >
@@ -1948,7 +1949,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         title="No model code here yet"
                         description={
                             modelled.length > 0
-                                ? 'These models were deployed from outside this app, so their YAML is not here and they cannot be changed here yet.'
+                                ? 'These models were deployed from outside this app, so there is no YAML to show.'
                                 : 'Ask the agent to build a model and its YAML shows up here.'
                         }
                         maw={460}
@@ -2155,7 +2156,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                             pane !== 'changeSummary' ? (
                                                 <Button
                                                     size="xs"
-                                                    variant="default"
+                                                    variant="subtle"
+                                                    color="gray"
                                                     flex="none"
                                                     onClick={() =>
                                                         switchView('changes')
@@ -2173,7 +2175,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                             {agentAvailable && !isChatOpen ? (
                                                 <Button
                                                     size="xs"
-                                                    variant="default"
+                                                    variant="subtle"
+                                                    color="gray"
                                                     flex="none"
                                                     leftSection={
                                                         <MantineIcon
@@ -2192,7 +2195,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                             !isLoadingAgents ? (
                                                 <Button
                                                     size="xs"
-                                                    variant="default"
+                                                    variant="subtle"
+                                                    color="gray"
                                                     flex="none"
                                                     component={Link}
                                                     to={`/projects/${view.project.id}/ai-agents/new`}

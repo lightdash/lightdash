@@ -202,7 +202,7 @@ export const StudioWorkspacesList: FC<{
                 <Text className={classes.title}>Drafts</Text>
                 <Text className={classes.lede}>
                     {rows.length === 0
-                        ? 'No drafts yet. Ask for a change in the chat, or start one from the picker.'
+                        ? 'No drafts yet.'
                         : 'Pick up where you and your team left off.'}
                 </Text>
             </header>

@@ -73,7 +73,6 @@ export const getDevelopmentViewHeaders = (): Record<string, string> => {
                 ...(preview ? { [DEVELOPMENT_PREVIEW_HEADER]: preview } : {}),
             };
         }
-        // A checked-out draft is what every page of its project reads, Studio included.
         return isOnFor(localStorage.getItem(CHECKOUT_STORAGE_KEY), pathname)
             ? { [DEVELOPMENT_VIEW_HEADER]: 'true' }
             : {};

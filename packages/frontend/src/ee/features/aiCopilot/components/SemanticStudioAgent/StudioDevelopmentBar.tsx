@@ -62,7 +62,6 @@ export const StudioDevelopmentBar: FC<{
             setIsTrying(true, previewProjectUuid);
         }
     }, [isTrying, previewProjectUuid, setIsTrying]);
-    // One filled button: trying it until it can be published, then publishing.
     const canPublish = isMine && canWriteBranch && step.action === 'publish';
     return (
         <DevelopmentBar summary={null}>
@@ -123,7 +122,8 @@ export const StudioDevelopmentBar: FC<{
                     <ActionIcon
                         size="md"
                         aria-label="More actions"
-                        variant="default"
+                        variant="subtle"
+                        color="gray"
                     >
                         <MantineIcon icon={IconDots} />
                     </ActionIcon>

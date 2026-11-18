@@ -246,8 +246,6 @@ const ApplyModal: FC<{
                             } else {
                                 showToastSuccess({
                                     title: 'Published for everyone',
-                                    subtitle:
-                                        "Undo it from the model's History tab.",
                                 });
                             }
                             onClose();
@@ -473,7 +471,8 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                     >
                         <Button
                             size="xs"
-                            variant="default"
+                            variant="subtle"
+                            color="gray"
                             flex="none"
                             leftSection={
                                 <MantineIcon icon={IconPlayerPlay} size={12} />
@@ -535,7 +534,8 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                         <ActionIcon
                             size="md"
                             aria-label="More actions"
-                            variant="default"
+                            variant="subtle"
+                            color="gray"
                         >
                             <MantineIcon icon={IconDots} />
                         </ActionIcon>

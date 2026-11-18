@@ -157,7 +157,7 @@ const getSafety = (
         return {
             state: 'failed',
             text: `${conflicts} ${conflicts === 1 ? 'conflict' : 'conflicts'}`,
-            why: 'choose which version to keep before you publish',
+            why: 'choose a version',
         };
     }
     if (!impact) {
@@ -245,7 +245,6 @@ export const TurnSummaryCard: FC<{
         return modelUrl(model);
     };
     const issues = proposals.flatMap(listProposalIssues);
-    // The draft's own name, as the picker shows it; the model is named on its rows.
     const name =
         proposals.find(({ startedChange }) => startedChange)?.startedChange
             ?.name ??

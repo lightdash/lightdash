@@ -29,7 +29,8 @@ type Look = 'primary' | 'secondary';
 const buttonProps = (look: Look) =>
     ({
         size: 'xs',
-        variant: look === 'primary' ? 'filled' : 'default',
+        variant: look === 'primary' ? 'filled' : 'subtle',
+        color: look === 'primary' ? undefined : 'gray',
         leftSection: <MantineIcon icon={IconPlayerPlay} size={12} />,
     }) as const;
 

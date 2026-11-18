@@ -987,7 +987,6 @@ const AssistantBubbleContent: FC<{
                 streamParts={streamingState?.parts}
             />
             {quietCards && semanticLayerProposals.length > 0 ? (
-                // If the card cannot draw, the turn still says what it changed.
                 <AiMarkdownErrorBoundary
                     fallback={
                         <Text fz="sm">

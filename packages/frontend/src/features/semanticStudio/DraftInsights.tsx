@@ -555,7 +555,7 @@ export const ChangeQueue: FC<{
                 fw={500}
                 className={classes.sectionTitle}
             >
-                {count(draft.changes.length, 'change')}, in the order they apply
+                {count(draft.changes.length, 'change')}
             </Text>
             {draft.changes.map((change, index) => (
                 <ChangeRow

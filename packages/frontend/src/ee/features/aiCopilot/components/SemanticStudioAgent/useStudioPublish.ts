@@ -34,7 +34,6 @@ const getBlockedReason = (ciChecks: CiChecks | null): string => {
     }
 };
 
-/** One word for the same state, short enough to be the button. */
 const getBlockedLabel = (ciChecks: CiChecks | null): string => {
     const mergeState = ciChecks?.mergeState;
     switch (mergeState) {
@@ -101,7 +100,7 @@ export const useStudioPublish = (
         if (!compile) {
             return {
                 label: 'Compile',
-                hint: 'This draft has not been compiled yet. Compile it to publish it.',
+                hint: 'Not compiled yet.',
                 action: 'compile',
             };
         }
@@ -139,7 +138,6 @@ export const useStudioPublish = (
         destination,
         compile,
         blocker,
-        /** Without the right to write the branch, the draft goes to its pull request for someone who has it. */
         canWriteBranch,
         branch,
         step,

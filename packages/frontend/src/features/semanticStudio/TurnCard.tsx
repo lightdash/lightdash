@@ -84,11 +84,9 @@ export const TurnCard: FC<{
     headerAction: ReactNode;
     groups: TurnGroup[];
     safety: Safety | null;
-    /** The one thing the agent thinks is most worth checking. */
     note: string | null;
     /** What the agent offers to do next instead; each is sent as the person's message. */
     options: string[];
-    /** Sends a message in this chat; null while the agent is busy. */
     onAsk: ((message: string) => void) | null;
     /** Only the latest turn's card is open and offers anything; earlier ones fold to their header. */
     isLatest: boolean;
@@ -228,7 +226,7 @@ export const TurnCard: FC<{
                             {note}
                         </Text>
                     ) : null}
-                    {safety ? (
+                    {safety && safety.state !== 'done' ? (
                         <Group
                             className={classes.section}
                             gap={6}
@@ -267,7 +265,8 @@ export const TurnCard: FC<{
                                           <Button
                                               key={option}
                                               size="compact-xs"
-                                              variant="default"
+                                              variant="light"
+                                              color="gray"
                                               maw="100%"
                                               title={option}
                                               onClick={() => onAsk(option)}

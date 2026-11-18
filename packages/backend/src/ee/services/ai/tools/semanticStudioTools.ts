@@ -93,7 +93,6 @@ export const getProposeSemanticLayerChange = ({
                         diffs,
                         draftChangeUuid,
                         startedChange,
-                        // A change that did not join the draft has no card to carry them.
                         needsFollowUp: advised.some(
                             ({ advice }) => advice.length > 0,
                         ),

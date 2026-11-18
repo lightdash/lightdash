@@ -15,7 +15,8 @@ export const draftActions = ({
     <Button
         key="view"
         size="compact-xs"
-        variant={error && onAsk ? 'subtle' : 'default'}
+        variant="subtle"
+        color="gray"
         component={Link}
         to={reviewTo}
     >

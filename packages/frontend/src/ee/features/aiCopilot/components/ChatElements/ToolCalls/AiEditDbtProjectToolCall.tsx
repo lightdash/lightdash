@@ -59,9 +59,7 @@ type Props = {
     threadUuid?: string;
     /** When the change was asked for, so a running one can say how long it has been. */
     startedAt?: string;
-    /** Whether this is the thread's latest turn; earlier Studio cards fold to their header. */
     isLatest?: boolean;
-    /** What a Studio save says is most worth checking, and what it offers to do next. */
     note?: string | null;
     options?: string[];
 };
