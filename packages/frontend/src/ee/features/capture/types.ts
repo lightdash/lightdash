@@ -56,4 +56,4 @@ export type CaptureSurface = {
 
 export type VoiceState = 'on' | 'off';
 
-export const MAX_CAPTURE_IMAGES = 9;
+export const MAX_CAPTURE_IMAGES = 5;

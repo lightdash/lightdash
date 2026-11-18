@@ -141,17 +141,17 @@ describe('captureReducer', () => {
 
     it('refuses a tenth screen', () => {
         expect(
-            captureReducer(rec({ imageCount: 9 }), {
+            captureReducer(rec({ imageCount: 5 }), {
                 type: 'shiftDown',
                 atMs: 1,
                 isNewScreen: true,
             }),
-        ).toMatchObject({ drawing: null, atImageLimit: true, imageCount: 9 });
+        ).toMatchObject({ drawing: null, atImageLimit: true, imageCount: 5 });
     });
 
     it('still allows marks on the current screen at the limit', () => {
         expect(
-            captureReducer(rec({ imageCount: 9 }), {
+            captureReducer(rec({ imageCount: 5 }), {
                 type: 'shiftDown',
                 atMs: 1,
                 isNewScreen: false,

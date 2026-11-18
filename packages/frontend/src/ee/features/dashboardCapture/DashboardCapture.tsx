@@ -52,9 +52,12 @@ import {
     imageToJpegBase64,
     tileTarget,
 } from './routeRequest';
+import { uploadCaptureImages } from './uploadCaptureImages';
 
 const UNTITLED = 'Untitled tile';
-const MAX_ROUTE_IMAGES = 6;
+const MAX_ROUTE_IMAGES = 5;
+const IMAGES_NOTE =
+    'The attached screenshots show the dashboard as I recorded it, with my red marks drawn on. Use them to see exactly what I was pointing at.';
 
 const plural = (count: number, word: string): string =>
     `${count} ${word}${count === 1 ? '' : 's'}`;
@@ -119,6 +122,7 @@ const DashboardCapture: FC = () => {
     // Tiles as they were before unsaved layout changes, for Discard.
     // Agent changes held back until the layout preview is resolved.
     const heldEditsRef = useRef<CaptureQuestion[]>([]);
+    const heldImagesRef = useRef<string[]>([]);
     const [heldEditCount, setHeldEditCount] = useState(0);
     const [tilesBeforePreview, setTilesBeforePreview] = useState<
         DashboardTile[] | null
@@ -164,6 +168,7 @@ const DashboardCapture: FC = () => {
             questions: CaptureQuestion[],
             tiles: DashboardTile[],
             dashboardUuid: string,
+            images: string[],
         ) => {
             const chartUuidFor = (question: CaptureQuestion) => {
                 const about = tiles.find(
@@ -193,20 +198,31 @@ const DashboardCapture: FC = () => {
             const chartUuid =
                 questions.length === 1 ? chartUuidFor(questions[0]) : undefined;
             openedFirstThreadRef.current = false;
-            void createThread({
-                agentUuid,
-                prompt: questionsToPrompt(questions),
-                context: [
-                    { type: 'dashboard', dashboardUuid },
-                    ...(chartUuid
-                        ? [{ type: 'chart' as const, chartUuid }]
-                        : []),
-                ],
-            }).catch(() => {
-                showToastError({
-                    title: 'Could not send your requests to the agent',
+            void uploadCaptureImages(images)
+                .then((imageUuids) =>
+                    createThread({
+                        agentUuid,
+                        prompt:
+                            imageUuids.length > 0
+                                ? `${questionsToPrompt(questions)}\n\n${IMAGES_NOTE}`
+                                : questionsToPrompt(questions),
+                        context: [
+                            { type: 'dashboard', dashboardUuid },
+                            ...(chartUuid
+                                ? [{ type: 'chart' as const, chartUuid }]
+                                : []),
+                            ...imageUuids.map((fileUuid) => ({
+                                type: 'thread_image' as const,
+                                fileUuid,
+                            })),
+                        ],
+                    }),
+                )
+                .catch(() => {
+                    showToastError({
+                        title: 'Could not send your requests to the agent',
+                    });
                 });
-            });
         },
         [agentDispatch, agentUuid, createThread, showToastError],
     );
@@ -265,6 +281,7 @@ const DashboardCapture: FC = () => {
                     layout.applied > 0 || heldEditsRef.current.length > 0;
                 if (edits.length > 0 && layoutPending) {
                     heldEditsRef.current = [...heldEditsRef.current, ...edits];
+                    heldImagesRef.current = images;
                     setHeldEditCount(heldEditsRef.current.length);
                 }
                 const forAgentNow = [
@@ -272,7 +289,7 @@ const DashboardCapture: FC = () => {
                     ...(layoutPending ? [] : edits),
                 ];
                 if (forAgentNow.length > 0) {
-                    sendQuestions(forAgentNow, tiles, dashboard.uuid);
+                    sendQuestions(forAgentNow, tiles, dashboard.uuid, images);
                 }
 
                 if (
@@ -371,7 +388,12 @@ const DashboardCapture: FC = () => {
         heldEditsRef.current = [];
         setHeldEditCount(0);
         if (edits.length > 0) {
-            sendQuestions(edits, tilesRef.current, dashboard.uuid);
+            sendQuestions(
+                edits,
+                tilesRef.current,
+                dashboard.uuid,
+                heldImagesRef.current,
+            );
         }
     };
     const handleSave = () => {
