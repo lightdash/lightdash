@@ -51,7 +51,20 @@ export const getEditDbtProject = ({
             args,
             { toolCallId },
         ): Promise<PendingResult | ErrorResult> => {
-            const { prompt, prUrl: pastedPrUrl, startNewPullRequest } = args;
+            const {
+                prompt,
+                prUrl: pastedPrUrl,
+                startNewPullRequest,
+                requestedBy,
+            } = args;
+            if (requestedBy === 'agent_initiated') {
+                return {
+                    ...toolFailure(
+                        'No pull request was opened: the user did not ask for a repository change. Make what they asked for now with the tools that edit content inside this project, offer the repository change in one sentence, and call editDbtProject with requestedBy offer_accepted once they say yes.',
+                    ),
+                    metadata: { status: 'error', errorCode: 'unknown' },
+                };
+            }
             const script =
                 acceptsScript &&
                 'script' in args &&

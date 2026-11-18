@@ -28,6 +28,11 @@ export const toolEditDbtProjectArgsSchema = z.object({
         .describe(
             'true opens a new pull request in this conversation for a change unrelated to the open one; null continues the most recent pull request. Ignored when prUrl is set.',
         ),
+    requestedBy: z
+        .enum(['user_asked', 'offer_accepted', 'agent_initiated'])
+        .describe(
+            'Who asked for this repository change: user_asked when the user asked for it in the repository, offer_accepted when the user said yes to a change you offered, agent_initiated when you decided it alone. An agent_initiated change is not opened: the tool tells you to make what the user asked for with the content tools and offer the repository change instead.',
+        ),
 });
 
 /** Semantic Studio's variant: the change can come as a script, saved in seconds without a sandbox. */

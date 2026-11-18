@@ -9,6 +9,7 @@ const executeEditDbtProject = async (
         prompt: string;
         prUrl: string | null;
         startNewPullRequest: boolean | null;
+        requestedBy: 'user_asked' | 'offer_accepted' | 'agent_initiated';
         script: string | null;
     }> = {},
 ) => {
@@ -18,6 +19,7 @@ const executeEditDbtProject = async (
             prompt: 'fix the descriptions',
             prUrl: null,
             startNewPullRequest: false,
+            requestedBy: 'user_asked',
             ...args,
         },
         {
@@ -33,6 +35,42 @@ const executeEditDbtProject = async (
 };
 
 describe('getEditDbtProject', () => {
+    it('refuses an agent-initiated change without starting a run', async () => {
+        const editDbtProject = vi.fn();
+
+        const output = await executeEditDbtProject(
+            getEditDbtProject({ editDbtProject, acceptsScript: false }),
+            { requestedBy: 'agent_initiated' },
+        );
+
+        expect(editDbtProject).not.toHaveBeenCalled();
+        expect(output.metadata).toEqual({
+            status: 'error',
+            errorCode: 'unknown',
+        });
+        expect(output.result).toContain('No pull request was opened');
+        expect(output.result).toContain('offer_accepted');
+    });
+
+    it.each(['user_asked', 'offer_accepted'] as const)(
+        'starts a run when the change is %s',
+        async (requestedBy) => {
+            const editDbtProject = vi.fn().mockResolvedValue({
+                status: 'started',
+                inSandbox: false,
+                aiWritebackRunUuid: 'run-1',
+            });
+
+            const output = await executeEditDbtProject(
+                getEditDbtProject({ editDbtProject, acceptsScript: false }),
+                { requestedBy },
+            );
+
+            expect(editDbtProject).toHaveBeenCalledTimes(1);
+            expect(output.metadata.status).toBe('pending');
+        },
+    );
+
     it('forwards startNewPullRequest: true to the editDbtProject dependency', async () => {
         const editDbtProject = vi.fn().mockResolvedValue({
             status: 'started',
