@@ -40,6 +40,7 @@ import {
     type SemanticLayerStatus,
     type SemanticLayerStoredModels,
     type SemanticLayerTouchedField,
+    type SemanticStudioCheckout,
     type SemanticStudioSourceFile,
     type SemanticStudioSources,
     type SemanticStudioSourceSave,
@@ -1142,18 +1143,94 @@ export class SemanticStudioService extends BaseService {
                 candidate.pullRequest?.url === prUrl,
         );
         if (!workspace) return;
+        await this.requestBranchCompile(
+            user,
+            projectUuid,
+            workspace.workspaceUuid,
+        );
+    }
+
+    private async requestBranchCompile(
+        user: SessionUser,
+        projectUuid: string,
+        workspaceUuid: string,
+    ): Promise<void> {
         const compileRequestUuid =
-            await this.workspaceModel.requestBranchCompile(
-                workspace.workspaceUuid,
-            );
+            await this.workspaceModel.requestBranchCompile(workspaceUuid);
         const { organizationUuid } = await this.projectModel.get(projectUuid);
         await this.schedulerClient.compileSemanticStudioBranch({
             organizationUuid,
             projectUuid,
             userUuid: user.userUuid,
-            workspaceUuid: workspace.workspaceUuid,
+            workspaceUuid,
             compileRequestUuid,
         });
+    }
+
+    /** The change this person has checked out, which the whole app shows them; null on what is published or without Studio. */
+    async getCheckout(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<SemanticStudioCheckout | null> {
+        const status = await this.getStatus(user, projectUuid);
+        if (!status.enabled) return null;
+        const active = await this.workspaceModel.findActive({
+            projectUuid,
+            userUuid: user.userUuid,
+        });
+        if (!active) return null;
+        const compile =
+            status.appliesAs === 'dbt_pull_request'
+                ? await this.workspaceModel.findBranchCompile(
+                      active.workspaceUuid,
+                  )
+                : null;
+        return {
+            workspaceUuid: active.workspaceUuid,
+            name: active.name,
+            appliesAs: status.appliesAs,
+            branchCompile: compile && {
+                status: compile.status,
+                branch: compile.branch,
+                error: compile.error,
+                hasExplores: compile.explores !== null,
+                requestedAt: compile.requested_at,
+                compiledAt: compile.compiled_at,
+            },
+        };
+    }
+
+    /** Compiles the checked-out dbt change's branch again, such as after it moved outside the app. */
+    async compileCheckout(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<SemanticStudioCheckout | null> {
+        const status = await this.getStatus(user, projectUuid);
+        if (!status.enabled) {
+            throw new ForbiddenError(
+                "You cannot change this project's models here",
+            );
+        }
+        if (status.appliesAs !== 'dbt_pull_request') {
+            throw new ParameterError(
+                'Only a change to a dbt project in a repository is compiled from its branch',
+            );
+        }
+        const active = await this.workspaceModel.findActive({
+            projectUuid,
+            userUuid: user.userUuid,
+        });
+        if (!active?.pullRequest) {
+            throw new ParameterError(
+                'This draft has no pull request to compile yet',
+            );
+        }
+        await this.requestBranchCompile(
+            user,
+            projectUuid,
+            active.workspaceUuid,
+        );
+        return this.getCheckout(user, projectUuid);
     }
 
     /** The worker's compile of a change's branch; a failure is kept for the person to see, with the last good explores. */

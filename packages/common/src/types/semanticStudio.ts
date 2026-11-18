@@ -358,6 +358,37 @@ export type ApiSemanticStudioWorkspacesResponse =
 export type ApiSemanticStudioWorkspaceResponse =
     ApiSuccess<SemanticStudioWorkspace>;
 
+export type SemanticStudioBranchCompileStatus =
+    | 'compiling'
+    | 'ready'
+    | 'failed';
+
+/** Where the compile of a dbt change's branch stands. */
+export type SemanticStudioBranchCompile = {
+    status: SemanticStudioBranchCompileStatus;
+    /** Null until a compile has read the branch. */
+    branch: string | null;
+    /** Why the latest compile failed; null otherwise. */
+    error: string | null;
+    /** Whether a compile has succeeded; until one has, Explore shows what is published. */
+    hasExplores: boolean;
+    requestedAt: Date;
+    compiledAt: Date | null;
+};
+
+/** The change a person has checked out in a project, which the whole app shows them. */
+export type SemanticStudioCheckout = {
+    workspaceUuid: string;
+    name: string;
+    appliesAs: SemanticLayerApplyMode;
+    /** Null for a change kept on the server, and for a dbt change with no compile asked for yet. */
+    branchCompile: SemanticStudioBranchCompile | null;
+};
+
+/** Null when the person is on what is published. */
+export type ApiSemanticStudioCheckoutResponse =
+    ApiSuccess<SemanticStudioCheckout | null>;
+
 export type SemanticStudioWorkspaceStartBody = {
     threadUuid: string | null;
     name: string;
