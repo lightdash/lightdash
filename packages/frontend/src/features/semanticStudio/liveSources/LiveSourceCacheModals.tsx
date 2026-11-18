@@ -70,9 +70,8 @@ export const LiveSourceCacheSettingsModal: FC<{
             <Stack gap="sm">
                 <ProjectCacheOffAlert projectUuid={projectUuid} />
                 <Text fz="sm" c="dimmed">
-                    A result from "{connection.name}" answers the same query for
-                    everyone until it is this old. Longer windows make fewer
-                    calls to the integration; shorter ones show newer data.
+                    How long everyone reuses a result from "{connection.name}",
+                    up to the project's cache duration.
                 </Text>
                 <Select
                     label="Reuse results for"
@@ -93,9 +92,6 @@ export const LiveSourceCacheSettingsModal: FC<{
                         })),
                     ]}
                 />
-                <Text fz="xs" c="dimmed">
-                    Never longer than the project's cache duration.
-                </Text>
             </Stack>
         </MantineModal>
     );

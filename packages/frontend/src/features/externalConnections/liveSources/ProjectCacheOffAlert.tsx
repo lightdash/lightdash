@@ -17,18 +17,17 @@ export const ProjectCacheOffAlert: FC<{ projectUuid: string }> = ({
     return (
         <Alert
             color="yellow"
+            py={8}
             icon={<MantineIcon icon={IconAlertTriangle} />}
-            title="Results caching is off for this project"
         >
-            <Text fz="sm">
-                Every query on a live data source calls its integration, so rate
-                limits are reached quickly.{' '}
+            <Text fz="xs">
+                Project caching is off, so queries can hit rate limits.{' '}
                 <Anchor
                     component={Link}
                     to={`/generalSettings/projectManagement/${projectUuid}/caching`}
-                    fz="sm"
+                    fz="xs"
                 >
-                    Turn on results caching
+                    Turn on
                 </Anchor>
             </Text>
         </Alert>
