@@ -4,194 +4,29 @@ import {
     type LanguageModel,
     type LanguageModelMiddleware,
 } from 'ai';
-import { z } from 'zod';
 import { hasBinaryModelInputs } from '../utils/aiCallTelemetry';
 import { withImageRequestSizeGuard } from './requestSizeGuard';
 
-const REDACTED = '[redacted binary payload]';
-const OMITTED_SIZE_LIMIT = '[omitted: size limit]';
-const imageDescriptor = z.union([
-    z.object({
-        type: z.enum([
-            'image',
-            'image_url',
-            'input_image',
-            'image-data',
-            'image-url',
-            'file-data',
-            'base64',
-            'Buffer',
-        ]),
-    }),
-    z.object({ mediaType: z.string().startsWith('image/') }),
-    z.object({ media_type: z.string().startsWith('image/') }),
-    z.object({ mimeType: z.string().startsWith('image/') }),
-    z.object({ mime_type: z.string().startsWith('image/') }),
-]);
-const binaryKeys = new Set([
-    'image',
-    'image_url',
-    'imageUrl',
-    'inlineData',
-    'inline_data',
-    'bytes',
-    'base64',
-]);
-
-const createErrorContainer = (value: object) => {
-    if (APICallError.isInstance(value))
-        return new APICallError({
-            message: 'Provider request failed',
-            url: '',
-            requestBodyValues: null,
-            statusCode: value.statusCode,
-            isRetryable: value.isRetryable,
-        });
-    if (value instanceof Error) return new Error('Model request failed');
-    return Array.isArray(value) ? [] : {};
-};
-
-/** Keeps clean errors intact; sanitizes provider bodies, stacks, causes and custom properties before retries/logging. */
+/**
+ * A provider error carries the whole request it failed on, attached images
+ * included, and that field is what reaches JSON logs. Everything else on the
+ * error (status, retryability, provider message and code) is kept.
+ */
 export const redactModelError = (error: unknown): unknown => {
-    let changes = 0;
-    let remaining = 1_000_000;
-    const seen = new WeakSet<object>();
-    const omit = (marker = REDACTED) => {
-        changes += 1;
-        return marker;
-    };
-    const visit = (value: unknown, depth = 0): unknown => {
-        remaining -= 1;
-        if (depth > 64 || remaining < 0) return omit(OMITTED_SIZE_LIMIT);
-        if (typeof value === 'string') {
-            const sanitized = value
-                .replace(
-                    /data:image\\?\/[^;,\s]+;base64,[A-Za-z0-9+/_=\\\s-]+/gi,
-                    REDACTED,
-                )
-                .replace(
-                    /(?:iVBORw0KGgo|\/9j\/|UklGR)[A-Za-z0-9+/_=\s-]+/g,
-                    REDACTED,
-                )
-                .replace(/[A-Za-z0-9+/_-]{1024,}={0,2}/g, REDACTED);
-            if (sanitized !== value) changes += 1;
-            if (/^\s*[[{]/.test(sanitized)) {
-                try {
-                    const parsed: unknown = JSON.parse(sanitized);
-                    const before = changes;
-                    const result = visit(parsed, depth + 1);
-                    if (changes !== before) return JSON.stringify(result);
-                } catch {
-                    // Non-JSON messages and stack traces still receive string-level scrubbing.
-                }
-            }
-            return sanitized;
-        }
-        if (typeof value === 'symbol') {
-            const description = visit(value.description, depth + 1);
-            return typeof description === 'string' &&
-                description !== value.description
-                ? Symbol(description)
-                : value;
-        }
-        if (
-            value === null ||
-            (typeof value !== 'object' && typeof value !== 'function')
-        )
-            return value;
-        if (typeof value === 'function') return omit();
-        if (
-            Buffer.isBuffer(value) ||
-            value instanceof ArrayBuffer ||
-            ArrayBuffer.isView(value) ||
-            value instanceof Blob
-        )
-            return omit();
-        if (
-            value instanceof Date &&
-            Object.getPrototypeOf(value) === Date.prototype &&
-            Reflect.ownKeys(value).length === 0
-        )
-            return value;
-        if (
-            value instanceof URL &&
-            Object.getPrototypeOf(value) === URL.prototype &&
-            Reflect.ownKeys(value).length === 0
-        )
-            return visit(value.href, depth + 1);
-        if (seen.has(value)) return '[omitted circular reference]';
-        seen.add(value);
-        if (
-            !(value instanceof Error) &&
-            imageDescriptor.safeParse(value).success
-        )
-            return omit();
-        if (Array.isArray(value) && value.length > remaining)
-            return omit(OMITTED_SIZE_LIMIT);
-        const prototype: unknown = Object.getPrototypeOf(value);
-        if (
-            !(value instanceof Error) &&
-            !Array.isArray(value) &&
-            prototype !== Object.prototype &&
-            prototype !== null
-        )
-            return omit();
-        const keys = Reflect.ownKeys(value);
-        if (keys.length > remaining) return omit(OMITTED_SIZE_LIMIT);
-        const clean = createErrorContainer(value);
-        keys.filter((key) => !Array.isArray(value) || key !== 'length').forEach(
-            (key) => {
-                const descriptor = Object.getOwnPropertyDescriptor(value, key);
-                if (!descriptor) return;
-                let original: unknown = descriptor.value;
-                let inaccessible = Boolean(descriptor.get || descriptor.set);
-                if (value instanceof Error && key === 'stack') {
-                    try {
-                        original = value.stack;
-                        inaccessible = false;
-                    } catch {
-                        /* Untrusted accessors are omitted. */
-                    }
-                }
-                const binaryProperty =
-                    typeof key === 'string' &&
-                    binaryKeys.has(key) &&
-                    (typeof original === 'string' ||
-                        (original !== null && typeof original === 'object'));
-                const sanitized =
-                    inaccessible || binaryProperty
-                        ? omit()
-                        : visit(original, depth + 1);
-                let sanitizedKey = key;
-                const keyText = typeof key === 'symbol' ? key.description : key;
-                const sanitizedText = visit(keyText, depth + 1);
-                if (
-                    typeof sanitizedText === 'string' &&
-                    sanitizedText !== keyText
-                ) {
-                    sanitizedKey =
-                        typeof key === 'symbol'
-                            ? Symbol(sanitizedText)
-                            : sanitizedText;
-                }
-                Object.defineProperty(clean, sanitizedKey, {
-                    configurable: descriptor.configurable,
-                    enumerable: descriptor.enumerable,
-                    writable: descriptor.writable ?? true,
-                    value: sanitized,
-                });
-            },
-        );
-        return clean;
-    };
-    try {
-        const sanitized = visit(error);
-        return changes === 0 ? error : sanitized;
-    } catch {
-        return new Error(
-            'Provider error details were withheld because they could not be safely sanitized.',
-        );
-    }
+    if (!APICallError.isInstance(error)) return error;
+    const clean = new APICallError({
+        message: error.message,
+        url: error.url,
+        requestBodyValues: null,
+        statusCode: error.statusCode,
+        responseHeaders: error.responseHeaders,
+        responseBody: error.responseBody,
+        cause: error.cause,
+        isRetryable: error.isRetryable,
+        data: error.data,
+    });
+    clean.stack = error.stack;
+    return clean;
 };
 
 type ModelPrompt = Parameters<
@@ -208,7 +43,7 @@ const hasImageInput = (prompt: ModelPrompt) =>
             ),
     );
 
-// The walk blocks the event loop, so calls with nothing to scrub skip it.
+// Text-only calls keep their request body on the error for debugging.
 const errorRedactorFor = (prompt: ModelPrompt) =>
     hasBinaryModelInputs(prompt)
         ? redactModelError

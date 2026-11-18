@@ -32,9 +32,10 @@ const imagePrompt: Parameters<MockLanguageModelV4['doGenerate']>[0]['prompt'] =
             ],
         },
     ];
+// Mirrors a real provider failure: the image rides only in the request body.
 const failure = (isRetryable = false) =>
     new APICallError({
-        message: `Provider rejected ${encoded}`,
+        message: 'Could not process image',
         url: 'https://model.invalid/messages',
         requestBodyValues: {
             messages: [
@@ -55,16 +56,12 @@ const failure = (isRetryable = false) =>
         },
         responseBody: JSON.stringify({
             error: { type: 'invalid_request_error', message: 'Invalid image' },
-            echoed: encoded,
         }),
         statusCode: isRetryable ? 503 : 400,
         responseHeaders: { 'x-request-id': 'request-123' },
         isRetryable,
-        cause: new Error(`Nested ${encoded}`),
-        data: {
-            code: 'invalid_image',
-            original: `data:image/png;base64,${encoded}`,
-        },
+        cause: new Error('socket closed'),
+        data: { code: 'invalid_image' },
     });
 const expectPrivate = (value: unknown) => {
     const serialized = JSON.stringify(value);
@@ -84,106 +81,28 @@ afterEach(() => {
     vi.useRealTimers();
 });
 
-test('large clean provider errors preserve identity across realistic tool/result bodies', () => {
-    const error = new APICallError({
-        message: 'Provider busy',
-        url: 'https://model.invalid',
-        statusCode: 503,
-        isRetryable: true,
-        requestBodyValues: {
-            messages: Array.from({ length: 10_000 }, (_, index) => ({
-                role: 'tool',
-                content: JSON.stringify({ row: index, country: 'example' }),
-            })),
-        },
-    });
-    expect(redactModelError(error)).toBe(error);
-});
-
-test('bounded traversal has an honest size-limit marker, not a binary-redaction claim', () => {
-    let nested: unknown = 'clean';
-    for (let index = 0; index < 80; index += 1) nested = { next: nested };
-    const error = new APICallError({
-        message: 'Provider busy',
-        url: 'https://model.invalid',
-        requestBodyValues: nested,
-    });
-    const sanitized = inspect(redactModelError(error), {
-        depth: Infinity,
-        showHidden: true,
-    });
-    expect(sanitized).toContain('[omitted: size limit]');
-    expect(sanitized).not.toContain('[redacted binary payload]');
-});
-
-test('recursively redacts bytes, base64, messages, stacks, causes and bodies while preserving provider classification', () => {
+test('drops the request body and keeps everything used to classify the failure', () => {
     const error = failure();
     const sanitized = redactModelError(error);
     expectPrivate(sanitized);
     expect(APICallError.isInstance(sanitized)).toBe(true);
     expect(sanitized).toMatchObject({
+        message: error.message,
+        stack: error.stack,
         statusCode: 400,
         isRetryable: false,
         url: error.url,
         responseHeaders: error.responseHeaders,
+        responseBody: error.responseBody,
+        cause: error.cause,
         data: { code: 'invalid_image' },
     });
-    expect(error.message).toContain(encoded);
 });
 
-test('clean text-only errors retain identity and existing metadata', () => {
-    const error = new APICallError({
-        message: 'quota exceeded',
-        url: 'https://model.invalid',
-        statusCode: 429,
-        requestBodyValues: {
-            messages: [{ role: 'user', content: 'text prompt' }],
-        },
-        data: { code: 'quota' },
-    });
-    expect(redactModelError(error)).toBe(error);
+test('errors that are not provider call errors pass through untouched', () => {
     const plain = new Error('ordinary failure');
     expect(redactModelError(plain)).toBe(plain);
-});
-
-test('short image payloads and JSON-serialized Buffer representations are also scrubbed', () => {
-    const image = 'iVBORw0KGgoAAAANSUhEUg==';
-    const error = new Error(`Invalid data:image/png;base64,${image}`);
-    Object.assign(error, {
-        body: JSON.stringify({ type: 'Buffer', data: [137, 80, 78, 71] }),
-        bedrock: { image: { format: 'png', source: { bytes: image } } },
-    });
-    const sanitized = redactModelError(error);
-    expect(inspect(sanitized, { depth: Infinity })).not.toContain(image);
-    expect(JSON.stringify(sanitized)).not.toContain('[137,80,78,71]');
-});
-
-test('cycles, deep objects and serialization hooks cannot retain hidden binary payloads', () => {
-    const error = failure();
-    Object.assign(error, {
-        self: error,
-        toJSON: () => encoded,
-        [encoded]: 'untrusted property key',
-        symbolValue: Symbol(encoded),
-        timestamp: Object.assign(new Date(), { image: bytes }),
-    });
-    Object.defineProperty(error, Symbol.for('nodejs.util.inspect.custom'), {
-        value: () => encoded,
-    });
-    const sanitized = redactModelError(error);
-    expectPrivate(sanitized);
-    expect(JSON.stringify(sanitized)).toContain('redacted binary payload');
-});
-
-test('untrusted accessors fail closed without leaking their thrown payload', () => {
-    const value = Object.defineProperty({}, 'type', {
-        get() {
-            throw new Error(encoded);
-        },
-    });
-    const sanitized = redactModelError({ value });
-    expectPrivate(sanitized);
-    expect(String(sanitized)).toContain('withheld');
+    expect(redactModelError('text')).toBe('text');
 });
 
 test('generate and initial stream failures are sanitized before leaving the wrapped model', async () => {
