@@ -233,6 +233,31 @@ describe('getComposerRunQueryChart', () => {
         });
     });
 
+    test.each([false, true])(
+        'stacked bar without groupBy puts every y in one stack (horizontal: %s)',
+        (horizontal) => {
+            const { chartConfig } = chart(
+                viz({
+                    type: 'bar',
+                    horizontal,
+                    x: 'orders_month',
+                    y: ['revenue', 'order_count'],
+                    stack: true,
+                }),
+            );
+            expect(chartConfig).toMatchObject({
+                config: {
+                    eChartsConfig: {
+                        series: [
+                            { stack: 'stack-all-series' },
+                            { stack: 'stack-all-series' },
+                        ],
+                    },
+                },
+            });
+        },
+    );
+
     test('horizontal bar flips axes', () => {
         const { chartConfig } = chart(
             viz({
