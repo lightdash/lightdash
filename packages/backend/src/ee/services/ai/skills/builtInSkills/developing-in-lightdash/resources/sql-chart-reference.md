@@ -5,7 +5,12 @@ description: When to save a SQL chart, its body, chart kinds and config, the SQL
 
 # SQL Chart Reference
 
-A SQL chart is a chart saved from raw warehouse SQL rather than from an explore. It bypasses the governed semantic layer, so saving one is the user's choice: save it when the user asked for a SQL chart, gave SQL to save as a chart, or chose one when `Create Charts` in the skill had you offer it. For any other chart, return to `Create Charts`.
+A SQL chart is a chart saved from raw warehouse SQL rather than from an explore. It bypasses the governed semantic layer, so saving one is the user's choice.
+
+## When to save one
+
+- The user asked for a SQL chart or gave SQL to save as a chart: save it.
+- Every other saved chart comes from explore fields. Correct and retry an attempt that fails (a rejected formula, a query error) before judging the explores. When they cannot produce the chart (a missing field or table, a join or calculation none of them models), stop and tell the user what the semantic layer lacks, then offer the paths open here: adding it to the semantic layer, and a SQL chart where one can be saved. Once they choose the SQL chart, later charts in this thread that explores cannot produce are SQL charts too.
 
 ## Requirements
 
