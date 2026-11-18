@@ -35,10 +35,6 @@ openapi_surface: &openapi_surface
   - "packages/backend/**/*"
   - "packages/common/**/*"
 
-api_schema:
-  - ".github/workflows/pr.yml"
-  - *openapi_surface
-
 # Gates OpenAPI spec generation in release-safety-pr.yml: the surface itself, plus
 # the wiring that decides how the two specs are generated and diffed
 release_safety_api:
