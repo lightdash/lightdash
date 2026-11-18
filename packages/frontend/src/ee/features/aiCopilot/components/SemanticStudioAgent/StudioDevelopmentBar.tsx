@@ -25,12 +25,7 @@ import {
 } from '../../../../../features/semanticStudio/developmentView';
 import { useCompileCheckout } from '../../../../../features/semanticStudio/useSemanticLayerModel';
 import { useClosePullRequest } from '../../hooks/useClosePullRequest';
-import {
-    useElapsed,
-    useWritebackProgress,
-} from '../../hooks/useWritebackProgress';
-import { WRITEBACK_STEPS } from '../ChatElements/ToolCalls/writebackProgress';
-import { WritebackSegments } from '../ChatElements/ToolCalls/WritebackProgressCard';
+import { useWritebackProgress } from '../../hooks/useWritebackProgress';
 import { PublishDraftModal } from './PublishDraftModal';
 import { TryItButton } from './TryItButton';
 import { useFinishDiscardedWork } from './useSemanticStudioChat';
@@ -214,30 +209,30 @@ export const StudioDevelopmentBar: FC<{
     );
 };
 
-/** A dbt change still running in the background, in the toolbar: the step it is on and how long it has been. */
+/** A dbt change still being saved, in the toolbar: only that it is under way, since the chat shows its steps. */
 export const StudioSavingBar: FC<{
     projectUuid: string;
     change: StudioPendingChange;
     /** The open pull request this save adds to; null when the save opens the first one. */
     pullRequest: StudioPullRequest | null;
 }> = ({ projectUuid, change, pullRequest }) => {
-    const progress = useWritebackProgress(
+    const { state } = useWritebackProgress(
         projectUuid,
         change.aiWritebackRunUuid,
     );
-    const { step, state } = progress;
-    const elapsed = useElapsed(change.startedAt);
     return (
         <DevelopmentBar
             summary={
-                <Group gap="xs" wrap="nowrap" miw={0}>
-                    <WritebackSegments progress={progress} size="sm" />
+                <Group gap={6} wrap="nowrap" miw={0}>
+                    {state === 'running' ? (
+                        <Loader size={12} color="gray" />
+                    ) : null}
                     <Text fz="xs" c="dimmed" truncate>
                         {state === 'running'
-                            ? `${WRITEBACK_STEPS[step]}, step ${step + 1} of ${WRITEBACK_STEPS.length}`
+                            ? 'Saving'
                             : state === 'done'
                               ? 'Saved'
-                              : 'The change stopped'}
+                              : 'The save stopped'}
                     </Text>
                 </Group>
             }
@@ -250,11 +245,6 @@ export const StudioSavingBar: FC<{
                     look="primary"
                 />
             ) : null}
-            <Tooltip label="Usually takes 2 to 3 minutes. The draft shows up here once it is saved.">
-                <Text fz="xs" c="dimmed" ff="monospace">
-                    {elapsed}
-                </Text>
-            </Tooltip>
         </DevelopmentBar>
     );
 };

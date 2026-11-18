@@ -150,8 +150,16 @@ const getPhase = (
 const getSafety = (
     error: string | null,
     impact: SemanticLayerDraftImpact | undefined,
+    conflicts: number,
 ): Safety => {
     if (error) return { state: 'failed', text: "Doesn't compile", why: error };
+    if (conflicts > 0) {
+        return {
+            state: 'failed',
+            text: `${conflicts} ${conflicts === 1 ? 'conflict' : 'conflicts'}`,
+            why: 'choose which version to keep before you publish',
+        };
+    }
     if (!impact) {
         return { state: 'running', text: 'Checking saved charts', why: null };
     }
@@ -244,7 +252,10 @@ export const TurnSummaryCard: FC<{
         (phase.kind === 'draft' ? (checkedOut?.workspace?.name ?? null) : null);
 
     const isDraft = phase.kind === 'draft';
-    const safety = isDraft ? getSafety(phase.error, impact) : null;
+    const conflicts = (draft?.models ?? []).filter(
+        ({ reconciliation }) => reconciliation?.state === 'conflict',
+    ).length;
+    const safety = isDraft ? getSafety(phase.error, impact, conflicts) : null;
     const actions = (() => {
         switch (phase.kind) {
             case 'draft':
