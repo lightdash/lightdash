@@ -14,10 +14,7 @@ import {
     pinDevelopmentView,
     useDevelopmentView,
 } from '../../../../../features/semanticStudio/developmentView';
-import {
-    useStudioPullRequest,
-    type StudioPullRequest,
-} from './useStudioPullRequest';
+import { type StudioPullRequest } from './useStudioPullRequest';
 
 // Explore loads only when something is tried, not with every pull request card.
 const TryItModal = lazy(() =>
@@ -111,19 +108,4 @@ export const TryItButton: FC<{
             ) : null}
         </>
     );
-};
-
-/** Try it on a pull request card in the chat, for the pull request Studio is working on. */
-export const PullRequestCardTryIt: FC<{
-    projectUuid: string;
-    prUrl: string;
-}> = ({ projectUuid, prUrl }) => {
-    const pullRequest = useStudioPullRequest(projectUuid);
-    return pullRequest?.isOpen && pullRequest.prUrl === prUrl ? (
-        <TryItButton
-            projectUuid={projectUuid}
-            pullRequest={pullRequest}
-            look="quiet"
-        />
-    ) : null;
 };
