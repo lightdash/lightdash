@@ -17,6 +17,7 @@ import {
     getInstallationAccessToken,
     getLastCommit,
     getPullRequest,
+    getPullRequestDiffFiles,
     getRepoTree,
 } from '../../../clients/github/Github';
 import { type GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
@@ -335,6 +336,118 @@ export class RepoModelSource {
         };
     }
 
+    /** The files a set of model writes adds or replaces, and the ones it deletes; null content removes a model's file. */
+    private static toFileChanges(
+        { paths, modelsDirectory }: RepoModels,
+        writes: Map<string, string | null>,
+    ) {
+        const pathOf = (name: string) =>
+            paths.get(name) ?? joinPath(modelsDirectory, `${name}.yml`);
+        return {
+            additions: [...writes].flatMap(([name, content]) =>
+                content === null
+                    ? []
+                    : [
+                          {
+                              path: pathOf(name),
+                              contents: Buffer.from(content, 'utf-8').toString(
+                                  'base64',
+                              ),
+                          },
+                      ],
+            ),
+            deletions: [...writes].flatMap(([name, content]) =>
+                content === null && paths.has(name)
+                    ? [{ path: pathOf(name) }]
+                    : [],
+            ),
+        };
+    }
+
+    /**
+     * Brings a draft's open pull request up to date with one more signed commit, so a draft has one pull request
+     * however often it is sent. Returns null when the pull request is no longer open, or is not this repository's.
+     */
+    async updatePullRequest({
+        organizationUuid,
+        models,
+        writes,
+        title,
+        prUrl,
+    }: {
+        organizationUuid: string;
+        models: RepoModels;
+        writes: Map<string, string | null>;
+        title: string;
+        prUrl: string;
+    }): Promise<{ url: string } | null> {
+        const { connection, documents, paths } = models;
+        const match =
+            /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)$/.exec(
+                prUrl,
+            );
+        if (
+            !match ||
+            match[1].toLowerCase() !== connection.owner.toLowerCase() ||
+            match[2].toLowerCase() !== connection.repo.toLowerCase()
+        ) {
+            return null;
+        }
+        const access = await this.getAccess(organizationUuid);
+        const pullNumber = Number(match[3]);
+        const pullRequest = await getPullRequest({
+            owner: connection.owner,
+            repo: connection.repo,
+            pullNumber,
+            token: access.token,
+        });
+        if (pullRequest.state !== 'open' || pullRequest.merged) return null;
+        const { additions, deletions } = RepoModelSource.toFileChanges(
+            models,
+            writes,
+        );
+        // What an earlier send changed and the draft no longer does goes back to how the project's branch has it.
+        const sent = new Set(
+            [...additions, ...deletions].map(({ path }) => path),
+        );
+        const onBranch = new Map(
+            documents.flatMap(({ name, content }) => {
+                const path = paths.get(name);
+                return path === undefined ? [] : [[path, content] as const];
+            }),
+        );
+        const { files } = await getPullRequestDiffFiles({
+            owner: connection.owner,
+            repo: connection.repo,
+            pullNumber,
+            token: access.token,
+        });
+        files
+            .filter(({ path }) => !sent.has(path))
+            .forEach(({ path }) => {
+                const content = onBranch.get(path);
+                if (content === undefined) deletions.push({ path });
+                else {
+                    additions.push({
+                        path,
+                        contents: Buffer.from(content, 'utf-8').toString(
+                            'base64',
+                        ),
+                    });
+                }
+            });
+        await createSignedCommitOnBranch({
+            ...connection,
+            ...access,
+            branch: pullRequest.headRef,
+            expectedHeadOid: pullRequest.headSha,
+            headline: title,
+            body: '',
+            fileChanges: { additions, deletions },
+        });
+        return { url: prUrl };
+    }
+
     /** Sends model changes back as one signed commit on a new branch, and opens a pull request against the project's branch; null content removes a model's file. */
     async openPullRequest({
         organizationUuid,
@@ -349,24 +462,11 @@ export class RepoModelSource {
         title: string;
         body: string;
     }): Promise<{ url: string }> {
-        const { connection, baseSha, paths, modelsDirectory } = models;
+        const { connection, baseSha } = models;
         const access = await this.getAccess(organizationUuid);
-        const pathOf = (name: string) =>
-            paths.get(name) ?? joinPath(modelsDirectory, `${name}.yml`);
-        const additions = [...writes].flatMap(([name, content]) =>
-            content === null
-                ? []
-                : [
-                      {
-                          path: pathOf(name),
-                          contents: Buffer.from(content, 'utf-8').toString(
-                              'base64',
-                          ),
-                      },
-                  ],
-        );
-        const deletions = [...writes].flatMap(([name, content]) =>
-            content === null && paths.has(name) ? [{ path: pathOf(name) }] : [],
+        const { additions, deletions } = RepoModelSource.toFileChanges(
+            models,
+            writes,
         );
         if (additions.length === 0 && deletions.length === 0) {
             throw new ParameterError(

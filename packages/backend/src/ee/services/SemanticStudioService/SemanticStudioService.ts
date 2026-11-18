@@ -71,6 +71,7 @@ import {
     type ProjectModelDocument,
     type ProjectModelDocumentModel,
     type StoredDraftChange,
+    type WorkspaceDraftOwner,
 } from '../../models/ProjectModelDocumentModel';
 import { type SemanticStudioWorkspaceModel } from '../../models/SemanticStudioWorkspaceModel';
 import { getWritebackConnectionSupport } from '../AiAgentService/writebackConnection';
@@ -178,7 +179,11 @@ export type SemanticStudioServiceArguments = {
     >;
     repoModels: Pick<
         RepoModelSource,
-        'isInstalled' | 'load' | 'openPullRequest' | 'getPullRequestState'
+        | 'isInstalled'
+        | 'load'
+        | 'openPullRequest'
+        | 'updatePullRequest'
+        | 'getPullRequestState'
     >;
     savedChartModel: Pick<SavedChartModel, 'analyzeFieldImpact'>;
     jobModel: Pick<JobModel, 'findLatestCompileStatus'>;
@@ -2288,13 +2293,35 @@ export class SemanticStudioService extends BaseService {
                 };
             }
             if (draft.repo) {
+                if (model !== null) {
+                    throw new ParameterError(
+                        'A draft of models kept in a repository is sent whole, as one pull request',
+                    );
+                }
                 // The repository deploys the models once the pull request merges, so nothing goes live here.
-                const { url } = await this.repoModels.openPullRequest({
+                const sent = {
                     organizationUuid: draft.organizationUuid,
                     models: draft.repo,
                     writes: check.writes,
                     ...describePullRequest(draft.results.flat()),
-                });
+                };
+                const open = await this.findOpenDraftPullRequest(user, owner);
+                const { url } =
+                    (open &&
+                        (await this.repoModels.updatePullRequest({
+                            ...sent,
+                            prUrl: open,
+                        }))) ||
+                    (await this.repoModels.openPullRequest(sent));
+                // A workspace keeps its draft while the pull request is open, so it can still be read, tried and added to.
+                if (owner.workspaceUuid !== null) {
+                    return {
+                        exploreCount: null,
+                        failures: [],
+                        pullRequestUrl: url,
+                        merge: null,
+                    };
+                }
                 let settled = 0;
                 try {
                     settled =
@@ -2500,6 +2527,24 @@ export class SemanticStudioService extends BaseService {
             }
             throw error;
         }
+    }
+
+    /** The pull request this draft's workspace was already sent as, while it is still open. */
+    private async findOpenDraftPullRequest(
+        user: SessionUser,
+        { workspaceUuid }: DraftOwner,
+    ): Promise<string | null> {
+        if (workspaceUuid === null) return null;
+        const workspace = await this.workspaceModel.find(
+            workspaceUuid,
+            user.userUuid,
+        );
+        const pullRequest = workspace?.pullRequest ?? null;
+        return pullRequest &&
+            pullRequest.state !== 'merged' &&
+            pullRequest.state !== 'closed'
+            ? pullRequest.url
+            : null;
     }
 
     /** A draft that went live finishes its workspace; one sent as a pull request waits on that. */
@@ -2959,16 +3004,66 @@ export class SemanticStudioService extends BaseService {
         await this.workspaceModel.deleteFinishedBranchCompiles(projectUuid);
     }
 
-    /** Records a pull request's state as its provider reported it to someone allowed to ask. */
+    /**
+     * Records a pull request's state as its provider reported it to someone allowed to ask. A draft sent as that
+     * pull request is settled by its merge, and kept when it closes, so the work can be sent again or discarded.
+     */
     async recordPullRequestState(
         projectUuid: string,
         prUrl: string,
         state: SemanticStudioWorkspacePullRequestState,
     ): Promise<void> {
+        const drafted =
+            state === 'open'
+                ? []
+                : await this.findDraftsSentAs(projectUuid, prUrl);
+        if (state === 'merged') {
+            await Promise.all(
+                drafted.map(({ owner, changeUuids }) =>
+                    this.projectModelDocumentModel.updateDraftChangeStatus({
+                        ...owner,
+                        drafts: { changeUuids, model: null },
+                        status: 'applied',
+                        pullRequestUrl: prUrl,
+                    }),
+                ),
+            );
+        }
         await this.workspaceModel.recordPullRequestState(
             projectUuid,
             prUrl,
             state,
+            // A closed pull request with a draft behind it leaves the workspace open.
+            state === 'merged' || drafted.length === 0,
         );
+    }
+
+    /** The unfinished workspaces whose draft was sent as this pull request, with what is still in each draft. */
+    private async findDraftsSentAs(
+        projectUuid: string,
+        prUrl: string,
+    ): Promise<{ owner: WorkspaceDraftOwner; changeUuids: string[] }[]> {
+        const workspaces = (
+            await this.workspaceModel.findInProject(projectUuid, '')
+        ).filter(
+            ({ finishedAt, pullRequest }) =>
+                !finishedAt && pullRequest?.url === prUrl,
+        );
+        const drafts = await Promise.all(
+            workspaces.map(async ({ workspaceUuid, owner: { userUuid } }) => {
+                const owner = { projectUuid, userUuid, workspaceUuid };
+                const changes =
+                    await this.projectModelDocumentModel.findWorkspaceDraftChanges(
+                        owner,
+                    );
+                return {
+                    owner,
+                    changeUuids: changes.map(
+                        ({ draftChangeUuid }) => draftChangeUuid,
+                    ),
+                };
+            }),
+        );
+        return drafts.filter(({ changeUuids }) => changeUuids.length > 0);
     }
 }
