@@ -166,7 +166,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                             'query-origin-and-initiating-actor',
                         ],
                         layout: 'row',
-                        rowHeight: 10,
+                        rowHeight: 8,
                     },
                     {
                         title: 'Caching',

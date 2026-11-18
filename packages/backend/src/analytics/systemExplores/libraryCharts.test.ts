@@ -571,6 +571,9 @@ describe('legacyLibraryChartBindings', () => {
             optionValues: {
                 valueAggregation: 'sum',
                 colorSparklineByTrend: false,
+                showLabel: false,
+                showCardBorder: false,
+                showCardShadow: false,
             },
         });
         ['query-users', 'avg-execution-time', 'p90-execution-time'].forEach(
@@ -578,11 +581,26 @@ describe('legacyLibraryChartBindings', () => {
                 expect(queryBinding(key)).toMatchObject({
                     slug: 'big-number-with-sparkline-trend',
                     minVersion: '0.6.0',
-                    optionValues: {},
+                    optionValues: {
+                        showLabel: false,
+                        showCardBorder: false,
+                        showCardShadow: false,
+                    },
                     query: null,
                 });
             },
         );
+        expect(queryBinding('query-flow-origin-to-context')).toEqual({
+            slug: 'heatmap',
+            minVersion: '0.4.0',
+            fieldMapping: {
+                x: 'query_events_context',
+                y: 'query_events_workload_origin',
+                value: 'query_events_total_queries',
+            },
+            optionValues: {},
+            query: null,
+        });
         expect(queryBinding('queries-by-day')).toMatchObject({
             slug: 'customizable-cartesian-chart',
             minVersion: '0.17.0',

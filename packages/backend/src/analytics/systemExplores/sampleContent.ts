@@ -496,6 +496,9 @@ export const analyticsSampleDashboards = [
                         optionValues: {
                             valueAggregation: 'sum',
                             colorSparklineByTrend: false,
+                            showLabel: false,
+                            showCardBorder: false,
+                            showCardShadow: false,
                         },
                         query: {
                             dimensions: ['query_events_event_ts_day'],
@@ -523,7 +526,11 @@ export const analyticsSampleDashboards = [
                         slug: 'big-number-with-sparkline-trend',
                         minVersion: '0.6.0',
                         fieldMapping: { value: 'query_events_unique_users' },
-                        optionValues: {},
+                        optionValues: {
+                            showLabel: false,
+                            showCardBorder: false,
+                            showCardShadow: false,
+                        },
                         query: null,
                     },
                 },
@@ -541,7 +548,11 @@ export const analyticsSampleDashboards = [
                         fieldMapping: {
                             value: 'query_events_avg_warehouse_execution_time_ms',
                         },
-                        optionValues: {},
+                        optionValues: {
+                            showLabel: false,
+                            showCardBorder: false,
+                            showCardShadow: false,
+                        },
                         query: null,
                     },
                 },
@@ -559,7 +570,11 @@ export const analyticsSampleDashboards = [
                         fieldMapping: {
                             value: 'query_events_p90_warehouse_execution_time_ms',
                         },
-                        optionValues: {},
+                        optionValues: {
+                            showLabel: false,
+                            showCardBorder: false,
+                            showCardShadow: false,
+                        },
                         query: null,
                     },
                 },

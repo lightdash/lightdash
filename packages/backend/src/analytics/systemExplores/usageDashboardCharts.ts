@@ -1309,7 +1309,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'query-flow-origin-to-context',
         name: 'Where do queries come from?',
         description:
-            'Queries flowing from each workload origin to the context that ran them, over the selected period.',
+            'Queries by workload origin and the context that ran them, over the selected period.',
         explore: 'query_events',
         dimensions: ['query_events_workload_origin', 'query_events_context'],
         metrics: ['query_events_total_queries'],
@@ -1321,14 +1321,14 @@ export const usageChartSpecs: UsageChartSpec[] = [
             },
         ],
         libraryChart: {
-            slug: 'chord-diagram',
-            minVersion: '0.2.0',
+            slug: 'heatmap',
+            minVersion: '0.4.0',
             fieldMapping: {
-                source: 'query_events_workload_origin',
-                target: 'query_events_context',
+                x: 'query_events_context',
+                y: 'query_events_workload_origin',
                 value: 'query_events_total_queries',
             },
-            optionValues: { totalLabel: 'Queries' },
+            optionValues: {},
             query: null,
         },
     },

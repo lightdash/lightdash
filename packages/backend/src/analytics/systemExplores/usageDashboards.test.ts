@@ -881,7 +881,7 @@ describe('built-in usage dashboards', () => {
             'query-origin-and-initiating-actor',
         ].map((key) => tile('origins', key));
         expect([flow.x, origin.x, flow.w, origin.w, flow.h, origin.h]).toEqual([
-            0, 18, 18, 18, 10, 10,
+            0, 18, 18, 18, 8, 8,
         ]);
         expect(flow.y).toBe(origin.y);
         const cached = tile('origins', 'warehouse-versus-cached-demand');
