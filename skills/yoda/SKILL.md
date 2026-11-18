@@ -28,7 +28,7 @@ Words go in any order.
 Infer an omitted mode: review for a PR/branch/diff; json when only change data is requested; explain otherwise.
 Use triage only when its tag list is wanted.
 
-Formats: **text** (default) is Markdown; **json** is data; **html** is one compact segmented card ([formats/html.md](formats/html.md)), shown inline or published when a shareable link is requested; **github** writes the PR description and keeps it synced ([formats/github.md](formats/github.md)).
+Formats: **html** (default) is one compact segmented card ([formats/html.md](formats/html.md)), shown inline or published when a shareable link is requested; **text** is Markdown, used where HTML cannot render (a terminal, or another agent reading the review); **json** is data; **github** writes the PR description and keeps it synced ([formats/github.md](formats/github.md)).
 A PR whose description holds a yoda block is synced whenever yoda reviews it, whatever the format.
 Reformat an existing review from context without reviewing again.
 
