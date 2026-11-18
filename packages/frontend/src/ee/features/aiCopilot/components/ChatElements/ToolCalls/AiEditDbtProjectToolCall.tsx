@@ -49,6 +49,7 @@ import {
 import { usePullRequestCiChecks } from '../../../hooks/usePullRequestCiChecks';
 import { POST_MERGE_MIGRATION_PROMPT } from '../../../postMergeMigrationPrompt';
 import { PullRequestCardTryIt } from '../../SemanticStudioAgent/TryItButton';
+import { useFinishDiscardedWork } from '../../SemanticStudioAgent/useSemanticStudioChat';
 import styles from './AiEditDbtProjectToolCall.module.css';
 import { isMergeable } from './pullRequestActions';
 import {
@@ -352,10 +353,13 @@ const resolvedHostIsGithub = (prUrl: string): boolean =>
 
 /** What the quiet card keeps in its menu for an open pull request: closing it, and authoring as the person. */
 const OpenPullRequestMenuItems: FC<{
+    projectUuid: string;
     isGithub: boolean;
-    onClose: () => void;
-}> = ({ isGithub, onClose }) => {
+    onClose: (onClosed: () => void) => void;
+}> = ({ projectUuid, isGithub, onClose }) => {
     const [armed, setArmed] = useState(false);
+    // Discarded work leaves the list and stays as history, as it does from the bar.
+    const finishDiscardedWork = useFinishDiscardedWork(projectUuid);
     const { data: credential } = useGithubUserCredential();
     return (
         <>
@@ -364,7 +368,9 @@ const OpenPullRequestMenuItems: FC<{
                 leftSection={
                     <MantineIcon icon={IconGitPullRequestClosed} size={14} />
                 }
-                onClick={() => (armed ? onClose() : setArmed(true))}
+                onClick={() =>
+                    armed ? onClose(finishDiscardedWork) : setArmed(true)
+                }
             >
                 {armed
                     ? 'Click again to close the pull request'
@@ -761,11 +767,15 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                         >
                             {quiet && isOpen && !isBitbucket ? (
                                 <OpenPullRequestMenuItems
+                                    projectUuid={projectUuid}
                                     isGithub={resolvedHostIsGithub(
                                         resolvedPrUrl,
                                     )}
-                                    onClose={() =>
-                                        close({ prUrl: resolvedPrUrl })
+                                    onClose={(onClosed) =>
+                                        close(
+                                            { prUrl: resolvedPrUrl },
+                                            { onSuccess: onClosed },
+                                        )
                                     }
                                 />
                             ) : null}

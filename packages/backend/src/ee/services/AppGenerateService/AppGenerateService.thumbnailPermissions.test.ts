@@ -179,6 +179,7 @@ const buildScenario = () => {
         appRuntimeS3: null,
         appThumbnailClient: buildAppThumbnailClientMock({ appModel, storage }),
         chartRegistryClient: {} as never,
+        contentDraftModel: {} as never,
         contentVerificationModel: {} as never,
     });
     vi.spyOn(service, 'isChartStudioAvailable').mockReturnValue(true);

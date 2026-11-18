@@ -46,6 +46,7 @@ import {
     DEVELOPMENT_VIEW_HEADER,
 } from './developmentView';
 import classes from './DraftInsights.module.css';
+import { describePublisher } from './draftState';
 import { describeShift, pickComparedMetrics } from './metricComparison';
 import {
     CHANGE_KIND_LABELS,
@@ -89,17 +90,15 @@ const KeepTheirsButton: FC<{
     projectUuid: string;
     model: string;
     path: string;
-    publisher: string | null;
-}> = ({ projectUuid, model, path, publisher }) => {
+    label: string;
+}> = ({ projectUuid, model, path, label }) => {
     const takeLive = useTakeLiveDraftPart(projectUuid);
     return (
         <Button
             size="compact-xs"
             variant="default"
             flex="none"
-            aria-label={
-                publisher ? `Keep ${publisher}'s version` : 'Keep their version'
-            }
+            aria-label={label}
             loading={takeLive.isLoading}
             onClick={() => takeLive.mutate({ model, path })}
         >
@@ -145,7 +144,7 @@ const ChangedWords: FC<{ value: string; base: string | null }> = ({
     base,
 }) => {
     if (base === null) return value;
-    // ponytail: words compared as a set, so a moved or repeated word is not marked; use a real diff if that misleads.
+    // Words compared as a set, so a moved or repeated word is not marked; use a real diff if that misleads.
     const known = new Set(base.split(/\s+/).map(toBareWord));
     return value.split(/(\s+)/).map((word, index) =>
         toBareWord(word) === '' || known.has(toBareWord(word)) ? (
@@ -232,13 +231,13 @@ const ConflictSides: FC<{
     /** False when it is the only contested part: the notice names it, and keeping the draft is offered right here. */
     isOneOfSeveral: boolean;
 }> = ({ projectUuid, model, conflict, publishedAgo, isOneOfSeveral }) => {
-    const publisher = model.publishedSince?.by ?? null;
+    const publisher = describePublisher(model.publishedSince);
     return (
         <Stack gap="xs" className={classes.conflict}>
             {isOneOfSeveral ? <PartName path={conflict.path} /> : null}
             <Box className={classes.options}>
                 <ConflictOption
-                    title={publisher ?? 'Someone else'}
+                    title={publisher.option}
                     state={`live ${publishedAgo}`}
                     tone="live"
                     value={conflict.live}
@@ -253,7 +252,7 @@ const ConflictSides: FC<{
                             projectUuid={projectUuid}
                             model={model.model}
                             path={conflict.path}
-                            publisher={publisher}
+                            label={publisher.keepLabel}
                         />
                     }
                 />
@@ -322,7 +321,7 @@ export const ModelNotices: FC<{
     const publishedAgo = useTimeAgo(model.publishedSince?.at ?? new Date());
     const conflicts = model.reconciliation?.conflicts ?? [];
     const merged = model.reconciliation?.merged ?? [];
-    const publisher = model.publishedSince?.by ?? 'Someone';
+    const publisher = describePublisher(model.publishedSince);
     // Kept over what was published: the draft is based on live again.
     const publishedUnder =
         model.reconciliation?.state === 'current' ? null : model.publishedSince;
@@ -345,15 +344,15 @@ export const ModelNotices: FC<{
                         >
                             <Text fz="xs" w="fit-content">
                                 <Text span fw={600}>
-                                    {publisher}
+                                    {publisher.subject}
                                 </Text>{' '}
                                 published a change to{' '}
                                 {conflicts.length === 1 ? (
                                     <ContestedPart path={conflicts[0].path} />
                                 ) : (
                                     `${conflicts.length} parts of this model`
-                                )}{' '}
-                                that your draft also edits.
+                                )}
+                                {publisher.where} that this draft also edits.
                             </Text>
                         </Tooltip>
                     </NoticeRow>
@@ -383,10 +382,10 @@ export const ModelNotices: FC<{
                 <NoticeRow icon={IconGitMerge} color="dimmed">
                     <Text fz="xs" c="dimmed">
                         <Text span fw={600}>
-                            {publisher}
+                            {publisher.subject}
                         </Text>{' '}
-                        published a change to this model {publishedAgo}, after
-                        you started
+                        published a change to this model{publisher.where}{' '}
+                        {publishedAgo}, after you started
                         {merged.length > 0
                             ? `, in ${listNames(merged.map(describePath))}, which you did not touch`
                             : ''}

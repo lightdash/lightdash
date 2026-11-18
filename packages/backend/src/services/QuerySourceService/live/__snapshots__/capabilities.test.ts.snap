@@ -2,6 +2,11 @@
 
 exports[`connector capability declarations > the summable tags 1`] = `
 {
+  "attio": {
+    "count": {
+      "aggregation": "additive",
+    },
+  },
   "ga4": {
     "active_users": {
       "aggregation": "non_additive",
@@ -258,6 +263,17 @@ exports[`connector capability declarations > the summable tags 1`] = `
     },
     "unique_users": {
       "aggregation": "non_additive",
+    },
+  },
+  "pylon": {
+    "average_first_response_minutes": {
+      "aggregation": "non_additive",
+    },
+    "average_resolution_hours": {
+      "aggregation": "non_additive",
+    },
+    "count": {
+      "aggregation": "additive",
     },
   },
   "search_console": {

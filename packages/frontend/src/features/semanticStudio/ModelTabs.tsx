@@ -14,13 +14,14 @@ import {
 } from '@mantine/core';
 import { File, WorkerPoolContextProvider } from '@pierre/diffs/react';
 import dayjs from 'dayjs';
-import { useState, type FC, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FC, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
 } from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
+import useHealth from '../../hooks/health/useHealth';
 import { ChangeDiff } from './ChangeDiff';
 import {
     CHANGE_KIND_VERBS,
@@ -28,9 +29,10 @@ import {
     DRAFT_REVIEW,
     getChangeKind,
     changeTitle,
-    findFieldLine,
+    findFieldBlock,
     VIEW_PARAM,
 } from './modelCode';
+import { ModelPreAggregates } from './ModelPreAggregates';
 import classes from './ModelTabs.module.css';
 import {
     useSemanticLayerDraft,
@@ -38,6 +40,16 @@ import {
     useAppliesAsPullRequest,
     useUndoSemanticLayerChanges,
 } from './useSemanticLayerModel';
+
+/** Fades the lines around the marked definition; hovering the code brings them back. */
+const ISOLATE_BLOCK_CSS = `
+[data-line]:not([data-selected-line]),
+[data-column-number]:not([data-selected-line]) {
+    opacity: 0.3;
+    transition: opacity 150ms ease;
+}
+:host(:hover) :is([data-line], [data-column-number]) { opacity: 1; }
+`;
 
 /** A model's YAML, read only: its draft when it has one, or what is live. */
 export const ModelCodeView: FC<{
@@ -57,8 +69,28 @@ export const ModelCodeView: FC<{
     const [version, setVersion] = useState<'draft' | 'live'>('draft');
     const isDraft = draftContent !== undefined && version === 'draft';
     const content = isDraft ? draftContent : (model?.content ?? null);
-    const line =
-        fieldName && content ? findFieldLine(content, fieldName) : null;
+    const block =
+        fieldName && content ? findFieldBlock(content, fieldName) : null;
+    const line = block?.start ?? null;
+    const editor = useRef<HTMLDivElement>(null);
+    // The viewer marks the line but does not bring it into view, and it renders after this does.
+    useEffect(() => {
+        if (line === null) return undefined;
+        let frame = 0;
+        let tries = 0;
+        const reveal = () => {
+            const target = editor.current
+                ?.querySelector('diffs-container')
+                ?.shadowRoot?.querySelector(`[data-line="${line}"]`);
+            if (target) target.scrollIntoView({ block: 'center' });
+            else if (tries < 60) {
+                tries += 1;
+                frame = requestAnimationFrame(reveal);
+            }
+        };
+        reveal();
+        return () => cancelAnimationFrame(frame);
+    }, [line, modelName]);
     if (isLoading) return null;
     if (!model && draftContent === undefined) {
         return (
@@ -97,7 +129,7 @@ export const ModelCodeView: FC<{
                     ) : null}
                 </Group>
             </Group>
-            <Box className={classes.codeEditor}>
+            <Box className={classes.codeEditor} ref={editor}>
                 {content === null ? (
                     <Text fz="sm" c="dimmed" p="md">
                         Your draft removes this model.
@@ -112,11 +144,7 @@ export const ModelCodeView: FC<{
                                 name: `${modelName}.yml`,
                                 contents: content,
                             }}
-                            selectedLines={
-                                line === null
-                                    ? null
-                                    : { start: line, end: line }
-                            }
+                            selectedLines={block}
                             options={{
                                 theme:
                                     colorScheme === 'dark'
@@ -124,6 +152,7 @@ export const ModelCodeView: FC<{
                                         : 'pierre-light',
                                 overflow: 'wrap',
                                 disableFileHeader: true,
+                                unsafeCSS: block ? ISOLATE_BLOCK_CSS : '',
                             }}
                         />
                     </WorkerPoolContextProvider>
@@ -255,36 +284,75 @@ const HistoryPane: FC<{
 export const ModelTabs: FC<{
     projectUuid: string;
     modelName: string;
+    /** The explore queries run on; pre-aggregates are kept by this name. */
+    exploreName: string;
     fields: ReactNode;
-}> = ({ projectUuid, modelName, fields }) => {
+    /** The explore's lineage: its upstream dbt models and its joins; null where it does not apply. */
+    lineage?: ReactNode;
+}> = ({ projectUuid, modelName, exploreName, fields, lineage = null }) => {
     const { data: model } = useSemanticLayerModel(projectUuid, modelName);
     // A repository keeps its own history.
     const asPullRequest = useAppliesAsPullRequest(projectUuid);
+    const hasHistory = !!model && !asPullRequest;
+    const hasLineage = lineage !== null;
+    const hasPreAggregates = useHealth().data?.preAggregates.enabled === true;
     const [searchParams, setSearchParams] = useSearchParams();
+    const requested = searchParams.get(VIEW_PARAM);
     const view =
-        model && !asPullRequest && searchParams.get(VIEW_PARAM) === 'history'
+        hasHistory && requested === 'history'
             ? 'history'
-            : 'fields';
+            : hasLineage && requested === 'lineage'
+              ? 'lineage'
+              : hasPreAggregates && requested === 'pre-aggregates'
+                ? 'pre-aggregates'
+                : 'fields';
     return (
         <Tabs
             className={classes.root}
             value={view}
             onChange={(next) =>
                 setSearchParams(
-                    next === 'history' ? { [VIEW_PARAM]: next } : {},
+                    next === 'history' ||
+                        next === 'lineage' ||
+                        next === 'pre-aggregates'
+                        ? { [VIEW_PARAM]: next }
+                        : {},
                     { replace: true },
                 )
             }
         >
-            {model && !asPullRequest ? (
+            {hasHistory || hasLineage || hasPreAggregates ? (
                 <Tabs.List mb="md">
                     <Tabs.Tab value="fields">Fields</Tabs.Tab>
-                    <Tabs.Tab value="history">History</Tabs.Tab>
+                    {hasLineage ? (
+                        <Tabs.Tab value="lineage">Lineage</Tabs.Tab>
+                    ) : null}
+                    {hasPreAggregates ? (
+                        <Tabs.Tab value="pre-aggregates">
+                            Pre-aggregates
+                        </Tabs.Tab>
+                    ) : null}
+                    {hasHistory ? (
+                        <Tabs.Tab value="history">History</Tabs.Tab>
+                    ) : null}
                 </Tabs.List>
             ) : null}
             <Tabs.Panel value="fields" className={classes.panel}>
                 {fields}
             </Tabs.Panel>
+            {view === 'lineage' ? (
+                <Tabs.Panel value="lineage" className={classes.panel}>
+                    {lineage}
+                </Tabs.Panel>
+            ) : null}
+            {view === 'pre-aggregates' ? (
+                <Tabs.Panel value="pre-aggregates" className={classes.panel}>
+                    <ModelPreAggregates
+                        projectUuid={projectUuid}
+                        exploreName={exploreName}
+                    />
+                </Tabs.Panel>
+            ) : null}
             {model && view === 'history' ? (
                 <Tabs.Panel value="history" className={classes.panel}>
                     <HistoryPane

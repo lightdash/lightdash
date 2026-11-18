@@ -52,6 +52,7 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import {
+    dashboardEditActions,
     selectCanvasBackground,
     selectCanvasZoom,
     selectDashboardFilters,
@@ -60,6 +61,7 @@ import {
     selectIsDateZoomRefusedOnAllChartTiles,
     selectIsDateZoomDisabled,
     useDashboardDateZoomConfig,
+    useDashboardDispatch,
     useDashboardSelector,
     useDashboardTemporaryFilters,
     useDashboardUnmetFilterRequirements,
@@ -90,8 +92,10 @@ import {
     resolveDropOverlaps,
     getRowInsertion,
     getGapFill,
+    getLayoutOnScreen,
     getPointerCell,
     getPointerPosition,
+    isClick,
     hasLayoutChanged,
     countResizedItems,
     withGridItem,
@@ -340,6 +344,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     onParameterReorder,
 }) => {
     const gridWrapperRef = useRef<HTMLDivElement>(null);
+    const dashboardDispatch = useDashboardDispatch();
     const mergedGridWrapperRef = useMergedRef(gridWrapperRef, gridContainerRef);
     const { showToastError } = useToaster();
     const { health } = useApp();
@@ -450,6 +455,44 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         },
         [startAutoScroll, endInteraction, isEditErgonomicsEnabled],
     );
+    // A press on a tile's drag area that goes nowhere picks the tile
+    const handleDragStart = useCallback<ItemCallback>(
+        (layout, before, after, placeholder, event, node) => {
+            handleInteractionStart(
+                layout,
+                before,
+                after,
+                placeholder,
+                event,
+                node,
+            );
+            const pressed = getPointerPosition(event);
+            if (!isEditErgonomicsEnabled || !pressed) return;
+            const release = new AbortController();
+            const handleRelease = (released: MouseEvent | TouchEvent) => {
+                release.abort();
+                const pointer = getPointerPosition(released);
+                if (pointer && isClick(pressed, pointer)) {
+                    dashboardDispatch(dashboardEditActions.selectTile(after.i));
+                }
+            };
+            window.addEventListener('mouseup', handleRelease, {
+                signal: release.signal,
+            });
+            window.addEventListener('touchend', handleRelease, {
+                signal: release.signal,
+            });
+            window.addEventListener('touchcancel', () => release.abort(), {
+                signal: release.signal,
+            });
+        },
+        [handleInteractionStart, isEditErgonomicsEnabled, dashboardDispatch],
+    );
+    useEffect(() => {
+        if (!isEditErgonomicsEnabled) {
+            dashboardDispatch(dashboardEditActions.selectTile(null));
+        }
+    }, [isEditErgonomicsEnabled, dashboardDispatch]);
     // The grid reports its whole layout on every stop, with stored overlaps
     // pushed apart, so a gesture that changed nothing must not apply it
     const applyDrop = useCallback(
@@ -866,15 +909,24 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             : allTilesLayouts
         )?.lg ?? EMPTY_LAYOUTS.lg;
 
+    const activeLayoutOnScreen = useMemo(
+        () => getLayoutOnScreen(activeLayout),
+        [activeLayout],
+    );
+
     const handleAddTilesToSlot = useCallback(
         (tiles: IDashboard['tiles'][number][], slot: GridSlot) => {
             void handleAddTiles(tiles);
             const [first] = tiles;
-            // A heading keeps its full width, so it goes under the last row
-            if (!first || first.type === DashboardTileTypes.HEADING) return;
+            if (!first) return;
+            // A heading stays one line tall at the top of the space it lands in
+            const placement =
+                first.type === DashboardTileTypes.HEADING
+                    ? { ...slot, h: Math.min(first.h, slot.h) }
+                    : slot;
             setDashboardTiles((current) =>
                 current?.map((tile) =>
-                    tile.uuid === first.uuid ? { ...tile, ...slot } : tile,
+                    tile.uuid === first.uuid ? { ...tile, ...placement } : tile,
                 ),
             );
         },
@@ -1613,9 +1665,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                   }
                                                   gridProps={gridProps}
                                                   dashboardTabs={dashboardTabs}
-                                                  onDragStart={
-                                                      handleInteractionStart
-                                                  }
+                                                  onDragStart={handleDragStart}
                                                   onDrag={handleDrag}
                                                   onDragStop={handleDragStop}
                                                   onResizeStart={
@@ -1641,9 +1691,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                           <ResponsiveGridLayout
                                               key={gridProps.cols.lg}
                                               {...gridProps}
-                                              onDragStart={
-                                                  handleInteractionStart
-                                              }
+                                              onDragStart={handleDragStart}
                                               onDrag={handleDrag}
                                               onDragStop={handleDragStop}
                                               onResizeStart={
@@ -1693,7 +1741,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                             {isCanvasFilled && (
                                 <CanvasAddTile
                                     canvasRef={gridWrapperRef}
-                                    layout={activeLayout}
+                                    layout={activeLayoutOnScreen}
                                     gridScale={gridScale}
                                     isEnabled={
                                         !isInteracting && settleMode === null

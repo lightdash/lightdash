@@ -87,6 +87,10 @@ const dashboardModel = {
 
     addVersion: vi.fn(async () => dashboard),
 
+    getVersionByUuid: vi.fn(
+        async (): Promise<Dashboard | undefined> => undefined,
+    ),
+
     getOrphanedCharts: vi.fn(async () => []),
 
     getDashboardOwnedChartsUsingMetric: vi.fn(
@@ -260,6 +264,18 @@ const catalogModel = {
     updateFieldsChartUsage: vi.fn(async () => undefined),
 };
 
+const composerChartModel = {
+    deleteOrphans: vi.fn(async () => {}),
+    lockRollbackPipelines: vi.fn(
+        async (): Promise<{ restored: unknown; current: unknown }[]> => [],
+    ),
+    rollbackToDashboardVersion: vi.fn(async () => {}),
+};
+const composerChartService = {
+    getParameterReferences: vi.fn(),
+    assertCanRestore: vi.fn(async () => {}),
+};
+
 const featureFlagModel = { get: vi.fn().mockResolvedValue({ enabled: false }) };
 
 vi.spyOn(analyticsMock, 'track');
@@ -269,7 +285,7 @@ describe('DashboardService', () => {
     const service = new DashboardService({
         featureFlagModel,
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
-        getComposerChartService: () => ({ getParameterReferences: vi.fn() }),
+        getComposerChartService: () => composerChartService,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         dashboardModel: dashboardModel as unknown as DashboardModel,
@@ -283,9 +299,7 @@ describe('DashboardService', () => {
         } as unknown as SchedulerService,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         savedSqlModel: savedSqlModel as unknown as SavedSqlModel,
-        composerChartModel: {
-            deleteOrphans: vi.fn(async () => {}),
-        } as unknown as ComposerChartModel,
+        composerChartModel: composerChartModel as unknown as ComposerChartModel,
         savedChartService: {} as SavedChartService, // Mock for test
         projectModel: projectModel as unknown as ProjectModel,
         slackClient: slackClient as unknown as SlackClient,
@@ -3179,6 +3193,126 @@ describe('DashboardService', () => {
                 ['projectUuid'],
             );
             expect(result).toEqual({ reassignedCount: 2 });
+        });
+    });
+
+    describe('rollback with composer charts', () => {
+        const composerTile = {
+            uuid: 'composer-tile-uuid',
+            type: DashboardTileTypes.COMPOSER_CHART,
+            x: 0,
+            y: 0,
+            h: 9,
+            w: 12,
+            tabUuid: undefined,
+            properties: {
+                title: 'Orders',
+                composerChartUuid: 'composer-chart-uuid',
+                chartName: null,
+            },
+        };
+        const targetVersion = {
+            ...dashboard,
+            versionUuid: 'old-version-uuid',
+            tiles: [composerTile],
+        } as Dashboard;
+        const pipeline = (sql: string) => ({
+            schemaVersion: 1,
+            terminalNodeId: 'orders',
+            nodes: [
+                {
+                    sourceType: 'sql',
+                    nodeId: 'orders',
+                    title: 'Orders',
+                    sql,
+                },
+            ],
+        });
+        const account = fromSession({
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Dashboard', action: 'manage' },
+            ]),
+        });
+
+        beforeEach(() => {
+            dashboardModel.getVersionByUuid.mockResolvedValue(targetVersion);
+        });
+
+        test('refuses when a restored pipeline is one the user may not save', async () => {
+            composerChartModel.lockRollbackPipelines.mockResolvedValueOnce([
+                {
+                    restored: pipeline('select 1'),
+                    current: pipeline('select 2'),
+                },
+            ]);
+            composerChartService.assertCanRestore.mockRejectedValueOnce(
+                new ForbiddenError('requires SQL runner access'),
+            );
+
+            await expect(
+                service.rollback(account, dashboard.uuid, 'old-version-uuid'),
+            ).rejects.toThrowError('requires SQL runner access');
+            expect(
+                composerChartModel.lockRollbackPipelines,
+            ).toHaveBeenCalledWith(
+                ['composer-chart-uuid'],
+                'old-version-uuid',
+                undefined,
+            );
+            expect(composerChartService.assertCanRestore).toHaveBeenCalledWith(
+                account,
+                {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                },
+                pipeline('select 1'),
+            );
+            expect(dashboardModel.addVersion).not.toHaveBeenCalled();
+            expect(
+                composerChartModel.rollbackToDashboardVersion,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('restores a pipeline equal to the current one without the save check', async () => {
+            composerChartModel.lockRollbackPipelines.mockResolvedValueOnce([
+                {
+                    restored: pipeline('select 1'),
+                    current: pipeline('select 1'),
+                },
+            ]);
+
+            await service.rollback(account, dashboard.uuid, 'old-version-uuid');
+
+            expect(
+                composerChartService.assertCanRestore,
+            ).not.toHaveBeenCalled();
+            expect(dashboardModel.addVersion).toHaveBeenCalled();
+            expect(
+                composerChartModel.rollbackToDashboardVersion,
+            ).toHaveBeenCalledWith(
+                'composer-chart-uuid',
+                'old-version-uuid',
+                user.userUuid,
+                undefined,
+            );
+        });
+
+        test('reads no composer chart for a version without composer tiles', async () => {
+            dashboardModel.getVersionByUuid.mockResolvedValueOnce({
+                ...targetVersion,
+                tiles: [],
+            });
+
+            await service.rollback(account, dashboard.uuid, 'old-version-uuid');
+
+            expect(
+                composerChartModel.lockRollbackPipelines,
+            ).not.toHaveBeenCalled();
+            expect(
+                composerChartService.assertCanRestore,
+            ).not.toHaveBeenCalled();
+            expect(dashboardModel.addVersion).toHaveBeenCalled();
         });
     });
 

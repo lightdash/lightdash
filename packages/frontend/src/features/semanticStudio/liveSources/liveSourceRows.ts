@@ -4,6 +4,8 @@
  */
 import {
     formatEstimatedBytes,
+    getLiveSourceCacheTtlSeconds,
+    LIVE_SOURCE_DEFAULT_CACHE_TTL_SECONDS,
     type ExternalConnection,
     type ExternalConnectionApiSource,
     type ExternalConnectionApiUsage,
@@ -20,6 +22,7 @@ export type LiveSourceUsage = {
     /** Bytes read from the integration, in words, such as 361 KB. */
     dataRead: string;
     apiCalls: string;
+    cacheHits: string;
     /** Null until the integration has been called. */
     medianLatency: string | null;
 };
@@ -40,6 +43,7 @@ export const isLiveSourceConnection = (
 const LOADING_USAGE: LiveSourceUsage = {
     dataRead: '—',
     apiCalls: '—',
+    cacheHits: '—',
     medianLatency: null,
 };
 
@@ -48,6 +52,7 @@ const formatLiveSourceUsage = (
 ): LiveSourceUsage => ({
     dataRead: formatEstimatedBytes(usage?.responseBytes ?? 0),
     apiCalls: (usage?.apiCalls ?? 0).toLocaleString(),
+    cacheHits: (usage?.cacheHits ?? 0).toLocaleString(),
     medianLatency:
         usage && usage.medianDurationMs !== null
             ? formatDuration(usage.medianDurationMs)
@@ -85,3 +90,30 @@ export const toLiveSourceRows = (
                 a.integration.localeCompare(b.integration) ||
                 a.connection.name.localeCompare(b.connection.name),
         );
+
+/** A freshness window in words: "1 min", "15 min", "1 hour", "Always fetch". */
+export const formatFreshness = (seconds: number): string => {
+    if (seconds === 0) return 'Always fetch';
+    if (seconds < 60) return `${seconds} sec`;
+    if (seconds < 3_600) return `${Math.round(seconds / 60)} min`;
+    const hours = Math.round(seconds / 3_600);
+    return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+};
+
+/** How long a source's results answer the same query, and whether an admin set it. */
+export const getLiveSourceFreshness = (connection: LiveSourceConnection) => {
+    const { connector } = connection.apiSource;
+    const seconds = getLiveSourceCacheTtlSeconds(
+        connector,
+        connection.cacheTtlSeconds,
+    );
+    const isDefault =
+        connection.cacheTtlSeconds === null ||
+        connection.cacheTtlSeconds === undefined;
+    return {
+        seconds,
+        isDefault,
+        defaultSeconds: LIVE_SOURCE_DEFAULT_CACHE_TTL_SECONDS[connector],
+        label: `${formatFreshness(seconds)}${isDefault ? ' (default)' : ''}`,
+    };
+};

@@ -13,6 +13,7 @@ import {
 import {
     ExternalConnectionModel,
     parseApiSourceSchemaScan,
+    readLiveSourceCacheSettings,
 } from './ExternalConnectionModel';
 
 const PROJECT_UUID = '00000000-0000-0000-0000-000000000001';
@@ -406,12 +407,14 @@ describe('ExternalConnectionModel', () => {
                 {
                     external_connection_uuid: CONNECTION_UUID,
                     api_calls: '12',
+                    cache_hits: '3',
                     response_bytes: '4096',
                     median_duration_ms: 842.5,
                 },
                 {
                     external_connection_uuid: 'conn-reused-only',
                     api_calls: '0',
+                    cache_hits: '5',
                     response_bytes: null,
                     median_duration_ms: null,
                 },
@@ -422,16 +425,21 @@ describe('ExternalConnectionModel', () => {
             expect(tracker.history.select[0].sql).toContain(
                 'percentile_cont(0.5) within group (order by duration_ms) filter (where api_calls > 0)',
             );
+            expect(tracker.history.select[0].sql).toContain(
+                'count(*) filter (where cache_hit) as cache_hits',
+            );
             expect(usage).toEqual([
                 {
                     externalConnectionUuid: CONNECTION_UUID,
                     apiCalls: 12,
+                    cacheHits: 3,
                     responseBytes: 4096,
                     medianDurationMs: 843,
                 },
                 {
                     externalConnectionUuid: 'conn-reused-only',
                     apiCalls: 0,
+                    cacheHits: 5,
                     responseBytes: 0,
                     medianDurationMs: null,
                 },
@@ -1031,6 +1039,36 @@ describe('parseApiSourceSchemaScan', () => {
             status: 'failed',
             scannedAt: requestedAt,
             error: 'The schema scan did not finish',
+        });
+    });
+});
+
+describe('readLiveSourceCacheSettings', () => {
+    it('reads the window and purge time kept under cache', () => {
+        expect(
+            readLiveSourceCacheSettings({
+                connector: 'posthog',
+                projectId: '1',
+                cache: {
+                    ttlSeconds: 900,
+                    purgedAt: '2026-11-17T12:00:00.000Z',
+                },
+            }),
+        ).toEqual({
+            cacheTtlSeconds: 900,
+            cachePurgedAt: new Date('2026-11-17T12:00:00.000Z'),
+        });
+    });
+
+    it.each([
+        { connector: 'posthog', projectId: '1' },
+        { cache: null },
+        { cache: { ttlSeconds: null } },
+        { cache: { ttlSeconds: -5, purgedAt: 'not a date' } },
+    ])('falls back to defaults for missing or broken settings: %j', (value) => {
+        expect(readLiveSourceCacheSettings(value)).toEqual({
+            cacheTtlSeconds: null,
+            cachePurgedAt: null,
         });
     });
 });

@@ -49,6 +49,7 @@ import {
     PublishChecklist,
     PublishSummary,
 } from './DraftInsights';
+import { describePublisher } from './draftState';
 import {
     CHANGE_KIND_LABELS,
     count,
@@ -427,7 +428,7 @@ const usePublishedUnderNotice = (draft: SemanticLayerDraft | undefined) => {
                           {
                               key: `${model}@${new Date(publishedSince.at).getTime()}`,
                               model,
-                              by: publishedSince.by,
+                              publisher: describePublisher(publishedSince),
                               isConflict: reconciliation?.state === 'conflict',
                           },
                       ]
@@ -438,10 +439,10 @@ const usePublishedUnderNotice = (draft: SemanticLayerDraft | undefined) => {
         if (known === null) return;
         current
             .filter(({ key }) => !known.has(key))
-            .forEach(({ model, by, isConflict }) =>
+            .forEach(({ model, publisher, isConflict }) =>
                 isConflict
                     ? showToastWarning({
-                          title: `${by ?? 'Someone'} changed a part of ${model} that you changed too`,
+                          title: `${publisher.subject} changed a part of ${model}${publisher.where} that this draft changes too`,
                           subtitle:
                               'Choose which version to keep before you publish.',
                           action: {
@@ -454,7 +455,7 @@ const usePublishedUnderNotice = (draft: SemanticLayerDraft | undefined) => {
                           },
                       })
                     : showToastInfo({
-                          title: `${by ?? 'Someone'} published a change to ${model}`,
+                          title: `${publisher.subject} published a change to ${model}${publisher.where}`,
                           subtitle:
                               'It is outside what you changed, and your changes sit on top of it.',
                       }),

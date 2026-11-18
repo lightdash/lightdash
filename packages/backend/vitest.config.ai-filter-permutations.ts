@@ -3,6 +3,7 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
     test: {
+        clearMocks: false,
         name: 'ai-filter-permutations',
         include: [
             'src/ee/services/ai/filterPermutations/*.integration.test.ts',

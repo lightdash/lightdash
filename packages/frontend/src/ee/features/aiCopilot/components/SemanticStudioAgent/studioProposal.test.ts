@@ -8,26 +8,38 @@ const thread = (
         tools?: string[];
         pending?: boolean;
         saving?: boolean;
+        failed?: boolean;
     }[]
 ): AiAgentThread['messages'] =>
-    replies.map(({ message, tools = [], pending = false, saving = false }) => ({
-        role: 'assistant',
-        status: pending ? 'pending' : 'idle',
-        message,
-        toolCalls: tools.map((toolName) => ({ toolName })),
-        toolResults: saving
-            ? [
-                  {
-                      toolType: 'built-in',
-                      toolName: 'editDbtProject',
-                      metadata: {
-                          status: 'pending',
-                          aiWritebackRunUuid: 'run',
-                      },
-                  },
-              ]
-            : [],
-    })) as unknown as AiAgentThread['messages'];
+    replies.map(
+        ({
+            message,
+            tools = [],
+            pending = false,
+            saving = false,
+            failed = false,
+        }) => ({
+            role: 'assistant',
+            status: pending ? 'pending' : 'idle',
+            message,
+            toolCalls: tools.map((toolName) => ({ toolName })),
+            toolResults:
+                saving || failed
+                    ? [
+                          {
+                              toolType: 'built-in',
+                              toolName: 'editDbtProject',
+                              metadata: failed
+                                  ? { status: 'error', errorCode: 'unknown' }
+                                  : {
+                                        status: 'pending',
+                                        aiWritebackRunUuid: 'run',
+                                    },
+                          },
+                      ]
+                    : [],
+        }),
+    ) as unknown as AiAgentThread['messages'];
 
 describe('getOpenProposal', () => {
     it('returns each diff block of the latest reply', () => {
@@ -42,6 +54,21 @@ describe('getOpenProposal', () => {
             '--- a/x.yml\n+++ b/x.yml\n@@ -1 +1 @@\n-a\n+b\n',
             '+++ b/y.yml\n',
         ]);
+    });
+
+    it('keeps the proposal when saving it failed', () => {
+        expect(
+            getOpenProposal(
+                thread(
+                    { message: '```diff\n+a\n```' },
+                    {
+                        message: 'Saving it now.',
+                        tools: ['editDbtProject'],
+                        failed: true,
+                    },
+                ),
+            ),
+        ).toEqual(['+a\n']);
     });
 
     it('is empty once the reply saved to a pull request, or proposes nothing', () => {

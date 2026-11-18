@@ -7,7 +7,7 @@ import { type TokenLiveSourceForm } from './tokenLiveSource';
 
 const AD_ACCOUNT_ID = /^\d{1,20}$/;
 
-export const META_ADS_TOKEN_FORM: TokenLiveSourceForm = {
+export const META_ADS_TOKEN_FORM = {
     label: 'Meta Ads',
     defaultName: 'Meta Ads',
     description:
@@ -39,6 +39,10 @@ export const META_ADS_TOKEN_FORM: TokenLiveSourceForm = {
     getTestRequest: (adAccountId) => ({
         method: 'GET',
         path: getMetaAdsInsightsPath(adAccountId),
-        query: { fields: 'spend', date_preset: 'last_7d', limit: '1' },
+        query: {
+            fields: 'spend,account_name,account_currency',
+            date_preset: 'last_7d',
+            limit: '1',
+        },
     }),
-};
+} satisfies TokenLiveSourceForm;

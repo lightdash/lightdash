@@ -7,6 +7,7 @@ import {
     type SemanticStudioSourceSave,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRef } from 'react';
 import { type StoredThread } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import { getAiAgentApiBase } from '../../ee/features/aiCopilot/hooks/aiAgentRouting';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
@@ -63,6 +64,7 @@ export const useStudioSourceFile = (
 export const useSaveStudioSource = (projectUuid: string) => {
     const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
+    const pendingThread = useRef<StoredThread | null>(null);
     return useMutation<
         SemanticStudioSourceSave & { thread: StoredThread | null },
         ApiError,
@@ -72,7 +74,7 @@ export const useSaveStudioSource = (projectUuid: string) => {
         }
     >({
         mutationFn: async ({ newChangeAgentUuid, ...body }) => {
-            // ponytail: a save that then fails leaves a conversation no change points at.
+            // A save that then fails leaves a conversation no change points at.
             const startThread = async (agentUuid: string) => {
                 const created = await lightdashApi<
                     ApiAiAgentThreadCreateResponse['results']
@@ -88,7 +90,8 @@ export const useSaveStudioSource = (projectUuid: string) => {
             };
             const thread =
                 body.threadUuid === null && newChangeAgentUuid
-                    ? await startThread(newChangeAgentUuid)
+                    ? (pendingThread.current ??=
+                          await startThread(newChangeAgentUuid))
                     : null;
             const saved = await lightdashApi<SemanticStudioSourceSave>({
                 url: `/projects/${projectUuid}/semantic-studio/sources/file`,
@@ -102,6 +105,7 @@ export const useSaveStudioSource = (projectUuid: string) => {
         },
         onSuccess: (result) => {
             if (result.status !== 'saved') return;
+            pendingThread.current = null;
             void queryClient.invalidateQueries({ queryKey: [SOURCES_KEY] });
             void queryClient.invalidateQueries({
                 queryKey: ['pullRequestDiff', projectUuid],

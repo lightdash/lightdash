@@ -67,12 +67,32 @@ export type LiveQueryCall = {
     columnCount: number | null;
     /** True when the API had rows past the ones read; null when it wasn't called. */
     truncated: boolean | null;
+    /** True when a stored result answered the query and the integration wasn't called. */
+    cacheHit: boolean;
+};
+
+/**
+ * Who may reuse a source's results. A source signed in with one shared
+ * credential returns the same rows to everyone who can query it, so they
+ * share results; a source that queries as each viewer must not.
+ */
+export type LiveCacheScope =
+    | { kind: 'source' }
+    | { kind: 'viewer'; userUuid: string };
+
+/** How long a source's results answer the same query, and since when. */
+export type LiveCachePolicy = {
+    scope: LiveCacheScope;
+    ttlSeconds: number;
+    /** Results fetched before this are never reused. */
+    purgedAt: Date | null;
 };
 
 /** One connection's integration, ready for one query, metering what it sends. */
 export type MeteredLiveSource = {
     integration: LiveIntegration;
     settings: ExternalConnectionApiSource;
+    cache: LiveCachePolicy;
     calls: LiveCalls;
     usage(): LiveCallUsage;
     /** Logs the finished query against its connection; never throws. */

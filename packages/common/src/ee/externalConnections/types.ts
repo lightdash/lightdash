@@ -67,6 +67,17 @@ export type GithubApiSource = {
     repo: string;
 };
 
+/** A Pylon workspace; the API token decides which one. */
+export type PylonApiSource = {
+    connector: ApiConnectorType.PYLON;
+};
+
+export type AttioApiSource = {
+    connector: ApiConnectorType.ATTIO;
+    /** The slug of the Attio object the source reads, e.g. companies or deals. */
+    object: string;
+};
+
 /** Connector settings of a live source; the server fixes its access rules. */
 export type ExternalConnectionApiSource =
     | PostHogApiSource
@@ -76,7 +87,9 @@ export type ExternalConnectionApiSource =
     | GoogleAdsApiSource
     | YoutubeAnalyticsApiSource
     | LinkedInAdsApiSource
-    | GithubApiSource;
+    | GithubApiSource
+    | PylonApiSource
+    | AttioApiSource;
 
 /** The settings of one integration's sources. */
 export type ApiSourceOf<C extends ApiConnectorType> = Extract<
@@ -104,6 +117,10 @@ export const POSTHOG_REGION_ORIGINS = {
     eu: 'https://eu.posthog.com',
 } as const;
 
+/** The setup test's HogQL: one cheap read whose answer is worth showing. */
+export const POSTHOG_TEST_QUERY =
+    'SELECT count(DISTINCT event) FROM events WHERE timestamp > now() - INTERVAL 7 DAY';
+
 export const META_ADS_ORIGIN = 'https://graph.facebook.com';
 export const META_ADS_API_VERSION = 'v25.0';
 
@@ -115,6 +132,20 @@ export const GITHUB_SEARCH_PATH = '/search/issues';
 
 export const getGithubContributorsPath = (owner: string, repo: string) =>
     `/repos/${owner}/${repo}/stats/contributors`;
+
+export const PYLON_ORIGIN = 'https://api.usepylon.com';
+export const PYLON_ISSUES_SEARCH_PATH = '/issues/search';
+export const PYLON_ACCOUNTS_SEARCH_PATH = '/accounts/search';
+export const PYLON_CONTACTS_SEARCH_PATH = '/contacts/search';
+export const PYLON_USERS_PATH = '/users';
+
+export const ATTIO_ORIGIN = 'https://api.attio.com';
+
+export const getAttioAttributesPath = (object: string) =>
+    `/v2/objects/${object}/attributes`;
+
+export const getAttioRecordsQueryPath = (object: string) =>
+    `/v2/objects/${object}/records/query`;
 
 /** HTTP methods an admin can opt a connection into. Single source of truth for
  *  the backend validation allowlist and the frontend method pickers. */
@@ -226,6 +257,10 @@ export type ExternalConnection = {
     aiHint?: string | null;
     /** The name the connection picker showed for the source's target. */
     targetLabel?: string | null;
+    /** Live sources: the admin's freshness window; null uses the integration's default. */
+    cacheTtlSeconds?: number | null;
+    /** Live sources: results fetched before this are never reused. */
+    cachePurgedAt?: Date | null;
     hasSecret: boolean;
     createdByUserUuid: string | null;
     updatedByUserUuid: string | null;
@@ -366,6 +401,8 @@ export const EXTERNAL_CONNECTION_DEFAULTS = {
 export type ExternalFetchSavedChartContext = {
     savedChartUuid: UUID;
     chartVersionUuid?: UUID;
+    /** Authorize against the requester's own unpublished draft of the chart. */
+    includeUnpublishedDraft?: boolean;
 };
 
 /** A chart of a specific Document version rendering a chart type. */
@@ -435,9 +472,30 @@ export type ApiTestExternalConnectionConfigRequest = {
     config: CreateExternalConnection;
 };
 
+/** One thing a live data source test found, as in "Pull requests: 1,204". */
+export type LiveSourceTestFact = {
+    label: string;
+    value: string;
+};
+
+/** A live data source test result in words an admin reads, not raw JSON. */
+export type LiveSourceTestCheck = {
+    ok: boolean;
+    /** One line, as in "Connected to lightdash/lightdash". */
+    summary: string;
+    /** On failure, why and what to change; null on success. */
+    detail: string | null;
+    facts: LiveSourceTestFact[];
+};
+
+export type ExternalConnectionTestResponse = ExternalFetchResponse & {
+    /** Set when the tested config is a live data source. */
+    liveCheck?: LiveSourceTestCheck;
+};
+
 export type ApiTestExternalConnectionResponse = {
     status: 'ok';
-    results: ExternalFetchResponse;
+    results: ExternalConnectionTestResponse;
 };
 
 export type ApiProposeExternalConnectionConfigRequest = {
@@ -513,6 +571,8 @@ export type ApiListExternalConnectionSamplesResponse = {
 export type ExternalConnectionApiUsage = {
     externalConnectionUuid: string;
     apiCalls: number;
+    /** Queries a stored result answered without calling the integration. */
+    cacheHits: number;
     responseBytes: number;
     /** Median time to fetch from the integration; null until it has been called. */
     medianDurationMs: number | null;

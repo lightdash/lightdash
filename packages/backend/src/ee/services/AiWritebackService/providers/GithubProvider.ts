@@ -713,7 +713,7 @@ export class GithubProvider implements GitProvider {
                 .map(([path]) => path),
             ...[...local.keys()].filter((path) => !remoteFiles.has(path)),
         ];
-        // ponytail: one read per file; a tarball fetch if large hand edits become common.
+        // One read per file; a tarball fetch if large hand edits become common.
         if (changed.length > 50) {
             throw new ParameterError(
                 'This pull request changed too much outside the chat to continue it here. Start a new change to keep editing.',

@@ -54,6 +54,13 @@ const SAMPLE_SETTINGS: {
         owner: 'lightdash',
         repo: 'lightdash',
     },
+    [ApiConnectorType.PYLON]: {
+        connector: ApiConnectorType.PYLON,
+    },
+    [ApiConnectorType.ATTIO]: {
+        connector: ApiConnectorType.ATTIO,
+        object: 'companies',
+    },
 };
 
 const SERVER_ERROR: LiveHttpResponse = {

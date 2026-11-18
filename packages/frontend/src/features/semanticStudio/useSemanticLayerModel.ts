@@ -21,7 +21,7 @@ import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { isDevelopmentViewOn } from './developmentView';
 
-const DRAFT_KEY = 'semantic-layer-draft';
+export const DRAFT_KEY = 'semantic-layer-draft';
 const DRAFT_STATE_KEY = 'semantic-layer-draft-state';
 const MODEL_KEY = 'semantic-layer-model';
 const PENDING_POLL_MS = 2000;
@@ -250,7 +250,12 @@ const useWrite = <TResult extends ApiResponse['results'], TInput>({
                     [DRAFT_STATE_KEY, projectUuid],
                     // Explores read the draft while the development view is on.
                     ...(isDevelopmentViewOn() ? [['tables']] : []),
-                    ...(changesLive ? [[MODEL_KEY, projectUuid]] : []),
+                    ...(changesLive
+                        ? [
+                              [MODEL_KEY, projectUuid],
+                              ['preAggregateMaterializations', projectUuid],
+                          ]
+                        : []),
                 ].map((queryKey) =>
                     queryClient.invalidateQueries({ queryKey }),
                 ),

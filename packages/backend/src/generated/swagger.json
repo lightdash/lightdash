@@ -16437,7 +16437,9 @@
                     "google_ads",
                     "youtube_analytics",
                     "linkedin_ads",
-                    "github"
+                    "github",
+                    "pylon",
+                    "attio"
                 ],
                 "type": "string"
             },
@@ -16628,6 +16630,37 @@
                 "required": ["repo", "owner", "connector"],
                 "type": "object"
             },
+            "ApiConnectorType.PYLON": {
+                "enum": ["pylon"],
+                "type": "string"
+            },
+            "PylonApiSource": {
+                "properties": {
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.PYLON"
+                    }
+                },
+                "required": ["connector"],
+                "type": "object",
+                "description": "A Pylon workspace; the API token decides which one."
+            },
+            "ApiConnectorType.ATTIO": {
+                "enum": ["attio"],
+                "type": "string"
+            },
+            "AttioApiSource": {
+                "properties": {
+                    "object": {
+                        "type": "string",
+                        "description": "The slug of the Attio object the source reads, e.g. companies or deals."
+                    },
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.ATTIO"
+                    }
+                },
+                "required": ["object", "connector"],
+                "type": "object"
+            },
             "ExternalConnectionApiSource": {
                 "anyOf": [
                     {
@@ -16653,6 +16686,12 @@
                     },
                     {
                         "$ref": "#/components/schemas/GithubApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PylonApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/AttioApiSource"
                     }
                 ],
                 "description": "Connector settings of a live source; the server fixes its access rules."
@@ -16677,6 +16716,18 @@
                     },
                     "hasSecret": {
                         "type": "boolean"
+                    },
+                    "cachePurgedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "description": "Live sources: results fetched before this are never reused."
+                    },
+                    "cacheTtlSeconds": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Live sources: the admin's freshness window; null uses the integration's default."
                     },
                     "targetLabel": {
                         "type": "string",
@@ -17383,6 +17434,11 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "cacheHits": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Queries a stored result answered without calling the integration."
+                    },
                     "apiCalls": {
                         "type": "number",
                         "format": "double"
@@ -17394,6 +17450,7 @@
                 "required": [
                     "medianDurationMs",
                     "responseBytes",
+                    "cacheHits",
                     "apiCalls",
                     "externalConnectionUuid"
                 ],
@@ -17741,6 +17798,18 @@
                     }
                 ]
             },
+            "ApiUpdateLiveSourceCacheRequest": {
+                "properties": {
+                    "ttlSeconds": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    }
+                },
+                "required": ["ttlSeconds"],
+                "type": "object",
+                "description": "Null puts the source back on its integration's default."
+            },
             "LiveSourceFieldEditor": {
                 "properties": {
                     "at": {
@@ -17990,6 +18059,10 @@
             },
             "ExternalFetchSavedChartContext": {
                 "properties": {
+                    "includeUnpublishedDraft": {
+                        "type": "boolean",
+                        "description": "Authorize against the requester's own unpublished draft of the chart."
+                    },
                     "chartVersionUuid": {
                         "$ref": "#/components/schemas/UUID"
                     },
@@ -18060,10 +18133,64 @@
                 "required": ["path", "connectionAlias"],
                 "type": "object"
             },
+            "LiveSourceTestFact": {
+                "properties": {
+                    "value": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    }
+                },
+                "required": ["value", "label"],
+                "type": "object",
+                "description": "One thing a live data source test found, as in \"Pull requests: 1,204\"."
+            },
+            "LiveSourceTestCheck": {
+                "properties": {
+                    "facts": {
+                        "items": {
+                            "$ref": "#/components/schemas/LiveSourceTestFact"
+                        },
+                        "type": "array"
+                    },
+                    "detail": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "On failure, why and what to change; null on success."
+                    },
+                    "summary": {
+                        "type": "string",
+                        "description": "One line, as in \"Connected to lightdash/lightdash\"."
+                    },
+                    "ok": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["facts", "detail", "summary", "ok"],
+                "type": "object",
+                "description": "A live data source test result in words an admin reads, not raw JSON."
+            },
+            "ExternalConnectionTestResponse": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ExternalFetchResponse"
+                    },
+                    {
+                        "properties": {
+                            "liveCheck": {
+                                "$ref": "#/components/schemas/LiveSourceTestCheck",
+                                "description": "Set when the tested config is a live data source."
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
             "ApiTestExternalConnectionResponse": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/ExternalFetchResponse"
+                        "$ref": "#/components/schemas/ExternalConnectionTestResponse"
                     },
                     "status": {
                         "type": "string",
@@ -31645,6 +31772,9 @@
                     },
                     {
                         "properties": {
+                            "includeUnpublishedDraft": {
+                                "type": "boolean"
+                            },
                             "dashboardFilters": {
                                 "$ref": "#/components/schemas/DashboardFilters"
                             },
@@ -38959,6 +39089,10 @@
                                                                 "type": "array",
                                                                 "nullable": true
                                                             },
+                                                            "previewPendingSince": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
                                                             "previewUrl": {
                                                                 "type": "string",
                                                                 "nullable": true
@@ -42699,9 +42833,13 @@
                     },
                     "path": {
                         "type": "string"
+                    },
+                    "revision": {
+                        "type": "string",
+                        "nullable": true
                     }
                 },
-                "required": ["content", "path"],
+                "required": ["content", "path", "revision"],
                 "type": "object"
             },
             "ApiSuccess_SemanticStudioSourceFile_": {
@@ -42725,6 +42863,10 @@
                 "anyOf": [
                     {
                         "properties": {
+                            "revision": {
+                                "type": "string",
+                                "description": "The revision of the file as saved, for the next save to be based on."
+                            },
                             "checked": {
                                 "type": "boolean"
                             },
@@ -42745,6 +42887,7 @@
                             }
                         },
                         "required": [
+                            "revision",
                             "checked",
                             "commitSha",
                             "prAction",
@@ -42804,6 +42947,11 @@
                     },
                     "path": {
                         "type": "string"
+                    },
+                    "revision": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The revision the edit was based on, null for a new file; older clients omit it and skip the check."
                     }
                 },
                 "required": ["threadUuid", "prUrl", "content", "path"],
@@ -43182,6 +43330,9 @@
                 "properties": {
                     "publishedSince": {
                         "properties": {
+                            "isYours": {
+                                "type": "boolean"
+                            },
                             "at": {
                                 "type": "string",
                                 "format": "date-time"
@@ -43191,10 +43342,10 @@
                                 "nullable": true
                             }
                         },
-                        "required": ["at", "by"],
+                        "required": ["isYours", "at", "by"],
                         "type": "object",
                         "nullable": true,
-                        "description": "The latest change someone else published to this model since this draft first touched it; null when none."
+                        "description": "The latest change published to this model since this draft first touched it, from another person or another of yours; null when none."
                     },
                     "alsoChanging": {
                         "items": {
@@ -80026,7 +80177,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.289.3",
+        "version": "3.301.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

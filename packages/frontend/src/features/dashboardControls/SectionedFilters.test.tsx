@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import type * as DndKitCore from '@dnd-kit/core';
 import {
     type DragEndEvent,

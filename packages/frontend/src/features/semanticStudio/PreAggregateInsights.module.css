@@ -1,0 +1,82 @@
+.days {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 6px;
+    max-width: 280px;
+}
+
+.day {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    cursor: default;
+}
+
+.column {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 2px;
+    height: 48px;
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.bar {
+    min-height: 2px;
+    border-radius: 4px 4px 0 0;
+}
+
+.bar + .bar {
+    border-radius: 0;
+}
+
+.bar[data-series='hits'],
+.swatch[data-series='hits'] {
+    background: var(--mantine-color-text);
+}
+
+.bar[data-series='misses'],
+.swatch[data-series='misses'] {
+    background: var(--mantine-color-ldGray-3);
+}
+
+.swatch {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+}
+
+.sample {
+    overflow-x: auto;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-sm);
+}
+
+.sample th[data-numeric='true'],
+.sample td[data-numeric='true'] {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.sample th {
+    font-weight: 500;
+    color: var(--mantine-color-dimmed);
+    white-space: nowrap;
+}
+
+.sample td {
+    white-space: nowrap;
+}
+
+.loadingRow {
+    height: 10px;
+    border-radius: 4px;
+    background: var(--mantine-color-default-hover);
+}
+
+.more {
+    cursor: help;
+    text-underline-offset: 3px;
+    text-decoration-style: dotted;
+}

@@ -14,8 +14,13 @@ import {
     getErrorMessage,
     getExplorePrefixError,
     getItemId,
+    getLiveSourceCacheTtlSeconds,
+    getLiveSourceErrorOrigin,
     isJwtUser,
+    isValidLiveSourceCacheTtlSeconds,
     LIVE_SOURCE_AI_HINT_MAX_LENGTH,
+    LIVE_SOURCE_CACHE_TTL_MAX_SECONDS,
+    LIVE_SOURCE_CACHE_TTL_MIN_SECONDS,
     MissingConfigError,
     NotFoundError,
     ParameterError,
@@ -27,6 +32,7 @@ import {
     type Account,
     type ApiSaveExternalConnectionSampleRequest,
     type ApiSourceSchemaScan,
+    type ApiUpdateLiveSourceCacheRequest,
     type CreateExternalConnection,
     type ExplorePrefixCheck,
     type ExternalConnection,
@@ -39,6 +45,7 @@ import {
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
     type ExternalConnectionSampleRequest,
+    type ExternalConnectionTestResponse,
     type ExternalFetchRequest,
     type ExternalFetchResponse,
     type GoogleLiveSourceChoice,
@@ -99,8 +106,10 @@ import {
     toFailedScan,
     toPostHogSchemaTable,
 } from '../../../services/QuerySourceService/live/integrations/postHog/scan';
+import { getLiveSourceQueryErrorCode } from '../../../services/QuerySourceService/live/query/outcome';
 import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
 import { getLiveIntegration } from '../../../services/QuerySourceService/live/registry';
+import { getLiveSourceTestCheck } from '../../../services/QuerySourceService/live/testCheck';
 import { type LiveScanResult } from '../../../services/QuerySourceService/live/types';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import {
@@ -890,6 +899,15 @@ export class ExternalConnectionService extends BaseService {
                     : {}),
             },
         );
+        if (
+            isLiveSource &&
+            (data.secret !== undefined ||
+                updated.type !== existing.type ||
+                updated.origin !== existing.origin ||
+                !isEqual(updated.apiSource, existing.apiSource))
+        ) {
+            await this.purgeAfterCredentialChange(connectionUuid);
+        }
         this.analytics.track({
             event: 'external_connection.updated',
             userId: account.user.id,
@@ -991,6 +1009,9 @@ export class ExternalConnectionService extends BaseService {
         );
         ExternalConnectionService.assertNotSignInType(existing.type);
         await this.externalConnectionModel.rotateSecret(connectionUuid, secret);
+        if (existing.kind === 'live_source') {
+            await this.purgeAfterCredentialChange(connectionUuid);
+        }
         this.analytics.track({
             event: 'external_connection.secret_rotated',
             userId: account.user.id,
@@ -1239,6 +1260,104 @@ export class ExternalConnectionService extends BaseService {
             connectionUuid,
         );
         return this.getMeteredLiveSource(account, projectUuid, connection);
+    }
+
+    /** Sets how long a live source's results answer the same query; null uses the integration's default. */
+    async updateLiveSourceCache(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+        { ttlSeconds }: ApiUpdateLiveSourceCacheRequest,
+    ): Promise<ExternalConnection> {
+        const connection = await this.getOwnedLiveSource(
+            account,
+            projectUuid,
+            connectionUuid,
+        );
+        if (
+            ttlSeconds !== null &&
+            !isValidLiveSourceCacheTtlSeconds(ttlSeconds)
+        ) {
+            throw new ParameterError(
+                `The freshness window must be a whole number of seconds from ${LIVE_SOURCE_CACHE_TTL_MIN_SECONDS} to ${LIVE_SOURCE_CACHE_TTL_MAX_SECONDS}`,
+            );
+        }
+        await this.externalConnectionModel.setLiveSourceCacheTtl(
+            connectionUuid,
+            ttlSeconds,
+        );
+        this.analytics.track({
+            event: 'live_source.cache_updated',
+            userId: account.user.id,
+            properties: {
+                organizationId: connection.organizationUuid,
+                projectId: projectUuid,
+                externalConnectionUuid: connectionUuid,
+                ...ExternalConnectionService.kindProperties(connection),
+                ttlSeconds,
+            },
+        });
+        return this.loadConnection(projectUuid, connectionUuid);
+    }
+
+    /**
+     * Results fetched with the old credential or target may not be what the
+     * new one reads, so nobody reuses them.
+     */
+    private async purgeAfterCredentialChange(
+        connectionUuid: string,
+    ): Promise<void> {
+        await this.externalConnectionModel.purgeLiveSourceCache(
+            connectionUuid,
+            new Date(),
+        );
+    }
+
+    /** Makes the next query on a live source call its integration, for everyone. */
+    async purgeLiveSourceCache(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<ExternalConnection> {
+        const connection = await this.getOwnedLiveSource(
+            account,
+            projectUuid,
+            connectionUuid,
+        );
+        await this.externalConnectionModel.purgeLiveSourceCache(
+            connectionUuid,
+            new Date(),
+        );
+        this.analytics.track({
+            event: 'live_source.cache_purged',
+            userId: account.user.id,
+            properties: {
+                organizationId: connection.organizationUuid,
+                projectId: projectUuid,
+                externalConnectionUuid: connectionUuid,
+                ...ExternalConnectionService.kindProperties(connection),
+            },
+        });
+        return this.loadConnection(projectUuid, connectionUuid);
+    }
+
+    private async getOwnedLiveSource(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<ExternalConnection> {
+        const connection = await this.getOwnedConnection(
+            account,
+            projectUuid,
+            connectionUuid,
+        );
+        await this.assertLiveSourcesEnabled(account);
+        if (connection.kind !== 'live_source' || !connection.apiSource) {
+            throw new ParameterError(
+                `"${connection.name}" is not a live data source`,
+            );
+        }
+        return connection;
     }
 
     /** Rebuilds the explores a live data source answers metric queries with. */
@@ -2036,6 +2155,17 @@ export class ExternalConnectionService extends BaseService {
         );
         return {
             ...source,
+            cache: {
+                // Every integration signs in with one credential for the
+                // whole source today. Per-viewer sign-in (SPK-3093) must
+                // scope to the viewer instead.
+                scope: { kind: 'source' },
+                ttlSeconds: getLiveSourceCacheTtlSeconds(
+                    source.settings.connector,
+                    connection.cacheTtlSeconds,
+                ),
+                purgedAt: connection.cachePurgedAt ?? null,
+            },
             usage: () => ({ ...usage }),
             logCall: async (call) => {
                 try {
@@ -2057,6 +2187,7 @@ export class ExternalConnectionService extends BaseService {
                         column_count: call.columnCount,
                         truncated: call.truncated,
                         response_bytes: usage.responseBytes,
+                        cache_hit: call.cacheHit,
                     });
                 } catch (error) {
                     this.logger.error(
@@ -2064,8 +2195,9 @@ export class ExternalConnectionService extends BaseService {
                     );
                 }
                 // The query text stays out of analytics; it can hold filter values.
+                const errorCode = getLiveSourceQueryErrorCode(call.outcome);
                 this.analytics.trackAccount(account, {
-                    event: 'live_source.api_call',
+                    event: 'live_source.query_finished',
                     properties: {
                         organizationId: connection.organizationUuid,
                         projectId: projectUuid,
@@ -2074,6 +2206,11 @@ export class ExternalConnectionService extends BaseService {
                         integration: connection.apiSource?.connector ?? null,
                         context: call.context,
                         outcome: call.outcome,
+                        errorOrigin: errorCode
+                            ? getLiveSourceErrorOrigin(errorCode)
+                            : null,
+                        errorCode,
+                        cacheHit: call.cacheHit,
                         apiCalls: usage.apiCalls,
                         providerStatus: usage.providerStatus,
                         durationMs: call.durationMs,
@@ -2590,6 +2727,9 @@ export class ExternalConnectionService extends BaseService {
                 existing.externalConnectionUuid,
                 account.user.id,
                 config,
+            );
+            await this.purgeAfterCredentialChange(
+                existing.externalConnectionUuid,
             );
             this.analytics.track({
                 event: 'external_connection.updated',
@@ -3762,15 +3902,22 @@ export class ExternalConnectionService extends BaseService {
             body?: unknown;
         },
         account: RegisteredAccount,
-    ): Promise<ExternalFetchResponse> {
+    ): Promise<ExternalConnectionTestResponse> {
         try {
-            const result = await this.executeExternalFetch(
+            const { response } = await this.executeExternalFetch(
                 connection,
                 secret,
                 req,
                 { account, appUuid: null },
             );
-            return result.response;
+            if (!connection.apiSource) return response;
+            return {
+                ...response,
+                liveCheck: getLiveSourceTestCheck(
+                    connection.apiSource,
+                    response,
+                ),
+            };
         } catch (error) {
             if (error instanceof SecureFetchError) {
                 throw new ParameterError(
@@ -4003,7 +4150,7 @@ export class ExternalConnectionService extends BaseService {
             body?: unknown;
             config?: UpdateExternalConnection;
         },
-    ): Promise<ExternalFetchResponse> {
+    ): Promise<ExternalConnectionTestResponse> {
         const storedConnection = await this.loadConnectionForProject(
             connectionUuid,
             projectUuid,
@@ -4013,12 +4160,15 @@ export class ExternalConnectionService extends BaseService {
             storedConnection.projectUuid,
             storedConnection.organizationUuid,
         );
-        const connection = req.config
-            ? ExternalConnectionService.resolveConnectionUpdate(
-                  storedConnection,
-                  req.config,
-              )
-            : storedConnection;
+        // Live data sources test against the rules their edited settings get
+        const connection = withApiSourceAccessRules(
+            req.config
+                ? ExternalConnectionService.resolveConnectionUpdate(
+                      storedConnection,
+                      req.config,
+                  )
+                : storedConnection,
+        );
 
         // Method allowlist — mirror the runtime proxy so a test rejects a
         // disallowed method instead of silently sending it.
@@ -4067,7 +4217,7 @@ export class ExternalConnectionService extends BaseService {
             query?: Record<string, string>;
             body?: unknown;
         },
-    ): Promise<ExternalFetchResponse> {
+    ): Promise<ExternalConnectionTestResponse> {
         // Derive the org from the project — never trust the caller — so an org
         // admin cannot test against another org's project.
         const organizationUuid =

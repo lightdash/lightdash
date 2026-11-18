@@ -122,6 +122,7 @@ import {
     initOtelTracing,
     shutdownOtelTracing,
 } from './tracing/tracing';
+import { helmetForInternalHttpHost } from './utils/internalHttpHost';
 import { oauthPopupCoopMiddleware } from './utils/oauthPopupCoop';
 import { personaliseSharedSignInError } from './utils/sharedSignInExpiry';
 import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
@@ -691,7 +692,13 @@ export default class App {
             },
         } as const;
 
-        expressApp.use(helmet(helmetConfig));
+        const helmetForRequest = (config: typeof helmetConfig) =>
+            helmetForInternalHttpHost(
+                config,
+                this.lightdashConfig.headlessBrowser.internalLightdashHost,
+            );
+
+        expressApp.use(helmetForRequest(helmetConfig));
         // Popup-based OAuth clients need window.opener to survive sign-in
         expressApp.use(oauthPopupCoopMiddleware);
 
@@ -722,7 +729,7 @@ export default class App {
                 embedFrameAncestors;
         });
 
-        expressApp.use('/embed/*', helmet(helmetConfigForEmbeds));
+        expressApp.use('/embed/*', helmetForRequest(helmetConfigForEmbeds));
 
         expressApp.use('/api/v1/file/*', (_req, res, next) => {
             res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');

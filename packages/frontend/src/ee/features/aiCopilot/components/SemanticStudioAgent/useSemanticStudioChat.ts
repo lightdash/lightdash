@@ -88,7 +88,7 @@ export const useStudioAgent = (projectUuid: string) => {
     const isEnabled = useCanEditSemanticLayer(projectUuid);
     const { agent: defaultAgent, agents } = useDefaultAiAgent(projectUuid);
     const [stored, setStored] = useStoredStudioThread(projectUuid);
-    // ponytail: one chat back, not a history; the workspaces list holds the rest.
+    // One chat back, not a history; the workspaces list holds the rest.
     const [previous, setPrevious] = useLocalStorage<StoredThread | null>({
         key: `semantic-studio-agent-previous-thread-${projectUuid}`,
         defaultValue: null,

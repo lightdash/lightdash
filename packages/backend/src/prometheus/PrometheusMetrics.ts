@@ -268,6 +268,9 @@ export default class PrometheusMetrics {
     public apiSourceTruncatedCounter: prometheus.Counter<'integration'> | null =
         null;
 
+    public liveSourceCacheHitCounter: prometheus.Counter<'integration'> | null =
+        null;
+
     // Pre-aggregate metrics
     public preAggregateMatchCounter: prometheus.Counter<string> | null = null;
 
@@ -994,6 +997,12 @@ export default class PrometheusMetrics {
                     labelNames: ['integration'],
                     ...rest,
                 });
+                this.liveSourceCacheHitCounter = new prometheus.Counter({
+                    name: 'lightdash_live_source_cache_hits_total',
+                    help: 'Live data source queries answered from a stored result without calling the integration, by integration',
+                    labelNames: ['integration'],
+                    ...rest,
+                });
 
                 // Pre-create every known label combination so each series
                 // exports a zero baseline from process start. Without this,
@@ -1030,6 +1039,7 @@ export default class PrometheusMetrics {
                 Object.values(ApiConnectorType).forEach((integration) => {
                     this.apiSourceInflightGauge?.set({ integration }, 0);
                     this.apiSourceTruncatedCounter?.inc({ integration }, 0);
+                    this.liveSourceCacheHitCounter?.inc({ integration }, 0);
                     LIVE_QUERY_OUTCOMES.forEach((outcome) => {
                         this.apiSourceRequestCounter?.inc(
                             { integration, outcome },
@@ -2206,6 +2216,10 @@ export default class PrometheusMetrics {
         delta: 1 | -1,
     ) {
         this.apiSourceInflightGauge?.inc({ integration }, delta);
+    }
+
+    public incrementLiveSourceCacheHit(integration: ApiConnectorType) {
+        this.liveSourceCacheHitCounter?.inc({ integration });
     }
 
     public incrementApiSourceTruncated(integration: ApiConnectorType) {

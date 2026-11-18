@@ -54,6 +54,8 @@ const renderAuthRouteAt = (pathname: string) => {
 
 describe('AuthRoutes', () => {
     it('renders the public agent connection landing page', async () => {
+        // Load the lazy page first so the wait below times rendering, not a cold import.
+        await import('./pages/AgentConnected');
         renderAuthRouteAt('/agent-connected');
         expect(await screen.findByText('Agent connected.')).toBeInTheDocument();
     });

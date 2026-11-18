@@ -71,6 +71,7 @@ import {
     getFieldsFromMetricQuery,
     getItemId,
     getItemMap,
+    getLiveSourceErrorOrigin,
     getMergeColumnTotals,
     getMetricOverridesWithPopInheritance,
     getMetrics,
@@ -185,6 +186,7 @@ import {
     type FieldValueSearchResult,
     type Filters,
     type InvalidateExploresResultsCache,
+    type LiveSourceInternalErrorCode,
     type LiveSourceUpstreamErrorCode,
     type MergeQueryChart,
     type MergeQueryExecutionMode,
@@ -405,10 +407,14 @@ import {
 import { toLiveQueryError } from '../QuerySourceService/live/explores/definition';
 import {
     getLiveQueryOutcome,
-    getLiveSourceUpstreamErrorCode,
+    getLiveSourceQueryErrorCode,
     isLiveSourceErrorReportable,
     type LiveQueryOutcome,
 } from '../QuerySourceService/live/query/outcome';
+import {
+    getLiveQueryShape,
+    type LiveQueryShape,
+} from '../QuerySourceService/live/query/queryShape';
 import {
     runLiveRequest,
     type LiveQueryResult,
@@ -424,7 +430,7 @@ import {
     buildResultsCacheTtlProjections,
     TTL_PROJECTION_MAX_RUNS,
 } from '../ResultsCacheStats/ttlProjections';
-import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
+import { applyOpenChartDraft } from '../SavedChartsService/chartDraftOverlay';
 import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
 import {
     auditAndFilterExplore,
@@ -518,7 +524,11 @@ import {
     QueryEstimateCache,
 } from './queryCostEstimate';
 import type { QueryPollingSource } from './queryPollingSource';
-import { canReuseApiResult, canReuseQueryResult } from './queryResultReuse';
+import {
+    canReuseQueryResult,
+    toStoredLiveResult,
+    type StoredLiveResult,
+} from './queryResultReuse';
 import { queryUsageProperties, queryWorkloadOrigin } from './queryUsage';
 import {
     EstimateAsyncMetricQueryArgs,
@@ -9451,18 +9461,24 @@ export class AsyncQueryService extends ProjectService {
         filterOverrides,
         schedulerFilters,
         dashboardFilters,
+        includeUnpublishedDraft,
         userAttributeOverrides,
     }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncSavedChartQueryResults> {
         // Check user is in organization
         assertIsAccountWithOrg(account);
 
-        const storedChart = await this.savedChartModel.get(
+        const publishedChart = await this.savedChartModel.get(
             chartUuid,
             versionUuid,
             {
                 projectUuid,
             },
         );
+        // A chart version is a fixed point in history, never the draft
+        const storedChart =
+            includeUnpublishedDraft && !versionUuid
+                ? await this.applyOpenChartDraft(account, publishedChart)
+                : publishedChart;
         // Applied to the stored chart so merge queries built from it see the
         // delivery's filters too. The delivery runs as its creator, so this is
         // where a creator who lost explore access stops widening the chart.
@@ -9977,29 +9993,23 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    // Only the draft's author sees it; a corrupt draft falls back to the
-    // published chart, as the chart read path does
     private async applyOpenChartDraft(
         account: Account,
         chart: SavedChartDAO,
     ): Promise<SavedChartDAO> {
         if (isJwtUser(account)) return chart;
-        const draft = await this.contentDraftModel.findOpenDraft(
-            chart.projectUuid,
-            'chart',
-            chart.uuid,
+        const withDraft = await applyOpenChartDraft(
+            this.contentDraftModel,
             account.user.userUuid,
+            chart,
+            (draftUuid, error) =>
+                this.logger.warn(
+                    `Ignoring invalid chart draft ${draftUuid} while running its query`,
+                    error,
+                ),
         );
-        if (!draft) return chart;
-        try {
-            return mergeDraftIntoChart(chart, draft.draft);
-        } catch (error) {
-            this.logger.warn(
-                `Ignoring invalid chart draft ${draft.uuid} while running dashboard tile`,
-                error,
-            );
-            return chart;
-        }
+        // Access follows the published space, not a move the draft holds
+        return { ...withDraft, spaceUuid: chart.spaceUuid };
     }
 
     /** Explores of every metric source, so filters can be resolved per side. */
@@ -12753,6 +12763,7 @@ export class AsyncQueryService extends ProjectService {
         exploreName,
         apiSource,
         issues,
+        queryShape,
         context,
         querySurface,
     }: {
@@ -12762,6 +12773,7 @@ export class AsyncQueryService extends ProjectService {
         exploreName: string;
         apiSource: ApiSourceExplore;
         issues: ApiSourceQueryIssue[];
+        queryShape: LiveQueryShape;
         context: QueryExecutionContext;
         querySurface: QuerySurface | undefined;
     }): void {
@@ -12777,8 +12789,10 @@ export class AsyncQueryService extends ProjectService {
                     externalConnectionUuid: apiSource.connectionUuid,
                     integration: apiSource.integration,
                     exploreName,
-                    code,
+                    errorOrigin: 'refused',
+                    errorCode: code,
                     fieldId,
+                    queryShape,
                     querySurface: querySurface ?? null,
                     context,
                 },
@@ -12825,6 +12839,11 @@ export class AsyncQueryService extends ProjectService {
                 exploreName: explore.name,
                 apiSource,
                 issues,
+                queryShape: getLiveQueryShape(queryComposer.getMetricQuery(), {
+                    isPivoted: !!queryComposer.getPivotConfiguration(),
+                    dateZoomGranularity:
+                        queryComposer.getDateZoom()?.granularity,
+                }),
                 context,
                 querySurface,
             });
@@ -12936,9 +12955,7 @@ export class AsyncQueryService extends ProjectService {
         toResult: ApiResultShaper;
     }): Promise<{
         queryUuid: string;
-        reusable: Awaited<
-            ReturnType<AsyncQueryService['findReusableApiResult']>
-        >;
+        reusable: StoredLiveResult | null;
     }> {
         assertIsAccountWithOrg(account);
         const identityEnabled = await this.isResultIdentityEnabled(account);
@@ -12970,15 +12987,21 @@ export class AsyncQueryService extends ProjectService {
             authMethod: account.authentication.type,
             agentIdentity: reader.kind === 'agent' ? reader.claim : null,
         };
-        // Reuse is per user: rows come straight from the source, unfiltered by
-        // anything Lightdash can check against another reader.
+        // Rows come straight from the source, unfiltered by anything Lightdash
+        // checks per reader, so the key holds everything that decides them:
+        // the source and the compiled request. A source signed in with one
+        // credential answers everyone alike and shares its results; one that
+        // queries as each viewer keeps them per user.
         const cacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
             sql: cacheKeySql,
-            userUuid: account.user.id,
+            userUuid:
+                source.cache.scope.kind === 'viewer'
+                    ? source.cache.scope.userUuid
+                    : null,
         });
         const reusable = invalidateCache
             ? null
-            : await this.findReusableApiResult(projectUuid, cacheKey);
+            : await this.findReusableApiResult(projectUuid, cacheKey, source);
 
         const queryCreatedAt = new Date();
         const { queryUuid } = await this.createQueryHistory(
@@ -13014,68 +13037,19 @@ export class AsyncQueryService extends ProjectService {
         );
 
         if (reusable) {
-            await this.queryHistoryModel.update(
-                queryUuid,
-                projectUuid,
-                {
-                    status: QueryHistoryStatus.READY,
-                    error: null,
-                    // Reuse keeps the original fetch time instead of 0 ms.
-                    warehouse_execution_time_ms:
-                        reusable.queryHistory.warehouseExecutionTimeMs,
-                    total_row_count: reusable.totalRowCount,
-                    cache_key: cacheKey,
-                    results_file_name: reusable.resultsFileName,
-                    results_created_at: reusable.resultsCreatedAt,
-                    results_updated_at: reusable.resultsUpdatedAt,
-                    results_expires_at: reusable.resultsExpiresAt,
-                    columns: reusable.columns,
-                    fields:
-                        history.fields ??
-                        pythonColumnsToFields(reusable.columns ?? {}),
-                },
-                account,
-            );
-            this.prometheusMetrics?.trackQueryStateTransition(
-                QueryHistoryStatus.PENDING,
-                QueryHistoryStatus.READY,
-                context,
-            );
-            this.trackQueryTerminalStatus(
-                QueryHistoryStatus.READY,
-                queryCreatedAt,
-                context,
-            );
-            this.trackApiQueryCompleted({
+            await this.completeLiveQueryFromStored({
                 account,
                 queryUuid,
                 projectUuid,
                 organizationUuid,
+                source,
+                payload,
+                limit,
+                cacheKey,
                 context,
-                connector: source.integration.connector,
                 queryCreatedAt,
-                outcome: 'ok',
-                errorMessage: null,
-                totalRowCount: reusable.totalRowCount,
-                columnsCount: reusable.columns
-                    ? Object.keys(reusable.columns).length
-                    : null,
-                truncated: null,
-                cacheHit: true,
-            });
-            void source.logCall({
-                queryUuid,
-                context,
-                query: payload.query,
-                rowLimit: limit,
-                outcome: 'ok',
-                errorMessage: null,
-                durationMs: Date.now() - queryCreatedAt.getTime(),
-                rowCount: reusable.totalRowCount,
-                columnCount: reusable.columns
-                    ? Object.keys(reusable.columns).length
-                    : null,
-                truncated: null,
+                fields: history.fields,
+                stored: reusable,
             });
             return { queryUuid, reusable };
         }
@@ -13103,6 +13077,101 @@ export class AsyncQueryService extends ProjectService {
         });
 
         return { queryUuid, reusable: null };
+    }
+
+    /** Answers a live query with rows another query already fetched, without calling the integration. */
+    private async completeLiveQueryFromStored({
+        account,
+        queryUuid,
+        projectUuid,
+        organizationUuid,
+        source,
+        payload,
+        limit,
+        cacheKey,
+        context,
+        queryCreatedAt,
+        fields,
+        stored,
+    }: {
+        account: Account;
+        queryUuid: string;
+        projectUuid: string;
+        organizationUuid: string;
+        source: MeteredLiveSource;
+        payload: ApiSourcePayload;
+        limit: number;
+        cacheKey: string;
+        context: QueryExecutionContext;
+        queryCreatedAt: Date;
+        fields: ItemsMap | null;
+        stored: StoredLiveResult;
+    }): Promise<void> {
+        await this.queryHistoryModel.update(
+            queryUuid,
+            projectUuid,
+            {
+                status: QueryHistoryStatus.READY,
+                error: null,
+                // Reuse keeps the original fetch time instead of 0 ms.
+                warehouse_execution_time_ms: stored.warehouseExecutionTimeMs,
+                total_row_count: stored.totalRowCount,
+                cache_key: cacheKey,
+                results_file_name: stored.resultsFileName,
+                results_created_at: stored.resultsCreatedAt,
+                results_updated_at: stored.resultsUpdatedAt,
+                results_expires_at: stored.resultsExpiresAt,
+                columns: stored.columns,
+                fields: fields ?? pythonColumnsToFields(stored.columns ?? {}),
+            },
+            account,
+        );
+        this.prometheusMetrics?.trackQueryStateTransition(
+            QueryHistoryStatus.PENDING,
+            QueryHistoryStatus.READY,
+            context,
+        );
+        this.trackQueryTerminalStatus(
+            QueryHistoryStatus.READY,
+            queryCreatedAt,
+            context,
+        );
+        const columnCount = stored.columns
+            ? Object.keys(stored.columns).length
+            : null;
+        this.trackApiQueryCompleted({
+            account,
+            queryUuid,
+            projectUuid,
+            organizationUuid,
+            context,
+            connector: source.integration.connector,
+            queryCreatedAt,
+            outcome: 'ok',
+            errorMessage: null,
+            totalRowCount: stored.totalRowCount,
+            columnsCount: columnCount,
+            truncated: null,
+            cacheHit: true,
+        });
+        // Logged as a cache hit with no API calls: it never reached the
+        // integration or its call limiter.
+        void source.logCall({
+            queryUuid,
+            context,
+            query: payload.query,
+            rowLimit: limit,
+            outcome: 'ok',
+            errorMessage: null,
+            durationMs: Date.now() - queryCreatedAt.getTime(),
+            rowCount: stored.totalRowCount,
+            columnCount,
+            truncated: null,
+            cacheHit: true,
+        });
+        this.prometheusMetrics?.incrementLiveSourceCacheHit(
+            source.integration.connector,
+        );
     }
 
     private async runLiveQuery({
@@ -13167,6 +13236,7 @@ export class AsyncQueryService extends ProjectService {
                         query: payload.query,
                         rowLimit: limit,
                         durationMs: executeMs ?? Date.now() - startedAt,
+                        cacheHit: false,
                         ...call,
                     });
                 try {
@@ -13286,45 +13356,57 @@ export class AsyncQueryService extends ProjectService {
                 } catch (e) {
                     const message = getErrorMessage(e);
                     const outcome = getLiveQueryOutcome(e);
-                    const errorCode = getLiveSourceUpstreamErrorCode(outcome);
+                    const errorCode = getLiveSourceQueryErrorCode(outcome);
                     span.setAttributes({
                         'lightdash.error': message,
                         ...(errorCode
-                            ? { 'lightdash.liveSourceErrorCode': errorCode }
+                            ? {
+                                  'lightdash.errorCode': errorCode,
+                                  'lightdash.errorOrigin':
+                                      getLiveSourceErrorOrigin(errorCode),
+                              }
                             : {}),
                     });
                     this.logger.warn(
                         `Api query ${queryUuid} failed: code=${errorCode ?? '-'} integration=${connectorType} explore=${exploreName ?? '-'} context=${context}: ${message}`,
                     );
-                    // Only compiled queries: a request the agent wrote itself
+                    // Our own failures always; the integration's only for
+                    // compiled queries, since a request the agent wrote itself
                     // failing is the agent's to fix, not ours
                     if (
-                        exploreName !== null &&
                         errorCode !== null &&
                         isLiveSourceErrorReportable(errorCode)
                     ) {
-                        Sentry.withScope((scope) => {
-                            scope.setTag(
-                                'lightdash.integration',
-                                connectorType,
-                            );
-                            scope.setTag(
-                                'lightdash.liveSourceErrorCode',
-                                errorCode,
-                            );
-                            scope.setFingerprint([
-                                'live-source-upstream',
-                                connectorType,
-                                errorCode,
-                            ]);
-                            scope.setContext('live_source', {
-                                queryUuid,
-                                projectUuid,
-                                exploreName,
-                                context,
+                        const errorOrigin = getLiveSourceErrorOrigin(errorCode);
+                        if (
+                            errorOrigin === 'internal' ||
+                            exploreName !== null
+                        ) {
+                            Sentry.withScope((scope) => {
+                                scope.setTag(
+                                    'lightdash.integration',
+                                    connectorType,
+                                );
+                                scope.setTag(
+                                    'lightdash.errorOrigin',
+                                    errorOrigin,
+                                );
+                                scope.setTag('lightdash.errorCode', errorCode);
+                                scope.setFingerprint([
+                                    'live-source',
+                                    errorOrigin,
+                                    connectorType,
+                                    errorCode,
+                                ]);
+                                scope.setContext('live_source', {
+                                    queryUuid,
+                                    projectUuid,
+                                    exploreName,
+                                    context,
+                                });
+                                Sentry.captureException(e);
                             });
-                            Sentry.captureException(e);
-                        });
+                        }
                     }
                     await this.queryHistoryModel.updateStatusToError(
                         queryUuid,
@@ -13351,7 +13433,7 @@ export class AsyncQueryService extends ProjectService {
                         connector: connectorType,
                         queryCreatedAt,
                         outcome,
-                        liveSourceErrorCode: errorCode,
+                        errorCode,
                         errorMessage: message,
                         totalRowCount: null,
                         columnsCount: null,
@@ -13369,25 +13451,20 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
-    /** This user's latest rows for the same live query, if they are recent enough to reuse. */
-    private async findReusableApiResult(projectUuid: string, cacheKey: string) {
+    /** The latest result for the same live query, when its rows are fresh enough to reuse. */
+    private async findReusableApiResult(
+        projectUuid: string,
+        cacheKey: string,
+        source: MeteredLiveSource,
+    ): Promise<StoredLiveResult | null> {
         const latest = await this.queryHistoryModel.findMostRecentByCacheKey(
             cacheKey,
             projectUuid,
             { excludeAgentProduced: false },
         );
-        if (
-            !latest ||
-            !canReuseApiResult({
-                status: latest.queryHistory.status,
-                resultsFileName: latest.resultsFileName,
-                resultsCreatedAt: latest.resultsCreatedAt,
-                resultsExpiresAt: latest.resultsExpiresAt,
-            })
-        ) {
-            return null;
-        }
-        return latest;
+        return latest
+            ? toStoredLiveResult(latest.queryHistory, source.cache)
+            : null;
     }
 
     /** One live query, measured by outcome; rethrows what it caught. */
@@ -13437,7 +13514,7 @@ export class AsyncQueryService extends ProjectService {
         connector,
         queryCreatedAt,
         outcome,
-        liveSourceErrorCode = null,
+        errorCode = null,
         errorMessage,
         totalRowCount,
         columnsCount,
@@ -13452,7 +13529,10 @@ export class AsyncQueryService extends ProjectService {
         connector: ApiConnectorType;
         queryCreatedAt: Date;
         outcome: LiveQueryOutcome;
-        liveSourceErrorCode?: LiveSourceUpstreamErrorCode | null;
+        errorCode?:
+            | LiveSourceInternalErrorCode
+            | LiveSourceUpstreamErrorCode
+            | null;
         errorMessage: string | null;
         totalRowCount: number | null;
         columnsCount: number | null;
@@ -13499,7 +13579,13 @@ export class AsyncQueryService extends ProjectService {
                         columnsCount,
                         integration: connector,
                         apiQueryOutcome: outcome,
-                        ...(liveSourceErrorCode ? { liveSourceErrorCode } : {}),
+                        ...(errorCode
+                            ? {
+                                  errorCode,
+                                  errorOrigin:
+                                      getLiveSourceErrorOrigin(errorCode),
+                              }
+                            : {}),
                         ...(truncated !== null ? { truncated } : {}),
                     },
                 });

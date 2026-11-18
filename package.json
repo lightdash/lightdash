@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "3.289.3",
+    "version": "3.301.2",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -24,7 +24,7 @@
     "devDependencies": {
         "@types/node": "24.13.2",
         "@types/pegjs": "0.10.3",
-        "@vitest/eslint-plugin": "1.6.23",
+        "@vitest/eslint-plugin": "1.6.28",
         "ajv": "8.18.0",
         "ajv-formats": "2.1.1",
         "dotenv": "16.0.3",

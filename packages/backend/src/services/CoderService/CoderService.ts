@@ -3528,6 +3528,38 @@ export class CoderService extends BaseService {
         );
     }
 
+    private async withSpaceSlugs<T extends { spaceUuid: string }>(
+        items: T[],
+    ): Promise<Array<T & { spaceSlug: string }>> {
+        const spaces = await this.spaceModel.find({
+            spaceUuids: [...new Set(items.map((item) => item.spaceUuid))],
+        });
+        const spacePathByUuid = new Map(
+            spaces.map((space) => [space.uuid, space.path]),
+        );
+        return items.map((item) => ({
+            ...item,
+            spaceSlug: getContentAsCodePathFromLtreePath(
+                spacePathByUuid.get(item.spaceUuid) ?? '',
+            ),
+        }));
+    }
+
+    /** Download's file shape, unchecked against the user, for git write-back. */
+    async getPortableComposerChartsAsCode(
+        projectUuid: string,
+        slugs: string[],
+    ): Promise<ComposerChartAsCode[]> {
+        const charts = await this.composerChartModel.findForCode(
+            projectUuid,
+            slugs,
+        );
+        return this.getComposerChartsAsCode(
+            projectUuid,
+            await this.withSpaceSlugs(charts),
+        );
+    }
+
     /** Download works with the composer-charts flag off, so an upload never drops tiles. */
     async getComposerCharts(
         user: SessionUser,
@@ -3545,9 +3577,6 @@ export class CoderService extends BaseService {
             projectUuid,
             slugs,
         );
-        const spaces = await this.spaceModel.find({
-            spaceUuids: [...new Set(charts.map((chart) => chart.spaceUuid))],
-        });
         // Viewing a composer chart follows its dashboard, as on every other read
         const viewable = await Promise.all(
             charts.map((chart) =>
@@ -3571,9 +3600,6 @@ export class CoderService extends BaseService {
             offset,
             pageSize: this.lightdashConfig.contentAsCode.maxDownloads,
         });
-        const spacePathByUuid = new Map(
-            spaces.map((space) => [space.uuid, space.path]),
-        );
         const found = new Set(
             charts
                 .filter((_, index) => viewable[index])
@@ -3582,12 +3608,7 @@ export class CoderService extends BaseService {
         return {
             composerCharts: await this.getComposerChartsAsCode(
                 projectUuid,
-                page.map((chart) => ({
-                    ...chart,
-                    spaceSlug: getContentAsCodePathFromLtreePath(
-                        spacePathByUuid.get(chart.spaceUuid) ?? '',
-                    ),
-                })),
+                await this.withSpaceSlugs(page),
             ),
             missingIds: (slugs ?? []).filter((slug) => !found.has(slug)),
             total,

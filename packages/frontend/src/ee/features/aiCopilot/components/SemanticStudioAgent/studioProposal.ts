@@ -23,7 +23,13 @@ export const getOpenProposal = (
     // A follow-up question does not drop the proposal; only a save does.
     for (const reply of settled.reverse()) {
         if (reply.role !== 'assistant') continue;
+        const saves = reply.toolResults.filter(isToolEditDbtProjectResult);
+        const hasFailed =
+            saves.length > 0 &&
+            saves.every(({ metadata }) => metadata.status === 'error');
+        // A save that failed leaves the proposal to be saved again.
         if (
+            !hasFailed &&
             reply.toolCalls.some(
                 ({ toolName }) => toolName === 'editDbtProject',
             )

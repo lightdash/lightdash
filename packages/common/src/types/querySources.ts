@@ -71,6 +71,8 @@ export enum ApiConnectorType {
     YOUTUBE_ANALYTICS = 'youtube_analytics',
     LINKEDIN_ADS = 'linkedin_ads',
     GITHUB = 'github',
+    PYLON = 'pylon',
+    ATTIO = 'attio',
 }
 
 /**

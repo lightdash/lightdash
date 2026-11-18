@@ -112,6 +112,7 @@ const buildService = ({
         ),
         findByUuid: vi.fn().mockResolvedValue(connection),
         getProjectOrganizationUuid: vi.fn().mockResolvedValue('org-1'),
+        purgeLiveSourceCache: vi.fn().mockResolvedValue(undefined),
         getDecryptedSecret: vi.fn(async () => storedSecret),
         updateSecretLocked: vi.fn(
             async (

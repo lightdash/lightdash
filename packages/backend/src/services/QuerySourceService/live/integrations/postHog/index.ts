@@ -28,6 +28,7 @@ import {
     scanPostHogProperties,
     toPostHogError,
 } from './run';
+import { summarizePostHogTest } from './testSummary';
 
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.POSTHOG];
 const LABEL = CATALOG.messageLabel;
@@ -133,6 +134,7 @@ export const postHogIntegration = defineLiveIntegration({
         }),
     run: runPostHogQuery,
     toError: toPostHogError,
+    summarizeTest: summarizePostHogTest,
     scan: {
         read: scanPostHogProperties,
         withScannedFields: (definition, scan) =>

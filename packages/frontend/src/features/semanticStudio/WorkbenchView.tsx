@@ -4,7 +4,10 @@
  * an explore and its fields. Breadcrumbs lead back up; fields open in a
  * modal.
  */
-import { assertUnreachable } from '@lightdash/common';
+import {
+    assertUnreachable,
+    type PreAggregateMaterializationSummary,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -26,6 +29,7 @@ import {
 import {
     IconArrowLeft,
     IconArrowUpRight,
+    IconBolt,
     IconCheck,
     IconChevronDown,
     IconChevronRight,
@@ -40,6 +44,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import {
     createContext,
+    Fragment,
     lazy,
     Suspense,
     useCallback,
@@ -88,6 +93,7 @@ import {
     ExternalSourcesTable,
 } from './externalSources/ExternalSourcesView';
 import { useManagedExternalSource } from './externalSources/useManagedExternalSource';
+import { JoinDiagram } from './JoinDiagram';
 import { useLiveSourceActions } from './liveSources/liveSourceActions';
 import { LiveSourceManager } from './liveSources/LiveSourceManager';
 import {
@@ -120,6 +126,7 @@ import {
     VIEW_PARAM,
 } from './modelCode';
 import { ModelCodeView, ModelTabs } from './ModelTabs';
+import { getPreAggregateStatus } from './preAggregateSummary';
 import {
     DraftDevelopmentBar,
     DraftReview,
@@ -155,6 +162,7 @@ import {
 } from './urls';
 import { useExploreFields } from './useExploreFields';
 import { useGoingLive } from './useGoingLive';
+import { usePreAggregatesByModel } from './usePreAggregatesByModel';
 import {
     useKeepsSemanticLayerDraft,
     useDraftFreshness,
@@ -801,6 +809,15 @@ const MainPane: FC<{
                         key={explore.id}
                         projectUuid={view.project.id}
                         modelName={explore.id}
+                        exploreName={explore.name}
+                        lineage={
+                            source?.kind === 'modelled' ? (
+                                <JoinDiagram
+                                    projectUuid={view.project.id}
+                                    exploreName={explore.name}
+                                />
+                            ) : null
+                        }
                         fields={
                             <ExploreBody
                                 // Its live or in-development switch belongs to one model.
@@ -918,30 +935,83 @@ const Rail: FC<{
 
 /**
  * The Code view's rail: every model with YAML behind it, and any the draft adds.
- * ponytail: not virtualised; only native YAML projects get here, so add it if one reaches thousands of models.
+ * Not virtualised; only native YAML projects get here, so add it if one reaches thousands of models.
  */
 const CodeRail: FC<{
     files: string[];
     selected: string | null;
     drafted: Set<string>;
-    onOpen: (file: string) => void;
-}> = ({ files, selected, drafted, onOpen }) => (
+    /** The pre-aggregate open in the file, so its row reads as selected and not the file's. */
+    selectedPart: string | null;
+    preAggregates: Map<string, PreAggregateMaterializationSummary[]>;
+    onOpen: (file: string, part: string | null) => void;
+}> = ({ files, selected, selectedPart, drafted, preAggregates, onOpen }) => (
     <Box className={classes.rail}>
         <Box className={classes.treeScroll}>
             {files.map((file) => (
-                <Box
-                    key={file}
-                    component="button"
-                    className={classes.fileRow}
-                    data-selected={file === selected}
-                    onClick={() => onOpen(file)}
-                >
-                    <MantineIcon icon={IconFileCode} size={14} color="dimmed" />
-                    <Text truncate className={classes.treeLabel} title={file}>
-                        {file}.yml
-                    </Text>
-                    <DraftMarker model={file} isMine={drafted.has(file)} />
-                </Box>
+                <Fragment key={file}>
+                    <Box
+                        component="button"
+                        className={classes.fileRow}
+                        data-selected={file === selected && !selectedPart}
+                        onClick={() => onOpen(file, null)}
+                    >
+                        <MantineIcon
+                            icon={IconFileCode}
+                            size={14}
+                            color="dimmed"
+                        />
+                        <Text
+                            truncate
+                            className={classes.treeLabel}
+                            title={file}
+                        >
+                            {file}.yml
+                        </Text>
+                        <DraftMarker model={file} isMine={drafted.has(file)} />
+                    </Box>
+                    {/* A pre-aggregate lives in its model's file; its row jumps to where it is defined. */}
+                    {(preAggregates.get(file) ?? []).map((summary) => {
+                        const status = getPreAggregateStatus(summary);
+                        return (
+                            <Tooltip
+                                key={summary.preAggregateDefinitionUuid}
+                                label={`Pre-aggregate · ${status.label}`}
+                                position="right"
+                            >
+                                <Box
+                                    component="button"
+                                    className={classes.fileRow}
+                                    data-part
+                                    data-selected={
+                                        file === selected &&
+                                        selectedPart ===
+                                            summary.preAggregateName
+                                    }
+                                    onClick={() =>
+                                        onOpen(file, summary.preAggregateName)
+                                    }
+                                >
+                                    <MantineIcon
+                                        icon={IconBolt}
+                                        size={14}
+                                        color="dimmed"
+                                    />
+                                    <Text
+                                        truncate
+                                        className={classes.treeLabel}
+                                    >
+                                        {summary.preAggregateName}
+                                    </Text>
+                                    <Box
+                                        className={classes.statusDot}
+                                        data-status={status.color ?? 'none'}
+                                    />
+                                </Box>
+                            </Tooltip>
+                        );
+                    })}
+                </Fragment>
             ))}
         </Box>
     </Box>
@@ -954,6 +1024,7 @@ const BUILD_MODEL_PROMPT =
 
 export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const view = useSemanticStudio(props);
+    const preAggregatesByModel = usePreAggregatesByModel(view.project.id);
     const [expanded, setExpanded] = useState<Set<string>>(() =>
         view.selected
             ? new Set(
@@ -1653,7 +1724,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             ? (pullRequest?.changedModels[0] ?? null)
             : null;
     const goBack = hasWorkspaces ? showChanges : showLive;
-    // ponytail: explore named after the model, so a renamed explore misses
+    // Explore named after the model, so a renamed explore misses
     const changeLinks = liveModel ? (
         <Anchor
             component={Link}
@@ -1752,7 +1823,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 ) : !stored ? null : (
                     <Text fz="sm" c="dimmed" ta="center" py="xl">
                         {modelled.length > 0
-                            ? 'These models were deployed from elsewhere, so their YAML is not here. Ask the agent for a new model and its YAML shows up here.'
+                            ? 'These models were deployed from outside this app, so their YAML is not here and they cannot be changed here yet.'
                             : 'No models yet. Ask the agent to build one and its YAML shows up here.'}
                     </Text>
                 );
@@ -1916,7 +1987,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                                 aria-selected={isSourcesView}
                                                 onClick={showSources}
                                             >
-                                                Sources
+                                                Code
                                             </UnstyledButton>
                                         </div>
                                         {changePicker ? (
@@ -2070,11 +2141,18 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                     <CodeRail
                                         files={files}
                                         selected={file}
+                                        selectedPart={searchParams.get(
+                                            FIELD_PARAM,
+                                        )}
                                         drafted={drafted}
-                                        onOpen={(next) =>
+                                        preAggregates={preAggregatesByModel}
+                                        onOpen={(next, part) =>
                                             setSearchParams({
                                                 [VIEW_PARAM]: 'code',
                                                 [FILE_PARAM]: next,
+                                                ...(part
+                                                    ? { [FIELD_PARAM]: part }
+                                                    : {}),
                                             })
                                         }
                                     />
