@@ -1,3 +1,10 @@
+## [3.306.3](https://github.com/lightdash/lightdash/compare/3.306.2...3.306.3) (2026-11-18)
+
+
+### Bug Fixes
+
+* **embed:** wait for the preview origin before loading an embedded data app ([#32670](https://github.com/lightdash/lightdash/issues/32670)) ([7c96982](https://github.com/lightdash/lightdash/commit/7c96982d8d37a15c0a15a5ccc76ad11fc1c5780c))
+
 ## [3.306.2](https://github.com/lightdash/lightdash/compare/3.306.1...3.306.2) (2026-11-18)
 
 
