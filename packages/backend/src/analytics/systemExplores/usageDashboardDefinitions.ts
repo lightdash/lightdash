@@ -50,7 +50,12 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         title: 'Technical outcomes',
                         description:
                             "Captured request outcomes describe technical completion, not whether the answer solved the user's problem. Pending and unknown outcomes remain visible.",
-                        charts: ['agent-request-outcomes'],
+                        charts: [
+                            'agent-outcomes-by-week',
+                            'agent-request-outcomes',
+                        ],
+                        layout: 'row',
+                        rowHeight: 8,
                     },
                     {
                         title: 'Feedback coverage',
@@ -69,12 +74,17 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         description:
                             'Retry overhead and request-linked tokens identify retry-heavy groups; precise incremental tokens per attempt are not captured.',
                         charts: ['agent-retries-latency-and-consumption'],
+                        layout: 'row',
+                        rowHeight: 7,
                     },
                     {
                         title: 'AI consumption',
                         description:
                             'Tokens by person, feature and model. Tokens are not monetary cost; team history, model pricing and external assistant spending are not included.',
-                        charts: ['ai-consumption-by-person-feature-and-model'],
+                        charts: [
+                            'ai-consumption-by-person-feature-and-model',
+                            'ai-tokens-by-feature-and-model',
+                        ],
                     },
                     {
                         title: 'Consumption by outcome',

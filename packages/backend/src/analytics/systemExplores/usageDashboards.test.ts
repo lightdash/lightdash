@@ -25,6 +25,7 @@ import {
 } from '../eventStream/usageDimensions';
 import { userActivityColumns } from '../eventStream/userActivity';
 import { analyticsContentAsCode } from './sampleContent';
+import { analyticsLibraryChartBindings } from './usageDashboards';
 
 const charts = analyticsContentAsCode.flatMap((bundle) => bundle.charts);
 const explores = createAnalyticsExplores();
@@ -630,19 +631,103 @@ describe('built-in usage dashboards', () => {
         expect(tile('agent-adoption-by-week').w).toBe(36);
     });
 
-    it('keeps tile geometry for sections without a layout hint', () => {
+    it('lists the Outcomes and Retries & consumption charts in order with their fallback types', () => {
+        const { dashboard, charts: overviewCharts } =
+            analyticsContentAsCode.find(
+                ({ dashboard: item }) =>
+                    item.slug === 'lightdash-analytics-overview',
+            )!;
+        const prefix = 'lightdash-analytics-overview-';
+        const slugsFor = (tabSlug: string) =>
+            dashboard.tiles
+                .filter(
+                    (tile) =>
+                        tile.type === DashboardTileTypes.SAVED_CHART &&
+                        tile.tabSlug === tabSlug,
+                )
+                .map(
+                    (tile) =>
+                        (tile.properties as { chartSlug: string }).chartSlug,
+                );
+        expect(slugsFor('outcomes')).toEqual(
+            [
+                'agent-outcomes-by-week',
+                'agent-request-outcomes',
+                'agent-feedback-rating-and-sample-coverage',
+            ].map((key) => `${prefix}${key}`),
+        );
+        expect(slugsFor('consumption')).toEqual(
+            [
+                'agent-retries-latency-and-consumption',
+                'ai-consumption-by-person-feature-and-model',
+                'ai-tokens-by-feature-and-model',
+                'request-consumption-by-outcome-and-feedback',
+            ].map((key) => `${prefix}${key}`),
+        );
+        const find = (key: string) =>
+            overviewCharts.find(({ slug }) => slug === `${prefix}${key}`)!;
+        expect(find('agent-outcomes-by-week').chartConfig.type).toBe(
+            ChartType.TABLE,
+        );
+        expect(find('ai-tokens-by-feature-and-model').chartConfig.type).toBe(
+            ChartType.TABLE,
+        );
+        expect(find('agent-request-outcomes').chartConfig.type).toBe(
+            ChartType.PIE,
+        );
+        expect(
+            analyticsLibraryChartBindings.has(
+                `${prefix}agent-request-outcomes`,
+            ),
+        ).toBe(false);
+        expect(
+            analyticsLibraryChartBindings.get(`${prefix}agent-outcomes-by-week`)
+                ?.slug,
+        ).toBe('customizable-cartesian-chart');
+        expect(
+            analyticsLibraryChartBindings.get(
+                `${prefix}ai-tokens-by-feature-and-model`,
+            )?.slug,
+        ).toBe('heatmap');
+    });
+
+    it('lays out the Outcomes and Retries sections as explicit rows', () => {
         const { dashboard } = analyticsContentAsCode.find(
             ({ dashboard: item }) =>
                 item.slug === 'lightdash-analytics-overview',
         )!;
+        const tile = (tabSlug: string, key: string) =>
+            dashboard.tiles.find(
+                (item) =>
+                    item.type === DashboardTileTypes.SAVED_CHART &&
+                    item.tabSlug === tabSlug &&
+                    (item.properties as { chartSlug: string }).chartSlug ===
+                        `lightdash-analytics-overview-${key}`,
+            )!;
+        const [a, b] = ['agent-outcomes-by-week', 'agent-request-outcomes'].map(
+            (key) => tile('outcomes', key),
+        );
+        expect([a.x, b.x, a.w, b.w, a.h, b.h]).toEqual([0, 18, 18, 18, 8, 8]);
+        expect(a.y).toBe(b.y);
+        const retries = tile(
+            'consumption',
+            'agent-retries-latency-and-consumption',
+        );
+        expect([retries.x, retries.w, retries.h]).toEqual([0, 36, 7]);
+    });
+
+    it('keeps tile geometry for sections without a layout hint', () => {
+        const { dashboard } = analyticsContentAsCode.find(
+            ({ dashboard: item }) =>
+                item.slug === 'lightdash-analytics-adoption',
+        )!;
         const geometry = dashboard.tiles
-            .filter((tile) => tile.tabSlug === 'outcomes')
+            .filter((tile) => tile.tabSlug === 'app-outcomes')
             .map((tile) => [tile.x, tile.y, tile.w, tile.h]);
         expect(geometry).toEqual([
             [0, 0, 36, 2],
             [0, 2, 36, 7],
-            [0, 9, 36, 2],
-            [0, 11, 36, 7],
+            [0, 9, 36, 7],
         ]);
     });
 

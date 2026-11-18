@@ -543,6 +543,50 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 fieldId: 'agent_requests_total_requests',
             },
         ],
+        libraryChart: {
+            slug: 'sortable-pivot-table',
+            minVersion: '0.12.1',
+            fieldMapping: {
+                rowDimension: 'agent_requests_agent_name',
+                metric: [
+                    'agent_requests_total_requests',
+                    'agent_requests_feedback_coverage',
+                    'agent_requests_negative_feedback_rate',
+                    'agent_requests_completion_rate',
+                    'agent_requests_response_coverage',
+                ],
+            },
+            optionValues: { showMiniBars: true },
+        },
+    },
+    {
+        key: 'agent-outcomes-by-week',
+        name: 'Request outcomes by week',
+        description:
+            'Logical requests, not individual agent steps. Pending requests may still lack an observed outcome.',
+        explore: 'agent_requests',
+        dimensions: [
+            'agent_requests_requested_at_week',
+            'agent_requests_status',
+        ],
+        metrics: ['agent_requests_total_requests'],
+        limit: 100,
+        sorts: [
+            {
+                descending: true,
+                fieldId: 'agent_requests_requested_at_week',
+            },
+        ],
+        libraryChart: {
+            slug: 'customizable-cartesian-chart',
+            minVersion: '0.17.0',
+            fieldMapping: {
+                x: 'agent_requests_requested_at_week',
+                m1: 'agent_requests_total_requests',
+                splitBy: 'agent_requests_status',
+            },
+            optionValues: {},
+        },
     },
     {
         key: 'agent-request-outcomes',
@@ -581,6 +625,16 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 fieldId: 'agent_requests_total_requests',
             },
         ],
+        libraryChart: {
+            slug: 'customizable-cartesian-chart',
+            minVersion: '0.17.0',
+            fieldMapping: {
+                x: 'agent_requests_retry_count',
+                m1: 'agent_requests_total_requests',
+                m2: 'agent_requests_average_request_latency_ms',
+            },
+            optionValues: {},
+        },
     },
     {
         key: 'ai-consumption-by-person-feature-and-model',
@@ -602,6 +656,43 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 fieldId: 'ai_usage_total_tokens_used',
             },
         ],
+        libraryChart: {
+            slug: 'sortable-pivot-table',
+            minVersion: '0.12.1',
+            fieldMapping: {
+                rowDimension: 'ai_usage_user_name',
+                rowDimension2: 'ai_usage_feature',
+                series: 'ai_usage_model',
+                metric: ['ai_usage_total_tokens_used'],
+            },
+            optionValues: {},
+        },
+    },
+    {
+        key: 'ai-tokens-by-feature-and-model',
+        name: 'Tokens by feature and model',
+        description:
+            'All retained captured history. Recent capture is not a full historical census.',
+        explore: 'ai_usage',
+        dimensions: ['ai_usage_feature', 'ai_usage_model'],
+        metrics: ['ai_usage_total_tokens_used'],
+        limit: 100,
+        sorts: [
+            {
+                descending: true,
+                fieldId: 'ai_usage_total_tokens_used',
+            },
+        ],
+        libraryChart: {
+            slug: 'heatmap',
+            minVersion: '0.4.0',
+            fieldMapping: {
+                x: 'ai_usage_model',
+                y: 'ai_usage_feature',
+                value: 'ai_usage_total_tokens_used',
+            },
+            optionValues: {},
+        },
     },
     {
         key: 'app-generation-consumption',
