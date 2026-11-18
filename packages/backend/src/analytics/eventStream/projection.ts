@@ -11,6 +11,7 @@ export type StreamName =
     | 'export_events'
     | 'mcp_tool_calls'
     | 'content_views'
+    | 'embed_view_events'
     | 'agent_request_events';
 
 /**

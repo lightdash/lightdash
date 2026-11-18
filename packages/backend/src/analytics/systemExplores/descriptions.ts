@@ -1,6 +1,8 @@
 import type { Dimension } from '@lightdash/common';
 
 export const analyticsTableDescriptions: Record<string, string> = {
+    embed_view_events:
+        'Observed successful embedded dashboard loads by external viewer and explicitly configured customer tenant. Only new capture is included. Does not measure browser renders or billable usage.',
     embed_reach:
         'Observed successful embedded dashboard fetches, with explicit external-viewer attribution. Excludes previews and duplicate deliveries. Refetches count; child queries do not. Does not measure browser rendering, tenant attribution, embedding configuration or billable loads. Capture starts after deployment.',
     historical_activity:

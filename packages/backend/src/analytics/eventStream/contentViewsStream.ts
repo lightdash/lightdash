@@ -1,3 +1,4 @@
+import type { EmbeddedUsageAttribution } from '@lightdash/common';
 import type {
     BaseTrack,
     DashboardView,
@@ -35,12 +36,15 @@ export type ContentViewMetadata = Omit<
     'eventId' | 'occurredAt'
 >;
 
-type CapturedEmbedDashboardView = Omit<
+export type CapturedEmbedDashboardView = Omit<
     CapturedContentView,
-    'event' | 'userId'
+    'event' | 'userId' | 'properties'
 > & {
     event: 'embed_dashboard.viewed';
     userId?: never;
+    properties: CapturedContentView['properties'] & {
+        embeddedUsage?: EmbeddedUsageAttribution;
+    };
 };
 
 export type ContentViewEvent =
