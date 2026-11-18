@@ -87,6 +87,8 @@ export const DbtTurnSummaryCard: FC<{
     changedModels: string[];
     ciChecks: CiChecks | null;
     isLatestTurn: boolean;
+    note: string | null;
+    options: string[];
 }> = ({
     projectUuid,
     prUrl,
@@ -95,6 +97,8 @@ export const DbtTurnSummaryCard: FC<{
     changedModels,
     ciChecks,
     isLatestTurn,
+    note,
+    options,
 }) => {
     const onAsk = useContext(StudioAskContext);
     const isBitbucket = isBitbucketPullRequest(prUrl);
@@ -280,8 +284,8 @@ export const DbtTurnSummaryCard: FC<{
             }
             groups={groups}
             safety={state === 'open' ? getSafety(latestCompile) : null}
-            note={null}
-            options={[]}
+            note={state === 'open' ? note : null}
+            options={state === 'open' ? options : []}
             onAsk={onAsk}
             isLatest={isLatestTurn}
             actions={actions}

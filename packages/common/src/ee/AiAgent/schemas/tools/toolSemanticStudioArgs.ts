@@ -124,6 +124,8 @@ const proposalMetadataSchema = z.object({
     // Absent on results stored before a change carried a note and offers.
     note: z.string().nullable().default(null),
     options: z.array(z.string()).default([]),
+    // True when the result came back with advice the agent should act on before the turn ends.
+    needsFollowUp: z.boolean().default(false),
 });
 
 const proposalStructuredContentSchema = proposalMetadataSchema.pick({
@@ -144,6 +146,24 @@ export type ToolProposeSemanticLayerChangeOutput = z.infer<
 >;
 
 export type SemanticLayerProposal = z.infer<typeof proposalMetadataSchema>;
+
+/** The line kept as the reply when a turn ends on its card with nothing written, so history and copy still read. */
+export const describeSemanticLayerProposals = (
+    proposals: Pick<SemanticLayerProposal, 'models'>[],
+): string => {
+    const names = [
+        ...new Set(
+            proposals.flatMap(({ models }) =>
+                models
+                    .filter(({ status }) => status === 'ready')
+                    .map(({ model }) => model),
+            ),
+        ),
+    ];
+    return names.length > 0
+        ? `Changed ${names.join(', ')} in the draft.`
+        : 'Nothing changed in the draft.';
+};
 
 export const isToolProposeSemanticLayerChangeResult =
     makeBuiltInToolResultGuard(

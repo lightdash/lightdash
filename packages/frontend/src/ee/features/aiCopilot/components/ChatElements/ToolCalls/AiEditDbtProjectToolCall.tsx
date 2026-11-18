@@ -61,6 +61,9 @@ type Props = {
     startedAt?: string;
     /** Whether this is the thread's latest turn; earlier Studio cards fold to their header. */
     isLatest?: boolean;
+    /** What a Studio save says is most worth checking, and what it offers to do next. */
+    note?: string | null;
+    options?: string[];
 };
 
 // ts-unused-exports:disable-next-line
@@ -253,6 +256,8 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     threadUuid,
     startedAt,
     isLatest = true,
+    note = null,
+    options = [],
 }) => {
     const quiet = useContext(QuietCardsContext);
     // Hooks must run before the early returns below; the query is disabled until
@@ -498,6 +503,8 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                 changedModels={metadata.changedModels ?? []}
                 ciChecks={ciChecks ?? null}
                 isLatestTurn={isLatest}
+                note={note}
+                options={options}
             />
         );
     }

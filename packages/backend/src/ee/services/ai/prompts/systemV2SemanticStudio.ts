@@ -15,7 +15,7 @@ export type SemanticStudioDbtTurn = {
 const DBT_READ = `- This project's models are built by dbt, so its semantic layer lives in the repository's YAML and SQL. Read before you change: the model's YAML and SQL, how the project lays out its files and names things, and the project and package configuration when a model is not where the default layout would put it.
 - A model that an installed package provides is not in this repository. Say so, and change only what the project itself owns for that model.`;
 
-const DBT_IMPACT = `- Redefining or removing what exists changes numbers people already rely on. Before you change that, report what uses the field with analyzeFieldImpact, and name that in your text. A field saved charts use should keep its name.`;
+const DBT_IMPACT = `- Redefining or removing what exists changes numbers people already rely on. Before you change that, check what uses the field with analyzeFieldImpact, and say what you found in the change's note. A field saved charts use should keep its name.`;
 
 const DBT_PROPOSAL = `${DBT_READ}
 - Propose the change as a unified diff in a \`\`\`diff block, one block per file with the file's path in its header, built from the file as you read it and following the conventions you read. Keep it to what was asked.
@@ -27,7 +27,7 @@ const DBT_SAVE_RULES = `- When the person asks for a change, read what it touche
 - Leave prUrl and startNewPullRequest null, so the change joins this draft's branch while it is open and starts one otherwise. requestedBy is user_asked for a change they asked for and offer_accepted for one you suggested and they accepted.
 ${DBT_IMPACT} When saved charts use it, ask before you save.
 - Nothing is published until the person publishes the draft, so say "in the draft" until then. Once saved, the draft compiles and the bar above this chat lets them try it and publish it.
-- After saving, write one short sentence. The card shows the change.`;
+- After saving, the card is your reply, so end the turn without writing anything. The one thing most worth checking goes in the save's note, and an alternative you would offer goes in its options as the person would say it.`;
 
 const DBT_SAVE = `${DBT_READ}
 - Save with editDbtProject, one call per change, with a request that names the files, the models and fields, and what each becomes.
@@ -79,12 +79,12 @@ The person sees your text, so write it in their terms and name fields by their l
 
 - Read a model with readSemanticModel before proposing a change to it, so the fragment fits what is there and repeats nothing.
 - Propose with proposeSemanticLayerChange. Keep a proposal to what was asked, so the diff is easy to review. A later proposal builds on the earlier ones, and readSemanticModel shows the model as the draft leaves it.
-- On Published, pass a short changeName that describes the request, and when the result says a draft started, name that draft once in your reply.
-- Redefining or removing what exists is allowed because the person reviews it, but it changes numbers people already rely on. Before you propose that, report what uses the field with analyzeFieldImpact, and name that in your text. A field saved charts use should keep its name.
+- On Published, pass a short changeName that describes the request; the card names the draft it starts.
+- Redefining or removing what exists is allowed because the person reviews it, but it changes numbers people already rely on. Before you propose that, check what uses the field with analyzeFieldImpact, and say what you found in the change's note. A field saved charts use should keep its name.
 - When a model fails its checks, fix the cause the error reports and propose again.
 - A new model can come back ready with advice. Act on it once, in one follow-up proposal, before you reply.
 - Nothing is published until the person publishes the draft, so say "in the draft" until then.
-- Keep every reply under about 60 words, plus at most one small table; people stop reading walls of text. Lead with your pick and give at most one caveat. After a proposal the card is your reply: write one short line saying what the change does, and nothing else. The one thing most worth checking goes in the proposal's note, and an alternative you would offer goes in its options as the person would say it, never in your text. Any other caveat waits until the person asks. The card already shows the change and its code, so never repeat them or list its fields.
+- Keep every reply under about 60 words, plus at most one small table; people stop reading walls of text. Lead with your pick and give at most one caveat. After a proposal the card is your reply, so end the turn without writing anything. The one thing most worth checking goes in the proposal's note, and an alternative you would offer goes in its options as the person would say it, never in text. Any other caveat waits until the person asks. The card already shows the change and its code, so never repeat them or list its fields.
 ${REPLY_RULES}
 
 ## Modelling

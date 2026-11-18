@@ -57,32 +57,34 @@ export const getProposeSemanticLayerChange = ({
             try {
                 const { results, diffs, draftChangeUuid, startedChange } =
                     await proposeSemanticLayerChange(models, changeName);
+                const advised = results.map((result) => {
+                    const created = diffs.find(
+                        ({ model, contentBefore }) =>
+                            model === result.model && contentBefore === null,
+                    );
+                    return {
+                        result,
+                        advice:
+                            result.status === 'ready' && created?.contentAfter
+                                ? findNewModelAdvice(
+                                      result.model,
+                                      created.contentAfter,
+                                  )
+                                : [],
+                    };
+                });
                 const output: ToolProposeSemanticLayerChangeOutput = {
                     result: [
-                        ...results.map((result) => {
-                            const created = diffs.find(
-                                ({ model, contentBefore }) =>
-                                    model === result.model &&
-                                    contentBefore === null,
-                            );
-                            return renderProposedModel(
-                                result,
-                                result.status === 'ready' &&
-                                    created?.contentAfter
-                                    ? findNewModelAdvice(
-                                          result.model,
-                                          created.contentAfter,
-                                      )
-                                    : [],
-                            );
-                        }),
+                        ...advised.map(({ result, advice }) =>
+                            renderProposedModel(result, advice),
+                        ),
                         ...(startedChange
                             ? [
                                   `Started draft "${startedChange.name}" and checked it out.`,
                               ]
                             : []),
                         draftChangeUuid
-                            ? "This joined the person's draft, and its card shows them what changed, your note and your options. Nothing is published until they publish the draft."
+                            ? "This joined the person's draft, and its card shows them what changed, your note and your options, so write nothing more. Nothing is published until they publish the draft."
                             : 'Nothing joined the draft.',
                     ].join('\n'),
                     metadata: {
@@ -92,6 +94,9 @@ export const getProposeSemanticLayerChange = ({
                         draftChangeUuid,
                         startedChange,
                         // A change that did not join the draft has no card to carry them.
+                        needsFollowUp: advised.some(
+                            ({ advice }) => advice.length > 0,
+                        ),
                         note: draftChangeUuid ? unescapeQuotes(note) : null,
                         options: draftChangeUuid
                             ? options.map(

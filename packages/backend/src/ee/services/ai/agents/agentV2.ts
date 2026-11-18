@@ -4,9 +4,12 @@ import {
     AiAccessRefusedError,
     AnyType,
     assertUnreachable,
+    DBT_SAVE_CARD_REPLY,
+    describeSemanticLayerProposals,
     Explore,
     getErrorMessage,
     isSqlApprovalToolCall,
+    toolProposeSemanticLayerChangeOutputSchema,
     type AiDeepResearchBudget,
     type AiDeepResearchExecutionContextSnapshot,
     type CustomChartTypeLibrary,
@@ -1341,6 +1344,81 @@ export const getDocumentWriteFastResponse = (
     return `Saved [${name || 'the document'}](${toAbsoluteHref(siteUrl, metadata.href)}).`;
 };
 
+const STUDIO_CHANGE_TOOLS = new Set([
+    'proposeSemanticLayerChange',
+    'editDbtProject',
+]);
+
+/** A Studio turn that ends on its card with nothing written keeps one line saying what changed, so the reply is never blank. */
+export const withStudioCardReply = (
+    reply: string,
+    steps: ReadonlyArray<FastChartStep>,
+): string => {
+    if (reply.trim()) return reply;
+    const outputs = steps
+        .flatMap((step) => step.toolResults)
+        .filter(({ toolName }) => STUDIO_CHANGE_TOOLS.has(toolName))
+        .map(({ toolName, output }) => ({ toolName, output }));
+    const proposals = outputs.flatMap(({ output }) => {
+        const parsed =
+            toolProposeSemanticLayerChangeOutputSchema.safeParse(output);
+        return parsed.success &&
+            parsed.data.metadata.status === 'success' &&
+            parsed.data.metadata.draftChangeUuid !== null
+            ? [parsed.data.metadata]
+            : [];
+    });
+    if (proposals.length > 0) return describeSemanticLayerProposals(proposals);
+    const savedToDraft = outputs.some(
+        ({ toolName, output }) =>
+            toolName === 'editDbtProject' && !isErrorToolResult(output),
+    );
+    return savedToDraft ? DBT_SAVE_CARD_REPLY : reply;
+};
+
+/** A Studio turn ends on its card: once a change joined the draft cleanly, or a save started, there is nothing left to say. */
+export const getStudioCardResponse = (
+    steps: ReadonlyArray<FastChartStep>,
+): string | null => {
+    const last = steps.at(-1);
+    if (!last) return null;
+    const proposals = last.toolResults.flatMap(({ toolName, output }) => {
+        if (toolName !== 'proposeSemanticLayerChange') return [];
+        const parsed =
+            toolProposeSemanticLayerChangeOutputSchema.safeParse(output);
+        return parsed.success && parsed.data.metadata.status === 'success'
+            ? [parsed.data.metadata]
+            : [];
+    });
+    if (proposals.length > 0) {
+        // A failed model or advice means the agent still has work to do this turn.
+        const isClean = proposals.every(
+            ({ draftChangeUuid, models, needsFollowUp }) =>
+                draftChangeUuid !== null &&
+                !needsFollowUp &&
+                models.every(({ status }) => status !== 'failed'),
+        );
+        return isClean ? describeSemanticLayerProposals(proposals) : null;
+    }
+    // Only Studio's save takes a script; the main chat's keeps its own reply.
+    const studioSaves = new Set(
+        last.toolCalls
+            .filter(
+                ({ toolName, input }) =>
+                    toolName === 'editDbtProject' &&
+                    !!input &&
+                    typeof input === 'object' &&
+                    'script' in input,
+            )
+            .map(({ toolCallId }) => toolCallId),
+    );
+    const isSaving = last.toolResults.some(
+        ({ toolCallId, output }) =>
+            studioSaves.has(toolCallId) && !isErrorToolResult(output),
+    );
+    return isSaving ? DBT_SAVE_CARD_REPLY : null;
+};
+
 const getTurnFastResponse = (
     enableDataAnswerFastResponse: boolean,
     turnIntent: TurnIntent | null | undefined,
@@ -1350,6 +1428,8 @@ const getTurnFastResponse = (
     // Asking ends the turn on any intent; the questions are its reply.
     const askUserResponse = getAskUserResponse(steps);
     if (askUserResponse !== null) return askUserResponse;
+    const studioCardResponse = getStudioCardResponse(steps);
+    if (studioCardResponse !== null) return studioCardResponse;
     if (enableDataAnswerFastResponse && turnIntent === 'data_answer')
         return getDataAnswerFastResponse(steps);
     if (turnIntent === 'chart_from_previous')
@@ -3969,8 +4049,10 @@ const runStreamAgentResponse = async ({
                           ) ?? modelResponse),
                     steps,
                 );
-                const completeResponse =
-                    agentContext.responseBlocks.render(responseText);
+                const completeResponse = withStudioCardReply(
+                    agentContext.responseBlocks.render(responseText),
+                    steps,
+                );
 
                 const stepCapReached = steps.length >= args.execution.maxSteps;
 

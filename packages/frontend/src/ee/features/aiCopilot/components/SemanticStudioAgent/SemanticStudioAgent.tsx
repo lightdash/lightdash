@@ -312,6 +312,9 @@ const ExistingThread: FC<
                 projectUuid={projectUuid}
                 agentUuid={agent.uuid}
                 renderArtifactsInline
+                onChoiceSelect={
+                    isBusy ? undefined : (message) => send({ message })
+                }
             >
                 {thread.messages.length === 0 && !isBusy ? (
                     <Text fz="xs" c="dimmed" ta="center" px="md" pb="xs">
