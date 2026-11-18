@@ -37,6 +37,7 @@ import { formatChartCount } from '../../externalConnections/liveSources/liveSour
 import { LiveSourceIcon } from '../../externalConnections/liveSources/LiveSourceIcon';
 import { useLiveSourceActions } from './liveSourceActions';
 import {
+    formatFreshness,
     getLiveSourceFreshness,
     toLiveSourceRow,
     toLiveSourceRows,
@@ -272,15 +273,21 @@ export const LiveSourcesTable: FC<{
     );
 };
 
-const Stat: FC<{ label: string; value: string; title?: string }> = ({
-    label,
-    value,
-    title,
-}) => (
+/** A label over a value, with an optional dimmed detail after it, such as (902ms). */
+const Stat: FC<{
+    label: string;
+    value: string;
+    detail?: string | null;
+    title?: string;
+}> = ({ label, value, detail, title }) => (
     <Box className={classes.stat}>
         <span className={classes.statLabel}>{label}</span>
-        <span className={classes.statValue} title={title ?? value}>
+        <span
+            className={classes.statValue}
+            title={title ?? (detail ? `${value} (${detail})` : value)}
+        >
             {value}
+            {detail && <span className={classes.statDetail}> ({detail})</span>}
         </span>
     </Box>
 );
@@ -300,6 +307,11 @@ export const LiveSourceSummary: FC<{
     const { data: projectCache } = useResultsCacheStatus(projectUuid);
     const isProjectCacheOff = projectCache?.enabled === false;
     const row = toLiveSourceRow(connection, usage);
+    const freshness = getLiveSourceFreshness(connection);
+    const cachingTitle =
+        freshness.seconds === 0
+            ? 'Every query calls the integration'
+            : `A result answers the same query for everyone for ${formatFreshness(freshness.seconds)}${freshness.isDefault ? ', the default' : ''}`;
     const inUse = fields?.fields.filter((field) => field.inUse).length;
     return (
         <Box className={classes.summary} aria-label="Live data source">
@@ -322,24 +334,29 @@ export const LiveSourceSummary: FC<{
                 value={fields ? formatChartCount(fields.usedByChartCount) : '—'}
             />
             <Stat label="Data read" value={row.usage.dataRead} />
-            <Stat label="API calls" value={row.usage.apiCalls} />
-            <Stat label="Cache hits" value={row.usage.cacheHits} />
             <Stat
-                label="Freshness"
-                value={
-                    isProjectCacheOff
-                        ? 'Not cached'
-                        : getLiveSourceFreshness(connection).label
-                }
+                label="API calls"
+                value={row.usage.apiCalls}
+                detail={row.usage.medianLatency}
                 title={
-                    isProjectCacheOff
-                        ? 'Results caching is off for this project'
-                        : 'How long a result answers the same query for everyone'
+                    row.usage.medianLatency
+                        ? `${row.usage.apiCalls} calls, median latency ${row.usage.medianLatency}`
+                        : undefined
                 }
             />
             <Stat
-                label="Median latency"
-                value={row.usage.medianLatency ?? '—'}
+                label="Caching"
+                value={
+                    isProjectCacheOff
+                        ? 'Not cached'
+                        : formatFreshness(freshness.seconds)
+                }
+                detail={isProjectCacheOff ? null : row.usage.cacheHitsLabel}
+                title={
+                    isProjectCacheOff
+                        ? 'Results caching is off for this project'
+                        : cachingTitle
+                }
             />
             <Stat
                 label="Fields in use"
