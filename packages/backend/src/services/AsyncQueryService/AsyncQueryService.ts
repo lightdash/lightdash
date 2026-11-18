@@ -5715,6 +5715,9 @@ export class AsyncQueryService extends ProjectService {
                 stream = createLocalParquetUploadStream({
                     parquetS3Uri,
                     s3Config,
+                    memoryLimit:
+                        this.lightdashConfig.preAggregates
+                            .duckdbWriteMemoryLimit,
                     logger: this.logger,
                     prometheusMetrics: this.prometheusMetrics,
                 });
