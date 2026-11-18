@@ -1,3 +1,10 @@
+## [3.301.2](https://github.com/lightdash/lightdash/compare/3.301.1...3.301.2) (2026-11-18)
+
+
+### Bug Fixes
+
+* **content-as-code:** write back composer charts a dashboard's tiles name ([#32759](https://github.com/lightdash/lightdash/issues/32759)) ([78297b8](https://github.com/lightdash/lightdash/commit/78297b8ef94c01032e11758be7bc0fd9d128593e))
+
 ## [3.301.1](https://github.com/lightdash/lightdash/compare/3.301.0...3.301.1) (2026-11-18)
 
 
