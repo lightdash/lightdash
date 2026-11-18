@@ -342,6 +342,11 @@ const setup = ({
         async (): Promise<(Explore | ExploreError)[]> => [BRANCH_EXPLORE],
     );
     const findPullRequestBranch = vi.fn(async () => 'studio-branch');
+    const mergePullRequest = vi.fn(async () => ({
+        merged: true,
+        sha: 'merge-sha',
+        compileJobUuid: 'job-1',
+    }));
     let activeWorkspace: { threadUuid: string; prUrl: string | null } | null =
         null;
     const unused = async (): Promise<never> => {
@@ -402,6 +407,7 @@ const setup = ({
             openStudioCheckout: unused,
             saveWithScript: unused,
             findPullRequestBranch,
+            mergePullRequest,
         },
         workspaceModel: {
             listChanges: async () => [],
@@ -727,6 +733,7 @@ const setup = ({
         compileExploresFromManifest,
         compileExploresFromBranch,
         findPullRequestBranch,
+        mergePullRequest,
         queueBranchCompile,
         branchCompiles,
         upsert,
@@ -3386,6 +3393,50 @@ describe('compiling a dbt change on its branch', () => {
         expect(
             await context.service.getCheckout(repoWriter, PROJECT_UUID),
         ).toBeNull();
+    });
+
+    it('publishes the checked-out draft only once its latest edit compiled', async () => {
+        const context = onChange();
+        const publish = () =>
+            context.service.publishCheckout(
+                repoWriter,
+                PROJECT_UUID,
+                OWN_PULL_REQUEST,
+            );
+        await expect(publish()).rejects.toThrow(
+            'This draft can be published once its latest edit compiles',
+        );
+        await context.service.compileCheckout(repoWriter, PROJECT_UUID);
+        await expect(publish()).rejects.toBeInstanceOf(ParameterError);
+        await runQueued(context);
+        await expect(
+            context.service.publishCheckout(
+                repoWriter,
+                PROJECT_UUID,
+                'https://github.com/acme/shop/pull/8',
+            ),
+        ).rejects.toThrow(
+            'This pull request is not the draft you have checked out',
+        );
+        await expect(
+            context.service.publishCheckout(
+                viewer,
+                PROJECT_UUID,
+                OWN_PULL_REQUEST,
+            ),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(context.mergePullRequest).not.toHaveBeenCalled();
+        expect(await publish()).toMatchObject({ merged: true });
+        expect(context.mergePullRequest).toHaveBeenCalledWith({
+            user: repoWriter,
+            projectUuid: PROJECT_UUID,
+            prUrl: OWN_PULL_REQUEST,
+        });
+        expect(context.recordPullRequestState).toHaveBeenCalledWith(
+            PROJECT_UUID,
+            OWN_PULL_REQUEST,
+            'merged',
+        );
     });
 
     it("says plainly when the pull request's branch cannot be read", async () => {

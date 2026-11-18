@@ -21,9 +21,11 @@ import {
     type ApiSemanticStudioWorkspaceResponse,
     type ApiSemanticStudioWorkspacesResponse,
     type ApiSuccessEmpty,
+    type ApiWritebackMergeResponse,
     type SaveSemanticStudioSourceRequest,
     type SemanticLayerFieldUsageBody,
     type SemanticLayerUndoRequest,
+    type SemanticStudioPublishBody,
     type SemanticStudioWorkspaceRenameBody,
     type SemanticStudioWorkspaceStartBody,
     type UUID,
@@ -211,6 +213,30 @@ export class SemanticStudioController extends BaseController {
             results: await this.getService().compileCheckout(
                 toSessionUser(req.account),
                 projectUuid,
+            ),
+        };
+    }
+
+    /**
+     * Publishes your checked-out dbt draft: merges its pull request once its branch compiled.
+     * @summary Publish my Semantic Studio checkout
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/checkout/publish')
+    @OperationId('publishSemanticStudioCheckout')
+    async publishCheckout(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: SemanticStudioPublishBody,
+    ): Promise<ApiWritebackMergeResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().publishCheckout(
+                toSessionUser(req.account),
+                projectUuid,
+                body.prUrl,
             ),
         };
     }

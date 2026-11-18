@@ -49,6 +49,7 @@ import {
     type SemanticStudioWorkspaces,
     type SemanticStudioWorkspaceStartBody,
     type SessionUser,
+    type WritebackMergeResult,
 } from '@lightdash/common';
 import { createHash } from 'node:crypto';
 import { text } from 'node:stream/consumers';
@@ -186,7 +187,10 @@ export type SemanticStudioServiceArguments = {
     >;
     aiWritebackService: Pick<
         AiWritebackService,
-        'openStudioCheckout' | 'saveWithScript' | 'findPullRequestBranch'
+        | 'openStudioCheckout'
+        | 'saveWithScript'
+        | 'findPullRequestBranch'
+        | 'mergePullRequest'
     >;
     workspaceModel: Pick<
         SemanticStudioWorkspaceModel,
@@ -1172,6 +1176,51 @@ export class SemanticStudioService extends BaseService {
             active.workspaceUuid,
         );
         return this.getCheckout(user, projectUuid);
+    }
+
+    /** Publishes the checked-out dbt draft: merges its pull request once its branch compiled, and the project refreshes. */
+    async publishCheckout(
+        user: SessionUser,
+        projectUuid: string,
+        prUrl: string,
+    ): Promise<WritebackMergeResult> {
+        const status = await this.getStatus(user, projectUuid);
+        if (!status.enabled) {
+            throw new ForbiddenError(
+                "You cannot change this project's models here",
+            );
+        }
+        if (status.appliesAs !== 'dbt_pull_request') {
+            throw new ParameterError(
+                'Only a draft of a dbt project in a repository is published from here',
+            );
+        }
+        const active = await this.workspaceModel.findActive({
+            projectUuid,
+            userUuid: user.userUuid,
+        });
+        if (!active || active.pullRequest?.url !== prUrl) {
+            throw new ParameterError(
+                'This pull request is not the draft you have checked out',
+            );
+        }
+        const compile = await this.workspaceModel.findBranchCompile(
+            active.workspaceUuid,
+        );
+        if (compile?.status !== 'ready') {
+            throw new ParameterError(
+                'This draft can be published once its latest edit compiles',
+            );
+        }
+        const result = await this.aiWritebackService.mergePullRequest({
+            user,
+            projectUuid,
+            prUrl,
+        });
+        if (result.merged) {
+            await this.recordPullRequestState(projectUuid, prUrl, 'merged');
+        }
+        return result;
     }
 
     /** The worker's compile of a change's branch; a failure is kept for the person to see, with the last good explores. */
