@@ -630,6 +630,11 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                         fz="xs"
                                         c="dimmed"
                                         truncate
+                                        className={
+                                            quiet && isOpen
+                                                ? styles.wordy
+                                                : undefined
+                                        }
                                     >
                                         {summary}
                                     </Anchor>

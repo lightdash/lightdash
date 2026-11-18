@@ -2,7 +2,6 @@ import {
     assertUnreachable,
     type SemanticStudioBranchCompile,
 } from '@lightdash/common';
-import { Group } from '@mantine/core';
 import { type FC } from 'react';
 import {
     Task,
@@ -28,7 +27,7 @@ const compileTask = (
     }
 };
 
-/** Where the latest save of the checked-out draft stands, as tasks: saved, compiled, ready to try. */
+/** The compile of the checked-out draft's latest save, while it runs or once it fails. */
 export const DraftProgress: FC<{
     projectUuid: string;
     prUrl: string;
@@ -51,14 +50,8 @@ export const DraftProgress: FC<{
         return null;
     }
     const compile = compileTask(checkout.branchCompile);
-    return (
-        <Group gap="sm" wrap="wrap">
-            <Task state="done" label="Saved to draft" />
-            <Task state={compile.state} label={compile.label} />
-            <Task
-                state={compile.state === 'done' ? 'done' : 'todo'}
-                label="Ready to try"
-            />
-        </Group>
-    );
+    // The card says it is saved and the toolbar says when it can be tried; only a compile under way or failed is news.
+    return compile.state === 'running' || compile.state === 'failed' ? (
+        <Task state={compile.state} label={compile.label} />
+    ) : null;
 };
