@@ -4,7 +4,7 @@ import {
     formatToolErrorMessage,
     getToolCallFailure,
     isToolCallSettled,
-    isToolCallFailedOrUnapproved,
+    isToolCallUnapproved,
 } from './toolCallFailure';
 import { type ToolCallSummary } from './types';
 
@@ -65,7 +65,7 @@ describe('getToolCallFailure', () => {
         });
         for (const status of ['rejected', 'timeout']) {
             expect(getToolCallFailure(live(status))).toBeNull();
-            expect(isToolCallFailedOrUnapproved(live(status))).toBe(true);
+            expect(isToolCallUnapproved(live(status))).toBe(true);
         }
     });
 

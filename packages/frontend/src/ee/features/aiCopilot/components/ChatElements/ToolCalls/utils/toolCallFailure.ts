@@ -65,13 +65,11 @@ export const getToolCallFailure = (
     };
 };
 
-export const isToolCallFailedOrUnapproved = (
+export const isToolCallUnapproved = (
     call: ToolCallSummary,
     toolResults?: AiAgentToolResult[],
-): boolean => {
-    const status = readCallOutput(call, toolResults)?.status;
-    return status === 'error' || UNAPPROVED_STATUSES.has(status);
-};
+): boolean =>
+    UNAPPROVED_STATUSES.has(readCallOutput(call, toolResults)?.status);
 
 export const getToolCallFailures = (
     calls: ToolCallSummary[],

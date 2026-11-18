@@ -27,6 +27,7 @@ import {
     getMcpToolDisplayMetadata,
     getMcpToolDisplayName,
 } from './utils/mcpToolDisplay';
+import { isToolCallUnapproved } from './utils/toolCallFailure';
 import { type ToolCallGroupDisplay } from './utils/toolCallGrouping';
 import { isToolWithoutDescription } from './utils/toolsWithoutDescription';
 import { type ToolCallSummary } from './utils/types';
@@ -73,14 +74,20 @@ export const ToolCallRow: FC<Props> = ({
     const mcpToolDisplayName = builtInToolName
         ? null
         : getMcpToolDisplayName(toolName);
-    const label = builtInToolName
-        ? getToolCallDisplayMessage({
-              toolName: builtInToolName,
-              calls: toolCalls,
-              display,
-              status,
-          })
-        : null;
+    const isUnapproved =
+        status === 'done' &&
+        toolCalls.length > 0 &&
+        toolCalls.every((call) => isToolCallUnapproved(call, toolResults));
+    const label = isUnapproved
+        ? 'SQL not approved'
+        : builtInToolName
+          ? getToolCallDisplayMessage({
+                toolName: builtInToolName,
+                calls: toolCalls,
+                display,
+                status,
+            })
+          : null;
     const hasCallDescription = (toolCall: ToolCallSummary) =>
         isToolName(toolCall.toolName) &&
         !isToolWithoutDescription(toolCall.toolName);

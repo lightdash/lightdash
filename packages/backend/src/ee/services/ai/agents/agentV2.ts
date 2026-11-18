@@ -192,9 +192,9 @@ import { getAiAccessRefusalFromToolFinish } from '../utils/slackAiAccessRefusals
 import type { SlackTableQueryResults } from '../utils/slackTableBlocks';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
 import {
+    getUnapprovedToolResultStatus,
     isErrorToolResult,
     isPendingToolResult,
-    isUnapprovedToolResult,
     summarizeToolCall,
     summarizeToolResult,
 } from '../utils/toolSummaries';
@@ -1269,7 +1269,7 @@ export const getDataAnswerFastResponse = (
         results.some(
             (result) =>
                 isErrorToolResult(result.output) ||
-                isUnapprovedToolResult(result.output),
+                getUnapprovedToolResultStatus(result.output) !== null,
         )
     )
         return null;
