@@ -1,3 +1,11 @@
+## [3.308.1](https://github.com/lightdash/lightdash/compare/3.308.0...3.308.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **ai:** show joined field descriptions and table filter notes once per grepFields result ([#32845](https://github.com/lightdash/lightdash/issues/32845)) ([a4ac8b4](https://github.com/lightdash/lightdash/commit/a4ac8b41553ffe12226b879de8ceebb6c0b0d555))
+* **exports:** keep Google Sheets export running after its menu closes ([#32847](https://github.com/lightdash/lightdash/issues/32847)) ([fcf1274](https://github.com/lightdash/lightdash/commit/fcf12743bac78cf547bc244e76ad31433bb14487))
+
 # [3.308.0](https://github.com/lightdash/lightdash/compare/3.307.0...3.308.0) (2026-11-18)
 
 
