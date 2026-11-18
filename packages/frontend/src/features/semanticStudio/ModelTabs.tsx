@@ -14,7 +14,14 @@ import {
 } from '@mantine/core';
 import { File, WorkerPoolContextProvider } from '@pierre/diffs/react';
 import dayjs from 'dayjs';
-import { useEffect, useRef, useState, type FC, type ReactNode } from 'react';
+import {
+    useContext,
+    useEffect,
+    useRef,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
 import { useSearchParams } from 'react-router';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import {
@@ -33,7 +40,9 @@ import {
     VIEW_PARAM,
 } from './modelCode';
 import { ModelPreAggregates } from './ModelPreAggregates';
+import { ModelSource } from './ModelSourceCard';
 import classes from './ModelTabs.module.css';
+import { ModelMaterializationContext } from './useModelMaterialization';
 import {
     useSemanticLayerDraft,
     useSemanticLayerModel,
@@ -296,6 +305,10 @@ export const ModelTabs: FC<{
     const hasHistory = !!model && !asPullRequest;
     const hasLineage = lineage !== null;
     const hasPreAggregates = useHealth().data?.preAggregates.enabled === true;
+    const { enabled, models } = useContext(ModelMaterializationContext);
+    const hasModelSource = enabled && !!model;
+    const hasPerformance = hasPreAggregates || hasModelSource;
+    const performanceTab = hasModelSource ? 'performance' : 'pre-aggregates';
     const [searchParams, setSearchParams] = useSearchParams();
     const requested = searchParams.get(VIEW_PARAM);
     const view =
@@ -303,8 +316,10 @@ export const ModelTabs: FC<{
             ? 'history'
             : hasLineage && requested === 'lineage'
               ? 'lineage'
-              : hasPreAggregates && requested === 'pre-aggregates'
-                ? 'pre-aggregates'
+              : hasPerformance &&
+                  (requested === 'pre-aggregates' ||
+                      requested === performanceTab)
+                ? performanceTab
                 : 'fields';
     return (
         <Tabs
@@ -314,22 +329,22 @@ export const ModelTabs: FC<{
                 setSearchParams(
                     next === 'history' ||
                         next === 'lineage' ||
-                        next === 'pre-aggregates'
+                        next === performanceTab
                         ? { [VIEW_PARAM]: next }
                         : {},
                     { replace: true },
                 )
             }
         >
-            {hasHistory || hasLineage || hasPreAggregates ? (
+            {hasHistory || hasLineage || hasPerformance ? (
                 <Tabs.List mb="md">
                     <Tabs.Tab value="fields">Fields</Tabs.Tab>
                     {hasLineage ? (
                         <Tabs.Tab value="lineage">Lineage</Tabs.Tab>
                     ) : null}
-                    {hasPreAggregates ? (
-                        <Tabs.Tab value="pre-aggregates">
-                            Pre-aggregates
+                    {hasPerformance ? (
+                        <Tabs.Tab value={performanceTab}>
+                            {hasModelSource ? 'Performance' : 'Pre-aggregates'}
                         </Tabs.Tab>
                     ) : null}
                     {hasHistory ? (
@@ -345,12 +360,21 @@ export const ModelTabs: FC<{
                     {lineage}
                 </Tabs.Panel>
             ) : null}
-            {view === 'pre-aggregates' ? (
-                <Tabs.Panel value="pre-aggregates" className={classes.panel}>
-                    <ModelPreAggregates
-                        projectUuid={projectUuid}
-                        exploreName={exploreName}
-                    />
+            {view === performanceTab ? (
+                <Tabs.Panel value={performanceTab} className={classes.panel}>
+                    {hasModelSource && (
+                        <ModelSource
+                            projectUuid={projectUuid}
+                            model={modelName}
+                            asPullRequest={asPullRequest}
+                        />
+                    )}
+                    {hasPreAggregates && !models.has(modelName) && (
+                        <ModelPreAggregates
+                            projectUuid={projectUuid}
+                            exploreName={exploreName}
+                        />
+                    )}
                 </Tabs.Panel>
             ) : null}
             {model && view === 'history' ? (

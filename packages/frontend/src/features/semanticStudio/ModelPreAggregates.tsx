@@ -296,7 +296,15 @@ export const ModelPreAggregates: FC<{
     }
     const summaries = (materializations.data?.pages ?? [])
         .flatMap((page) => page.data.materializations)
-        .filter((summary) => summary.sourceExploreName === exploreName);
+        .filter(
+            (summary) =>
+                summary.sourceExploreName === exploreName &&
+                // A pre-aggregate removed from the model keeps its last build; hide it.
+                (!explore ||
+                    (explore.preAggregates ?? []).some(
+                        ({ name }) => name === summary.preAggregateName,
+                    )),
+        );
     const allStats = (stats.data?.pages ?? []).flatMap(
         (page) => page.data.stats,
     );
