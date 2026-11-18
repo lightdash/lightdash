@@ -490,6 +490,22 @@ export class SemanticStudioService extends BaseService {
         return this.findSourceBlocker(user, project)?.reason ?? null;
     }
 
+    /** A project with no repository whose models were deployed from outside has nothing here to change. */
+    private async findOutsideModelsBlocker(
+        project: ModelProject,
+    ): Promise<SemanticLayerBlocker | null> {
+        if (project.dbtConnection.type !== DbtProjectType.NONE) return null;
+        const stored = await this.projectModelDocumentModel.findDocuments(
+            project.projectUuid,
+        );
+        return (await this.hasModelsFromElsewhere(project.projectUuid, {
+            stored,
+            repo: null,
+        }))
+            ? 'models_from_outside'
+            : null;
+    }
+
     /** Whether this person can change this project's models here, and what applying a draft would do. */
     async getStatus(
         user: SessionUser,
@@ -509,10 +525,12 @@ export class SemanticStudioService extends BaseService {
                 appliesAs: 'dbt_pull_request',
             };
         }
-        const blocker = await this.findBlocker(user, project);
+        const reason =
+            (await this.findBlocker(user, project))?.reason ??
+            (await this.findOutsideModelsBlocker(project));
         return {
-            enabled: blocker === null,
-            blocker: blocker?.reason ?? null,
+            enabled: reason === null,
+            blocker: reason,
             appliesAs: keepsModelsInGithub(dbtConnection)
                 ? 'pull_request'
                 : 'live',
@@ -569,20 +587,25 @@ export class SemanticStudioService extends BaseService {
     }
 
     /** Explores deployed from a repository or the CLI would be replaced by the first model written here. */
-    private async assertNoModelsFromElsewhere(
+    /** Whether the project's models came from a deploy outside the server, with nothing kept here to change. */
+    private async hasModelsFromElsewhere(
         projectUuid: string,
         { stored, repo }: Pick<LoadedDraft, 'stored' | 'repo'>,
-    ): Promise<void> {
+    ): Promise<boolean> {
         // A repository is where its project's explores are meant to come from.
-        if (repo || stored.length > 0) return;
+        if (repo || stored.length > 0) return false;
         const summaries =
             await this.projectModel.getAllExploreSummaries(projectUuid);
-        if (
-            summaries.some(
-                ({ type }) =>
-                    type === undefined || type === ExploreType.DEFAULT,
-            )
-        ) {
+        return summaries.some(
+            ({ type }) => type === undefined || type === ExploreType.DEFAULT,
+        );
+    }
+
+    private async assertNoModelsFromElsewhere(
+        projectUuid: string,
+        draft: Pick<LoadedDraft, 'stored' | 'repo'>,
+    ): Promise<void> {
+        if (await this.hasModelsFromElsewhere(projectUuid, draft)) {
             throw new ParameterError(
                 'This project already has models deployed from outside the server; they cannot be changed here yet',
             );

@@ -279,6 +279,8 @@ const BlockedNotice: FC<{ blocker: SemanticLayerBlocker }> = ({ blocker }) => {
                         </Anchor>
                     </>
                 );
+            case 'models_from_outside':
+                return "These models were deployed from outside this app, so they can't be changed here yet.";
             case 'preview_project':
                 return 'This is a preview of a pull request. Change models from the project it previews.';
             default:

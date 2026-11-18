@@ -2565,6 +2565,25 @@ describe('SemanticStudioService', () => {
         expect(outcome.exploreCount).toBe(1);
     });
 
+    it('says so up front when the models were deployed from elsewhere', async () => {
+        expect(
+            await setup({
+                stored: [],
+                exploreTypes: [ExploreType.DEFAULT],
+            }).service.getStatus(deployer, PROJECT_UUID),
+        ).toEqual({
+            enabled: false,
+            blocker: 'models_from_outside',
+            appliesAs: 'live',
+        });
+        expect(
+            await setup({
+                stored: [],
+                exploreTypes: [ExploreType.VIRTUAL],
+            }).service.getStatus(deployer, PROJECT_UUID),
+        ).toMatchObject({ enabled: true, blocker: null });
+    });
+
     describe('concurrent writes', () => {
         it('rereads and retries when another write lands first', async () => {
             const context = setup({ staleCommits: 1 });

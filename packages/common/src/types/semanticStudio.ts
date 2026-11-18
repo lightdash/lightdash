@@ -17,6 +17,7 @@ export type SemanticLayerBlocker =
     | 'unsupported_connection'
     | 'no_repository_access'
     | 'github_app_missing'
+    | 'models_from_outside'
     | 'preview_project';
 
 export type SemanticLayerStatus = {
