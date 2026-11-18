@@ -22,6 +22,7 @@ import {
     IconExternalLink,
     IconEye,
     IconGitPullRequest,
+    IconPlayerPlay,
     IconTable,
     IconWorldUpload,
 } from '@tabler/icons-react';
@@ -378,40 +379,6 @@ const DraftActions: FC<{
     );
 };
 
-/** Switches what the person's own queries read: the live models, or those with their changes on top. */
-const ChangesSwitch: FC<{
-    isOnMyChanges: boolean;
-    onChange: (next: boolean) => void;
-    /** Why it cannot be switched right now; shown disabled with this as its tooltip. */
-    unavailableReason?: string;
-}> = ({ isOnMyChanges, onChange, unavailableReason }) => (
-    <Tooltip
-        multiline
-        w={240}
-        label={
-            unavailableReason ??
-            (isOnMyChanges
-                ? 'Explore, charts and dashboards are reading your changes. Only you see this. Click to go back to Published.'
-                : 'Try your changes in Explore, charts and dashboards. Only you see it.')
-        }
-    >
-        <Button
-            size="xs"
-            flex="none"
-            variant={isOnMyChanges ? 'light' : 'default'}
-            color={isOnMyChanges ? 'orange' : undefined}
-            aria-pressed={isOnMyChanges}
-            data-disabled={unavailableReason !== undefined || undefined}
-            aria-disabled={unavailableReason !== undefined}
-            onClick={() => {
-                if (unavailableReason === undefined) onChange(!isOnMyChanges);
-            }}
-        >
-            {isOnMyChanges ? 'Viewing my changes' : 'Try my changes'}
-        </Button>
-    </Tooltip>
-);
-
 /** Says so once when someone publishes to a model this person has in development, since the page does not reload for it. */
 const usePublishedUnderNotice = (draft: SemanticLayerDraft | undefined) => {
     const { showToastInfo, showToastWarning } = useToaster();
@@ -501,12 +468,25 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                     )
                 }
             >
-                {isPreviewing ? null : (
-                    <ChangesSwitch
-                        isOnMyChanges={false}
-                        onChange={setIsPreviewing}
-                    />
-                )}
+                {tryModel ? (
+                    <Tooltip
+                        multiline
+                        w={240}
+                        label="Opens Explore over this page with your changes. Only you see them until you publish."
+                    >
+                        <Button
+                            size="xs"
+                            variant="default"
+                            flex="none"
+                            leftSection={
+                                <MantineIcon icon={IconPlayerPlay} size={12} />
+                            }
+                            onClick={() => setIsTrying(true)}
+                        >
+                            Try it
+                        </Button>
+                    </Tooltip>
+                ) : null}
                 {conflicts > 0 ? (
                     <Tooltip label="Someone published to a part you changed too. Choose which version to keep, then publish.">
                         <Button
@@ -564,11 +544,6 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                         </ActionIcon>
                     </Menu.Target>
                     <Menu.Dropdown>
-                        {tryModel ? (
-                            <Menu.Item onClick={() => setIsTrying(true)}>
-                                Try in Explore
-                            </Menu.Item>
-                        ) : null}
                         <Menu.Item
                             disabled={
                                 check.isLoading ||
@@ -668,7 +643,6 @@ type DraftReviewProps = DraftProps & {
 };
 
 export const DraftReviewHeading: FC<DraftProps> = ({ projectUuid, draft }) => {
-    const [isPreviewing, setIsPreviewing] = useDevelopmentView();
     return (
         <Group className={classes.heading} gap="xs" wrap="nowrap">
             <Badge color="orange" flex="none">
@@ -679,12 +653,6 @@ export const DraftReviewHeading: FC<DraftProps> = ({ projectUuid, draft }) => {
                     ? summarizeDraftModels(draft)
                     : 'Already live, nothing to publish'}
             </Text>
-            {draft.models.length > 0 ? (
-                <ChangesSwitch
-                    isOnMyChanges={isPreviewing}
-                    onChange={setIsPreviewing}
-                />
-            ) : null}
             <DraftActions
                 projectUuid={projectUuid}
                 draft={draft}
