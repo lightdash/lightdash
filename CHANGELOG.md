@@ -1,3 +1,10 @@
+## [3.303.1](https://github.com/lightdash/lightdash/compare/3.303.0...3.303.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **charts:** apply chart save checks when a chart or dashboard is rolled back ([#32819](https://github.com/lightdash/lightdash/issues/32819)) ([56273b8](https://github.com/lightdash/lightdash/commit/56273b8edaedd0901b02c75b1e4827cea22bf84f))
+
 # [3.303.0](https://github.com/lightdash/lightdash/compare/3.302.1...3.303.0) (2026-11-18)
 
 
