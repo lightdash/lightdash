@@ -1,3 +1,15 @@
+# [3.303.0](https://github.com/lightdash/lightdash/compare/3.302.1...3.303.0) (2026-11-18)
+
+
+### Bug Fixes
+
+* **content-as-code:** apply composer chart files when pulling from git ([#32820](https://github.com/lightdash/lightdash/issues/32820)) ([ed25f08](https://github.com/lightdash/lightdash/commit/ed25f085547da6505a78dd8a07ae866218674633))
+
+
+### Features
+
+* **composer:** view a composer tile's lineage, with its chart, in a modal ([#32754](https://github.com/lightdash/lightdash/issues/32754)) ([42374c5](https://github.com/lightdash/lightdash/commit/42374c5fe05c4e6ad1c2a3da74240844ceee94c6))
+
 ## [3.302.1](https://github.com/lightdash/lightdash/compare/3.302.0...3.302.1) (2026-11-18)
 
 
