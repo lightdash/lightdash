@@ -1,3 +1,10 @@
+# [3.304.0](https://github.com/lightdash/lightdash/compare/3.303.2...3.304.0) (2026-11-18)
+
+
+### Features
+
+* **bigquery:** flag to request Drive read access on BigQuery sign-in ([#32378](https://github.com/lightdash/lightdash/issues/32378)) ([9804eca](https://github.com/lightdash/lightdash/commit/9804eca797366109319f6be92ff0c058609e71c7))
+
 ## [3.303.2](https://github.com/lightdash/lightdash/compare/3.303.1...3.303.2) (2026-11-18)
 
 
