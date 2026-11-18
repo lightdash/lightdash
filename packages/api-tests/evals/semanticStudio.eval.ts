@@ -124,6 +124,8 @@ describe('Semantic Studio agent', { concurrent: false }, () => {
                 userAccess: [],
                 spaceAccess: [],
                 enableDataAccess: true,
+                // Nobody is there to approve a query, and an unanswered approval ends the reply.
+                enableSqlAutoApproval: true,
                 enableSelfImprovement: false,
                 version: 2,
             },

@@ -78,7 +78,7 @@ export class SemanticStudioController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results: await this.getService().getStatus(
+            results: await this.getService().getPageStatus(
                 toSessionUser(req.account),
                 projectUuid,
             ),

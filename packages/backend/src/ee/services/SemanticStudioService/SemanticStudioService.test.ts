@@ -2570,7 +2570,7 @@ describe('SemanticStudioService', () => {
             await setup({
                 stored: [],
                 exploreTypes: [ExploreType.DEFAULT],
-            }).service.getStatus(deployer, PROJECT_UUID),
+            }).service.getPageStatus(deployer, PROJECT_UUID),
         ).toEqual({
             enabled: false,
             blocker: 'models_from_outside',
@@ -2580,6 +2580,13 @@ describe('SemanticStudioService', () => {
             await setup({
                 stored: [],
                 exploreTypes: [ExploreType.VIRTUAL],
+            }).service.getPageStatus(deployer, PROJECT_UUID),
+        ).toMatchObject({ enabled: true, blocker: null });
+        // What the rest of the app polls stays as cheap as it was.
+        expect(
+            await setup({
+                stored: [],
+                exploreTypes: [ExploreType.DEFAULT],
             }).service.getStatus(deployer, PROJECT_UUID),
         ).toMatchObject({ enabled: true, blocker: null });
     });

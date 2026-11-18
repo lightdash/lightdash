@@ -506,6 +506,19 @@ export class SemanticStudioService extends BaseService {
             : null;
     }
 
+    /** The status as the Studio page shows it: also off, with its reason, when the models were deployed from outside. */
+    async getPageStatus(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<SemanticLayerStatus> {
+        const status = await this.getStatus(user, projectUuid);
+        if (!status.enabled || status.appliesAs !== 'live') return status;
+        const blocker = await this.findOutsideModelsBlocker(
+            await this.projectModel.get(projectUuid),
+        );
+        return blocker ? { ...status, enabled: false, blocker } : status;
+    }
+
     /** Whether this person can change this project's models here, and what applying a draft would do. */
     async getStatus(
         user: SessionUser,
@@ -525,12 +538,10 @@ export class SemanticStudioService extends BaseService {
                 appliesAs: 'dbt_pull_request',
             };
         }
-        const reason =
-            (await this.findBlocker(user, project))?.reason ??
-            (await this.findOutsideModelsBlocker(project));
+        const blocker = await this.findBlocker(user, project);
         return {
-            enabled: reason === null,
-            blocker: reason,
+            enabled: blocker === null,
+            blocker: blocker?.reason ?? null,
             appliesAs: keepsModelsInGithub(dbtConnection)
                 ? 'pull_request'
                 : 'live',

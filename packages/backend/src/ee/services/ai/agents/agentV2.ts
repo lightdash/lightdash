@@ -1344,36 +1344,27 @@ export const getDocumentWriteFastResponse = (
     return `Saved [${name || 'the document'}](${toAbsoluteHref(siteUrl, metadata.href)}).`;
 };
 
-const STUDIO_CHANGE_TOOLS = new Set([
-    'proposeSemanticLayerChange',
-    'editDbtProject',
-]);
-
 /** A Studio turn that ends on its card with nothing written keeps one line saying what changed, so the reply is never blank. */
 export const withStudioCardReply = (
     reply: string,
     steps: ReadonlyArray<FastChartStep>,
 ): string => {
     if (reply.trim()) return reply;
-    const outputs = steps
+    const proposals = steps
         .flatMap((step) => step.toolResults)
-        .filter(({ toolName }) => STUDIO_CHANGE_TOOLS.has(toolName))
-        .map(({ toolName, output }) => ({ toolName, output }));
-    const proposals = outputs.flatMap(({ output }) => {
-        const parsed =
-            toolProposeSemanticLayerChangeOutputSchema.safeParse(output);
-        return parsed.success &&
-            parsed.data.metadata.status === 'success' &&
-            parsed.data.metadata.draftChangeUuid !== null
-            ? [parsed.data.metadata]
-            : [];
-    });
-    if (proposals.length > 0) return describeSemanticLayerProposals(proposals);
-    const savedToDraft = outputs.some(
-        ({ toolName, output }) =>
-            toolName === 'editDbtProject' && !isErrorToolResult(output),
-    );
-    return savedToDraft ? DBT_SAVE_CARD_REPLY : reply;
+        .flatMap(({ toolName, output }) => {
+            if (toolName !== 'proposeSemanticLayerChange') return [];
+            const parsed =
+                toolProposeSemanticLayerChangeOutputSchema.safeParse(output);
+            return parsed.success &&
+                parsed.data.metadata.status === 'success' &&
+                parsed.data.metadata.draftChangeUuid !== null
+                ? [parsed.data.metadata]
+                : [];
+        });
+    return proposals.length > 0
+        ? describeSemanticLayerProposals(proposals)
+        : reply;
 };
 
 /** A Studio turn ends on its card: once a change joined the draft cleanly, or a save started, there is nothing left to say. */
