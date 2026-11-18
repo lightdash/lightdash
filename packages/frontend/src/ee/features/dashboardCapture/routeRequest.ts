@@ -76,6 +76,16 @@ export const buildRouteRequest = (input: {
             arrowTo:
                 mark.shape === 'arrow' ? placeFromTarget(mark.arrowTo) : null,
             path: mark.trail.map(placeFromTarget),
+            inside: mark.covers.flatMap((cover) =>
+                cover.target.kind === 'tile'
+                    ? [
+                          {
+                              tileUuid: cover.target.id,
+                              share: Math.round(cover.share * 100),
+                          },
+                      ]
+                    : [],
+            ),
             speech: (speechByMark.get(mark.number) ?? []).join(' '),
         })),
         looseSpeech: loose.map((phrase) => phrase.text),

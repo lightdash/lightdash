@@ -66,6 +66,8 @@ The user drew numbered marks on dashboard tiles while talking. Each mark comes w
 
 Marks are hand-drawn in one stroke, so the shape guess is rough. "Drawn across" lists what the stroke passed over in order: where it starts is usually the thing the user means by "this", and where it ends is usually where they want it to go. A stroke that circles one tile and then runs to another place is a request to move that tile there, even when the shape says "circle" or "scribble". Trust the words over the shape.
 
+"Inside it" lists the tiles under the area the mark encloses, with the percent of that area on each. For a circle, this is the best guide to what the user means: tiles with a large share are the ones circled, and a tile with a small share was only clipped by the edge of the circle, so leave it out. One circle around two tiles with "swap these" means swap those two tiles with each other. Check against the screenshot when one is attached.
+
 Pile 1, "layout": requests to rearrange the dashboard. These are done directly by the page, so express them as operations:
 - move: put a tile at a grid position (x = column, y = row). Use this when an arrow ends on empty space.
 - swap: trade places with another tile. Use this when the user moves a tile onto, or to the place of, another tile.
@@ -101,11 +103,15 @@ export const buildCaptureRoutingPrompt = (
             mark.path.length > 0
                 ? `; drawn across ${mark.path.map(describePlace).join(', then ')}`
                 : '';
+        const inside =
+            mark.inside.length > 0
+                ? `; inside it: ${mark.inside.map((cover) => `tile ${cover.tileUuid} ${cover.share}%`).join(', ')}`
+                : '';
         const speech = mark.speech.trim()
             ? `: "${mark.speech.trim()}"`
             : ' (nothing said)';
         const image = mark.image > 0 ? `(image ${mark.image}) ` : '';
-        return `${mark.number}. ${image}${mark.shape} ${where}${across}${speech}`;
+        return `${mark.number}. ${image}${mark.shape} ${where}${across}${inside}${speech}`;
     });
     const loose = request.looseSpeech.map((text) => `- "${text}"`);
 

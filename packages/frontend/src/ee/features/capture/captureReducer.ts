@@ -1,6 +1,7 @@
 import { assertUnreachable } from '@lightdash/common';
 import { classifyMark } from './classifyStroke';
 import {
+    type CaptureCover,
     MAX_CAPTURE_IMAGES,
     type CaptureMark,
     type CaptureTarget,
@@ -34,6 +35,7 @@ export type CaptureAction =
           target: CaptureTarget | null;
           arrowTo: CaptureTarget | null;
           trail: CaptureTarget[];
+          covers: CaptureCover[];
       }
     | { type: 'reset' };
 
@@ -97,6 +99,7 @@ export const captureReducer = (
                 target: action.target,
                 arrowTo: action.arrowTo,
                 trail: action.trail,
+                covers: action.covers,
             };
             return {
                 ...state,

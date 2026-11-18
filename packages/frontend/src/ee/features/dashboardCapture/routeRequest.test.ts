@@ -19,6 +19,7 @@ const mark = (
     target: null,
     arrowTo: null,
     trail: [],
+    covers: [],
     ...o,
 });
 
@@ -82,7 +83,16 @@ describe('buildRouteRequest', () => {
                         cellTarget({ x: 18, y: 8 }),
                     ],
                 }),
-                mark({ number: 2, startMs: 6000, endMs: 7000 }),
+                mark({
+                    number: 2,
+                    startMs: 6000,
+                    endMs: 7000,
+                    covers: [
+                        { target: tileTarget('rev', 'Revenue'), share: 0.61 },
+                        { target: cellTarget({ x: 18, y: 8 }), share: 0.3 },
+                        { target: tileTarget('ord', 'Orders'), share: 0.04 },
+                    ],
+                }),
             ],
             images: ['abc'],
             transcript: [
@@ -106,6 +116,7 @@ describe('buildRouteRequest', () => {
                         { tileUuid: 'rev', cell: null },
                         { tileUuid: null, cell: { x: 18, y: 8 } },
                     ],
+                    inside: [],
                     speech: 'move this down here',
                 },
                 {
@@ -115,6 +126,10 @@ describe('buildRouteRequest', () => {
                     at: { tileUuid: null, cell: null },
                     arrowTo: null,
                     path: [],
+                    inside: [
+                        { tileUuid: 'rev', share: 61 },
+                        { tileUuid: 'ord', share: 4 },
+                    ],
                     speech: '',
                 },
             ],

@@ -27,6 +27,8 @@ export type CaptureRouteMark = {
     arrowTo: CaptureRoutePlace | null;
     /** Everything the stroke passed over, in the order it was drawn. */
     path: CaptureRoutePlace[];
+    /** Tiles under the area the mark encloses, with the percent of that area on each. */
+    inside: { tileUuid: string; share: number }[];
     speech: string;
 };
 

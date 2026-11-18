@@ -5,9 +5,10 @@ import {
     type CaptureQuestion,
     type DashboardTile,
 } from '@lightdash/common';
-import { ActionIcon, Button, Loader, Text, Tooltip } from '@mantine/core';
+import { Button, Loader, Text, Tooltip } from '@mantine/core';
 import { IconMicrophone } from '@tabler/icons-react';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { transcribeCapture } from '../../../features/apps/utils/transcribeCapture';
@@ -21,6 +22,8 @@ import { useUpdateDashboard } from '../../../hooks/dashboard/useDashboard';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import launcherClasses from '../aiCopilot/components/Launcher/AiAgentsLauncher.module.css';
+import { useLauncherDockExtras } from '../aiCopilot/components/Launcher/launcherDockExtras';
 import { useLauncherDock } from '../aiCopilot/components/Launcher/useLauncherDock';
 import {
     useCreateAgentThreadMutation,
@@ -98,6 +101,7 @@ const targetAtPoint = (
 /** Point-and-talk on a dashboard: layout is done here, questions go to an agent. */
 const DashboardCapture: FC = () => {
     const { mode } = useParams<{ mode?: string }>();
+    const dockExtras = useLauncherDockExtras();
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const dashboard = useDashboardContext((c) => c.dashboard);
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
@@ -349,6 +353,19 @@ const DashboardCapture: FC = () => {
 
     if (!surface || !dashboard) return null;
 
+    const micButton = (
+        <Tooltip label="Point and talk" position="top">
+            <button
+                type="button"
+                aria-label="Point and talk"
+                className={`${launcherClasses.dockTab} ${launcherClasses.dockIconTab} ${classes.mic}`}
+                onClick={() => captureRef.current?.start()}
+            >
+                <MantineIcon icon={IconMicrophone} size={16} />
+            </button>
+        </Tooltip>
+    );
+
     const releaseHeldEdits = () => {
         const edits = heldEditsRef.current;
         heldEditsRef.current = [];
@@ -413,21 +430,14 @@ const DashboardCapture: FC = () => {
                         </Text>
                     </div>
                 )}
-                {!isRecording && !isSorting && (
-                    <Tooltip label="Point and talk" position="top">
-                        <ActionIcon
-                            size="xl"
-                            radius="xl"
-                            variant="filled"
-                            color="dark"
-                            aria-label="Point and talk"
-                            onClick={() => captureRef.current?.start()}
-                        >
-                            <MantineIcon icon={IconMicrophone} size={20} />
-                        </ActionIcon>
-                    </Tooltip>
-                )}
             </div>
+            {!isRecording &&
+                !isSorting &&
+                (dockExtras ? (
+                    createPortal(micButton, dockExtras)
+                ) : (
+                    <div className={classes.corner}>{micButton}</div>
+                ))}
         </>
     );
 };

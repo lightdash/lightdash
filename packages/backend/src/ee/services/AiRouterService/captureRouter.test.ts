@@ -25,6 +25,7 @@ const request: ApiCaptureRouteRequest = {
                 { tileUuid: null, cell: { x: 4, y: 6 } },
                 { tileUuid: 'rev', cell: null },
             ],
+            inside: [],
             speech: 'move this up here',
         },
         {
@@ -34,6 +35,10 @@ const request: ApiCaptureRouteRequest = {
             at: { tileUuid: 'ord', cell: null },
             arrowTo: null,
             path: [{ tileUuid: 'ord', cell: null }],
+            inside: [
+                { tileUuid: 'ord', share: 88 },
+                { tileUuid: 'rev', share: 6 },
+            ],
             speech: 'why did cancelled orders jump in March',
         },
     ],
@@ -52,7 +57,7 @@ describe('buildCaptureRoutingPrompt', () => {
             '1. (image 1) arrow from tile tbl to tile rev; drawn across tile tbl, then empty space at x=4 y=6, then tile rev: "move this up here"',
         );
         expect(prompt).toContain(
-            '2. (image 2) underline on tile ord; drawn across tile ord: "why did cancelled orders jump in March"',
+            '2. (image 2) underline on tile ord; drawn across tile ord; inside it: tile ord 88%, tile rev 6%: "why did cancelled orders jump in March"',
         );
         expect(prompt).toContain('- "and that is all"');
         expect(prompt).toContain(
@@ -71,6 +76,7 @@ describe('buildCaptureRoutingPrompt', () => {
                     at: { tileUuid: 'rev', cell: null },
                     arrowTo: { tileUuid: null, cell: { x: 18, y: 14 } },
                     path: [],
+                    inside: [],
                     speech: '',
                 },
                 {
@@ -80,6 +86,7 @@ describe('buildCaptureRoutingPrompt', () => {
                     at: { tileUuid: null, cell: null },
                     arrowTo: null,
                     path: [],
+                    inside: [],
                     speech: 'what is this',
                 },
             ],

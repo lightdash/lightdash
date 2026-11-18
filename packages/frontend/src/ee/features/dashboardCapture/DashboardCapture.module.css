@@ -22,3 +22,16 @@
     color: #fff;
     font-size: 14px;
 }
+
+/* Sits in the agent dock beside the Ask AI button, same shape, sister colour. */
+.mic {
+    color: var(--mantine-color-indigo-6);
+}
+
+/* Where the mic goes when there is no agent dock on the page. */
+.corner {
+    position: fixed;
+    right: var(--mantine-spacing-md);
+    bottom: var(--mantine-spacing-md);
+    z-index: 200;
+}

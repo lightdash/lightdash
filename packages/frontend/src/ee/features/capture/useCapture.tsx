@@ -20,6 +20,7 @@ import CapturePill from './components/CapturePill';
 import InkOverlay, { type FadingMark } from './components/InkOverlay';
 import { composeImage } from './composeImage';
 import { sameScreen } from './frameGeometry';
+import { coveredTargets } from './markCoverage';
 import {
     type CaptureSurface,
     type CaptureTarget,
@@ -258,6 +259,11 @@ export const useCapture = (
                 target,
                 arrowTo,
                 trail,
+                covers: resolveTarget
+                    ? coveredTargets(box, (point) =>
+                          resolveTarget(toViewport(point)),
+                      )
+                    : [],
             });
             if (done.status !== 'recording') return;
 

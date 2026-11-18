@@ -38,6 +38,7 @@ const hold = (
         target: null,
         arrowTo: null,
         trail: [],
+        covers: [],
     });
 };
 
@@ -65,6 +66,7 @@ describe('captureReducer', () => {
                     target: null,
                     arrowTo: null,
                     trail: [],
+                    covers: [],
                 },
             ],
         });
@@ -103,6 +105,7 @@ describe('captureReducer', () => {
             atMs: 500,
             target: { kind: 'tile', id: 'abc', label: 'Revenue tile' },
             arrowTo: { kind: 'tile', id: 'def', label: 'Orders tile' },
+            covers: [],
             trail: [
                 { kind: 'tile', id: 'abc', label: 'Revenue tile' },
                 { kind: 'tile', id: 'def', label: 'Orders tile' },
@@ -131,6 +134,7 @@ describe('captureReducer', () => {
             target: null,
             arrowTo: null,
             trail: [],
+            covers: [],
         });
         expect(s).toMatchObject({ marks: [], imageCount: 0, drawing: null });
     });
@@ -165,6 +169,7 @@ describe('captureReducer', () => {
                 target: null,
                 arrowTo: null,
                 trail: [],
+                covers: [],
             }),
         ).toEqual(s);
     });

@@ -5,6 +5,9 @@ export type Stroke = { points: Point[] };
 export type MarkShape = 'circle' | 'underline' | 'arrow' | 'scribble';
 export type CaptureTarget = { kind: string; id: string; label: string };
 
+/** A target under a mark and the share (0 to 1) of the mark's area on it. */
+export type CaptureCover = { target: CaptureTarget; share: number };
+
 export type CaptureMark = {
     number: number;
     imageIndex: number;
@@ -20,6 +23,8 @@ export type CaptureMark = {
     arrowTo: CaptureTarget | null;
     /** Everything the strokes passed over, in drawing order, no repeats in a row. */
     trail: CaptureTarget[];
+    /** What the area the mark encloses sits on, biggest share first. */
+    covers: CaptureCover[];
 };
 
 // atMs is when the phrase started (its first interim result).
