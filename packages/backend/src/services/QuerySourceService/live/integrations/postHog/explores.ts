@@ -273,6 +273,15 @@ export const POSTHOG_EVENTS_EXPLORE: LiveExploreDefinition = {
     maxDimensions: null,
     maxMetrics: null,
     dateRange: { dimension: 'date', defaultDays: 30 },
+    offByDefault: [
+        'timestamp',
+        'distinct_id',
+        'person_id',
+        'current_url',
+        'utm_source',
+        'browser',
+        'os',
+    ],
     incompatible: [],
 };
 

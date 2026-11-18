@@ -19,6 +19,8 @@ import {
     getLegacyLiveSourceName,
     getLiveDefinitionHashes,
     getLiveExploreNames,
+    getLiveQueryFields,
+    getLiveWideDefinition,
     getLostLiveFieldIds,
     toLiveResult,
     toPeriodStart,
@@ -318,6 +320,7 @@ describe('compileLiveMetricQuery', () => {
             edits: getInitialLiveSourceFieldEdits({
                 scannedFields,
                 isExistingSource: false,
+                base: getLiveWideDefinition(apiSource.connector),
             }),
         });
         const plan = `${explore.name}_property_plan`;
@@ -652,5 +655,72 @@ describe('getLostLiveFieldIds', () => {
                 edits: { custom: { inUse: false, lastEdit: null } },
             }),
         ).toEqual([]);
+    });
+});
+
+describe('getLiveQueryFields', () => {
+    test('names the model and fields a query reads, without the source prefix', () => {
+        const explore = ga4();
+        const date = `${explore.name}_date`;
+        expect(
+            getLiveQueryFields(
+                explore,
+                query(
+                    explore,
+                    { dimensions: ['date', 'country'], metrics: ['sessions'] },
+                    {
+                        filters: {
+                            dimensions: {
+                                id: 'filters',
+                                and: [
+                                    {
+                                        id: 'from',
+                                        target: { fieldId: date },
+                                        operator: FilterOperator.GREATER_THAN,
+                                        values: ['2026-01-01'],
+                                    },
+                                    {
+                                        id: 'to',
+                                        target: { fieldId: date },
+                                        operator: FilterOperator.LESS_THAN,
+                                        values: ['2026-02-01'],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                ),
+            ),
+        ).toEqual({
+            model: 'report',
+            dimensions: ['date', 'country'],
+            metrics: ['sessions'],
+            filters: ['date'],
+            scannedFieldCount: 0,
+        });
+    });
+
+    test("counts scanned fields without naming them, since they are the customer's schema", () => {
+        const explore = posthog({
+            posthogProperties: {
+                event: { results: [{ name: 'plan' }] },
+                person: { results: [] },
+            },
+        });
+        expect(
+            getLiveQueryFields(
+                explore,
+                query(explore, {
+                    dimensions: ['event', 'property_plan'],
+                    metrics: ['event_count'],
+                }),
+            ),
+        ).toEqual({
+            model: 'events',
+            dimensions: ['event'],
+            metrics: ['event_count'],
+            filters: [],
+            scannedFieldCount: 1,
+        });
     });
 });

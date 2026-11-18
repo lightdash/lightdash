@@ -366,6 +366,17 @@ export const GA4_REPORT_EXPLORE: LiveExploreDefinition = {
     maxDimensions: 9,
     maxMetrics: 10,
     dateRange: { dimension: 'date', defaultDays: 28 },
+    offByDefault: [
+        'date_year',
+        'platform',
+        'session_campaign',
+        'first_user_source',
+        'average_session_duration',
+        'item_name',
+        'item_revenue',
+        'items_purchased',
+        'items_viewed',
+    ],
     incompatible: [
         {
             fields: ITEM_SCOPED_DIMENSIONS,

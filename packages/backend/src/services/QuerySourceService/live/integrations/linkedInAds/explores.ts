@@ -287,6 +287,18 @@ export const LINKEDIN_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
     maxDimensions: null,
     maxMetrics: MAX_METRICS,
     dateRange: { dimension: 'date', defaultDays: 28 },
+    offByDefault: [
+        'date_year',
+        'likes',
+        'comments',
+        'shares',
+        'follows',
+        'video_views',
+        'video_completions',
+        'lead_form_opens',
+        'post_click_conversions',
+        'post_view_conversions',
+    ],
     incompatible: [
         {
             fields: ['campaign_group_id'],

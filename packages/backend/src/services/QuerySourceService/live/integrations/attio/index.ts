@@ -18,6 +18,7 @@ import {
     ATTIO_DATE_FILTERS,
     ATTIO_NUMBER_FILTERS,
     ATTIO_TEXT_FILTERS,
+    isAttioFieldOnByDefault,
     isInternalAttioField,
 } from './attributes';
 import { compileAttioQuery } from './compile';
@@ -115,5 +116,6 @@ export const attioIntegration = defineLiveIntegration({
                 ? withAttioAttributeFields(definition, scan.attioAttributes)
                 : definition,
         isInternalField: isInternalAttioField,
+        isOnByDefault: isAttioFieldOnByDefault,
     },
 });

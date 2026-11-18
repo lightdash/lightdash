@@ -217,6 +217,13 @@ export const YOUTUBE_ANALYTICS_ACTIVITY_EXPLORE: LiveExploreDefinition = {
     maxDimensions: 3,
     maxMetrics: null,
     dateRange: { dimension: 'date', defaultDays: 28 },
+    offByDefault: [
+        'creator_content_type',
+        'engaged_views',
+        'average_view_percentage',
+        'dislikes',
+        'shares',
+    ],
     incompatible: [
         {
             fields: ['device_type', 'traffic_source_type'],

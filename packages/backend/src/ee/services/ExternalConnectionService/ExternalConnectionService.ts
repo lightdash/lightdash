@@ -1430,16 +1430,25 @@ export class ExternalConnectionService extends BaseService {
                 externalConnectionUuid,
                 { scannedAt: new Date().toISOString(), fields: scannedFields },
             );
+            const isExistingSource =
+                await this.projectModel.hasApiSourceExplores(
+                    projectUuid,
+                    externalConnectionUuid,
+                );
             await this.externalConnectionModel.initLiveSourceFieldEdits(
                 externalConnectionUuid,
-                getInitialLiveSourceFieldEdits({
-                    scannedFields,
-                    isExistingSource:
-                        await this.projectModel.hasApiSourceExplores(
-                            projectUuid,
-                            externalConnectionUuid,
-                        ),
-                }),
+                isExistingSource
+                    ? getInitialLiveSourceFieldEdits({
+                          scannedFields,
+                          isExistingSource: true,
+                      })
+                    : getInitialLiveSourceFieldEdits({
+                          scannedFields,
+                          isExistingSource: false,
+                          base: getLiveWideDefinition(apiSource.connector),
+                          isOnByDefault: getLiveIntegration(apiSource.connector)
+                              .scan?.isOnByDefault,
+                      }),
             );
         }
         await this.rebuildApiSourceExplores(
@@ -2218,6 +2227,11 @@ export class ExternalConnectionService extends BaseService {
                         columnCount: call.columnCount,
                         truncated: call.truncated,
                         responseBytes: usage.responseBytes,
+                        model: call.fields?.model ?? null,
+                        dimensions: call.fields?.dimensions ?? [],
+                        metrics: call.fields?.metrics ?? [],
+                        filters: call.fields?.filters ?? [],
+                        scannedFieldCount: call.fields?.scannedFieldCount ?? 0,
                     },
                 });
             },

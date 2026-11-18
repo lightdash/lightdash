@@ -76,6 +76,14 @@ export type ExternalConnectionEvent = BaseTrack &
                   columnCount: number | null;
                   truncated: boolean | null;
                   responseBytes: number;
+                  /** The explore model a metric query read, e.g. `report`; null for a raw api query. */
+                  model: string | null;
+                  /** Built-in field names (`sessions`), without the source's prefix; empty for a raw api query. */
+                  dimensions: string[];
+                  metrics: string[];
+                  filters: string[];
+                  /** Distinct scanned fields read; their names are the customer's schema, so they stay out. */
+                  scannedFieldCount: number;
               };
           }
         | {

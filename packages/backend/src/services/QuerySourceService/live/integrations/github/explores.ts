@@ -172,6 +172,7 @@ export const GITHUB_PULL_REQUESTS_EXPLORE: LiveExploreDefinition = {
     maxDimensions: null,
     maxMetrics: null,
     dateRange: null,
+    offByDefault: ['assignee', 'comments', 'updated_at', 'search'],
     incompatible: [countIncompatibility(PULL_REQUEST_DIMENSIONS)],
 };
 

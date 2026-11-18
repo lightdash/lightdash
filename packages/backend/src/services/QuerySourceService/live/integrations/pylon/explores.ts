@@ -167,6 +167,7 @@ export const PYLON_ISSUES_EXPLORE: LiveExploreDefinition = {
     maxDimensions: null,
     maxMetrics: null,
     dateRange: { dimension: 'created_at', defaultDays: 30 },
+    offByDefault: ['account_name', 'assignee_email', 'team_id', 'touches'],
     incompatible: [],
 };
 

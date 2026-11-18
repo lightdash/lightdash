@@ -265,23 +265,51 @@ export const applyLiveSourceFieldEdits = ({
 
 /**
  * The edits a source starts curation with. A source built before curation
- * keeps every scanned field it already had in use, so its charts keep working.
+ * keeps every field it already had in use, so its charts keep working. A new
+ * source starts with its integration's core fields: built-in fields listed
+ * in `offByDefault` start off, and scanned fields start on only when the
+ * integration picks them.
  */
-export const getInitialLiveSourceFieldEdits = ({
-    scannedFields,
-    isExistingSource,
-}: {
-    scannedFields: ScannedLiveSourceField[];
-    isExistingSource: boolean;
-}): LiveSourceFieldEdits =>
-    isExistingSource
-        ? Object.fromEntries(
-              scannedFields.map(({ definition }) => [
-                  definition.name,
-                  { inUse: true, lastEdit: null },
-              ]),
-          )
-        : {};
+export const getInitialLiveSourceFieldEdits = (
+    args:
+        | {
+              scannedFields: ScannedLiveSourceField[];
+              isExistingSource: true;
+          }
+        | {
+              scannedFields: ScannedLiveSourceField[];
+              isExistingSource: false;
+              base: LiveExploreDefinition;
+              isOnByDefault?: (
+                  definition: LiveDimensionDefinition | LiveMetricDefinition,
+              ) => boolean;
+          },
+): LiveSourceFieldEdits => {
+    if (args.isExistingSource) {
+        return Object.fromEntries(
+            args.scannedFields.map(({ definition }) => [
+                definition.name,
+                { inUse: true, lastEdit: null },
+            ]),
+        );
+    }
+    const { base, scannedFields, isOnByDefault } = args;
+    const required = new Set(getRequiredFieldNames(base));
+    return Object.fromEntries([
+        ...(base.offByDefault ?? [])
+            .filter((name) => !required.has(name))
+            .map((name) => [name, { inUse: false, lastEdit: null }]),
+        ...scannedFields
+            .filter(
+                ({ definition, isInternal }) =>
+                    !isInternal && (isOnByDefault?.(definition) ?? false),
+            )
+            .map(({ definition }) => [
+                definition.name,
+                { inUse: true, lastEdit: null },
+            ]),
+    ]);
+};
 
 const MAX_FIELD_TEXT_LENGTH = 2000;
 

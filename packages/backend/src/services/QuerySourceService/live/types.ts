@@ -13,7 +13,9 @@ import type {
 import type { z } from 'zod';
 import type {
     LiveCompiledRequest,
+    LiveDimensionDefinition,
     LiveExploreDefinition,
+    LiveMetricDefinition,
     LivePeriodFormat,
 } from './explores/definition';
 
@@ -92,6 +94,10 @@ export type LiveIntegration<
         ) => LiveExploreDefinition;
         /** Scanned fields kept out of the default field list. */
         isInternalField?: (apiName: string) => boolean;
+        /** Scanned fields a new source starts with in use; the rest start off. */
+        isOnByDefault?: (
+            definition: LiveDimensionDefinition | LiveMetricDefinition,
+        ) => boolean;
     };
     /** Defaults to DuckDB, which only runs the compiled explore's SQL shape. */
     warehouseSqlBuilder?: WarehouseSqlBuilder;

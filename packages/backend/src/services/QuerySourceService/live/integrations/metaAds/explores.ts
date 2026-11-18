@@ -361,6 +361,17 @@ export const META_ADS_INSIGHTS_EXPLORE: LiveExploreDefinition = {
     maxDimensions: null,
     maxMetrics: null,
     dateRange: { dimension: 'date', defaultDays: 30 },
+    offByDefault: [
+        'campaign_id',
+        'adset_id',
+        'ad_id',
+        'platform_position',
+        'frequency',
+        'landing_page_views',
+        'adds_to_cart',
+        'checkouts_initiated',
+        'registrations_completed',
+    ],
     incompatible: [
         {
             fields: DEMOGRAPHIC_FIELDS,

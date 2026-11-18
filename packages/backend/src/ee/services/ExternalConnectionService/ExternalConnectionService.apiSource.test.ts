@@ -77,6 +77,7 @@ const buildService = ({
     namesHeldAtClaim = [],
     hasExplores = false,
     chartCount = 0,
+    fieldEdits = null,
 }: {
     connections?: ExternalConnection[];
     canView?: boolean;
@@ -89,10 +90,12 @@ const buildService = ({
     namesHeldAtClaim?: string[];
     hasExplores?: boolean;
     chartCount?: number;
+    /** The field edits the source already stores. */
+    fieldEdits?: LiveSourceFieldEdits | null;
 } = {}) => {
     let fieldState: LiveSourceFieldState = {
         lastScan: null,
-        fields: null,
+        fields: fieldEdits,
         aiHint: null,
         targetLabel: null,
     };
@@ -372,6 +375,7 @@ describe('ExternalConnectionService api sources', () => {
             columnCount: 2,
             truncated: false,
             cacheHit: false,
+            fields: null,
         });
 
         expect(
@@ -412,6 +416,12 @@ describe('ExternalConnectionService api sources', () => {
                 rowCount: 1,
                 truncated: false,
                 responseBytes: Buffer.byteLength(bodyText, 'utf8'),
+                // A raw api query reads no semantic-layer fields
+                model: null,
+                dimensions: [],
+                metrics: [],
+                filters: [],
+                scannedFieldCount: 0,
             },
         });
         // The query text can hold filter values, so it stays out of analytics.
@@ -449,6 +459,7 @@ describe('ExternalConnectionService api sources', () => {
                 columnCount: null,
                 truncated: null,
                 cacheHit: false,
+                fields: null,
             }),
         ).resolves.toBeUndefined();
     });
@@ -467,6 +478,7 @@ describe('ExternalConnectionService api sources', () => {
             columnCount: null,
             truncated: null,
             cacheHit: false,
+            fields: null,
         };
 
         await source.logCall({ ...call, outcome: 'timeout' });
@@ -503,6 +515,13 @@ describe('ExternalConnectionService api sources', () => {
             columnCount: 2,
             truncated: null,
             cacheHit: true,
+            fields: {
+                model: 'events',
+                dimensions: ['event'],
+                metrics: ['event_count'],
+                filters: ['date'],
+                scannedFieldCount: 2,
+            },
         });
 
         expect(
@@ -513,7 +532,15 @@ describe('ExternalConnectionService api sources', () => {
         const [, trackedEvent] = analytics.trackAccount.mock.calls[0];
         expect(trackedEvent).toMatchObject({
             event: 'live_source.query_finished',
-            properties: { cacheHit: true, apiCalls: 0 },
+            properties: {
+                cacheHit: true,
+                apiCalls: 0,
+                model: 'events',
+                dimensions: ['event'],
+                metrics: ['event_count'],
+                filters: ['date'],
+                scannedFieldCount: 2,
+            },
         });
     });
 
@@ -977,6 +1004,39 @@ describe('ExternalConnectionService live source explores', () => {
         ).toMatchObject({ inUse: false, isBuiltIn: false });
     });
 
+    it('starts a new source with only its core built-in fields in use', async () => {
+        respondToScan('ok');
+        const { service, projectModel } = buildService();
+        await service.create(account, 'proj-1', postHogSource);
+
+        const fieldIds = savedFieldIds(projectModel);
+        expect(fieldIds).toContain('product_analytics_events_event');
+        expect(fieldIds).not.toContain('product_analytics_events_distinct_id');
+        const { fields } = await service.getLiveSourceFields(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+        expect(
+            fields.find((field) => field.name === 'distinct_id'),
+        ).toMatchObject({ inUse: false, isBuiltIn: true });
+    });
+
+    it('keeps every built-in field in use on a source that already stores its field edits', async () => {
+        respondToScan('ok');
+        const { service, projectModel, externalConnectionModel } = buildService(
+            { hasExplores: true, fieldEdits: {} },
+        );
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+
+        expect(savedFieldIds(projectModel)).toContain(
+            'posthog_conn1_events_distinct_id',
+        );
+        expect(
+            await externalConnectionModel.getLiveSourceFieldState('conn-1'),
+        ).toMatchObject({ fields: {} });
+    });
+
     it('keeps every scanned property in use on a source built before fields could be curated', async () => {
         respondToScan('ok');
         const { service, projectModel } = buildService({ hasExplores: true });
@@ -1209,6 +1269,27 @@ describe('ExternalConnectionService live source explores', () => {
             expect(
                 projectModel.replaceApiSourceExplores,
             ).not.toHaveBeenCalled();
+        });
+
+        it('keeps a field charts use when it rebuilds a source curated before core fields', async () => {
+            const built = buildService({ hasExplores: true, fieldEdits: {} });
+            built.externalConnectionModel.listLiveSourceRefs.mockResolvedValue(
+                refs,
+            );
+            built.projectModel.listApiSourceExploreHashes.mockResolvedValue([
+                { connectionUuid: 'conn-1', definitionHash: 'old' },
+            ]);
+            built.projectModel.getApiSourceFieldIds.mockResolvedValue([
+                'posthog_conn1_events_distinct_id',
+            ]);
+            await expect(
+                built.service.rebuildOutdatedApiSourceExplores(),
+            ).resolves.toEqual({ rebuilt: 1, failed: 0 });
+            const [[, , explores]] =
+                built.projectModel.replaceApiSourceExplores.mock.calls;
+            expect(Object.keys(explores[0].apiSource.fields)).toContain(
+                'posthog_conn1_events_distinct_id',
+            );
         });
 
         it('keeps a source whose rebuild would lose a field, and carries on', async () => {

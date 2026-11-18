@@ -398,11 +398,13 @@ import {
 } from '../ProjectService/resultsPagination';
 import type {
     LiveQueryCall,
+    LiveQueryFields,
     MeteredLiveSource,
 } from '../QuerySourceService/live/calls';
 import {
     assertLiveResultComplete,
     compileLiveMetricQuery,
+    getLiveQueryFields,
     toLiveResult,
 } from '../QuerySourceService/live/explores/build';
 import { toLiveQueryError } from '../QuerySourceService/live/explores/definition';
@@ -13154,6 +13156,9 @@ export class AsyncQueryService extends ProjectService {
             context,
         );
 
+        const queryFields = history.explore
+            ? getLiveQueryFields(history.explore, history.metricQuery)
+            : null;
         if (reusable) {
             await this.completeLiveQueryFromStored({
                 account,
@@ -13167,6 +13172,7 @@ export class AsyncQueryService extends ProjectService {
                 context,
                 queryCreatedAt,
                 fields: history.fields,
+                queryFields,
                 stored: reusable,
             });
             return { queryUuid, reusable };
@@ -13184,6 +13190,7 @@ export class AsyncQueryService extends ProjectService {
             context,
             queryCreatedAt,
             fields: history.fields,
+            queryFields,
             exploreName: history.explore?.name ?? null,
             toResult,
         }).catch((e) => {
@@ -13210,6 +13217,7 @@ export class AsyncQueryService extends ProjectService {
         context,
         queryCreatedAt,
         fields,
+        queryFields,
         stored,
     }: {
         account: Account;
@@ -13223,6 +13231,7 @@ export class AsyncQueryService extends ProjectService {
         context: QueryExecutionContext;
         queryCreatedAt: Date;
         fields: ItemsMap | null;
+        queryFields: LiveQueryFields | null;
         stored: StoredLiveResult;
     }): Promise<void> {
         await this.queryHistoryModel.update(
@@ -13286,6 +13295,7 @@ export class AsyncQueryService extends ProjectService {
             columnCount,
             truncated: null,
             cacheHit: true,
+            fields: queryFields,
         });
         this.prometheusMetrics?.incrementLiveSourceCacheHit(
             source.integration.connector,
@@ -13304,6 +13314,7 @@ export class AsyncQueryService extends ProjectService {
         context,
         queryCreatedAt,
         fields,
+        queryFields,
         exploreName,
         toResult,
     }: {
@@ -13318,6 +13329,7 @@ export class AsyncQueryService extends ProjectService {
         context: QueryExecutionContext;
         queryCreatedAt: Date;
         fields: ItemsMap | null;
+        queryFields: LiveQueryFields | null;
         /** The live explore a compiled metric query reads; null for a raw api query. */
         exploreName: string | null;
         toResult: ApiResultShaper;
@@ -13355,6 +13367,7 @@ export class AsyncQueryService extends ProjectService {
                         rowLimit: limit,
                         durationMs: executeMs ?? Date.now() - startedAt,
                         cacheHit: false,
+                        fields: queryFields,
                         ...call,
                     });
                 try {
