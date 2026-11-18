@@ -1310,6 +1310,10 @@ export class SavedChartModel {
                 targetTimestamp,
             )
             .orderBy(`${SavedChartVersionsTableName}.created_at`, 'desc')
+            .orderBy(
+                `${SavedChartVersionsTableName}.saved_queries_version_id`,
+                'desc',
+            )
             .first();
         return row ? SavedChartModel.convertVersionSummary(row) : undefined;
     }
@@ -3829,7 +3833,7 @@ export class SavedChartModel {
 
     /** Holds new versions of these charts until the transaction ends. */
     async lockForVersioning(
-        savedChartUuids: string[],
+        savedChartUuids: UUID[],
         trx: Knex.Transaction,
     ): Promise<void> {
         await trx(SavedChartsTableName)

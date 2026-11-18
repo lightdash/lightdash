@@ -69,6 +69,7 @@ import {
     UpdatedByUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
+    UUID,
     type AdditionalMetric,
     type ChartFieldUpdates,
     type ContentDraftStaleness,
@@ -1183,8 +1184,8 @@ export class SavedChartService
     /** Checks restoring a chart to a version as a write over its current one; returns both. */
     private async assertCanRestore(
         account: Account,
-        chartUuid: string,
-        versionUuid: string,
+        chartUuid: UUID,
+        versionUuid: UUID,
         tx: Knex.Transaction,
     ): Promise<{ current: SavedChartDAO; restored: SavedChartDAO }> {
         const [current, restored] = await Promise.all([
@@ -1208,7 +1209,7 @@ export class SavedChartService
     /** Locks the charts against new versions, then checks restoring each to its version at `versionTimestamp`. */
     async lockAndAssertCanRestoreAt(
         account: Account,
-        chartUuids: string[],
+        chartUuids: UUID[],
         versionTimestamp: Date,
         tx: Knex.Transaction,
     ): Promise<void> {
@@ -3255,8 +3256,8 @@ export class SavedChartService
 
     async rollback(
         account: RegisteredAccount,
-        chartUuid: string,
-        versionUuid: string,
+        chartUuid: UUID,
+        versionUuid: UUID,
     ): Promise<void> {
         const user = toSessionUser(account);
         const { grantAudit, savedChart } = await this.checkUpdateAccess(

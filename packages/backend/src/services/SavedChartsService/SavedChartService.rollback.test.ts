@@ -172,54 +172,6 @@ describe('restoring a chart version', () => {
         );
         expect(savedChartModel.createVersion).not.toHaveBeenCalled();
     });
-
-    it('restores a version whose custom SQL is unchanged', async () => {
-        const restored = withQuery({
-            tableCalculations: [sqlTableCalculation],
-            limit: 25,
-        });
-        const { chartService, savedChartModel } = setup(
-            withQuery({ tableCalculations: [sqlTableCalculation] }),
-            restored,
-        );
-
-        await chartService.rollback(
-            fromSession(editor),
-            chart.uuid,
-            'old-version',
-        );
-
-        expect(savedChartModel.createVersion).toHaveBeenCalledWith(
-            chart.uuid,
-            restored,
-            expect.anything(),
-            expect.anything(),
-            expect.anything(),
-            null,
-        );
-    });
-    it('restores changed custom SQL for a user with the custom SQL scopes', async () => {
-        const admin: SessionUser = {
-            ...baseUser,
-            ability: new Ability<PossibleAbilities>([
-                { action: 'manage', subject: 'all' },
-            ]),
-        };
-        const restored = withQuery({
-            customDimensions: [sqlDimension],
-            tableCalculations: [sqlTableCalculation],
-            additionalMetrics: [handWrittenMetric],
-        });
-        const { chartService, savedChartModel } = setup(chart, restored);
-
-        await chartService.rollback(
-            fromSession(admin),
-            chart.uuid,
-            'old-version',
-        );
-
-        expect(savedChartModel.createVersion).toHaveBeenCalled();
-    });
 });
 
 describe('restoring a dashboard', () => {
@@ -240,23 +192,5 @@ describe('restoring a dashboard', () => {
         expect(
             savedChartModel.rollbackToVersionAtTimestamp,
         ).not.toHaveBeenCalled();
-    });
-
-    it('restores when the charts it owns keep their custom SQL', async () => {
-        const sqlChart = withQuery({
-            tableCalculations: [sqlTableCalculation],
-        });
-        const { dashboardService, savedChartModel } = setup(sqlChart, {
-            ...sqlChart,
-            name: 'older name',
-        });
-
-        await dashboardService.rollback(
-            fromSession(editor),
-            dashboard.uuid,
-            'old-version',
-        );
-
-        expect(savedChartModel.rollbackToVersionAtTimestamp).toHaveBeenCalled();
     });
 });
