@@ -16,6 +16,7 @@ import {
 import { IconChevronRight } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { ToolCallChip } from './ToolCallChip';
 import styles from './ToolCallRow.module.css';
@@ -61,6 +62,7 @@ export const ToolCallRow: FC<Props> = ({
     toolResults,
     display,
 }) => {
+    const getUiString = useUiStrings();
     const builtInToolName = isToolName(toolName) ? toolName : null;
     const linkedMcpServer =
         toolCalls.find((toolCall) => toolCall.mcpServer)?.mcpServer ??
@@ -79,7 +81,7 @@ export const ToolCallRow: FC<Props> = ({
         toolCalls.length > 0 &&
         toolCalls.every((call) => isToolCallUnapproved(call, toolResults));
     const label = isUnapproved
-        ? 'SQL not approved'
+        ? getUiString('aiAgent.toolCall.sqlNotApproved')
         : builtInToolName
           ? getToolCallDisplayMessage({
                 toolName: builtInToolName,

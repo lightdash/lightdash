@@ -187,7 +187,7 @@ const sharedDimensions: Record<string, string> = {
     query_reuse_hit:
         'Whether the tool reused an earlier query, when applicable.',
     tool_status:
-        'Recorded success or error outcome of the tool invocation. Missing historical outcomes are unknown.',
+        'Recorded outcome of the tool invocation: success, error, or rejected/timeout when its SQL approval was declined or unanswered. Missing historical outcomes are unknown.',
     version: 'Data app version associated with the recorded activity.',
     format: 'Requested result-export format, such as csv. Empty for activity without an export format.',
     job_id: 'Identifier of the download job associated with the export event, when captured.',
