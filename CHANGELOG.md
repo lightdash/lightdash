@@ -1,3 +1,10 @@
+## [3.306.1](https://github.com/lightdash/lightdash/compare/3.306.0...3.306.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **semantic-studio:** theme the Lineage diagram for dark mode ([#32842](https://github.com/lightdash/lightdash/issues/32842)) ([a515655](https://github.com/lightdash/lightdash/commit/a51565542a1f0a34f2280315cca1608e4f895604))
+
 # [3.306.0](https://github.com/lightdash/lightdash/compare/3.305.1...3.306.0) (2026-11-18)
 
 
