@@ -1,3 +1,10 @@
+# [3.323.0](https://github.com/lightdash/lightdash/compare/3.322.0...3.323.0) (2026-11-18)
+
+
+### Features
+
+* **semantic-studio:** end a Studio turn with one card that says what changed and what to do next ([#32915](https://github.com/lightdash/lightdash/issues/32915)) ([b94d49f](https://github.com/lightdash/lightdash/commit/b94d49fd9289ce1522f82d0eaa2e9a55eb53e7fa))
+
 # [3.322.0](https://github.com/lightdash/lightdash/compare/3.321.1...3.322.0) (2026-11-18)
 
 
