@@ -561,7 +561,12 @@ describe('legacyLibraryChartBindings', () => {
             new Map([
                 [
                     'big-number-with-sparkline-trend',
-                    { appSlug: 'big-number-1', vizSchema: bigNumberSchema },
+                    {
+                        appSlug: 'big-number-1',
+                        vizSchema: bigNumberSchema,
+                        registryVersion:
+                            analyticsLibraryChartBindings.get(slug)!.minVersion,
+                    },
                 ],
             ]),
         );

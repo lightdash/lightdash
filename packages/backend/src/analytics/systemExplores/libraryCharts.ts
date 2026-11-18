@@ -78,6 +78,10 @@ export const libraryChartFields: Record<
         ],
         required: ['value'],
     },
+    'chord-diagram': {
+        fields: ['source', 'target', 'value'],
+        required: ['source', 'target', 'value'],
+    },
 };
 
 // Swaps a chart to its library type only when the installed version meets its binding and the binding is valid.

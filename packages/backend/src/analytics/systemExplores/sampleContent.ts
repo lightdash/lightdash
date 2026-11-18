@@ -365,7 +365,60 @@ const aiUsageContent = {
                     'Top 10 models by AI calls across all available events. Compare with token volume to distinguish frequent calls from token-heavy calls.',
             },
         ),
+        chart(
+            'tokens-by-feature',
+            'Where do tokens go?',
+            'ai_usage',
+            'total_tokens_used',
+            'feature',
+            {
+                visualization: 'bar',
+                colors: ['#7950F2'],
+                axisLabel: 'Tokens',
+                description:
+                    'Tokens by feature over the selected period. Token volume is not monetary cost.',
+                libraryChart: {
+                    slug: 'chord-diagram',
+                    minVersion: '0.2.0',
+                    fieldMapping: {
+                        source: 'ai_usage_feature',
+                        target: 'ai_usage_model',
+                        value: 'ai_usage_total_tokens_used',
+                    },
+                    optionValues: { totalLabel: 'Tokens' },
+                    query: {
+                        dimensions: ['ai_usage_feature', 'ai_usage_model'],
+                        metrics: ['ai_usage_total_tokens_used'],
+                        sorts: [
+                            {
+                                fieldId: 'ai_usage_total_tokens_used',
+                                descending: true,
+                            },
+                        ],
+                        limit: 200,
+                        description:
+                            'Tokens flowing from each feature to the models it used, over the selected period. Token volume is not monetary cost.',
+                    },
+                },
+            },
+        ),
     ],
+};
+
+// Overview tile positions by chart key.
+const aiUsageTilePositions: Record<
+    string,
+    { x: number; y: number; w: number; h: number }
+> = {
+    'ai-calls': { x: 0, y: 0, w: 9, h: 3 },
+    tokens: { x: 9, y: 0, w: 9, h: 3 },
+    'ai-users': { x: 18, y: 0, w: 9, h: 3 },
+    'output-tokens': { x: 27, y: 0, w: 9, h: 3 },
+    'tokens-by-feature': { x: 0, y: 3, w: 14, h: 12 },
+    'ai-calls-by-day': { x: 14, y: 3, w: 22, h: 6 },
+    'tokens-by-day': { x: 14, y: 9, w: 22, h: 6 },
+    'tokens-by-model': { x: 0, y: 15, w: 18, h: 8 },
+    'calls-by-model': { x: 18, y: 15, w: 18, h: 8 },
 };
 
 export const analyticsSampleDashboards = [
@@ -513,6 +566,23 @@ const legacyContentAsCode: {
             tabs: [],
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
             tiles: charts.map(({ slug }, index) => {
+                if (bundle.key === aiUsageContent.key) {
+                    const key = slug.slice(bundle.key.length + 1);
+                    const position = aiUsageTilePositions[key];
+                    if (!position) {
+                        throw new Error(
+                            `No Overview position for chart ${key}`,
+                        );
+                    }
+                    return {
+                        uuid: undefined,
+                        tileSlug: slug,
+                        type: DashboardTileTypes.SAVED_CHART,
+                        ...position,
+                        tabSlug: null,
+                        properties: { chartSlug: slug },
+                    };
+                }
                 if (
                     bundle.key === 'lightdash-analytics-query-activity' &&
                     index >= 4
