@@ -23,6 +23,11 @@ import {
 import { store as aiAgentStore } from '../ee/features/aiCopilot/store';
 import { openAnalysisPanel } from '../ee/features/aiCopilot/store/aiAgentLauncherSlice';
 import {
+    CaptureHost,
+    type CaptureHostHandle,
+    type CaptureSurface,
+} from '../ee/features/capture';
+import {
     useDataAppAnalysisAvailability,
     useIsAnalysisEntryVisible,
 } from '../features/apps/analysis/useDataAppAnalysisAvailability';
@@ -33,15 +38,22 @@ import AppIframePreview, {
 import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
+import CaptureButton from '../features/apps/components/CaptureButton';
 import DataAppAiAgentContextBridge from '../features/apps/components/DataAppAiAgentContextBridge';
 import { getVisiblePreviewTokenError } from '../features/apps/hooks/previewTokenQueryOptions';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppInspector } from '../features/apps/hooks/useAppInspector';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useCanEditVerifiedDataApp } from '../features/apps/hooks/useCanEditDataApp';
+import { useDataAppCapturesEnabled } from '../features/apps/hooks/useDataAppCapturesEnabled';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useNewerAppVersion } from '../features/apps/hooks/useNewerAppVersion';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
+import {
+    canCaptureOnAppView,
+    holdCaptureForBuilder,
+} from '../features/apps/utils/captureHandoff';
+import { transcribeCapture } from '../features/apps/utils/transcribeCapture';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useRecordContentView } from '../hooks/useRecordContentView';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -56,6 +68,8 @@ export default function AppPreviewTest() {
     const explicitVersion = versionParam ? Number(versionParam) : undefined;
 
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const captureFlag = useServerFeatureFlag(FeatureFlags.DataAppCapture);
+    const capturesEnabled = useDataAppCapturesEnabled();
 
     // Always fetch app to get creator info + latest ready version when needed.
     // The backend enforces space-aware view permissions and will 403 if the
@@ -223,6 +237,39 @@ export default function AppPreviewTest() {
         }
         return capture();
     }, []);
+
+    // Inline: draw on the running app while talking, then review the
+    // result in the builder's prompt box.
+    const previewBodyRef = useRef<HTMLDivElement>(null);
+    const captureRef = useRef<CaptureHostHandle>(null);
+    const [isCaptureRecording, setIsCaptureRecording] = useState(false);
+    const captureAvailable = canCaptureOnAppView({
+        flagEnabled: captureFlag.data?.enabled === true,
+        canEditApp,
+        capturesEnabled,
+        hasPreview: Boolean(token && version !== undefined && !isFullscreen),
+    });
+    const captureSurface = useMemo<CaptureSurface | null>(
+        () =>
+            captureAvailable && projectUuid && appUuid
+                ? {
+                      getRegion: () =>
+                          previewBodyRef.current?.getBoundingClientRect() ??
+                          new DOMRect(),
+                      captureImages: true,
+                      resolveTarget: null,
+                      transcribe: (audio) =>
+                          transcribeCapture(projectUuid, audio),
+                      onCapture: ({ images, summary }) => {
+                          holdCaptureForBuilder(appUuid, { images, summary });
+                          void navigate(
+                              `/projects/${projectUuid}/apps/${appUuid}`,
+                          );
+                      },
+                  }
+                : null,
+        [captureAvailable, projectUuid, appUuid, navigate],
+    );
 
     if (dataAppsFlag.isLoading) {
         return null;
@@ -428,7 +475,17 @@ export default function AppPreviewTest() {
                     }}
                     rightSection={
                         <AppHeaderActions
-                            previewTools={null}
+                            previewTools={
+                                captureSurface && (
+                                    <CaptureButton
+                                        label="Inline"
+                                        onClick={() =>
+                                            captureRef.current?.start()
+                                        }
+                                        disabled={isCaptureRecording}
+                                    />
+                                )
+                            }
                             openUrl={null}
                             capturedQueryCount={inspector.readyQueryCount}
                             fullscreenToggle={
@@ -520,8 +577,14 @@ export default function AppPreviewTest() {
                 data-tour-docs="data-apps.mdx#sharing-an-app:p4:1"
                 data-tour-resultdocs="data-apps.mdx#space-access:li1"
                 data-tour-return="none"
+                ref={previewBodyRef}
                 className={classes.previewBody}
             >
+                <CaptureHost
+                    ref={captureRef}
+                    surface={captureSurface}
+                    onRecordingChange={setIsCaptureRecording}
+                />
                 {body}
             </Box>
         </Box>

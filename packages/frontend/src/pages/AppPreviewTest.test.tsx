@@ -11,6 +11,7 @@ type IframePreviewProps = {
 type HeaderActionsProps = {
     capturedQueryCount?: number;
     onRefresh?: () => void;
+    previewTools?: unknown;
 };
 
 const mocks = vi.hoisted(() => ({
@@ -22,6 +23,8 @@ const mocks = vi.hoisted(() => ({
     isLoading: false,
     spaceUuid: null as string | null,
     recordView: vi.fn(),
+    canEdit: false,
+    captureFlagEnabled: true,
 }));
 
 vi.mock('react-router', () => ({
@@ -103,8 +106,8 @@ vi.mock('../providers/Fullscreen/useNativeFullscreenToggle', () => ({
 }));
 
 vi.mock('../features/apps/hooks/useCanEditDataApp', () => ({
-    useCanEditDataApp: () => false,
-    useCanEditVerifiedDataApp: () => false,
+    useCanEditDataApp: () => mocks.canEdit,
+    useCanEditVerifiedDataApp: () => mocks.canEdit,
 }));
 
 vi.mock('../features/apps/hooks/useAppBuildPoller', () => ({
@@ -116,9 +119,12 @@ vi.mock('../features/apps/previewOrigin', () => ({
 }));
 
 vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({
+    useServerFeatureFlag: (flag: string) => ({
         isLoading: false,
-        data: { enabled: true },
+        data: {
+            enabled:
+                flag === 'data-app-capture' ? mocks.captureFlagEnabled : true,
+        },
     }),
 }));
 
@@ -182,6 +188,26 @@ describe('AppPreviewTest', () => {
         mocks.isLoading = false;
         mocks.spaceUuid = null;
         mocks.recordView.mockClear();
+        mocks.canEdit = false;
+        mocks.captureFlagEnabled = true;
+    });
+
+    it('offers a capture to an editor when the capture flag is on', () => {
+        mocks.canEdit = true;
+        renderWithProviders(<AppPreviewTest />);
+        expect(latestHeaderActionsProps().previewTools).toBeTruthy();
+    });
+
+    it('offers no capture to a viewer', () => {
+        renderWithProviders(<AppPreviewTest />);
+        expect(latestHeaderActionsProps().previewTools).toBeFalsy();
+    });
+
+    it('offers no capture when the capture flag is off', () => {
+        mocks.canEdit = true;
+        mocks.captureFlagEnabled = false;
+        renderWithProviders(<AppPreviewTest />);
+        expect(latestHeaderActionsProps().previewTools).toBeFalsy();
     });
 
     it('records the resolved app UUID after a space app loads, but not personal apps', () => {
