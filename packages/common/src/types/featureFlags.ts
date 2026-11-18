@@ -75,6 +75,12 @@ export enum FeatureFlags {
     EnableDataApps = 'enable-data-apps',
 
     /**
+     * Point-and-talk capture in the data app builder: draw on the preview
+     * while talking, then send the marked-up images as a prompt. Demo only.
+     */
+    DataAppCapture = 'data-app-capture',
+
+    /**
      * AI access (in-app agent, Slack agent, MCP) skips the results cache,
      * earlier results and pre-aggregates. Off by default; organization scope.
      */

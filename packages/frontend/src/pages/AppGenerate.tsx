@@ -66,6 +66,7 @@ import ResizableSplitter from '../components/common/ResizableSplitter';
 import { getChartIcon } from '../components/common/ResourceIcon/utils';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import { getAiAgentThreadPath } from '../ee/features/aiCopilot/hooks/aiAgentRouting';
+import CaptureSpike from '../ee/features/capture/CaptureSpike';
 import AddAnalysisOffer from '../features/apps/analysis/AddAnalysisOffer';
 import AnalysisOffChip from '../features/apps/analysis/AnalysisOffChip';
 import { useDataAppAnalysisAvailability } from '../features/apps/analysis/useDataAppAnalysisAvailability';
@@ -667,6 +668,7 @@ const AppGenerate: FC = () => {
         return capture();
     }, []);
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const captureFlag = useServerFeatureFlag(FeatureFlags.DataAppCapture);
     const isChartStudioAvailable = useChartStudioAvailable();
     const { user, health } = useApp();
     const sampleDataEnabled = health.data?.dataApps.sampleDataEnabled !== false;
@@ -3457,6 +3459,11 @@ const AppGenerate: FC = () => {
                                                                         isCapturingThumbnail
                                                                     }
                                                                 />
+                                                            )}
+                                                        {previewApp &&
+                                                            captureFlag.data
+                                                                ?.enabled && (
+                                                                <CaptureSpike />
                                                             )}
                                                     </>
                                                 )

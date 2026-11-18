@@ -752,7 +752,7 @@ export default class App {
 
         expressApp.use((req, res, next) => {
             // Permissions-Policy header that is not yet supported by helmet. More details here: https://github.com/helmetjs/helmet/issues/234
-            res.setHeader('Permissions-Policy', 'camera=(), microphone=()');
+            res.setHeader('Permissions-Policy', 'camera=(), microphone=(self)');
             res.setHeader(LightdashVersionHeader, VERSION);
             if (frontendBuildHash) {
                 res.setHeader(LightdashBuildHashHeader, frontendBuildHash);
