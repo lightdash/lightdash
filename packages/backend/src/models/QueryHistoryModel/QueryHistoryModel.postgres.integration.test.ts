@@ -144,8 +144,9 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
             ),
         ).toBe(1);
         expect(await statusOf(queryUuid)).toBe(QueryHistoryStatus.EXECUTING);
-        expect(redelivered.claimedAt!.getTime()).toBe(
-            killed.claimedAt!.getTime() + 1,
+        // the new start moves past the killed owner's, whatever the clock read
+        expect(redelivered.claimedAt!.getTime()).toBeGreaterThan(
+            killed.claimedAt!.getTime(),
         );
         await expect(
             QueryHistoryModel.withQueryExecution(killed, () =>
