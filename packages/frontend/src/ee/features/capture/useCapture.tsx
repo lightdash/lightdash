@@ -466,6 +466,9 @@ export const useCapture = (
 
     useEffect(() => {
         if (!isRecording) return undefined;
+        // Started from inside an app frame, focus is still in that frame and
+        // Shift would never reach this page, so take it back first.
+        if (document.activeElement?.tagName === 'IFRAME') window.focus();
         pillRef.current?.focus({ preventScroll: true });
 
         const onKeyDown = (event: KeyboardEvent) => {
