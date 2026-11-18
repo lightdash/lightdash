@@ -1,12 +1,14 @@
 import {
-    assertUnreachable,
     type SemanticStudioBranchCompile,
     type SemanticStudioCheckout,
 } from '@lightdash/common';
 import { Anchor, Center, Group, Text, Tooltip } from '@mantine/core';
 import { IconArrowLeft, IconGitBranch } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useCompileCheckout } from '../../features/semanticStudio/useSemanticLayerModel';
+import {
+    describeBranchCompile,
+    useCompileCheckout,
+} from '../../features/semanticStudio/useSemanticLayerModel';
 import { useStudioWorkspaceAction } from '../../features/semanticStudio/useStudioWorkspaces';
 import useToaster from '../../hooks/toaster/useToaster';
 import MantineIcon from '../common/MantineIcon';
@@ -18,56 +20,41 @@ const CompileState: FC<{
     compile: SemanticStudioBranchCompile;
 }> = ({ projectUuid, compile }) => {
     const { mutate: compileAgain, isLoading } = useCompileCheckout(projectUuid);
-    const { showToastApiError } = useToaster();
-    switch (compile.status) {
-        case 'ready':
-            return null;
-        case 'compiling':
-            return (
-                <Text c="white" fz="xs" truncate>
-                    {compile.hasExplores
-                        ? 'Compiling the latest edit.'
-                        : 'Compiling. Published models show until it is ready.'}
-                </Text>
-            );
-        case 'failed':
-            return (
-                <Group gap={6} wrap="nowrap" miw={0}>
-                    <Tooltip
-                        multiline
-                        maw={480}
-                        label={compile.error ?? 'The compile failed.'}
-                    >
-                        <Text c="white" fz="xs" truncate>
-                            The latest compile failed.
-                        </Text>
-                    </Tooltip>
-                    <Anchor
-                        component="button"
-                        type="button"
-                        c="white"
-                        fz="xs"
-                        fw={600}
-                        underline="always"
-                        disabled={isLoading}
-                        onClick={() =>
-                            compileAgain(undefined, {
-                                onError: ({ error }) =>
-                                    showToastApiError({
-                                        title: 'Could not compile again',
-                                        apiError: error,
-                                    }),
-                            })
-                        }
-                        className={classes.backLink}
-                    >
-                        Compile again
-                    </Anchor>
-                </Group>
-            );
-        default:
-            return assertUnreachable(compile.status, 'Unknown compile status');
+    const description = describeBranchCompile(compile);
+    if (description === null) return null;
+    if (compile.status !== 'failed') {
+        return (
+            <Text c="white" fz="xs" truncate>
+                {description}
+            </Text>
+        );
     }
+    return (
+        <Group gap={6} wrap="nowrap" miw={0}>
+            <Tooltip
+                multiline
+                maw={480}
+                label={compile.error ?? 'The compile failed.'}
+            >
+                <Text c="white" fz="xs" truncate>
+                    {description}
+                </Text>
+            </Tooltip>
+            <Anchor
+                component="button"
+                type="button"
+                c="white"
+                fz="xs"
+                fw={600}
+                underline="always"
+                disabled={isLoading}
+                onClick={() => compileAgain()}
+                className={classes.backLink}
+            >
+                Compile again
+            </Anchor>
+        </Group>
+    );
 };
 
 /** Says the whole app shows a checked-out draft, and goes back to what is published in one click. */
