@@ -48,6 +48,7 @@ import {
 } from '../../../hooks/useProjectAiAgents';
 import { usePullRequestCiChecks } from '../../../hooks/usePullRequestCiChecks';
 import { POST_MERGE_MIGRATION_PROMPT } from '../../../postMergeMigrationPrompt';
+import { DraftProgress } from '../../SemanticStudioAgent/DraftProgress';
 import { PullRequestCardTryIt } from '../../SemanticStudioAgent/TryItButton';
 import { useFinishDiscardedWork } from '../../SemanticStudioAgent/useSemanticStudioChat';
 import styles from './AiEditDbtProjectToolCall.module.css';
@@ -832,6 +833,13 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                         )}
                     </Box>
                 </Box>
+                {quiet && isOpen ? (
+                    <DraftProgress
+                        projectUuid={projectUuid}
+                        prUrl={metadata.prUrl}
+                        commitSha={metadata.commitSha ?? null}
+                    />
+                ) : null}
                 {!isBitbucket && (
                     <PullRequestCiChecks
                         prUrl={metadata.prUrl}
