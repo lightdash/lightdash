@@ -1,3 +1,10 @@
+## [3.301.1](https://github.com/lightdash/lightdash/compare/3.301.0...3.301.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **composer:** apply chart write checks when a dashboard is rolled back ([#32774](https://github.com/lightdash/lightdash/issues/32774)) ([c2cc17c](https://github.com/lightdash/lightdash/commit/c2cc17ca1e2bc98111469f70ccb9a85aeb4cdd4a))
+
 # [3.301.0](https://github.com/lightdash/lightdash/compare/3.300.1...3.301.0) (2026-11-17)
 
 
