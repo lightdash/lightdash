@@ -186,6 +186,7 @@
 .graphAside {
     flex: 1;
     min-width: 0;
+    min-height: 0;
     border-right: 1px solid var(--mantine-color-default-border);
     overflow: hidden;
 }
@@ -193,4 +194,17 @@
 .graphBeside {
     flex: 1;
     min-width: 0;
+    min-height: 0;
+}
+
+/* Phones stack the chart above the graph, so the graph keeps the full width. */
+@media (width < $mantine-breakpoint-sm) {
+    .graphWithAside {
+        flex-direction: column;
+    }
+
+    .graphAside {
+        border-right: 0;
+        border-bottom: 1px solid var(--mantine-color-default-border);
+    }
 }
