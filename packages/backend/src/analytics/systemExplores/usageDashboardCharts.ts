@@ -967,6 +967,16 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 fieldId: 'agent_requests_total_requests',
             },
         ],
+        libraryChart: {
+            slug: 'heatmap',
+            minVersion: '0.4.0',
+            fieldMapping: {
+                x: 'agent_requests_feedback_score',
+                y: 'agent_requests_status',
+                value: 'agent_requests_total_request_tokens',
+            },
+            optionValues: {},
+        },
     },
     {
         key: 'review-candidates-activity-and-known-dependencies',
