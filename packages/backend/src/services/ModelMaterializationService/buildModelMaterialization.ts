@@ -30,6 +30,7 @@ const getDuckdbType = ({
             return 'INTEGER';
         case types.builtins.TEXT:
         case types.builtins.VARCHAR:
+        case types.builtins.BPCHAR:
             return 'VARCHAR';
         case types.builtins.FLOAT4:
             return 'FLOAT';

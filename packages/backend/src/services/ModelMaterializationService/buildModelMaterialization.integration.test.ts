@@ -98,6 +98,30 @@ describe('materialized model Parquet', () => {
             db.closeSync();
         }
     });
+    it('stores fixed-width character columns as text, padded as Postgres returns them', async () => {
+        const file = 'bpchar.parquet';
+        const result = await build(
+            file,
+            `SELECT 'GB'::char(2) AS country, 'EU'::char(3) AS region`,
+            10,
+        );
+        expect(result.nativeSchema.map((c) => c.duckdbType)).toEqual([
+            'VARCHAR',
+            'VARCHAR',
+        ]);
+        const db = await DuckDBInstance.create(':memory:');
+        const connection = await db.connect();
+        try {
+            const relation = await connection.runAndReadAll(
+                'SELECT country, region FROM read_parquet($1)',
+                [join(directory, file)],
+            );
+            expect(relation.getRows()).toEqual([['GB', 'EU ']]);
+        } finally {
+            connection.closeSync();
+            db.closeSync();
+        }
+    });
     it('preserves the native schema of an empty result', async () => {
         const result = await build(
             'empty.parquet',
