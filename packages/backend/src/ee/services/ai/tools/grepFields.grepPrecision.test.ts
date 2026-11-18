@@ -180,6 +180,120 @@ describe('grepFields table filters', () => {
         );
         expect(result).not.toContain('must be applied');
     });
+
+    it('explains the filter kinds once, after listing each explore its filters', async () => {
+        const timeFilter = (field: string): ModelRequiredFilterRule => ({
+            id: `${field}-filter`,
+            target: { fieldRef: field },
+            operator: FilterOperator.IN_THE_PAST,
+            values: [4],
+            required: true,
+        });
+        const tool = getGrepFields({
+            availableExplores: ['orders', 'deliveries', 'tickets'].map((name) =>
+                makeExplore({
+                    name,
+                    fields: [{ name: 'status' }],
+                    requiredFilters: [timeFilter('created_at')],
+                }),
+            ),
+            findExplores: noFtsResults,
+            verifiedFieldUsage: new Map(),
+        });
+
+        const { result } = await execute(tool, {
+            patterns: ['status', 'status|state'],
+            exploreName: null,
+        });
+
+        ['orders', 'deliveries', 'tickets'].forEach((name) =>
+            expect(result).toContain(
+                `⚠ table filters: required ${name}_created_at inThePast [4]\n`,
+            ),
+        );
+        expect(result.match(/replaceable defaults/g)).toHaveLength(1);
+    });
+});
+
+describe('grepFields joined fields', () => {
+    const withJoinedTable = (explore: Explore, joined: Explore): Explore => ({
+        ...explore,
+        tables: { ...explore.tables, ...joined.tables },
+    });
+
+    it('renders a joined field description once and points later copies back to it', async () => {
+        const description = `Browser the user signed up with. ${'Details. '.repeat(80)}`;
+        const users = makeExplore({
+            name: 'users',
+            fields: [
+                {
+                    name: 'browser',
+                    label: 'Browser',
+                    description,
+                    aiHint: 'Use for sign-up browser questions.',
+                },
+            ],
+        });
+        const tool = getGrepFields({
+            availableExplores: [
+                users,
+                ...['orders', 'deliveries', 'tickets'].map((name) =>
+                    withJoinedTable(
+                        makeExplore({ name, fields: [{ name: 'status' }] }),
+                        users,
+                    ),
+                ),
+            ],
+            findExplores: noFtsResults,
+            verifiedFieldUsage: new Map(),
+        });
+
+        const { result } = await execute(tool, {
+            patterns: ['browser'],
+            exploreName: null,
+        });
+
+        const fieldLines = result
+            .split('\n')
+            .filter((line) => line.includes('/users_browser'));
+        expect(fieldLines).toHaveLength(4);
+        expect(result.split(description.trim()).length - 1).toBe(1);
+        const firstPath = fieldLines[0].trim().split(' ')[0];
+        fieldLines
+            .slice(1)
+            .forEach((line) =>
+                expect(line).toContain(`— same as ${firstPath} above`),
+            );
+    });
+
+    it('prints full text once even when a pointer would be longer than it', async () => {
+        const description = `Browser the user signed up with. ${'x'.repeat(150)}`;
+        const users = makeExplore({
+            name: 'users',
+            fields: [{ name: 'browser', label: 'Browser', description }],
+        });
+        const longName = (name: string) => `${name}_${'long_name_'.repeat(20)}`;
+        const tool = getGrepFields({
+            availableExplores: ['orders', 'deliveries', 'tickets'].map((name) =>
+                withJoinedTable(
+                    makeExplore({
+                        name: longName(name),
+                        fields: [{ name: 'status' }],
+                    }),
+                    users,
+                ),
+            ),
+            findExplores: noFtsResults,
+            verifiedFieldUsage: new Map(),
+        });
+
+        const { result } = await execute(tool, {
+            patterns: ['browser'],
+            exploreName: null,
+        });
+
+        expect(result.split(description).length - 1).toBe(1);
+    });
 });
 
 describe('grepFields default time dimensions', () => {
