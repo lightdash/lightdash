@@ -463,7 +463,7 @@ describe('TileOverlays', () => {
         expect(select(both.uuid)).toHaveFocus();
     });
 
-    it('says "Filtered via" a field other than the filter\'s own', () => {
+    it('says "Filtered by" on any field, the filter\'s own or another', () => {
         setEditor({
             editingRule: rule({
                 tileTargets: {
@@ -476,7 +476,7 @@ describe('TileOverlays', () => {
         });
         renderWithProviders(<TileOverlays />);
 
-        expect(status(both.uuid)).toBe('Filtered via');
+        expect(status(both.uuid)).toBe('Filtered by');
         expect(select(both.uuid)).toHaveTextContent('Orders Region');
         expect(status(statusOnly.uuid)).toBe('Filtered by');
     });
@@ -1531,7 +1531,7 @@ describe('TileOverlays', () => {
         });
         renderWithProviders(<TileOverlays />);
 
-        expect(status(sql.uuid)).toBe('Filtered via');
+        expect(status(sql.uuid)).toBe('Filtered by');
         await userEvent.click(select(sql.uuid));
         const options = screen.getAllByRole('option', { hidden: true });
         expect(options.map((option) => option.textContent)).toEqual([
