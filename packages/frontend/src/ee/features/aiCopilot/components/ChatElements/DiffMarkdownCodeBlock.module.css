@@ -35,7 +35,8 @@
     border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
-.path {
+/* Two classes, so the reply's own paragraph size does not win. */
+.header .path {
     font-family: var(--mantine-font-family-monospace);
     font-size: var(--mantine-font-size-xs);
     font-weight: 500;
