@@ -158,8 +158,7 @@ const DashboardCapture: FC = () => {
         projectUuid,
     );
 
-    // Each question becomes its own analysis: a thread per question, all
-    // docked in the launcher, with the first one opened.
+    // Everything for the agent goes in one thread, as a numbered list.
     const sendQuestions = useCallback(
         (
             questions: CaptureQuestion[],
@@ -189,23 +188,23 @@ const DashboardCapture: FC = () => {
                 );
                 return;
             }
+            // One thread for the whole recording, so the agent has every
+            // request in front of it and changes do not race each other.
+            const chartUuid =
+                questions.length === 1 ? chartUuidFor(questions[0]) : undefined;
             openedFirstThreadRef.current = false;
-            questions.forEach((question) => {
-                const chartUuid = chartUuidFor(question);
-                void createThread({
-                    agentUuid,
-                    prompt: question.text,
-                    context: [
-                        { type: 'dashboard', dashboardUuid },
-                        ...(chartUuid
-                            ? [{ type: 'chart' as const, chartUuid }]
-                            : []),
-                    ],
-                }).catch(() => {
-                    showToastError({
-                        title: 'Could not send a question to the agent',
-                        subtitle: question.text,
-                    });
+            void createThread({
+                agentUuid,
+                prompt: questionsToPrompt(questions),
+                context: [
+                    { type: 'dashboard', dashboardUuid },
+                    ...(chartUuid
+                        ? [{ type: 'chart' as const, chartUuid }]
+                        : []),
+                ],
+            }).catch(() => {
+                showToastError({
+                    title: 'Could not send your requests to the agent',
                 });
             });
         },
@@ -255,10 +254,6 @@ const DashboardCapture: FC = () => {
                     setDashboardTiles(layout.tiles);
                 }
 
-                if (route.questions.length > 0) {
-                    sendQuestions(route.questions, tiles, dashboard.uuid);
-                }
-
                 // The agent saves its changes and the page reloads the
                 // dashboard, which would wipe an unsaved layout. So agent
                 // changes wait until the layout is saved or discarded.
@@ -271,8 +266,13 @@ const DashboardCapture: FC = () => {
                 if (edits.length > 0 && layoutPending) {
                     heldEditsRef.current = [...heldEditsRef.current, ...edits];
                     setHeldEditCount(heldEditsRef.current.length);
-                } else if (edits.length > 0) {
-                    sendQuestions(edits, tiles, dashboard.uuid);
+                }
+                const forAgentNow = [
+                    ...route.questions,
+                    ...(layoutPending ? [] : edits),
+                ];
+                if (forAgentNow.length > 0) {
+                    sendQuestions(forAgentNow, tiles, dashboard.uuid);
                 }
 
                 if (
