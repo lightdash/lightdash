@@ -1521,13 +1521,8 @@ export class ProjectModel {
                               results_cache_ttl_seconds:
                                   copiedProjects[0].results_cache_ttl_seconds,
                           }
-                        : {
-                              // New projects cache results where the results
-                              // cache runs (licensed instances); existing
-                              // projects keep their setting.
-                              results_cache_enabled:
-                                  !!this.lightdashConfig.license.licenseKey,
-                          }),
+                        : // New projects cache results; existing ones keep their setting.
+                          { results_cache_enabled: true }),
                     created_by_user_uuid: userUuid,
                     organization_warehouse_credentials_uuid: null,
                     provisioning_source: provisioningSource ?? null,
