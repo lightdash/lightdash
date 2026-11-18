@@ -1,3 +1,10 @@
+## [3.321.1](https://github.com/lightdash/lightdash/compare/3.321.0...3.321.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **ai-agent:** stop the admin thread list timing out for large organizations (PROD-13190) ([#32901](https://github.com/lightdash/lightdash/issues/32901)) ([f880f3c](https://github.com/lightdash/lightdash/commit/f880f3ce24e4a0a479e38472853429f77f220f07))
+
 # [3.321.0](https://github.com/lightdash/lightdash/compare/3.320.0...3.321.0) (2026-11-18)
 
 
