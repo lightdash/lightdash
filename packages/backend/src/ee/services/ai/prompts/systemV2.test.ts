@@ -443,7 +443,7 @@ describe('getSystemPromptV2 composer queries', () => {
         });
 
         expect(content).toContain(
-            'Combine semanticLayer nodes that meet on dimensions they share at the same grain (both by month, both by customer) with a merge node.',
+            'with a merge node when they meet on dimensions they share at the same grain.',
         );
         expect(content).toContain(
             '- Combine results any other way with a duckdb node',

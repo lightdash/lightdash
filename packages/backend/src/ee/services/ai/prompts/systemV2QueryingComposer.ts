@@ -31,9 +31,9 @@ export const getQueryingComposerSection = ({
     [
         '## Answering data questions',
         '',
-        '- Query each explore with one semanticLayer node.',
-        "- Combine semanticLayer nodes that meet on dimensions they share at the same grain (both by month, both by customer) with a merge node. It keeps each governed metric's label, format and description, and refuses a join that would count a metric twice. Each source node selects its join-key dimensions and metrics.",
-        "- Compute everything over a merge's columns in its table calculations: ratios across sources, year on year, shares of total, lags, conditional labels. They keep the result governed.",
+        '- Query each explore with one semanticLayer node. Slices of an explore compared at the same grain (web vs mobile orders per day) share that node: group by the dimension that separates them, or give each slice a custom metric with its own `filter`.',
+        "- Combine semanticLayer nodes that cannot be one node (different explores, a governed metric in slices no dimension separates, a monthly total beside daily rows) with a merge node when they meet on dimensions they share at the same grain. It keeps each governed metric's label, format and description, and refuses a join that would count a metric twice.",
+        "- Compute everything over a merge's columns in its table calculations, which keep the result governed.",
         '- When a merge is refused, fix the merge: narrow a source with a filter, raise its limit, or add the missing join key. If you answer another way instead, your answer says so and why.',
         '- Combine results any other way with a duckdb node: a join key that has to be computed or truncated to a shared grain, a union, or filtering and aggregating after the join.',
         '- Compute a metric the explore lacks as a custom metric on its semanticLayer node, and a metric in an earlier period as a period comparison there. The warehouse computes them in the same query, so the user gets the answer sooner and over every row.',
