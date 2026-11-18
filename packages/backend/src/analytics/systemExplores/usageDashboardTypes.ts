@@ -49,6 +49,8 @@ export type UsageDashboardSpec = {
             title: string;
             description: string;
             noteHeight?: number;
+            layout?: 'row';
+            rowHeight?: number;
             charts: string[];
         }[];
     }[];

@@ -478,9 +478,6 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 fieldId: 'agent_requests_requested_at_week',
             },
         ],
-        visualization: 'line',
-        xField: 'agent_requests_requested_at_week',
-        yFields: ['agent_requests_total_requests'],
         libraryChart: {
             slug: 'vega-trellis',
             minVersion: '0.6.0',

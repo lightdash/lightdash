@@ -448,6 +448,7 @@ export const buildUsageDashboards = (
                     (item) => item.chartConfig.type === ChartType.BIG_NUMBER,
                 );
                 const sectionY = y;
+                const isRow = section.layout === 'row';
                 const hasSummaryTrend =
                     sectionCharts[0]?.chartConfig.type ===
                         ChartType.BIG_NUMBER &&
@@ -463,7 +464,8 @@ export const buildUsageDashboards = (
                 sectionCharts.forEach((item, index) => {
                     const summary = hasSummaryTrend && index < 2;
                     let h = 7;
-                    if (isKpiRow) h = 3;
+                    if (isRow) h = section.rowHeight ?? 7;
+                    else if (isKpiRow) h = 3;
                     // Compact breakdowns keep a short viewport; longer results
                     // remain available through the table's existing scroll.
                     else if (
@@ -476,7 +478,11 @@ export const buildUsageDashboards = (
                     let w = 36;
                     let x = 0;
                     let tileY = nextY;
-                    if (isKpiRow) {
+                    if (isRow) {
+                        w = 36 / sectionCharts.length;
+                        x = index * w;
+                        tileY = sectionY;
+                    } else if (isKpiRow) {
                         w = 36 / sectionCharts.length;
                         x = index * w;
                         tileY = sectionY;
@@ -500,10 +506,16 @@ export const buildUsageDashboards = (
                         h,
                         properties: { chartSlug: item.slug },
                     });
-                    if (!isKpiRow && !isVisualPair && (!summary || index === 1))
+                    if (
+                        !isRow &&
+                        !isKpiRow &&
+                        !isVisualPair &&
+                        (!summary || index === 1)
+                    )
                         nextY += h;
                 });
-                if (isKpiRow) y = sectionY + 3;
+                if (isRow) y = sectionY + (section.rowHeight ?? 7);
+                else if (isKpiRow) y = sectionY + 3;
                 else if (isVisualPair) y = sectionY + 7;
                 else y = nextY;
             }

@@ -19,10 +19,26 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         charts: [
                             'agent-requests-trend',
                             'agent-requesters-trend',
+                        ],
+                        layout: 'row',
+                        rowHeight: 4,
+                    },
+                    {
+                        title: 'Requests by agent',
+                        description:
+                            'Requests by agent and week. All retained captured history. Recent capture is not a full historical census.',
+                        charts: [
                             'agent-requests-by-agent-and-week',
                             'agent-weekly-requests-per-agent',
-                            'agent-adoption-by-week',
                         ],
+                        layout: 'row',
+                        rowHeight: 8,
+                    },
+                    {
+                        title: 'Requests by person',
+                        description:
+                            'Requests by person, agent and week. This is not an eligible-user adoption rate or a comparison with external assistants.',
+                        charts: ['agent-adoption-by-week'],
                     },
                 ],
             },

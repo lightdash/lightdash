@@ -598,9 +598,52 @@ describe('built-in usage dashboards', () => {
             ChartType.TABLE,
         );
         expect(fallbackType('agent-weekly-requests-per-agent')).toBe(
-            ChartType.CARTESIAN,
+            ChartType.TABLE,
         );
         expect(fallbackType('agent-adoption-by-week')).toBe(ChartType.TABLE);
+    });
+
+    it('lays the Agent adoption sections out as explicit rows', () => {
+        const { dashboard } = analyticsContentAsCode.find(
+            ({ dashboard: item }) =>
+                item.slug === 'lightdash-analytics-overview',
+        )!;
+        const tile = (key: string) =>
+            dashboard.tiles.find(
+                (item) =>
+                    item.type === DashboardTileTypes.SAVED_CHART &&
+                    item.tabSlug === 'adoption' &&
+                    (item.properties as { chartSlug: string }).chartSlug ===
+                        `lightdash-analytics-overview-${key}`,
+            )!;
+        const [a, b] = ['agent-requests-trend', 'agent-requesters-trend'].map(
+            tile,
+        );
+        expect([a.x, b.x, a.w, b.w, a.h, b.h]).toEqual([0, 18, 18, 18, 4, 4]);
+        expect(a.y).toBe(b.y);
+        const [c, d] = [
+            'agent-requests-by-agent-and-week',
+            'agent-weekly-requests-per-agent',
+        ].map(tile);
+        expect([c.x, d.x, c.w, d.w, c.h, d.h]).toEqual([0, 18, 18, 18, 8, 8]);
+        expect(c.y).toBe(d.y);
+        expect(tile('agent-adoption-by-week').w).toBe(36);
+    });
+
+    it('keeps tile geometry for sections without a layout hint', () => {
+        const { dashboard } = analyticsContentAsCode.find(
+            ({ dashboard: item }) =>
+                item.slug === 'lightdash-analytics-overview',
+        )!;
+        const geometry = dashboard.tiles
+            .filter((tile) => tile.tabSlug === 'outcomes')
+            .map((tile) => [tile.x, tile.y, tile.w, tile.h]);
+        expect(geometry).toEqual([
+            [0, 0, 36, 2],
+            [0, 2, 36, 7],
+            [0, 9, 36, 2],
+            [0, 11, 36, 7],
+        ]);
     });
 
     it('scopes outcome filters and the default date range to the two outcome charts', () => {
