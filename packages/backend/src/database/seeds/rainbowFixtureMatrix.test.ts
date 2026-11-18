@@ -36,9 +36,7 @@ describe('seed embed secret', () => {
 
     it('never uses the published secret when the pull request flag is set', () => {
         expect(canUseKnownEmbedSecret(LightdashMode.DEV, true)).toBe(false);
-        expect(canUseKnownEmbedSecret(LightdashMode.DEFAULT, true)).toBe(
-            false,
-        );
+        expect(canUseKnownEmbedSecret(LightdashMode.DEFAULT, true)).toBe(false);
         expect(getSeedEmbedSecret(LightdashMode.DEV, true)).not.toBe(
             SEED_EMBED_SECRET,
         );
@@ -59,9 +57,7 @@ describe('seed embed secret', () => {
 
     it('keeps the published secret for local development', () => {
         expect(canUseKnownEmbedSecret(LightdashMode.DEV, false)).toBe(true);
-        expect(canUseKnownEmbedSecret(LightdashMode.DEFAULT, false)).toBe(
-            true,
-        );
+        expect(canUseKnownEmbedSecret(LightdashMode.DEFAULT, false)).toBe(true);
         expect(getSeedEmbedSecret(LightdashMode.DEV, false)).toBe(
             SEED_EMBED_SECRET,
         );
@@ -138,8 +134,11 @@ describe('rainbow fixture identities', () => {
     });
 
     it('names the private space apart from the space suite text', () => {
-        [RAINBOW_PRIVATE_SPACE.name, RAINBOW_PRIVATE_SPACE.dashboardName].forEach(
-            (name) => expect(name.toLowerCase()).not.toContain('private space'),
+        [
+            RAINBOW_PRIVATE_SPACE.name,
+            RAINBOW_PRIVATE_SPACE.dashboardName,
+        ].forEach((name) =>
+            expect(name.toLowerCase()).not.toContain('private space'),
         );
     });
 });

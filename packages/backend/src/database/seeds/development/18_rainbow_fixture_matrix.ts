@@ -149,10 +149,7 @@ async function seedJoinableMember(database: Knex) {
                 true,
             )
         ).userUuid;
-    await new EmailModel({ database }).verifyUserEmailIfExists(
-        userUuid,
-        email,
-    );
+    await new EmailModel({ database }).verifyUserEmailIfExists(userUuid, email);
     await new OrganizationAllowedEmailDomainsModel({
         database,
     }).upsertAllowedEmailDomains({
