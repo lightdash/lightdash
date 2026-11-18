@@ -16,16 +16,16 @@ import {
     type Icon,
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
-import FieldIcon from '../../../../../../components/common/Filters/FieldIcon';
-import MantineIcon from '../../../../../../components/common/MantineIcon';
-import ErrorBoundary from '../../../../../../features/errorBoundary/ErrorBoundary';
-import { getFieldColors } from '../../../../../../utils/fieldColors';
-import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
-import AgentVisualizationFilters from '../AgentVisualizationFilters';
-import { FieldDetailHoverCard } from '../AgentVisualizationMetricsAndDimensions';
-import AgentVisualizationParameters from '../AgentVisualizationParameters';
-import { getVisualizationFiltersCount } from '../AiVisualizationRenderer.utils';
-import chipClasses from '../QueryChip.module.css';
+import FieldIcon from '../../../components/common/Filters/FieldIcon';
+import MantineIcon from '../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
+import { getFieldColors } from '../../../utils/fieldColors';
+import ErrorBoundary from '../../errorBoundary/ErrorBoundary';
+import AgentVisualizationFilters from './AgentVisualizationFilters';
+import { FieldDetailHoverCard } from './AgentVisualizationMetricsAndDimensions';
+import AgentVisualizationParameters from './AgentVisualizationParameters';
+import { getVisualizationFiltersCount } from './AiVisualizationRenderer.utils';
+import chipClasses from './QueryChip.module.css';
 import styles from './SemanticNodeDetails.module.css';
 
 export type SemanticNodeQuery = Pick<

@@ -6,8 +6,8 @@ import {
 } from '@lightdash/common';
 import { Box, Paper, Stack, Text } from '@mantine/core';
 import { useMemo, type FC, type ReactNode } from 'react';
-import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
-import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
+import { type InfiniteQueryResults } from '../../../hooks/useQueryResults';
 import { AiComposerResultError } from './AiComposerResultError';
 import { AiComposerRunQueryChart } from './AiComposerRunQueryChart';
 import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';

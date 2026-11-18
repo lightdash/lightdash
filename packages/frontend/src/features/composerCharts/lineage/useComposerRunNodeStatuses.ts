@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { type ComposerNodeStatus } from './composerNodeStatus';
 
 /** A node's status in the current run; error is the failed node's message. */

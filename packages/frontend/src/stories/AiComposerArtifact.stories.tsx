@@ -14,10 +14,10 @@ import { clsx } from 'clsx';
 import { useState } from 'react';
 import MantineIcon from '../components/common/MantineIcon';
 import panelStyles from '../ee/features/aiCopilot/components/ChatElements/AiArtifactPanel.module.css';
-import { AiComposerResultError } from '../ee/features/aiCopilot/components/ChatElements/AiComposerResultError';
-import { AiComposerLineage } from '../ee/features/aiCopilot/components/ChatElements/composerPipeline/AiComposerLineage';
 import { ComposerQueriesToolCallDescription } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/descriptions/ComposerQueriesToolCallDescription';
-import { type ComposerRunNodeStatus } from '../ee/features/aiCopilot/components/ChatElements/useComposerRunNodeStatuses';
+import { AiComposerLineage } from '../features/composerCharts/lineage/AiComposerLineage';
+import { AiComposerResultError } from '../features/composerCharts/lineage/AiComposerResultError';
+import { type ComposerRunNodeStatus } from '../features/composerCharts/lineage/useComposerRunNodeStatuses';
 import {
     mergeManyStepsStoryQueries,
     mergeStoryQueries,

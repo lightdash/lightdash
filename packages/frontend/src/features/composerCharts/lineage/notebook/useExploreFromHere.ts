@@ -7,11 +7,11 @@ import {
     type SourceQuery,
 } from '@lightdash/common';
 import { useCallback } from 'react';
-import { getExploreFromHereUrl } from '../../../../../../../features/mergeQuery/utils/getExploreFromHereUrl';
-import useToaster from '../../../../../../../hooks/toaster/useToaster';
-import { useCreateShareMutation } from '../../../../../../../hooks/useShare';
-import { getOpenInExploreUrl } from '../../../../../../../utils/getOpenInExploreUrl';
-import useIsEmbedded from '../../../../../../providers/Embed/useIsEmbedded';
+import useIsEmbedded from '../../../../ee/providers/Embed/useIsEmbedded';
+import useToaster from '../../../../hooks/toaster/useToaster';
+import { useCreateShareMutation } from '../../../../hooks/useShare';
+import { getOpenInExploreUrl } from '../../../../utils/getOpenInExploreUrl';
+import { getExploreFromHereUrl } from '../../../mergeQuery/utils/getExploreFromHereUrl';
 
 type ExploreUrl = { pathname: string; search: string };
 

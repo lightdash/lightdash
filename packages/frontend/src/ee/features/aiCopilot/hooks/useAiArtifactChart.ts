@@ -8,9 +8,9 @@ import {
     type DataAppVizChart,
 } from '@lightdash/common';
 import { useMemo } from 'react';
+import { useAiMergeCompiledSql } from '../../../../features/composerCharts/hooks/useAiMergeCompiledSql';
+import { useCanViewAiAgentSql } from '../../../../features/composerCharts/hooks/useCanViewAiAgentSql';
 import { useCompiledSqlFromMetricQuery } from '../../../../hooks/useCompiledSql';
-import { useAiMergeCompiledSql } from './useAiMergeCompiledSql';
-import { useCanViewAiAgentSql } from './useCanViewAiAgentSql';
 
 type AiArtifactChartSource = {
     isMergeArtifact: boolean;

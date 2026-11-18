@@ -1,6 +1,6 @@
 import { type RawResultRow, type ResultRow } from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
-import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import { type InfiniteQueryResults } from '../../../hooks/useQueryResults';
 
 const unwrapRows = (rows: ResultRow[]): RawResultRow[] =>
     rows.map((row) =>

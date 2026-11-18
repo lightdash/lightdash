@@ -8,8 +8,8 @@ import {
 } from '@lightdash/common';
 import { useQueries } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { getExplore } from '../../../../../../../hooks/useExplore';
-import { useLightdashApi } from '../../../../../../../providers/LightdashApi/useLightdashApi';
+import { getExplore } from '../../../../hooks/useExplore';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import { type PipelineNode } from '../groupPipeline';
 import {
     summarizeMergeNode,

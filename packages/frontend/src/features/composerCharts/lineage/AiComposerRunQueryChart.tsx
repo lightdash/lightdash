@@ -5,12 +5,12 @@ import {
     type ResultRow,
 } from '@lightdash/common';
 import { useMemo, useState, type FC, type RefObject } from 'react';
-import { type EChartsReact } from '../../../../../components/EChartsReactWrapper';
-import LightdashVisualization from '../../../../../components/LightdashVisualization';
-import VisualizationProvider from '../../../../../components/LightdashVisualization/VisualizationProvider';
-import MetricQueryDataProvider from '../../../../../components/MetricQueryData/MetricQueryDataProvider';
-import { useProjectColorPalette } from '../../../../../hooks/appearance/useProjectColorPalette';
-import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import { type EChartsReact } from '../../../components/EChartsReactWrapper';
+import LightdashVisualization from '../../../components/LightdashVisualization';
+import VisualizationProvider from '../../../components/LightdashVisualization/VisualizationProvider';
+import MetricQueryDataProvider from '../../../components/MetricQueryData/MetricQueryDataProvider';
+import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
+import { type InfiniteQueryResults } from '../../../hooks/useQueryResults';
 
 type Props = {
     projectUuid: string;

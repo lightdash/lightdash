@@ -4,7 +4,7 @@ import {
     type SemanticLayerSourceQuery,
     type SourceQuery,
 } from '@lightdash/common';
-import { getVisualizationFiltersCount } from '../../AiVisualizationRenderer.utils';
+import { getVisualizationFiltersCount } from '../AiVisualizationRenderer.utils';
 
 export const semanticQueryOf = (query: SourceQuery) =>
     query.sourceType === QuerySourceType.SEMANTIC_LAYER ? query : null;

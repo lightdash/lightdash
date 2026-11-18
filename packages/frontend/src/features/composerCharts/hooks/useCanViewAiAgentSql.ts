@@ -1,5 +1,5 @@
-import { useAbilityContext } from '../../../../providers/Ability/useAbilityContext';
-import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
+import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
+import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 
 export const useCanViewAiAgentSql = (): boolean => {
     const ability = useAbilityContext();

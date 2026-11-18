@@ -1,7 +1,7 @@
 import { Box, Tooltip } from '@mantine/core';
 import { IconCheck, IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
-import MantineIcon from '../../../../../components/common/MantineIcon';
+import MantineIcon from '../../../components/common/MantineIcon';
 import {
     useComposerNodeStatusLabel,
     type ComposerNodeStatus,

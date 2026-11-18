@@ -24,9 +24,9 @@ import {
 import { useState, type FC } from 'react';
 import { AiMarkdown } from '../../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { type ComposerQueryNodeStatus } from '../../../../../../features/composerCharts/lineage/composerNodeStatus';
 import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
 import { type StepProgressMessage } from '../../../store/aiAgentThreadStreamSlice';
-import { type ComposerQueryNodeStatus } from '../composerNodeStatus';
 import { WorkingLabel } from '../TypingDots';
 import { AgentStepGroups } from './AgentStepGroups';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';

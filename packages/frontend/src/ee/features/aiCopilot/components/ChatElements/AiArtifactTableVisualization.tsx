@@ -2,12 +2,12 @@ import { Paper, Stack, Text } from '@mantine/core';
 import { clsx } from 'clsx';
 import { useMemo, type FC, type ReactNode } from 'react';
 import { ChartDataTable } from '../../../../../components/DataViz/visualizations/ChartDataTable';
+import { ArtifactLoadingSketch } from '../../../../../features/composerCharts/lineage/ArtifactLoadingSketch';
+import { useArtifactResultRows } from '../../../../../features/composerCharts/lineage/useArtifactResultRows';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import styles from './AiArtifactTableVisualization.module.css';
 import { getAiArtifactTableConfig } from './AiArtifactTableVisualization.utils';
-import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
-import { useArtifactResultRows } from './useArtifactResultRows';
 
 type Props = {
     results: InfiniteQueryResults;

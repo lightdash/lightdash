@@ -5,11 +5,11 @@ import {
 import { Box, Stack } from '@mantine/core';
 import { useMemo, type FC, type ReactNode } from 'react';
 import Callout from '../../../components/common/Callout';
-import { ComposerNodeResultTable } from '../../../ee/features/aiCopilot/components/ChatElements/AiComposerNodeResult';
-import { AiComposerLineage } from '../../../ee/features/aiCopilot/components/ChatElements/composerPipeline/AiComposerLineage';
-import { useComposerRunNodeStatuses } from '../../../ee/features/aiCopilot/components/ChatElements/useComposerRunNodeStatuses';
 import { useUiString } from '../../../ee/providers/Embed/useUiStrings';
 import { useInfiniteQueryResults } from '../../../hooks/useQueryResults';
+import { AiComposerLineage } from '../lineage/AiComposerLineage';
+import { ComposerNodeResultTable } from '../lineage/ComposerNodeResultTable';
+import { useComposerRunNodeStatuses } from '../lineage/useComposerRunNodeStatuses';
 
 const NodeRows: FC<{ projectUuid: string; queryUuid: string }> = ({
     projectUuid,

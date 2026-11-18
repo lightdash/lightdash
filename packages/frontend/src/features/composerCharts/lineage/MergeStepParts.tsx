@@ -23,9 +23,8 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { Fragment, useMemo, useState, type FC, type ReactNode } from 'react';
-import MantineIcon from '../../../../../../components/common/MantineIcon';
-import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
-import chipClasses from '../QueryChip.module.css';
+import MantineIcon from '../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { type PipelineNode } from './groupPipeline';
 import { type MergeColumn, type MergeNodeSummary } from './mergeNodeSummary';
 import {
@@ -36,6 +35,7 @@ import {
 import styles from './MergeStepParts.module.css';
 import { NodeReferencePill, StepMarker } from './NodeReferencePill';
 import { type MergeNodeView } from './notebook/useMergeNodeView';
+import chipClasses from './QueryChip.module.css';
 import { DetailsRow } from './SemanticNodeDetails';
 import { useMergeNodeCopy } from './useMergeNodeCopy';
 

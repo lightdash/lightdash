@@ -21,6 +21,7 @@ const NO_CONNECTION_FIELD: SqlRunnerConnectionRequest = {
     ready: true,
     field: {},
 };
+import { useArtifactResultRows } from '../../../../../features/composerCharts/lineage/useArtifactResultRows';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import useCreateInAnySpaceAccess from '../../../../../hooks/user/useCreateInAnySpaceAccess';
 import useApp from '../../../../../providers/App/useApp';
@@ -29,7 +30,6 @@ import { getAiArtifactTableConfig } from './AiArtifactTableVisualization.utils';
 import { AiSqlArtifactDownloadModal } from './AiSqlArtifactDownloadModal';
 import { AiVizSwitchedResult } from './AiVizSwitchedResult';
 import { pickVizKind } from './AiVizSwitchedResult.utils';
-import { useArtifactResultRows } from './useArtifactResultRows';
 
 const LOADING_MESSAGE = 'Loading SQL results...';
 

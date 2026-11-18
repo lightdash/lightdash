@@ -28,19 +28,19 @@ import {
     type ReactNode,
     type Ref,
 } from 'react';
-import MantineIcon from '../../../../../../../components/common/MantineIcon';
-import useIsEmbedded from '../../../../../../providers/Embed/useIsEmbedded';
-import { useUiStrings } from '../../../../../../providers/Embed/useUiStrings';
-import { useCanViewAiAgentSql } from '../../../../hooks/useCanViewAiAgentSql';
-import { useComposerNodeRowsLabel } from '../../composerNodeStatus';
-import { NodeStatusIndicator } from '../../ComposerNodeStatusIndicator';
-import { type ComposerRunNodeStatus } from '../../useComposerRunNodeStatuses';
+import MantineIcon from '../../../../components/common/MantineIcon';
+import useIsEmbedded from '../../../../ee/providers/Embed/useIsEmbedded';
+import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
+import { useCanViewAiAgentSql } from '../../hooks/useCanViewAiAgentSql';
 import { ComposerNodeIcon } from '../ComposerNodeIcon';
+import { useComposerNodeRowsLabel } from '../composerNodeStatus';
+import { NodeStatusIndicator } from '../ComposerNodeStatusIndicator';
 import { type NodeLineage, type PipelineNode } from '../groupPipeline';
 import { MergeStepBody, MergeStepTitle } from '../MergeStep';
 import { MergeStepProvider } from '../MergeStepParts';
 import { NodeReferencePill } from '../NodeReferencePill';
 import { useComposerNodeTypeLabel } from '../useComposerNodeLiveSource';
+import { type ComposerRunNodeStatus } from '../useComposerRunNodeStatuses';
 import {
     CellQueryPanels,
     CellQueryToggles,

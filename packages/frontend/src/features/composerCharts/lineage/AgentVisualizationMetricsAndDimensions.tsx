@@ -22,15 +22,15 @@ import {
 } from '@mantine/core';
 import { IconCode } from '@tabler/icons-react';
 import { useMemo, useState, type FC, type ReactNode } from 'react';
-import FieldIcon from '../../../../../components/common/Filters/FieldIcon';
-import MantineIcon from '../../../../../components/common/MantineIcon';
-import { ItemDetailPreview } from '../../../../../components/Explorer/ExploreTree/TableTree/ItemDetailPreview';
-import { SingleItemModalContent } from '../../../../../components/Explorer/WriteBackModal';
-import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
-import useApp from '../../../../../providers/App/useApp';
-import useTracking from '../../../../../providers/Tracking/useTracking';
-import { EventName } from '../../../../../types/Events';
-import { getFieldColors } from '../../../../../utils/fieldColors';
+import FieldIcon from '../../../components/common/Filters/FieldIcon';
+import MantineIcon from '../../../components/common/MantineIcon';
+import { ItemDetailPreview } from '../../../components/Explorer/ExploreTree/TableTree/ItemDetailPreview';
+import { SingleItemModalContent } from '../../../components/Explorer/WriteBackModal';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import useApp from '../../../providers/App/useApp';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
+import { getFieldColors } from '../../../utils/fieldColors';
 import classes from './AgentVisualizationMetricsAndDimensions.module.css';
 
 /** Field description and metric SQL on hover, as in the classic chart artifacts. */
