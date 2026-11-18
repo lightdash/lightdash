@@ -5710,6 +5710,9 @@ export class AsyncQueryService extends ProjectService {
                 stream = createLocalParquetUploadStream({
                     parquetS3Uri,
                     s3Config,
+                    writerMemoryLimitMb:
+                        this.lightdashConfig.preAggregates
+                            .parquetWriterMemoryLimitMb,
                     logger: this.logger,
                     prometheusMetrics: this.prometheusMetrics,
                 });

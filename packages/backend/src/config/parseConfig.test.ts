@@ -199,6 +199,32 @@ describe('Snowflake AI OAuth configuration', () => {
     });
 });
 
+describe('managed pre-aggregate Parquet writer memory', () => {
+    it('uses 256 MB by default independently of the query memory limit', () => {
+        process.env.PRE_AGGREGATE_DUCKDB_QUERY_MEMORY_LIMIT = '2GB';
+        expect(parseConfig().preAggregates.parquetWriterMemoryLimitMb).toBe(
+            256,
+        );
+    });
+
+    it('uses the configured writer budget', () => {
+        process.env.PRE_AGGREGATE_PARQUET_WRITER_MEMORY_LIMIT_MB = '512';
+        expect(parseConfig().preAggregates.parquetWriterMemoryLimitMb).toBe(
+            512,
+        );
+    });
+
+    it.each(['0', '-1', '1.5', '512MB'])(
+        'rejects invalid MB value %s',
+        (value) => {
+            process.env.PRE_AGGREGATE_PARQUET_WRITER_MEMORY_LIMIT_MB = value;
+            expect(() => parseConfig()).toThrow(
+                /PRE_AGGREGATE_PARQUET_WRITER_MEMORY_LIMIT_MB/,
+            );
+        },
+    );
+});
+
 describe('underlying data dimension limit', () => {
     it.each([
         [undefined, 50],

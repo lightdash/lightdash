@@ -127,18 +127,19 @@ export const getPositiveIntegerFromEnvironmentVariable = (
     return value;
 };
 
-const getNonNegativeIntegerFromEnvironmentVariable = (
+const getUnsignedIntegerFromEnvironmentVariable = (
     name: string,
     defaultValue: number,
+    minimum = 0,
 ): number => {
     const raw = process.env[name];
     if (!raw) {
         return defaultValue;
     }
     const value = Number(raw);
-    if (!/^\d+$/.test(raw) || !Number.isSafeInteger(value)) {
+    if (!/^\d+$/.test(raw) || !Number.isSafeInteger(value) || value < minimum) {
         throw new ParseError(
-            `Cannot parse environment variable "${name}". Value must be a non-negative safe integer but ${name}=${raw}`,
+            `Cannot parse environment variable "${name}". Value must be a safe integer of at least ${minimum} but ${name}=${raw}`,
         );
     }
     return value;
@@ -2060,6 +2061,7 @@ export type LightdashConfig = {
         materializationMaxRows: number | null;
         /** Max memory DuckDB can use for caching parquet data and query intermediates on the shared query instance (e.g. '256MB', '1GB', '2GB'). Only affects pre-aggregate reads, not materializations which use isolated instances. */
         duckdbQueryMemoryLimit: string | null;
+        parquetWriterMemoryLimitMb: number;
         s3?: Omit<S3Config, 'expirationTime'>;
     };
     externalSources: {
@@ -3869,7 +3871,7 @@ export const parseConfig = (): LightdashConfig => {
                 ? process.env.LIGHTDASH_ENABLE_TIMEZONE_SUPPORT === 'true'
                 : undefined,
             exploreSummaryProjectionMinStoredBytesPerExplore:
-                getNonNegativeIntegerFromEnvironmentVariable(
+                getUnsignedIntegerFromEnvironmentVariable(
                     'LIGHTDASH_EXPLORE_SUMMARY_PROJECTION_MIN_STORED_BYTES_PER_EXPLORE',
                     2048,
                 ),
@@ -4299,6 +4301,12 @@ export const parseConfig = (): LightdashConfig => {
                 null,
             duckdbQueryMemoryLimit:
                 process.env.PRE_AGGREGATE_DUCKDB_QUERY_MEMORY_LIMIT ?? null,
+            parquetWriterMemoryLimitMb:
+                getUnsignedIntegerFromEnvironmentVariable(
+                    'PRE_AGGREGATE_PARQUET_WRITER_MEMORY_LIMIT_MB',
+                    256,
+                    1,
+                ),
             s3: preAggregatesS3,
         },
         externalSources: {

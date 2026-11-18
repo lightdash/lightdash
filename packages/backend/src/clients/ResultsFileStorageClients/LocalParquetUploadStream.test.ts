@@ -21,6 +21,7 @@ const mockConversionFailure = (error: Error) => {
 const createStream = () =>
     createLocalParquetUploadStream({
         parquetS3Uri: 's3://bucket/file.parquet',
+        writerMemoryLimitMb: 256,
         s3Config: {} as Parameters<
             typeof createLocalParquetUploadStream
         >[0]['s3Config'],
