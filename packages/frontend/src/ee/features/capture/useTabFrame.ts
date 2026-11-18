@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { cropRectForRegion, isFrameFromThisTab } from './frameGeometry';
+import { cropRectForRegion, isThisTab } from './frameGeometry';
 
 export type TabFrame = { bitmap: ImageBitmap; thumb: Uint8ClampedArray };
 export type TabFrameError = 'denied' | 'wrong-surface' | 'unsupported';
 
 const THUMB_SIZE = 64;
 // Tab capture only emits frames when pixels change, so never wait long.
-const FRESH_FRAME_WAIT_MS = 120;
+const FRESH_FRAME_WAIT_MS = 80;
 
 const waitForFreshFrame = (video: HTMLVideoElement): Promise<void> =>
     new Promise((resolve) => {
@@ -59,6 +59,21 @@ export const useTabFrame = ({
         if (!navigator.mediaDevices?.getDisplayMedia) {
             return { ok: false, error: 'unsupported' };
         }
+        const expectedHandle = crypto.randomUUID();
+        const media = navigator.mediaDevices as MediaDevices & {
+            setCaptureHandleConfig?: (config: {
+                handle: string;
+                permittedOrigins: string[];
+            }) => void;
+        };
+        try {
+            media.setCaptureHandleConfig?.({
+                handle: expectedHandle,
+                permittedOrigins: ['*'],
+            });
+        } catch {
+            // Without a handle the shape check below still applies.
+        }
         let stream: MediaStream;
         try {
             stream = await navigator.mediaDevices.getDisplayMedia({
@@ -81,15 +96,23 @@ export const useTabFrame = ({
             stream.getTracks().forEach((track) => track.stop());
             return { ok: false, error: 'denied' };
         }
-        const fromThisTab = isFrameFromThisTab(
-            { width: video.videoWidth, height: video.videoHeight },
-            { width: window.innerWidth, height: window.innerHeight },
-        );
+        const track = stream.getVideoTracks()[0] as
+            | (MediaStreamTrack & {
+                  getCaptureHandle?: () => { handle?: string } | null;
+              })
+            | undefined;
+        const fromThisTab = isThisTab({
+            captureHandle: track?.getCaptureHandle?.()?.handle ?? null,
+            expectedHandle,
+            displaySurface: track?.getSettings().displaySurface ?? null,
+            frame: { width: video.videoWidth, height: video.videoHeight },
+            viewport: { width: window.innerWidth, height: window.innerHeight },
+        });
         if (!fromThisTab) {
             stream.getTracks().forEach((track) => track.stop());
             return { ok: false, error: 'wrong-surface' };
         }
-        stream.getVideoTracks()[0]?.addEventListener('ended', () => {
+        track?.addEventListener('ended', () => {
             streamRef.current = null;
             videoRef.current = null;
             onStreamEndedRef.current();
@@ -102,6 +125,8 @@ export const useTabFrame = ({
     const grab = useCallback(async (region: DOMRect): Promise<TabFrame> => {
         const video = videoRef.current;
         if (!video) throw new Error('Tab capture is not running');
+        // Two frames, so the hidden pill and cleared ink have left the stream.
+        await waitForFreshFrame(video);
         await waitForFreshFrame(video);
         const crop = cropRectForRegion(
             {

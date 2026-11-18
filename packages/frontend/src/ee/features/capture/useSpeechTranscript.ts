@@ -30,12 +30,16 @@ const getRecognitionConstructor = (): RecognitionConstructor | null => {
 };
 
 const BLOCKED_ERRORS = ['not-allowed', 'service-not-allowed'];
+// Never let a silent recogniser hold up the start of a capture.
+const START_TIMEOUT_MS = 4000;
+
+const tidy = (text: string): string => text.replace(/\s+/g, ' ').trim();
 
 export const useSpeechTranscript = ({ now }: { now: () => number }) => {
     const recognitionRef = useRef<Recognition | null>(null);
     const runningRef = useRef(false);
     const phrasesRef = useRef<TranscriptPhrase[]>([]);
-    const interimRef = useRef<{ atMs: number; text: string } | null>(null);
+    const interimRef = useRef<TranscriptPhrase | null>(null);
     const [liveText, setLiveText] = useState('');
     const nowRef = useRef(now);
     nowRef.current = now;
@@ -58,38 +62,70 @@ export const useSpeechTranscript = ({ now }: { now: () => number }) => {
                     return;
                 }
                 const recognition = new Ctor();
+                let started = false;
+                let settled = false;
+                const settle = (voice: VoiceState) => {
+                    if (settled) return;
+                    settled = true;
+                    window.clearTimeout(timer);
+                    if (voice === 'off') runningRef.current = false;
+                    resolve(voice);
+                };
+                const timer = window.setTimeout(
+                    () => settle('off'),
+                    START_TIMEOUT_MS,
+                );
+
                 recognition.continuous = true;
                 recognition.interimResults = true;
                 recognition.lang = navigator.language;
-                recognition.onstart = () => resolve('on');
+                recognition.onstart = () => {
+                    started = true;
+                    settle('on');
+                };
                 recognition.onresult = (event) => {
+                    const pending: string[] = [];
                     for (
                         let i = event.resultIndex;
                         i < event.results.length;
                         i += 1
                     ) {
                         const result = event.results[i];
-                        const text = result[0].transcript.trim();
-                        // A phrase is timed from its first interim result.
-                        const atMs =
-                            interimRef.current?.atMs ?? nowRef.current();
+                        const text = tidy(result[0].transcript);
                         if (result.isFinal) {
+                            // A phrase is timed from its first interim result.
+                            const atMs =
+                                interimRef.current?.atMs ?? nowRef.current();
                             if (text) phrasesRef.current.push({ atMs, text });
                             interimRef.current = null;
                         } else if (text) {
-                            interimRef.current = { atMs, text };
+                            pending.push(text);
                         }
                     }
+                    // Chrome splits unfinished speech into several results.
+                    interimRef.current =
+                        pending.length > 0
+                            ? {
+                                  atMs:
+                                      interimRef.current?.atMs ??
+                                      nowRef.current(),
+                                  text: tidy(pending.join(' ')),
+                              }
+                            : null;
                     refreshLiveText();
                 };
                 recognition.onerror = (event) => {
-                    if (BLOCKED_ERRORS.includes(event.error)) {
+                    if (!started || BLOCKED_ERRORS.includes(event.error)) {
+                        settle('off');
                         runningRef.current = false;
-                        resolve('off');
                     }
                 };
                 // Chrome ends recognition after a pause; keep it going.
                 recognition.onend = () => {
+                    if (!started) {
+                        settle('off');
+                        return;
+                    }
                     if (!runningRef.current) return;
                     try {
                         recognition.start();
@@ -102,8 +138,7 @@ export const useSpeechTranscript = ({ now }: { now: () => number }) => {
                 try {
                     recognition.start();
                 } catch {
-                    runningRef.current = false;
-                    resolve('off');
+                    settle('off');
                 }
             }),
         [refreshLiveText],
@@ -111,14 +146,19 @@ export const useSpeechTranscript = ({ now }: { now: () => number }) => {
 
     const stop = useCallback((): TranscriptPhrase[] => {
         runningRef.current = false;
-        recognitionRef.current?.stop();
-        recognitionRef.current = null;
-        // Keep words still waiting to be finalised.
-        if (interimRef.current) {
-            phrasesRef.current.push(interimRef.current);
-            interimRef.current = null;
+        const recognition = recognitionRef.current;
+        if (recognition) {
+            // Late results must not change what has been handed back.
+            recognition.onresult = null;
+            recognition.onend = null;
+            recognition.onerror = null;
+            recognition.stop();
         }
-        return phrasesRef.current;
+        recognitionRef.current = null;
+        const phrases = [...phrasesRef.current];
+        if (interimRef.current) phrases.push(interimRef.current);
+        interimRef.current = null;
+        return phrases;
     }, []);
 
     return { start, stop, liveText };

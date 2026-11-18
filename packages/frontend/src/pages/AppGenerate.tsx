@@ -67,7 +67,8 @@ import { getChartIcon } from '../components/common/ResourceIcon/utils';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import { getAiAgentThreadPath } from '../ee/features/aiCopilot/hooks/aiAgentRouting';
 import {
-    useCapture,
+    CaptureHost,
+    type CaptureHostHandle,
     type CaptureResult,
     type CaptureSurface,
 } from '../ee/features/capture';
@@ -1236,7 +1237,8 @@ const AppGenerate: FC = () => {
                 : null,
         [captureAvailable],
     );
-    const capture = useCapture(captureSurface);
+    const captureRef = useRef<CaptureHostHandle>(null);
+    const [isCaptureRecording, setIsCaptureRecording] = useState(false);
     const handleInsightsInUse = useCallback(
         () => setAnalysisInUseScope(previewScope),
         [previewScope],
@@ -3476,6 +3478,7 @@ const AppGenerate: FC = () => {
                                         <AppHeaderActions
                                             previewTools={
                                                 (elementPicker.available ||
+                                                    captureSurface ||
                                                     (previewApp &&
                                                         screenshotAvailable &&
                                                         capturesEnabled)) && (
@@ -3511,12 +3514,12 @@ const AppGenerate: FC = () => {
                                                             )}
                                                         {captureSurface && (
                                                             <CaptureButton
-                                                                onClick={
-                                                                    capture.start
+                                                                onClick={() =>
+                                                                    captureRef.current?.start()
                                                                 }
                                                                 disabled={
                                                                     isSubmitting ||
-                                                                    capture.isRecording
+                                                                    isCaptureRecording
                                                                 }
                                                             />
                                                         )}
@@ -3691,7 +3694,11 @@ const AppGenerate: FC = () => {
                                 data-tour-return="none"
                                 data-tour-resultdocs="data-apps.mdx#restoring-an-earlier-version:1"
                             >
-                                {capture.element}
+                                <CaptureHost
+                                    ref={captureRef}
+                                    surface={captureSurface}
+                                    onRecordingChange={setIsCaptureRecording}
+                                />
                                 {previewApp ? (
                                     <AppPreview
                                         ref={previewRef}

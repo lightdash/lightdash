@@ -65,7 +65,18 @@ const isEditable = (target: EventTarget | null): boolean =>
 export const useCapture = (
     surface: CaptureSurface | null,
 ): { start: () => void; isRecording: boolean; element: ReactNode } => {
-    const { showToastError, showToastWarning } = useToaster();
+    // Read through a ref so the callbacks below keep a stable identity.
+    const toaster = useToaster();
+    const toasterRef = useRef(toaster);
+    toasterRef.current = toaster;
+    const showToastError = useCallback(
+        (title: string) => toasterRef.current.showToastError({ title }),
+        [],
+    );
+    const showToastWarning = useCallback(
+        (title: string) => toasterRef.current.showToastWarning({ title }),
+        [],
+    );
 
     const [state, setState] = useState<CaptureState>(IDLE);
     const stateRef = useRef<CaptureState>(IDLE);
@@ -97,8 +108,12 @@ export const useCapture = (
     const finishRef = useRef<() => void>(() => {});
 
     const now = useCallback(() => performance.now() - startedAtRef.current, []);
-    const speech = useSpeechTranscript({ now });
-    const tabFrame = useTabFrame({
+    const {
+        start: startSpeech,
+        stop: stopSpeech,
+        liveText,
+    } = useSpeechTranscript({ now });
+    const { ensureStream, grab } = useTabFrame({
         onStreamEnded: () => finishRef.current(),
     });
 
@@ -121,16 +136,15 @@ export const useCapture = (
         startingRef.current = true;
         void (async () => {
             try {
-                const stream = await tabFrame.ensureStream();
+                const stream = await ensureStream();
                 if (!stream.ok) {
-                    showToastError({
-                        title: STREAM_ERROR_TITLES[stream.error],
-                    });
+                    showToastError(STREAM_ERROR_TITLES[stream.error]);
                     return;
                 }
+                const voice = await startSpeech();
+                // The clock starts once the share and mic prompts are answered.
                 startedAtRef.current = performance.now();
                 setStartedAt(startedAtRef.current);
-                const voice = await speech.start();
                 queueRef.current = Promise.resolve();
                 setRect(current.getRegion());
                 dispatch({ type: 'started', voice });
@@ -138,7 +152,7 @@ export const useCapture = (
                 startingRef.current = false;
             }
         })();
-    }, [dispatch, showToastError, speech, tabFrame]);
+    }, [dispatch, ensureStream, showToastError, startSpeech]);
 
     const endHold = useCallback(() => {
         const hold = holdRef.current;
@@ -154,7 +168,7 @@ export const useCapture = (
                 frame = await hold.frame;
             } catch {
                 setInk([]);
-                showToastError({ title: 'Could not capture the screen' });
+                showToastError('Could not capture the screen');
                 return;
             }
             const before = stateRef.current;
@@ -235,7 +249,7 @@ export const useCapture = (
         const frame = (async () => {
             await nextPaint();
             try {
-                return await tabFrame.grab(region);
+                return await grab(region);
             } finally {
                 setPillHidden(false);
                 setInkVisible(true);
@@ -250,7 +264,7 @@ export const useCapture = (
             current: null,
             frame,
         };
-    }, [now, tabFrame]);
+    }, [grab, now]);
 
     const refreshInk = useCallback(() => {
         const hold = holdRef.current;
@@ -288,13 +302,13 @@ export const useCapture = (
         if (stateRef.current.status !== 'recording') return;
         endHold();
         const durationMs = now();
-        const phrases = speech.stop();
+        const phrases = stopSpeech();
         queueRef.current = queueRef.current.then(async () => {
             const final = stateRef.current;
             if (final.status !== 'recording') return;
             const current = surfaceRef.current;
             if (finishOutcome(final, phrases) === 'empty' || !current) {
-                showToastWarning({ title: 'Nothing captured' });
+                showToastWarning('Nothing captured');
                 clearSession();
                 return;
             }
@@ -325,24 +339,34 @@ export const useCapture = (
                     durationMs,
                 });
             } catch {
-                showToastError({ title: 'Could not save the capture' });
+                showToastError('Could not save the capture');
             } finally {
                 clearSession();
             }
         });
-    }, [clearSession, endHold, now, showToastError, showToastWarning, speech]);
+    }, [
+        clearSession,
+        endHold,
+        now,
+        showToastError,
+        showToastWarning,
+        stopSpeech,
+    ]);
     finishRef.current = finish;
 
     const cancel = useCallback(() => {
         if (stateRef.current.status !== 'recording') return;
-        speech.stop();
+        stopSpeech();
         clearSession();
-    }, [clearSession, speech]);
+    }, [clearSession, stopSpeech]);
 
     const isRecording = state.status === 'recording';
 
+    // No surface, no hotkey: the page keeps the key combination.
     useHotkeys(
-        [['mod+shift+X', () => (isRecording ? finish() : start())]],
+        surface
+            ? [['mod+shift+X', () => (isRecording ? finish() : start())]]
+            : [],
         [],
         true,
     );
@@ -406,7 +430,7 @@ export const useCapture = (
                           ref={pillRef}
                           startedAt={startedAt}
                           voice={state.voice}
-                          liveText={speech.liveText}
+                          liveText={liveText}
                           atImageLimit={state.atImageLimit}
                           hidden={pillHidden}
                           onStop={finish}
