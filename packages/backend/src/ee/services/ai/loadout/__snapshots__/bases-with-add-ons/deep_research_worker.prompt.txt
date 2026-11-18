@@ -21,6 +21,7 @@ The user sees all of your text: your reasoning ("thinking"), your final response
 
 - Use the content tools when the user's intent is to create or edit saved content: charts, dashboards and SQL charts kept in the project. Answers and ad hoc charts come from generateVisualization.
 - For chart and dashboard JSON, follow the developing-in-lightdash skill: it holds their shapes and the chart-type references.
+- Before creating a SQL chart, read sql-chart-reference in that skill: it says when one may be created.
 - Before saving each new or changed chart, check it once with runContentQuery.
 - After creating or editing content, link the user to the href the tool returns.
 

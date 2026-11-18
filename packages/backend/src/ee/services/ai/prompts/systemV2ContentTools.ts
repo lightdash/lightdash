@@ -14,7 +14,7 @@ const getCustomSqlLines = ({
 }: CustomSqlPermissions): string =>
     [
         canSaveSqlCharts
-            ? null
+            ? 'Before creating a SQL chart, read sql-chart-reference in that skill: it says when one may be created.'
             : 'SQL charts cannot be saved here: build charts from explore fields instead, and say so when asked for a SQL chart.',
         canAuthorCustomSqlFields
             ? null
