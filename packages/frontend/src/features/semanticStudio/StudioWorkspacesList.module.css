@@ -23,13 +23,6 @@
     color: var(--mantine-color-dimmed);
 }
 
-.empty {
-    padding: 28px;
-    border: 1px dashed var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-lg);
-    text-align: center;
-}
-
 .section + .section,
 .empty + .section {
     margin-top: 28px;

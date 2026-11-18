@@ -202,21 +202,10 @@ export const StudioWorkspacesList: FC<{
                 <Text className={classes.title}>Drafts</Text>
                 <Text className={classes.lede}>
                     {rows.length === 0
-                        ? 'No drafts yet. Ask for a change to start one.'
+                        ? 'No drafts yet. Ask for a change in the chat, or start one from the picker.'
                         : 'Pick up where you and your team left off.'}
                 </Text>
             </header>
-            {rows.length === 0 ? (
-                <div className={classes.empty}>
-                    <Text fz="sm" fw={500}>
-                        No drafts yet
-                    </Text>
-                    <Text fz="xs" c="dimmed">
-                        Start one with New draft, or ask for a change in the
-                        chat.
-                    </Text>
-                </div>
-            ) : null}
             {waiting.length > 0 ? (
                 <Section label="Needs you" count={waiting.length}>
                     {waiting.map(mineRow)}

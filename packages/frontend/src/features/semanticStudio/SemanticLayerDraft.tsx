@@ -202,7 +202,7 @@ const ApplyModal: FC<{
                     ? `${models} ${scoped.length === 1 ? 'goes' : 'go'} to your repository. Nothing is published until it merges.`
                     : mode === 'merge'
                       ? `${models} ${scoped.length === 1 ? 'merges' : 'merge'} into your repository. Everyone sees ${scoped.length === 1 ? 'it' : 'them'} once the project refreshes.`
-                      : `${models} ${scoped.length === 1 ? 'is' : 'are'} published for everyone on this project.`
+                      : `${models} will be published for everyone on this project.`
             }
             confirmLabel={isRisky ? `${confirmLabel} anyway` : confirmLabel}
             confirmLoading={apply.isLoading}
