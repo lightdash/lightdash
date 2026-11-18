@@ -1,3 +1,11 @@
+## [3.303.2](https://github.com/lightdash/lightdash/compare/3.303.1...3.303.2) (2026-11-18)
+
+
+### Bug Fixes
+
+* **mobile:** hide the phone entry after Not interested ([#32760](https://github.com/lightdash/lightdash/issues/32760)) ([e9e17ec](https://github.com/lightdash/lightdash/commit/e9e17ecc3f5515310a4fcbc850073a7481c66f7a))
+* **mobile:** no push registration, and no pushes after re-enable without sign-in, for a disabled org ([#32762](https://github.com/lightdash/lightdash/issues/32762)) ([dfbf9de](https://github.com/lightdash/lightdash/commit/dfbf9de8a8866c431bd3590b0a18e45b94e72e7d))
+
 ## [3.303.1](https://github.com/lightdash/lightdash/compare/3.303.0...3.303.1) (2026-11-18)
 
 
