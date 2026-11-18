@@ -61,8 +61,8 @@ import {
 } from './modelCode';
 import classes from './SemanticLayerDraft.module.css';
 import {
-    useAppliesAsPullRequest,
     useApplySemanticLayerDraft,
+    usePublishMode,
     useCheckSemanticLayerDraftImpact,
     useDiscardSemanticLayerDraft,
     useSemanticLayerDraft,
@@ -207,11 +207,13 @@ const ApplyModal: FC<{
 }> = ({ projectUuid, draft, model, onClose }) => {
     const impact = useSemanticLayerDraftImpact(projectUuid, model);
     const apply = useApplySemanticLayerDraft(projectUuid);
-    const asPullRequest = useAppliesAsPullRequest(projectUuid);
-    const { showToastSuccess } = useToaster();
+    const mode = usePublishMode(projectUuid);
+    const asPullRequest = mode === 'pull_request';
+    const { showToastSuccess, showToastWarning } = useToaster();
     const scoped = draft.models.filter(
         (entry) => model === null || entry.model === model,
     );
+    const models = scoped.length === 1 ? '1 model' : `${scoped.length} models`;
     const confirmLabel = asPullRequest ? 'Open pull request' : 'Publish';
     // Applying never waits for the check: an unchecked draft is applied knowingly, like one that breaks something.
     const isRisky =
@@ -225,9 +227,11 @@ const ApplyModal: FC<{
                 asPullRequest ? 'Open a pull request' : 'Publish to everyone'
             }
             subtitle={
-                asPullRequest
-                    ? `${scoped.length} ${scoped.length === 1 ? 'model goes' : 'models go'} to your repository. Nothing is live until it merges.`
-                    : `${scoped.length} ${scoped.length === 1 ? 'model goes' : 'models go'} live for everyone on this project.`
+                mode === 'pull_request'
+                    ? `${models} ${scoped.length === 1 ? 'goes' : 'go'} to your repository. Nothing is live until it merges.`
+                    : mode === 'merge'
+                      ? `${models} ${scoped.length === 1 ? 'merges' : 'merge'} into your repository. Everyone sees ${scoped.length === 1 ? 'it' : 'them'} once the project refreshes.`
+                      : `${models} ${scoped.length === 1 ? 'goes' : 'go'} live for everyone on this project.`
             }
             confirmLabel={isRisky ? `${confirmLabel} anyway` : confirmLabel}
             confirmLoading={apply.isLoading}
@@ -235,13 +239,13 @@ const ApplyModal: FC<{
                 (entry) => entry.reconciliation?.state === 'conflict',
             )}
             onConfirm={() =>
-                apply.mutate(model, {
-                    onSuccess: ({ failures, pullRequestUrl }) => {
-                        if (failures.length > 0) return;
-                        if (pullRequestUrl) {
-                            showToastSuccess({
-                                title: 'Pull request opened',
-                                action: {
+                apply.mutate(
+                    { model, merge: mode === 'merge' },
+                    {
+                        onSuccess: ({ failures, pullRequestUrl, merge }) => {
+                            if (failures.length > 0) return;
+                            if (pullRequestUrl) {
+                                const action = {
                                     children: 'View pull request',
                                     icon: IconExternalLink,
                                     onClick: () =>
@@ -250,12 +254,29 @@ const ApplyModal: FC<{
                                             '_blank',
                                             'noopener',
                                         ),
-                                },
-                            });
-                        }
-                        onClose();
+                                };
+                                if (merge && !merge.merged) {
+                                    showToastWarning({
+                                        title: 'Pull request opened, not merged',
+                                        subtitle: merge.reason,
+                                        action,
+                                    });
+                                } else {
+                                    showToastSuccess({
+                                        title: merge?.merged
+                                            ? 'Published'
+                                            : 'Pull request opened',
+                                        subtitle: merge?.merged
+                                            ? 'Everyone sees it once the project refreshes.'
+                                            : undefined,
+                                        action,
+                                    });
+                                }
+                            }
+                            onClose();
+                        },
                     },
-                })
+                )
             }
         >
             <Stack gap="md">
@@ -278,7 +299,7 @@ const ApplyModal: FC<{
                         }
                     />
                 </Stack>
-                {asPullRequest ? null : (
+                {mode !== 'live' ? null : (
                     <Text fz="xs" c="dimmed">
                         You can undo this from each model's History tab.
                     </Text>
@@ -327,7 +348,7 @@ const DraftActions: FC<{
     model: string | null;
 }> = ({ projectUuid, draft, model }) => {
     const discard = useDiscardSemanticLayerDraft(projectUuid);
-    const asPullRequest = useAppliesAsPullRequest(projectUuid);
+    const asPullRequest = usePublishMode(projectUuid) === 'pull_request';
     const [applying, setApplying] = useState(false);
     const isAll = model === null && draft.models.length > 1;
     const hasConflict = countConflicts(draft, model) > 0;
@@ -473,7 +494,7 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const [isPreviewing, setIsPreviewing] = useDevelopmentView();
     const [isTrying, setIsTrying] = useState(false);
     const discard = useDiscardSemanticLayerDraft(projectUuid);
-    const asPullRequest = useAppliesAsPullRequest(projectUuid);
+    const asPullRequest = usePublishMode(projectUuid) === 'pull_request';
     const impact = useSemanticLayerDraftImpact(projectUuid, null);
     const check = useCheckSemanticLayerDraftImpact(projectUuid);
     const isEmpty = !draft || draft.changes.length === 0;

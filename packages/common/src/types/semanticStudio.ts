@@ -235,6 +235,8 @@ export type SemanticLayerDraftApplyResult = {
     failures: { model: string; error: string }[];
     /** The pull request the draft was sent as, for a project whose models live in a repository; null otherwise. */
     pullRequestUrl: string | null;
+    /** Whether that pull request merged when publishing asked for it, and why not; null when no merge was asked. */
+    merge: { merged: true } | { merged: false; reason: string } | null;
 };
 
 export type ApiSemanticLayerDraftApplyResponse =
