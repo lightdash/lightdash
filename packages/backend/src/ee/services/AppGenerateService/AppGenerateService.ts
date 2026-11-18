@@ -10854,23 +10854,30 @@ export class AppGenerateService extends BaseService {
         return { installedSlugs: newSlugs };
     }
 
-    // Installs missing types and upgrades ones below minVersion; returns each usable type's
-    // app slug and latest renderable schema by registry slug. A failure omits the type, never throws.
+    // Installs missing types and upgrades ones below minVersion; returns every installed, renderable
+    // type with its app slug, schema and registry version. A failure omits the type, never throws.
     async ensureRegistryChartTypes(
         user: SessionUser,
         projectUuid: string,
         requirements: { slug: string; minVersion: string }[],
-    ): Promise<Map<string, { appSlug: string; vizSchema: DataAppVizSchema }>> {
-        type InstalledApp = Awaited<
-            ReturnType<AppModel['listRegistryInstalledApps']>
-        >[number];
+    ): Promise<
+        Map<
+            string,
+            {
+                appSlug: string;
+                vizSchema: DataAppVizSchema;
+                registryVersion: string;
+            }
+        >
+    > {
+        type InstalledApp = {
+            app_id: string;
+            slug: string;
+            registryVersion: string;
+        };
         if (requirements.length === 0) return new Map();
 
-        const isCurrent = (
-            version: string | null,
-            minVersion: string,
-        ): boolean => {
-            if (version === null) return false;
+        const isCurrent = (version: string, minVersion: string): boolean => {
             try {
                 return compareSemverVersions(version, minVersion) >= 0;
             } catch {
@@ -10878,31 +10885,39 @@ export class AppGenerateService extends BaseService {
             }
         };
 
-        const usableIn = (installed: InstalledApp[]) => {
+        const installedIn = async () => {
+            const apps =
+                await this.appModel.listRegistryInstalledApps(projectUuid);
             const found = new Map<string, InstalledApp>();
-            requirements.forEach((requirement) => {
-                const app = installed.find(
-                    (a) => a.registry_slug === requirement.slug,
-                );
-                if (
-                    app &&
-                    isCurrent(
-                        app.latest_ready_registry_version,
-                        requirement.minVersion,
-                    )
-                ) {
-                    found.set(requirement.slug, app);
+            requirements.forEach(({ slug }) => {
+                const app = apps.find((a) => a.registry_slug === slug);
+                if (app && app.latest_ready_registry_version !== null) {
+                    found.set(slug, {
+                        app_id: app.app_id,
+                        slug: app.slug,
+                        registryVersion: app.latest_ready_registry_version,
+                    });
                 }
             });
             return found;
         };
+        const meetsRequirement = (
+            installed: Map<string, InstalledApp>,
+            requirement: { slug: string; minVersion: string },
+        ): boolean => {
+            const app = installed.get(requirement.slug);
+            return (
+                app !== undefined &&
+                isCurrent(app.registryVersion, requirement.minVersion)
+            );
+        };
 
-        const usable = usableIn(
-            await this.appModel.listRegistryInstalledApps(projectUuid),
+        const installed = await installedIn();
+        const pending = requirements.filter(
+            (requirement) => !meetsRequirement(installed, requirement),
         );
-        const pending = requirements.filter(({ slug }) => !usable.has(slug));
         if (pending.length === 0 || !this.chartRegistryClient.isEnabled()) {
-            return this.withRenderableSchemas(projectUuid, usable);
+            return this.withRenderableSchemas(projectUuid, installed);
         }
 
         let organizationUuid: string;
@@ -10917,7 +10932,7 @@ export class AppGenerateService extends BaseService {
             this.logger.warn(
                 `Cannot install chart types in project ${projectUuid}: ${getErrorMessage(e)}`,
             );
-            return this.withRenderableSchemas(projectUuid, usable);
+            return this.withRenderableSchemas(projectUuid, installed);
         }
         let index: ChartRegistryIndex;
         try {
@@ -10926,7 +10941,7 @@ export class AppGenerateService extends BaseService {
             this.logger.warn(
                 `Chart type index unavailable for project ${projectUuid}: ${getErrorMessage(e)}`,
             );
-            return this.withRenderableSchemas(projectUuid, usable);
+            return this.withRenderableSchemas(projectUuid, installed);
         }
 
         let attempted = false;
@@ -10957,31 +10972,48 @@ export class AppGenerateService extends BaseService {
                 }
             }
         }
-        if (!attempted) return this.withRenderableSchemas(projectUuid, usable);
+        if (!attempted) {
+            return this.withRenderableSchemas(projectUuid, installed);
+        }
 
         // Re-read so a concurrent install counts and a reported success is checked.
-        const after = usableIn(
-            await this.appModel.listRegistryInstalledApps(projectUuid),
-        );
-        reportedInstalled.forEach((slug) => {
-            if (!after.has(slug)) {
+        const after = await installedIn();
+        pending
+            .filter(
+                (requirement) =>
+                    reportedInstalled.has(requirement.slug) &&
+                    !meetsRequirement(after, requirement),
+            )
+            .forEach(({ slug }) => {
                 this.logger.warn(
                     `Chart type "${slug}" installed in project ${projectUuid} but is not usable after re-reading the project's chart types`,
                 );
-            }
-        });
+            });
         return this.withRenderableSchemas(projectUuid, after);
     }
 
     // Keeps the types that have a renderable version, with that version's schema.
     private async withRenderableSchemas(
         projectUuid: string,
-        apps: Map<string, { app_id: string; slug: string }>,
-    ): Promise<Map<string, { appSlug: string; vizSchema: DataAppVizSchema }>> {
+        apps: Map<
+            string,
+            { app_id: string; slug: string; registryVersion: string }
+        >,
+    ): Promise<
+        Map<
+            string,
+            {
+                appSlug: string;
+                vizSchema: DataAppVizSchema;
+                registryVersion: string;
+            }
+        >
+    > {
         const versions = await Promise.all(
             [...apps].map(async ([registrySlug, app]) => ({
                 registrySlug,
                 appSlug: app.slug,
+                registryVersion: app.registryVersion,
                 version:
                     await this.appModel.getLatestRenderableDataAppVizVersion(
                         app.app_id,
@@ -10990,20 +11022,27 @@ export class AppGenerateService extends BaseService {
         );
         const result = new Map<
             string,
-            { appSlug: string; vizSchema: DataAppVizSchema }
-        >();
-        versions.forEach(({ registrySlug, appSlug, version }) => {
-            if (version?.viz_schema) {
-                result.set(registrySlug, {
-                    appSlug,
-                    vizSchema: version.viz_schema,
-                });
-            } else {
-                this.logger.warn(
-                    `Chart type "${registrySlug}" has no renderable version in project ${projectUuid}`,
-                );
+            {
+                appSlug: string;
+                vizSchema: DataAppVizSchema;
+                registryVersion: string;
             }
-        });
+        >();
+        versions.forEach(
+            ({ registrySlug, appSlug, registryVersion, version }) => {
+                if (version?.viz_schema) {
+                    result.set(registrySlug, {
+                        appSlug,
+                        vizSchema: version.viz_schema,
+                        registryVersion,
+                    });
+                } else {
+                    this.logger.warn(
+                        `Chart type "${registrySlug}" has no renderable version in project ${projectUuid}`,
+                    );
+                }
+            },
+        );
         return result;
     }
 

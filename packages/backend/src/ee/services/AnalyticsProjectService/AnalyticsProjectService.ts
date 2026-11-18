@@ -4,6 +4,7 @@ import {
     AnalyticsProjectStatus,
     AnalyticsProjectView,
     assertIsAccountWithOrg,
+    assertUnreachable,
     compareSemverVersions,
     ConflictError,
     ContentType,
@@ -704,10 +705,30 @@ export class AnalyticsProjectService extends BaseService {
                         usableTypes,
                     );
                     libraryCharts.rejected.forEach((rejected) => {
-                        this.logger.warn(
-                            'Analytics chart does not fit its library chart type',
-                            { projectUuid: project.projectUuid, ...rejected },
-                        );
+                        const details = {
+                            projectUuid: project.projectUuid,
+                            ...rejected,
+                        };
+                        switch (rejected.reason) {
+                            case 'version':
+                                // Expected while a newer chart type version is unpublished.
+                                this.logger.info(
+                                    'Analytics chart needs a newer library chart type version',
+                                    details,
+                                );
+                                break;
+                            case 'schema':
+                                this.logger.warn(
+                                    'Analytics chart does not fit its library chart type',
+                                    details,
+                                );
+                                break;
+                            default:
+                                assertUnreachable(
+                                    rejected.reason,
+                                    `Unknown rejection reason ${rejected.reason}`,
+                                );
+                        }
                     });
                     for (const [
                         index,

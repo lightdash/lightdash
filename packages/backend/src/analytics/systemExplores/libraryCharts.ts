@@ -1,5 +1,6 @@
 import {
     ChartType,
+    compareSemverVersions,
     getDataAppVizChartConfigErrors,
     type ChartAsCode,
     type DataAppVizFieldMapping,
@@ -27,12 +28,23 @@ export type LibraryChartBinding = {
 export type UsableLibraryChartType = {
     appSlug: string;
     vizSchema: DataAppVizSchema;
+    registryVersion: string;
 };
 
 export type RejectedLibraryChart = {
     chartSlug: string;
     typeSlug: string;
+    reason: 'version' | 'schema';
     errors: string[];
+};
+
+// A version that cannot be compared counts as too old.
+const meetsMinVersion = (installed: string, minVersion: string): boolean => {
+    try {
+        return compareSemverVersions(installed, minVersion) >= 0;
+    } catch {
+        return false;
+    }
 };
 
 // Field names each supported type accepts, and which are required.
@@ -68,7 +80,7 @@ export const libraryChartFields: Record<
     },
 };
 
-// Swaps a chart to its library type only when the binding is valid against the installed schema.
+// Swaps a chart to its library type only when the installed version meets its binding and the binding is valid.
 export const withLibraryCharts = (
     charts: ChartAsCode[],
     bindings: ReadonlyMap<string, LibraryChartBinding>,
@@ -79,6 +91,17 @@ export const withLibraryCharts = (
         const binding = bindings.get(chart.slug);
         const type = binding && usableTypes.get(binding.slug);
         if (!binding || !type) return chart;
+        if (!meetsMinVersion(type.registryVersion, binding.minVersion)) {
+            rejected.push({
+                chartSlug: chart.slug,
+                typeSlug: binding.slug,
+                reason: 'version',
+                errors: [
+                    `needs ${binding.minVersion}, installed ${type.registryVersion}`,
+                ],
+            });
+            return chart;
+        }
         const { query } = binding;
         const errors = getDataAppVizChartConfigErrors(
             {
@@ -104,6 +127,7 @@ export const withLibraryCharts = (
             rejected.push({
                 chartSlug: chart.slug,
                 typeSlug: binding.slug,
+                reason: 'schema',
                 errors,
             });
             return chart;

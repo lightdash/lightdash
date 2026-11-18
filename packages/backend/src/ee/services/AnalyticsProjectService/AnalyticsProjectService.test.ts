@@ -1150,6 +1150,7 @@ describe('AnalyticsProjectService', () => {
         const heatmapType = {
             appSlug: 'heatmap',
             vizSchema: { fields: [], configOptions: [], colorPalette: null },
+            registryVersion: '1.0.0',
         };
 
         it('uploads a bound chart as a library chart when its type is usable', async () => {
@@ -1182,6 +1183,53 @@ describe('AnalyticsProjectService', () => {
                 'analytics-project',
                 [{ slug: 'heatmap', minVersion: '1.2.0' }],
             );
+        });
+
+        it('uploads each chart as a library chart only when the installed version meets its binding', async () => {
+            const newer = analyticsContentAsCode[0].charts[1];
+            mockedBindings.set(slug, {
+                slug: 'heatmap',
+                minVersion: '0.6.0',
+                fieldMapping: {},
+                optionValues: {},
+                query: null,
+            });
+            mockedBindings.set(newer.slug, {
+                slug: 'heatmap',
+                minVersion: '0.7.0',
+                fieldMapping: {},
+                optionValues: {},
+                query: null,
+            });
+            ensureRegistryChartTypes.mockResolvedValue(
+                new Map([
+                    ['heatmap', { ...heatmapType, registryVersion: '0.6.0' }],
+                ]),
+            );
+            const info = vi.spyOn(
+                (service as unknown as { logger: { info: () => void } }).logger,
+                'info',
+            );
+            await expect(
+                service.installSampleContent(user),
+            ).resolves.toBeUndefined();
+            expect(upsertedFor()?.[3].chartConfig.type).toBe(
+                ChartType.DATA_APP_VIZ,
+            );
+            expect(
+                upsertChart.mock.calls.find(
+                    ([, , chartSlug]) => chartSlug === newer.slug,
+                )?.[3],
+            ).toEqual({ ...newer, spaceSlug: expect.any(String) });
+            expect(info).toHaveBeenCalledWith(
+                'Analytics chart needs a newer library chart type version',
+                expect.objectContaining({
+                    chartSlug: newer.slug,
+                    typeSlug: 'heatmap',
+                    errors: ['needs 0.7.0, installed 0.6.0'],
+                }),
+            );
+            expect(saveSnapshot).toHaveBeenCalled();
         });
 
         it('uploads the fallback chart when the type is not usable', async () => {

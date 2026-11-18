@@ -54,7 +54,14 @@ const heatmapSchema: DataAppVizSchema = {
 };
 
 const usable = new Map<string, UsableLibraryChartType>([
-    ['heatmap', { appSlug: 'heatmap-1', vizSchema: heatmapSchema }],
+    [
+        'heatmap',
+        {
+            appSlug: 'heatmap-1',
+            vizSchema: heatmapSchema,
+            registryVersion: '0.4.0',
+        },
+    ],
 ]);
 
 describe('withLibraryCharts', () => {
@@ -201,6 +208,7 @@ describe('withLibraryCharts', () => {
                 {
                     chartSlug: 'd-c',
                     typeSlug: 'heatmap',
+                    reason: 'schema',
                     errors: [expect.any(String)],
                 },
             ]);
@@ -273,6 +281,64 @@ describe('withLibraryCharts', () => {
             );
             expect(result.rejected.map(({ chartSlug }) => chartSlug)).toEqual([
                 'd-c',
+            ]);
+        });
+    });
+
+    describe('version each binding needs', () => {
+        const older: ChartAsCode = { ...chart, slug: 'd-older' };
+        const newer: ChartAsCode = { ...chart, slug: 'd-newer' };
+        const bindings = new Map([
+            ['d-older', { ...binding, minVersion: '0.6.0' }],
+            ['d-newer', { ...binding, minVersion: '0.7.0' }],
+        ]);
+        const installedAt = (registryVersion: string) =>
+            new Map([
+                [
+                    'heatmap',
+                    {
+                        appSlug: 'heatmap-1',
+                        vizSchema: heatmapSchema,
+                        registryVersion,
+                    },
+                ],
+            ]);
+
+        it('swaps only the charts whose binding the installed version meets', () => {
+            const result = swap([older, newer], bindings, installedAt('0.6.0'));
+            expect(result.charts[0].chartConfig.type).toBe(
+                ChartType.DATA_APP_VIZ,
+            );
+            expect(result.charts[1]).toBe(newer);
+            expect(result.rejected).toEqual([
+                {
+                    chartSlug: 'd-newer',
+                    typeSlug: 'heatmap',
+                    reason: 'version',
+                    errors: ['needs 0.7.0, installed 0.6.0'],
+                },
+            ]);
+        });
+
+        it('swaps every chart when the installed version meets all bindings', () => {
+            const result = swap([older, newer], bindings, installedAt('0.7.0'));
+            expect(
+                result.charts.map(({ chartConfig }) => chartConfig.type),
+            ).toEqual([ChartType.DATA_APP_VIZ, ChartType.DATA_APP_VIZ]);
+            expect(result.rejected).toEqual([]);
+        });
+
+        it('swaps nothing when the installed version cannot be compared', () => {
+            const result = swap(
+                [older, newer],
+                bindings,
+                installedAt('not-a-version'),
+            );
+            expect(result.charts[0]).toBe(older);
+            expect(result.charts[1]).toBe(newer);
+            expect(result.rejected.map(({ reason }) => reason)).toEqual([
+                'version',
+                'version',
             ]);
         });
     });
@@ -393,7 +459,11 @@ describe('analyticsLibraryChartBindings', () => {
                 new Map([
                     [
                         b.slug,
-                        { appSlug: b.slug, vizSchema: schemaAccepting(b) },
+                        {
+                            appSlug: b.slug,
+                            vizSchema: schemaAccepting(b),
+                            registryVersion: b.minVersion,
+                        },
                     ],
                 ]),
             );
