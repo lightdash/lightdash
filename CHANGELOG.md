@@ -1,3 +1,10 @@
+# [3.325.0](https://github.com/lightdash/lightdash/compare/3.324.0...3.325.0) (2026-11-18)
+
+
+### Features
+
+* **semantic-studio:** one toolbar, the card as the reply, and a page that follows the draft ([#32930](https://github.com/lightdash/lightdash/issues/32930)) ([de3797f](https://github.com/lightdash/lightdash/commit/de3797faed863f0bac34a3f069242f1295ad1a45))
+
 # [3.324.0](https://github.com/lightdash/lightdash/compare/3.323.1...3.324.0) (2026-11-18)
 
 
