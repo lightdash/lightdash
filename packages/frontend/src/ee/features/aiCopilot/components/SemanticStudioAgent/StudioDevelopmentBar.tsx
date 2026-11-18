@@ -1,9 +1,4 @@
 import {
-    assertUnreachable,
-    CiMergeState,
-    type CiChecks,
-} from '@lightdash/common';
-import {
     ActionIcon,
     Button,
     Group,
@@ -17,10 +12,8 @@ import {
     IconDots,
     IconExternalLink,
 } from '@tabler/icons-react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type FC } from 'react';
 import { Link } from 'react-router';
-import { useGithubUserCredential } from '../../../../../components/common/GithubIntegration/hooks/useGithubIntegration';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { DevelopmentBar } from '../../../../../features/semanticStudio/DevelopmentBar';
@@ -29,76 +22,22 @@ import {
     isDevelopmentViewPinned,
     useDevelopmentView,
 } from '../../../../../features/semanticStudio/developmentView';
-import { canWriteProjectBranch } from '../../../../../features/semanticStudio/permissions';
-import { rememberGoingLive } from '../../../../../features/semanticStudio/useGoingLive';
-import {
-    describeBranchCompile,
-    useCompileCheckout,
-    useDraftCheckout,
-} from '../../../../../features/semanticStudio/useSemanticLayerModel';
-import { usePublishCheckout } from '../../../../../features/semanticStudio/useStudioWorkspaces';
-import { useProject } from '../../../../../hooks/useProject';
-import useApp from '../../../../../providers/App/useApp';
+import { useCompileCheckout } from '../../../../../features/semanticStudio/useSemanticLayerModel';
 import { useClosePullRequest } from '../../hooks/useClosePullRequest';
 import {
     useElapsed,
     useWritebackProgress,
 } from '../../hooks/useWritebackProgress';
-import { isMergeable } from '../ChatElements/ToolCalls/pullRequestActions';
 import { WRITEBACK_STEPS } from '../ChatElements/ToolCalls/writebackProgress';
 import { WritebackSegments } from '../ChatElements/ToolCalls/WritebackProgressCard';
+import { PublishDraftModal } from './PublishDraftModal';
 import { TryItButton } from './TryItButton';
 import { useFinishDiscardedWork } from './useSemanticStudioChat';
+import { useStudioPublish } from './useStudioPublish';
 import {
     type StudioPendingChange,
     type StudioPullRequest,
 } from './useStudioPullRequest';
-
-/** Why an open pull request cannot be merged yet: a word for the button, and the sentence behind it. */
-const getBlockedReason = (
-    ciChecks: CiChecks | null,
-): { label: string; reason: string } => {
-    const mergeState = ciChecks?.mergeState;
-    switch (mergeState) {
-        case undefined:
-        case CiMergeState.READY:
-        case CiMergeState.UNSTABLE:
-        case CiMergeState.UNKNOWN:
-            return {
-                label: 'Checking',
-                reason: 'Checking whether the draft can be published.',
-            };
-        case CiMergeState.BLOCKED:
-            return {
-                label: 'Blocked',
-                reason: 'A required check failed or a review is missing.',
-            };
-        case CiMergeState.CONFLICTS:
-            return {
-                label: 'Has conflicts',
-                reason: 'The draft has conflicts to resolve first.',
-            };
-        case CiMergeState.BEHIND:
-            return {
-                label: 'Behind base',
-                reason: 'The branch is behind its base and needs updating first.',
-            };
-        case CiMergeState.DRAFT:
-            return {
-                label: 'Not ready for review',
-                reason: 'Mark the pull request ready for review first.',
-            };
-        default:
-            return assertUnreachable(mergeState, 'Unknown merge state');
-    }
-};
-
-type PublishStep = {
-    label: string;
-    hint: string;
-    /** What a click does; null while there is nothing to do but wait or fix it elsewhere. */
-    action: 'compile' | 'publish' | null;
-};
 
 /** What a dbt project's Studio conversation has saved so far: its pull request, a look at the result, and publishing it. */
 export const StudioDevelopmentBar: FC<{
@@ -106,12 +45,8 @@ export const StudioDevelopmentBar: FC<{
     pullRequest: StudioPullRequest;
 }> = ({ projectUuid, pullRequest }) => {
     const { prUrl, previewProjectUuid, ciChecks, isMine } = pullRequest;
-    const { data: project } = useProject(projectUuid);
-    const queryClient = useQueryClient();
-    const { user } = useApp();
-    const { data: checkout } = useDraftCheckout(projectUuid);
-    const { mutate: publish, isLoading: isPublishing } =
-        usePublishCheckout(projectUuid);
+    const { name, destination, compile, canWriteBranch, branch, step } =
+        useStudioPublish(projectUuid, prUrl, ciChecks);
     const compileAgain = useCompileCheckout(projectUuid);
     const { mutate: close, isLoading: isClosing } =
         useClosePullRequest(projectUuid);
@@ -119,8 +54,6 @@ export const StudioDevelopmentBar: FC<{
     const [discarding, setDiscarding] = useState(false);
     const [isTrying, setIsTrying] = useDevelopmentView();
     const finishDiscardedWork = useFinishDiscardedWork(projectUuid);
-    const number = /\/(\d+)\/?$/.exec(prUrl)?.[1];
-    const name = number ? `pull request #${number}` : 'the pull request';
     // The preview is the truer source once it is built, so a view switched on before then moves to it.
     useEffect(() => {
         if (
@@ -132,55 +65,6 @@ export const StudioDevelopmentBar: FC<{
             setIsTrying(true, previewProjectUuid);
         }
     }, [isTrying, previewProjectUuid, setIsTrying]);
-    const branch =
-        project?.dbtConnection && 'branch' in project.dbtConnection
-            ? project.dbtConnection.branch
-            : null;
-    const destination = `${name}${branch ? ` into ${branch}` : ''}`;
-    const canWriteBranch =
-        !!user.data?.organizationUuid &&
-        canWriteProjectBranch(
-            user.data.ability,
-            user.data.organizationUuid,
-            projectUuid,
-        );
-    const compile = checkout?.branchCompile ?? null;
-    const { data: credential } = useGithubUserCredential();
-    // Publishing merges straight into the branch, so the button names the step the draft is on: compile, then checks, then publish.
-    const step = ((): PublishStep => {
-        if (!compile) {
-            return {
-                label: 'Compile',
-                hint: 'This draft has not been compiled yet. Compile it to publish it.',
-                action: 'compile',
-            };
-        }
-        if (compile.status === 'compiling') {
-            return {
-                label: 'Compiling',
-                hint:
-                    describeBranchCompile(compile) ??
-                    'Publish once the latest edit compiles.',
-                action: null,
-            };
-        }
-        if (compile.status === 'failed') {
-            return {
-                label: 'Compile failed',
-                hint: `${compile.error ?? 'The latest compile failed.'} Click to compile again.`,
-                action: 'compile',
-            };
-        }
-        if (!isMergeable(ciChecks)) {
-            const { label, reason } = getBlockedReason(ciChecks);
-            return { label, hint: reason, action: null };
-        }
-        return {
-            label: 'Publish',
-            hint: `Merges ${destination}.`,
-            action: 'publish',
-        };
-    })();
     // One filled button: trying it until it can be published, then publishing.
     const canPublish = isMine && canWriteBranch && step.action === 'publish';
     return (
@@ -269,16 +153,6 @@ export const StudioDevelopmentBar: FC<{
                     >
                         Open {name}
                     </Menu.Item>
-                    {isMine &&
-                    prUrl.startsWith('https://github.com/') &&
-                    credential === null ? (
-                        <Menu.Item
-                            component={Link}
-                            to="/generalSettings/profile"
-                        >
-                            Open pull requests as you
-                        </Menu.Item>
-                    ) : null}
                     {isMine ? (
                         <>
                             <Menu.Divider />
@@ -293,30 +167,11 @@ export const StudioDevelopmentBar: FC<{
                 </Menu.Dropdown>
             </Menu>
             {publishing ? (
-                <MantineModal
-                    opened
-                    title="Publish draft"
-                    description={`This merges ${destination}, and everyone sees the changes once the project compiles.`}
-                    confirmLabel="Publish"
-                    confirmLoading={isPublishing}
+                <PublishDraftModal
+                    projectUuid={projectUuid}
+                    prUrl={prUrl}
+                    destination={destination}
                     onClose={() => setPublishing(false)}
-                    onConfirm={() =>
-                        publish(
-                            { prUrl },
-                            {
-                                // A failed publish keeps the dialog, under the toast that says why.
-                                onSuccess: ({ compileJobUuid }) => {
-                                    setPublishing(false);
-                                    rememberGoingLive(
-                                        queryClient,
-                                        projectUuid,
-                                        prUrl,
-                                        compileJobUuid,
-                                    );
-                                },
-                            },
-                        )
-                    }
                 />
             ) : null}
             {discarding ? (

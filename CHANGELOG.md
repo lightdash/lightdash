@@ -1,3 +1,10 @@
+# [3.324.0](https://github.com/lightdash/lightdash/compare/3.323.1...3.324.0) (2026-11-18)
+
+
+### Features
+
+* **semantic-studio:** end a dbt Studio turn with the same card: files changed, whether it compiles, what to do next ([#32922](https://github.com/lightdash/lightdash/issues/32922)) ([c6b21c3](https://github.com/lightdash/lightdash/commit/c6b21c37e0061c417709029d8b82aab06544337f))
+
 ## [3.323.1](https://github.com/lightdash/lightdash/compare/3.323.0...3.323.1) (2026-11-18)
 
 
