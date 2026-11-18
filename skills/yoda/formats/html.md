@@ -1,6 +1,6 @@
 # HTML
 
-Render [canonical JSON](json.md) as one segmented card, using [html-template.html](html-template.html) as the template.
+Render [canonical JSON](json.md) as one segmented card, using [assets/html-template.html](../assets/html-template.html) as the template.
 Copy its markup, class names and tokens, and replace its reference content with the review.
 Show inline with `show_widget`; publish with the Artifact tool when a shareable link is requested.
 
