@@ -266,6 +266,12 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
     }),
 
+    [SCHEDULER_TASKS.COMPILE_SEMANTIC_STUDIO_BRANCH]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+    }),
+
     [SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,

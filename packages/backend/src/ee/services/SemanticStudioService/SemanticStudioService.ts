@@ -18,6 +18,7 @@ import {
     ProjectType,
     readModelPart,
     ValidationTarget,
+    type CompileSemanticStudioBranchPayload,
     type DbtManifest,
     type Explore,
     type ExploreError,
@@ -164,11 +165,16 @@ export type SemanticStudioServiceArguments = {
             projectUuid: string;
             userUuid: string;
         }) => Promise<unknown>;
+        compileSemanticStudioBranch: (
+            payload: CompileSemanticStudioBranchPayload,
+        ) => Promise<unknown>;
     };
     validationService: Pick<ValidationService, 'generateValidation'>;
     projectService: Pick<
         ProjectService,
-        'setExplores' | 'compileExploresFromManifest'
+        | 'setExplores'
+        | 'compileExploresFromManifest'
+        | 'compileExploresFromBranch'
     > &
         DraftCheckerProjectService;
     fileStorageClient: Pick<
@@ -187,7 +193,7 @@ export type SemanticStudioServiceArguments = {
     >;
     aiWritebackService: Pick<
         AiWritebackService,
-        'openStudioCheckout' | 'saveWithScript'
+        'openStudioCheckout' | 'saveWithScript' | 'findPullRequestBranch'
     >;
     workspaceModel: Pick<
         SemanticStudioWorkspaceModel,
@@ -205,6 +211,10 @@ export type SemanticStudioServiceArguments = {
         | 'attachPullRequest'
         | 'attachThreadPullRequest'
         | 'recordPullRequestState'
+        | 'requestBranchCompile'
+        | 'finishBranchCompile'
+        | 'findBranchCompile'
+        | 'deleteFinishedBranchCompiles'
     >;
 };
 
@@ -808,7 +818,7 @@ export class SemanticStudioService extends BaseService {
         const status = await this.getStatus(user, projectUuid);
         if (status.appliesAs === 'dbt_pull_request') {
             return status.enabled
-                ? this.findDbtTryOutExplores(user, projectUuid)
+                ? this.findDbtDraftExplores(user, projectUuid)
                 : null;
         }
         if (!(await this.canEditModels(user, projectUuid))) return null;
@@ -1026,6 +1036,7 @@ export class SemanticStudioService extends BaseService {
         projectUuid: string,
         prUrl: string,
     ): Promise<void> {
+        await this.workspaceModel.deleteFinishedBranchCompiles(projectUuid);
         const found = await this.readDbtTryOut(user, projectUuid);
         if (found?.tryOut.prUrl !== prUrl) return;
         await this.fileStorageClient.deleteFile(`${found.fileId}.txt`);
@@ -1090,6 +1101,118 @@ export class SemanticStudioService extends BaseService {
             : null;
     }
 
+    /** The explores of the person's checked-out dbt change: its last branch compile, else its try-out. */
+    private async findDbtDraftExplores(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<Map<string, Explore | ExploreError> | null> {
+        const active = await this.workspaceModel.findActive({
+            projectUuid,
+            userUuid: user.userUuid,
+        });
+        const compile = active
+            ? await this.workspaceModel.findBranchCompile(active.workspaceUuid)
+            : null;
+        // Models the branch removes still show until it merges.
+        return compile?.explores
+            ? new Map(
+                  compile.explores.map((explore) => [explore.name, explore]),
+              )
+            : this.findDbtTryOutExplores(user, projectUuid);
+    }
+
+    /**
+     * Has a worker compile the branch of the person's open change on this pull
+     * request, as a refresh would; nothing for a change that is not theirs or a
+     * project that is not dbt in a repository.
+     */
+    async queueBranchCompile(
+        user: SessionUser,
+        projectUuid: string,
+        prUrl: string,
+    ): Promise<void> {
+        const status = await this.getStatus(user, projectUuid);
+        if (!status.enabled || status.appliesAs !== 'dbt_pull_request') return;
+        const workspace = (
+            await this.workspaceModel.findInProject(projectUuid, user.userUuid)
+        ).find(
+            (candidate) =>
+                candidate.isMine &&
+                !candidate.finishedAt &&
+                candidate.pullRequest?.url === prUrl,
+        );
+        if (!workspace) return;
+        const compileRequestUuid =
+            await this.workspaceModel.requestBranchCompile(
+                workspace.workspaceUuid,
+            );
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        await this.schedulerClient.compileSemanticStudioBranch({
+            organizationUuid,
+            projectUuid,
+            userUuid: user.userUuid,
+            workspaceUuid: workspace.workspaceUuid,
+            compileRequestUuid,
+        });
+    }
+
+    /** The worker's compile of a change's branch; a failure is kept for the person to see, with the last good explores. */
+    async compileBranch({
+        organizationUuid,
+        projectUuid,
+        userUuid,
+        workspaceUuid,
+        compileRequestUuid,
+    }: CompileSemanticStudioBranchPayload): Promise<void> {
+        const fail = (branch: string | null, error: string) =>
+            this.workspaceModel.finishBranchCompile(
+                workspaceUuid,
+                compileRequestUuid,
+                { status: 'failed', branch, error },
+            );
+        const workspace = await this.workspaceModel.find(
+            workspaceUuid,
+            userUuid,
+        );
+        const prUrl = workspace?.pullRequest?.url ?? null;
+        if (!workspace || workspace.finishedAt || prUrl === null) {
+            await fail(null, 'This draft has no open pull request to compile.');
+            return;
+        }
+        let branch: string;
+        try {
+            branch = await this.aiWritebackService.findPullRequestBranch(
+                organizationUuid,
+                projectUuid,
+                prUrl,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `SemanticStudio: could not read the branch of ${prUrl}: ${getErrorMessage(error)}`,
+            );
+            await fail(
+                null,
+                "Could not read this draft's branch. Its pull request may be merged, closed or in another repository.",
+            );
+            return;
+        }
+        try {
+            const explores =
+                await this.projectService.compileExploresFromBranch(
+                    { userUuid, organizationUuid },
+                    projectUuid,
+                    branch,
+                );
+            await this.workspaceModel.finishBranchCompile(
+                workspaceUuid,
+                compileRequestUuid,
+                { status: 'ready', branch, explores },
+            );
+        } catch (error) {
+            await fail(branch, getErrorMessage(error));
+        }
+    }
+
     /**
      * Every explore as a dbt project's pull request leaves it, read from the preview
      * project built from that branch; null when this is not such a preview or the
@@ -1125,13 +1248,13 @@ export class SemanticStudioService extends BaseService {
         ]);
         // Until its first compile a preview holds only the explores copied into it; the person's own compiled change stands in.
         if (Object.values(explores).every(isUserManagedExplore)) {
-            return this.findDbtTryOutExplores(user, projectUuid);
+            return this.findDbtDraftExplores(user, projectUuid);
         }
         // A reused preview holds the previous round until its compile ends, and for good if that compile fails.
         const compile =
             await this.jobModel.findLatestCompileStatus(previewProjectUuid);
         if (compile !== null && compile !== JobStatusType.DONE) {
-            const tryOut = await this.findDbtTryOutExplores(user, projectUuid);
+            const tryOut = await this.findDbtDraftExplores(user, projectUuid);
             if (tryOut) return tryOut;
         }
         return new Map<string, Explore | ExploreError | null>([
@@ -2400,6 +2523,13 @@ export class SemanticStudioService extends BaseService {
                 );
             });
         }
+        await this.queueBranchCompile(user, projectUuid, savedPrUrl).catch(
+            (error: unknown) => {
+                this.logger.warn(
+                    `SemanticStudio: failed to queue a compile after a hand edit: ${getErrorMessage(error)}`,
+                );
+            },
+        );
         // A preview built by an earlier round would otherwise keep showing the pull request without this edit.
         await this.writebackPreviewService
             .createPreviewForPullRequest({
@@ -2645,6 +2775,7 @@ export class SemanticStudioService extends BaseService {
             { projectUuid, userUuid: user.userUuid },
             workspaceUuid,
         );
+        await this.workspaceModel.deleteFinishedBranchCompiles(projectUuid);
     }
 
     /** Records a pull request's state as its provider reported it to someone allowed to ask. */

@@ -179,6 +179,7 @@ const buildService = (overrides: {
     };
     const slackClient = { addReaction, postMessage };
     const writebackPreviewService = { createPreviewForPullRequest };
+    const queueBranchCompile = vi.fn().mockResolvedValue(undefined);
 
     const loadRequest = vi.fn().mockResolvedValue({});
     const assertOperationWithRequest = vi.fn().mockResolvedValue(undefined);
@@ -191,6 +192,7 @@ const buildService = (overrides: {
         aiAgentReviewClassifierModel,
         slackClient,
         writebackPreviewService,
+        semanticStudioService: { queueBranchCompile },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
 
@@ -198,6 +200,7 @@ const buildService = (overrides: {
         service,
         userModel,
         aiWritebackService,
+        queueBranchCompile,
         loadRequest,
         assertOperationWithRequest,
         updateToolResult,
@@ -462,11 +465,15 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
     });
 
     it('records a Studio pull request before its preview is built', async () => {
-        const { service, updateToolResult, createPreviewForPullRequest } =
-            buildService({
-                previewUrl: 'https://preview.example.com',
-                threadCreatedFrom: 'semantic_studio',
-            });
+        const {
+            service,
+            updateToolResult,
+            createPreviewForPullRequest,
+            queueBranchCompile,
+        } = buildService({
+            previewUrl: 'https://preview.example.com',
+            threadCreatedFrom: 'semantic_studio',
+        });
         createPreviewForPullRequest.mockImplementation(async () => {
             expect(updateToolResult).toHaveBeenCalledTimes(1);
             return { previewUrl: 'https://preview.example.com' };
@@ -483,6 +490,19 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
             [null, 'string'],
             ['https://preview.example.com', 'object'],
         ]);
+        expect(queueBranchCompile).toHaveBeenCalledWith(
+            expect.objectContaining({ userUuid: 'user-1' }),
+            PAYLOAD.projectUuid,
+            WRITEBACK_RESULT.prUrl,
+        );
+    });
+
+    it('queues no branch compile outside Studio', async () => {
+        const { service, queueBranchCompile } = buildService({});
+
+        await service.runEditDbtProjectPipeline(PAYLOAD);
+
+        expect(queueBranchCompile).not.toHaveBeenCalled();
     });
 
     it('keeps a Studio pull request recorded when its preview is refused', async () => {
