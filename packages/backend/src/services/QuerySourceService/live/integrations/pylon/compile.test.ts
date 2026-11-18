@@ -87,11 +87,11 @@ const contact = (name: string) => `pylon_contacts_${name}`;
 const LAST_30_DAYS = {
     field: 'created_at',
     operator: 'time_range',
-    values: ['2026-10-18T00:00:00Z', '2026-11-17T00:00:00Z'],
+    values: ['2026-10-18T00:00:00Z', '2026-11-18T00:00:00Z'],
 };
 
 describe('compilePylonQuery issues', () => {
-    it('searches the last 30 creation days, newest first, without a Created filter', () => {
+    it('searches the last 30 creation days up to today, newest first, without a date filter', () => {
         expect(
             compile(
                 ISSUES,
@@ -152,15 +152,7 @@ describe('compilePylonQuery issues', () => {
                         'Example Co',
                     ]),
                     rule(issue('assignee_email'), FilterOperator.NULL, [true]),
-                    rule(
-                        issue('first_response_minutes'),
-                        FilterOperator.GREATER_THAN,
-                        [90],
-                    ),
-                    rule(issue('updated_at'), FilterOperator.IN_THE_PAST, [7], {
-                        unitOfTime: UnitOfTime.days,
-                        completed: false,
-                    }),
+                    rule(issue('touches'), FilterOperator.GREATER_THAN, [2]),
                 ),
             }),
         );
@@ -191,14 +183,111 @@ describe('compilePylonQuery issues', () => {
             { field: 'account_name', operator: 'in', values: ['Example Co'] },
             { field: 'assignee_id', operator: 'is_unset' },
             {
-                field: 'time_to_first_response',
+                field: 'number_of_touches',
                 operator: 'greater_than',
-                value: '5400',
+                value: '2',
+            },
+        ]);
+    });
+
+    it('sends null checks on account and assignee, which have no values', () => {
+        const { request } = compile(
+            ISSUES,
+            query('pylon_issues', {
+                dimensions: [issue('number')],
+                filters: filters(
+                    rule(issue('account_id'), FilterOperator.NULL, []),
+                    rule(issue('assignee_email'), FilterOperator.NOT_NULL, []),
+                ),
+            }),
+        );
+        expect(request.filters).toEqual([
+            LAST_30_DAYS,
+            { field: 'account_id', operator: 'is_unset' },
+            { field: 'assignee_id', operator: 'is_set' },
+        ]);
+    });
+
+    it('covers every creation day up to the end of an updated or resolved filter', () => {
+        const { request } = compile(
+            ISSUES,
+            query('pylon_issues', {
+                dimensions: [issue('number')],
+                filters: filters(
+                    rule(issue('resolved_at'), FilterOperator.IN_BETWEEN, [
+                        '2026-09-01',
+                        '2026-09-07',
+                    ]),
+                    rule(issue('updated_at'), FilterOperator.IN_THE_PAST, [7], {
+                        unitOfTime: UnitOfTime.days,
+                        completed: false,
+                    }),
+                ),
+            }),
+        );
+        expect(request.filters).toEqual([
+            {
+                field: 'created_at',
+                operator: 'time_range',
+                values: ['2021-01-01T00:00:00Z', '2026-09-08T00:00:00Z'],
+            },
+            {
+                field: 'resolved_at',
+                operator: 'time_range',
+                values: ['2026-09-01T00:00:00Z', '2026-09-08T00:00:00Z'],
             },
             {
                 field: 'updated_at',
                 operator: 'time_range',
                 values: ['2026-11-10T00:00:00Z', '2026-11-18T00:00:00Z'],
+            },
+        ]);
+    });
+
+    it('keeps the Created filter as the range when other dates are filtered too', () => {
+        const { request } = compile(
+            ISSUES,
+            query('pylon_issues', {
+                dimensions: [issue('number')],
+                filters: filters(
+                    rule(issue('created_at'), FilterOperator.IN_BETWEEN, [
+                        '2026-08-01',
+                        '2026-08-31',
+                    ]),
+                    rule(issue('resolved_at'), FilterOperator.IN_BETWEEN, [
+                        '2026-09-01',
+                        '2026-09-07',
+                    ]),
+                ),
+            }),
+        );
+        expect(request.filters[0]).toEqual({
+            field: 'created_at',
+            operator: 'time_range',
+            values: ['2026-08-01T00:00:00Z', '2026-09-01T00:00:00Z'],
+        });
+    });
+
+    it('filters first response here, on the minutes the column reports', () => {
+        const { request } = compile(
+            ISSUES,
+            query('pylon_issues', {
+                dimensions: [issue('number')],
+                filters: filters(
+                    rule(
+                        issue('first_response_minutes'),
+                        FilterOperator.GREATER_THAN,
+                        [90],
+                    ),
+                ),
+            }),
+        );
+        expect(request.filters).toEqual([LAST_30_DAYS]);
+        expect(request.localFilters).toEqual([
+            {
+                column: 'first_response_minutes',
+                operator: 'greater_than',
+                value: 90,
             },
         ]);
     });

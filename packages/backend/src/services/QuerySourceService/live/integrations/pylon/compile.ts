@@ -1,13 +1,14 @@
 import {
     FilterOperator,
+    flattenFilterGroup,
     ParameterError,
     type Explore,
+    type FilterGroup,
     type FilterRule,
     type MetricQuery,
     type SortField,
 } from '@lightdash/common';
 import {
-    getActiveFilterRules,
     getApiName,
     getLiveDefinitionName,
     getLiveExplore,
@@ -17,10 +18,12 @@ import {
     getLiveDateRange,
     splitDateRangeFilter,
     toAbsoluteDateRange,
+    type LiveDateRange,
 } from '../../query/dateRange';
 import {
     type PylonFilter,
     type PylonFilterLeaf,
+    type PylonLocalFilter,
     type PylonRequest,
 } from './run';
 
@@ -36,7 +39,6 @@ const FILTER_FIELDS: Record<PylonKind, Record<string, string>> = {
         type: 'issue_type',
         assignee_email: 'assignee_email',
         resolved_at: 'resolved_at',
-        first_response_minutes: 'time_to_first_response',
         touches: 'number_of_touches',
     },
     accounts: {
@@ -76,26 +78,62 @@ const addDay = (isoDate: string) => {
     return date.toISOString().slice(0, 10);
 };
 
-/** Whole UTC days, as Pylon's [start, end) time range. */
-const toTimeRange = (
-    field: string,
-    rule: FilterRule | null,
-    { today, defaultDays }: { today: string; defaultDays: number },
-): PylonFilterLeaf => {
-    const { startDate, endDate } = toAbsoluteDateRange(
+/** The days a date filter covers, both ends included. */
+const toDateRange = (rule: FilterRule, today: string) =>
+    toAbsoluteDateRange(
         getLiveDateRange({
             rule,
-            defaultDays,
+            defaultDays: 30,
             today,
             earliestDate: PYLON_EARLIEST_DATE,
         }),
         today,
     );
-    return {
-        field,
-        operator: 'time_range',
-        values: [`${startDate}T00:00:00Z`, `${addDay(endDate)}T00:00:00Z`],
+
+/** Whole UTC days, as Pylon's [start, end) time range. */
+const toTimeRange = (
+    field: string,
+    { startDate, endDate }: { startDate: string; endDate: string },
+): PylonFilterLeaf => ({
+    field,
+    operator: 'time_range',
+    values: [`${startDate}T00:00:00Z`, `${addDay(endDate)}T00:00:00Z`],
+});
+
+/**
+ * The creation days an issue search covers. Pylon reports as it happens, so
+ * the default runs to today. An issue is created on or before the day it is
+ * updated or resolved, so a filter on those dates covers every creation day
+ * up to its end instead.
+ */
+const getCreatedRange = ({
+    dateRule,
+    otherDateRules,
+    defaultDays,
+    today,
+}: {
+    dateRule: FilterRule | null;
+    otherDateRules: FilterRule[];
+    defaultDays: number;
+    today: string;
+}): { startDate: string; endDate: string } => {
+    if (dateRule) {
+        return toDateRange(dateRule, today);
+    }
+    if (otherDateRules.length > 0) {
+        const endDates = otherDateRules.map(
+            (rule) => toDateRange(rule, today).endDate,
+        );
+        return {
+            startDate: PYLON_EARLIEST_DATE,
+            endDate: endDates.reduce((min, date) => (date < min ? date : min)),
+        };
+    }
+    const defaultRange: LiveDateRange = {
+        start: { daysAgo: defaultDays },
+        end: { daysAgo: 0 },
     };
+    return toAbsoluteDateRange(defaultRange, today);
 };
 
 const toNumber = (value: unknown, label: string) => {
@@ -124,10 +162,10 @@ const toPylonFilter = (
 ): PylonFilter => {
     const values = (rule.values ?? []).map(String);
     if (DATE_FIELDS.has(apiName)) {
-        return toTimeRange(FILTER_FIELDS[kind][apiName] ?? apiName, rule, {
-            today,
-            defaultDays: 30,
-        });
+        return toTimeRange(
+            FILTER_FIELDS[kind][apiName] ?? apiName,
+            toDateRange(rule, today),
+        );
     }
     const field = FILTER_FIELDS[kind][apiName] ?? apiName;
     switch (rule.operator) {
@@ -174,27 +212,60 @@ const toPylonFilter = (
                         : 'is_set',
             };
         case FilterOperator.GREATER_THAN:
-        case FilterOperator.LESS_THAN: {
-            const [value] = values;
-            const number =
-                apiName === 'first_response_minutes'
-                    ? Math.round(toNumber(value, 'First response') * 60)
-                    : toNumber(value, 'Touches');
+        case FilterOperator.LESS_THAN:
             return {
                 field,
                 operator:
                     rule.operator === FilterOperator.GREATER_THAN
                         ? 'greater_than'
                         : 'less_than',
-                value: String(number),
+                value: String(toNumber(values[0], 'Touches')),
             };
-        }
         default:
             throw new ParameterError(
                 `"${rule.target.fieldId}" can't use "${rule.operator}" on Pylon.`,
             );
     }
 };
+
+/**
+ * Filtered here on the rows read: Pylon's first-response search filter
+ * doesn't measure the calendar minutes the column reports.
+ */
+const LOCAL_FILTER_FIELD: PylonLocalFilter['column'] = 'first_response_minutes';
+
+const toLocalFilter = (
+    column: PylonLocalFilter['column'],
+    rule: FilterRule,
+): PylonLocalFilter => {
+    if (
+        rule.operator !== FilterOperator.GREATER_THAN &&
+        rule.operator !== FilterOperator.LESS_THAN
+    ) {
+        throw new ParameterError(
+            `"${rule.target.fieldId}" can't use "${rule.operator}" on Pylon.`,
+        );
+    }
+    return {
+        column,
+        operator:
+            rule.operator === FilterOperator.GREATER_THAN
+                ? 'greater_than'
+                : 'less_than',
+        value: toNumber(rule.values?.[0], 'First response'),
+    };
+};
+
+const NO_VALUE_OPERATORS = [FilterOperator.NULL, FilterOperator.NOT_NULL];
+
+/** Rules that filter: enabled, with values unless they check for empty. */
+const getFilteringRules = (group: FilterGroup | undefined): FilterRule[] =>
+    (group ? flattenFilterGroup(group) : []).filter(
+        (rule) =>
+            !rule.disabled &&
+            (NO_VALUE_OPERATORS.includes(rule.operator) ||
+                (rule.values ?? []).length > 0),
+    );
 
 /** Pylon sorts by one field it knows; any other order is ours. */
 const toSort = (
@@ -230,8 +301,8 @@ const toKind = (explore: Explore): PylonKind => {
 
 /**
  * Compiles a metric query on a Pylon explore into one search. Issues always
- * search a range of creation days, the last 30 without a Created filter.
- * `today` is in UTC, the time zone Pylon reports in.
+ * search a range of creation days: the last 30 up to today without a date
+ * filter. `today` is in UTC, the time zone Pylon reports in.
  */
 export const compilePylonQuery = ({
     explore,
@@ -252,16 +323,30 @@ export const compilePylonQuery = ({
               dateRange.fieldId,
           )
         : { dateRule: null, otherFilters: metricQuery.filters.dimensions };
+    const rules = getFilteringRules(otherFilters);
+    const searchRules = rules.filter(
+        (rule) => apiName(rule.target.fieldId) !== LOCAL_FILTER_FIELD,
+    );
+    const localFilters = rules
+        .filter((rule) => apiName(rule.target.fieldId) === LOCAL_FILTER_FIELD)
+        .map((rule) => toLocalFilter(LOCAL_FILTER_FIELD, rule));
     const filters: PylonFilter[] = [
         ...(dateRange
             ? [
-                  toTimeRange(apiName(dateRange.fieldId), dateRule, {
-                      today,
-                      defaultDays: dateRange.defaultDays,
-                  }),
+                  toTimeRange(
+                      apiName(dateRange.fieldId),
+                      getCreatedRange({
+                          dateRule,
+                          otherDateRules: searchRules.filter((rule) =>
+                              DATE_FIELDS.has(apiName(rule.target.fieldId)),
+                          ),
+                          defaultDays: dateRange.defaultDays,
+                          today,
+                      }),
+                  ),
               ]
             : []),
-        ...getActiveFilterRules(otherFilters).map((rule) =>
+        ...searchRules.map((rule) =>
             toPylonFilter(kind, apiName(rule.target.fieldId), rule, today),
         ),
     ];
@@ -270,6 +355,7 @@ export const compilePylonQuery = ({
         kind,
         filters,
         columns: metricQuery.dimensions.map(apiName),
+        ...(localFilters.length > 0 ? { localFilters } : {}),
         ...sort,
     };
     return { query: JSON.stringify(request), localSorts };
