@@ -918,6 +918,8 @@ export type HealthState = {
         isAmbientAiEnabled: boolean;
         threadDumpEnabled: boolean;
         fastDecisionsEnabled: boolean;
+        /** Instance can turn recorded speech into text (Inline voice). */
+        voiceTranscriptionAvailable: boolean;
     };
     echarts6: {
         enabled: boolean;

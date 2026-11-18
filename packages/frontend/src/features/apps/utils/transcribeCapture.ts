@@ -4,7 +4,7 @@ import {
 } from '@lightdash/common';
 
 /** Sends a capture's audio to be transcribed into timed words. */
-export const transcribeCapture = async (
+const transcribeCapture = async (
     projectUuid: string,
     audio: Blob,
 ): Promise<CaptureTranscriptWord[]> => {
@@ -22,3 +22,15 @@ export const transcribeCapture = async (
     const json = (await response.json()) as ApiCaptureTranscriptResponse;
     return json.results.words;
 };
+
+/**
+ * The transcriber a capture surface gets: null when the instance cannot
+ * transcribe (or that is not known yet), so no audio is recorded and lost.
+ */
+export const captureTranscriber = (
+    projectUuid: string,
+    voiceTranscriptionAvailable: boolean | undefined,
+): ((audio: Blob) => Promise<CaptureTranscriptWord[]>) | null =>
+    voiceTranscriptionAvailable
+        ? (audio) => transcribeCapture(projectUuid, audio)
+        : null;

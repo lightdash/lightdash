@@ -7,7 +7,12 @@ export type VoiceRecording = {
     startedAtMs: number;
 };
 
-export type VoiceOffReason = 'blocked' | 'no-microphone' | 'unsupported';
+export type VoiceOffReason =
+    | 'blocked'
+    | 'no-microphone'
+    | 'unsupported'
+    /** The instance cannot transcribe, so the microphone is never asked for. */
+    | 'not-set-up';
 
 const offReasonFor = (error: unknown): VoiceOffReason => {
     const name = error instanceof DOMException ? error.name : '';
@@ -35,38 +40,45 @@ export const useVoiceRecorder = ({ now }: { now: () => number }) => {
 
     useEffect(() => releaseStream, [releaseStream]);
 
-    const start = useCallback(async (): Promise<VoiceState> => {
-        setListening(false);
-        setOffReason(null);
-        chunksRef.current = [];
-        if (
-            typeof MediaRecorder === 'undefined' ||
-            !navigator.mediaDevices?.getUserMedia
-        ) {
-            setOffReason('unsupported');
-            return 'off';
-        }
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                audio: true,
-            });
-            const recorder = new MediaRecorder(stream);
-            recorder.ondataavailable = (event) => {
-                if (event.data.size > 0) chunksRef.current.push(event.data);
-            };
-            streamRef.current = stream;
-            recorderRef.current = recorder;
-            recorder.start();
-            startedAtMsRef.current = nowRef.current();
-            setListening(true);
-            return 'on';
-        } catch (error) {
-            releaseStream();
-            recorderRef.current = null;
-            setOffReason(offReasonFor(error));
-            return 'off';
-        }
-    }, [releaseStream]);
+    const start = useCallback(
+        async ({ available }: { available: boolean }): Promise<VoiceState> => {
+            setListening(false);
+            setOffReason(null);
+            chunksRef.current = [];
+            if (!available) {
+                setOffReason('not-set-up');
+                return 'off';
+            }
+            if (
+                typeof MediaRecorder === 'undefined' ||
+                !navigator.mediaDevices?.getUserMedia
+            ) {
+                setOffReason('unsupported');
+                return 'off';
+            }
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: true,
+                });
+                const recorder = new MediaRecorder(stream);
+                recorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) chunksRef.current.push(event.data);
+                };
+                streamRef.current = stream;
+                recorderRef.current = recorder;
+                recorder.start();
+                startedAtMsRef.current = nowRef.current();
+                setListening(true);
+                return 'on';
+            } catch (error) {
+                releaseStream();
+                recorderRef.current = null;
+                setOffReason(offReasonFor(error));
+                return 'off';
+            }
+        },
+        [releaseStream],
+    );
 
     const stop = useCallback(
         (): Promise<VoiceRecording | null> =>

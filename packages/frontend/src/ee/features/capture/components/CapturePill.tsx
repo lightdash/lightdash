@@ -22,6 +22,7 @@ const VOICE_OFF_CAPTIONS: Record<VoiceOffReason, string> = {
     blocked: 'Voice is off: microphone is blocked for this site or browser',
     'no-microphone': 'Voice is off: no microphone found',
     unsupported: 'Voice is off: this browser cannot record audio',
+    'not-set-up': 'Voice is not set up on this instance. Hold Shift to draw.',
 };
 
 const CapturePill = forwardRef<HTMLDivElement, Props>(
@@ -54,7 +55,13 @@ const CapturePill = forwardRef<HTMLDivElement, Props>(
                 : 'Voice is off';
         }
         if (atImageLimit) caption = 'Image limit reached';
-        if (finishing) caption = 'Transcribing your voice';
+        if (finishing) {
+            // Nothing is transcribed when the instance has no voice.
+            caption =
+                voiceOffReason === 'not-set-up'
+                    ? VOICE_OFF_CAPTIONS['not-set-up']
+                    : 'Transcribing your voice';
+        }
 
         return (
             <div

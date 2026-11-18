@@ -57,7 +57,7 @@ describe('useVoiceRecorder', () => {
         );
         let voice = 'off';
         await act(async () => {
-            voice = await result.current.start();
+            voice = await result.current.start({ available: true });
         });
         expect(voice).toBe('on');
         expect(result.current.listening).toBe(true);
@@ -80,7 +80,7 @@ describe('useVoiceRecorder', () => {
         const { result } = renderHook(() => useVoiceRecorder({ now: () => 0 }));
         let voice = 'on';
         await act(async () => {
-            voice = await result.current.start();
+            voice = await result.current.start({ available: true });
         });
         expect(voice).toBe('off');
         expect(result.current.offReason).toBe('blocked');
@@ -93,7 +93,7 @@ describe('useVoiceRecorder', () => {
         );
         const { result } = renderHook(() => useVoiceRecorder({ now: () => 0 }));
         await act(async () => {
-            await result.current.start();
+            await result.current.start({ available: true });
         });
         expect(result.current.offReason).toBe('no-microphone');
     });
@@ -103,10 +103,25 @@ describe('useVoiceRecorder', () => {
         const { result } = renderHook(() => useVoiceRecorder({ now: () => 0 }));
         let voice = 'on';
         await act(async () => {
-            voice = await result.current.start();
+            voice = await result.current.start({ available: true });
         });
         expect(voice).toBe('off');
         expect(result.current.offReason).toBe('unsupported');
+    });
+
+    it('is off without asking for the microphone when voice is not set up', async () => {
+        const getUserMedia = vi.fn(() => Promise.resolve(fakeStream));
+        setGetUserMedia(getUserMedia);
+        const { result } = renderHook(() => useVoiceRecorder({ now: () => 0 }));
+        let voice = 'on';
+        await act(async () => {
+            voice = await result.current.start({ available: false });
+        });
+        expect(voice).toBe('off');
+        expect(result.current.offReason).toBe('not-set-up');
+        expect(getUserMedia).not.toHaveBeenCalled();
+        expect(FakeRecorder.instances).toHaveLength(0);
+        await expect(result.current.stop()).resolves.toBeNull();
     });
 
     it('hands back nothing when stopped without recording', async () => {
