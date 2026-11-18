@@ -14,12 +14,12 @@ import {
     buildFieldIndex,
     compileMatcher,
     extractKeywords,
+    formatRequiredFilters,
     getCachedExploreIndex,
     getCachedFieldIndex,
     getDefaultTimeDimensionFieldIds,
     matchLocality,
     selectCandidateFields,
-    summarizeRequiredFilters,
 } from './grepFieldsIndex';
 
 const makeMetric = (table: string, name: string) => ({
@@ -98,7 +98,7 @@ const makeExplore = (over: {
     },
 });
 
-describe('summarizeRequiredFilters', () => {
+describe('formatRequiredFilters', () => {
     it('distinguishes backend-required filters from suggested filters', () => {
         const explore = makeExplore({
             name: 'data_app_usage',
@@ -121,11 +121,9 @@ describe('summarizeRequiredFilters', () => {
             ],
         });
 
-        expect(summarizeRequiredFilters(explore)).toEqual({
-            line: '⚠ table filters: required data_app_usage_timestamp inThePast [4]; suggested data_app_usage_role equals ["interactive_viewer"]',
-            hasRequired: true,
-            hasSuggested: true,
-        });
+        expect(formatRequiredFilters(explore)).toBe(
+            '⚠ table filters: required data_app_usage_timestamp inThePast [4]; suggested data_app_usage_role equals ["interactive_viewer"]. Required table filters apply to every query on their explore, but their values are replaceable defaults, not fixed data limits: when the requested scope differs, filter the same field or a derived time dimension of it with that scope (e.g. ten months instead of a required 4 weeks). Suggested table filters are soft defaults: apply them unless the user asks for a different scope.',
+        );
     });
 });
 

@@ -85,8 +85,16 @@ export const describeTableFilterKinds = (
         summaries.some((summary) => summary.hasSuggested)
             ? 'Suggested table filters are soft defaults: apply them unless the user asks for a different scope.'
             : null,
-    ].filter(Boolean);
+    ].filter((sentence): sentence is string => sentence !== null);
     return sentences.length > 0 ? sentences.join(' ') : null;
+};
+
+// One explore's filters with their explanation, for callers that show one explore.
+export const formatRequiredFilters = (explore: Explore): string | null => {
+    const summary = summarizeRequiredFilters(explore);
+    return summary
+        ? [summary.line, describeTableFilterKinds([summary])].join('. ')
+        : null;
 };
 
 /** One greppable "file": a field flattened with its searchable annotations. */

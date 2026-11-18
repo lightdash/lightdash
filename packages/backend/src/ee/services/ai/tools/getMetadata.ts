@@ -20,8 +20,8 @@ import type { ExecuteStructuredToolResult } from '../utils/structuredToolResult'
 import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { truncate } from '../utils/truncation';
 import {
+    formatRequiredFilters,
     getDefaultTimeDimensionFieldIds,
-    summarizeRequiredFilters,
 } from './grepFieldsIndex';
 
 const toolDefinition = getMetadataToolDefinition.for('agent');
@@ -205,7 +205,7 @@ const renderExplore = (
                 lines.push(`  table filter ${table.name}: ${table.sqlWhere}`);
         }
     }
-    const required = summarizeRequiredFilters(explore);
+    const required = formatRequiredFilters(explore);
     if (required) lines.push(`  ${required}`);
     if (parameters.length > 0) {
         lines.push(
