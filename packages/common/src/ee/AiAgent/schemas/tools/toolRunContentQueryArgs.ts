@@ -1,8 +1,5 @@
 import { z } from 'zod';
-import {
-    baseOutputMetadataSchema,
-    structuredToolOutputSchema,
-} from '../outputMetadata';
+import { structuredToolOutputSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 import { toolChartAsCodeMetricQuerySchema } from './toolCreateContentArgs';
 
@@ -199,10 +196,12 @@ export type ToolRunContentQueryStructuredContent = z.infer<
 >;
 
 export const toolRunContentQueryOutputSchema = structuredToolOutputSchema({
-    metadata: baseOutputMetadataSchema.extend({
+    metadata: z.object({
+        status: z.enum(['success', 'error', 'rejected', 'timeout']),
         queryCacheHit: z.boolean().optional(),
     }),
     structuredContent: toolRunContentQueryStructuredContentSchema,
+    errorStatuses: z.enum(['error', 'rejected', 'timeout']),
 });
 
 export type ToolRunContentQueryOutput = z.infer<

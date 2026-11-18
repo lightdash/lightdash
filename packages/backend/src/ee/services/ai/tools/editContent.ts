@@ -15,12 +15,12 @@ import { toAbsoluteHref } from '../utils/absoluteHref';
 import type { ArtifactChartExportAccess } from '../utils/artifactChartAsCode';
 import { getContentWarnings } from '../utils/contentWarnings';
 import { resolveDocumentConversationTags } from '../utils/documentConversationTags';
-import { toolFailure } from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
 import {
     approveClientSql,
     SqlNotApprovedError,
+    sqlNotApprovedOutput,
     type ApproveSqlFn,
 } from './sqlApprovals';
 import { createSqlChartGate, type SqlChartSaving } from './sqlChartApproval';
@@ -192,7 +192,7 @@ export const executeEditContent = async (
         };
     } catch (error) {
         if (error instanceof SqlNotApprovedError) {
-            return toolFailure(error.message);
+            return sqlNotApprovedOutput(error);
         }
         return toolErrorOutput(
             error,

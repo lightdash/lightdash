@@ -10,6 +10,7 @@ import {
     type AiAgentSqlApprovalDecidedEvent,
 } from '../../../../analytics/LightdashAnalytics';
 import { type AiSqlApprovalDecision } from '../../../database/entities/ai';
+import { type ExecuteToolErrorResult } from '../utils/structuredToolResult';
 
 // SQL approval decisions (approved / rejected) persist per tool call in the
 // `ai_sql_approval` table; the thread-level "approve & don't ask again" flag
@@ -54,7 +55,7 @@ export const SQL_CHART_REJECTED_RESULT =
 /** The result stored for a natively gated call the user rejected. */
 export const getRejectedOutput = (
     toolName: NativeSqlApprovalToolName,
-): { result: string; metadata: { status: 'rejected' | 'error' } } => {
+): { result: string; metadata: { status: 'rejected' } } => {
     switch (toolName) {
         case 'runSql':
             return {
@@ -70,13 +71,13 @@ export const getRejectedOutput = (
         case 'runContentQuery':
             return {
                 result: RUN_SQL_REJECTED_RESULT,
-                metadata: { status: 'error' },
+                metadata: { status: 'rejected' },
             };
         case 'createContent':
         case 'editContent':
             return {
                 result: SQL_CHART_REJECTED_RESULT,
-                metadata: { status: 'error' },
+                metadata: { status: 'rejected' },
             };
         default:
             return assertUnreachable(toolName, 'Unknown SQL approval tool');
@@ -234,6 +235,19 @@ export class SqlNotApprovedError extends Error {
         this.outcome = outcome;
     }
 }
+
+export type SqlNotApprovedOutput = ExecuteToolErrorResult<{
+    status: SqlNotApprovedError['outcome'];
+}>;
+
+/** Tool output for SQL the user did not approve; its status is not 'error'. */
+export const sqlNotApprovedOutput = (
+    error: SqlNotApprovedError,
+): SqlNotApprovedOutput => ({
+    result: error.message,
+    metadata: { status: error.outcome },
+    structuredContent: { error: error.message },
+});
 
 /**
  * Resolves once the SQL is approved; throws SqlNotApprovedError otherwise.

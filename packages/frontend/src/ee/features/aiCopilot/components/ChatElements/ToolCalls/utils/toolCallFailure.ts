@@ -4,9 +4,8 @@ import { type ToolCallSummary } from './types';
 
 const MAX_ERROR_MESSAGE_LENGTH = 280;
 const RETRY_HINT = /\s*Try again if you believe the error can be resolved\.?/i;
-// runSql reports approval rejections and timeouts as error statuses too.
-const FAILED_STATUSES: ReadonlySet<unknown> = new Set([
-    'error',
+// The user declined, or never answered, the SQL approval: not a failure.
+const UNAPPROVED_STATUSES: ReadonlySet<unknown> = new Set([
     'rejected',
     'timeout',
 ]);
@@ -41,25 +40,38 @@ export const formatToolErrorMessage = (result: string): string => {
         : clean;
 };
 
+const readCallOutput = (
+    call: ToolCallSummary,
+    toolResults?: AiAgentToolResult[],
+) => {
+    const persisted = toolResults?.find(
+        (result) => result.toolCallId === call.toolCallId,
+    );
+    if (persisted) return readOutput(persisted);
+    return call.isPreliminary === false ? readOutput(call.toolOutput) : null;
+};
+
 export const getToolCallFailure = (
     call: ToolCallSummary,
     toolResults?: AiAgentToolResult[],
 ): ToolCallFailure | null => {
-    const persisted = toolResults?.find(
-        (result) => result.toolCallId === call.toolCallId,
-    );
-    const output = persisted
-        ? readOutput(persisted)
-        : call.isPreliminary === false
-          ? readOutput(call.toolOutput)
-          : null;
-    if (!output || !FAILED_STATUSES.has(output.status)) return null;
+    const output = readCallOutput(call, toolResults);
+    if (output?.status !== 'error') return null;
     return {
         toolCallId: call.toolCallId,
         message: formatToolErrorMessage(
             typeof output.result === 'string' ? output.result : '',
         ),
     };
+};
+
+/** True unless the call errored or its SQL was not approved. */
+export const isToolCallSuccessful = (
+    call: ToolCallSummary,
+    toolResults?: AiAgentToolResult[],
+): boolean => {
+    const status = readCallOutput(call, toolResults)?.status;
+    return status !== 'error' && !UNAPPROVED_STATUSES.has(status);
 };
 
 export const getToolCallFailures = (
