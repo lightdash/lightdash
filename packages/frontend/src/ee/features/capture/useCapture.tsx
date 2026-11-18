@@ -109,6 +109,7 @@ export const useCapture = (
     const fadeTimerRef = useRef<number | null>(null);
     const finishRef = useRef<() => void>(() => {});
     const finishingRef = useRef(false);
+    const voiceOnRef = useRef(false);
     const [finishing, setFinishing] = useState(false);
     const absoluteNow = useCallback(() => performance.now(), []);
 
@@ -149,6 +150,7 @@ export const useCapture = (
                     return;
                 }
                 const voice = await startVoice();
+                voiceOnRef.current = voice === 'on';
                 // The clock starts once the share and mic prompts are answered.
                 startedAtRef.current = performance.now();
                 setStartedAt(startedAtRef.current);
@@ -317,19 +319,27 @@ export const useCapture = (
                 let phrases: TranscriptPhrase[] = [];
                 const recording = await recordingPromise;
                 const transcribe = surfaceRef.current?.transcribe ?? null;
+                if (transcribe && voiceOnRef.current && !recording) {
+                    showToastWarning(
+                        'No audio was recorded from the microphone',
+                    );
+                }
                 if (recording && transcribe) {
                     try {
-                        phrases = wordsToPhrases(
-                            await transcribe(recording.audio),
-                            {
-                                offsetMs:
-                                    recording.startedAtMs -
-                                    startedAtRef.current,
-                                breakAtMs: marked.marks.map(
-                                    (mark) => mark.startMs,
-                                ),
-                            },
-                        );
+                        const words = await transcribe(recording.audio);
+                        if (words.length === 0) {
+                            const kilobytes = Math.round(
+                                recording.audio.size / 1024,
+                            );
+                            showToastWarning(
+                                `No speech was heard in the recording (${recording.audio.type || 'unknown type'}, ${kilobytes} KB)`,
+                            );
+                        }
+                        phrases = wordsToPhrases(words, {
+                            offsetMs:
+                                recording.startedAtMs - startedAtRef.current,
+                            breakAtMs: marked.marks.map((mark) => mark.startMs),
+                        });
                     } catch {
                         showToastWarning('Could not transcribe your voice');
                     }
