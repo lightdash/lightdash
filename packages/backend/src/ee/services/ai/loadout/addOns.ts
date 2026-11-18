@@ -152,6 +152,13 @@ export const ADD_ONS: Record<AddOnName, AddOnDefinition> = {
         section: null,
         skills: [],
     },
+    threadHistory: {
+        description: 'List, search and read the past conversations of the user',
+        when: (input) => input.enableThreadHistory,
+        tools: ['listThreads', 'searchThreads', 'getThread'],
+        section: null,
+        skills: [],
+    },
     intentRouting: {
         description: 'Start each turn with the tools its intent needs',
         when: hasDecisionsInStandardMode,

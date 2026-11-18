@@ -102,13 +102,14 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
         sections: ['semanticStudio'],
         skills: [],
         accepts: input.semanticStudioDrafts
-            ? ['sqlCatalog', 'projectContext']
+            ? ['sqlCatalog', 'projectContext', 'threadHistory']
             : [
                   'sqlCatalog',
                   'projectContext',
                   'repoDiscovery',
                   'writeback',
                   'pullRequests',
+                  'threadHistory',
               ],
     }),
     deep_research_worker: (input) => ({

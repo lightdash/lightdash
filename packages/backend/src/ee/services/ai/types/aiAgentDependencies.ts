@@ -59,7 +59,13 @@ import {
     WarehouseExecutionStats,
     WarehouseTablesCatalog,
     WarehouseTypes,
+    type AiAgentThreadHistoryList,
+    type AiAgentThreadHistorySearchResults,
+    type AiAgentThreadHistoryTranscript,
     type SqlApprovalToolName,
+    type ToolGetThreadArgs,
+    type ToolListThreadsArgs,
+    type ToolSearchThreadsArgs,
 } from '@lightdash/common';
 import {
     AiAgentFindContentCoverageEvent,
@@ -857,6 +863,18 @@ export type ListKnowledgeDocumentsFn = () => Promise<AiAgentDocumentSummary[]>;
 export type GetKnowledgeDocumentContentFn = (args: {
     documentUuid: string;
 }) => Promise<AiAgentDocumentContent>;
+
+export type ListThreadsFn = (
+    args: ToolListThreadsArgs,
+) => Promise<AiAgentThreadHistoryList>;
+
+export type SearchThreadsFn = (
+    args: ToolSearchThreadsArgs,
+) => Promise<AiAgentThreadHistorySearchResults>;
+
+export type GetThreadFn = (
+    args: ToolGetThreadArgs,
+) => Promise<AiAgentThreadHistoryTranscript>;
 
 export type ReadPinnedThreadFn = (args: { threadUuid: string }) => Promise<
     {

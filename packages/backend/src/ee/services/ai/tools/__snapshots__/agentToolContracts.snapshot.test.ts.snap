@@ -25774,6 +25774,9 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "findDashboards",
   "listProjects",
   "getProjectInfo",
+  "listThreads",
+  "searchThreads",
+  "getThread",
 ]
 `;
 

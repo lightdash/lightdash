@@ -135,6 +135,7 @@ import {
     getSlackAiEchartsConfig,
     getSlackNativeChart,
     getSlackNativeChartConfigGate,
+    getThreadHistoryToolFilters,
     getValidAiQueryLimit,
     getWebAiChartConfig,
     GITHUB_MCP_SERVER_NAME,
@@ -578,6 +579,7 @@ import {
     type NativeSqlApprovalToolName,
     type StorableSqlApprovalDecisionRecord,
 } from '../ai/tools/sqlApprovals';
+import { canOfferThreadHistory } from '../ai/tools/threadHistory';
 import {
     AiAgentArgs,
     AiAgentDependencies,
@@ -703,6 +705,7 @@ import {
 } from '../ai/utils/slackVisualizationSelection';
 import { toolErrorHandler } from '../ai/utils/toolErrorHandler';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
+import { type AiAgentThreadHistoryService } from '../AiAgentThreadHistoryService';
 import {
     AiAgentToolsService,
     type AiAgentToolsRuntime,
@@ -1101,6 +1104,11 @@ type AiAgentServiceDependencies = {
         MobilePushNotificationService,
         'enqueueThreadReconciliation' | 'startLiveActivitiesForPrompt'
     >;
+    // A thunk: the thread history service depends on this service.
+    getAiAgentThreadHistoryService?: () => Pick<
+        AiAgentThreadHistoryService,
+        'listThreads' | 'searchThreads' | 'getThread'
+    >;
 };
 
 export type RelevantVerifiedAnswer = {
@@ -1496,6 +1504,17 @@ export class AiAgentService extends BaseService {
     private readonly aiAgentMcpRuntimeClient: AiAgentMcpRuntimeClient;
 
     private readonly mobilePushNotificationService: AiAgentServiceDependencies['mobilePushNotificationService'];
+
+    private readonly getAiAgentThreadHistoryService: AiAgentServiceDependencies['getAiAgentThreadHistoryService'];
+
+    private getThreadHistoryService() {
+        if (!this.getAiAgentThreadHistoryService) {
+            throw new NotImplementedError(
+                'Thread history is not available in this deployment',
+            );
+        }
+        return this.getAiAgentThreadHistoryService();
+    }
 
     private static getModelConfigAnalyticsProperties(
         modelConfig: AiAgentModelConfig | null | undefined,
@@ -2193,6 +2212,8 @@ export class AiAgentService extends BaseService {
             dependencies.aiAgentReviewNotificationModel;
         this.mobilePushNotificationService =
             dependencies.mobilePushNotificationService;
+        this.getAiAgentThreadHistoryService =
+            dependencies.getAiAgentThreadHistoryService;
         this.aiAgentMcpRuntimeClient = new AiAgentMcpRuntimeClient({
             aiAgentModel: this.aiAgentModel,
             lightdashConfig: this.lightdashConfig,
@@ -18333,6 +18354,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     enableRepoDiscovery: repoDiscoveryEnabled,
                     enableReadAttachments: threadHasAttachments,
                     enableReadPinnedThread: pinnedThreadUuids.length > 0,
+                    enableThreadHistory:
+                        this.getAiAgentThreadHistoryService !== undefined &&
+                        canOfferThreadHistory(prompt, responseExecution.mode),
                     enableAskUser,
                     enableFilterExpressions: filterExpressionsEnabled,
                     repoFsRoot,
@@ -18511,6 +18535,41 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     describeWarehouseTable,
                     listKnowledgeDocuments,
                     getKnowledgeDocumentContent,
+                    // The thread history service decides what the person may
+                    // see; the project is the one this conversation runs in.
+                    listThreads: (toolArgs) =>
+                        this.getThreadHistoryService().listThreads(user, {
+                            scope: toolArgs.scope,
+                            filters: {
+                                ...getThreadHistoryToolFilters(toolArgs),
+                                projectUuid: prompt.projectUuid,
+                            },
+                            cursor: toolArgs.cursor ?? undefined,
+                            limit: toolArgs.limit ?? undefined,
+                        }),
+                    searchThreads: (toolArgs) =>
+                        this.getThreadHistoryService().searchThreads(user, {
+                            scope: toolArgs.scope,
+                            query: toolArgs.query,
+                            filters: {
+                                ...getThreadHistoryToolFilters(toolArgs),
+                                projectUuid: prompt.projectUuid,
+                            },
+                            cursor: toolArgs.cursor ?? undefined,
+                            limit: toolArgs.limit ?? undefined,
+                        }),
+                    getThread: (toolArgs) =>
+                        this.getThreadHistoryService().getThread(
+                            user,
+                            toolArgs.threadUuid,
+                            {
+                                turnOffset: toolArgs.turnOffset ?? undefined,
+                                turnLimit: toolArgs.turnLimit ?? undefined,
+                                includeToolCalls:
+                                    toolArgs.includeToolCalls ?? undefined,
+                                within: { projectUuid: prompt.projectUuid },
+                            },
+                        ),
                     // Only conversations pinned as context on this thread are
                     // readable — the pin is the capability grant.
                     readPinnedThread: async ({ threadUuid }) => {
@@ -20517,6 +20576,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 case 'loadSkill':
                 case 'readContent':
                 case 'readPinnedThread':
+                case 'listThreads':
+                case 'searchThreads':
+                case 'getThread':
                 case 'readAttachments':
                 case 'resolveUrl':
                 case 'submitResearchReport':

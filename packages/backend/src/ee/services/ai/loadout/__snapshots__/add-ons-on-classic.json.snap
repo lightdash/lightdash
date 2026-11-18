@@ -146,6 +146,16 @@
         "addsSections": [],
         "addsSkills": []
     },
+    "threadHistory": {
+        "description": "List, search and read the past conversations of the user",
+        "addsTools": [
+            "getThread",
+            "listThreads",
+            "searchThreads"
+        ],
+        "addsSections": [],
+        "addsSkills": []
+    },
     "intentRouting": {
         "description": "Start each turn with the tools its intent needs",
         "addsTools": [

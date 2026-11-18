@@ -168,6 +168,11 @@ import {
 import { type SqlChartSaving } from '../tools/sqlChartApproval';
 import { getSubmitWorkerFindings } from '../tools/submitWorkerFindings';
 import { getSyncDbtProject } from '../tools/syncDbtProject';
+import {
+    getGetThread,
+    getListThreads,
+    getSearchThreads,
+} from '../tools/threadHistory';
 import { getUpdateUserName } from '../tools/updateUserName';
 import { getVisualize } from '../tools/visualize';
 import type {
@@ -2000,6 +2005,11 @@ export const getAgentTools = (
             getReadPinnedThread({
                 readPinnedThread: dependencies.readPinnedThread,
             }),
+        listThreads: () =>
+            getListThreads({ listThreads: dependencies.listThreads }),
+        searchThreads: () =>
+            getSearchThreads({ searchThreads: dependencies.searchThreads }),
+        getThread: () => getGetThread({ getThread: dependencies.getThread }),
         resolveUrl: () =>
             getResolveUrl({ resolveUrl: dependencies.resolveUrl }),
         updateUserName: () =>

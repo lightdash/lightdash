@@ -2,21 +2,25 @@
     "base": "semantic_studio",
     "addOns": [
         "projectContext",
-        "sqlCatalog"
+        "sqlCatalog",
+        "threadHistory"
     ],
     "toolNames": [
         "analyzeFieldImpact",
         "describeWarehouseTable",
         "getMetadata",
+        "getThread",
         "grepFields",
         "listChanges",
+        "listThreads",
         "listWarehouseTables",
         "loadProjectContext",
         "proposeSemanticLayerChange",
         "readSemanticModel",
         "runSql",
         "searchFieldValues",
-        "searchSemanticLayer"
+        "searchSemanticLayer",
+        "searchThreads"
     ],
     "promptSections": [
         "projectContext",

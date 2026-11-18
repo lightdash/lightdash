@@ -70,6 +70,7 @@ import {
     GetSavedChartFn,
     GetSqlChartFn,
     GetThreadComposerNodeColumnsFn,
+    GetThreadFn,
     GetVerifiedFieldUsageFn,
     IsPromptInterruptedFn,
     IsThreadSqlAutoApprovedFn,
@@ -83,6 +84,7 @@ import {
     ListProjectsFn,
     ListSqlApprovalDecisionsFn,
     ListThreadComposerQueryNodesFn,
+    ListThreadsFn,
     ListWarehouseTablesFn,
     ListWorkstreamsFn,
     LoadAgentSkillFn,
@@ -104,6 +106,7 @@ import {
     RunSqlJobFn,
     SearchFieldValuesFn,
     SearchSemanticLayerFn,
+    SearchThreadsFn,
     SendFileFn,
     SendSlackBlocksFn,
     StoreLoadoutFn,
@@ -326,6 +329,8 @@ export type AiAgentArgs = AnyAiModel & {
     enableReadAttachments: boolean;
     // The thread has at least one pinned conversation, so readPinnedThread is registered.
     enableReadPinnedThread: boolean;
+    // The agent talks to the signed-in person alone, so the thread history tools are registered.
+    enableThreadHistory: boolean;
     // A web app thread whose UI renders askUser questions, so the tool is offered.
     enableAskUser: boolean;
     enableFilterExpressions: boolean;
@@ -458,6 +463,9 @@ export type AiAgentDependencies = {
     listKnowledgeDocuments: ListKnowledgeDocumentsFn;
     getKnowledgeDocumentContent: GetKnowledgeDocumentContentFn;
     readPinnedThread: ReadPinnedThreadFn;
+    listThreads: ListThreadsFn;
+    searchThreads: SearchThreadsFn;
+    getThread: GetThreadFn;
     readAttachments: ReadAttachmentsFn;
     getSavedChart: GetSavedChartFn;
     getSqlChart: GetSqlChartFn;

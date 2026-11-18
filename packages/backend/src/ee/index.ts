@@ -940,6 +940,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     mobilePushNotificationService:
                         repository.getMobilePushNotificationService<MobilePushNotificationService>(),
                     prometheusMetrics,
+                    getAiAgentThreadHistoryService: () =>
+                        repository.getAiAgentThreadHistoryService<AiAgentThreadHistoryService>(),
                 }),
             aiAgentAdminService: ({ models, repository, context, clients }) =>
                 new AiAgentAdminService({

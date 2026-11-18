@@ -22,6 +22,7 @@
         "scheduling",
         "skills",
         "sqlCatalog",
+        "threadHistory",
         "userIdentity",
         "writeback"
     ],
@@ -48,6 +49,7 @@
         "getMetadata",
         "getProjectInfo",
         "getPullRequestDiff",
+        "getThread",
         "grepFields",
         "iterateDataApp",
         "listContent",
@@ -55,6 +57,7 @@
         "listDataAppThemes",
         "listKnowledgeDocuments",
         "listProjects",
+        "listThreads",
         "listWarehouseTables",
         "listWorkstreams",
         "loadAgentTools",
@@ -70,6 +73,7 @@
         "runSavedChart",
         "searchFieldValues",
         "searchSemanticLayer",
+        "searchThreads",
         "syncDbtProject",
         "updateUserName",
         "visualize"

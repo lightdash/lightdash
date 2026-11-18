@@ -18,6 +18,7 @@ export type AddOnName =
     | 'editProjectContext'
     | 'readAttachments'
     | 'readPinnedThread'
+    | 'threadHistory'
     | 'intentRouting'
     | 'skills'
     | 'mcp'
@@ -40,6 +41,9 @@ export const AGENT_TOOL_NAMES = [
     'listKnowledgeDocuments',
     'getKnowledgeDocumentContent',
     'readPinnedThread',
+    'listThreads',
+    'searchThreads',
+    'getThread',
     'resolveUrl',
     'updateUserName',
     'askUser',
@@ -148,6 +152,7 @@ export type LoadoutInput = Pick<
     | 'semanticStudioDrafts'
     | 'enableReadAttachments'
     | 'enableReadPinnedThread'
+    | 'enableThreadHistory'
     | 'enableAskUser'
     | 'customSkills'
     | 'projectContextEnabled'

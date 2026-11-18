@@ -6,6 +6,10 @@ import {
 import { AI_USER_THREAD_CREATED_FROM } from '../../requestTypes';
 import { type AiAgentThreadHistoryFilters } from '../../threadHistoryTypes';
 import { type ToolDescriptionContext } from '../defineTool';
+import {
+    baseOutputMetadataSchema,
+    structuredToolOutputSchema,
+} from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
 const TURN_SIGNALS = [
@@ -331,6 +335,26 @@ export const toolGetThreadStructuredContentSchema = z.object({
         .describe('Pass as `turnOffset` to read on; null after the last turn.'),
 });
 
+export const toolListThreadsOutputSchema = structuredToolOutputSchema({
+    metadata: baseOutputMetadataSchema,
+    structuredContent: toolListThreadsStructuredContentSchema,
+});
+
+export const toolSearchThreadsOutputSchema = structuredToolOutputSchema({
+    metadata: baseOutputMetadataSchema,
+    structuredContent: toolSearchThreadsStructuredContentSchema,
+});
+
+export const toolGetThreadOutputSchema = structuredToolOutputSchema({
+    metadata: baseOutputMetadataSchema,
+    structuredContent: toolGetThreadStructuredContentSchema,
+});
+
+export type ToolListThreadsOutput = z.infer<typeof toolListThreadsOutputSchema>;
+export type ToolSearchThreadsOutput = z.infer<
+    typeof toolSearchThreadsOutputSchema
+>;
+export type ToolGetThreadOutput = z.infer<typeof toolGetThreadOutputSchema>;
 export type ToolListThreadsArgs = z.infer<typeof toolListThreadsArgsSchema>;
 export type ToolSearchThreadsArgs = z.infer<typeof toolSearchThreadsArgsSchema>;
 export type ToolGetThreadArgs = z.infer<typeof toolGetThreadArgsSchema>;

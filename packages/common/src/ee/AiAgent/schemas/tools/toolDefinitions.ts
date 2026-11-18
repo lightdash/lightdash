@@ -394,10 +394,13 @@ import {
     TOOL_LIST_THREADS_DESCRIPTION,
     TOOL_SEARCH_THREADS_DESCRIPTION,
     toolGetThreadArgsSchema,
+    toolGetThreadOutputSchema,
     toolGetThreadStructuredContentSchema,
     toolListThreadsArgsSchema,
+    toolListThreadsOutputSchema,
     toolListThreadsStructuredContentSchema,
     toolSearchThreadsArgsSchema,
+    toolSearchThreadsOutputSchema,
     toolSearchThreadsStructuredContentSchema,
 } from './toolThreadHistoryArgs';
 import {
@@ -1556,14 +1559,15 @@ export const listThreadsToolDefinition: ToolDefinitionWithMcpOutput<
     'listThreads',
     typeof toolListThreadsArgsSchema,
     typeof toolListThreadsArgsSchema,
-    undefined,
+    typeof toolListThreadsOutputSchema,
     typeof toolListThreadsStructuredContentSchema
 > = defineTool({
     name: 'listThreads',
     title: 'List conversations',
     description: TOOL_LIST_THREADS_DESCRIPTION,
-    availability: ['mcp'],
+    availability: ['agent', 'mcp'],
     inputSchema: toolListThreadsArgsSchema,
+    agent: { outputSchema: toolListThreadsOutputSchema },
     mcp: {
         annotations: readOnlyAnnotations,
         structuredContentSchema: toolListThreadsStructuredContentSchema,
@@ -1574,14 +1578,15 @@ export const searchThreadsToolDefinition: ToolDefinitionWithMcpOutput<
     'searchThreads',
     typeof toolSearchThreadsArgsSchema,
     typeof toolSearchThreadsArgsSchema,
-    undefined,
+    typeof toolSearchThreadsOutputSchema,
     typeof toolSearchThreadsStructuredContentSchema
 > = defineTool({
     name: 'searchThreads',
     title: 'Search conversations',
     description: TOOL_SEARCH_THREADS_DESCRIPTION,
-    availability: ['mcp'],
+    availability: ['agent', 'mcp'],
     inputSchema: toolSearchThreadsArgsSchema,
+    agent: { outputSchema: toolSearchThreadsOutputSchema },
     mcp: {
         annotations: readOnlyAnnotations,
         structuredContentSchema: toolSearchThreadsStructuredContentSchema,
@@ -1592,14 +1597,15 @@ export const getThreadToolDefinition: ToolDefinitionWithMcpOutput<
     'getThread',
     typeof toolGetThreadArgsSchema,
     typeof toolGetThreadArgsSchema,
-    undefined,
+    typeof toolGetThreadOutputSchema,
     typeof toolGetThreadStructuredContentSchema
 > = defineTool({
     name: 'getThread',
     title: 'Read conversation',
     description: TOOL_GET_THREAD_DESCRIPTION,
-    availability: ['mcp'],
+    availability: ['agent', 'mcp'],
     inputSchema: toolGetThreadArgsSchema,
+    agent: { outputSchema: toolGetThreadOutputSchema },
     mcp: {
         annotations: readOnlyAnnotations,
         structuredContentSchema: toolGetThreadStructuredContentSchema,
@@ -2124,6 +2130,9 @@ type AgentToolDefinitionsByName = {
     listKnowledgeDocuments: typeof listKnowledgeDocumentsToolDefinition;
     getKnowledgeDocumentContent: typeof getKnowledgeDocumentContentToolDefinition;
     readPinnedThread: typeof readPinnedThreadToolDefinition;
+    listThreads: typeof listThreadsToolDefinition;
+    searchThreads: typeof searchThreadsToolDefinition;
+    getThread: typeof getThreadToolDefinition;
     readAttachments: typeof readAttachmentsToolDefinition;
     submitResearchReport: typeof submitResearchReportToolDefinition;
     delegateResearchTask: typeof delegateResearchTaskToolDefinition;
@@ -2188,6 +2197,9 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     listKnowledgeDocuments: listKnowledgeDocumentsToolDefinition,
     getKnowledgeDocumentContent: getKnowledgeDocumentContentToolDefinition,
     readPinnedThread: readPinnedThreadToolDefinition,
+    listThreads: listThreadsToolDefinition,
+    searchThreads: searchThreadsToolDefinition,
+    getThread: getThreadToolDefinition,
     readAttachments: readAttachmentsToolDefinition,
     submitResearchReport: submitResearchReportToolDefinition,
     delegateResearchTask: delegateResearchTaskToolDefinition,
