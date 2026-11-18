@@ -65,7 +65,7 @@ export const getActivityTitle = (
                 !isToolCallFailedOrUnapproved(call, toolResults),
         );
     const hasDashboard = succeeded((n) => n === 'generateDashboard');
-    const hasCreateContent = toolNames.includes('createContent');
+    const hasCreateContent = succeeded((n) => n === 'createContent');
     const hasQuery = succeeded(
         (n) => isComposerQueryToolName(n) || QUERY_TOOLS.has(n),
     );
