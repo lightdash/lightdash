@@ -6,6 +6,7 @@ import {
     type DefaultOptions,
     type QueryKey,
 } from '@tanstack/react-query';
+import { hashQueryKeyByView } from '../../features/semanticStudio/developmentView';
 
 const MAX_QUERY_RETRIES = 5;
 
@@ -54,6 +55,7 @@ export const createQueryClient = (
                     }
                 },
                 networkMode: 'always',
+                queryKeyHashFn: hashQueryKeyByView,
                 ...options?.queries,
             },
             mutations: {
