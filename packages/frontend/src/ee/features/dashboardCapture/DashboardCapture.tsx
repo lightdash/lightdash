@@ -2,12 +2,20 @@ import {
     DASHBOARD_GRID_COLUMNS,
     FeatureFlags,
     isDashboardChartTileType,
+    type CaptureLayoutOp,
     type CaptureQuestion,
     type DashboardTile,
 } from '@lightdash/common';
 import { Button, Loader, Text, Tooltip } from '@mantine/core';
 import { IconMicrophone } from '@tabler/icons-react';
-import { useCallback, useMemo, useRef, useState, type FC } from 'react';
+import {
+    useCallback,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -18,10 +26,14 @@ import {
     useDashboardSelector,
 } from '../../../features/dashboard/store';
 import { getTileTitle } from '../../../features/dashboardControls/tileProps';
-import { useUpdateDashboard } from '../../../hooks/dashboard/useDashboard';
+import {
+    getDashboard,
+    useUpdateDashboard,
+} from '../../../hooks/dashboard/useDashboard';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import launcherClasses from '../aiCopilot/components/Launcher/AiAgentsLauncher.module.css';
 import { useLauncherDockExtras } from '../aiCopilot/components/Launcher/launcherDockExtras';
 import { useLauncherDock } from '../aiCopilot/components/Launcher/useLauncherDock';
@@ -43,6 +55,7 @@ import {
 } from '../capture';
 import { applyLayoutOps } from './applyLayoutOps';
 import classes from './DashboardCapture.module.css';
+import { hasSameLayout, reapplyLayoutPreview } from './layoutPreview';
 import { buildLayoutSaveBody } from './layoutSaveBody';
 import { routeCapture } from './routeCapture';
 import {
@@ -107,6 +120,10 @@ const DashboardCapture: FC = () => {
     const dockExtras = useLauncherDockExtras();
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const dashboard = useDashboardContext((c) => c.dashboard);
+    const includeUnpublishedDraft = useDashboardContext(
+        (c) => c.includeUnpublishedDraft,
+    );
+    const lightdashApi = useLightdashApi();
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
@@ -119,14 +136,11 @@ const DashboardCapture: FC = () => {
     const captureRef = useRef<CaptureHostHandle>(null);
     const [isRecording, setIsRecording] = useState(false);
     const [isSorting, setIsSorting] = useState(false);
-    // Tiles as they were before unsaved layout changes, for Discard.
-    // Agent changes held back until the layout preview is resolved.
-    const heldEditsRef = useRef<CaptureQuestion[]>([]);
-    const heldImagesRef = useRef<string[]>([]);
-    const [heldEditCount, setHeldEditCount] = useState(0);
-    const [tilesBeforePreview, setTilesBeforePreview] = useState<
-        DashboardTile[] | null
-    >(null);
+    // Unsaved layout changes on screen, in the order they were made.
+    const [pendingLayoutOps, setPendingLayoutOps] = useState<CaptureLayoutOp[]>(
+        [],
+    );
+    const [isSaving, setIsSaving] = useState(false);
 
     const { data: agents } = useProjectAiAgents({
         projectUuid,
@@ -157,10 +171,34 @@ const DashboardCapture: FC = () => {
         },
     );
 
-    const { mutate: saveDashboard, isLoading: isSaving } = useUpdateDashboard(
+    const { mutateAsync: saveDashboard } = useUpdateDashboard(
         dashboard?.uuid,
         projectUuid,
     );
+
+    // An agent edit reloads the tiles from the server, which drops the
+    // unsaved layout. When the tiles match the server again, put it back.
+    const serverTiles = dashboard?.tiles;
+    useLayoutEffect(() => {
+        if (pendingLayoutOps.length === 0 || isSaving) return;
+        if (!serverTiles || !dashboardTiles) return;
+        if (!hasSameLayout(dashboardTiles, serverTiles)) return;
+        const preview = reapplyLayoutPreview(
+            dashboardTiles,
+            pendingLayoutOps,
+            DASHBOARD_GRID_COLUMNS,
+        );
+        if (preview.ops.length !== pendingLayoutOps.length) {
+            setPendingLayoutOps(preview.ops);
+        }
+        if (preview.ops.length > 0) setDashboardTiles(preview.tiles);
+    }, [
+        dashboardTiles,
+        isSaving,
+        pendingLayoutOps,
+        serverTiles,
+        setDashboardTiles,
+    ]);
 
     // Everything for the agent goes in one thread, as a numbered list.
     const sendQuestions = useCallback(
@@ -261,35 +299,22 @@ const DashboardCapture: FC = () => {
                 );
 
                 const layout = applyLayoutOps(
-                    tiles,
+                    tilesRef.current,
                     route.layout,
                     DASHBOARD_GRID_COLUMNS,
                 );
                 if (layout.applied > 0) {
-                    setTilesBeforePreview((before) => before ?? tiles);
+                    setPendingLayoutOps((ops) => [...ops, ...route.layout]);
                     setDashboardTiles(layout.tiles);
                 }
 
-                // The agent saves its changes and the page reloads the
-                // dashboard, which would wipe an unsaved layout. So agent
-                // changes wait until the layout is saved or discarded.
                 const edits = route.edits.map((edit) => ({
                     ...edit,
                     text: `Please make this change to the dashboard "${dashboard.name}": ${edit.text}`,
                 }));
-                const layoutPending =
-                    layout.applied > 0 || heldEditsRef.current.length > 0;
-                if (edits.length > 0 && layoutPending) {
-                    heldEditsRef.current = [...heldEditsRef.current, ...edits];
-                    heldImagesRef.current = images;
-                    setHeldEditCount(heldEditsRef.current.length);
-                }
-                const forAgentNow = [
-                    ...route.questions,
-                    ...(layoutPending ? [] : edits),
-                ];
-                if (forAgentNow.length > 0) {
-                    sendQuestions(forAgentNow, tiles, dashboard.uuid, images);
+                const forAgent = [...route.questions, ...edits];
+                if (forAgent.length > 0) {
+                    sendQuestions(forAgent, tiles, dashboard.uuid, images);
                 }
 
                 if (
@@ -312,11 +337,7 @@ const DashboardCapture: FC = () => {
                         ? `${plural(route.questions.length, 'question')} sent to the agent`
                         : null,
                     edits.length > 0
-                        ? `${plural(edits.length, 'change')} ${
-                              layoutPending
-                                  ? 'for the agent once the layout is settled'
-                                  : 'sent to the agent'
-                          }`
+                        ? `${plural(edits.length, 'change')} sent to the agent`
                         : null,
                 ].filter((part) => part !== null);
                 showToastInfo({ title: parts.join(', ') });
@@ -383,31 +404,41 @@ const DashboardCapture: FC = () => {
         </Tooltip>
     );
 
-    const releaseHeldEdits = () => {
-        const edits = heldEditsRef.current;
-        heldEditsRef.current = [];
-        setHeldEditCount(0);
-        if (edits.length > 0) {
-            sendQuestions(
-                edits,
-                tilesRef.current,
+    // Save on top of the latest saved dashboard, so an agent's changes are kept.
+    const handleSave = async () => {
+        if (!projectUuid) return;
+        setIsSaving(true);
+        try {
+            const latest = await getDashboard(
+                lightdashApi,
                 dashboard.uuid,
-                heldImagesRef.current,
+                projectUuid,
+                includeUnpublishedDraft,
+            ).catch(() => null);
+            if (!latest) {
+                showToastError({ title: 'Could not save the layout' });
+                return;
+            }
+            const { tiles } = reapplyLayoutPreview(
+                latest.tiles,
+                pendingLayoutOps,
+                DASHBOARD_GRID_COLUMNS,
             );
+            // A failed save shows its own error.
+            const saved = await saveDashboard(
+                buildLayoutSaveBody(latest, tiles),
+            ).catch(() => null);
+            if (!saved) return;
+            setPendingLayoutOps([]);
+            setDashboardTiles(saved.tiles);
+        } finally {
+            setIsSaving(false);
         }
     };
-    const handleSave = () => {
-        saveDashboard(buildLayoutSaveBody(dashboard, tilesRef.current), {
-            onSuccess: () => {
-                setTilesBeforePreview(null);
-                releaseHeldEdits();
-            },
-        });
-    };
+    // Back to the saved tiles, which include anything an agent has changed.
     const handleDiscard = () => {
-        if (tilesBeforePreview) setDashboardTiles(tilesBeforePreview);
-        setTilesBeforePreview(null);
-        releaseHeldEdits();
+        setPendingLayoutOps([]);
+        setDashboardTiles(dashboard.tiles);
     };
 
     return (
@@ -418,12 +449,10 @@ const DashboardCapture: FC = () => {
                 onRecordingChange={setIsRecording}
             />
             <div className={classes.dock}>
-                {tilesBeforePreview && (
+                {pendingLayoutOps.length > 0 && (
                     <div className={classes.bar}>
                         <Text size="sm" c="white">
                             Layout changed, not saved
-                            {heldEditCount > 0 &&
-                                `. ${plural(heldEditCount, 'change')} waiting for the agent`}
                         </Text>
                         <Button
                             size="compact-sm"
@@ -437,7 +466,7 @@ const DashboardCapture: FC = () => {
                         <Button
                             size="compact-sm"
                             radius="xl"
-                            onClick={handleSave}
+                            onClick={() => void handleSave()}
                             loading={isSaving}
                         >
                             Save
