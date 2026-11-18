@@ -294,7 +294,10 @@ describe('planDashboardAiAgentChanges', () => {
         expect(plan('jaffle-dashboard')).toEqual([
             {
                 type: 'refreshDashboard',
-                focusChart: { type: 'composer_chart', slug: 'amount-by-status' },
+                focusChart: {
+                    type: 'composer_chart',
+                    slug: 'amount-by-status',
+                },
             },
         ]);
         expect(plan('other-dashboard')).toEqual([]);

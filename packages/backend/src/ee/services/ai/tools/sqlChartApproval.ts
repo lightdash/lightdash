@@ -72,9 +72,7 @@ const getSqlChartApproveSql =
 
 type SqlChartToolName = 'createContent' | 'editContent';
 
-export type GetComposerChartSqlFn = (
-    args: unknown,
-) => Promise<string | null>;
+export type GetComposerChartSqlFn = (args: unknown) => Promise<string | null>;
 
 type ToolOutput = { result: string; metadata?: Record<string, unknown> };
 
@@ -100,9 +98,7 @@ export const createSqlChartGate = (
     /** The SQL a call asks to save; null when the call does not gate on it. */
     const getGatedSql = async (args: unknown): Promise<string | null> => {
         if (isComposerChartContentArgs(args)) {
-            return getComposerChartSql
-                ? getComposerChartSql(args)
-                : null;
+            return getComposerChartSql ? getComposerChartSql(args) : null;
         }
         return isSqlApprovalToolCall(toolName, args)
             ? getSqlApprovalSql(args)

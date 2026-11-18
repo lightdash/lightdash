@@ -118,7 +118,9 @@ export const toolComposerChartFromNodeSchema = z
         sessionId: z
             .string()
             .nullable()
-            .describe('The query result\'s sessionId; null in an agent conversation.'),
+            .describe(
+                "The query result's sessionId; null in an agent conversation.",
+            ),
         vizConfig: composerChartVizConfigSchema,
     })
     .describe('Composer chart built from a query node.');

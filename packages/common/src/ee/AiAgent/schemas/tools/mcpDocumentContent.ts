@@ -216,7 +216,13 @@ export const DOCUMENT_EDIT_CONTENT_DESCRIPTION = ({
     `Edit a Document with documentEdit against the latest version ${toolNameFor('readContent', runtime)} returned. A Document in a Space can be edited only when that Space shows canEdit true in ${toolNameFor('findContent', runtime)} or ${toolNameFor('listContent', runtime)} results.`;
 
 export const mcpCreateContentArgsSchema = toolCreateContentArgsSchema.extend({
-    type: z.enum(['dashboard', 'chart', 'sql_chart', 'composer_chart', 'document']),
+    type: z.enum([
+        'dashboard',
+        'chart',
+        'sql_chart',
+        'composer_chart',
+        'document',
+    ]),
     content: z.union([
         documentAsCodeSchema,
         toolCreateContentArgsSchema.shape.content,
