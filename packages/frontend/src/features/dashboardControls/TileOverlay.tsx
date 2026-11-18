@@ -169,7 +169,7 @@ type TileOverlayProps = {
     highlight: TileHighlight | null;
     // The clicked field, on the tiles that are on it. Hover never changes it
     scrollFieldId: string | null;
-    // "Filtered by" its first field or "Filtered via" another, while filtered
+    // "Filtered by", while filtered
     statusLabel: string | null;
     // `isPick`: a field chosen in the card's select, which selects its chip
     onSelect: (tileUuid: string, value: string | null, isPick: boolean) => void;
@@ -603,8 +603,6 @@ const EditedTileOverlays: FC = () => {
                         : tileField
                           ? getTileFieldLabel(tileField)
                           : getFieldLabel(tileFieldId, fieldsMap);
-                const isFiltersOwnField =
-                    tileFieldId === editingRule.target.fieldId;
                 // The select below names the field once it lists it
                 const isShownInSelect =
                     tileFieldId !== null &&
@@ -617,17 +615,9 @@ const EditedTileOverlays: FC = () => {
                     tileFieldLabel === null || isDataAppTile
                         ? null
                         : isShownInSelect
-                          ? getUiString(
-                                isFiltersOwnField
-                                    ? 'filters.tileCard.filteredByHeading'
-                                    : 'filters.tileCard.filteredViaHeading',
-                            )
+                          ? getUiString('filters.tileCard.filteredByHeading')
                           : interpolateUiString(
-                                getUiString(
-                                    isFiltersOwnField
-                                        ? 'filters.tileCard.filteredBy'
-                                        : 'filters.tileCard.filteredVia',
-                                ),
+                                getUiString('filters.tileCard.filteredBy'),
                                 { field: tileFieldLabel },
                             );
                 const highlight = getTileHighlight({

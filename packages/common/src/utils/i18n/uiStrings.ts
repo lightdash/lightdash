@@ -493,8 +493,9 @@ export const DEFAULT_UI_STRINGS = {
     'filters.tileCard.thisTile': 'this tile',
     'filters.tileCard.selectName': '{filter} on {tile}',
     'filters.tileCard.filteredBy': 'Filtered by {field}',
-    'filters.tileCard.filteredVia': 'Filtered via {field}',
     'filters.tileCard.filteredByHeading': 'Filtered by',
+    // No longer rendered; shipped keys stay so host overrides keep typing
+    'filters.tileCard.filteredVia': 'Filtered via {field}',
     'filters.tileCard.filteredViaHeading': 'Filtered via',
     'filters.tileCard.notFilteredLabel': 'Not filtered',
     'filters.tileCard.fieldNotOnTile':

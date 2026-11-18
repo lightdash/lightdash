@@ -132,8 +132,7 @@ region.
 Mounted only in mapping (`isMapping`): opening or editing a value leaves
 every tile as it is. No wash: a tile that can take the filter keeps its
 look under its card; one that cannot dims (its own surface over it), with no
-card. Cards read "Filtered by" on the filter's own field, "Filtered via" on
-another, the select below naming the field (it stays in the heading only
+card. Cards read "Filtered by" on any field, the select below naming the field (it stays in the heading only
 when the select cannot show it), and "Not filtered" with "Filter this tile"
 (the filter's field the tile has, else its first fitting one). While a chip
 is clicked a card's write on that chip's field goes through `applyWithUndo`
