@@ -133,10 +133,16 @@ const ModelSourceCard: FC<{
             ) : null}
             {status.servingCopy ? (
                 <Group gap="xl">
-                    {status.rowCount !== null && status.maxRows !== null ? (
+                    {status.rowCount !== null ? (
                         <Fact
                             label="Rows"
-                            value={`${status.rowCount.toLocaleString()} of ${status.maxRows.toLocaleString()}`}
+                            value={status.rowCount.toLocaleString()}
+                        />
+                    ) : null}
+                    {status.maxRows !== null ? (
+                        <Fact
+                            label="Row limit"
+                            value={status.maxRows.toLocaleString()}
                         />
                     ) : null}
                     {status.byteCount !== null ? (
@@ -146,11 +152,11 @@ const ModelSourceCard: FC<{
                         />
                     ) : null}
                     <Fact
-                        label="Next refresh"
+                        label={status.nextRefresh ? 'Next refresh' : 'Refresh'}
                         value={
                             status.nextRefresh
                                 ? utc(status.nextRefresh)
-                                : 'Not scheduled'
+                                : 'Manual'
                         }
                     />
                 </Group>

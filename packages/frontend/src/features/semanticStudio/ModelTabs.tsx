@@ -305,7 +305,7 @@ export const ModelTabs: FC<{
     const hasHistory = !!model && !asPullRequest;
     const hasLineage = lineage !== null;
     const hasPreAggregates = useHealth().data?.preAggregates.enabled === true;
-    const { enabled } = useContext(ModelMaterializationContext);
+    const { enabled, models } = useContext(ModelMaterializationContext);
     const hasModelSource = enabled && !!model;
     const hasPerformance = hasPreAggregates || hasModelSource;
     const performanceTab = hasModelSource ? 'performance' : 'pre-aggregates';
@@ -369,7 +369,7 @@ export const ModelTabs: FC<{
                             asPullRequest={asPullRequest}
                         />
                     )}
-                    {hasPreAggregates && (
+                    {hasPreAggregates && !models.has(modelName) && (
                         <ModelPreAggregates
                             projectUuid={projectUuid}
                             exploreName={exploreName}

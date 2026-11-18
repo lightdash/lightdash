@@ -222,8 +222,8 @@ describe('Model performance in Studio', () => {
         expect(
             await screen.findByRole('cell', { name: '17.50' }),
         ).toBeInTheDocument();
-        expect(screen.getByText('3 of 1,000')).toBeInTheDocument();
-        expect(screen.getByText('Not scheduled')).toBeInTheDocument();
+        expect(screen.getByText('Row limit')).toBeInTheDocument();
+        expect(screen.getByText('Manual')).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Refresh now' }));
         expect(
             await screen.findByText('Refresh requested'),
