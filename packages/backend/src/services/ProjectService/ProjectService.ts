@@ -17199,12 +17199,99 @@ export class ProjectService
             throw new ForbiddenError();
         }
 
+        const [spaceUuid, dashboardUuid, chartUuid] = await Promise.all([
+            this.filterViewablePaletteContext(context.spaceUuid, (uuid) =>
+                this.canViewSpaceInProject(user, projectUuid, uuid),
+            ),
+            this.filterViewablePaletteContext(context.dashboardUuid, (uuid) =>
+                this.canViewDashboardInProject(user, projectUuid, uuid),
+            ),
+            this.filterViewablePaletteContext(context.chartUuid, (uuid) =>
+                this.canViewChartInProject(user, projectUuid, uuid),
+            ),
+        ]);
+
         return this.savedChartModel.resolveColorPalette({
             projectUuid,
-            spaceUuid: context.spaceUuid,
-            dashboardUuid: context.dashboardUuid,
-            chartUuid: context.chartUuid,
+            spaceUuid,
+            dashboardUuid,
+            chartUuid,
         });
+    }
+
+    // Context the user can't view is dropped, so the palette falls back to the next level.
+    private async filterViewablePaletteContext(
+        uuid: string | undefined,
+        canView: (uuid: string) => Promise<boolean>,
+    ): Promise<string | undefined> {
+        if (uuid === undefined) return undefined;
+        try {
+            return (await canView(uuid)) ? uuid : undefined;
+        } catch (error) {
+            if (error instanceof NotFoundError) return undefined;
+            throw error;
+        }
+    }
+
+    private async canViewSpaceInProject(
+        user: SessionUser,
+        projectUuid: string,
+        spaceUuid: string,
+    ): Promise<boolean> {
+        await this.spaceModel.getSpaceSummary(spaceUuid, { projectUuid });
+        return this.spacePermissionService.can('view', user, spaceUuid);
+    }
+
+    private async canViewDashboardInProject(
+        user: SessionUser,
+        projectUuid: string,
+        dashboardUuid: string,
+    ): Promise<boolean> {
+        const dashboard =
+            await this.dashboardModel.getSummaryByUuid(dashboardUuid);
+        if (dashboard.projectUuid !== projectUuid) return false;
+        const { inheritsFromOrgOrProject, access } =
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'dashboard',
+                dashboardUuid,
+                spaceUuid: dashboard.spaceUuid,
+            });
+        return this.createAuditedAbility(user).can(
+            'view',
+            subject('Dashboard', {
+                organizationUuid: dashboard.organizationUuid,
+                projectUuid,
+                inheritsFromOrgOrProject,
+                access,
+                metadata: { dashboardUuid },
+            }),
+        );
+    }
+
+    private async canViewChartInProject(
+        user: SessionUser,
+        projectUuid: string,
+        chartUuid: string,
+    ): Promise<boolean> {
+        const chart = await this.savedChartModel.getSummary(chartUuid);
+        if (chart.projectUuid !== projectUuid) return false;
+        const { inheritsFromOrgOrProject, access } =
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'chart',
+                chartUuid,
+                dashboardUuid: chart.dashboardUuid,
+                spaceUuid: chart.spaceUuid,
+            });
+        return this.createAuditedAbility(user).can(
+            'view',
+            subject('SavedChart', {
+                organizationUuid: chart.organizationUuid,
+                projectUuid,
+                inheritsFromOrgOrProject,
+                access,
+                metadata: { savedChartUuid: chartUuid },
+            }),
+        );
     }
 
     /** @deprecated Only used by the deprecated project access endpoint; use RolesService.deleteProjectRoleAssignment instead. */
