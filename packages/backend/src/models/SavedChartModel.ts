@@ -3831,25 +3831,18 @@ export class SavedChartModel {
         }
     }
 
-    private currentVersionUuidsQuery(savedChartUuids: UUID[], db: Knex) {
-        return db(SavedChartsTableName)
+    async getCurrentVersionUuids(
+        savedChartUuids: UUID[],
+        db: Knex = this.database,
+    ): Promise<Map<UUID, UUID>> {
+        const rows = await db(SavedChartsTableName)
             .select<{ saved_query_uuid: UUID; version_uuid: UUID }[]>(
                 'saved_query_uuid',
                 db.raw(
                     `${latestSavedChartVersionColumnSql('saved_queries_version_uuid')} as version_uuid`,
                 ),
             )
-            .whereIn('saved_query_uuid', savedChartUuids)
-            .orderBy('saved_query_uuid');
-    }
-
-    async getCurrentVersionUuids(
-        savedChartUuids: UUID[],
-    ): Promise<Map<UUID, UUID>> {
-        const rows = await this.currentVersionUuidsQuery(
-            savedChartUuids,
-            this.database,
-        );
+            .whereIn('saved_query_uuid', savedChartUuids);
         return new Map(rows.map((r) => [r.saved_query_uuid, r.version_uuid]));
     }
 
@@ -3858,10 +3851,12 @@ export class SavedChartModel {
         savedChartUuids: UUID[],
         trx: Knex.Transaction,
     ): Promise<Map<UUID, UUID>> {
-        const rows = await this.currentVersionUuidsQuery(
-            savedChartUuids,
-            trx,
-        ).forUpdate();
-        return new Map(rows.map((r) => [r.saved_query_uuid, r.version_uuid]));
+        await trx(SavedChartsTableName)
+            .select('saved_query_id')
+            .whereIn('saved_query_uuid', savedChartUuids)
+            .orderBy('saved_query_uuid')
+            .forUpdate();
+        // Read after the lock, in a new statement, so it sees versions committed while it waited
+        return this.getCurrentVersionUuids(savedChartUuids, trx);
     }
 }
