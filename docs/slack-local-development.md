@@ -16,7 +16,7 @@ Use a Slack app that belongs to you or the team for development. Never use the p
 - **Interactivity & Shortcuts**: on. Socket mode delivers button clicks too.
 - **App unfurl domains**: add your tunnel host if you test link unfurls.
 
-The shared dev app's values are in the Lightdash 1Password item "Slack ENV for lightdash share local", a secure note with an `export KEY=""value""` block. `scripts/dev-op-pull.sh pull SLACK_APP` writes them into `.env.development.local`. If you use your own app, copy the same keys from its settings pages.
+The shared dev app's values are in the Lightdash 1Password item "Slack ENV for lightdash share local", a secure note with an `export KEY=""value""` block. Copy them into `.env.development.local`. If you use your own app, copy the same keys from its settings pages.
 
 ## 2. Environment
 
@@ -62,7 +62,7 @@ Socket mode delivers an event to only one open connection per app token. If two 
 
 ## Starting the instance
 
-`scripts/dev-fast-start.sh --ee` starts the instance. Pull the Slack values with `scripts/dev-op-pull.sh pull SLACK_APP` (step 1) and set `SLACK_SOCKET_MODE=true`. You still do steps 3 and 4 manually.
+Start a local instance with an EE licence. Add the Slack values from step 1 and set `SLACK_SOCKET_MODE=true`. You still do steps 3 and 4 manually.
 
 ## Troubleshooting
 

@@ -174,15 +174,9 @@ sfw pnpm install
 
 ### 5c. Start the dev stack
 
-The running app is what we're testing against, not just the diff:
+The running app is what we're testing against, not just the diff. Start it on the PR's Rainbow preview env, or locally with the Docker compose setup in `.github/CONTRIBUTING.md`.
 
-```
-./scripts/dev-fast-start.sh
-```
-
-Wait for the script to print its `OK:` lines and exit 0, and for the PM2 processes to be `online`. If the build or PM2 startup fails, that's the first signal — the bump may have broken the install or runtime resolution. Report this immediately and stop.
-
-When using a worktree, `scripts/dev-fast-start.sh` claims a fresh port slot for this instance (with `scripts/dev-ports.sh`), so it won't conflict with another running Lightdash instance in the main checkout or another worktree.
+Wait for `GET /api/v1/health` to return 200. If the build or startup fails, that's the first signal — the bump may have broken the install or runtime resolution. Report this immediately and stop.
 
 ## Phase 6: Test the change with /debug-local tooling
 
