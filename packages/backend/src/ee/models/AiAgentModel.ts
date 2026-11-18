@@ -3979,29 +3979,10 @@ export class AiAgentModel {
         filters?: AiAgentAdminFilters;
         sort?: AiAgentAdminSort;
     }): Promise<KnexPaginatedData<AiAgentAdminConversationsSummary>> {
-        const threadFeedbackQuery = this.database(AiPromptTableName)
-            .select([
-                'ai_thread_uuid',
-                this.database.raw(`
-                     COUNT(CASE WHEN human_score = 1 THEN 1 END)::integer as upvotes,
-                     COUNT(CASE WHEN human_score = -1 THEN 1 END)::integer as downvotes,
-                     COUNT(CASE WHEN human_score = 0 THEN 1 END)::integer as neutral,
-                     COUNT(*)::integer as total_feedback
-                 `),
-            ])
-            .from(AiPromptTableName)
-            .whereNotNull('human_score')
-            .groupBy('ai_thread_uuid');
-
-        const threadPromptCountQuery = this.database(AiPromptTableName)
-            .select([
-                'ai_thread_uuid',
-                this.database.raw('COUNT(*)::integer as prompt_count'),
-            ])
-            .groupBy('ai_thread_uuid');
-        const threadsWithFeedbackQuery = this.database
-            .with('thread_feedback', threadFeedbackQuery)
-            .with('thread_prompt_count', threadPromptCountQuery)
+        // Feedback and prompt counts are read separately, for the returned
+        // page only. Aggregating them here made Postgres recompute them over
+        // every prompt in the table once per thread.
+        const threadsQuery = this.database
             .select<
                 {
                     ai_thread_uuid: DbAiThread['ai_thread_uuid'];
@@ -4022,15 +4003,6 @@ export class AiAgentModel {
                     project_name: DbProject['name'];
                     organization_uuid: DbAiThread['organization_uuid'];
                     project_uuid: DbAiThread['project_uuid'];
-
-                    // Feedback aggregation from CTE
-                    upvotes: number | null;
-                    downvotes: number | null;
-                    neutral: number | null;
-                    total_feedback: number | null;
-
-                    // Prompt count from CTE
-                    prompt_count: number | null;
                 }[]
             >([
                 // Original thread fields
@@ -4040,7 +4012,7 @@ export class AiAgentModel {
                 `${AiThreadTableName}.created_from`,
                 `${AiThreadTableName}.title`,
                 `${AiThreadTableName}.title_generated_at`,
-                `${AiPromptTableName}.prompt as first_prompt`,
+                'first_thread_prompt.prompt as first_prompt',
                 `${UserTableName}.user_uuid`,
                 this.database.raw(
                     `COALESCE(NULLIF(TRIM(CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)), ''), ${EmailTableName}.email, 'Unknown user') as user_name`,
@@ -4053,25 +4025,23 @@ export class AiAgentModel {
                 `${AiAgentTableName}.image_url as agent_image_url`,
                 `${ProjectTableName}.name as project_name`,
                 `${ProjectTableName}.project_uuid`,
-
-                // Feedback aggregation from CTE
-                'thread_feedback.upvotes',
-                'thread_feedback.downvotes',
-                'thread_feedback.neutral',
-                'thread_feedback.total_feedback',
-
-                // Prompt count from CTE
-                'thread_prompt_count.prompt_count',
             ])
             .from(AiThreadTableName)
-            .join(
-                AiPromptTableName,
-                `${AiThreadTableName}.ai_thread_uuid`,
-                `${AiPromptTableName}.ai_thread_uuid`,
+            // The lateral join reads each thread's first prompt from the
+            // (ai_thread_uuid, created_at) index and gives the planner a
+            // correct row estimate.
+            .joinRaw(
+                `JOIN LATERAL (
+                    SELECT first_prompt.prompt, first_prompt.created_by_user_uuid
+                    FROM ${AiPromptTableName} AS first_prompt
+                    WHERE first_prompt.ai_thread_uuid = ${AiThreadTableName}.ai_thread_uuid
+                    ORDER BY first_prompt.created_at ASC
+                    LIMIT 1
+                ) AS first_thread_prompt ON true`,
             )
             .leftJoin(
                 UserTableName,
-                `${AiPromptTableName}.created_by_user_uuid`,
+                'first_thread_prompt.created_by_user_uuid',
                 `${UserTableName}.user_uuid`,
             )
             .leftJoin(EmailTableName, function joinEmails() {
@@ -4096,35 +4066,14 @@ export class AiAgentModel {
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackThreadTableName}.ai_thread_uuid`,
             )
-            .leftJoin(
-                'thread_feedback',
-                `${AiThreadTableName}.ai_thread_uuid`,
-                'thread_feedback.ai_thread_uuid',
-            )
-            .leftJoin(
-                'thread_prompt_count',
-                `${AiThreadTableName}.ai_thread_uuid`,
-                'thread_prompt_count.ai_thread_uuid',
-            )
-            .where(
-                `${AiPromptTableName}.created_at`,
-                this.database(AiPromptTableName)
-                    .select(this.database.raw('MIN(created_at)'))
-                    .whereRaw(
-                        `${AiPromptTableName}.ai_thread_uuid = ${AiThreadTableName}.ai_thread_uuid`,
-                    ),
-            )
-            .andWhere(
-                `${AiThreadTableName}.organization_uuid`,
-                organizationUuid,
-            )
+            .where(`${AiThreadTableName}.organization_uuid`, organizationUuid)
             // Exclude eval threads by default
             .whereIn(
                 `${AiThreadTableName}.created_from`,
                 AI_USER_THREAD_CREATED_FROM,
             );
 
-        const finalQuery = threadsWithFeedbackQuery;
+        const finalQuery = threadsQuery;
 
         if (filters) {
             if (filters.projectUuids && filters.projectUuids.length > 0) {
@@ -4220,37 +4169,72 @@ export class AiAgentModel {
             paginateArgs,
         );
 
+        const threadStats =
+            data.length > 0
+                ? await this.database(AiPromptTableName)
+                      .select<
+                          {
+                              ai_thread_uuid: string;
+                              upvotes: number;
+                              downvotes: number;
+                              neutral: number;
+                              total_feedback: number;
+                              prompt_count: number;
+                          }[]
+                      >([
+                          'ai_thread_uuid',
+                          this.database.raw(`
+                              COUNT(*) FILTER (WHERE human_score = 1)::integer as upvotes,
+                              COUNT(*) FILTER (WHERE human_score = -1)::integer as downvotes,
+                              COUNT(*) FILTER (WHERE human_score = 0)::integer as neutral,
+                              COUNT(human_score)::integer as total_feedback,
+                              COUNT(*)::integer as prompt_count
+                          `),
+                      ])
+                      .whereIn(
+                          'ai_thread_uuid',
+                          data.map((row) => row.ai_thread_uuid),
+                      )
+                      .groupBy('ai_thread_uuid')
+                : [];
+        const statsByThreadUuid = new Map(
+            threadStats.map((stats) => [stats.ai_thread_uuid, stats]),
+        );
+
         const threads: AiAgentAdminThreadSummary[] = data.map(
-            (row): AiAgentAdminThreadSummary => ({
-                uuid: row.ai_thread_uuid,
-                createdAt: row.created_at.toISOString(),
-                createdFrom: row.created_from,
-                title: row.title || row.first_prompt,
-                user: {
-                    uuid: row.user_uuid ?? '',
-                    name: row.user_name || 'Unknown user',
-                    slackUserId: row.slack_user_id,
-                    email: row.user_email,
-                },
-                agent: {
-                    uuid: row.agent_uuid,
-                    name: row.agent_name,
-                    imageUrl: row.agent_image_url,
-                },
-                project: {
-                    uuid: row.project_uuid,
-                    name: row.project_name,
-                },
-                feedbackSummary: {
-                    upvotes: row.upvotes || 0,
-                    downvotes: row.downvotes || 0,
-                    neutral: row.neutral || 0,
-                    total: row.total_feedback || 0,
-                },
-                promptCount: row.prompt_count || 0,
-                slackChannelId: row.slack_channel_id || null,
-                slackThreadTs: row.slack_thread_ts || null,
-            }),
+            (row): AiAgentAdminThreadSummary => {
+                const stats = statsByThreadUuid.get(row.ai_thread_uuid);
+                return {
+                    uuid: row.ai_thread_uuid,
+                    createdAt: row.created_at.toISOString(),
+                    createdFrom: row.created_from,
+                    title: row.title || row.first_prompt,
+                    user: {
+                        uuid: row.user_uuid ?? '',
+                        name: row.user_name || 'Unknown user',
+                        slackUserId: row.slack_user_id,
+                        email: row.user_email,
+                    },
+                    agent: {
+                        uuid: row.agent_uuid,
+                        name: row.agent_name,
+                        imageUrl: row.agent_image_url,
+                    },
+                    project: {
+                        uuid: row.project_uuid,
+                        name: row.project_name,
+                    },
+                    feedbackSummary: {
+                        upvotes: stats?.upvotes ?? 0,
+                        downvotes: stats?.downvotes ?? 0,
+                        neutral: stats?.neutral ?? 0,
+                        total: stats?.total_feedback ?? 0,
+                    },
+                    promptCount: stats?.prompt_count ?? 0,
+                    slackChannelId: row.slack_channel_id || null,
+                    slackThreadTs: row.slack_thread_ts || null,
+                };
+            },
         );
 
         return {
