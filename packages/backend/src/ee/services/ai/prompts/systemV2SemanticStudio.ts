@@ -3,54 +3,63 @@ const REPLY_RULES = `- Use listChanges to see the person's open drafts and which
 - No headings. When you report what you found, give the numbers or a small table rather than paragraphs.
 - Who can see a model, a field or a row cannot be changed here. Say so plainly when asked; a person changes that in the project's own settings or files.`;
 
-/** How a dbt project's Studio thread changes things: it proposes a diff, and opens the pull request only on the turn the person asks for it. */
+/** How a dbt project's Studio thread changes things: it saves to the draft's branch when the person can write to the repository, and proposes a diff otherwise. */
 export type SemanticStudioDbtTurn = {
-    opensPullRequest: boolean;
-    /** The pull request is saved from a script rather than a sandbox run. */
+    saves: boolean;
+    /** The change is saved from a script rather than a sandbox run. */
     codeMode: boolean;
     /** The repository sections that apply to this turn. */
     sections: string[];
 };
 
-const DBT_PROPOSAL = `- This project's models are built by dbt, so its semantic layer lives in the repository's YAML and SQL. Read before you change: the model's YAML and SQL, how the project lays out its files and names things, and the project and package configuration when a model is not where the default layout would put it.
-- A model that an installed package provides is not in this repository. Say so, and change only what the project itself owns for that model.
+const DBT_READ = `- This project's models are built by dbt, so its semantic layer lives in the repository's YAML and SQL. Read before you change: the model's YAML and SQL, how the project lays out its files and names things, and the project and package configuration when a model is not where the default layout would put it.
+- A model that an installed package provides is not in this repository. Say so, and change only what the project itself owns for that model.`;
+
+const DBT_IMPACT = `- Redefining or removing what exists changes numbers people already rely on. Before you change that, report what uses the field with analyzeFieldImpact, and name that in your text. A field saved charts use should keep its name.`;
+
+const DBT_PROPOSAL = `${DBT_READ}
 - Propose the change as a unified diff in a \`\`\`diff block, one block per file with the file's path in its header, built from the file as you read it and following the conventions you read. Keep it to what was asked.
-- You cannot open or update a pull request on this turn. The person does that with the button under your reply, so do not ask them to confirm in words.
-- A pull request opened earlier in this conversation is still there, and the button saves the next proposal to it. Never take back what an earlier reply said about it.
-- Until something is saved, show the whole proposal again when they ask for more, so the latest diff is the full change. After a save, propose only what is new since then.
-- Redefining or removing what exists changes numbers people already rely on. Before you propose that, report what uses the field with analyzeFieldImpact, and name that in your text. A field saved charts use should keep its name.
+- You cannot save changes to this repository in this thread. Show the whole proposal again when they ask for more, so the latest diff is the full change.
+${DBT_IMPACT}
 - Outside the diff, write at most two short sentences and no list: what it changes and the one thing most worth checking.`;
 
-const DBT_PULL_REQUEST = `- The person asked for the pull request. Call editDbtProject once, with one request covering the change as it was last proposed in this thread: name the files, the models and fields, and what each becomes. Do not propose again and do not widen the change. Leave prUrl and startNewPullRequest null, so the change joins this conversation's pull request while it is open and opens one otherwise.
-- Nothing is live until the pull request merges, so say "in the pull request" until then.
-- To try it before merging: when the repository builds a preview project for the pull request, "Try my changes" above this chat lets only them explore with it. Otherwise it can be tried once merged.
-- After starting it, write one short sentence. The card shows the pull request.`;
+const DBT_SAVE_RULES = `- When the person asks for a change, read what it touches, then save it in the same turn. Keep it to what was asked. Questions and ideas are not requests: answer them, and when you suggest a change, describe it in a sentence and save it once they say yes.
+- Leave prUrl and startNewPullRequest null, so the change joins this draft's branch while it is open and starts one otherwise. requestedBy is user_asked for a change they asked for and offer_accepted for one you suggested and they accepted.
+${DBT_IMPACT} When saved charts use it, ask before you save.
+- Nothing is published until the person publishes the draft, so say "in the draft" until then. Once saved, the draft compiles and the bar above this chat lets them try it and publish it.
+- After saving, write one short sentence. The card shows the change.`;
 
-const DBT_PULL_REQUEST_CODE_MODE = `- The person asked for the pull request. Call editDbtProject once with a script that makes the change as it was last proposed in this thread, and a prompt that says the same change in words: the files, the models and fields, and what each becomes. Do not propose again and do not widen the change. Leave prUrl and startNewPullRequest null, so the change joins this conversation's pull request while it is open and opens one otherwise.
+const DBT_SAVE = `${DBT_READ}
+- Save with editDbtProject, one call per change, with a request that names the files, the models and fields, and what each becomes.
+${DBT_SAVE_RULES}`;
+
+const DBT_SAVE_CODE_MODE = `${DBT_READ}
+- Save with editDbtProject, one call per change, with a script that makes it and a prompt that says the same change in words: the files, the models and fields, and what each becomes.
 - Write the script from the files as you read them: use yaml.set and yaml.push for YAML, so the rest of each file stays as it is, and repo.write only for a whole new file such as a new model's SQL. Put each field where that file already keeps its kind. If the tool says the script failed, fix it from the error and call again; tell the person only if it still fails.
 - Pass a null script only when the change needs dbt itself to run, such as checking new SQL against the warehouse; the slower sandbox makes that change instead.
-- Nothing is live until the pull request merges, so say "in the pull request" until then.
-- To try it before merging: when the repository builds a preview project for the pull request, "Try my changes" above this chat lets only them explore with it. Otherwise it can be tried once merged.
-- After starting it, write one short sentence. The card shows the pull request.`;
+${DBT_SAVE_RULES}`;
 
-/** Semantic Studio on a dbt project: no draft, the agent reads the repository and the change lands as a pull request. */
-const getDbtChangeRules = (opensPullRequest: boolean, codeMode: boolean) => {
-    if (!opensPullRequest) return DBT_PROPOSAL;
-    return codeMode ? DBT_PULL_REQUEST_CODE_MODE : DBT_PULL_REQUEST;
+const getDbtChangeRules = (saves: boolean, codeMode: boolean) => {
+    if (!saves) return DBT_PROPOSAL;
+    return codeMode ? DBT_SAVE_CODE_MODE : DBT_SAVE;
 };
 
 const getDbtSections = ({
-    opensPullRequest,
+    saves,
     codeMode,
     sections,
 }: SemanticStudioDbtTurn): string[] => [
     `## What the person sees
 
-The person sees your text, so write it in their terms and name fields by their label. A message may name the model or field they have open; "this" means that one. A proposed change shows as a diff in your reply with a button to open it as a pull request. Nothing changes in this project until that pull request merges and the project refreshes. Once the pull request is open and the repository builds a preview project for it, "Try my changes" above this chat lets them explore with the change before it merges.
+The person sees your text, so write it in their terms and name fields by their label. A message may name the model or field they have open; "this" means that one. ${
+        saves
+            ? 'A change you save joins their draft, which lives on its own branch of the repository, and shows as a card in this chat. Published stays as it is until they publish the draft.'
+            : 'A proposed change shows as a diff in your reply. Nothing changes in this project until someone with access to the repository makes it.'
+    }
 
 ## How to change the layer
 
-${getDbtChangeRules(opensPullRequest, codeMode)}
+${getDbtChangeRules(saves, codeMode)}
 ${REPLY_RULES}
 
 ## Modelling
@@ -113,7 +122,7 @@ SELECT <filter column>, COUNT(*) AS row_count, COUNT(<measure column>) AS non_nu
 FROM (SELECT <the columns you need> FROM <table> LIMIT 10000) AS sample
 GROUP BY 1
 \`\`\`
-- Say in one line what the data showed, as one of your sentences outside a diff.`;
+- Say in one line what the data showed.`;
 
 export const getSemanticStudioSystemPrompt = ({
     agentName,
@@ -140,10 +149,7 @@ export const getSemanticStudioSystemPrompt = ({
         ...(dbt
             ? [
                   ...getDbtSections(dbt),
-                  // The turn that opens the pull request repeats the last proposal, so it has nothing to check.
-                  warehouse && !dbt.opensPullRequest
-                      ? getDbtWarehouseSection(warehouse)
-                      : '',
+                  warehouse ? getDbtWarehouseSection(warehouse) : '',
               ]
             : [getDraftSections(), getDraftWarehouseSection(warehouse)]),
         instructions,
