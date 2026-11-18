@@ -1,6 +1,6 @@
 ---
 name: yoda
-description: Review a Lightdash PR, branch or diff through lenses, or explain a system, bug or change. /yoda [review|json|explain|triage] [text|json|html|card|github] [quick|deep] [lens names] <PR(s), topic or question>
+description: Review a Lightdash PR, branch or diff through lenses, or explain a system, bug or change. /yoda [review|json|explain|triage] [text|json|html|github] [quick|deep] [lens names] <PR(s), topic or question>
 disable-model-invocation: true
 ---
 
@@ -12,13 +12,13 @@ Findings first, then the diff; no signal beats weak signal.
 ## Invocation
 
 ```
-/yoda [review|json|explain|triage] [text|json|html|card|github] [quick|deep] [lens names] <PR(s), topic or question>
+/yoda [review|json|explain|triage] [text|json|html|github] [quick|deep] [lens names] <PR(s), topic or question>
 ```
 
 Words go in any order.
 
 - **review:** PRs, branch or local diff; read [review.md](review.md), then its selected lenses, [testing.md](testing.md) and [formats/json.md](formats/json.md).
-  For text, HTML, card or GitHub also read that renderer.
+  For text, HTML or GitHub also read that renderer.
 - **json:** changes as data, without checks or findings; read review.md's Gather, Select and Render, testing.md's Coverage-drop Diff, then formats/json.md.
   Alone `json` selects this mode; with `review` it selects the format.
 - **explain:** systems, features, questions, tickets, bugs or changes; read [explain.md](explain.md).
@@ -28,7 +28,7 @@ Words go in any order.
 Infer an omitted mode: review for a PR/branch/diff; json when only change data is requested; explain otherwise.
 Use triage only when its tag list is wanted.
 
-Formats: **text** (default) is Markdown; **json** is data; **html** is an inline page, published when a shareable link is requested; **card** is one compact segmented card ([formats/card.md](formats/card.md)); **github** writes the PR description and keeps it synced ([formats/github.md](formats/github.md)).
+Formats: **text** (default) is Markdown; **json** is data; **html** is one compact segmented card ([formats/html.md](formats/html.md)), shown inline or published when a shareable link is requested; **github** writes the PR description and keeps it synced ([formats/github.md](formats/github.md)).
 A PR whose description holds a yoda block is synced whenever yoda reviews it, whatever the format.
 Reformat an existing review from context without reviewing again.
 

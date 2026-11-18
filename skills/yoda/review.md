@@ -42,7 +42,7 @@ omit unsettled fields rather than guess.
 
 Keep [coverage-drop diffs](testing.md#coverage-drop-diff) in standalone json mode too.
 
-Build the canonical [review JSON](formats/json.md), then render with [text](formats/text.md), [HTML](formats/html.md), [card](formats/card.md) or [GitHub](formats/github.md) if requested.
+Build the canonical [review JSON](formats/json.md), then render with [text](formats/text.md), [HTML](formats/html.md) or [GitHub](formats/github.md) if requested.
 The schema defines all review fields and ordering.
 
 Each finding is one small paragraph (~70 words).

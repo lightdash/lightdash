@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Yoda Review Card</title>
+<style>
+:root {
+  --bg: #f5f5f3; --surface: #ffffff; --sunken: #f7f7f5; --line: #e4e4e0;
+  --text: #1b1b19; --muted: #6b6b66; --faint: #9b9b94;
+  --fix: #c93c37; --heads: #a86a0c; --ok: #1f8a4c;
+  --added: #1f8a4c; --added-soft: #e8f5ed; --removed: #c93c37; --removed-soft: #fbeceb; --modified: #a86a0c;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f0f0e; --surface: #1b1b1a; --sunken: #161615; --line: #2e2e2b;
+    --text: #e8e8e4; --muted: #a0a09a; --faint: #6f6f6a;
+    --fix: #f07a74; --heads: #e2ac52; --ok: #5cc58a;
+    --added: #5cc58a; --added-soft: #15261c; --removed: #f07a74; --removed-soft: #2c1918; --modified: #e2ac52;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f0f0e; --surface: #1b1b1a; --sunken: #161615; --line: #2e2e2b;
+  --text: #e8e8e4; --muted: #a0a09a; --faint: #6f6f6a;
+  --fix: #f07a74; --heads: #e2ac52; --ok: #5cc58a;
+  --added: #5cc58a; --added-soft: #15261c; --removed: #f07a74; --removed-soft: #2c1918; --modified: #e2ac52;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: 32px 16px; background: var(--bg); color: var(--text); font: 13px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
+.card { max-width: 560px; margin: 0 auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.card > section { padding: 12px 16px; }
+.card > section + section { border-top: 1px solid var(--line); }
+.mono, code, .name { font-family: var(--mono); font-size: 12px; }
+code { color: var(--text); overflow-wrap: break-word; }
+.label { display: flex; gap: 10px; font-size: 12px; color: var(--faint); }
+.label + * { margin-top: 4px; }
+.subject { margin: 2px 0 0; font-size: 14px; font-weight: 600; line-height: 1.4; }
+.pr { margin-left: auto; color: var(--faint); text-decoration: none; }
+.pr:hover { color: var(--text); }
+.verdict-approve { color: var(--ok); }
+.verdict-notes, .heads-up { color: var(--heads); }
+.verdict-changes, .fix, .missing { color: var(--fix); }
+.finding + .finding { margin-top: 12px; }
+.finding p { margin: 0; color: var(--muted); }
+.thin { color: var(--heads); }
+.check .mark { color: var(--ok); }
+.gap .mark { color: var(--heads); }
+.what { flex: 1; min-width: 0; font-size: 12px; }
+.gap .what { color: var(--muted); }
+.how { font-size: 11px; color: var(--faint); white-space: nowrap; }
+.row { display: grid; grid-template-columns: 16px minmax(0, 1fr); column-gap: 6px; padding: 4px 8px 5px 4px; margin-top: 2px; border-radius: 4px; background: transparent; }
+.label + .row { margin-top: 6px; }
+.mark { font-family: var(--mono); font-size: 12px; text-align: center; }
+.top { display: flex; gap: 8px; align-items: baseline; }
+.name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.lens { font-size: 11px; color: var(--faint); white-space: nowrap; }
+.extra { font-family: var(--sans); font-size: 11px; color: var(--faint); margin-left: 6px; }
+.note { font-size: 12px; color: var(--muted); }
+.added { background: var(--added-soft); } .added .mark { color: var(--added); }
+.modified .mark { color: var(--modified); }
+.deleted { background: var(--removed-soft); } .deleted .mark { color: var(--removed); } .deleted .name { text-decoration: line-through; }
+.minor .name, .minor .note { color: var(--faint); }
+.yoda { flex: none; align-self: center; image-rendering: pixelated; margin-right: -4px; }
+.breaking { font-family: var(--sans); font-size: 11px; color: var(--fix); margin-left: 6px; }
+</style>
+</head>
+<body>
+<!-- Reference rendering: replace the content below with the review's JSON. Structure and class names are the contract. When rendering, embed assets/yoda.gif as a base64 data URI. -->
+<article class="card">
+
+  <section>
+    <div class="label">
+      <img class="yoda" src="../assets/yoda.gif" width="16" height="16" alt="">
+      <span class="verdict-notes">Approve with notes</span>
+      <a class="pr mono" href="https://github.com/lightdash/lightdash/pull/21661">#21661</a>
+    </div>
+    <h1 class="subject">A failed DuckDB pre-aggregate run no longer shows an error while the warehouse fallback runs</h1>
+  </section>
+
+  <section>
+    <div class="finding">
+      <div class="label"><span class="heads-up">Heads-up</span><span>Core</span></div>
+      <p>Nothing fails if this change is reverted. The fix sits in the <code>catch</code> of <code>runAsyncWarehouseQuery</code>, reached only from the DuckDB fallback in <code>runAsyncPreAggregateQuery</code>, which the existing tests spy on and never run. Add a test with a throwing DuckDB client and a succeeding warehouse that asserts <code>updateStatusToError</code> is never called.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="label">Testing<span class="thin">thin</span></div>
+    <div class="row gap"><span class="mark">○</span><div class="top"><span class="what">No error write when DuckDB throws</span><span class="how">untested</span></div></div>
+    <div class="row check"><span class="mark">✓</span><div class="top"><span class="what">Fallback query returns warehouse rows</span><span class="how">unit</span></div></div>
+    <div class="row check"><span class="mark">✓</span><div class="top"><span class="what">Dashboard tile stays loading during retry</span><span class="how">manual</span></div></div>
+  </section>
+
+  <section>
+    <div class="label">Diff</div>
+    <div class="row modified"><span class="mark"></span><div><div class="top"><span class="name">AsyncQueryService.runAsyncWarehouseQuery</span><span class="lens">Core</span></div><div class="note">DuckDB failure no longer marks query errored</div></div></div>
+    <div class="row added"><span class="mark">+</span><div><div class="top"><span class="name">GET /api/v2/queries/{uuid}/retries</span><span class="lens">API</span></div><div class="note">Lists fallback attempts for a query</div></div></div>
+    <div class="row modified"><span class="mark"></span><div><div class="top"><span class="name">POST /api/v2/queries<span class="breaking">breaking</span></span><span class="lens">API</span></div><div class="note">Rejects requests without projectUuid</div></div></div>
+    <div class="row deleted"><span class="mark">−</span><div><div class="top"><span class="name">GET /api/v1/queries/{uuid}/status</span><span class="lens">API</span></div><div class="note">Removed; use the v2 query endpoint</div></div></div>
+    <div class="row added minor"><span class="mark">+</span><div><div class="top"><span class="name">PRE_AGGREGATE_FALLBACK_TIMEOUT</span><span class="lens">Config</span></div><div class="note">Defaults to 30s</div></div></div>
+    <div class="row modified minor"><span class="mark"></span><div><div class="top"><span class="name">lightdash_query_status_total<span class="extra">prometheus</span></span><span class="lens">Observability</span></div><div class="note">No error count for DuckDB fallback attempts</div></div></div>
+  </section>
+
+</article>
+<script>
+document.querySelectorAll('.name').forEach(el => {
+  for (const n of [...el.childNodes]) {
+    if (n.nodeType !== 3) continue;
+    const parts = n.textContent.split(/(?<=[._\/])|(?<=[a-z])(?=[A-Z])/);
+    if (parts.length < 2) continue;
+    const frag = document.createDocumentFragment();
+    parts.forEach((t, i) => { if (i) frag.append(document.createElement('wbr')); frag.append(t); });
+    n.replaceWith(frag);
+  }
+});
+</script>
+</body>
+</html>
