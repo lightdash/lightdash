@@ -120,6 +120,48 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
         await database?.destroy();
     });
 
+    it('reclaims an executing row after its worker was killed and fences the dead owner', async () => {
+        const queryUuid = await insert({ status: QueryHistoryStatus.QUEUED });
+        const killed = QueryHistoryModel.createQueryExecution(
+            queryUuid,
+            new AbortController().signal,
+        );
+        expect(
+            await QueryHistoryModel.withQueryExecution(killed, () =>
+                model.updateStatusToExecuting(queryUuid),
+            ),
+        ).toBe(1);
+        // SIGKILL: the killed worker never releases the row, so it stays EXECUTING
+        expect(await statusOf(queryUuid)).toBe(QueryHistoryStatus.EXECUTING);
+        const redelivered = {
+            ...QueryHistoryModel.createQueryExecution(
+                queryUuid,
+                new AbortController().signal,
+            ),
+            redelivered: true,
+        };
+        expect(
+            await QueryHistoryModel.withQueryExecution(redelivered, () =>
+                (
+                    model.updateStatusToExecuting as (
+                        queryUuid: string,
+                        expectedStartedAt: Date | null,
+                    ) => Promise<number>
+                ).call(model, queryUuid, killed.claimedAt),
+            ),
+        ).toBe(1);
+        expect(await statusOf(queryUuid)).toBe(QueryHistoryStatus.EXECUTING);
+        expect(redelivered.claimedAt!.getTime()).toBe(
+            killed.claimedAt!.getTime() + 1,
+        );
+        await expect(
+            QueryHistoryModel.withQueryExecution(killed, () =>
+                model.updateClaimedQueryToError(queryUuid, 'late write'),
+            ),
+        ).rejects.toBeInstanceOf(QueryExecutionOwnershipLostError);
+        expect(await statusOf(queryUuid)).toBe(QueryHistoryStatus.EXECUTING);
+    });
+
     it('hands off an executing query and fences every previous owner write', async () => {
         const queryUuid = await insert({ status: QueryHistoryStatus.QUEUED });
         const oldOwner = QueryHistoryModel.createQueryExecution(

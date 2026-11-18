@@ -11446,6 +11446,36 @@ describe('AsyncQueryService', () => {
             ).not.toHaveBeenCalled();
         });
 
+        test('reclaims an executing query on a redelivery after its worker was killed', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const processingStartedAt = new Date(Date.now() - 60_000);
+            vi.mocked(
+                service.queryHistoryModel.getByQueryUuid,
+            ).mockResolvedValue({
+                ...createMockQueryHistory(QueryHistoryStatus.EXECUTING),
+                processingStartedAt,
+            });
+            const redelivered = {
+                ...QueryHistoryModel.createQueryExecution(
+                    'test-query-uuid',
+                    new AbortController().signal,
+                ),
+                redelivered: true,
+            };
+
+            await expect(
+                QueryHistoryModel.withQueryExecution(redelivered, () =>
+                    service.prepareQueuedQueryForExecution(
+                        'test-query-uuid',
+                        'worker-2',
+                    ),
+                ),
+            ).resolves.toBe(true);
+            expect(
+                service.queryHistoryModel.updateStatusToExecuting,
+            ).toHaveBeenCalledWith('test-query-uuid', processingStartedAt);
+        });
+
         test('expires stale queued queries', async () => {
             const service = getMockedAsyncQueryService({
                 ...lightdashConfigMock,
