@@ -139,7 +139,7 @@ describe('captureReducer', () => {
         expect(s).toMatchObject({ marks: [], imageCount: 0, drawing: null });
     });
 
-    it('refuses a tenth screen', () => {
+    it('refuses a sixth screen', () => {
         expect(
             captureReducer(rec({ imageCount: 5 }), {
                 type: 'shiftDown',
@@ -156,7 +156,7 @@ describe('captureReducer', () => {
                 atMs: 1,
                 isNewScreen: false,
             }),
-        ).toMatchObject({ drawing: { imageIndex: 8 }, atImageLimit: false });
+        ).toMatchObject({ drawing: { imageIndex: 4 }, atImageLimit: false });
     });
 
     it('ignores strokes and Shift-up when not drawing', () => {
