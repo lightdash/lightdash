@@ -36,7 +36,7 @@ const getResultsCacheStatus = async (
         body: undefined,
     });
 
-const useResultsCacheStatus = (projectUuid: string | undefined) => {
+export const useResultsCacheStatus = (projectUuid: string | undefined) => {
     const lightdashApi = useLightdashApi();
     return useQuery<ApiResultsCacheStatusResponse['results'], ApiError>({
         queryKey: statusQueryKey(projectUuid ?? ''),

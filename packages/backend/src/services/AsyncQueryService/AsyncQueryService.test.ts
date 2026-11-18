@@ -337,6 +337,18 @@ const sharedLiveCache = {
     purgedAt: null,
 };
 
+/** Project result-cache settings; live reuse needs caching on. */
+const projectCacheSettings = (cacheEnabled: boolean) => ({
+    cacheEnabled,
+    cacheEnabledSetByInstance: false,
+    cacheTtlSeconds: null,
+    cacheGeneration: 0,
+    lastInvalidatedAt: null,
+    clearCron: null,
+    clearNextRunAt: null,
+    schedulerTimezone: 'UTC',
+});
+
 /** A finished live result as query history keeps it. */
 const storedLiveResult = (resultsCreatedAt: Date) => {
     const queryHistory = {
@@ -2223,6 +2235,10 @@ describe('AsyncQueryService', () => {
                 userAttributes: {},
                 intrinsicUserAttributes: {},
             });
+            vi.spyOn(
+                service.projectModel,
+                'getResultsCacheSettings',
+            ).mockResolvedValue(projectCacheSettings(true));
 
             await service.executeAsyncApiQuery({
                 account: sessionAccount,
@@ -2258,9 +2274,11 @@ describe('AsyncQueryService', () => {
         const setup = ({
             latest,
             cache = sharedLiveCache,
+            projectCacheEnabled = true,
         }: {
             latest: ReturnType<typeof storedLiveResult> | null;
             cache?: Record<string, unknown>;
+            projectCacheEnabled?: boolean;
         }) => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
                 queryHistoryModel: {
@@ -2275,6 +2293,10 @@ describe('AsyncQueryService', () => {
                 userAttributes: {},
                 intrinsicUserAttributes: {},
             });
+            vi.spyOn(
+                service.projectModel,
+                'getResultsCacheSettings',
+            ).mockResolvedValue(projectCacheSettings(projectCacheEnabled));
             const runLiveQuery = vi.fn(async () => undefined);
             (service as AnyType).runLiveQuery = runLiveQuery;
             const source = {
@@ -2387,6 +2409,19 @@ describe('AsyncQueryService', () => {
                 cache: { ...sharedLiveCache, purgedAt: new Date() },
             });
             await submit();
+            expect(runLiveQuery).toHaveBeenCalledTimes(1);
+        });
+
+        test('calls the integration every time while the project caches no results', async () => {
+            const { service, runLiveQuery, submit } = setup({
+                latest: storedLiveResult(new Date()),
+                projectCacheEnabled: false,
+            });
+            const { reusable } = await submit();
+            expect(reusable).toBeNull();
+            expect(
+                service.queryHistoryModel.findMostRecentByCacheKey,
+            ).not.toHaveBeenCalled();
             expect(runLiveQuery).toHaveBeenCalledTimes(1);
         });
 
@@ -2532,6 +2567,9 @@ describe('AsyncQueryService', () => {
                 } as unknown as QueryHistoryModel,
                 projectModel: {
                     getExploreFromCache: vi.fn(async () => apiExplore),
+                    getResultsCacheSettings: vi.fn(async () =>
+                        projectCacheSettings(true),
+                    ),
                 } as unknown as ProjectModel,
                 projectParametersModel: {
                     find: vi.fn(async () => []),

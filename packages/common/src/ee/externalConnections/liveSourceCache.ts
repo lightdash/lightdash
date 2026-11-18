@@ -1,30 +1,26 @@
 import { ApiConnectorType } from '../../types/querySources';
 
+/** One hour for every integration until usage shows which need another window. */
+const DEFAULT_CACHE_TTL_SECONDS = 60 * 60;
+
 /**
  * How long a live data source's result answers the same query for everyone
- * on the source, before the next query calls the integration again. Set to
- * how fast each integration's data changes and how tight its quota is.
+ * on the source, before the next query calls the integration again.
  */
 export const LIVE_SOURCE_DEFAULT_CACHE_TTL_SECONDS: Record<
     ApiConnectorType,
     number
 > = {
-    // Product analytics, read close to real time.
-    [ApiConnectorType.POSTHOG]: 60,
-    // Hourly processing and a token quota per property.
-    [ApiConnectorType.GA4]: 600,
-    // Data lands two to three days late.
-    [ApiConnectorType.SEARCH_CONSOLE]: 3_600,
-    [ApiConnectorType.META_ADS]: 900,
-    [ApiConnectorType.GOOGLE_ADS]: 900,
-    [ApiConnectorType.LINKEDIN_ADS]: 900,
-    // Channel reports update daily.
-    [ApiConnectorType.YOUTUBE_ANALYTICS]: 3_600,
-    [ApiConnectorType.GITHUB]: 300,
-    // Tickets change through the day; search allows about 120 calls a minute per workspace and a query can page several times.
-    [ApiConnectorType.PYLON]: 300,
-    // CRM records change through the day; queries with many filters or sorts use up its rate limit faster.
-    [ApiConnectorType.ATTIO]: 300,
+    [ApiConnectorType.POSTHOG]: DEFAULT_CACHE_TTL_SECONDS,
+    [ApiConnectorType.GA4]: DEFAULT_CACHE_TTL_SECONDS,
+    [ApiConnectorType.SEARCH_CONSOLE]: DEFAULT_CACHE_TTL_SECONDS,
+    [ApiConnectorType.META_ADS]: DEFAULT_CACHE_TTL_SECONDS,
+    [ApiConnectorType.GOOGLE_ADS]: DEFAULT_CACHE_TTL_SECONDS,
+    [ApiConnectorType.LINKEDIN_ADS]: DEFAULT_CACHE_TTL_SECONDS,
+    [ApiConnectorType.YOUTUBE_ANALYTICS]: DEFAULT_CACHE_TTL_SECONDS,
+    [ApiConnectorType.GITHUB]: DEFAULT_CACHE_TTL_SECONDS,
+    [ApiConnectorType.PYLON]: DEFAULT_CACHE_TTL_SECONDS,
+    [ApiConnectorType.ATTIO]: DEFAULT_CACHE_TTL_SECONDS,
 };
 
 /** 0 makes every query call the integration. */

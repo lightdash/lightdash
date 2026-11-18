@@ -818,7 +818,7 @@ describe('ExternalConnectionService live source cache', () => {
         );
         expect(source.cache).toEqual({
             scope: { kind: 'source' },
-            ttlSeconds: 60,
+            ttlSeconds: 3_600,
             purgedAt: null,
         });
     });
