@@ -16,6 +16,7 @@ Findings first, then the diff; no signal beats weak signal.
 ```
 
 Words go in any order.
+Model invocation is off, so another skill runs yoda by reading this file and following it with the same words, for example `review text` for findings it acts on and `review html` for a page the user sees.
 
 - **review:** PRs, branch or local diff; read [review.md](review.md), then its selected lenses, [testing.md](testing.md) and [formats/json.md](formats/json.md).
   For text, HTML or GitHub also read that renderer.
