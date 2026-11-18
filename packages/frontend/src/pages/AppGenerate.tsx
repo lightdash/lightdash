@@ -185,7 +185,7 @@ import {
     refToWireString,
 } from '../features/apps/utils/elementRefs';
 import { getHistoryLiveBuild } from '../features/apps/utils/historyLiveBuild';
-import { transcribeCapture } from '../features/apps/utils/transcribeCapture';
+import { captureTranscriber } from '../features/apps/utils/transcribeCapture';
 import { getVersionNarration } from '../features/apps/utils/versionNarration';
 import { versionsToThreadChat } from '../features/apps/utils/versionsToChatMessages';
 import DataAppVizResultCard from '../features/chartTypes/components/DataAppVizResultCard';
@@ -1228,6 +1228,8 @@ const AppGenerate: FC = () => {
         captureFlag.data?.enabled &&
         capturesEnabled,
     );
+    const voiceTranscriptionAvailable =
+        health.data?.ai.voiceTranscriptionAvailable;
     const captureSurface = useMemo<CaptureSurface | null>(
         () =>
             captureAvailable && projectUuid
@@ -1237,12 +1239,14 @@ const AppGenerate: FC = () => {
                           new DOMRect(),
                       captureImages: true,
                       resolveTarget: null,
-                      transcribe: (audio) =>
-                          transcribeCapture(projectUuid, audio),
+                      transcribe: captureTranscriber(
+                          projectUuid,
+                          voiceTranscriptionAvailable,
+                      ),
                       onCapture: (result) => captureHandlerRef.current(result),
                   }
                 : null,
-        [captureAvailable, projectUuid],
+        [captureAvailable, projectUuid, voiceTranscriptionAvailable],
     );
     const captureRef = useRef<CaptureHostHandle>(null);
     const [isCaptureRecording, setIsCaptureRecording] = useState(false);

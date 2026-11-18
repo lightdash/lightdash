@@ -11,7 +11,7 @@ import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { transcribeCapture } from '../../../features/apps/utils/transcribeCapture';
+import { captureTranscriber } from '../../../features/apps/utils/transcribeCapture';
 import {
     selectActiveTabUuid,
     selectDashboardTiles,
@@ -21,6 +21,7 @@ import { getTileTitle } from '../../../features/dashboardControls/tileProps';
 import { useUpdateDashboard } from '../../../hooks/dashboard/useDashboard';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import useApp from '../../../providers/App/useApp';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import launcherClasses from '../aiCopilot/components/Launcher/AiAgentsLauncher.module.css';
 import { useLauncherDockExtras } from '../aiCopilot/components/Launcher/launcherDockExtras';
@@ -111,6 +112,7 @@ const DashboardCapture: FC = () => {
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     const flag = useServerFeatureFlag(FeatureFlags.DashboardCapture);
+    const { health } = useApp();
     const agentDispatch = useAiAgentStoreDispatch();
     const { showToastInfo, showToastWarning, showToastError } = useToaster();
 
@@ -343,6 +345,8 @@ const DashboardCapture: FC = () => {
     const available = Boolean(
         flag.data?.enabled && projectUuid && dashboard && mode !== 'edit',
     );
+    const voiceTranscriptionAvailable =
+        health.data?.ai.voiceTranscriptionAvailable;
     const surface = useMemo<CaptureSurface | null>(
         () =>
             available && projectUuid
@@ -359,13 +363,15 @@ const DashboardCapture: FC = () => {
                       captureImages: true,
                       resolveTarget: (point) =>
                           targetAtPoint(point, tilesRef.current),
-                      transcribe: (audio) =>
-                          transcribeCapture(projectUuid, audio),
+                      transcribe: captureTranscriber(
+                          projectUuid,
+                          voiceTranscriptionAvailable,
+                      ),
                       onCapture: (result) =>
                           void handleCaptureRef.current(result),
                   }
                 : null,
-        [available, projectUuid],
+        [available, projectUuid, voiceTranscriptionAvailable],
     );
 
     if (!surface || !dashboard) return null;

@@ -141,6 +141,7 @@ export default function mockHealthResponse(
             isAmbientAiEnabled: false,
             threadDumpEnabled: false,
             fastDecisionsEnabled: false,
+            voiceTranscriptionAvailable: false,
         },
         echarts6: {
             enabled: false,

@@ -154,7 +154,10 @@ export const useCapture = (
                         return;
                     }
                 }
-                const voice = await startVoice();
+                // No transcriber means no voice, so the mic is never asked for.
+                const voice = await startVoice({
+                    available: current.transcribe !== null,
+                });
                 voiceOnRef.current = voice === 'on';
                 // The clock starts once the share and mic prompts are answered.
                 startedAtRef.current = performance.now();
