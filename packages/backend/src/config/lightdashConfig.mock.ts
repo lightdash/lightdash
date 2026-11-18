@@ -386,6 +386,9 @@ export const lightdashConfigMock: LightdashConfig = {
             enabled: true,
             allowedDomains: [],
         },
+        permissionsPolicy: {
+            microphoneEnabled: false,
+        },
     },
     github: {
         appName: 'lightdash-app-dev',

@@ -90,6 +90,7 @@ import {
 } from './logging/winston';
 import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
+import { permissionsPolicyHeader } from './middlewares/permissionsPolicy/permissionsPolicy';
 import { createRestrictUnverifiedSessionMiddleware } from './middlewares/restrictUnverifiedSession/restrictUnverifiedSession';
 import { flush as flushFeatureFlagChecks } from './models/FeatureFlagModel/flagCheckAggregator';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
@@ -740,7 +741,12 @@ export default class App {
 
         expressApp.use((req, res, next) => {
             // Permissions-Policy header that is not yet supported by helmet. More details here: https://github.com/helmetjs/helmet/issues/234
-            res.setHeader('Permissions-Policy', 'camera=(), microphone=()');
+            res.setHeader(
+                'Permissions-Policy',
+                permissionsPolicyHeader(
+                    this.lightdashConfig.security.permissionsPolicy,
+                ),
+            );
             res.setHeader(LightdashVersionHeader, VERSION);
             if (frontendBuildHash) {
                 res.setHeader(LightdashBuildHashHeader, frontendBuildHash);

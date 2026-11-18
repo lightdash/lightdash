@@ -1708,6 +1708,15 @@ export type LightdashConfig = {
             enabled: boolean;
             allowedDomains: string[];
         };
+        permissionsPolicy: {
+            /**
+             * Lets Lightdash pages ask for the microphone, which Voice Design
+             * needs to record what the user says. When false the
+             * Permissions-Policy header blocks the microphone on every page.
+             * Env var `VOICE_DESIGN_MICROPHONE_ENABLED`; defaults to `false`.
+             */
+            microphoneEnabled: boolean;
+        };
     };
     cookiesMaxAgeHours?: number;
     trustProxy: boolean;
@@ -3513,6 +3522,10 @@ export const parseConfig = (): LightdashConfig => {
             crossOriginResourceSharingPolicy: {
                 enabled: corsEnabled,
                 allowedDomains: corsEnabled ? corsAllowedDomains : [],
+            },
+            permissionsPolicy: {
+                microphoneEnabled:
+                    process.env.VOICE_DESIGN_MICROPHONE_ENABLED === 'true',
             },
         },
         smtp: process.env.EMAIL_SMTP_HOST
