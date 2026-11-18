@@ -133,12 +133,12 @@ export const CaptureButton: FC<{
     onClick: () => void;
     disabled: boolean;
 }> = ({ onClick, disabled }) => (
-    <Tooltip label="Point and talk" position="bottom">
+    <Tooltip label="Inline" position="bottom">
         <ActionIcon
             size="md"
             onClick={onClick}
             disabled={disabled}
-            aria-label="Point and talk"
+            aria-label="Inline"
         >
             <MantineIcon icon={IconMicrophone} size={16} />
         </ActionIcon>

@@ -75,13 +75,13 @@ export enum FeatureFlags {
     EnableDataApps = 'enable-data-apps',
 
     /**
-     * Point-and-talk capture in the data app builder: draw on the preview
+     * Inline capture in the data app builder: draw on the preview
      * while talking, then send the marked-up images as a prompt. Demo only.
      */
     DataAppCapture = 'data-app-capture',
 
     /**
-     * Point-and-talk capture on dashboards: layout requests are applied by
+     * Inline capture on dashboards: layout requests are applied by
      * the page, data questions go to an AI agent. Demo only.
      */
     DashboardCapture = 'dashboard-capture',

@@ -57,10 +57,10 @@ const describeMark = (mark: CaptureMark): string => {
 const header = (durationMs: number, imageCount: number): string => {
     const clock = formatClock(durationMs);
     if (imageCount === 0)
-        return `[Point-and-talk capture, ${clock}. No marks were drawn.]`;
+        return `[Inline capture, ${clock}. No marks were drawn.]`;
     if (imageCount === 1)
-        return `[Point-and-talk capture, ${clock}. The attached image shows the app with numbered red marks.]`;
-    return `[Point-and-talk capture, ${clock}. The ${imageCount} attached images show the app with numbered red marks, in order.]`;
+        return `[Inline capture, ${clock}. The attached image shows the app with numbered red marks.]`;
+    return `[Inline capture, ${clock}. The ${imageCount} attached images show the app with numbered red marks, in order.]`;
 };
 
 type Entry =
