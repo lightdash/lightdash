@@ -151,7 +151,6 @@ import {
     type StudioChatRef,
 } from './studioChatRefs';
 import { DraftPickerMenu, StudioCheckoutPicker } from './StudioCheckoutPicker';
-import { needsYou } from './studioRuns';
 import { StudioStageLine, type StudioStage } from './StudioStageLine';
 import { StudioWorkspacesList } from './StudioWorkspacesList';
 import {
@@ -188,7 +187,6 @@ import {
     useCheckOut,
     useStudioCheckout,
 } from './useStudioCheckout';
-import { useStudioRuns } from './useStudioRuns';
 import { SOURCE_PARAM } from './useStudioSources';
 import {
     useStudioWorkspaceAction,
@@ -1510,23 +1508,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         (pane === 'changes' || pane === 'review') &&
         !!(shownWorkspace || workspace);
     const hasChangesTab = hasWorkspaces || hasChanges || !!saving;
-    const runs = useStudioRuns(view.project.id, workspaces?.mine ?? [], saving);
-    const waitingOnYou = runs.filter(({ run }) => needsYou(run)).length;
-    // What waits on you wins, then a save under way, then how many are in flight.
-    const changesBadge =
-        waitingOnYou > 0 ? (
-            <Tooltip label={`${waitingOnYou} of your drafts need you`}>
-                <span className={classes.tabBadge} data-tone="attention">
-                    {waitingOnYou}
-                </span>
-            </Tooltip>
-        ) : saving ? (
-            <span className={classes.busyDot} aria-label="Saving" />
-        ) : runs.length > 0 ? (
-            <Tooltip label={`${runs.length} of your drafts are open`}>
-                <span className={classes.tabBadge}>{runs.length}</span>
-            </Tooltip>
-        ) : null;
     const showLive = () => {
         setIsTryingChanges(false);
         setIsOnLive(true);
@@ -1740,7 +1721,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     !!sourcesPrUrl && sourcesPrUrl === target.pullRequest?.url,
             }))}
             isBusy={false}
-            status={changesBadge}
+            status={null}
             header={
                 branchCompile && compileDescription ? (
                     <>

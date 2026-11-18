@@ -66,6 +66,9 @@ export const DraftPickerMenu: FC<{
                 maw={420}
                 className={classes.pickerTitle}
                 aria-busy={isBusy}
+                aria-label={
+                    currentName === null ? 'Published' : `Draft: ${currentName}`
+                }
                 leftSection={
                     currentName === null ? (
                         <Box component="span" className={classes.liveDot} />
@@ -81,9 +84,7 @@ export const DraftPickerMenu: FC<{
                 }
             >
                 <Text span inherit truncate>
-                    {currentName === null
-                        ? 'Published'
-                        : `Draft: ${currentName}`}
+                    {currentName ?? 'Published'}
                 </Text>
             </Button>
         </Menu.Target>

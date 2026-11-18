@@ -131,12 +131,14 @@ export const StudioDevelopmentBar: FC<{
             : isMergeable(ciChecks)
               ? null
               : getBlockedReason(ciChecks);
+    // One filled button: trying it until it can be published, then publishing.
+    const canPublish = isMine && canWriteBranch && publishBlocker === null;
     return (
         <DevelopmentBar summary={null}>
             <TryItButton
                 projectUuid={projectUuid}
                 pullRequest={pullRequest}
-                look="primary"
+                look={canPublish ? 'secondary' : 'primary'}
             />
             {isMine && !canWriteBranch ? (
                 <Tooltip
@@ -168,7 +170,7 @@ export const StudioDevelopmentBar: FC<{
                     {/* Publish waits on the draft's compile, so the button says where that stands. */}
                     <Button
                         size="xs"
-                        variant="default"
+                        variant={canPublish ? 'filled' : 'default'}
                         leftSection={
                             compile?.status === 'compiling' ? (
                                 <Loader size={12} color="gray" />
