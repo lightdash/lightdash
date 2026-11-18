@@ -33,7 +33,7 @@ import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconArrowLeft,
     IconCamera,
-    IconPencil,
+    IconMicrophone,
     IconChartBar,
     IconCheck,
     IconDatabase,
@@ -140,7 +140,7 @@ export const CaptureButton: FC<{
             disabled={disabled}
             aria-label="Point and talk"
         >
-            <MantineIcon icon={IconPencil} size={16} />
+            <MantineIcon icon={IconMicrophone} size={16} />
         </ActionIcon>
     </Tooltip>
 );
