@@ -1,3 +1,4 @@
+import { buildAgentPrompt } from '../../../ee/features/capture/buildAgentPrompt';
 type AppViewCaptureInput = {
     flagEnabled: boolean;
     /** The user may use the project's AI agents. */
@@ -17,11 +18,7 @@ export const canCaptureOnAppView = ({
 }: AppViewCaptureInput): boolean =>
     flagEnabled && canUseAgents && hasAgent && hasPreview;
 
-/**
- * The agent prompt for a capture made on a published app. Without the
- * screenshots only the mark and speech lines are kept, since every other
- * line of the summary refers to the images.
- */
+/** The agent prompt for a capture made on a published app. */
 export const buildAppCapturePrompt = ({
     appName,
     summary,
@@ -30,12 +27,9 @@ export const buildAppCapturePrompt = ({
     appName: string;
     summary: string;
     hasImages: boolean;
-}): string => {
-    const body = hasImages
-        ? summary
-        : summary
-              .split('\n')
-              .filter((line) => line.startsWith('- '))
-              .join('\n');
-    return `These questions are about the data app "${appName}".\n\n${body}`;
-};
+}): string =>
+    buildAgentPrompt({
+        heading: `These questions are about the data app "${appName}".`,
+        summary,
+        hasImages,
+    });

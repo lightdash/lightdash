@@ -3,7 +3,6 @@ import {
     FeatureFlags,
     isDashboardChartTileType,
     type CaptureLayoutOp,
-    type CaptureQuestion,
     type DashboardTile,
 } from '@lightdash/common';
 import { Button, Loader, Text, Tooltip } from '@mantine/core';
@@ -48,8 +47,10 @@ import {
     type CaptureSurface,
     type CaptureTarget,
 } from '../capture';
+import { buildAgentPrompt } from '../capture/buildAgentPrompt';
 import { applyLayoutOps } from './applyLayoutOps';
 import classes from './DashboardCapture.module.css';
+import { describeLayoutOps } from './describeLayoutOps';
 import { hasSameLayout, reapplyLayoutPreview } from './layoutPreview';
 import { buildLayoutSaveBody } from './layoutSaveBody';
 import { routeCapture } from './routeCapture';
@@ -67,16 +68,10 @@ import {
 
 const UNTITLED = 'Untitled tile';
 const MAX_ROUTE_IMAGES = 5;
-const IMAGES_NOTE =
-    'The attached screenshots show the dashboard as I recorded it, with my red marks drawn on. Use them to see exactly what I was pointing at.';
+const MAX_CHART_CONTEXT = 3;
 
 const plural = (count: number, word: string): string =>
     `${count} ${word}${count === 1 ? '' : 's'}`;
-
-const questionsToPrompt = (questions: CaptureQuestion[]): string =>
-    questions.length === 1
-        ? questions[0].text
-        : questions.map((q, i) => `${i + 1}. ${q.text}`).join('\n');
 
 // What is under a viewport point: a tile, or an empty cell of the grid.
 const targetAtPoint = (
@@ -177,52 +172,68 @@ const DashboardCapture: FC = () => {
         setDashboardTiles,
     ]);
 
-    // Everything for the agent goes in one thread, as a numbered list.
-    const sendQuestions = useCallback(
-        (
-            questions: CaptureQuestion[],
-            tiles: DashboardTile[],
-            dashboardUuid: string,
-            images: string[],
-        ) => {
-            const chartUuidFor = (question: CaptureQuestion) => {
-                const about = tiles.find(
-                    (tile) =>
-                        question.tileUuids.includes(tile.uuid) &&
-                        isDashboardChartTileType(tile),
-                );
-                return about && isDashboardChartTileType(about)
-                    ? (about.properties.savedChartUuid ?? undefined)
-                    : undefined;
-            };
+    // The agent gets the recording as said, with the screenshots, in one
+    // message. The sorter only decides whether it needs the agent at all.
+    const sendToAgentAsSaid = useCallback(
+        ({
+            summary,
+            tiles,
+            tileUuids,
+            dashboardUuid,
+            dashboardName,
+            layoutDone,
+            images,
+        }: {
+            summary: string;
+            tiles: DashboardTile[];
+            /** Tiles the requests are about, for chart context. */
+            tileUuids: string[];
+            dashboardUuid: string;
+            dashboardName: string;
+            /** Layout changes the page made from this recording, in words. */
+            layoutDone: string;
+            images: string[];
+        }) => {
+            const chartUuids = [
+                ...new Set(
+                    tiles.flatMap((tile) =>
+                        tileUuids.includes(tile.uuid) &&
+                        isDashboardChartTileType(tile) &&
+                        tile.properties.savedChartUuid
+                            ? [tile.properties.savedChartUuid]
+                            : [],
+                    ),
+                ),
+            ].slice(0, MAX_CHART_CONTEXT);
+            const buildPrompt = (hasImages: boolean) =>
+                buildAgentPrompt({
+                    heading: `These requests are about the dashboard "${dashboardName}".`,
+                    alreadyDone: layoutDone || undefined,
+                    summary,
+                    hasImages,
+                });
             if (!agentUuid) {
-                // No agent list yet: fall back to one combined prompt.
+                // No agent list yet: open a new chat with the prompt ready.
                 agentDispatch(
                     openDefaultAgentPanel({
                         pendingContext: {
                             dashboardUuid,
-                            chartUuid: chartUuidFor(questions[0]),
+                            chartUuid: chartUuids[0],
                         },
-                        pendingPrompt: questionsToPrompt(questions),
+                        pendingPrompt: buildPrompt(false),
                     }),
                 );
                 return;
             }
-            // One thread for the whole recording, so the agent has every
-            // request in front of it and changes do not race each other.
-            const chartUuid =
-                questions.length === 1 ? chartUuidFor(questions[0]) : undefined;
             void sendToAgent({
                 agentUuid,
-                buildPrompt: (hasImages) =>
-                    hasImages
-                        ? `${questionsToPrompt(questions)}\n\n${IMAGES_NOTE}`
-                        : questionsToPrompt(questions),
+                buildPrompt,
                 context: [
                     { type: 'dashboard', dashboardUuid },
-                    ...(chartUuid
-                        ? [{ type: 'chart' as const, chartUuid }]
-                        : []),
+                    ...chartUuids.map((chartUuid) => ({
+                        type: 'chart' as const,
+                        chartUuid,
+                    })),
                 ],
                 images,
             })
@@ -283,20 +294,31 @@ const DashboardCapture: FC = () => {
                     setDashboardTiles(layout.tiles);
                 }
 
-                const edits = route.edits.map((edit) => ({
-                    ...edit,
-                    text: `Please make this change to the dashboard "${dashboard.name}": ${edit.text}`,
-                }));
-                const forAgent = [...route.questions, ...edits];
+                const forAgent = [...route.questions, ...route.edits];
                 if (forAgent.length > 0) {
-                    sendQuestions(forAgent, tiles, dashboard.uuid, images);
+                    sendToAgentAsSaid({
+                        summary: result.summary,
+                        tiles,
+                        tileUuids: forAgent.flatMap((item) => item.tileUuids),
+                        dashboardUuid: dashboard.uuid,
+                        dashboardName: dashboard.name,
+                        layoutDone:
+                            layout.applied > 0
+                                ? describeLayoutOps(
+                                      route.layout,
+                                      new Map(
+                                          tiles.map((tile) => [
+                                              tile.uuid,
+                                              getTileTitle(tile, UNTITLED),
+                                          ]),
+                                      ),
+                                  )
+                                : '',
+                        images,
+                    });
                 }
 
-                if (
-                    layout.applied === 0 &&
-                    route.questions.length === 0 &&
-                    edits.length === 0
-                ) {
+                if (layout.applied === 0 && forAgent.length === 0) {
                     showToastWarning({
                         title: 'Nothing to do',
                         subtitle:
@@ -308,11 +330,8 @@ const DashboardCapture: FC = () => {
                     layout.applied > 0
                         ? `${plural(layout.applied, 'layout change')} ready to review`
                         : null,
-                    route.questions.length > 0
-                        ? `${plural(route.questions.length, 'question')} sent to the agent`
-                        : null,
-                    edits.length > 0
-                        ? `${plural(edits.length, 'change')} sent to the agent`
+                    forAgent.length > 0
+                        ? 'your requests sent to the agent'
                         : null,
                 ].filter((part) => part !== null);
                 showToastInfo({ title: parts.join(', ') });
@@ -326,7 +345,7 @@ const DashboardCapture: FC = () => {
             activeTabUuid,
             dashboard,
             projectUuid,
-            sendQuestions,
+            sendToAgentAsSaid,
             setDashboardTiles,
             showToastError,
             showToastInfo,

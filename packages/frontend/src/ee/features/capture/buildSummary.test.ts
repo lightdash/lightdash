@@ -73,7 +73,7 @@ describe('buildSummary', () => {
         });
         expect(out).toBe(
             [
-                '[Inline capture, 0:19. The 2 attached images show the app with numbered red marks, in order.]',
+                '[Inline capture, 0:19. The 2 attached images show the page with numbered red marks, in order.]',
                 'Image 1:',
                 '- ① (0:02) circled, top right: "this chart should be a line chart"',
                 '- ② (0:06) arrow from top right to bottom left: "and move it down here"',
@@ -93,7 +93,7 @@ describe('buildSummary', () => {
             transcript: [],
         });
         expect(out.split('\n')).toEqual([
-            '[Inline capture, 0:05. The attached image shows the app with numbered red marks.]',
+            '[Inline capture, 0:05. The attached image shows the page with numbered red marks.]',
             '- ① (0:01) circled, top right',
             LAST_LINE,
         ]);

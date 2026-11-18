@@ -1,5 +1,10 @@
-import { type AiPromptContextInput } from '@lightdash/common';
+import {
+    AI_THREAD_CONTEXT_MAX_LENGTH,
+    type AiPromptContextInput,
+    type ApiAiAgentThreadResponse,
+} from '@lightdash/common';
 import { useCallback, useRef } from 'react';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { useLauncherDock } from '../aiCopilot/components/Launcher/useLauncherDock';
 import {
     useCreateAgentThreadMessageMutation,
@@ -14,6 +19,7 @@ import {
     captureThreadTarget,
     screenshotsFitInThread,
 } from './captureThreadTarget';
+import { buildCarryOver } from './carryOver';
 import { uploadCaptureImages } from './uploadCaptureImages';
 
 /** Shown when a recording could not join the open conversation. */
@@ -42,6 +48,7 @@ type SendResult = {
  */
 export const useSendCaptureToAgent = (projectUuid: string) => {
     const dispatch = useAiAgentStoreDispatch();
+    const lightdashApi = useLightdashApi();
     const { addItem: addDockItem } = useLauncherDock(projectUuid);
     const openThreadId = useAiAgentStoreSelector(
         (state) => captureThreadTarget(state.aiAgentLauncher)?.threadId ?? null,
@@ -94,11 +101,12 @@ export const useSendCaptureToAgent = (projectUuid: string) => {
                 })),
             ];
             const prompt = buildPrompt(imageUuids.length > 0);
-            const startNew = async () => {
+            const startNew = async (threadContext?: string) => {
                 const thread = await createThread({
                     agentUuid,
                     prompt,
                     context: fullContext,
+                    threadContext: threadContext || undefined,
                 });
                 imagesSentRef.current.set(thread.uuid, imageUuids.length);
             };
@@ -110,20 +118,49 @@ export const useSendCaptureToAgent = (projectUuid: string) => {
             }
             const already = imagesSentRef.current.get(threadId) ?? 0;
             // A full conversation would drop screenshots, so start afresh.
+            // The new conversation gets the old one, word for word, as
+            // background, so "this" and "the one before" still make sense.
+            const carryOver = async () => {
+                try {
+                    const old = await lightdashApi<
+                        ApiAiAgentThreadResponse['results']
+                    >({
+                        url: `/projects/${projectUuid}/aiAgents/${openAgentUuid}/threads/${threadId}`,
+                        method: 'GET',
+                        body: undefined,
+                    });
+                    return buildCarryOver(
+                        old.messages.map((m) => ({
+                            role: m.role,
+                            message: m.message,
+                        })),
+                        AI_THREAD_CONTEXT_MAX_LENGTH,
+                    );
+                } catch {
+                    return '';
+                }
+            };
             if (!screenshotsFitInThread(already, imageUuids.length)) {
-                await startNew();
+                await startNew(await carryOver());
                 return { outcome: 'new-because-full' };
             }
             try {
                 await sendMessage({ prompt, context: fullContext });
             } catch {
                 // Refused (for example, full of screenshots attached by hand).
-                await startNew();
+                await startNew(await carryOver());
                 return { outcome: 'new-because-full' };
             }
             imagesSentRef.current.set(threadId, already + imageUuids.length);
             return { outcome: 'continued' };
         },
-        [createThread, openAgentUuid, openThreadId, sendMessage],
+        [
+            createThread,
+            lightdashApi,
+            openAgentUuid,
+            openThreadId,
+            projectUuid,
+            sendMessage,
+        ],
     );
 };
