@@ -137,6 +137,37 @@
     visibility: hidden;
 }
 
+.dashboardFrameBox {
+    /* The dashboard insets its cards by one grid gap; pull it out so they line up with the tabs */
+    margin-inline: -10px;
+}
+
+.dashboardBar {
+    margin-bottom: var(--mantine-spacing-xs);
+}
+
+.dashboardTabs {
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.dashboardControls {
+    /* Stays on the right when it wraps under the tabs */
+    margin-left: auto;
+}
+
+.dashboardFrame {
+    display: block;
+    width: 100%;
+    border: 0;
+}
+
+.dashboardFrame[data-loading] {
+    position: absolute;
+    inset: 0 0 auto;
+    visibility: hidden;
+}
+
 .chart {
     height: 240px !important;
 }
