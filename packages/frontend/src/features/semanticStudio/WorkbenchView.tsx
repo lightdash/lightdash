@@ -1394,7 +1394,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     // The workspace the conversation made, named for where its changes stand.
     const pullRequestNumber = /\/(\d+)\/?$/.exec(development?.prUrl ?? '')?.[1];
     const workspace = saving
-        ? { name: 'Saving', hint: 'The change is being saved.' }
+        ? { name: 'Saving', hint: 'The draft is being saved.' }
         : development
           ? {
                 name: pullRequestNumber
@@ -1788,7 +1788,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             </UnstyledButton>
             <div className={classes.changeTitleRow}>
                 <Tooltip
-                    label={workspace?.hint ?? 'What this change does'}
+                    label={workspace?.hint ?? 'What this draft does'}
                     disabled={!workspace?.hint}
                 >
                     <Title
@@ -2208,7 +2208,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                             <Tooltip
                                                 label={
                                                     workspace?.hint ??
-                                                    'What this change does'
+                                                    'What this draft does'
                                                 }
                                             >
                                                 <Text
