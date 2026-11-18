@@ -21,9 +21,9 @@ export const getEmbeddedUsageAttribution = ({
         !authentication.source ||
         !organization.organizationUuid
     )
-        return;
+        return undefined;
     const { data, source } = authentication;
-    if ('isPreview' in data.content && data.content.isPreview) return;
+    if ('isPreview' in data.content && data.content.isPreview) return undefined;
 
     const externalUserId = asIdentifier(data.user?.externalId);
     const selected = asIdentifier(data.usageAnalytics?.tenantAttribute);
