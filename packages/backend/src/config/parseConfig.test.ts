@@ -2562,26 +2562,6 @@ describe('process.env.LIGHTDASH_CORS_ENABLED', () => {
     });
 });
 
-describe('process.env.VOICE_DESIGN_MICROPHONE_ENABLED', () => {
-    test('keeps the microphone blocked when not set', () => {
-        expect(parseConfig().security.permissionsPolicy.microphoneEnabled).toBe(
-            false,
-        );
-    });
-
-    test('allows the microphone only when explicitly true', () => {
-        process.env.VOICE_DESIGN_MICROPHONE_ENABLED = 'true';
-        expect(parseConfig().security.permissionsPolicy.microphoneEnabled).toBe(
-            true,
-        );
-
-        process.env.VOICE_DESIGN_MICROPHONE_ENABLED = 'yes';
-        expect(parseConfig().security.permissionsPolicy.microphoneEnabled).toBe(
-            false,
-        );
-    });
-});
-
 describe('parseAndSanitizeSchedulerTasks', () => {
     beforeEach(() => {
         // Clear scheduler environment variables before each test

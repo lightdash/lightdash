@@ -90,7 +90,10 @@ import {
 } from './logging/winston';
 import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
-import { permissionsPolicyHeader } from './middlewares/permissionsPolicy/permissionsPolicy';
+import {
+    createSpaIndexHandler,
+    setDefaultPermissionsPolicy,
+} from './middlewares/permissionsPolicy/permissionsPolicy';
 import { createRestrictUnverifiedSessionMiddleware } from './middlewares/restrictUnverifiedSession/restrictUnverifiedSession';
 import { flush as flushFeatureFlagChecks } from './models/FeatureFlagModel/flagCheckAggregator';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
@@ -739,14 +742,10 @@ export default class App {
 
         const frontendBuildHash = getFrontendBuildHash();
 
+        // Permissions-Policy header that is not yet supported by helmet. More details here: https://github.com/helmetjs/helmet/issues/234
+        // The app's HTML page may allow more; see createSpaIndexHandler.
+        expressApp.use(setDefaultPermissionsPolicy);
         expressApp.use((req, res, next) => {
-            // Permissions-Policy header that is not yet supported by helmet. More details here: https://github.com/helmetjs/helmet/issues/234
-            res.setHeader(
-                'Permissions-Policy',
-                permissionsPolicyHeader(
-                    this.lightdashConfig.security.permissionsPolicy,
-                ),
-            );
             res.setHeader(LightdashVersionHeader, VERSION);
             if (frontendBuildHash) {
                 res.setHeader(LightdashBuildHashHeader, frontendBuildHash);
@@ -826,14 +825,16 @@ export default class App {
         expressApp.use(expressWinstonPreResponseMiddleware); // log request before response is sent
         expressApp.use(expressWinstonMiddleware); // log request + response
 
-        expressApp.get('/', (req, res) => {
-            res.sendFile(
-                path.join(__dirname, '../../frontend/build', 'index.html'),
-                {
-                    headers: { 'Cache-Control': 'no-cache, private' },
-                },
-            );
+        // After the session, so the page knows whose organisation it serves.
+        const serveSpaIndex = createSpaIndexHandler({
+            indexPath: path.join(
+                __dirname,
+                '../../frontend/build',
+                'index.html',
+            ),
+            featureFlagModel: this.models.getFeatureFlagModel(),
         });
+        expressApp.get('/', serveSpaIndex);
 
         /**
          * Service Container
@@ -1040,14 +1041,7 @@ export default class App {
 
         // no-cache - browsers revalidate on every request but can cache
         // private - no cdn caching
-        expressApp.get('*', (req, res) => {
-            res.sendFile(
-                path.join(__dirname, '../../frontend/build', 'index.html'),
-                {
-                    headers: { 'Cache-Control': 'no-cache, private' },
-                },
-            );
-        });
+        expressApp.get('*', serveSpaIndex);
 
         // Start the server
         const server = expressApp.listen(this.port, () => {
