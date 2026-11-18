@@ -5,12 +5,17 @@ import {
     type StudioChangeSummary,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { v4 as uuidv4 } from 'uuid';
 import { UserTableName } from '../../database/entities/users';
 import {
     AiThreadTableName,
     AiWebAppThreadTableName,
     AiWritebackRunTableName,
 } from '../database/entities/ai';
+import {
+    SemanticStudioBranchCompilesTableName,
+    type DbSemanticStudioBranchCompile,
+} from '../database/entities/semanticStudioBranchCompiles';
 import {
     SemanticStudioWorkspacesTableName,
     type DbSemanticStudioWorkspace,
@@ -401,5 +406,83 @@ export class SemanticStudioWorkspaceModel {
                     ? { is_active: false, finished_at: now }
                     : {}),
             });
+    }
+
+    /** Asks for a new compile of a change's branch; returns the request a compile must still match to be kept. */
+    async requestBranchCompile(workspaceUuid: string): Promise<string> {
+        const compileRequestUuid = uuidv4();
+        await this.database(SemanticStudioBranchCompilesTableName)
+            .insert({
+                semantic_studio_workspace_uuid: workspaceUuid,
+                compile_request_uuid: compileRequestUuid,
+                status: 'compiling',
+            })
+            .onConflict('semantic_studio_workspace_uuid')
+            .merge({
+                compile_request_uuid: compileRequestUuid,
+                status: 'compiling',
+                error: null,
+                requested_at: this.database.fn.now(),
+            });
+        return compileRequestUuid;
+    }
+
+    /** Records a compile's outcome, unless a newer one was asked for since; a failure keeps the last good explores. */
+    async finishBranchCompile(
+        workspaceUuid: string,
+        compileRequestUuid: string,
+        outcome:
+            | {
+                  status: 'ready';
+                  branch: string;
+                  explores: DbSemanticStudioBranchCompile['explores'];
+              }
+            | { status: 'failed'; branch: string | null; error: string },
+    ): Promise<boolean> {
+        const updated = await this.database(
+            SemanticStudioBranchCompilesTableName,
+        )
+            .where({
+                semantic_studio_workspace_uuid: workspaceUuid,
+                compile_request_uuid: compileRequestUuid,
+            })
+            .update(
+                outcome.status === 'ready'
+                    ? {
+                          status: 'ready',
+                          branch: outcome.branch,
+                          error: null,
+                          explores: JSON.stringify(outcome.explores),
+                          compiled_at: this.database.fn.now(),
+                      }
+                    : {
+                          status: 'failed',
+                          branch: outcome.branch,
+                          error: outcome.error,
+                      },
+            );
+        return updated > 0;
+    }
+
+    /** Drops the compiles of a project's finished changes; nothing reads them again. */
+    async deleteFinishedBranchCompiles(projectUuid: string): Promise<void> {
+        await this.database(SemanticStudioBranchCompilesTableName)
+            .whereIn(
+                'semantic_studio_workspace_uuid',
+                this.database(SemanticStudioWorkspacesTableName)
+                    .select('semantic_studio_workspace_uuid')
+                    .where('project_uuid', projectUuid)
+                    .whereNotNull('finished_at'),
+            )
+            .delete();
+    }
+
+    async findBranchCompile(
+        workspaceUuid: string,
+    ): Promise<DbSemanticStudioBranchCompile | null> {
+        const row = await this.database(SemanticStudioBranchCompilesTableName)
+            .where('semantic_studio_workspace_uuid', workspaceUuid)
+            .first();
+        return row ?? null;
     }
 }

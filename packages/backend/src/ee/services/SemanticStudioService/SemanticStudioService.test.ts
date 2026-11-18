@@ -15,6 +15,7 @@ import {
     ValidationErrorType,
     ValidationSourceType,
     WarehouseTypes,
+    type CompileSemanticStudioBranchPayload,
     type CreateValidation,
     type Explore,
     type ExploreError,
@@ -29,6 +30,7 @@ import {
 import { Readable } from 'node:stream';
 import { stringify } from 'yaml';
 import { user } from '../../../services/ProjectService/ProjectService.mock';
+import { type DbSemanticStudioBranchCompile } from '../../database/entities/semanticStudioBranchCompiles';
 import {
     ModelDocumentsChangedError,
     type ChangeSet,
@@ -133,6 +135,12 @@ const validator = withAbility([
 const TRY_OUT_EXPLORE: ExploreError = {
     name: 'try_out',
     label: 'Try out',
+    errors: [],
+};
+
+const BRANCH_EXPLORE: ExploreError = {
+    name: 'branch_compiled',
+    label: 'Branch compiled',
     errors: [],
 };
 
@@ -325,6 +333,15 @@ const setup = ({
         async (): Promise<(Explore | ExploreError)[]> => [TRY_OUT_EXPLORE],
     );
     const files = new Map<string, string>();
+    const branchCompiles = new Map<string, DbSemanticStudioBranchCompile>();
+    let compileRequests = 0;
+    const queueBranchCompile = vi.fn(
+        async (_payload: CompileSemanticStudioBranchPayload) => undefined,
+    );
+    const compileExploresFromBranch = vi.fn(
+        async (): Promise<(Explore | ExploreError)[]> => [BRANCH_EXPLORE],
+    );
+    const findPullRequestBranch = vi.fn(async () => 'studio-branch');
     let activeWorkspace: { threadUuid: string; prUrl: string | null } | null =
         null;
     const unused = async (): Promise<never> => {
@@ -384,6 +401,7 @@ const setup = ({
         aiWritebackService: {
             openStudioCheckout: unused,
             saveWithScript: unused,
+            findPullRequestBranch,
         },
         workspaceModel: {
             listChanges: async () => [],
@@ -412,7 +430,12 @@ const setup = ({
                           owner: { userUuid: USER_UUID, name: 'Someone' },
                           isMine: userUuid === USER_UUID,
                           isActive: false,
-                          pullRequest: null,
+                          pullRequest:
+                              activeWorkspace?.prUrl &&
+                              workspaceOf(activeWorkspace.threadUuid) ===
+                                  workspaceUuid
+                                  ? { url: activeWorkspace.prUrl, state: null }
+                                  : null,
                           createdAt: new Date(),
                           updatedAt: new Date(),
                           finishedAt: null,
@@ -426,6 +449,46 @@ const setup = ({
             attachPullRequest: async () => undefined,
             attachThreadPullRequest: async () => undefined,
             recordPullRequestState,
+            requestBranchCompile: async (workspaceUuid) => {
+                compileRequests += 1;
+                const compileRequestUuid = `request-${compileRequests}`;
+                const previous = branchCompiles.get(workspaceUuid);
+                branchCompiles.set(workspaceUuid, {
+                    semantic_studio_workspace_uuid: workspaceUuid,
+                    compile_request_uuid: compileRequestUuid,
+                    status: 'compiling',
+                    branch: previous?.branch ?? null,
+                    error: null,
+                    explores: previous?.explores ?? null,
+                    requested_at: new Date(),
+                    compiled_at: previous?.compiled_at ?? null,
+                });
+                return compileRequestUuid;
+            },
+            finishBranchCompile: async (
+                workspaceUuid,
+                compileRequestUuid,
+                outcome,
+            ) => {
+                const row = branchCompiles.get(workspaceUuid);
+                if (row?.compile_request_uuid !== compileRequestUuid)
+                    return false;
+                branchCompiles.set(
+                    workspaceUuid,
+                    outcome.status === 'ready'
+                        ? {
+                              ...row,
+                              ...outcome,
+                              error: null,
+                              compiled_at: new Date(),
+                          }
+                        : { ...row, ...outcome },
+                );
+                return true;
+            },
+            findBranchCompile: async (workspaceUuid) =>
+                branchCompiles.get(workspaceUuid) ?? null,
+            deleteFinishedBranchCompiles: async () => undefined,
         },
         featureFlagModel: {
             get: async () => ({ id: 'semantic-studio-editing', enabled }),
@@ -587,7 +650,10 @@ const setup = ({
                 };
             },
         },
-        schedulerClient: { checkSemanticLayerDraftImpact: queueImpactCheck },
+        schedulerClient: {
+            checkSemanticLayerDraftImpact: queueImpactCheck,
+            compileSemanticStudioBranch: queueBranchCompile,
+        },
         validationService: { generateValidation },
         savedChartModel: { analyzeFieldImpact },
         repoModels: {
@@ -619,6 +685,7 @@ const setup = ({
             runSqlQuery,
             setExplores,
             compileExploresFromManifest,
+            compileExploresFromBranch,
         },
         jobModel: { findLatestCompileStatus: async () => previewCompile },
         writebackPreviewService: { createPreviewForPullRequest },
@@ -658,6 +725,10 @@ const setup = ({
         finishWorkspace,
         workspaceOf,
         compileExploresFromManifest,
+        compileExploresFromBranch,
+        findPullRequestBranch,
+        queueBranchCompile,
+        branchCompiles,
         upsert,
         openPullRequest,
         recordedPullRequests,
@@ -3184,5 +3255,149 @@ describe('workspace pull request reconciliation', () => {
         context.getPullRequestState.mockResolvedValue('open');
         await context.service.listWorkspaces(deployer, PROJECT_UUID);
         expect(context.recordPullRequestState).not.toHaveBeenCalled();
+    });
+});
+
+describe('compiling a dbt change on its branch', () => {
+    const OWN_PULL_REQUEST = 'https://github.com/acme/shop/pull/7';
+    const onChange = (overrides: Parameters<typeof setup>[0] = {}) => {
+        const context = setup({ dbtConnection: DBT_IN_GITHUB, ...overrides });
+        context.setActiveWorkspace({
+            threadUuid: 'thread',
+            prUrl: OWN_PULL_REQUEST,
+        });
+        return context;
+    };
+    /** Stands in for the worker picking the queued compile up. */
+    const runQueued = (context: ReturnType<typeof setup>, index = 0) =>
+        context.service.compileBranch(
+            context.queueBranchCompile.mock.calls[index][0],
+        );
+
+    it('queues a compile of the change on the saved pull request, and shows the person what its branch compiles to', async () => {
+        const context = onChange();
+        await context.service.queueBranchCompile(
+            repoWriter,
+            PROJECT_UUID,
+            OWN_PULL_REQUEST,
+        );
+        expect(context.queueBranchCompile).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid: PROJECT_UUID,
+                userUuid: repoWriter.userUuid,
+                workspaceUuid: 'workspace-thread',
+            }),
+        );
+        await runQueued(context);
+        expect(context.findPullRequestBranch).toHaveBeenCalledWith(
+            ORGANIZATION_UUID,
+            PROJECT_UUID,
+            OWN_PULL_REQUEST,
+        );
+        expect(context.compileExploresFromBranch).toHaveBeenCalledWith(
+            {
+                userUuid: repoWriter.userUuid,
+                organizationUuid: ORGANIZATION_UUID,
+            },
+            PROJECT_UUID,
+            'studio-branch',
+        );
+        const explores = await context.service.findDevelopmentExplores(
+            repoWriter,
+            PROJECT_UUID,
+        );
+        expect(explores?.get(BRANCH_EXPLORE.name)).toEqual(BRANCH_EXPLORE);
+    });
+
+    it('queues nothing for a pull request that is not one of your changes, or on a project kept on the server', async () => {
+        const other = onChange();
+        await other.service.queueBranchCompile(
+            repoWriter,
+            PROJECT_UUID,
+            'https://github.com/acme/shop/pull/8',
+        );
+        expect(other.queueBranchCompile).not.toHaveBeenCalled();
+        const native = onChange({
+            dbtConnection: { type: DbtProjectType.NONE },
+        });
+        await native.service.queueBranchCompile(
+            deployer,
+            PROJECT_UUID,
+            OWN_PULL_REQUEST,
+        );
+        expect(native.queueBranchCompile).not.toHaveBeenCalled();
+    });
+
+    it('drops a compile asked for before a newer one', async () => {
+        const context = onChange();
+        await context.service.queueBranchCompile(
+            repoWriter,
+            PROJECT_UUID,
+            OWN_PULL_REQUEST,
+        );
+        await context.service.queueBranchCompile(
+            repoWriter,
+            PROJECT_UUID,
+            OWN_PULL_REQUEST,
+        );
+        await runQueued(context, 0);
+        expect(context.branchCompiles.get('workspace-thread')).toMatchObject({
+            status: 'compiling',
+            explores: null,
+        });
+        await runQueued(context, 1);
+        expect(context.branchCompiles.get('workspace-thread')).toMatchObject({
+            status: 'ready',
+            branch: 'studio-branch',
+        });
+    });
+
+    it('keeps the last good compile through a failed one, with what failed', async () => {
+        const context = onChange();
+        await context.service.queueBranchCompile(
+            repoWriter,
+            PROJECT_UUID,
+            OWN_PULL_REQUEST,
+        );
+        await runQueued(context, 0);
+        context.compileExploresFromBranch.mockRejectedValueOnce(
+            new Error('Compilation Error in model orders'),
+        );
+        await context.service.queueBranchCompile(
+            repoWriter,
+            PROJECT_UUID,
+            OWN_PULL_REQUEST,
+        );
+        await runQueued(context, 1);
+        expect(context.branchCompiles.get('workspace-thread')).toMatchObject({
+            status: 'failed',
+            error: 'Compilation Error in model orders',
+        });
+        expect(
+            (
+                await context.service.findDevelopmentExplores(
+                    repoWriter,
+                    PROJECT_UUID,
+                )
+            )?.get(BRANCH_EXPLORE.name),
+        ).toEqual(BRANCH_EXPLORE);
+    });
+
+    it("says plainly when the pull request's branch cannot be read", async () => {
+        const context = onChange();
+        context.findPullRequestBranch.mockRejectedValueOnce(
+            new ParameterError('Pull request #7 is already merged'),
+        );
+        await context.service.queueBranchCompile(
+            repoWriter,
+            PROJECT_UUID,
+            OWN_PULL_REQUEST,
+        );
+        await runQueued(context);
+        expect(context.compileExploresFromBranch).not.toHaveBeenCalled();
+        expect(context.branchCompiles.get('workspace-thread')).toMatchObject({
+            status: 'failed',
+            error: "Could not read this draft's branch. Its pull request may be merged, closed or in another repository.",
+        });
     });
 });

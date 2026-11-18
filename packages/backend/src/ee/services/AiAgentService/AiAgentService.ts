@@ -14141,6 +14141,20 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     });
             }
 
+            if (
+                result.prUrl &&
+                result.commitSha &&
+                prompt.threadCreatedFrom === 'semantic_studio'
+            ) {
+                await this.semanticStudioService
+                    .queueBranchCompile(user, projectUuid, result.prUrl)
+                    .catch((error: unknown) => {
+                        Logger.warn(
+                            `AiAgent.runEditDbtProjectPipeline: failed to queue a compile of run ${aiWritebackRunUuid}: ${getErrorMessage(error)}`,
+                        );
+                    });
+            }
+
             const target = `Lightdash project "${result.projectName}" (repository ${result.repository})`;
             const prVerb = result.prAction === 'updated' ? 'Updated' : 'Opened';
             let base: string;

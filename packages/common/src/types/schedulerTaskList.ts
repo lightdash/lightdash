@@ -202,8 +202,15 @@ export type SyncAnalyticsContentPayload = Partial<TraceTaskBase> & {
     organizationUuid: string;
 };
 
+/** Compiles a Semantic Studio change's branch; only a compile for the latest request is kept. */
+export type CompileSemanticStudioBranchPayload = TraceTaskBase & {
+    workspaceUuid: string;
+    compileRequestUuid: string;
+};
+
 export const EE_SCHEDULER_TASKS = {
     CHECK_SEMANTIC_LAYER_DRAFT_IMPACT: 'checkSemanticLayerDraftImpact',
+    COMPILE_SEMANTIC_STUDIO_BRANCH: 'compileSemanticStudioBranch',
     RECONCILE_ANALYTICS_CONTENT: 'reconcileAnalyticsContent',
     SYNC_ANALYTICS_CONTENT: 'syncAnalyticsContent',
     SLACK_AI_PROMPT: 'slackAiPrompt',
@@ -319,6 +326,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT]: ReconcileAnalyticsContentPayload;
     [SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT]: SyncAnalyticsContentPayload;
     [SCHEDULER_TASKS.CHECK_SEMANTIC_LAYER_DRAFT_IMPACT]: TraceTaskBase;
+    [SCHEDULER_TASKS.COMPILE_SEMANTIC_STUDIO_BRANCH]: CompileSemanticStudioBranchPayload;
     [SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY]: ScheduledDeliveryPayload;
     // Legacy individual notification tasks (deprecated)
     [SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION]: SlackNotificationPayload;
@@ -426,6 +434,7 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT]: ReconcileAnalyticsContentPayload;
     [EE_SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT]: SyncAnalyticsContentPayload;
     [EE_SCHEDULER_TASKS.CHECK_SEMANTIC_LAYER_DRAFT_IMPACT]: TraceTaskBase;
+    [EE_SCHEDULER_TASKS.COMPILE_SEMANTIC_STUDIO_BRANCH]: CompileSemanticStudioBranchPayload;
     [EE_SCHEDULER_TASKS.SLACK_AI_PROMPT]: SlackPromptJobPayload;
     [EE_SCHEDULER_TASKS.SLACK_AI_ARTIFACT_IMAGES]: SlackPromptJobPayload;
     [EE_SCHEDULER_TASKS.SWEEP_SLACK_AI_ARTIFACT_IMAGES]: TraceTaskBase;

@@ -1907,6 +1907,28 @@ export class AiWritebackService extends BaseService {
         };
     }
 
+    /** The branch of an open pull request in the project's own repository, read as the app. */
+    async findPullRequestBranch(
+        organizationUuid: string,
+        projectUuid: string,
+        prUrl: string,
+    ): Promise<string> {
+        const { dbtConnection } = await this.projectModel.get(projectUuid);
+        const provider = this.getGitProvider(dbtConnection.type);
+        const connection = provider.resolveConnection(dbtConnection, {
+            projectUuid,
+            projectDbtSourceUuid: null,
+        });
+        const installation =
+            await provider.resolveInstallation(organizationUuid);
+        const { headRef } = await provider.adoptPullRequest({
+            prUrl,
+            connection,
+            installation,
+        });
+        return headRef;
+    }
+
     /**
      * Makes a change with a script, read and committed through the GitHub API
      * with no sandbox. Null when the target needs the sandbox: not GitHub, a
