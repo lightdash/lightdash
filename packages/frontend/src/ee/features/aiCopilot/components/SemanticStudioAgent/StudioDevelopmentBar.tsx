@@ -16,10 +16,16 @@ import {
     isDevelopmentViewPinned,
     useDevelopmentView,
 } from '../../../../../features/semanticStudio/developmentView';
+import { canWriteProjectBranch } from '../../../../../features/semanticStudio/permissions';
 import { rememberGoingLive } from '../../../../../features/semanticStudio/useGoingLive';
+import {
+    describeBranchCompile,
+    useDraftCheckout,
+} from '../../../../../features/semanticStudio/useSemanticLayerModel';
+import { usePublishCheckout } from '../../../../../features/semanticStudio/useStudioWorkspaces';
 import { useProject } from '../../../../../hooks/useProject';
+import useApp from '../../../../../providers/App/useApp';
 import { useClosePullRequest } from '../../hooks/useClosePullRequest';
-import { useMergePullRequest } from '../../hooks/useMergePullRequest';
 import {
     useElapsed,
     useWritebackProgress,
@@ -56,7 +62,7 @@ const getBlockedReason = (ciChecks: CiChecks | null): string => {
     }
 };
 
-/** What a dbt project's Studio conversation has saved so far: its pull request, a look at the result, and merging it. */
+/** What a dbt project's Studio conversation has saved so far: its pull request, a look at the result, and publishing it. */
 export const StudioDevelopmentBar: FC<{
     projectUuid: string;
     pullRequest: StudioPullRequest;
@@ -64,11 +70,13 @@ export const StudioDevelopmentBar: FC<{
     const { prUrl, previewProjectUuid, ciChecks, isMine } = pullRequest;
     const { data: project } = useProject(projectUuid);
     const queryClient = useQueryClient();
-    const { mutate: merge, isLoading: isMerging } =
-        useMergePullRequest(projectUuid);
+    const { user } = useApp();
+    const { data: checkout } = useDraftCheckout(projectUuid);
+    const { mutate: publish, isLoading: isPublishing } =
+        usePublishCheckout(projectUuid);
     const { mutate: close, isLoading: isClosing } =
         useClosePullRequest(projectUuid);
-    const [merging, setMerging] = useState(false);
+    const [publishing, setPublishing] = useState(false);
     const [discarding, setDiscarding] = useState(false);
     const [isTrying, setIsTrying] = useDevelopmentView();
     const finishDiscardedWork = useFinishDiscardedWork(projectUuid);
@@ -89,8 +97,24 @@ export const StudioDevelopmentBar: FC<{
         project?.dbtConnection && 'branch' in project.dbtConnection
             ? project.dbtConnection.branch
             : null;
-    const canMerge = isMergeable(ciChecks);
     const destination = `${name}${branch ? ` into ${branch}` : ''}`;
+    const canWriteBranch =
+        !!user.data?.organizationUuid &&
+        canWriteProjectBranch(
+            user.data.ability,
+            user.data.organizationUuid,
+            projectUuid,
+        );
+    const compile = checkout?.branchCompile ?? null;
+    // Publishing merges straight into the branch, so it waits on the right to write there and on a passing compile.
+    const publishBlocker = !canWriteBranch
+        ? `Only people who can write to ${branch ?? "the project's branch"} can publish. Open ${name} for review.`
+        : compile?.status !== 'ready'
+          ? ((compile && describeBranchCompile(compile)) ??
+            'Publish once the latest edit compiles.')
+          : isMergeable(ciChecks)
+            ? null
+            : getBlockedReason(ciChecks);
     return (
         <DevelopmentBar summary={null}>
             <TryItButton
@@ -102,22 +126,18 @@ export const StudioDevelopmentBar: FC<{
                 <Tooltip
                     multiline
                     w={240}
-                    label={
-                        canMerge
-                            ? `Merges ${destination}.`
-                            : getBlockedReason(ciChecks)
-                    }
+                    label={publishBlocker ?? `Merges ${destination}.`}
                 >
                     <Button
                         size="xs"
                         variant="default"
-                        data-disabled={!canMerge || undefined}
-                        aria-disabled={!canMerge}
+                        data-disabled={!!publishBlocker || undefined}
+                        aria-disabled={!!publishBlocker}
                         onClick={() => {
-                            if (canMerge) setMerging(true);
+                            if (!publishBlocker) setPublishing(true);
                         }}
                     >
-                        Merge
+                        Publish
                     </Button>
                 </Tooltip>
             ) : null}
@@ -166,21 +186,21 @@ export const StudioDevelopmentBar: FC<{
                     ) : null}
                 </Menu.Dropdown>
             </Menu>
-            {merging ? (
+            {publishing ? (
                 <MantineModal
                     opened
-                    title="Merge pull request"
+                    title="Publish draft"
                     description={`This merges ${destination}, and everyone sees the changes once the project compiles.`}
-                    confirmLabel="Merge"
-                    confirmLoading={isMerging}
-                    onClose={() => setMerging(false)}
+                    confirmLabel="Publish"
+                    confirmLoading={isPublishing}
+                    onClose={() => setPublishing(false)}
                     onConfirm={() =>
-                        merge(
-                            { prUrl, sha: null },
+                        publish(
+                            { prUrl },
                             {
-                                // A failed merge keeps the dialog, under the toast that says why.
+                                // A failed publish keeps the dialog, under the toast that says why.
                                 onSuccess: ({ compileJobUuid }) => {
-                                    setMerging(false);
+                                    setPublishing(false);
                                     rememberGoingLive(
                                         queryClient,
                                         projectUuid,
