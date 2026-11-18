@@ -3768,7 +3768,15 @@ export class DashboardService
                                           exploreName:
                                               chart.metricQuery.exploreName,
                                           additionalMetrics: [metric],
-                                          savedAdditionalMetrics: [savedMetric],
+                                          // The chart's own metric: the registry may hold SQL a rollback restored
+                                          savedAdditionalMetrics: (
+                                              chart.metricQuery
+                                                  .additionalMetrics ?? []
+                                          ).filter(
+                                              (chartMetric) =>
+                                                  getItemId(chartMetric) ===
+                                                  metricId,
+                                          ),
                                       },
                                   ),
                               ),
@@ -3793,6 +3801,8 @@ export class DashboardService
         ];
         if (!dryRun) {
             await this.savedChartModel.transaction(async (tx) => {
+                // Waits for a rollback of this dashboard rather than locking its charts in another order
+                await this.dashboardModel.lockForVersioning(dashboard.uuid, tx);
                 await this.dashboardModel.updateLatestVersionConfig(
                     dashboard.uuid,
                     {
@@ -5043,8 +5053,36 @@ export class DashboardService
             organizationUuid: dashboardDao.organizationUuid,
         });
 
+        // Only rollback charts that belong to the dashboard
+        const uniqueChartUuids = [
+            ...new Set(
+                targetVersion.tiles
+                    .filter(
+                        (tile) =>
+                            isDashboardChartTileType(tile) &&
+                            tile.properties.savedChartUuid &&
+                            tile.properties.belongsToDashboard === true,
+                    )
+                    .map((tile) =>
+                        isDashboardChartTileType(tile)
+                            ? tile.properties.savedChartUuid!
+                            : '',
+                    )
+                    .filter(Boolean),
+            ),
+        ];
+
+        const chartRestores = await this.savedChartService.assertCanRestoreAt(
+            account,
+            uniqueChartUuids,
+            targetVersion.updatedAt,
+        );
+
         // Rollback dashboard and all owned charts in a single transaction
         await this.savedChartModel.transaction(async (tx) => {
+            // Dashboard before its charts, the order permanent delete takes them in
+            await this.dashboardModel.lockForVersioning(dashboardDao.uuid, tx);
+            await this.savedChartService.lockCheckedRestores(chartRestores, tx);
             await assertCanRollbackComposerCharts(
                 this.composerChartModel,
                 this.getComposerChartService,
@@ -5056,6 +5094,7 @@ export class DashboardService
                 targetVersion,
                 tx,
             );
+
             // Rollback dashboard version
             await this.dashboardModel.addVersion(
                 dashboardDao.uuid,
@@ -5072,54 +5111,19 @@ export class DashboardService
                 agentIdentity,
             );
 
-            // Only rollback charts that belong to the dashboard
-            const uniqueChartUuids = [
-                ...new Set(
-                    targetVersion.tiles
-                        .filter(
-                            (tile) =>
-                                isDashboardChartTileType(tile) &&
-                                tile.properties.savedChartUuid &&
-                                tile.properties.belongsToDashboard === true,
-                        )
-                        .map((tile) =>
-                            isDashboardChartTileType(tile)
-                                ? tile.properties.savedChartUuid!
-                                : '',
-                        )
-                        .filter(Boolean),
+            // Charts created after the target version have no restore and stay as they are
+            await Promise.all(
+                chartRestores.map((restore) =>
+                    this.savedChartModel.createVersion(
+                        restore.chartUuid,
+                        restore.restored,
+                        user,
+                        tx,
+                        undefined,
+                        agentIdentity,
+                    ),
                 ),
-            ];
-
-            // Rollback each dashboard-owned chart to its version at the target dashboard version time
-            if (uniqueChartUuids.length > 0) {
-                this.logger.info(
-                    `Rolling back ${uniqueChartUuids.length} dashboard-owned charts`,
-                );
-
-                await Promise.all(
-                    uniqueChartUuids.map(async (chartUuid) => {
-                        const result =
-                            await this.savedChartModel.rollbackToVersionAtTimestamp(
-                                chartUuid,
-                                targetVersion.updatedAt,
-                                user,
-                                tx,
-                                agentIdentity,
-                            );
-
-                        if (result) {
-                            this.logger.info(`Rolled back chart ${chartUuid}`);
-                        } else {
-                            this.logger.warn(
-                                `No chart version found for ${chartUuid} at timestamp ${targetVersion.updatedAt}. Chart may have been created after this dashboard version.`,
-                            );
-                        }
-                    }),
-                );
-            } else {
-                this.logger.info('No dashboard-owned charts to rollback');
-            }
+            );
             await rollbackComposerCharts(
                 this.composerChartModel,
                 targetVersion.tiles,

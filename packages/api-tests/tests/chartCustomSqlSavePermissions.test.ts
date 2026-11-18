@@ -278,6 +278,28 @@ describe('Saving a chart with custom SQL', () => {
         ).toBe(200);
     });
 
+    it('saves a new version that changes a SQL table calculation for an editor with the custom SQL scopes', async () => {
+        const chartUuid = await authorAsAdmin(metricQuery({}));
+
+        expect(
+            (
+                await saveVersionAs(
+                    scopedEditor,
+                    chartUuid,
+                    metricQuery({
+                        tableCalculations: [
+                            {
+                                name: 'custom_sql',
+                                displayName: 'Custom SQL',
+                                sql: '2',
+                            },
+                        ],
+                    }),
+                )
+            ).status,
+        ).toBe(200);
+    });
+
     describe('custom metric SQL already saved on another chart', () => {
         it('saves a new chart with SQL saved on a chart the editor can view', async () => {
             const sql = uniqueSql();
@@ -316,7 +338,7 @@ describe('Saving a chart with custom SQL', () => {
             expectMetricRefused(await createAs(editor, withMetric(sql)));
         });
 
-        it('saves SQL that only an older version of a viewable chart holds, as the lookup matches any version', async () => {
+        it('refuses SQL that only an older version of a viewable chart holds, to save or to run', async () => {
             const sql = uniqueSql();
             const chartUuid = await authorAsAdmin(withMetric(sql));
             expect(
@@ -324,7 +346,16 @@ describe('Saving a chart with custom SQL', () => {
                     .status,
             ).toBe(200);
 
-            expectSaved(await createAs(editor, withMetric(sql)));
+            expectMetricRefused(await createAs(editor, withMetric(sql)));
+            expectMetricRefused(
+                await saveVersionAs(editor, chartUuid, withMetric(sql)),
+            );
+            const run = await editor.post(
+                `/api/v2/projects/${SEED_PROJECT.project_uuid}/query/metric-query`,
+                { context: 'exploreView', query: withMetric(sql) },
+                { failOnStatusCode: false },
+            );
+            expect(run.status).toBe(403);
         });
 
         it('refuses SQL that only a deleted chart holds', async () => {
@@ -333,6 +364,252 @@ describe('Saving a chart with custom SQL', () => {
             await admin.delete(`/api/v1/saved/${chartUuid}`);
 
             expectMetricRefused(await createAs(editor, withMetric(sql)));
+        });
+    });
+
+    describe('restoring an older version', () => {
+        const firstVersion = async (chartUuid: string) => {
+            const history = await admin.get<
+                Body<{ history: { versionUuid: string; createdAt: string }[] }>
+            >(`/api/v1/saved/${chartUuid}/history`);
+            return [...history.body.results.history].sort((a, b) =>
+                a.createdAt.localeCompare(b.createdAt),
+            )[0].versionUuid;
+        };
+
+        const rollbackAs = async (client: ApiClient, chartUuid: string) =>
+            client.post(
+                `/api/v1/saved/${chartUuid}/rollback/${await firstVersion(chartUuid)}/`,
+                undefined,
+                { failOnStatusCode: false },
+            );
+
+        const currentQuery = async (chartUuid: string) =>
+            (await admin.get<Body<SavedChart>>(`/api/v1/saved/${chartUuid}`))
+                .body.results.metricQuery;
+
+        it.each(customSqlQueries)(
+            'refuses an editor a chart rollback that brings back %s, and lets an editor with the custom SQL scopes',
+            async (_, query) => {
+                const chartUuid = await authorAsAdmin(query());
+                expect(
+                    (await saveVersionAs(admin, chartUuid, metricQuery({})))
+                        .status,
+                ).toBe(200);
+
+                expect((await rollbackAs(editor, chartUuid)).status).toBe(403);
+                const kept = await currentQuery(chartUuid);
+                expect(kept.additionalMetrics ?? []).toEqual([]);
+                expect(kept.customDimensions ?? []).toEqual([]);
+                expect(kept.tableCalculations).toEqual([]);
+
+                expect((await rollbackAs(scopedEditor, chartUuid)).status).toBe(
+                    200,
+                );
+            },
+        );
+
+        it('lets an editor run an older version whose custom SQL was removed', async () => {
+            const chartUuid = await authorAsAdmin(withMetric(uniqueSql()));
+            expect(
+                (await saveVersionAs(admin, chartUuid, metricQuery({}))).status,
+            ).toBe(200);
+
+            const run = await editor.post(
+                `/api/v1/saved/${chartUuid}/version/${await firstVersion(chartUuid)}/results`,
+                undefined,
+                { failOnStatusCode: false },
+            );
+            expect(run.status).toBe(200);
+        });
+
+        it('lets an editor roll back a chart whose custom SQL is unchanged', async () => {
+            const query = withMetric(uniqueSql());
+            const chartUuid = await authorAsAdmin(query);
+            expect(
+                (
+                    await saveVersionAs(admin, chartUuid, {
+                        ...query,
+                        limit: 25,
+                    })
+                ).status,
+            ).toBe(200);
+
+            expect((await rollbackAs(editor, chartUuid)).status).toBe(200);
+            expect((await currentQuery(chartUuid)).limit).toBe(10);
+        });
+
+        describe('through its dashboard', () => {
+            const tableCalculation = (sql: string) =>
+                metricQuery({
+                    tableCalculations: [
+                        { name: 'custom_sql', displayName: 'Custom SQL', sql },
+                    ],
+                });
+
+            // A dashboard whose chart held `before` at its first version and holds `after` now
+            const dashboardWithChart = async (
+                before: MetricQuery,
+                after: MetricQuery,
+            ) => {
+                const created = await admin.post<Body<Dashboard>>(
+                    `${projectUrl}/dashboards`,
+                    {
+                        name: uniqueName('Custom SQL rollback'),
+                        spaceUuid: space.uuid,
+                        tiles: [],
+                        tabs: [],
+                    },
+                );
+                tracker.trackDashboard(created.body.results.uuid);
+                const chartUuid = await authorAsAdmin(before, {
+                    dashboardUuid: created.body.results.uuid,
+                    spaceUuid: null,
+                });
+                const tile = {
+                    type: 'saved_chart',
+                    x: 0,
+                    y: 0,
+                    h: 9,
+                    w: 12,
+                    tabUuid: null,
+                    properties: {
+                        savedChartUuid: chartUuid,
+                        belongsToDashboard: true,
+                        title: 'Chart',
+                    },
+                };
+                const first = await admin.patch<Body<Dashboard>>(
+                    `/api/v1/dashboards/${created.body.results.uuid}`,
+                    {
+                        tiles: [tile],
+                        filters: created.body.results.filters,
+                        tabs: [],
+                    },
+                );
+                expect(
+                    (await saveVersionAs(admin, chartUuid, after)).status,
+                ).toBe(200);
+                const latest = await admin.patch<Body<Dashboard>>(
+                    `/api/v1/dashboards/${created.body.results.uuid}`,
+                    {
+                        tiles: [
+                            {
+                                ...tile,
+                                uuid: first.body.results.tiles[0].uuid,
+                                properties: {
+                                    ...tile.properties,
+                                    title: 'Renamed',
+                                },
+                            },
+                        ],
+                        filters: created.body.results.filters,
+                        tabs: [],
+                    },
+                );
+                return {
+                    dashboardUuid: created.body.results.uuid,
+                    chartUuid,
+                    firstVersion: first.body.results.versionUuid,
+                    latestVersion: latest.body.results.versionUuid,
+                };
+            };
+
+            const rollbackDashboardAs = (
+                client: ApiClient,
+                dashboardUuid: string,
+                versionUuid: string,
+            ) =>
+                client.post(
+                    `/api/v1/dashboards/${dashboardUuid}/rollback/${versionUuid}`,
+                    undefined,
+                    { failOnStatusCode: false },
+                );
+
+            it('refuses an editor a dashboard rollback that brings back a SQL table calculation', async () => {
+                const restore = await dashboardWithChart(
+                    tableCalculation('1'),
+                    metricQuery({}),
+                );
+
+                expect(
+                    (
+                        await rollbackDashboardAs(
+                            editor,
+                            restore.dashboardUuid,
+                            restore.firstVersion,
+                        )
+                    ).status,
+                ).toBe(403);
+                expect(
+                    (await currentQuery(restore.chartUuid)).tableCalculations,
+                ).toEqual([]);
+                const dashboard = await admin.get<Body<Dashboard>>(
+                    `/api/v1/dashboards/${restore.dashboardUuid}`,
+                );
+                expect(dashboard.body.results.versionUuid).toBe(
+                    restore.latestVersion,
+                );
+
+                expect(
+                    (
+                        await rollbackDashboardAs(
+                            admin,
+                            restore.dashboardUuid,
+                            restore.firstVersion,
+                        )
+                    ).status,
+                ).toBe(200);
+                expect(
+                    (await currentQuery(restore.chartUuid)).tableCalculations,
+                ).toHaveLength(1);
+            });
+
+            it('lets an editor roll back a dashboard whose chart keeps its custom SQL', async () => {
+                const query = tableCalculation('1');
+                const restore = await dashboardWithChart(query, {
+                    ...query,
+                    limit: 25,
+                });
+
+                expect(
+                    (
+                        await rollbackDashboardAs(
+                            editor,
+                            restore.dashboardUuid,
+                            restore.firstVersion,
+                        )
+                    ).status,
+                ).toBe(200);
+                expect((await currentQuery(restore.chartUuid)).limit).toBe(10);
+            });
+
+            it('restores a dashboard when two rollbacks race, asking a conflicting one to retry', async () => {
+                const query = tableCalculation('1');
+                const restore = await dashboardWithChart(query, {
+                    ...query,
+                    limit: 25,
+                });
+
+                const statuses = await Promise.all(
+                    [admin, editor].map(
+                        async (client) =>
+                            (
+                                await rollbackDashboardAs(
+                                    client,
+                                    restore.dashboardUuid,
+                                    restore.firstVersion,
+                                )
+                            ).status,
+                    ),
+                );
+
+                expect(statuses).toContain(200);
+                expect(
+                    statuses.every((status) => [200, 409].includes(status)),
+                ).toBe(true);
+                expect((await currentQuery(restore.chartUuid)).limit).toBe(10);
+            });
         });
     });
 

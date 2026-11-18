@@ -2226,6 +2226,17 @@ export class DashboardModel {
         );
     }
 
+    /** Holds the dashboard against new versions and deletion until the transaction ends. */
+    async lockForVersioning(
+        dashboardUuid: string,
+        trx: Knex.Transaction,
+    ): Promise<void> {
+        await trx(DashboardsTableName)
+            .select('dashboard_id')
+            .where('dashboard_uuid', dashboardUuid)
+            .forUpdate();
+    }
+
     async permanentDelete(dashboardUuid: string): Promise<DashboardDAO> {
         const dashboard = await this.getByIdOrSlug(dashboardUuid, {
             deleted: 'any',
@@ -2382,7 +2393,8 @@ export class DashboardModel {
             await this.database.transaction(async (trx) => doWork(trx));
         }
 
-        return this.getByIdOrSlug(dashboardUuid);
+        // In the caller's transaction, which may hold the dashboard locked
+        return this.getByIdOrSlug(dashboardUuid, undefined, tx);
     }
 
     /**

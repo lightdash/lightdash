@@ -9619,9 +9619,9 @@ export class ProjectService
     }
 
     /**
-     * Custom SQL already saved on a chart `account` can view, in the same project
-     * and explore. Matches any version of a chart that is not deleted; a
-     * dashboard-owned chart counts through its dashboard's space.
+     * Custom SQL on the current version of a chart `account` can view, in the
+     * same project and explore. A dashboard-owned chart counts through its
+     * dashboard's space.
      */
     private async findViewableCustomSqlProvenance({
         account,
@@ -9789,7 +9789,7 @@ export class ProjectService
      * with hand-authored SQL is gated like a custom SQL dimension.
      *
      * A caller who lacks the scope may still run SQL that is byte-identical to SQL
-     * already persisted in a saved chart they can view (same project + explore), so
+     * on the current version of a saved chart they can view (same project + explore), so
      * editors can re-run and filter existing saved charts in Explore edit mode
      * without gaining authoring rights. That general exemption is only granted to
      * registered users. Embedded Explore has a narrower path: it may use only the
@@ -11577,6 +11577,7 @@ export class ProjectService
                 invalidateCache,
                 explore,
                 chartUuid,
+                storedChartSql: true,
             });
 
         return {
@@ -11834,6 +11835,7 @@ export class ProjectService
         explore: validExplore,
         dateZoom,
         chartUuid,
+        storedChartSql = false,
     }: {
         account: Account;
         metricQuery: MetricQuery;
@@ -11846,6 +11848,7 @@ export class ProjectService
         explore?: Explore;
         dateZoom?: DateZoom;
         chartUuid: string | undefined;
+        storedChartSql?: boolean;
     }): Promise<ApiQueryResults> {
         return wrapSentryTransaction(
             'ProjectService.runQueryAndFormatRows',
@@ -11873,6 +11876,7 @@ export class ProjectService
                     explore,
                     dateZoom,
                     chartUuid,
+                    storedChartSql,
                 });
                 span.setAttribute('rows', rows.length);
 
@@ -12166,6 +12170,7 @@ export class ProjectService
         chartUuid,
         parameters,
         userAttributeOverrides,
+        storedChartSql = false,
     }: {
         account: Account;
         metricQuery: MetricQuery;
@@ -12178,6 +12183,8 @@ export class ProjectService
         explore?: Explore;
         dateZoom?: DateZoom;
         chartUuid: string | undefined; // for analytics
+        // A saved chart version the caller may view runs its stored SQL, as saved chart runs do
+        storedChartSql?: boolean;
         parameters?: ParametersValuesMap;
         userAttributeOverrides?: UserAttributeValueMap; // EXPERIMENTAL: used to override user attributes for MCP
     }): Promise<{
@@ -12212,13 +12219,22 @@ export class ProjectService
                         throw new ForbiddenError();
                     }
 
-                    await this.assertCustomSqlAuthorizedForQuery({
-                        account,
-                        projectUuid,
-                        organizationUuid,
-                        exploreName,
-                        metricQuery,
-                    });
+                    if (storedChartSql) {
+                        await this.assertAgentCustomSqlAuthorizedForQuery({
+                            account,
+                            projectUuid,
+                            exploreName,
+                            metricQuery,
+                        });
+                    } else {
+                        await this.assertCustomSqlAuthorizedForQuery({
+                            account,
+                            projectUuid,
+                            organizationUuid,
+                            exploreName,
+                            metricQuery,
+                        });
+                    }
 
                     const { maxLimit, csvCellsLimit } =
                         await resolveOrganizationExportLimits(
