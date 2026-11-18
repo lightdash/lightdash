@@ -92,6 +92,15 @@ const dashboardAsCode = {
     tabs: [],
 } as unknown as DashboardAsCode;
 
+const markdownTile = {
+    type: 'markdown',
+    x: 0,
+    y: 0,
+    w: 6,
+    h: 3,
+    properties: { title: 'Note', content: 'text' },
+};
+
 const buildService = (overrides: AnyType = {}) =>
     new CoderService({
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
@@ -792,15 +801,6 @@ const registerContentAccessTests = (
         const service = buildService();
         const getOrCreateSpace = vi.spyOn(service, 'getOrCreateSpace');
         const user = makeUser([{ subject: 'ContentAsCode', action: 'manage' }]);
-        const markdownTile = {
-            type: 'markdown',
-            x: 0,
-            y: 0,
-            w: 6,
-            h: 3,
-            properties: { title: 'Note', content: 'text' },
-        };
-
         await expect(
             service.upsertDashboard(user, PROJECT_UUID, dashboardAsCode.slug, {
                 ...dashboardAsCode,
@@ -811,6 +811,37 @@ const registerContentAccessTests = (
         ).rejects.toThrow(ParameterError);
         expect(getOrCreateSpace).not.toHaveBeenCalled();
         expect(service.dashboardModel.create).not.toHaveBeenCalled();
+    });
+
+    it('accepts an upload over the tiles-per-tab limit when the saved dashboard has as many tiles', async () => {
+        const service = buildService();
+        const tiles = Array(
+            lightdashConfigMock.dashboard.maxTilesPerTab + 1,
+        ).fill(markdownTile);
+        vi.mocked(service.dashboardModel.find).mockResolvedValue([
+            { uuid: 'dashboard-uuid' } as AnyType,
+        ]);
+        vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
+            uuid: 'dashboard-uuid',
+            slug: 'dashboard',
+            name: 'Dashboard',
+            filters: { dimensions: [], metrics: [], tableCalculations: [] },
+            tiles,
+            tabs: [],
+        } as AnyType);
+        vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
+            space: { uuid: SPACE_UUID } as AnyType,
+            created: false,
+        });
+        const user = makeUser([{ subject: 'ContentAsCode', action: 'create' }]);
+
+        // Stops at the space permission check, which runs after the limit check
+        await expect(
+            service.upsertDashboard(user, PROJECT_UUID, dashboardAsCode.slug, {
+                ...dashboardAsCode,
+                tiles,
+            } as unknown as DashboardAsCode),
+        ).rejects.toThrow(ForbiddenError);
     });
 
     it('does not let ContentAsCode alone create dashboards in a space', async () => {
@@ -943,6 +974,8 @@ const registerContentAccessTests = (
             slug: 'dashboard',
             name: 'Dashboard',
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
+            tiles: [],
+            tabs: [],
         } as AnyType);
         vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
             space: { uuid: SPACE_UUID } as AnyType,
@@ -974,6 +1007,8 @@ const registerContentAccessTests = (
             name: 'Dashboard',
             spaceUuid: SPACE_UUID,
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
+            tiles: [],
+            tabs: [],
         } as AnyType);
         vi.mocked(
             service.promoteService.getPromotedDashboard,
@@ -1072,6 +1107,8 @@ const registerContentAccessTests = (
                 spaceUuid: SPACE_UUID,
                 filters: { dimensions: [], metrics: [], tableCalculations: [] },
                 config: { isDateZoomDisabled: false, controlOrder: savedOrder },
+                tiles: [],
+                tabs: [],
             } as AnyType);
             vi.mocked(
                 service.promoteService.getPromotedDashboard,
@@ -1162,6 +1199,7 @@ const registerContentAccessTests = (
                 metrics: [],
                 tableCalculations: [],
             },
+            tabs: [],
         } as AnyType);
         vi.mocked(
             service.promoteService.getPromotedDashboard,
@@ -1218,6 +1256,7 @@ const registerContentAccessTests = (
                 metrics: [],
                 tableCalculations: [],
             },
+            tabs: [],
         } as AnyType);
         vi.mocked(service.dashboardModel.create).mockRejectedValue(
             new Error('stop after filters'),
@@ -1262,6 +1301,8 @@ const registerContentAccessTests = (
             name: 'Dashboard',
             spaceUuid: OTHER_SPACE_UUID,
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
+            tiles: [],
+            tabs: [],
         } as AnyType);
         vi.mocked(
             service.spacePermissionService.resolveAccessBatch,
@@ -1322,6 +1363,8 @@ const registerContentAccessTests = (
             name: 'Dashboard',
             spaceUuid: OTHER_SPACE_UUID,
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
+            tiles: [],
+            tabs: [],
         } as AnyType);
         vi.mocked(
             service.spacePermissionService.resolveAccessBatch,
@@ -1675,6 +1718,8 @@ const registerContentAccessTests = (
             name: 'Dashboard',
             spaceUuid: SPACE_UUID,
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
+            tiles: [],
+            tabs: [],
         } as AnyType);
         vi.mocked(service.savedChartModel.find).mockResolvedValue([
             {
@@ -2042,6 +2087,7 @@ describe('CoderService upsertDashboard tile chart versions', () => {
             spaceUuid: SPACE_UUID,
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
             tiles: [existingTile],
+            tabs: [],
         } as AnyType);
         vi.mocked(
             service.promoteService.getPromotedDashboard,
@@ -2326,6 +2372,7 @@ describe('bound grant upload effects', () => {
                     metrics: {},
                 },
             },
+            tabs: [],
         } as AnyType);
         Object.assign(service.projectModel, {
             getConnectionRoute: vi.fn().mockResolvedValue('original'),

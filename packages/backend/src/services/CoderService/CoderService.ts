@@ -6372,6 +6372,7 @@ export class CoderService extends BaseService {
         assertDashboardWithinLimits(
             { tiles: tilesWithUuids, tabs: tabsWithUuids },
             this.lightdashConfig.dashboard,
+            existingDashboard ?? null,
         );
         await this.assertTileChartsViewAccess({
             userUuid: user.userUuid,
