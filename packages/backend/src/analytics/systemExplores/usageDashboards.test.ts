@@ -562,6 +562,47 @@ describe('built-in usage dashboards', () => {
         expect(inactivityCharts[0]).toEqual(inactivityCharts[1]);
     });
 
+    it('lists the Agent adoption charts in order with their fallback types', () => {
+        const { dashboard, charts: overviewCharts } =
+            analyticsContentAsCode.find(
+                ({ dashboard: item }) =>
+                    item.slug === 'lightdash-analytics-overview',
+            )!;
+        const prefix = 'lightdash-analytics-overview-';
+        const slugs = dashboard.tiles
+            .filter(
+                (tile) =>
+                    tile.type === DashboardTileTypes.SAVED_CHART &&
+                    tile.tabSlug === 'adoption',
+            )
+            .map(
+                (tile) => (tile.properties as { chartSlug: string }).chartSlug,
+            );
+        expect(slugs).toEqual(
+            [
+                'agent-requests-trend',
+                'agent-requesters-trend',
+                'agent-requests-by-agent-and-week',
+                'agent-weekly-requests-per-agent',
+                'agent-adoption-by-week',
+            ].map((key) => `${prefix}${key}`),
+        );
+        const fallbackType = (key: string) =>
+            overviewCharts.find(({ slug }) => slug === `${prefix}${key}`)!
+                .chartConfig.type;
+        expect(fallbackType('agent-requests-trend')).toBe(ChartType.CARTESIAN);
+        expect(fallbackType('agent-requesters-trend')).toBe(
+            ChartType.CARTESIAN,
+        );
+        expect(fallbackType('agent-requests-by-agent-and-week')).toBe(
+            ChartType.TABLE,
+        );
+        expect(fallbackType('agent-weekly-requests-per-agent')).toBe(
+            ChartType.CARTESIAN,
+        );
+        expect(fallbackType('agent-adoption-by-week')).toBe(ChartType.TABLE);
+    });
+
     it('scopes outcome filters and the default date range to the two outcome charts', () => {
         const { dashboard, charts: adoptionCharts } =
             analyticsContentAsCode.find(

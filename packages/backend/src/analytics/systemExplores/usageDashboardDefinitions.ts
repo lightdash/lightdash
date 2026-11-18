@@ -16,7 +16,13 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         title: 'Observed request activity',
                         description:
                             'Requests by agent, person and week. This is not an eligible-user adoption rate or a comparison with external assistants.',
-                        charts: ['agent-adoption-by-week'],
+                        charts: [
+                            'agent-requests-trend',
+                            'agent-requesters-trend',
+                            'agent-requests-by-agent-and-week',
+                            'agent-weekly-requests-per-agent',
+                            'agent-adoption-by-week',
+                        ],
                     },
                 ],
             },

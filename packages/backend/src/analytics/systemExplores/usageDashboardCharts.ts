@@ -374,6 +374,125 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
     },
     {
+        key: 'agent-requests-trend',
+        name: 'Agent requests',
+        description:
+            'All retained captured history. Recent capture is not a full historical census.',
+        explore: 'agent_requests',
+        dimensions: ['agent_requests_requested_at_week'],
+        metrics: ['agent_requests_total_requests'],
+        limit: 100,
+        sorts: [
+            {
+                descending: true,
+                fieldId: 'agent_requests_requested_at_week',
+            },
+        ],
+        visualization: 'line',
+        xField: 'agent_requests_requested_at_week',
+        yFields: ['agent_requests_total_requests'],
+        libraryChart: {
+            slug: 'big-number-with-sparkline-trend',
+            minVersion: '0.6.0',
+            fieldMapping: {
+                value: 'agent_requests_total_requests',
+                sparklineMetric: 'agent_requests_total_requests',
+                time: 'agent_requests_requested_at_week',
+            },
+            optionValues: {},
+        },
+    },
+    {
+        key: 'agent-requesters-trend',
+        name: 'People asking agents',
+        description:
+            'All retained captured history. Recent capture is not a full historical census.',
+        explore: 'agent_requests',
+        dimensions: ['agent_requests_requested_at_week'],
+        metrics: ['agent_requests_distinct_requesters'],
+        limit: 100,
+        sorts: [
+            {
+                descending: true,
+                fieldId: 'agent_requests_requested_at_week',
+            },
+        ],
+        visualization: 'line',
+        xField: 'agent_requests_requested_at_week',
+        yFields: ['agent_requests_distinct_requesters'],
+        libraryChart: {
+            slug: 'big-number-with-sparkline-trend',
+            minVersion: '0.6.0',
+            fieldMapping: {
+                value: 'agent_requests_distinct_requesters',
+                sparklineMetric: 'agent_requests_distinct_requesters',
+                time: 'agent_requests_requested_at_week',
+            },
+            optionValues: {},
+        },
+    },
+    {
+        key: 'agent-requests-by-agent-and-week',
+        name: 'Requests by agent and week',
+        description:
+            'All retained captured history. Recent capture is not a full historical census.',
+        explore: 'agent_requests',
+        dimensions: [
+            'agent_requests_agent_name',
+            'agent_requests_requested_at_week',
+        ],
+        metrics: ['agent_requests_total_requests'],
+        limit: 100,
+        sorts: [
+            {
+                descending: true,
+                fieldId: 'agent_requests_requested_at_week',
+            },
+        ],
+        libraryChart: {
+            slug: 'heatmap',
+            minVersion: '0.4.0',
+            fieldMapping: {
+                x: 'agent_requests_requested_at_week',
+                y: 'agent_requests_agent_name',
+                value: 'agent_requests_total_requests',
+            },
+            optionValues: {},
+        },
+    },
+    {
+        key: 'agent-weekly-requests-per-agent',
+        name: 'Weekly requests per agent',
+        description:
+            'All retained captured history. Recent capture is not a full historical census.',
+        explore: 'agent_requests',
+        dimensions: [
+            'agent_requests_requested_at_week',
+            'agent_requests_agent_name',
+        ],
+        metrics: ['agent_requests_total_requests'],
+        limit: 100,
+        sorts: [
+            {
+                descending: true,
+                fieldId: 'agent_requests_requested_at_week',
+            },
+        ],
+        visualization: 'line',
+        xField: 'agent_requests_requested_at_week',
+        yFields: ['agent_requests_total_requests'],
+        libraryChart: {
+            slug: 'vega-trellis',
+            minVersion: '0.6.0',
+            fieldMapping: {
+                x: 'agent_requests_requested_at_week',
+                value: 'agent_requests_total_requests',
+                panel: 'agent_requests_agent_name',
+            },
+            optionValues: {},
+        },
+    },
+    {
         key: 'agent-adoption-by-week',
         name: 'Agent adoption by week',
         description:
@@ -394,6 +513,17 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 fieldId: 'agent_requests_requested_at_week',
             },
         ],
+        libraryChart: {
+            slug: 'sortable-pivot-table',
+            minVersion: '0.12.1',
+            fieldMapping: {
+                rowDimension: 'agent_requests_user_name',
+                rowDimension2: 'agent_requests_agent_name',
+                series: 'agent_requests_requested_at_week',
+                metric: ['agent_requests_total_requests'],
+            },
+            optionValues: {},
+        },
     },
     {
         key: 'agent-feedback-rating-and-sample-coverage',
