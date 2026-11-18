@@ -1,3 +1,10 @@
+# [3.317.0](https://github.com/lightdash/lightdash/compare/3.316.1...3.317.0) (2026-11-18)
+
+
+### Features
+
+* copy explorer results to clipboard as CSV ([#32789](https://github.com/lightdash/lightdash/issues/32789)) ([61eb759](https://github.com/lightdash/lightdash/commit/61eb759da8c13bee19fb1657ad74a2a274142ed9))
+
 ## [3.316.1](https://github.com/lightdash/lightdash/compare/3.316.0...3.316.1) (2026-11-18)
 
 
