@@ -8,7 +8,7 @@ Show inline with `show_widget`; publish with the Artifact tool when a shareable 
 
 One card, segments split by hairlines, in this order:
 
-1. **Header:** the blinking pixel Yoda ([assets/yoda.gif](../assets/yoda.gif), embedded as a base64 data URI), then the verdict in its colour (green approve, amber notes, red changes); the PR as `#N` linked on the right, muted mono; the subject below.
+1. **Header:** the pixel Yoda ([assets/yoda.png](../assets/yoda.png), 16px, embedded as a base64 data URI), then the verdict in its colour (green approve, amber notes, red changes); the PR as `#N` linked on the right, muted mono; the subject below.
 2. **Findings:** one block per finding, state (red Fix, amber Heads-up) then the lens muted, then the finding markdown as muted prose with identifiers in mono.
    Omit the segment when there are none.
 3. **Testing:** `Testing` then the rating (muted enough, amber thin, red missing).
