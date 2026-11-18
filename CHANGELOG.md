@@ -1,3 +1,10 @@
+## [3.323.1](https://github.com/lightdash/lightdash/compare/3.323.0...3.323.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **ai-router:** use a generic heading on the router page ([#32917](https://github.com/lightdash/lightdash/issues/32917)) ([61d1892](https://github.com/lightdash/lightdash/commit/61d1892d9539497d3682a477f4dd35e57f3423a6))
+
 # [3.323.0](https://github.com/lightdash/lightdash/compare/3.322.0...3.323.0) (2026-11-18)
 
 
