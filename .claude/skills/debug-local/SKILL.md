@@ -147,7 +147,7 @@ Status definitions:
 Ensure the development environment is running:
 
 ```bash
-./scripts/dev-fast-start.sh   # Start Docker services (postgres, minio, etc.)
+docker compose -f docker/docker-compose.dev.mini.yml --env-file .env.development.local up -d   # Start Postgres and MinIO
 pnpm pm2:start           # Start all PM2 processes including Maple
 pnpm pm2:status          # Verify all processes are online
 ```

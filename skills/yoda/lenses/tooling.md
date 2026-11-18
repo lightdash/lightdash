@@ -29,7 +29,7 @@
 type ToolingDiff = Diff;
 ```
 
-- **Name:** the workflow, script or config (`PR Checks`, `dev-fast-start.sh`).
+- **Name:** the workflow, script or config (`PR Checks`, `t3-setup-worktree.sh`).
 - **Note:** what it does now.
 - **Granularity:** one diff per workflow, script or config whose behaviour changes; scripts that only serve one workflow share its row.
 
