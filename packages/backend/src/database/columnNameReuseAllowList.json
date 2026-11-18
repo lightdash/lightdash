@@ -42,5 +42,13 @@
     {
         "column": "data_app_analyses.dashboard_uuid",
         "reason": "Previous releases never join data_app_analyses to dashboards or any table carrying dashboard_uuid; every existing query filters data_app_analyses on its own columns (app_id, created_by_user_uuid, content_hash)."
+    },
+    {
+        "column": "ai_prompt.search_vector",
+        "reason": "Previous releases join ai_prompt to tables that carry search_vector only with table-qualified column lists, and never select search_vector in an AI agent query."
+    },
+    {
+        "column": "ai_thread.search_vector",
+        "reason": "Previous releases join ai_thread to tables that carry search_vector only with table-qualified column lists, and never select search_vector in an AI agent query."
     }
 ]
