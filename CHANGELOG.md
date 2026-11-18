@@ -1,3 +1,10 @@
+# [3.320.0](https://github.com/lightdash/lightdash/compare/3.319.0...3.320.0) (2026-11-18)
+
+
+### Features
+
+* show Analytics settings tabs as their embedded, filterable dashboards ([#32784](https://github.com/lightdash/lightdash/issues/32784)) ([5cf67bc](https://github.com/lightdash/lightdash/commit/5cf67bc73457d5483219d562944d7ec329acb3ea))
+
 # [3.319.0](https://github.com/lightdash/lightdash/compare/3.318.0...3.319.0) (2026-11-18)
 
 
