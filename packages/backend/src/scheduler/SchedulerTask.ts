@@ -202,6 +202,7 @@ import { AiUsageLedgerModel } from '../models/AiUsageLedgerModel';
 import type { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { MobileAppLinkModel } from '../models/MobileAppLinkModel';
 import { MobileSignInCodeModel } from '../models/MobileSignInCodeModel';
+import { type ModelMaterializationModel } from '../models/ModelMaterializationModel';
 import { OrganizationSettingsModel } from '../models/OrganizationSettingsModel';
 import { WarehouseConnectCodeModel } from '../models/WarehouseConnectCodeModel';
 import {
@@ -317,6 +318,7 @@ export type SchedulerTaskArguments = {
     asyncQueryService: AsyncQueryService;
     composerChartService: ComposerChartService;
     persistentDownloadFileService: PersistentDownloadFileService;
+    modelMaterializationModel: ModelMaterializationModel;
     preAggregateModel: PreAggregateModel;
     preAggregateMaterializationService: PreAggregateMaterializationService;
     featureFlagModel: FeatureFlagModel;
@@ -615,6 +617,8 @@ export default class SchedulerTask {
 
     protected readonly preAggregateMaterializationService: PreAggregateMaterializationService;
 
+    protected readonly modelMaterializationModel: ModelMaterializationModel;
+
     protected readonly preAggregateModel: PreAggregateModel;
 
     protected readonly featureFlagModel: FeatureFlagModel;
@@ -667,6 +671,7 @@ export default class SchedulerTask {
         this.asyncQueryService = args.asyncQueryService;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
         this.preAggregateModel = args.preAggregateModel;
+        this.modelMaterializationModel = args.modelMaterializationModel;
         this.preAggregateMaterializationService =
             args.preAggregateMaterializationService;
         this.featureFlagModel = args.featureFlagModel;

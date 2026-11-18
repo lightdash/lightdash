@@ -64,6 +64,7 @@ import * as Sentry from '@sentry/node';
 import { getSchedule, stringToArray } from 'cron-converter';
 import { createHash } from 'crypto';
 import { makeWorkerUtils, WorkerUtils } from 'graphile-worker';
+import { type Knex } from 'knex';
 import moment from 'moment';
 import { nanoid } from 'nanoid';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
@@ -1415,6 +1416,21 @@ export class SchedulerClient {
         });
 
         return id;
+    }
+
+    static async enqueueModelMaterialization(
+        trx: Knex.Transaction,
+        payload: TaskPayloadMap[typeof SCHEDULER_TASKS.MATERIALIZE_MODEL],
+    ): Promise<void> {
+        await trx.raw(
+            'SELECT graphile_worker.add_job(?, ?::json, job_key => ?, priority => ?::smallint)',
+            [
+                SCHEDULER_TASKS.MATERIALIZE_MODEL,
+                JSON.stringify(payload),
+                `model-materialization:${payload.configUuid}:${payload.revisionUuid}:${payload.policyEpoch}`,
+                JobPriority.MEDIUM,
+            ],
+        );
     }
 
     async materializePreAggregate(

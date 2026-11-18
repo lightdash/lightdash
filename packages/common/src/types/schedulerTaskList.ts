@@ -285,6 +285,7 @@ export const SCHEDULER_TASKS = {
     EXPORT_CONTENT: 'exportContent',
     EXPORT_DOCUMENT_PDF: 'exportDocumentPdf',
     RENAME_RESOURCES: 'renameResources',
+    MATERIALIZE_MODEL: 'materializeModel',
     MATERIALIZE_PRE_AGGREGATE: 'materializePreAggregate',
     CLEAN_QUERY_HISTORY: 'cleanQueryHistory',
     CLEAN_AI_USAGE_LEDGER: 'cleanAiUsageLedger',
@@ -349,6 +350,11 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.SLACK_AI_ARTIFACT_IMAGES]: SlackPromptJobPayload;
     [SCHEDULER_TASKS.SWEEP_SLACK_AI_ARTIFACT_IMAGES]: TraceTaskBase;
     [SCHEDULER_TASKS.RENAME_RESOURCES]: RenameResourcesPayload;
+    [SCHEDULER_TASKS.MATERIALIZE_MODEL]: TraceTaskBase & {
+        configUuid: string;
+        revisionUuid: string;
+        policyEpoch: number;
+    };
     [SCHEDULER_TASKS.MATERIALIZE_PRE_AGGREGATE]: MaterializePreAggregatePayload;
     [SCHEDULER_TASKS.CLEAN_QUERY_HISTORY]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_AI_USAGE_LEDGER]: TraceTaskBase;

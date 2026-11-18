@@ -206,7 +206,10 @@ describe('ProjectService create project scheduling', () => {
 
         expect(recovery).toMatchObject({ jobUuid: liveJobUuid });
         expect(liveJob.job_status).toBe(JobStatusType.RUNNING);
-        expect(hasSchedulerJob).toHaveBeenCalledWith(liveJobUuid);
+        expect(hasSchedulerJob).toHaveBeenCalledWith(
+            liveJobUuid,
+            expect.any(Date),
+        );
     });
 
     test('serializes concurrent creates for the same organization', async () => {

@@ -1971,6 +1971,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 embedService: context.serviceRepository.getEmbedService(),
                 persistentDownloadFileService:
                     context.serviceRepository.getPersistentDownloadFileService(),
+                modelMaterializationModel:
+                    context.models.getModelMaterializationModel(),
                 preAggregateModel: context.models.getPreAggregateModel(),
                 preAggregateMaterializationService:
                     context.serviceRepository.getPreAggregateMaterializationService(),

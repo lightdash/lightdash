@@ -846,6 +846,7 @@ type ResolvedCompileAdapter = {
     exploreNaming?: ExploreNaming;
 };
 type SaveCompiledExploresArgs = {
+    publishDocuments?: ExploreWriteCheck;
     userUuid: string;
     projectUuid: string;
     compilationSource: CompilationSource;
@@ -4135,8 +4136,16 @@ export class ProjectService
                 const [beforeWrite] = this.getConnectionExploreWriteChecks(
                     args.projectUuid,
                 );
-                const writeCheckArgs: [undefined?, ExploreWriteCheck?] =
-                    beforeWrite ? [undefined, beforeWrite] : [];
+                const writeCheckArgs: [
+                    undefined?,
+                    ExploreWriteCheck?,
+                    ExploreWriteCheck?,
+                ] =
+                    beforeWrite || args.publishDocuments
+                        ? [undefined, beforeWrite]
+                        : [];
+                if (args.publishDocuments)
+                    writeCheckArgs.push(args.publishDocuments);
                 const saved = await this.projectModel.saveExploresToCache(
                     args.projectUuid,
                     explores,
@@ -6163,6 +6172,7 @@ export class ProjectService
         complete?: boolean,
         dbtModelNames?: string[],
         cliDeploy: CliDeploySelection = NO_CLI_DEPLOY_SELECTION,
+        publishDocuments?: ExploreWriteCheck,
     ): Promise<ApiDeployExploresResults> {
         const deployAnalytics = {
             userUuid: user.userUuid,
@@ -6178,6 +6188,7 @@ export class ProjectService
                 complete,
                 dbtModelNames,
                 cliDeploy,
+                publishDocuments,
             );
             await this.trackCliSourceDeploy(deployAnalytics, {
                 status: 'success',
@@ -6235,6 +6246,7 @@ export class ProjectService
         complete?: boolean,
         dbtModelNames?: string[],
         cliDeploy: CliDeploySelection = NO_CLI_DEPLOY_SELECTION,
+        publishDocuments?: ExploreWriteCheck,
     ): Promise<ApiDeployExploresResults> {
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -6290,6 +6302,7 @@ export class ProjectService
         await this.saveDeployExplores({
             userUuid: user.userUuid,
             projectUuid,
+            ...(publishDocuments && { publishDocuments }),
             explores: exploresWithPreAggregates,
             // TODO: Do not hardcode CLI information here
             compilationSource: 'cli_deploy',

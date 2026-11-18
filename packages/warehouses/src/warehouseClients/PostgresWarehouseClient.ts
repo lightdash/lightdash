@@ -31,10 +31,11 @@ import { readFileSync } from 'fs';
 import path from 'path';
 import * as pg from 'pg';
 import { PoolConfig, QueryResult, types } from 'pg';
+import Cursor from 'pg-cursor';
 import * as tls from 'tls';
 import { rootCertificates } from 'tls';
 import { normalizeUnicode } from '../utils/sql';
-import { createRowBatchWriter } from '../utils/streamRows';
+import { createRowBatchWriter, RESULT_BATCH_SIZE } from '../utils/streamRows';
 import './pgProtocolGuard';
 import QueryStream from './PgQueryStream';
 import WarehouseBaseClient from './WarehouseBaseClient';
@@ -1029,7 +1030,86 @@ const getSSLConfigFromMode = ({
     }
 };
 
+export type PostgresNativeField = Pick<
+    pg.FieldDef,
+    'name' | 'dataTypeID' | 'dataTypeModifier'
+>;
+
+type MaterializationRow = (string | null)[];
+
 export class PostgresWarehouseClient extends PostgresClient<CreatePostgresCredentials> {
+    async streamMaterializationRows(
+        sourceSql: string,
+        maxRows: number,
+        onSchema: (fields: PostgresNativeField[]) => void,
+        onRows: (rows: MaterializationRow[]) => Promise<void>,
+    ): Promise<{ rowCount: number; sourceReadAt: Date }> {
+        if (!Number.isSafeInteger(maxRows + 1) || maxRows < 1) {
+            throw new WarehouseQueryError('Invalid materialization row limit');
+        }
+        const client = new pg.Client({
+            ...this.config,
+            connectionTimeoutMillis: 30_000,
+            statement_timeout: this.credentials.timeoutSeconds
+                ? this.credentials.timeoutSeconds * 1000
+                : DEFAULT_STATEMENT_TIMEOUT_MS,
+        });
+        let connectionError: Error | null = null;
+        client.on('error', (error: Error) => {
+            connectionError = error;
+        });
+        try {
+            await client.connect();
+            await client.query('BEGIN READ ONLY');
+            await client.query("SET LOCAL DateStyle TO 'ISO, YMD'");
+            await client.query('SET LOCAL extra_float_digits TO 3');
+            const sourceReadAt = new Date();
+            const cursor = client.query(
+                new Cursor<MaterializationRow>(
+                    `SELECT * FROM (\n${sourceSql}\n) AS source LIMIT $1`,
+                    [maxRows + 1],
+                    {
+                        rowMode: 'array',
+                        types: {
+                            getTypeParser: () => String,
+                        },
+                    },
+                ),
+            );
+            let rowCount = 0;
+            let batch: MaterializationRow[];
+            do {
+                if (connectionError)
+                    throw new WarehouseQueryError(
+                        'Postgres connection closed during materialization',
+                    );
+                // eslint-disable-next-line no-await-in-loop
+                const chunk = await new Promise<{
+                    rows: MaterializationRow[];
+                    fields: PostgresNativeField[];
+                }>((resolve, reject) => {
+                    cursor.read(RESULT_BATCH_SIZE, (error, rows, result) => {
+                        if (error) reject(error);
+                        else resolve({ rows, fields: result?.fields ?? [] });
+                    });
+                });
+                if (rowCount === 0) onSchema(chunk.fields);
+                batch = chunk.rows;
+                rowCount += batch.length;
+                if (rowCount > maxRows) {
+                    throw new WarehouseQueryError(
+                        'Materialization exceeds max_rows',
+                    );
+                }
+                // eslint-disable-next-line no-await-in-loop
+                if (batch.length > 0) await onRows(batch);
+            } while (batch.length === RESULT_BATCH_SIZE);
+            return { rowCount, sourceReadAt };
+        } finally {
+            await client.end();
+        }
+    }
+
     protected getCatalogQueryFilters(
         databases: Set<string>,
         schemas: Set<string>,

@@ -130,6 +130,8 @@ const schedulerWorkerFactory = (context: {
         asyncQueryService: context.serviceRepository.getAsyncQueryService(),
         persistentDownloadFileService:
             context.serviceRepository.getPersistentDownloadFileService(),
+        modelMaterializationModel:
+            context.models.getModelMaterializationModel(),
         preAggregateModel: context.models.getPreAggregateModel(),
         preAggregateMaterializationService:
             context.serviceRepository.getPreAggregateMaterializationService(),
