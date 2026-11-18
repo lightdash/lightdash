@@ -166,9 +166,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     && /usr/local/dbt1.11/bin/pip install --no-deps "certifi>=2026.10.19" \
     && ln -s /usr/local/dbt1.11/bin/dbt /usr/local/bin/dbt1.11 \
     && python3 -m venv /usr/local/dbt1.12 \
-# dbt-databricks 1.12 requires dbt-core below 1.12.1.
     && /usr/local/dbt1.12/bin/pip install \
-    "dbt-core==1.12.0" \
+    "dbt-core~=1.12.0" \
     "dbt-postgres~=1.10.0" \
     "dbt-redshift~=1.10.0" \
     "dbt-snowflake~=1.12.0" \

@@ -72,9 +72,8 @@ RUN python3 -m venv /usr/local/dbt1.8 \
         "dbt-duckdb~=1.10.0" \
     && /usr/local/dbt1.11/bin/pip install --no-cache-dir --no-deps "certifi>=2026.10.19" \
     && python3 -m venv /usr/local/dbt1.12 \
-# dbt-databricks 1.12 requires dbt-core below 1.12.1.
     && /usr/local/dbt1.12/bin/pip install --no-cache-dir \
-        "dbt-core==1.12.0" \
+        "dbt-core~=1.12.0" \
         "dbt-postgres~=1.10.0" \
         "dbt-redshift~=1.10.0" \
         "dbt-snowflake~=1.12.0" \
