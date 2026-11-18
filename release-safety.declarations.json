@@ -289,6 +289,24 @@
             "reason": "Drops the legacy Deep Research report columns result_markdown, report_expires_at and report_expired_at on ai_deep_research_runs, with their expiry index. Ships in the same release as the legacy Deep Research report removal (lightdash/lightdash#32457), which stops reading and writing them. During a rolling upgrade from an earlier release, old pods still read these columns when loading Deep Research runs and write them when completing, cancelling or sweeping runs, so those requests fail until the rollout finishes; a run that completes in that window may end up failed. Use the Recreate strategy to avoid the window.",
             "requiredStop": false,
             "migration": "packages/backend/src/ee/database/migrations/20261112120000_drop_ai_deep_research_legacy_report_columns.ts"
+        },
+        "semantic-studio-threadless-changes": {
+            "reason": "A Semantic Studio change can now exist without a chat thread, so threadUuid in the Studio workspace responses becomes nullable. These routes serve only Semantic Studio editing, which is behind the semantic-studio-editing feature flag; the flag is off by default on Cloud and on self-hosted, and the web app's Studio page is the only caller. During a rolling update an old Studio tab may not open a chat for a change created without one until refresh; nothing is written or lost.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "featureFlag": "semantic-studio-editing",
+                "covers": {
+                    "rest": [
+                        "GET /api/v1/projects/{projectUuid}/semantic-studio/workspaces",
+                        "POST /api/v1/projects/{projectUuid}/semantic-studio/workspaces",
+                        "GET /api/v1/projects/{projectUuid}/semantic-studio/workspaces/{workspaceUuid}",
+                        "PATCH /api/v1/projects/{projectUuid}/semantic-studio/workspaces/{workspaceUuid}",
+                        "POST /api/v1/projects/{projectUuid}/semantic-studio/workspaces/{workspaceUuid}/activate"
+                    ],
+                    "mcp": []
+                }
+            }
         }
     }
 }

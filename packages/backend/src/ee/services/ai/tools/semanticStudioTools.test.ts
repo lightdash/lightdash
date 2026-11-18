@@ -5,6 +5,7 @@ import {
 import { findNewModelAdvice } from '../../SemanticStudioService/draftLint';
 import type { ProposeSemanticLayerChangeFn } from '../types/aiAgentDependencies';
 import {
+    getListChanges,
     getProposeSemanticLayerChange,
     getReadSemanticModel,
 } from './semanticStudioTools';
@@ -40,6 +41,16 @@ const propose = async (
     );
     return toolProposeSemanticLayerChangeOutputSchema.parse(output);
 };
+
+it('lists changes with their checkout and touched models', async () => {
+    const changes = [
+        { name: 'Revenue', isCheckedOut: true, models: ['orders'] },
+    ];
+    const list = getListChanges(async () => changes);
+    expect(await list.execute?.({}, callOptions)).toMatchObject({
+        structuredContent: { changes },
+    });
+});
 
 describe('getProposeSemanticLayerChange', () => {
     it('reports a passing model as ready, with its diff and its place in the draft', async () => {

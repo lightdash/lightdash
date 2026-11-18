@@ -15503,6 +15503,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 },
             );
 
+        const listChanges = () =>
+            this.semanticStudioService.listChanges(user, projectUuid);
+
         const readSemanticModel: ReadSemanticModelFn = (name) =>
             this.semanticStudioService.readDraftedModel(
                 user,
@@ -15636,6 +15639,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             editDbtProject,
             editProjectContext,
             proposeSemanticLayerChange,
+            listChanges,
             readSemanticModel,
             exploreRepo,
             readAttachments,
@@ -18028,6 +18032,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     editDbtProject,
                     editProjectContext,
                     proposeSemanticLayerChange,
+                    listChanges,
                     readSemanticModel,
                     exploreRepo,
                     readAttachments,
@@ -18551,6 +18556,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     editDbtProject,
                     editProjectContext,
                     proposeSemanticLayerChange,
+                    listChanges,
                     readSemanticModel,
                     exploreRepo,
                     readAttachments,
@@ -20487,6 +20493,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     return 'Inspecting the project files...';
                 case 'proposeSemanticLayerChange':
                     return 'Checking the change...';
+                case 'listChanges':
+                    return 'Listing your changes...';
                 case 'readSemanticModel':
                     return 'Reading the model...';
                 case 'closePullRequest':

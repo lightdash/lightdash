@@ -38,6 +38,7 @@ vi.mock('../../../../../features/semanticStudio/useStudioWorkspaces', () => ({
 }));
 
 vi.mock('../../../../../features/semanticStudio/useSemanticLayerModel', () => ({
+    useKeepsSemanticLayerDraft: () => true,
     useCanEditSemanticLayer: () => true,
 }));
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({

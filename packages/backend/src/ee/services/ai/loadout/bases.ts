@@ -91,6 +91,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             'getMetadata',
             'searchSemanticLayer',
             'analyzeFieldImpact',
+            'listChanges',
             ...onlyIf(input.semanticStudioDrafts, [
                 'readSemanticModel',
                 'proposeSemanticLayerChange',

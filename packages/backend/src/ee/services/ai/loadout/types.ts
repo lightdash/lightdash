@@ -64,6 +64,7 @@ export const AGENT_TOOL_NAMES = [
     'editDbtProject',
     'editProjectContext',
     'proposeSemanticLayerChange',
+    'listChanges',
     'readSemanticModel',
     'syncDbtProject',
     'exploreRepo',

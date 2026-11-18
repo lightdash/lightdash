@@ -145,3 +145,17 @@ export const toolReadSemanticModelOutputSchema = structuredToolOutputSchema({
 export type ToolReadSemanticModelOutput = z.infer<
     typeof toolReadSemanticModelOutputSchema
 >;
+
+const studioChangeSummarySchema = z.object({
+    name: z.string(),
+    isCheckedOut: z.boolean(),
+    models: z.array(z.string()),
+});
+export type StudioChangeSummary = z.infer<typeof studioChangeSummarySchema>;
+export const toolListChangesArgsSchema = z.object({});
+export const toolListChangesOutputSchema = structuredToolOutputSchema({
+    metadata: baseOutputMetadataSchema,
+    structuredContent: z.object({
+        changes: z.array(studioChangeSummarySchema),
+    }),
+});

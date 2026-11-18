@@ -19,6 +19,7 @@ const TOOLS_WITHOUT_DESCRIPTION = [
     'editDbtProject',
     'editProjectContext',
     'proposeSemanticLayerChange',
+    'listChanges',
     'readSemanticModel',
     'editRepo',
     'updateUserName',

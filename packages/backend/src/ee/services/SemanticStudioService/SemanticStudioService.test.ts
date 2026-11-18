@@ -386,6 +386,8 @@ const setup = ({
             saveWithScript: unused,
         },
         workspaceModel: {
+            listChanges: async () => [],
+            create: unused,
             findActive,
             findStudioThread: async (_owner, threadUuid) =>
                 studioThreads.has(threadUuid)
@@ -486,7 +488,7 @@ const setup = ({
                 drafts.filter((change) => {
                     const madeIn =
                         draftWorkspaces.get(change.draftChangeUuid) ?? null;
-                    return madeIn === null || madeIn === workspaceUuid;
+                    return madeIn === workspaceUuid;
                 }),
             findWorkspaceDraftChanges: async ({ workspaceUuid }) =>
                 drafts.filter(
@@ -508,14 +510,19 @@ const setup = ({
             },
             findPublishedSince: async () => publishedSince,
             findSettledDraftChanges: async () => [],
-            createDraftChange: async ({
+            createCheckedOutDraftChange: async ({
                 workspaceUuid,
                 promptUuid,
                 models,
                 baseVersions,
             }) => {
                 const draftChangeUuid = `draft-${drafts.length + 1}`;
-                draftWorkspaces.set(draftChangeUuid, workspaceUuid);
+                if (!activeWorkspace)
+                    activeWorkspace = { threadUuid: 'first', prUrl: null };
+                draftWorkspaces.set(
+                    draftChangeUuid,
+                    workspaceUuid ?? workspaceOf(activeWorkspace.threadUuid),
+                );
                 drafts.push({
                     draftChangeUuid,
                     promptUuid,
@@ -524,7 +531,12 @@ const setup = ({
                     models,
                     baseVersions,
                 });
-                return draftChangeUuid;
+                return {
+                    draftChangeUuid,
+                    workspaceUuid:
+                        workspaceUuid ??
+                        workspaceOf(activeWorkspace.threadUuid),
+                };
             },
             updateDraftChangeStatus: async ({
                 drafts: selection,
@@ -636,6 +648,7 @@ const setup = ({
             activeWorkspace = next;
         },
         studioThreads,
+        draftWorkspaces,
         startWorkspace,
         finishWorkspace,
         workspaceOf,
@@ -1769,6 +1782,10 @@ describe('SemanticStudioService', () => {
                 [draftModel(REVENUE_YAML)],
                 null,
             );
+            context.draftWorkspaces.set(
+                'draft-2',
+                context.workspaceOf('first'),
+            );
             context.drafts.push({
                 draftChangeUuid: 'draft-2',
                 baseVersions: null,
@@ -2097,51 +2114,15 @@ describe('SemanticStudioService', () => {
                 await context.service.getDraft(deployer, PROJECT_UUID)
             ).changes.map(({ draftChangeUuid }) => draftChangeUuid);
 
-        it("starts a conversation's workspace with its first change, and keeps each workspace's changes apart", async () => {
+        it('keeps edits from different conversations in the same checkout', async () => {
             const context = setup();
             await proposeIn(context, 'thread-1', REVENUE_YAML);
-            expect(context.startWorkspace).toHaveBeenCalledWith(
-                { projectUuid: PROJECT_UUID, userUuid: USER_UUID },
-                expect.objectContaining({
-                    threadUuid: 'thread-1',
-                    name: 'Untitled change',
-                }),
-            );
-            const firstState = await context.service.getDraftState(
-                deployer,
-                PROJECT_UUID,
-            );
             await proposeIn(context, 'thread-2', 'label: Orders\n');
-            expect(await draftedQuestions(context)).toEqual(['draft-2']);
-            context.setActiveWorkspace({ threadUuid: 'thread-1', prUrl: null });
-            expect(await draftedQuestions(context)).toEqual(['draft-1']);
-            expect(
-                (await context.service.getDraftState(deployer, PROJECT_UUID))
-                    .fingerprint,
-            ).toBe(firstState.fingerprint);
-            context.setActiveWorkspace({ threadUuid: 'thread-2', prUrl: null });
-            expect(
-                (await context.service.getDraftState(deployer, PROJECT_UUID))
-                    .fingerprint,
-            ).not.toBe(firstState.fingerprint);
-        });
-
-        it('shows a change from before workspaces in whichever workspace is active', async () => {
-            const context = setup();
-            context.drafts.push({
-                draftChangeUuid: 'legacy',
-                baseVersions: null,
-                promptUuid: null,
-                question: null,
-                createdAt: new Date(),
-                models: [draftModel('label: Legacy\n')],
-            });
-            expect(await draftedQuestions(context)).toEqual(['legacy']);
-            await proposeIn(context, 'thread-1', REVENUE_YAML);
             expect(await draftedQuestions(context)).toEqual([
-                'legacy',
+                'draft-1',
                 'draft-2',
             ]);
+            expect(context.startWorkspace).not.toHaveBeenCalled();
         });
 
         it("reads one workspace's changes alone, whichever is active, without changes from before workspaces", async () => {
@@ -2154,8 +2135,10 @@ describe('SemanticStudioService', () => {
                 createdAt: new Date(),
                 models: [draftModel('label: Legacy\n')],
             });
+            context.setActiveWorkspace({ threadUuid: 'thread-1', prUrl: null });
             await proposeIn(context, 'thread-1', REVENUE_YAML);
-            await proposeIn(context, 'thread-2', 'label: Orders\n');
+            context.setActiveWorkspace({ threadUuid: 'thread-2', prUrl: null });
+            await proposeIn(context, 'thread-1', 'label: Orders\n');
             const first = await context.service.getWorkspaceDraft(
                 deployer,
                 PROJECT_UUID,
@@ -2178,6 +2161,7 @@ describe('SemanticStudioService', () => {
 
         it("refuses to read someone else's workspace", async () => {
             const context = setup();
+            context.setActiveWorkspace({ threadUuid: 'thread-1', prUrl: null });
             await proposeIn(context, 'thread-1', REVENUE_YAML);
             await expect(
                 context.service.getWorkspaceDraft(
@@ -2190,8 +2174,10 @@ describe('SemanticStudioService', () => {
 
         it('publishes only the active workspace and finishes that workspace', async () => {
             const context = setup();
+            context.setActiveWorkspace({ threadUuid: 'thread-1', prUrl: null });
             await proposeIn(context, 'thread-1', REVENUE_YAML);
-            await proposeIn(context, 'thread-2', 'label: Orders\n');
+            context.setActiveWorkspace({ threadUuid: 'thread-2', prUrl: null });
+            await proposeIn(context, 'thread-1', 'label: Orders\n');
             await context.service.applyDraft(deployer, PROJECT_UUID, null);
             expect(context.commitCalls[0].source).toMatchObject({
                 drafts: { changeUuids: ['draft-2'] },
@@ -2207,6 +2193,7 @@ describe('SemanticStudioService', () => {
 
         it('finishes the workspace when its whole draft is discarded, not when one change is', async () => {
             const context = setup();
+            context.setActiveWorkspace({ threadUuid: 'thread-1', prUrl: null });
             await proposeIn(context, 'thread-1', REVENUE_YAML);
             await proposeIn(context, 'thread-1', 'label: Orders\n');
             await context.service.discardDraft(deployer, PROJECT_UUID, {
@@ -2228,7 +2215,7 @@ describe('SemanticStudioService', () => {
             expect(context.drafts).toEqual([]);
         });
 
-        it('finishes no workspace when there is none to finish', async () => {
+        it('finishes the threadless workspace started by a manual edit', async () => {
             const context = setup();
             await context.service.proposeDraftChange(
                 deployer,
@@ -2239,7 +2226,10 @@ describe('SemanticStudioService', () => {
             await context.service.discardDraft(deployer, PROJECT_UUID, {
                 kind: 'all',
             });
-            expect(context.finishWorkspace).not.toHaveBeenCalled();
+            expect(context.finishWorkspace).toHaveBeenCalledWith(
+                expect.anything(),
+                context.workspaceOf('first'),
+            );
         });
 
         it("refuses to publish a workspace's change to a model another workspace published to the same part since", async () => {
@@ -2248,10 +2238,12 @@ describe('SemanticStudioService', () => {
                 stored,
                 baseContents: [['orders', orders]],
             });
+            context.setActiveWorkspace({ threadUuid: 'thread-1', prUrl: null });
             await proposeIn(context, 'thread-1', REVENUE_YAML);
+            context.setActiveWorkspace({ threadUuid: 'thread-2', prUrl: null });
             await proposeIn(
                 context,
-                'thread-2',
+                'thread-1',
                 REVENUE_YAML.replace('sum', 'count'),
             );
             const published = await context.service.applyDraft(

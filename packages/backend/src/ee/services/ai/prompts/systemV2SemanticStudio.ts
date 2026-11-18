@@ -1,4 +1,5 @@
-const REPLY_RULES = `- Ask at most one question at a time, the one that most changes what you would do next. Leave the rest for later.
+const REPLY_RULES = `- Use listChanges to see the person's open changes and current checkout. Native model edits go to their checkout. The first successful edit on Live starts a change.
+- Ask at most one question at a time, the one that most changes what you would do next. Leave the rest for later.
 - No headings. When you report what you found, give the numbers or a small table rather than paragraphs.
 - Who can see a model, a field or a row cannot be changed here. Say so plainly when asked; a person changes that in the project's own settings or files.`;
 

@@ -174,5 +174,21 @@ export const useCheckOut = (projectUuid: string) => {
             },
         );
     };
-    return { checkOut, isBusy, isError: action.isError };
+    const createChange = () => {
+        if (isBusy) return;
+        action.mutate(
+            {
+                kind: 'start',
+                body: { threadUuid: null, name: 'Untitled change' },
+            },
+            {
+                onError: ({ error }) =>
+                    showToastApiError({
+                        title: 'Could not start a change',
+                        apiError: error,
+                    }),
+            },
+        );
+    };
+    return { checkOut, createChange, isBusy, isError: action.isError };
 };

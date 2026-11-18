@@ -7,6 +7,7 @@ import {
     ProjectModelDocumentModel,
     type DraftSelection,
 } from '../../../ee/models/ProjectModelDocumentModel';
+import { SemanticStudioWorkspaceModel } from '../../../ee/models/SemanticStudioWorkspaceModel';
 import {
     createMigratedDatabase,
     type MigratedDatabase,
@@ -566,7 +567,57 @@ describe('Project model documents on PostgreSQL', () => {
         });
     });
 
-    test('a draft belongs to its workspace, and a change from before workspaces to the active one', async () => {
+    test('first edit checks out a threadless change and stale edits cannot move to another checkout', async () => {
+        const workspaces = new SemanticStudioWorkspaceModel({
+            database: migrated.database,
+        });
+        const owner = { projectUuid, userUuid };
+        const input = {
+            ...owner,
+            workspaceUuid: null,
+            baseVersions: null,
+            promptUuid: null,
+            models: [
+                {
+                    name: 'orders',
+                    yaml: 'label: Orders',
+                    remove: [],
+                    removeModel: false,
+                },
+            ],
+        };
+        const first = await model.createCheckedOutDraftChange(
+            input,
+            organization.organization_uuid,
+        );
+        expect(await workspaces.findActive(owner)).toMatchObject({
+            workspaceUuid: first.workspaceUuid,
+            threadUuid: null,
+        });
+        await workspaces.create(
+            owner,
+            organization.organization_uuid,
+            'Second',
+        );
+        await expect(
+            model.createCheckedOutDraftChange(
+                { ...input, workspaceUuid: first.workspaceUuid },
+                organization.organization_uuid,
+            ),
+        ).rejects.toThrow(ModelDocumentsChangedError);
+        expect(await workspaces.listChanges(owner)).toEqual(
+            expect.arrayContaining([
+                {
+                    name: 'Edit orders model',
+                    isCheckedOut: false,
+                    models: ['orders'],
+                },
+                { name: 'Second', isCheckedOut: true, models: [] },
+            ]),
+        );
+    });
+
+    test('a draft belongs only to its workspace', async () => {
         const workspace = async () => {
             const [{ ai_thread_uuid: threadUuid }] = await migrated
                 .database('ai_thread')
@@ -590,6 +641,22 @@ describe('Project model documents on PostgreSQL', () => {
             return row.semantic_studio_workspace_uuid;
         };
         const [first, second] = [await workspace(), await workspace()];
+        const linked = await migrated
+            .database('semantic_studio_workspaces')
+            .where('semantic_studio_workspace_uuid', first)
+            .first();
+        if (!linked?.ai_thread_uuid)
+            throw new Error('Expected a linked conversation');
+        await migrated
+            .database('ai_thread')
+            .where('ai_thread_uuid', linked.ai_thread_uuid)
+            .delete();
+        expect(
+            await migrated
+                .database('semantic_studio_workspaces')
+                .where('semantic_studio_workspace_uuid', first)
+                .first(),
+        ).toMatchObject({ ai_thread_uuid: null });
         const draftIn = (workspaceUuid: string | null, name: string) =>
             model.createDraftChange({
                 projectUuid,
@@ -617,8 +684,8 @@ describe('Project model documents on PostgreSQL', () => {
         await draftIn(null, 'legacy');
         await draftIn(first, 'orders');
         await draftIn(second, 'customers');
-        expect(await modelsIn(first)).toEqual(['legacy', 'orders']);
-        expect(await modelsIn(second)).toEqual(['legacy', 'customers']);
+        expect(await modelsIn(first)).toEqual(['orders']);
+        expect(await modelsIn(second)).toEqual(['customers']);
         expect(await modelsIn(null)).toEqual(['legacy']);
 
         await migrated
