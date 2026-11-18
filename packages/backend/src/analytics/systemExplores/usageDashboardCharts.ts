@@ -399,7 +399,10 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 sparklineMetric: 'agent_requests_total_requests',
                 time: 'agent_requests_requested_at_week',
             },
-            optionValues: {},
+            optionValues: {
+                showComparison: false,
+                colorSparklineByTrend: false,
+            },
         },
     },
     {
@@ -428,7 +431,10 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 sparklineMetric: 'agent_requests_distinct_requesters',
                 time: 'agent_requests_requested_at_week',
             },
-            optionValues: {},
+            optionValues: {
+                showComparison: false,
+                colorSparklineByTrend: false,
+            },
         },
     },
     {
@@ -486,7 +492,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 value: 'agent_requests_total_requests',
                 panel: 'agent_requests_agent_name',
             },
-            optionValues: {},
+            optionValues: { markType: 'bar', arrangement: 'grid' },
         },
     },
     {
@@ -519,7 +525,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 series: 'agent_requests_requested_at_week',
                 metric: ['agent_requests_total_requests'],
             },
-            optionValues: {},
+            optionValues: { decimalPlaces: 0, density: 'compact' },
         },
     },
     {
@@ -544,19 +550,24 @@ export const usageChartSpecs: UsageChartSpec[] = [
             },
         ],
         libraryChart: {
-            slug: 'sortable-pivot-table',
-            minVersion: '0.12.1',
+            slug: 'customizable-cartesian-chart',
+            minVersion: '0.17.0',
             fieldMapping: {
-                rowDimension: 'agent_requests_agent_name',
-                metric: [
-                    'agent_requests_total_requests',
-                    'agent_requests_feedback_coverage',
-                    'agent_requests_negative_feedback_rate',
-                    'agent_requests_completion_rate',
-                    'agent_requests_response_coverage',
-                ],
+                x: 'agent_requests_agent_name',
+                m1: 'agent_requests_total_requests',
+                m2: 'agent_requests_feedback_coverage',
+                m3: 'agent_requests_negative_feedback_rate',
             },
-            optionValues: { showMiniBars: true },
+            optionValues: {
+                seriesType: 'bar',
+                m2Type: 'line',
+                m3Type: 'line',
+                dualAxis: true,
+                m2Right: true,
+                m3Right: true,
+                xAxisType: 'category',
+                showSymbols: true,
+            },
         },
     },
     {
@@ -585,7 +596,11 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 m1: 'agent_requests_total_requests',
                 splitBy: 'agent_requests_status',
             },
-            optionValues: {},
+            optionValues: {
+                seriesType: 'bar',
+                stack: 'normal',
+                xAxisType: 'category',
+            },
         },
     },
     {
@@ -633,7 +648,14 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 m1: 'agent_requests_total_requests',
                 m2: 'agent_requests_average_request_latency_ms',
             },
-            optionValues: {},
+            optionValues: {
+                seriesType: 'bar',
+                m2Type: 'line',
+                dualAxis: true,
+                m2Right: true,
+                xAxisType: 'category',
+                showSymbols: true,
+            },
         },
     },
     {
@@ -657,15 +679,18 @@ export const usageChartSpecs: UsageChartSpec[] = [
             },
         ],
         libraryChart: {
-            slug: 'sortable-pivot-table',
-            minVersion: '0.12.1',
+            slug: 'customizable-cartesian-chart',
+            minVersion: '0.17.0',
             fieldMapping: {
-                rowDimension: 'ai_usage_user_name',
-                rowDimension2: 'ai_usage_feature',
-                series: 'ai_usage_model',
-                metric: ['ai_usage_total_tokens_used'],
+                x: 'ai_usage_user_name',
+                m1: 'ai_usage_total_tokens_used',
+                splitBy: 'ai_usage_model',
             },
-            optionValues: {},
+            optionValues: {
+                seriesType: 'bar',
+                stack: 'normal',
+                xAxisType: 'category',
+            },
         },
     },
     {

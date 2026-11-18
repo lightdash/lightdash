@@ -85,6 +85,8 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                             'ai-consumption-by-person-feature-and-model',
                             'ai-tokens-by-feature-and-model',
                         ],
+                        layout: 'row',
+                        rowHeight: 8,
                     },
                     {
                         title: 'Consumption by outcome',

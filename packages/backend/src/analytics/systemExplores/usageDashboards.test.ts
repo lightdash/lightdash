@@ -689,6 +689,14 @@ describe('built-in usage dashboards', () => {
                 `${prefix}ai-tokens-by-feature-and-model`,
             )?.slug,
         ).toBe('heatmap');
+        for (const key of [
+            'agent-feedback-rating-and-sample-coverage',
+            'ai-consumption-by-person-feature-and-model',
+        ]) {
+            expect(
+                analyticsLibraryChartBindings.get(`${prefix}${key}`)?.slug,
+            ).toBe('customizable-cartesian-chart');
+        }
         expect(
             analyticsLibraryChartBindings.get(
                 `${prefix}request-consumption-by-outcome-and-feedback`,
@@ -719,6 +727,15 @@ describe('built-in usage dashboards', () => {
             'agent-retries-latency-and-consumption',
         );
         expect([retries.x, retries.w, retries.h]).toEqual([0, 36, 7]);
+        const [person, tokens] = [
+            'ai-consumption-by-person-feature-and-model',
+            'ai-tokens-by-feature-and-model',
+        ].map((key) => tile('consumption', key));
+        expect([person.x, tokens.x, person.w, tokens.w]).toEqual([
+            0, 18, 18, 18,
+        ]);
+        expect([person.h, tokens.h]).toEqual([8, 8]);
+        expect(person.y).toBe(tokens.y);
     });
 
     it('keeps tile geometry for sections without a layout hint', () => {
