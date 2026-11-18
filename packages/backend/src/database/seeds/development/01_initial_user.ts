@@ -39,12 +39,19 @@ import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../../models/ProjectParametersModel';
 import { TagsModel } from '../../../models/TagsModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
+import { WarehouseConnectionSwitchModel } from '../../../models/WarehouseConnectionSwitchModel/WarehouseConnectionSwitchModel';
 import { projectAdapterFromConfig } from '../../../projectAdapters/projectAdapter';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import { DbEmailIn } from '../../entities/emails';
 import { OnboardingTableName } from '../../entities/onboarding';
 import { DbOrganizationIn } from '../../entities/organizations';
 import { DbUserIn } from '../../entities/users';
+import {
+    RAINBOW_DEVELOPER,
+    RAINBOW_SECOND_ORG,
+    RAINBOW_SECOND_ORG_ADMIN,
+    RAINBOW_SECOND_PROJECT,
+} from '../rainbowFixtureMatrix';
 
 export async function seed(knex: Knex): Promise<void> {
     // Deletes ALL existing entries
@@ -187,11 +194,28 @@ export async function seed(knex: Knex): Promise<void> {
     const org2 = await addOrganization(SEED_ORG_2);
 
     await addUser(
+        { organizationId, organizationUuid },
+        RAINBOW_DEVELOPER.user,
+        { email: RAINBOW_DEVELOPER.email, is_primary: true },
+        SEED_ORG_1_EDITOR_PASSWORD,
+        RAINBOW_DEVELOPER.role,
+    );
+
+    await addUser(
         org2,
         SEED_ORG_2_ADMIN,
         SEED_ORG_2_ADMIN_EMAIL,
         SEED_ORG_2_ADMIN_PASSWORD,
         SEED_ORG_2_ADMIN_ROLE,
+    );
+
+    const rainbowSecondOrg = await addOrganization(RAINBOW_SECOND_ORG);
+    await addUser(
+        rainbowSecondOrg,
+        RAINBOW_SECOND_ORG_ADMIN.user,
+        { email: RAINBOW_SECOND_ORG_ADMIN.email, is_primary: true },
+        SEED_ORG_1_EDITOR_PASSWORD,
+        RAINBOW_SECOND_ORG_ADMIN.role,
     );
 
     // Try this with relative path
@@ -313,6 +337,48 @@ export async function seed(knex: Knex): Promise<void> {
             database: knex,
             lightdashConfig,
             encryptionUtil: enc,
+        });
+
+        const secondProjectUuid = await projectModel.create(
+            RAINBOW_SECOND_ORG_ADMIN.user.user_uuid,
+            rainbowSecondOrg.organizationUuid,
+            {
+                name: RAINBOW_SECOND_PROJECT.name,
+                type: SEED_PROJECT.project_type,
+                dbtConnection: projectSettings,
+                dbtVersion: SupportedDbtVersions.V1_12,
+                warehouseConnection: warehouseCredentials,
+            },
+        );
+
+        await new WarehouseConnectionSwitchModel({
+            database: knex,
+            encryptionUtil: enc,
+        }).transaction(async ({ switchModel, connectionModel }) => {
+            const listing = {
+                listAllDatabases: false,
+                additionalDatabases: [],
+                createdByUserUuid: RAINBOW_SECOND_ORG_ADMIN.user.user_uuid,
+            };
+            await connectionModel.lockProject(secondProjectUuid);
+            await switchModel.createOriginal({
+                projectUuid: secondProjectUuid,
+                name: RAINBOW_SECOND_PROJECT.originalConnectionName,
+                ...listing,
+            });
+            await connectionModel.createExtra(
+                await connectionModel.getProject(secondProjectUuid),
+                {
+                    name: RAINBOW_SECOND_PROJECT.alternateConnectionName,
+                    warehouseType: warehouseCredentials.type,
+                    source: {
+                        kind: 'project',
+                        credentials: warehouseCredentials,
+                    },
+                    ...listing,
+                },
+            );
+            await switchModel.setMultiMode(secondProjectUuid);
         });
 
         await projectModel.saveExploresToCache(
