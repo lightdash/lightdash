@@ -88,6 +88,7 @@ const setup = (enabled: boolean, organizationEnabled = enabled) => {
             .fn()
             .mockResolvedValue({ ...summary, dashboardUuid: dashboard.uuid }),
         addVersion: vi.fn(),
+        lockForVersioning: vi.fn(),
     };
     const dependencies = {
         lightdashConfig: lightdashConfigMock,

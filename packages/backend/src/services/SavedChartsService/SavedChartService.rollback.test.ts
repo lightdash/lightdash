@@ -95,6 +95,7 @@ const setup = (current: SavedChart, restored: SavedChart) => {
             ],
         }),
         addVersion: vi.fn(),
+        lockForVersioning: vi.fn(),
     };
     const projectService = {
         getCustomMetricsNeedingPermission: vi.fn().mockResolvedValue([]),

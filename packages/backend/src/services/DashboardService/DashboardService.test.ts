@@ -86,6 +86,7 @@ const dashboardModel = {
     softDelete: vi.fn(async () => dashboard),
 
     addVersion: vi.fn(async () => dashboard),
+    lockForVersioning: vi.fn(),
 
     getVersionByUuid: vi.fn(
         async (): Promise<Dashboard | undefined> => undefined,

@@ -5078,6 +5078,9 @@ export class DashboardService
 
         // Rollback dashboard and all owned charts in a single transaction
         await this.savedChartModel.transaction(async (tx) => {
+            // Dashboard before its charts, the order permanent delete takes them in
+            await this.dashboardModel.lockForVersioning(dashboardDao.uuid, tx);
+            await this.savedChartService.lockCheckedRestores(chartRestores, tx);
             await assertCanRollbackComposerCharts(
                 this.composerChartModel,
                 this.getComposerChartService,
@@ -5107,7 +5110,6 @@ export class DashboardService
             );
 
             // Charts created after the target version have no restore and stay as they are
-            await this.savedChartService.lockCheckedRestores(chartRestores, tx);
             await Promise.all(
                 chartRestores.map((restore) =>
                     this.savedChartModel.createVersion(

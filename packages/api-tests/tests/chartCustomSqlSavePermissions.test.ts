@@ -583,6 +583,29 @@ describe('Saving a chart with custom SQL', () => {
                 ).toBe(200);
                 expect((await currentQuery(restore.chartUuid)).limit).toBe(10);
             });
+
+            it('completes two rollbacks of the same dashboard at once', async () => {
+                const query = tableCalculation('1');
+                const restore = await dashboardWithChart(query, {
+                    ...query,
+                    limit: 25,
+                });
+
+                const statuses = await Promise.all(
+                    [admin, editor].map(
+                        async (client) =>
+                            (
+                                await rollbackDashboardAs(
+                                    client,
+                                    restore.dashboardUuid,
+                                    restore.firstVersion,
+                                )
+                            ).status,
+                    ),
+                );
+
+                expect(statuses).toEqual([200, 200]);
+            });
         });
     });
 
