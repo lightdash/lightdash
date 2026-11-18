@@ -5,7 +5,7 @@ description: When to save a SQL chart, its body, chart kinds and config, the SQL
 
 # SQL Chart Reference
 
-A SQL chart is a chart saved from raw warehouse SQL rather than from an explore. It bypasses the governed semantic layer, so saving one is the user's choice: save it when the user asked for a SQL chart or gave SQL to save as a chart. Every other chart goes through `Create Charts` in the skill, which says when a chart that explore fields cannot produce becomes a SQL chart.
+A SQL chart is a chart saved from raw warehouse SQL rather than from an explore. It bypasses the governed semantic layer, so saving one is the user's choice: save it when the user asked for a SQL chart, gave SQL to save as a chart, or chose one when `Create Charts` in the skill had you offer it. For any other chart, return to `Create Charts`.
 
 ## Requirements
 

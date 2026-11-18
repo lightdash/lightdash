@@ -103,7 +103,7 @@ To put a filter in an existing section, set its `sectionSlug` to a `slug` from `
 4. Check the chart: call `runContentQuery` with `source.type: "metricQuery"` and the chart's `tableName`/`metricQuery` as it will be saved.
 5. Call `createContent` with the checked chart JSON.
 
-Correct and retry an attempt that fails (a rejected formula, a query error) before judging the explores. When they cannot produce the chart (a missing field or table, a join or calculation none of them models), follow the choice the user already made for such a chart in this thread. With no choice yet, stop and tell the user what the semantic layer lacks, then offer the paths open here: adding it to the semantic layer, and a SQL chart where one can be saved.
+Correct and retry an attempt that fails (a rejected formula, a query error) before judging the explores. When they cannot produce the chart (a missing field or table, a join or calculation none of them models), save a SQL chart if the user already chose one for such a gap in this thread. Otherwise stop and tell the user what the semantic layer lacks, then offer the paths open here: adding it to the semantic layer, and a SQL chart where one can be saved.
 
 For a weekly chart of "the last 12 weeks up to today" where every week starts on its first day, put the `inThePast` filter on the week dimension (e.g. `orders_order_date_week`, `completed: false`, `unitOfTime: weeks`, `values: [12]`), not on the day or raw date. That gives 12 weekly rows: 11 full weeks plus the current week to date. The same filter on a day field starts mid-week, so the first week is partial.
 
