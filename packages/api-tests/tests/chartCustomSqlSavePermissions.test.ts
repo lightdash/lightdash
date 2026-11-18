@@ -409,6 +409,20 @@ describe('Saving a chart with custom SQL', () => {
             },
         );
 
+        it('lets an editor run an older version whose custom SQL was removed', async () => {
+            const chartUuid = await authorAsAdmin(withMetric(uniqueSql()));
+            expect(
+                (await saveVersionAs(admin, chartUuid, metricQuery({}))).status,
+            ).toBe(200);
+
+            const run = await editor.post(
+                `/api/v1/saved/${chartUuid}/version/${await firstVersion(chartUuid)}/results`,
+                undefined,
+                { failOnStatusCode: false },
+            );
+            expect(run.status).toBe(200);
+        });
+
         it('lets an editor roll back a chart whose custom SQL is unchanged', async () => {
             const query = withMetric(uniqueSql());
             const chartUuid = await authorAsAdmin(query);

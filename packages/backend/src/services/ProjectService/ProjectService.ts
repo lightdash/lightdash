@@ -11577,6 +11577,7 @@ export class ProjectService
                 invalidateCache,
                 explore,
                 chartUuid,
+                storedChartSql: true,
             });
 
         return {
@@ -11834,6 +11835,7 @@ export class ProjectService
         explore: validExplore,
         dateZoom,
         chartUuid,
+        storedChartSql = false,
     }: {
         account: Account;
         metricQuery: MetricQuery;
@@ -11846,6 +11848,7 @@ export class ProjectService
         explore?: Explore;
         dateZoom?: DateZoom;
         chartUuid: string | undefined;
+        storedChartSql?: boolean;
     }): Promise<ApiQueryResults> {
         return wrapSentryTransaction(
             'ProjectService.runQueryAndFormatRows',
@@ -11873,6 +11876,7 @@ export class ProjectService
                     explore,
                     dateZoom,
                     chartUuid,
+                    storedChartSql,
                 });
                 span.setAttribute('rows', rows.length);
 
@@ -12166,6 +12170,7 @@ export class ProjectService
         chartUuid,
         parameters,
         userAttributeOverrides,
+        storedChartSql = false,
     }: {
         account: Account;
         metricQuery: MetricQuery;
@@ -12178,6 +12183,8 @@ export class ProjectService
         explore?: Explore;
         dateZoom?: DateZoom;
         chartUuid: string | undefined; // for analytics
+        // A saved chart version the caller may view runs its stored SQL, as saved chart runs do
+        storedChartSql?: boolean;
         parameters?: ParametersValuesMap;
         userAttributeOverrides?: UserAttributeValueMap; // EXPERIMENTAL: used to override user attributes for MCP
     }): Promise<{
@@ -12212,13 +12219,22 @@ export class ProjectService
                         throw new ForbiddenError();
                     }
 
-                    await this.assertCustomSqlAuthorizedForQuery({
-                        account,
-                        projectUuid,
-                        organizationUuid,
-                        exploreName,
-                        metricQuery,
-                    });
+                    if (storedChartSql) {
+                        await this.assertAgentCustomSqlAuthorizedForQuery({
+                            account,
+                            projectUuid,
+                            exploreName,
+                            metricQuery,
+                        });
+                    } else {
+                        await this.assertCustomSqlAuthorizedForQuery({
+                            account,
+                            projectUuid,
+                            organizationUuid,
+                            exploreName,
+                            metricQuery,
+                        });
+                    }
 
                     const { maxLimit, csvCellsLimit } =
                         await resolveOrganizationExportLimits(
