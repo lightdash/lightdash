@@ -717,10 +717,7 @@ import {
     WritebackAgentAccessError,
     WritebackThreadPrClosedError,
 } from '../AiWritebackService/errors';
-import type {
-    AiWritebackSource,
-    ParsedDbtProject,
-} from '../AiWritebackService/types';
+import type { AiWritebackSource } from '../AiWritebackService/types';
 import { createWritebackAgentDeliveryGuard } from '../AiWritebackService/writebackAgentWork';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import type { AppGenerateService } from '../AppGenerateService/AppGenerateService';
@@ -13951,20 +13948,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             try {
                 const runArgs = {
                     ...(prompt.threadCreatedFrom === 'semantic_studio'
-                        ? {
-                              continuesThreadPullRequest: true,
-                              onDbtProject: async (
-                                  project: ParsedDbtProject,
-                              ) => {
-                                  changedModels =
-                                      await this.semanticStudioService.saveDbtTryOut(
-                                          user,
-                                          projectUuid,
-                                          project,
-                                          prompt.threadUuid,
-                                      );
-                              },
-                          }
+                        ? { continuesThreadPullRequest: true }
                         : {}),
                     agentPermissionsApply: true,
                     user,

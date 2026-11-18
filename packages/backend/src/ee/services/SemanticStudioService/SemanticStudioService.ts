@@ -73,7 +73,6 @@ import {
 import { type SemanticStudioWorkspaceModel } from '../../models/SemanticStudioWorkspaceModel';
 import { getWritebackConnectionSupport } from '../AiAgentService/writebackConnection';
 import { type AiWritebackService } from '../AiWritebackService/AiWritebackService';
-import { type ParsedDbtProject } from '../AiWritebackService/types';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import {
     findModelsToCompile,
@@ -82,14 +81,7 @@ import {
     type DbtScriptChange,
     type DbtScriptCheck,
 } from './codeMode/dbtManifestPatch';
-import {
-    dbtTryOutFileId,
-    findChangedModels,
-    findLiveTableLocations,
-    markNewModels,
-    pointManifestAtLiveTables,
-    type DbtTryOut,
-} from './dbtTryOut';
+import { dbtTryOutFileId, type DbtTryOut } from './dbtTryOut';
 import {
     DraftChecker,
     usesAnyModel,
@@ -844,57 +836,6 @@ export class SemanticStudioService extends BaseService {
                 explore,
             ]),
         ]);
-    }
-
-    /** Stores what this person's latest dbt change leaves to try, and returns the models it changed. */
-    async saveDbtTryOut(
-        user: SessionUser,
-        projectUuid: string,
-        {
-            manifestJson,
-            lightdashConfigYaml,
-            changedFiles,
-            prUrl,
-        }: ParsedDbtProject,
-        threadUuid: string | null,
-    ): Promise<string[]> {
-        let manifest: DbtManifest;
-        try {
-            manifest = JSON.parse(manifestJson);
-        } catch {
-            this.logger.warn(
-                `Skipped trying a dbt change on project ${projectUuid}: its manifest is not valid JSON`,
-            );
-            return [];
-        }
-        const changedModels = findChangedModels(manifest, changedFiles);
-        if (!this.fileStorageClient.isEnabled()) return changedModels;
-        const status = await this.getStatus(user, projectUuid);
-        if (!status.enabled || status.appliesAs !== 'dbt_pull_request')
-            return changedModels;
-        const live = await this.projectModel.findExploresFromCache(
-            projectUuid,
-            'name',
-        );
-        const pointed = pointManifestAtLiveTables(
-            manifest,
-            findLiveTableLocations(Object.values(live)),
-        );
-        const explores = markNewModels(
-            await this.projectService.compileExploresFromManifest(
-                user,
-                projectUuid,
-                pointed.manifest,
-                lightdashConfigYaml,
-            ),
-            pointed.newModels,
-        );
-        const tryOut: DbtTryOut = { prUrl, explores };
-        await this.fileStorageClient.uploadTxt(
-            Buffer.from(JSON.stringify(tryOut)),
-            dbtTryOutFileId(projectUuid, user.userUuid, threadUuid),
-        );
-        return changedModels;
     }
 
     /**
