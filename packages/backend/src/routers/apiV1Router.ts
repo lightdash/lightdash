@@ -27,6 +27,7 @@ import {
     storeAgentConnectAttempt,
 } from '../controllers/authentication/agentConnectAnalytics';
 import { storeAgentConnectRedirect } from '../controllers/authentication/agentConnectRedirect';
+import { getBigqueryOAuthScopes } from '../controllers/authentication/bigqueryOAuthScopes';
 import { requireAgentIdentity } from '../controllers/authentication/requireAgentIdentity';
 import {
     createAzureAdOidcStrategyForConfig,
@@ -748,13 +749,20 @@ apiV1Router.get(
     '/login/bigquery',
     storeOIDCRedirect,
     storeOIDCLinkIntent,
-    passport.authenticate('google', {
-        scope: ['profile', 'email', 'https://www.googleapis.com/auth/bigquery'],
-        accessType: 'offline',
-        prompt: 'consent',
-        session: false,
-        includeGrantedScopes: true,
-    }),
+    async (req, res, next) => {
+        try {
+            const scope = await getBigqueryOAuthScopes(req);
+            passport.authenticate('google', {
+                scope,
+                accessType: 'offline',
+                prompt: 'consent',
+                session: false,
+                includeGrantedScopes: true,
+            })(req, res, next);
+        } catch (e) {
+            next(e);
+        }
+    },
 );
 
 // path to start the OAuth flow
