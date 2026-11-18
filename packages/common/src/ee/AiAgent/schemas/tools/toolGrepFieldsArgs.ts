@@ -27,7 +27,7 @@ When to use:
 Returns:
 Matching fields as \`explore/fieldId  [kind type]\` lines grouped by explore. Pick the single explore that answers at the right grain before building a query.
 - A description or hint ending in "...(truncated)" is incomplete; read the full text with ${getMetadata} before using that field.
-- A field annotated with \`⚠params: <names>\` depends on those Lightdash parameters; read their definitions with ${getMetadata} on its explore before querying it.
+- A field annotated with \`requires params: <names>\` depends on those Lightdash parameters; read their definitions with ${getMetadata} on its explore before querying it.
 
 Recovery:
 When no field matches literally, the result lists the closest catalog matches (fuzzy search) under "No exact grep matches". Use those rather than re-grepping a long list of synonyms; broaden the patterns only when those miss too.

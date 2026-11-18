@@ -171,7 +171,7 @@ describe('grepFields table filters', () => {
             exploreName: 'data_app_usage',
         });
 
-        expect(result).toContain('⚠ table filters:');
+        expect(result).toContain('table filters:');
         expect(result).toContain(
             'required data_app_usage_timestamp inThePast [4]',
         );
@@ -208,7 +208,7 @@ describe('grepFields table filters', () => {
 
         ['orders', 'deliveries', 'tickets'].forEach((name) =>
             expect(result).toContain(
-                `⚠ table filters: required ${name}_created_at inThePast [4]\n`,
+                `table filters: required ${name}_created_at inThePast [4]\n`,
             ),
         );
         expect(result.match(/replaceable defaults/g)).toHaveLength(1);
