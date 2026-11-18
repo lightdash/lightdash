@@ -72,6 +72,8 @@ export const withLibraryCharts = (
                     metrics: query.metrics,
                     sorts: query.sorts,
                     limit: query.limit,
+                    // Calculations may reference fields the override drops.
+                    tableCalculations: [],
                 },
                 tableConfig: {
                     columnOrder: [...query.dimensions, ...query.metrics],

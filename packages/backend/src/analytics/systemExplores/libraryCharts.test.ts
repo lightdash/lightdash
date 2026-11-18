@@ -72,6 +72,47 @@ describe('withLibraryCharts', () => {
         expect(out.slug).toBe(chart.slug);
     });
 
+    const tableCalc = {
+        name: 'calc',
+        displayName: 'Calc',
+        sql: '${t_a}',
+    } as NonNullable<ChartAsCode['metricQuery']['tableCalculations']>[number];
+    const chartWithCalc: ChartAsCode = {
+        ...chart,
+        metricQuery: { ...chart.metricQuery, tableCalculations: [tableCalc] },
+    };
+
+    it('drops table calculations when the binding has its own query', () => {
+        const [out] = withLibraryCharts(
+            [chartWithCalc],
+            new Map([
+                [
+                    'd-c',
+                    {
+                        ...binding,
+                        query: {
+                            dimensions: ['t_b'],
+                            metrics: ['t_m'],
+                            sorts: [],
+                            limit: 5,
+                        },
+                    },
+                ],
+            ]),
+            new Map([['heatmap', 'heatmap-1']]),
+        );
+        expect(out.metricQuery.tableCalculations).toEqual([]);
+    });
+
+    it('keeps table calculations when the binding has no query', () => {
+        const [out] = withLibraryCharts(
+            [chartWithCalc],
+            new Map([['d-c', binding]]),
+            new Map([['heatmap', 'heatmap-1']]),
+        );
+        expect(out.metricQuery.tableCalculations).toEqual([tableCalc]);
+    });
+
     it('keeps the fallback query when the binding has no query', () => {
         const [out] = withLibraryCharts(
             [chart],
@@ -139,6 +180,18 @@ describe('analyticsLibraryChartBindings', () => {
                 ...(b.query ?? metricQuery).metrics,
                 ...(metricQuery.tableCalculations ?? []).map((c) => c.name),
             ];
+            Object.values(b.fieldMapping)
+                .flat()
+                .forEach((id) => {
+                    expect(known).toContain(id);
+                });
+        });
+    });
+
+    it('maps only dimensions and metrics of a binding query', () => {
+        entries.forEach(([, b]) => {
+            if (!b.query) return;
+            const known = [...b.query.dimensions, ...b.query.metrics];
             Object.values(b.fieldMapping)
                 .flat()
                 .forEach((id) => {
