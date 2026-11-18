@@ -13,13 +13,14 @@ import {
     type SemanticLayerModelCode,
     type SemanticLayerStatus,
     type SemanticLayerStoredModels,
+    type SemanticStudioCheckout,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
-import { isDevelopmentViewOn } from './developmentView';
+import { isDevelopmentViewOn, useCheckedOutView } from './developmentView';
 
 export const DRAFT_KEY = 'semantic-layer-draft';
 const DRAFT_STATE_KEY = 'semantic-layer-draft-state';
@@ -73,6 +74,56 @@ export const useSemanticLayerStatus = (projectUuid: string) =>
         '/status',
         projectUuid !== '',
     ).data;
+
+export const CHECKOUT_KEY = 'semantic-studio-checkout';
+
+/** The draft this person has checked out, which the whole app shows them; null on what is published. */
+const useDraftCheckout = (projectUuid: string | undefined) =>
+    useGet<SemanticStudioCheckout | null>(
+        [CHECKOUT_KEY, projectUuid ?? null],
+        projectUuid ?? '',
+        '/checkout',
+        !!projectUuid,
+        (checkout) => checkout?.branchCompile?.status === 'compiling',
+    );
+
+/** The checked-out draft, kept as what every request on this project's pages reads. */
+export const useDraftCheckoutView = (
+    projectUuid: string | undefined,
+    projectUrlIdentifier: string | undefined,
+): SemanticStudioCheckout | null => {
+    const { data } = useDraftCheckout(projectUuid);
+    const sync = useCheckedOutView();
+    const identifiers =
+        data && projectUuid
+            ? [projectUuid, projectUrlIdentifier].filter(Boolean).join(' ')
+            : null;
+    const shown = data
+        ? `${data.workspaceUuid}:${String(data.branchCompile?.compiledAt ?? '')}`
+        : null;
+    useEffect(() => {
+        // Unknown until read; a page that cannot read it keeps what it has.
+        if (data === undefined) return;
+        sync(identifiers, shown);
+    }, [data, identifiers, shown, sync]);
+    return data ?? null;
+};
+
+/** Compiles the checked-out draft's branch again. */
+export const useCompileCheckout = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
+    return useMutation<SemanticStudioCheckout | null, ApiError>({
+        mutationFn: () =>
+            lightdashApi<SemanticStudioCheckout | null>({
+                url: toUrl(projectUuid, '/checkout/compile'),
+                method: 'POST',
+                body: undefined,
+            }),
+        onSuccess: (checkout) =>
+            queryClient.setQueryData([CHECKOUT_KEY, projectUuid], checkout),
+    });
+};
 
 /** Whether this person can change this project's models here. */
 export const useCanEditSemanticLayer = (projectUuid: string): boolean =>
