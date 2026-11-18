@@ -18,7 +18,6 @@ import type { ArtifactChartExportAccess } from '../utils/artifactChartAsCode';
 import { getContentWarnings } from '../utils/contentWarnings';
 import { resolveDocumentConversationTags } from '../utils/documentConversationTags';
 import {
-    toolFailure,
     type ExecuteStructuredToolResult,
     type ExecuteToolErrorResult,
 } from '../utils/structuredToolResult';
@@ -27,7 +26,9 @@ import { toolErrorOutput } from '../utils/toolErrorHandler';
 import {
     approveClientSql,
     SqlNotApprovedError,
+    sqlNotApprovedOutput,
     type ApproveSqlFn,
+    type SqlNotApprovedOutput,
 } from './sqlApprovals';
 import { createSqlChartGate, type SqlChartSaving } from './sqlChartApproval';
 
@@ -48,7 +49,8 @@ type ExecuteCreateContentResult =
           ToolCreateContentStructuredContent,
           Extract<ToolCreateContentOutput['metadata'], { status: 'success' }>
       >
-    | ExecuteToolErrorResult;
+    | ExecuteToolErrorResult
+    | SqlNotApprovedOutput;
 
 const toolDefinition = createContentToolDefinition.for('agent');
 
@@ -207,7 +209,7 @@ export const getCreateContent = ({
                     };
                 } catch (error) {
                     if (error instanceof SqlNotApprovedError) {
-                        return toolFailure(error.message);
+                        return sqlNotApprovedOutput(error);
                     }
                     return toolErrorOutput(
                         error,

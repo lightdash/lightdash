@@ -573,6 +573,7 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.artifact.pending.building': 'Building…',
     'aiAgent.stepFailure.title': 'Step failed',
     'aiAgent.stepFailure.openInSqlRunner': 'Open in SQL Runner',
+    'aiAgent.toolCall.sqlNotApproved': 'SQL not approved',
     'aiAgent.message.responseTiming': 'Response timing',
     'aiAgent.mcpApps.available.singular': '{count} app available to connect',
     'aiAgent.mcpApps.available.plural': '{count} apps available to connect',

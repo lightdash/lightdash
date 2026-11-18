@@ -193,6 +193,7 @@ import { getAiAccessRefusalFromToolFinish } from '../utils/slackAiAccessRefusals
 import type { SlackTableQueryResults } from '../utils/slackTableBlocks';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
 import {
+    getUnapprovedToolResultStatus,
     isErrorToolResult,
     isPendingToolResult,
     summarizeToolCall,
@@ -1265,7 +1266,14 @@ export const getDataAnswerFastResponse = (
     steps: ReadonlyArray<FastChartStep>,
 ): string | null => {
     const results = steps.flatMap((step) => step.toolResults);
-    if (results.some((result) => isErrorToolResult(result.output))) return null;
+    if (
+        results.some(
+            (result) =>
+                isErrorToolResult(result.output) ||
+                getUnapprovedToolResultStatus(result.output) !== null,
+        )
+    )
+        return null;
 
     const queryResults = results.filter(
         (result) => result.toolName === 'runQuery',

@@ -49,7 +49,12 @@ import {
     type SqlApprovalCopy,
     type SqlApprovalDependencies,
 } from './sqlApprovalGate';
-import { RUN_SQL_REJECTED_RESULT, SqlNotApprovedError } from './sqlApprovals';
+import {
+    RUN_SQL_REJECTED_RESULT,
+    SqlNotApprovedError,
+    sqlNotApprovedOutput,
+    type SqlNotApprovedOutput,
+} from './sqlApprovals';
 
 // Null when SQL mode is off for the agent.
 export type ContentSqlQuerying = {
@@ -78,7 +83,8 @@ const toolDefinition = runContentQueryToolDefinition.for('agent');
 
 type RunContentQueryResult =
     | ExecuteStructuredToolResult<ToolRunContentQueryStructuredContent>
-    | ExecuteToolErrorResult;
+    | ExecuteToolErrorResult
+    | SqlNotApprovedOutput;
 
 type RowsOutcome = Extract<
     ToolRunContentQueryStructuredContent,
@@ -269,7 +275,7 @@ export const getRunContentQuery = ({
                 });
             } catch (e) {
                 if (e instanceof SqlNotApprovedError) {
-                    return await persistIfResumed(toolFailure(e.message));
+                    return await persistIfResumed(sqlNotApprovedOutput(e));
                 }
                 throw e;
             }

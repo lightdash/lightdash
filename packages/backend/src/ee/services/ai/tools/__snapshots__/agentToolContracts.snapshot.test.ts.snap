@@ -1005,6 +1005,22 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
             {
               "additionalProperties": false,
               "properties": {
+                "status": {
+                  "enum": [
+                    "rejected",
+                    "timeout",
+                  ],
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
                 "href": {
                   "type": "string",
                 },
@@ -1995,6 +2011,22 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
               "properties": {
                 "status": {
                   "const": "error",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "enum": [
+                    "rejected",
+                    "timeout",
+                  ],
                   "type": "string",
                 },
               },
@@ -14062,6 +14094,8 @@ Sources:
                       "enum": [
                         "success",
                         "error",
+                        "rejected",
+                        "timeout",
                       ],
                       "type": "string",
                     },
@@ -14540,12 +14574,16 @@ Sources:
                       "enum": [
                         "success",
                         "error",
+                        "rejected",
+                        "timeout",
                       ],
                       "type": "string",
                     },
                     {
                       "enum": [
                         "error",
+                        "rejected",
+                        "timeout",
                       ],
                       "type": "string",
                     },

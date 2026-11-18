@@ -1,7 +1,10 @@
 import { z } from 'zod';
 import Logger from '../../../../logging/logger';
 import type { ToolStage } from '../agents/turnTiming';
-import { isErrorToolResult } from '../utils/toolSummaries';
+import {
+    getUnapprovedToolResultStatus,
+    isErrorToolResult,
+} from '../utils/toolSummaries';
 import {
     opaqueIdField,
     uuidField,
@@ -26,7 +29,7 @@ export const aiAgentToolCallCompletedPropertiesSchema = z
         stage: z.enum(['query', 'api', 'render']),
         queryCacheHit: z.boolean().nullable(),
         queryReuseHit: z.boolean().nullable(),
-        status: z.enum(['success', 'error']),
+        status: z.enum(['success', 'error', 'rejected', 'timeout']),
         attempt: z.number().int().positive(),
     })
     .strict();
@@ -75,7 +78,7 @@ export const buildToolCallCompletedProperties = (
         status:
             result.type === 'tool-error' || isErrorToolResult(result.output)
                 ? 'error'
-                : 'success',
+                : (getUnapprovedToolResultStatus(result.output) ?? 'success'),
     });
     if (parsed.success) return parsed.data;
     Logger.warn(
