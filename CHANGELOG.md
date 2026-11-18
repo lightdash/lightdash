@@ -1,3 +1,10 @@
+# [3.308.0](https://github.com/lightdash/lightdash/compare/3.307.0...3.308.0) (2026-11-18)
+
+
+### Features
+
+* **semantic-studio:** check out Live or a change from the Studio header ([#32834](https://github.com/lightdash/lightdash/issues/32834)) ([74bd384](https://github.com/lightdash/lightdash/commit/74bd384432465992178143cd9b35f0eb50e01545))
+
 # [3.307.0](https://github.com/lightdash/lightdash/compare/3.306.3...3.307.0) (2026-11-18)
 
 

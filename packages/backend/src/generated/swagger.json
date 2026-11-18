@@ -42976,195 +42976,6 @@
                 "required": ["name"],
                 "type": "object"
             },
-            "SemanticLayerChangeSource": {
-                "type": "string",
-                "enum": ["draft", "undo"]
-            },
-            "SemanticLayerModelChange": {
-                "properties": {
-                    "replaced": {
-                        "properties": {
-                            "paths": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "by": {
-                                "type": "string",
-                                "nullable": true
-                            }
-                        },
-                        "required": ["paths", "by"],
-                        "type": "object",
-                        "nullable": true,
-                        "description": "The parts this change wrote over that someone else had changed just before; null when it wrote over nobody."
-                    },
-                    "byUserUuid": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "The uuid of who made the change; null when that person is gone."
-                    },
-                    "by": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "Who made the change; null when that person is gone."
-                    },
-                    "otherModels": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "description": "The other models the same change set wrote; undoing it reverts them too."
-                    },
-                    "contentAfter": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "Null when the change deleted the model."
-                    },
-                    "contentBefore": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "Null when the change created the model."
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "reverted": {
-                        "type": "boolean",
-                        "description": "Whether this change was undone."
-                    },
-                    "question": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "The question that asked for this; null when none did."
-                    },
-                    "source": {
-                        "$ref": "#/components/schemas/SemanticLayerChangeSource"
-                    },
-                    "changeSetUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "replaced",
-                    "byUserUuid",
-                    "by",
-                    "otherModels",
-                    "contentAfter",
-                    "contentBefore",
-                    "createdAt",
-                    "reverted",
-                    "question",
-                    "source",
-                    "changeSetUuid"
-                ],
-                "type": "object",
-                "description": "One change to a model's YAML."
-            },
-            "SemanticLayerModelCode": {
-                "properties": {
-                    "history": {
-                        "items": {
-                            "$ref": "#/components/schemas/SemanticLayerModelChange"
-                        },
-                        "type": "array",
-                        "description": "Newest first."
-                    },
-                    "version": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "content": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    }
-                },
-                "required": ["history", "version", "content", "name"],
-                "type": "object"
-            },
-            "ApiSuccess_SemanticLayerModelCode-or-null_": {
-                "properties": {
-                    "results": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/SemanticLayerModelCode"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiSemanticLayerModelResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_SemanticLayerModelCode-or-null_"
-            },
-            "SemanticLayerDraftState": {
-                "properties": {
-                    "fingerprint": {
-                        "type": "string"
-                    }
-                },
-                "required": ["fingerprint"],
-                "type": "object",
-                "description": "A value that changes whenever a person's draft would read differently; opaque."
-            },
-            "ApiSuccess_SemanticLayerDraftState_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/SemanticLayerDraftState"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiSemanticLayerDraftStateResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_SemanticLayerDraftState_"
-            },
-            "SemanticLayerDraftedModels": {
-                "properties": {
-                    "models": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["models"],
-                "type": "object",
-                "description": "The names of the models a person has changes in development on, read without replaying or compiling anything."
-            },
-            "ApiSuccess_SemanticLayerDraftedModels_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/SemanticLayerDraftedModels"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiSemanticLayerDraftedModelsResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_SemanticLayerDraftedModels_"
-            },
             "ModelFragmentChange": {
                 "properties": {
                     "action": {
@@ -43509,6 +43320,195 @@
             },
             "ApiSemanticLayerDraftResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_SemanticLayerDraft_"
+            },
+            "SemanticLayerChangeSource": {
+                "type": "string",
+                "enum": ["draft", "undo"]
+            },
+            "SemanticLayerModelChange": {
+                "properties": {
+                    "replaced": {
+                        "properties": {
+                            "paths": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "by": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "required": ["paths", "by"],
+                        "type": "object",
+                        "nullable": true,
+                        "description": "The parts this change wrote over that someone else had changed just before; null when it wrote over nobody."
+                    },
+                    "byUserUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The uuid of who made the change; null when that person is gone."
+                    },
+                    "by": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Who made the change; null when that person is gone."
+                    },
+                    "otherModels": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "The other models the same change set wrote; undoing it reverts them too."
+                    },
+                    "contentAfter": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null when the change deleted the model."
+                    },
+                    "contentBefore": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null when the change created the model."
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "reverted": {
+                        "type": "boolean",
+                        "description": "Whether this change was undone."
+                    },
+                    "question": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The question that asked for this; null when none did."
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/SemanticLayerChangeSource"
+                    },
+                    "changeSetUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "replaced",
+                    "byUserUuid",
+                    "by",
+                    "otherModels",
+                    "contentAfter",
+                    "contentBefore",
+                    "createdAt",
+                    "reverted",
+                    "question",
+                    "source",
+                    "changeSetUuid"
+                ],
+                "type": "object",
+                "description": "One change to a model's YAML."
+            },
+            "SemanticLayerModelCode": {
+                "properties": {
+                    "history": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerModelChange"
+                        },
+                        "type": "array",
+                        "description": "Newest first."
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "content": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["history", "version", "content", "name"],
+                "type": "object"
+            },
+            "ApiSuccess_SemanticLayerModelCode-or-null_": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SemanticLayerModelCode"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticLayerModelResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticLayerModelCode-or-null_"
+            },
+            "SemanticLayerDraftState": {
+                "properties": {
+                    "fingerprint": {
+                        "type": "string"
+                    }
+                },
+                "required": ["fingerprint"],
+                "type": "object",
+                "description": "A value that changes whenever a person's draft would read differently; opaque."
+            },
+            "ApiSuccess_SemanticLayerDraftState_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticLayerDraftState"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticLayerDraftStateResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticLayerDraftState_"
+            },
+            "SemanticLayerDraftedModels": {
+                "properties": {
+                    "models": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["models"],
+                "type": "object",
+                "description": "The names of the models a person has changes in development on, read without replaying or compiling anything."
+            },
+            "ApiSuccess_SemanticLayerDraftedModels_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticLayerDraftedModels"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticLayerDraftedModelsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticLayerDraftedModels_"
             },
             "SemanticLayerDraftBreak": {
                 "properties": {
@@ -80187,7 +80187,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.307.0",
+        "version": "3.308.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -94890,6 +94890,55 @@
                 },
                 "description": "Makes one of your workspaces the active one.",
                 "summary": "Switch to a Semantic Studio workspace",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "workspaceUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/workspaces/{workspaceUuid}/draft": {
+            "get": {
+                "operationId": "getSemanticStudioWorkspaceDraft",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticLayerDraftResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "One of your workspaces' changes replayed on what is live, without changes from before drafts had workspaces.",
+                "summary": "Get a Semantic Studio workspace's draft",
                 "tags": ["Semantic Studio"],
                 "security": [],
                 "parameters": [
