@@ -71,6 +71,11 @@ export type QueryExecutionOwnership = {
     signal: AbortSignal;
     claimedAt: Date | null;
     pendingClaim: Promise<number> | null;
+    /**
+     * The message was delivered before. The previous worker stopped sending
+     * progress, so it may have died with the row still EXECUTING.
+     */
+    redelivered: boolean;
 };
 
 export class QueryExecutionOwnershipLostError extends Error {
@@ -209,8 +214,15 @@ export class QueryHistoryModel {
     static createQueryExecution(
         queryUuid: string,
         signal: AbortSignal,
+        redelivered: boolean = false,
     ): QueryExecutionOwnership {
-        return { queryUuid, signal, claimedAt: null, pendingClaim: null };
+        return {
+            queryUuid,
+            signal,
+            claimedAt: null,
+            pendingClaim: null,
+            redelivered,
+        };
     }
 
     static withQueryExecution<T>(
@@ -605,17 +617,38 @@ export class QueryHistoryModel {
             });
     }
 
-    async updateStatusToExecuting(queryUuid: string): Promise<number> {
+    /**
+     * Claims a PENDING or QUEUED row. A redelivered message may also reclaim
+     * an EXECUTING row, but only the one it read: `reclaimStartedAt` is that
+     * row's processing_started_at, so two deliveries cannot both reclaim it.
+     * The reclaim moves processing_started_at on, which fences the old owner.
+     */
+    async updateStatusToExecuting(
+        queryUuid: string,
+        reclaimStartedAt?: Date,
+    ): Promise<number> {
         QueryHistoryModel.assertQueryExecutionActive(queryUuid);
         const ownership = QueryHistoryModel.getQueryExecution(queryUuid);
         if (ownership) {
             if (ownership.pendingClaim) return ownership.pendingClaim;
             const claim = this.database(QueryHistoryTableName)
                 .where('query_uuid', queryUuid)
-                .whereIn('status', [
-                    QueryHistoryStatus.PENDING,
-                    QueryHistoryStatus.QUEUED,
-                ])
+                .where((builder) => {
+                    void builder.whereIn('status', [
+                        QueryHistoryStatus.PENDING,
+                        QueryHistoryStatus.QUEUED,
+                    ]);
+                    if (ownership.redelivered && reclaimStartedAt) {
+                        void builder.orWhere((reclaim) => {
+                            void reclaim
+                                .where('status', QueryHistoryStatus.EXECUTING)
+                                .andWhere(
+                                    'processing_started_at',
+                                    reclaimStartedAt,
+                                );
+                        });
+                    }
+                })
                 .update({
                     status: QueryHistoryStatus.EXECUTING,
                 })

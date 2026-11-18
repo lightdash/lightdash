@@ -133,21 +133,14 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
         ).toBe(1);
         // SIGKILL: the killed worker never releases the row, so it stays EXECUTING
         expect(await statusOf(queryUuid)).toBe(QueryHistoryStatus.EXECUTING);
-        const redelivered = {
-            ...QueryHistoryModel.createQueryExecution(
-                queryUuid,
-                new AbortController().signal,
-            ),
-            redelivered: true,
-        };
+        const redelivered = QueryHistoryModel.createQueryExecution(
+            queryUuid,
+            new AbortController().signal,
+            true,
+        );
         expect(
             await QueryHistoryModel.withQueryExecution(redelivered, () =>
-                (
-                    model.updateStatusToExecuting as (
-                        queryUuid: string,
-                        expectedStartedAt: Date | null,
-                    ) => Promise<number>
-                ).call(model, queryUuid, killed.claimedAt),
+                model.updateStatusToExecuting(queryUuid, killed.claimedAt!),
             ),
         ).toBe(1);
         expect(await statusOf(queryUuid)).toBe(QueryHistoryStatus.EXECUTING);
@@ -160,6 +153,55 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
             ),
         ).rejects.toBeInstanceOf(QueryExecutionOwnershipLostError);
         expect(await statusOf(queryUuid)).toBe(QueryHistoryStatus.EXECUTING);
+    });
+
+    it('does not reclaim an executing row for a first delivery or a stale read', async () => {
+        const queryUuid = await insert({ status: QueryHistoryStatus.QUEUED });
+        const live = QueryHistoryModel.createQueryExecution(
+            queryUuid,
+            new AbortController().signal,
+        );
+        await QueryHistoryModel.withQueryExecution(live, () =>
+            model.updateStatusToExecuting(queryUuid),
+        );
+        const firstDelivery = QueryHistoryModel.createQueryExecution(
+            queryUuid,
+            new AbortController().signal,
+        );
+        expect(
+            await QueryHistoryModel.withQueryExecution(firstDelivery, () =>
+                model.updateStatusToExecuting(queryUuid, live.claimedAt!),
+            ),
+        ).toBe(0);
+        const staleRead = QueryHistoryModel.createQueryExecution(
+            queryUuid,
+            new AbortController().signal,
+            true,
+        );
+        expect(
+            await QueryHistoryModel.withQueryExecution(staleRead, () =>
+                model.updateStatusToExecuting(
+                    queryUuid,
+                    new Date(live.claimedAt!.getTime() - 1),
+                ),
+            ),
+        ).toBe(0);
+        const noRead = QueryHistoryModel.createQueryExecution(
+            queryUuid,
+            new AbortController().signal,
+            true,
+        );
+        expect(
+            await QueryHistoryModel.withQueryExecution(noRead, () =>
+                model.updateStatusToExecuting(queryUuid),
+            ),
+        ).toBe(0);
+        // the live owner still holds the row and can write
+        await expect(
+            QueryHistoryModel.withQueryExecution(live, () =>
+                model.updateClaimedQueryToError(queryUuid, 'still mine'),
+            ),
+        ).resolves.toBe(1);
     });
 
     it('hands off an executing query and fences every previous owner write', async () => {

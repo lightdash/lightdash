@@ -11455,13 +11455,11 @@ describe('AsyncQueryService', () => {
                 ...createMockQueryHistory(QueryHistoryStatus.EXECUTING),
                 processingStartedAt,
             });
-            const redelivered = {
-                ...QueryHistoryModel.createQueryExecution(
-                    'test-query-uuid',
-                    new AbortController().signal,
-                ),
-                redelivered: true,
-            };
+            const redelivered = QueryHistoryModel.createQueryExecution(
+                'test-query-uuid',
+                new AbortController().signal,
+                true,
+            );
 
             await expect(
                 QueryHistoryModel.withQueryExecution(redelivered, () =>
@@ -11474,6 +11472,59 @@ describe('AsyncQueryService', () => {
             expect(
                 service.queryHistoryModel.updateStatusToExecuting,
             ).toHaveBeenCalledWith('test-query-uuid', processingStartedAt);
+        });
+
+        test('skips an executing query on a first delivery', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            vi.mocked(
+                service.queryHistoryModel.getByQueryUuid,
+            ).mockResolvedValue({
+                ...createMockQueryHistory(QueryHistoryStatus.EXECUTING),
+                processingStartedAt: new Date(),
+            });
+            const firstDelivery = QueryHistoryModel.createQueryExecution(
+                'test-query-uuid',
+                new AbortController().signal,
+            );
+
+            await expect(
+                QueryHistoryModel.withQueryExecution(firstDelivery, () =>
+                    service.prepareQueuedQueryForExecution(
+                        'test-query-uuid',
+                        'worker-2',
+                    ),
+                ),
+            ).resolves.toBe(false);
+            expect(
+                service.queryHistoryModel.updateStatusToExecuting,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('skips an executing query on a redelivery when another delivery reclaimed it first', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            vi.mocked(
+                service.queryHistoryModel.getByQueryUuid,
+            ).mockResolvedValue({
+                ...createMockQueryHistory(QueryHistoryStatus.EXECUTING),
+                processingStartedAt: new Date(),
+            });
+            vi.mocked(
+                service.queryHistoryModel.updateStatusToExecuting,
+            ).mockResolvedValueOnce(0);
+            const redelivered = QueryHistoryModel.createQueryExecution(
+                'test-query-uuid',
+                new AbortController().signal,
+                true,
+            );
+
+            await expect(
+                QueryHistoryModel.withQueryExecution(redelivered, () =>
+                    service.prepareQueuedQueryForExecution(
+                        'test-query-uuid',
+                        'worker-2',
+                    ),
+                ),
+            ).resolves.toBe(false);
         });
 
         test('expires stale queued queries', async () => {
