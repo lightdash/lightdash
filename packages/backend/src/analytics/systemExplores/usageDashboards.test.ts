@@ -651,7 +651,7 @@ describe('built-in usage dashboards', () => {
                 );
         expect(slugsFor('outcomes')).toEqual(
             [
-                'agent-outcomes-by-day',
+                'agent-requests-and-completion-by-day',
                 'agent-request-outcomes',
                 'agent-feedback-rating-and-sample-coverage',
             ].map((key) => `${prefix}${key}`),
@@ -666,9 +666,9 @@ describe('built-in usage dashboards', () => {
         );
         const find = (key: string) =>
             overviewCharts.find(({ slug }) => slug === `${prefix}${key}`)!;
-        expect(find('agent-outcomes-by-day').chartConfig.type).toBe(
-            ChartType.TABLE,
-        );
+        expect(
+            find('agent-requests-and-completion-by-day').chartConfig.type,
+        ).toBe(ChartType.CARTESIAN);
         expect(find('ai-tokens-by-feature-and-model').chartConfig.type).toBe(
             ChartType.TABLE,
         );
@@ -681,8 +681,9 @@ describe('built-in usage dashboards', () => {
             ),
         ).toBe(false);
         expect(
-            analyticsLibraryChartBindings.get(`${prefix}agent-outcomes-by-day`)
-                ?.slug,
+            analyticsLibraryChartBindings.get(
+                `${prefix}agent-requests-and-completion-by-day`,
+            )?.slug,
         ).toBe('customizable-cartesian-chart');
         expect(
             analyticsLibraryChartBindings.get(
@@ -717,9 +718,10 @@ describe('built-in usage dashboards', () => {
                     (item.properties as { chartSlug: string }).chartSlug ===
                         `lightdash-analytics-overview-${key}`,
             )!;
-        const [a, b] = ['agent-outcomes-by-day', 'agent-request-outcomes'].map(
-            (key) => tile('outcomes', key),
-        );
+        const [a, b] = [
+            'agent-requests-and-completion-by-day',
+            'agent-request-outcomes',
+        ].map((key) => tile('outcomes', key));
         expect([a.x, b.x, a.w, b.w, a.h, b.h]).toEqual([0, 18, 18, 18, 8, 8]);
         expect(a.y).toBe(b.y);
         const retries = tile(

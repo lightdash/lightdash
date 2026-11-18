@@ -56,7 +56,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         description:
                             "Captured request outcomes describe technical completion, not whether the answer solved the user's problem. Pending and unknown outcomes remain visible.",
                         charts: [
-                            'agent-outcomes-by-day',
+                            'agent-requests-and-completion-by-day',
                             'agent-request-outcomes',
                         ],
                         layout: 'row',
