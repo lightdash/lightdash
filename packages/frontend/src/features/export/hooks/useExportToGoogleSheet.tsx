@@ -1,15 +1,33 @@
 import {
-    SchedulerJobStatus,
-    type ApiDownloadCsv,
     type ApiError,
     type ApiScheduledDownloadCsv,
     type GsheetExportProgress,
 } from '@lightdash/common';
-import { notifications } from '@mantine/notifications';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { IconExternalLink } from '@tabler/icons-react';
+import { useIsMutating, useMutation } from '@tanstack/react-query';
 import { getCsvFileUrl } from '../../../api/csv';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
+
+const TOAST_KEY = 'exporting-gsheets';
+const MUTATION_KEY = ['google-sheets-export'];
+const POLL_INTERVAL_MS = 2000;
+const MAX_CONSECUTIVE_POLL_FAILURES = 5;
+
+const wait = (ms: number) =>
+    new Promise<void>((resolve) => {
+        setTimeout(resolve, ms);
+    });
+
+const openSheet = (url: string) =>
+    window.open(url, '_blank', 'noopener,noreferrer');
+
+const isApiError = (error: unknown): error is ApiError =>
+    typeof error === 'object' &&
+    error !== null &&
+    'error' in error &&
+    typeof error.error === 'object' &&
+    error.error !== null;
 
 const getProgressSubtitle = (progress: GsheetExportProgress | null): string => {
     if (!progress) return 'This may take a few minutes...';
@@ -19,107 +37,90 @@ const getProgressSubtitle = (progress: GsheetExportProgress | null): string => {
         : 'Writing to Google Sheets...';
 };
 
-const useExportToGoogleSheetStart = ({
-    getGsheetLink,
-}: {
-    getGsheetLink: () => Promise<ApiScheduledDownloadCsv>;
-}) => {
-    const { showToastApiError, showToastInfo } = useToaster();
-
-    return useMutation<ApiScheduledDownloadCsv | undefined, ApiError>(
-        ['google-sheets-start'],
-        getGsheetLink,
-        {
-            onMutate: () => {
-                showToastInfo({
-                    title: 'Exporting Google Sheets',
-                    subtitle: 'This may take a few minutes...',
-                    loading: true,
-                    key: 'exporting-gsheets',
-                    autoClose: false,
-                });
-            },
-            onError: ({ error }) => {
-                notifications.hide('exporting-gsheets');
-                showToastApiError({
-                    title: `Unable to upload to Google Sheets`,
-                    apiError: error,
-                });
-            },
-        },
-    );
-};
-
 export const useExportToGoogleSheet = ({
     getGsheetLink,
 }: {
     getGsheetLink: () => Promise<ApiScheduledDownloadCsv>;
 }) => {
     const lightdashApi = useLightdashApi();
-    const { showToastApiError, showToastInfo } = useToaster();
-
-    const exportToGoogleSheetStartMutation = useExportToGoogleSheetStart({
-        getGsheetLink,
-    });
     const {
-        data: startGoogleSheetExportData,
-        reset: resetStartGoogleSheetExport,
-    } = exportToGoogleSheetStartMutation;
+        showToastApiError,
+        showToastError,
+        showToastInfo,
+        showToastSuccess,
+    } = useToaster();
 
-    const exportToGoogleSheetQuery = useQuery<
-        ApiDownloadCsv | undefined,
-        ApiError
-    >({
-        queryKey: [`google-sheets`, startGoogleSheetExportData?.jobId],
-        queryFn: () =>
-            startGoogleSheetExportData
-                ? getCsvFileUrl(lightdashApi, startGoogleSheetExportData)
-                : Promise.reject({
-                      error: new Error(
-                          "Couldn't create scheduler job for google sheets export",
-                      ),
-                  }),
-        retry: (failureCount, { error }) => {
-            if (failureCount === 5) {
-                resetStartGoogleSheetExport();
-                showToastApiError({
-                    title: 'Unable to export to Google Sheets',
-                    apiError: error,
+    // The whole export runs inside the mutation: unlike a polling query, it
+    // keeps going after the menu or popover that started it unmounts.
+    const { mutate } = useMutation<string, unknown>({
+        mutationKey: MUTATION_KEY,
+        mutationFn: async () => {
+            const showProgress = (progress: GsheetExportProgress | null) =>
+                showToastInfo({
+                    title: 'Exporting Google Sheets',
+                    subtitle: getProgressSubtitle(progress),
+                    loading: true,
+                    key: TOAST_KEY,
+                    autoClose: false,
                 });
-                return false;
+
+            try {
+                showProgress(null);
+                const job = await getGsheetLink();
+
+                let consecutiveFailures = 0;
+                for (;;) {
+                    try {
+                        const status = await getCsvFileUrl(lightdashApi, job);
+                        consecutiveFailures = 0;
+                        if (status.url) {
+                            const { url } = status;
+                            // Browsers may block this, the toast keeps the link
+                            openSheet(url);
+                            showToastSuccess({
+                                title: 'Exported to Google Sheets',
+                                key: TOAST_KEY,
+                                autoClose: false,
+                                action: {
+                                    children: 'Open sheet',
+                                    icon: IconExternalLink,
+                                    onClick: () => openSheet(url),
+                                },
+                            });
+                            return url;
+                        }
+                        showProgress(status.progress ?? null);
+                    } catch (error) {
+                        consecutiveFailures += 1;
+                        if (
+                            consecutiveFailures >= MAX_CONSECUTIVE_POLL_FAILURES
+                        ) {
+                            throw error;
+                        }
+                    }
+                    await wait(POLL_INTERVAL_MS);
+                }
+            } catch (error) {
+                const title = 'Unable to export to Google Sheets';
+                if (isApiError(error)) {
+                    showToastApiError({
+                        title,
+                        key: TOAST_KEY,
+                        apiError: error.error,
+                    });
+                } else {
+                    showToastError({ title, key: TOAST_KEY });
+                }
+                throw error;
             }
-            return true;
         },
-        refetchInterval: (data) => {
-            if (data?.url) return false;
-            return 2000;
-        },
-        onSuccess: (data) => {
-            if (data?.url && data.status === SchedulerJobStatus.COMPLETED) {
-                window.open(data.url, '_blank', 'noopener,noreferrer');
-                notifications.hide('exporting-gsheets');
-                return;
-            }
-            showToastInfo({
-                title: 'Exporting Google Sheets',
-                subtitle: getProgressSubtitle(data?.progress ?? null),
-                loading: true,
-                key: 'exporting-gsheets',
-                autoClose: false,
-            });
-        },
-        onError: () => {
-            notifications.hide('exporting-gsheets');
-        },
-        refetchOnWindowFocus: false,
-        refetchOnMount: false,
-        enabled: !!startGoogleSheetExportData,
     });
+
+    // Read from the mutation cache so a remounted button still shows progress
+    const isExporting = useIsMutating({ mutationKey: MUTATION_KEY }) > 0;
 
     return {
-        startExporting: exportToGoogleSheetStartMutation.mutate,
-        isExporting:
-            !!exportToGoogleSheetStartMutation.data &&
-            !exportToGoogleSheetQuery.data?.url,
+        startExporting: mutate,
+        isExporting,
     };
 };
