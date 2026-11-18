@@ -470,6 +470,13 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.Administration,
     ],
     'AiAgentSkillController.validateSkill': [AgentCapability.ReadDiscover],
+    'AiAgentThreadHistoryController.getThread': [AgentCapability.ReadDiscover],
+    'AiAgentThreadHistoryController.listThreads': [
+        AgentCapability.ReadDiscover,
+    ],
+    'AiAgentThreadHistoryController.searchThreads': [
+        AgentCapability.ReadDiscover,
+    ],
     'AiController.generateChartMetadata': [AgentCapability.Query],
     'AiController.generateCustomDimension': [AgentCapability.Query],
     'AiController.generateCustomViz': [AgentCapability.Query],

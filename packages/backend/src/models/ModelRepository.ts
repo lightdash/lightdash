@@ -247,6 +247,7 @@ export type ModelManifest = {
     projectHomepageModel: unknown;
     aiAgentDocumentModel: unknown;
     aiThreadFileModel: unknown;
+    aiAgentThreadHistoryModel: unknown;
     aiAgentSkillModel: unknown;
     aiWritebackThreadModel: unknown;
     aiWritebackRunModel: unknown;
@@ -1320,6 +1321,10 @@ export class ModelRepository
 
     public getAiThreadFileModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiThreadFileModel');
+    }
+
+    public getAiAgentThreadHistoryModel<ModelImplT>(): ModelImplT {
+        return this.getModel('aiAgentThreadHistoryModel');
     }
 
     public getAiAgentSkillModel<ModelImplT>(): ModelImplT {
