@@ -1403,14 +1403,14 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         : development
           ? {
                 name: pullRequestNumber
-                    ? `Pull request #${pullRequestNumber}`
-                    : 'Pull request',
-                hint: 'Not live until it merges.',
+                    ? `Draft #${pullRequestNumber}`
+                    : 'Draft',
+                hint: 'Published stays as it is until you publish this draft.',
             }
           : hasProposal
             ? {
                   name: 'Proposed change',
-                  hint: 'Not saved yet. Open the pull request from the chat to save it.',
+                  hint: 'Not saved. Saving needs write access to the repository.',
               }
             : keepsDraft && hasDraft && !isBuildingFirstModel
               ? {
@@ -1623,7 +1623,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             isOnLive || !storedThread ? (studioAgent?.uuid ?? null) : null,
         changeName: sourcesPrUrl
             ? (changeName ??
-              `Pull request #${pullRequestNumberOf(sourcesPrUrl) ?? ''}`)
+              `Draft #${pullRequestNumberOf(sourcesPrUrl) ?? ''}`)
             : null,
         canEdit:
             !opensInSources || (!!changeOnPage?.isMine && changeOnPage.isOpen),
