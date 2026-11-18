@@ -7,6 +7,10 @@ import {
 } from '@lightdash/common';
 import { useCallback, type FC } from 'react';
 import ExportDataModal from '../../../../../components/DashboardTiles/ExportDataModal';
+import {
+    ALL_CELL_LIMITED_SCOPES,
+    NO_CELL_LIMITED_SCOPES,
+} from '../../../../../components/ExportResults/exportCellEstimate';
 import { type Limit } from '../../../../../components/ExportResults/types';
 import { isTableVisualizationConfig } from '../../../../../components/LightdashVisualization/types';
 import {
@@ -110,7 +114,11 @@ export const AiChartDownloadModal: FC<Props> = ({
             chartName={chartName ?? undefined}
             pivotConfig={executedQueryUuid ? undefined : downloadPivotConfig}
             hideLimitSelection={!!executedQueryUuid}
-            cellLimitApplies={!executedQueryUuid}
+            cellLimitedScopes={
+                executedQueryUuid
+                    ? NO_CELL_LIMITED_SCOPES
+                    : ALL_CELL_LIMITED_SCOPES
+            }
             customLabels={
                 tableConfig
                     ? getCustomLabelsFromColumnProperties(

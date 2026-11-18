@@ -27,6 +27,7 @@ import ExportDataModal from '../../../components/DashboardTiles/ExportDataModal'
 import TileBase from '../../../components/DashboardTiles/TileBase/index';
 import { TileFiltersPopover } from '../../../components/DashboardTiles/TileFiltersPopover';
 import { TileParametersPopover } from '../../../components/DashboardTiles/TileParametersPopover';
+import { NO_CELL_LIMITED_SCOPES } from '../../../components/ExportResults/exportCellEstimate';
 import { useUiString } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardFiltersForTile from '../../../hooks/dashboard/useDashboardFiltersForTile';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -394,7 +395,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                     customLabels={getComposerChartExportLabels(run.fields)}
                     chartName={title}
                     hideLimitSelection
-                    cellLimitApplies={false}
+                    cellLimitedScopes={NO_CELL_LIMITED_SCOPES}
                 />
             )}
         </TileBase>

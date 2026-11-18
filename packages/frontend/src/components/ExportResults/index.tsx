@@ -35,6 +35,7 @@ import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import MantineIcon from '../common/MantineIcon';
 import { NumberInput } from '../common/NumberInput';
 import CellLimitNote from './CellLimitNote';
+import { DEFAULT_CELL_LIMITED_SCOPES } from './exportCellEstimate';
 import classes from './ExportResults.module.css';
 import LargeExportWarning from './LargeExportWarning';
 import { Limit } from './types';
@@ -74,11 +75,12 @@ export type ExportResultsProps = {
     hideLimitSelection?: boolean;
     forceShowLimitSelection?: boolean;
     /**
-     * Whether the backend caps this export at the organization's cell limit.
-     * False for SQL queries and for downloads of an already-run query, which
-     * stream its stored results as they are.
+     * Result scopes whose download the backend caps at the organization's
+     * cell limit (it reruns the query with the cap). Defaults to "All results"
+     * and "Custom": "Table rows" usually streams the already-run query's stored
+     * results as they are. SQL queries bypass the cap, so they pass none.
      */
-    cellLimitApplies?: boolean;
+    cellLimitedScopes?: readonly Limit[];
     renderDialogActions?: (renderProps: ExportCsvRenderProps) => ReactNode;
 };
 
@@ -100,7 +102,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
         showSubtotals,
         hideLimitSelection = false,
         forceShowLimitSelection = false,
-        cellLimitApplies = true,
+        cellLimitedScopes = DEFAULT_CELL_LIMITED_SCOPES,
         renderDialogActions,
     }) => {
         const lightdashApi = useLightdashApi();
@@ -500,7 +502,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                             totalResults={totalResults}
                             columnOrder={columnOrder}
                             csvCellsLimit={csvCellsLimit}
-                            cellLimitApplies={cellLimitApplies}
+                            cellLimitApplies={cellLimitedScopes.includes(limit)}
                         />
                     )}
 

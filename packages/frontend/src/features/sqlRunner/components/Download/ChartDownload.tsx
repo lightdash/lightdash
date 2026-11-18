@@ -21,6 +21,7 @@ import { type EChartsInstance } from '../../../../components/EChartsReactWrapper
 import ExportResults, {
     type ExportResultsProps,
 } from '../../../../components/ExportResults';
+import { NO_CELL_LIMITED_SCOPES } from '../../../../components/ExportResults/exportCellEstimate';
 
 type Props = ExportResultsProps & {
     disabled: boolean;
@@ -94,7 +95,10 @@ export const ChartDownload: React.FC<Props> = memo(
                             />
                         )}
                         {downloadFormat === DownloadFileType.CSV && (
-                            <ExportResults {...rest} cellLimitApplies={false} />
+                            <ExportResults
+                                {...rest}
+                                cellLimitedScopes={NO_CELL_LIMITED_SCOPES}
+                            />
                         )}
                     </Stack>
                 </Popover.Dropdown>

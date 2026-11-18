@@ -5,7 +5,7 @@ import Callout from '../common/Callout';
 import MantineIcon from '../common/MantineIcon';
 import {
     getCellLimitedRowCount,
-    getExportRowCount,
+    getRequestedExportRowCount,
 } from './exportCellEstimate';
 import { type Limit } from './types';
 
@@ -15,8 +15,9 @@ type CellLimitNoteProps = {
     totalResults: number;
     columnOrder: string[] | undefined;
     csvCellsLimit: number;
-    /** False when the export isn't capped by the cell limit (SQL queries,
-     *  and downloads that stream an already-run query's stored results). */
+    /** False when this export, in the selected scope, isn't capped by the
+     *  cell limit (SQL queries, and downloads that stream an already-run
+     *  query's stored results). */
     cellLimitApplies: boolean;
 };
 
@@ -65,12 +66,20 @@ const CellLimitNote: FC<CellLimitNoteProps> = ({
     }
 
     const maxRows = getCellLimitedRowCount(csvCellsLimit, columnCount);
-    const rowCount = getExportRowCount(limit, customLimit, totalResults);
+    const requestedRows = getRequestedExportRowCount(
+        limit,
+        customLimit,
+        totalResults,
+    );
+    // "All results" has no known row count up front, but it returns at least
+    // the rows already loaded, so those alone can show it won't fit.
+    const knownRows = requestedRows ?? totalResults;
     const columnLabel = `${columnCount.toLocaleString()} ${
         columnCount === 1 ? 'column' : 'columns'
     }`;
 
-    if (rowCount > maxRows) {
+    if (knownRows > maxRows) {
+        const keptRows = maxRows.toLocaleString();
         return (
             <Callout
                 variant="warning"
@@ -78,9 +87,11 @@ const CellLimitNote: FC<CellLimitNoteProps> = ({
                 data-testid="export-cell-limit-warning"
             >
                 Exports are limited to {cellsLabel} cells (rows × columns). With{' '}
-                {columnLabel}, only the first {maxRows.toLocaleString()} of{' '}
-                {rowCount.toLocaleString()} rows will be included. Remove
-                columns or filter the results to export everything.
+                {columnLabel},{' '}
+                {requestedRows === null
+                    ? `only the first ${keptRows} rows will be included.`
+                    : `only the first ${keptRows} of ${requestedRows.toLocaleString()} rows will be included.`}{' '}
+                Remove columns or filter the results to export everything.
             </Callout>
         );
     }

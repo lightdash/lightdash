@@ -8,6 +8,7 @@ import { IconDownload } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import ExportResults from '../../../../components/ExportResults';
+import { NO_CELL_LIMITED_SCOPES } from '../../../../components/ExportResults/exportCellEstimate';
 import { type Limit } from '../../../../components/ExportResults/types';
 
 type Props = {
@@ -60,7 +61,7 @@ const ResultsDownloadButton: FC<Props> = ({
                     chartName={chartName}
                     customLabels={downloadCustomLabels}
                     columnOrder={columnOrder}
-                    cellLimitApplies={false}
+                    cellLimitedScopes={NO_CELL_LIMITED_SCOPES}
                 />
             </Popover.Dropdown>
         </Popover>
