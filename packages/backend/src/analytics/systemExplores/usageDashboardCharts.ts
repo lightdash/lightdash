@@ -379,31 +379,39 @@ export const usageChartSpecs: UsageChartSpec[] = [
         description:
             'All retained captured history. Recent capture is not a full historical census.',
         explore: 'agent_requests',
-        dimensions: ['agent_requests_requested_at_week'],
+        dimensions: [],
         metrics: ['agent_requests_total_requests'],
-        limit: 100,
+        limit: 1,
         sorts: [
             {
                 descending: true,
-                fieldId: 'agent_requests_requested_at_week',
+                fieldId: 'agent_requests_total_requests',
             },
         ],
-        visualization: 'line',
-        xField: 'agent_requests_requested_at_week',
-        yFields: ['agent_requests_total_requests'],
+        visualization: 'number',
         libraryChart: {
             slug: 'big-number-with-sparkline-trend',
-            minVersion: '0.6.0',
+            minVersion: '0.7.0',
             fieldMapping: {
                 value: 'agent_requests_total_requests',
                 sparklineMetric: 'agent_requests_total_requests',
-                time: 'agent_requests_requested_at_week',
+                time: 'agent_requests_requested_at_day',
             },
             optionValues: {
-                showComparison: false,
+                valueAggregation: 'sum',
                 colorSparklineByTrend: false,
             },
-            query: null,
+            query: {
+                dimensions: ['agent_requests_requested_at_day'],
+                metrics: ['agent_requests_total_requests'],
+                sorts: [
+                    {
+                        fieldId: 'agent_requests_requested_at_day',
+                        descending: false,
+                    },
+                ],
+                limit: 500,
+            },
         },
     },
     {
@@ -412,56 +420,44 @@ export const usageChartSpecs: UsageChartSpec[] = [
         description:
             'All retained captured history. Recent capture is not a full historical census.',
         explore: 'agent_requests',
-        dimensions: ['agent_requests_requested_at_week'],
+        dimensions: [],
         metrics: ['agent_requests_distinct_requesters'],
-        limit: 100,
+        limit: 1,
         sorts: [
             {
                 descending: true,
-                fieldId: 'agent_requests_requested_at_week',
+                fieldId: 'agent_requests_distinct_requesters',
             },
         ],
-        visualization: 'line',
-        xField: 'agent_requests_requested_at_week',
-        yFields: ['agent_requests_distinct_requesters'],
+        visualization: 'number',
         libraryChart: {
             slug: 'big-number-with-sparkline-trend',
             minVersion: '0.6.0',
-            fieldMapping: {
-                value: 'agent_requests_distinct_requesters',
-                sparklineMetric: 'agent_requests_distinct_requesters',
-                time: 'agent_requests_requested_at_week',
-            },
-            optionValues: {
-                showComparison: false,
-                colorSparklineByTrend: false,
-            },
+            fieldMapping: { value: 'agent_requests_distinct_requesters' },
+            optionValues: {},
             query: null,
         },
     },
     {
-        key: 'agent-requests-by-agent-and-week',
-        name: 'Requests by agent and week',
+        key: 'agent-requests-by-agent-and-day',
+        name: 'Requests by agent and day',
         description:
             'All retained captured history. Recent capture is not a full historical census.',
         explore: 'agent_requests',
         dimensions: [
             'agent_requests_agent_name',
-            'agent_requests_requested_at_week',
+            'agent_requests_requested_at_day',
         ],
         metrics: ['agent_requests_total_requests'],
-        limit: 100,
+        limit: 1000,
         sorts: [
-            {
-                descending: true,
-                fieldId: 'agent_requests_requested_at_week',
-            },
+            { fieldId: 'agent_requests_requested_at_day', descending: false },
         ],
         libraryChart: {
             slug: 'heatmap',
             minVersion: '0.4.0',
             fieldMapping: {
-                x: 'agent_requests_requested_at_week',
+                x: 'agent_requests_requested_at_day',
                 y: 'agent_requests_agent_name',
                 value: 'agent_requests_total_requests',
             },
@@ -470,38 +466,39 @@ export const usageChartSpecs: UsageChartSpec[] = [
         },
     },
     {
-        key: 'agent-weekly-requests-per-agent',
-        name: 'Weekly requests per agent',
+        key: 'agent-daily-requests-per-agent',
+        name: 'Daily requests per agent',
         description:
             'All retained captured history. Recent capture is not a full historical census.',
         explore: 'agent_requests',
         dimensions: [
-            'agent_requests_requested_at_week',
+            'agent_requests_requested_at_day',
             'agent_requests_agent_name',
         ],
         metrics: ['agent_requests_total_requests'],
-        limit: 100,
+        limit: 1000,
         sorts: [
-            {
-                descending: true,
-                fieldId: 'agent_requests_requested_at_week',
-            },
+            { fieldId: 'agent_requests_requested_at_day', descending: false },
         ],
         libraryChart: {
             slug: 'vega-trellis',
             minVersion: '0.6.0',
             fieldMapping: {
-                x: 'agent_requests_requested_at_week',
+                x: 'agent_requests_requested_at_day',
                 value: 'agent_requests_total_requests',
                 panel: 'agent_requests_agent_name',
             },
-            optionValues: { markType: 'bar', arrangement: 'grid' },
+            optionValues: {
+                markType: 'bar',
+                arrangement: 'grid',
+                columns: '4',
+            },
             query: null,
         },
     },
     {
         key: 'agent-adoption-by-week',
-        name: 'Agent adoption by week',
+        name: 'Requests by person and agent',
         description:
             'All retained captured history. Recent capture is not a full historical census.',
         explore: 'agent_requests',
@@ -522,15 +519,31 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'sortable-pivot-table',
-            minVersion: '0.12.1',
+            minVersion: '0.13.0',
             fieldMapping: {
                 rowDimension: 'agent_requests_user_name',
                 rowDimension2: 'agent_requests_agent_name',
-                series: 'agent_requests_requested_at_week',
                 metric: ['agent_requests_total_requests'],
             },
-            optionValues: { decimalPlaces: 0, density: 'compact' },
-            query: null,
+            optionValues: {
+                defaultCollapsed: 'collapsed',
+                decimalPlaces: 0,
+                density: 'compact',
+            },
+            query: {
+                dimensions: [
+                    'agent_requests_user_name',
+                    'agent_requests_agent_name',
+                ],
+                metrics: ['agent_requests_total_requests'],
+                sorts: [
+                    {
+                        fieldId: 'agent_requests_total_requests',
+                        descending: true,
+                    },
+                ],
+                limit: 500,
+            },
         },
     },
     {
@@ -565,47 +578,44 @@ export const usageChartSpecs: UsageChartSpec[] = [
             },
             optionValues: {
                 seriesType: 'bar',
-                m2Type: 'line',
-                m3Type: 'line',
+                m2Type: 'scatter',
+                m3Type: 'scatter',
                 dualAxis: true,
                 m2Right: true,
                 m3Right: true,
                 xAxisType: 'category',
-                showSymbols: true,
             },
             query: null,
         },
     },
     {
-        key: 'agent-outcomes-by-week',
-        name: 'Request outcomes by week',
+        key: 'agent-outcomes-by-day',
+        name: 'Request outcomes by day',
         description:
             'Logical requests, not individual agent steps. Pending requests may still lack an observed outcome.',
         explore: 'agent_requests',
         dimensions: [
-            'agent_requests_requested_at_week',
+            'agent_requests_requested_at_day',
             'agent_requests_status',
         ],
         metrics: ['agent_requests_total_requests'],
-        limit: 100,
+        limit: 1000,
         sorts: [
-            {
-                descending: true,
-                fieldId: 'agent_requests_requested_at_week',
-            },
+            { fieldId: 'agent_requests_requested_at_day', descending: false },
         ],
         libraryChart: {
             slug: 'customizable-cartesian-chart',
             minVersion: '0.17.0',
             fieldMapping: {
-                x: 'agent_requests_requested_at_week',
+                x: 'agent_requests_requested_at_day',
                 m1: 'agent_requests_total_requests',
                 splitBy: 'agent_requests_status',
             },
             optionValues: {
                 seriesType: 'bar',
                 stack: 'normal',
-                xAxisType: 'category',
+                xAxisType: 'time',
+                xTimeFormat: '{MMM} {d}',
             },
             query: null,
         },
@@ -699,7 +709,17 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 stack: 'normal',
                 xAxisType: 'category',
             },
-            query: null,
+            query: {
+                dimensions: ['ai_usage_user_name', 'ai_usage_model'],
+                metrics: ['ai_usage_total_tokens_used'],
+                sorts: [
+                    {
+                        fieldId: 'ai_usage_total_tokens_used',
+                        descending: true,
+                    },
+                ],
+                limit: 60,
+            },
         },
     },
     {

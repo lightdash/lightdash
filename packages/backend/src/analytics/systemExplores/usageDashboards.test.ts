@@ -24,8 +24,10 @@ import {
     usageDimensionTable,
 } from '../eventStream/usageDimensions';
 import { userActivityColumns } from '../eventStream/userActivity';
-import { analyticsContentAsCode } from './sampleContent';
-import { analyticsLibraryChartBindings } from './usageDashboards';
+import {
+    analyticsContentAsCode,
+    analyticsLibraryChartBindings,
+} from './sampleContent';
 
 const charts = analyticsContentAsCode.flatMap((bundle) => bundle.charts);
 const explores = createAnalyticsExplores();
@@ -583,22 +585,22 @@ describe('built-in usage dashboards', () => {
             [
                 'agent-requests-trend',
                 'agent-requesters-trend',
-                'agent-requests-by-agent-and-week',
-                'agent-weekly-requests-per-agent',
+                'agent-requests-by-agent-and-day',
+                'agent-daily-requests-per-agent',
                 'agent-adoption-by-week',
             ].map((key) => `${prefix}${key}`),
         );
         const fallbackType = (key: string) =>
             overviewCharts.find(({ slug }) => slug === `${prefix}${key}`)!
                 .chartConfig.type;
-        expect(fallbackType('agent-requests-trend')).toBe(ChartType.CARTESIAN);
+        expect(fallbackType('agent-requests-trend')).toBe(ChartType.BIG_NUMBER);
         expect(fallbackType('agent-requesters-trend')).toBe(
-            ChartType.CARTESIAN,
+            ChartType.BIG_NUMBER,
         );
-        expect(fallbackType('agent-requests-by-agent-and-week')).toBe(
+        expect(fallbackType('agent-requests-by-agent-and-day')).toBe(
             ChartType.TABLE,
         );
-        expect(fallbackType('agent-weekly-requests-per-agent')).toBe(
+        expect(fallbackType('agent-daily-requests-per-agent')).toBe(
             ChartType.TABLE,
         );
         expect(fallbackType('agent-adoption-by-week')).toBe(ChartType.TABLE);
@@ -622,12 +624,10 @@ describe('built-in usage dashboards', () => {
         );
         expect([a.x, b.x, a.w, b.w, a.h, b.h]).toEqual([0, 18, 18, 18, 4, 4]);
         expect(a.y).toBe(b.y);
-        const [c, d] = [
-            'agent-requests-by-agent-and-week',
-            'agent-weekly-requests-per-agent',
-        ].map(tile);
-        expect([c.x, d.x, c.w, d.w, c.h, d.h]).toEqual([0, 18, 18, 18, 8, 8]);
-        expect(c.y).toBe(d.y);
+        const heatmap = tile('agent-requests-by-agent-and-day');
+        expect([heatmap.x, heatmap.w, heatmap.h]).toEqual([0, 36, 7]);
+        const trellis = tile('agent-daily-requests-per-agent');
+        expect([trellis.x, trellis.w, trellis.h]).toEqual([0, 36, 9]);
         expect(tile('agent-adoption-by-week').w).toBe(36);
     });
 
@@ -651,7 +651,7 @@ describe('built-in usage dashboards', () => {
                 );
         expect(slugsFor('outcomes')).toEqual(
             [
-                'agent-outcomes-by-week',
+                'agent-outcomes-by-day',
                 'agent-request-outcomes',
                 'agent-feedback-rating-and-sample-coverage',
             ].map((key) => `${prefix}${key}`),
@@ -666,7 +666,7 @@ describe('built-in usage dashboards', () => {
         );
         const find = (key: string) =>
             overviewCharts.find(({ slug }) => slug === `${prefix}${key}`)!;
-        expect(find('agent-outcomes-by-week').chartConfig.type).toBe(
+        expect(find('agent-outcomes-by-day').chartConfig.type).toBe(
             ChartType.TABLE,
         );
         expect(find('ai-tokens-by-feature-and-model').chartConfig.type).toBe(
@@ -681,7 +681,7 @@ describe('built-in usage dashboards', () => {
             ),
         ).toBe(false);
         expect(
-            analyticsLibraryChartBindings.get(`${prefix}agent-outcomes-by-week`)
+            analyticsLibraryChartBindings.get(`${prefix}agent-outcomes-by-day`)
                 ?.slug,
         ).toBe('customizable-cartesian-chart');
         expect(
@@ -717,7 +717,7 @@ describe('built-in usage dashboards', () => {
                     (item.properties as { chartSlug: string }).chartSlug ===
                         `lightdash-analytics-overview-${key}`,
             )!;
-        const [a, b] = ['agent-outcomes-by-week', 'agent-request-outcomes'].map(
+        const [a, b] = ['agent-outcomes-by-day', 'agent-request-outcomes'].map(
             (key) => tile('outcomes', key),
         );
         expect([a.x, b.x, a.w, b.w, a.h, b.h]).toEqual([0, 18, 18, 18, 8, 8]);

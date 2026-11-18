@@ -22,23 +22,32 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         ],
                         layout: 'row',
                         rowHeight: 4,
+                        noteHeight: 1,
                     },
                     {
                         title: 'Requests by agent',
                         description:
-                            'Requests by agent and week. All retained captured history. Recent capture is not a full historical census.',
-                        charts: [
-                            'agent-requests-by-agent-and-week',
-                            'agent-weekly-requests-per-agent',
-                        ],
+                            'Requests by agent and day. All retained captured history. Recent capture is not a full historical census.',
+                        charts: ['agent-requests-by-agent-and-day'],
                         layout: 'row',
-                        rowHeight: 8,
+                        rowHeight: 7,
+                        noteHeight: 1,
+                    },
+                    {
+                        title: 'Daily requests per agent',
+                        description:
+                            'One panel per agent, each on its own scale. All retained captured history. Recent capture is not a full historical census.',
+                        charts: ['agent-daily-requests-per-agent'],
+                        layout: 'row',
+                        rowHeight: 9,
+                        noteHeight: 1,
                     },
                     {
                         title: 'Requests by person',
                         description:
                             'Requests by person, agent and week. This is not an eligible-user adoption rate or a comparison with external assistants.',
                         charts: ['agent-adoption-by-week'],
+                        noteHeight: 1,
                     },
                 ],
             },
@@ -51,17 +60,19 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         description:
                             "Captured request outcomes describe technical completion, not whether the answer solved the user's problem. Pending and unknown outcomes remain visible.",
                         charts: [
-                            'agent-outcomes-by-week',
+                            'agent-outcomes-by-day',
                             'agent-request-outcomes',
                         ],
                         layout: 'row',
                         rowHeight: 8,
+                        noteHeight: 1,
                     },
                     {
                         title: 'Feedback coverage',
                         description:
                             'Interpret ratings alongside the feedback sample and outcome coverage. Unrated requests are not positive feedback.',
                         charts: ['agent-feedback-rating-and-sample-coverage'],
+                        noteHeight: 1,
                     },
                 ],
             },
@@ -76,6 +87,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         charts: ['agent-retries-latency-and-consumption'],
                         layout: 'row',
                         rowHeight: 7,
+                        noteHeight: 1,
                     },
                     {
                         title: 'AI consumption',
@@ -87,12 +99,14 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         ],
                         layout: 'row',
                         rowHeight: 8,
+                        noteHeight: 1,
                     },
                     {
                         title: 'Consumption by outcome',
                         description:
                             'Request-linked tokens grouped by technical outcome and feedback. Unknown invocation-to-request linkage must not be interpreted as zero consumption.',
                         charts: ['request-consumption-by-outcome-and-feedback'],
+                        noteHeight: 1,
                     },
                 ],
             },
