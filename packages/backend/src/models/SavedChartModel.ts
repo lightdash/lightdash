@@ -3831,47 +3831,37 @@ export class SavedChartModel {
         }
     }
 
-    /** Holds new versions of these charts until the transaction ends. */
-    async lockForVersioning(
-        savedChartUuids: UUID[],
-        trx: Knex.Transaction,
-    ): Promise<void> {
-        await trx(SavedChartsTableName)
-            .select('saved_query_id')
+    private currentVersionUuidsQuery(savedChartUuids: UUID[], db: Knex) {
+        return db(SavedChartsTableName)
+            .select<{ saved_query_uuid: UUID; version_uuid: UUID }[]>(
+                'saved_query_uuid',
+                db.raw(
+                    `${latestSavedChartVersionColumnSql('saved_queries_version_uuid')} as version_uuid`,
+                ),
+            )
             .whereIn('saved_query_uuid', savedChartUuids)
-            .orderBy('saved_query_uuid')
-            .forUpdate();
+            .orderBy('saved_query_uuid');
     }
 
-    /**
-     * Rollback a chart to the version that was active at the given timestamp.
-     * Returns undefined if no version existed at that time.
-     */
-    async rollbackToVersionAtTimestamp(
-        savedChartUuid: string,
-        targetTimestamp: Date,
-        user: SessionUser,
-        tx?: Knex,
-        agentIdentity: AgentIdentityClaim | null = null,
-    ): Promise<SavedChartDAO | undefined> {
-        const version = await this.getVersionSummaryAtTimestamp(
-            savedChartUuid,
-            targetTimestamp,
+    async getCurrentVersionUuids(
+        savedChartUuids: UUID[],
+    ): Promise<Map<UUID, UUID>> {
+        const rows = await this.currentVersionUuidsQuery(
+            savedChartUuids,
+            this.database,
         );
-        if (!version) {
-            return undefined;
-        }
-        const chartVersion = await this.get(
-            savedChartUuid,
-            version.versionUuid,
-        );
-        return this.createVersion(
-            savedChartUuid,
-            chartVersion,
-            user,
-            tx,
-            undefined,
-            agentIdentity,
-        );
+        return new Map(rows.map((r) => [r.saved_query_uuid, r.version_uuid]));
+    }
+
+    /** Like getCurrentVersionUuids, and holds new versions of these charts until the transaction ends. */
+    async lockCurrentVersionUuids(
+        savedChartUuids: UUID[],
+        trx: Knex.Transaction,
+    ): Promise<Map<UUID, UUID>> {
+        const rows = await this.currentVersionUuidsQuery(
+            savedChartUuids,
+            trx,
+        ).forUpdate();
+        return new Map(rows.map((r) => [r.saved_query_uuid, r.version_uuid]));
     }
 }

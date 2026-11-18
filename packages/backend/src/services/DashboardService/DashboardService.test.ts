@@ -301,7 +301,8 @@ describe('DashboardService', () => {
         savedSqlModel: savedSqlModel as unknown as SavedSqlModel,
         composerChartModel: composerChartModel as unknown as ComposerChartModel,
         savedChartService: {
-            lockAndAssertCanRestoreAt: vi.fn(),
+            assertCanRestoreAt: vi.fn().mockResolvedValue([]),
+            lockCheckedRestores: vi.fn(),
         } as unknown as SavedChartService,
         projectModel: projectModel as unknown as ProjectModel,
         slackClient: slackClient as unknown as SlackClient,
@@ -3383,6 +3384,28 @@ describe('DashboardService', () => {
                 dashboardModel.updateLatestVersionConfig,
             ).not.toHaveBeenCalled();
             expect(savedChartModel.createVersion).not.toHaveBeenCalled();
+        });
+
+        test("checks each chart against its own metric, not the registry's", async () => {
+            const chartMetric = { ...registryMetric, sql: '${TABLE}.net' };
+            savedChartModel.get.mockResolvedValueOnce({
+                ...affectedChart,
+                metricQuery: {
+                    ...affectedChart.metricQuery,
+                    additionalMetrics: [chartMetric],
+                },
+            } as never);
+            await service.updateCustomMetric(user, dashboardUuid, {
+                metric: updatedMetric as never,
+            });
+            expect(
+                projectService.getCustomMetricsNeedingPermission,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    additionalMetrics: [updatedMetric],
+                    savedAdditionalMetrics: [chartMetric],
+                }),
+            );
         });
 
         test('saves a shared metric no chart using it needs permission for', async () => {

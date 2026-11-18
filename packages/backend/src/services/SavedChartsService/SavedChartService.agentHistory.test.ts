@@ -67,8 +67,14 @@ const setup = (enabled: boolean, organizationEnabled = enabled) => {
             .mockResolvedValue({ ...summary, chartUuid: chart.uuid }),
         createVersion: vi.fn().mockResolvedValue(chart),
         transaction: vi.fn(async (fn) => fn('transaction')),
-        rollbackToVersionAtTimestamp: vi.fn(),
-        lockForVersioning: vi.fn(),
+        getCurrentVersionUuids: vi.fn(
+            async (uuids: string[]) =>
+                new Map(uuids.map((u) => [u, 'current'])),
+        ),
+        lockCurrentVersionUuids: vi.fn(
+            async (uuids: string[]) =>
+                new Map(uuids.map((u) => [u, 'current'])),
+        ),
     };
     const dashboardModel = {
         getByIdOrSlug: vi.fn().mockResolvedValue(dashboard),
@@ -304,13 +310,12 @@ describe('version history agent identity', () => {
                 );
             if (agent) await agentExecutionContext.run(context, restore);
             else await restore();
-            expect(
-                savedChartModel.rollbackToVersionAtTimestamp,
-            ).toHaveBeenCalledWith(
+            expect(savedChartModel.createVersion).toHaveBeenCalledWith(
                 chart.uuid,
-                dashboard.updatedAt,
+                expect.anything(),
                 expect.objectContaining({ userUuid: user.userUuid }),
                 'transaction',
+                undefined,
                 agent ? context.claim : null,
             );
         },

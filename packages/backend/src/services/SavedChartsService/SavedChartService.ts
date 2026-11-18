@@ -10,6 +10,7 @@ import {
     ChartType,
     ChartVersion,
     computeContentDraftStaleness,
+    ConflictError,
     ContentAsCodeType,
     ContentType,
     countCustomDimensionsInMetricQuery,
@@ -175,6 +176,14 @@ type SavedChartServiceArguments = {
     contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
     contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
     contentDraftModel: ContentDraftModel;
+};
+
+/** A restore that passed the save check, against the version current at that check. */
+export type ChartRestore = {
+    chartUuid: UUID;
+    currentVersionUuid: UUID;
+    current: SavedChartDAO;
+    restored: SavedChartDAO;
 };
 
 type ContentAsCodeDeleteOptions = SoftDeleteOptions & {
@@ -1181,57 +1190,89 @@ export class SavedChartService
         );
     }
 
-    /** Checks restoring a chart to a version as a write over its current one; returns both. */
+    /** Checks restoring each chart to a version as a write over its current one, outside any transaction. */
     private async assertCanRestore(
         account: Account,
-        chartUuid: UUID,
-        versionUuid: UUID,
-        tx: Knex.Transaction,
-    ): Promise<{ current: SavedChartDAO; restored: SavedChartDAO }> {
-        const [current, restored] = await Promise.all([
-            this.savedChartModel.get(chartUuid, undefined, undefined, tx),
-            this.savedChartModel.get(chartUuid, versionUuid, undefined, tx),
-        ]);
-        await this.assertCanWriteChartSql(
-            account,
-            this.createAuditedAbility(account),
-            {
-                organizationUuid: current.organizationUuid,
-                projectUuid: current.projectUuid,
-                metadata: { savedChartUuid: current.uuid },
-            },
-            current,
-            restored,
+        targets: { chartUuid: UUID; versionUuid: UUID }[],
+    ): Promise<ChartRestore[]> {
+        if (targets.length === 0) return [];
+        const currentVersionUuids =
+            await this.savedChartModel.getCurrentVersionUuids(
+                targets.map((target) => target.chartUuid),
+            );
+        const auditedAbility = this.createAuditedAbility(account);
+        return Promise.all(
+            targets.map(async ({ chartUuid, versionUuid }) => {
+                const currentVersionUuid = currentVersionUuids.get(chartUuid);
+                if (currentVersionUuid === undefined) {
+                    throw new NotFoundError('Chart not found');
+                }
+                const [current, restored] = await Promise.all([
+                    this.savedChartModel.get(chartUuid, currentVersionUuid),
+                    this.savedChartModel.get(chartUuid, versionUuid),
+                ]);
+                await this.assertCanWriteChartSql(
+                    account,
+                    auditedAbility,
+                    {
+                        organizationUuid: current.organizationUuid,
+                        projectUuid: current.projectUuid,
+                        metadata: { savedChartUuid: current.uuid },
+                    },
+                    current,
+                    restored,
+                );
+                return { chartUuid, currentVersionUuid, current, restored };
+            }),
         );
-        return { current, restored };
     }
 
-    /** Locks the charts against new versions, then checks restoring each to its version at `versionTimestamp`. */
-    async lockAndAssertCanRestoreAt(
+    /** Checks restoring each chart to its version at `versionTimestamp`; charts with none are left out. */
+    async assertCanRestoreAt(
         account: Account,
         chartUuids: UUID[],
         versionTimestamp: Date,
-        tx: Knex.Transaction,
-    ): Promise<void> {
-        if (chartUuids.length === 0) return;
-        await this.savedChartModel.lockForVersioning(chartUuids, tx);
-        await Promise.all(
+    ): Promise<ChartRestore[]> {
+        const targets = await Promise.all(
             chartUuids.map(async (chartUuid) => {
                 const version =
                     await this.savedChartModel.getVersionSummaryAtTimestamp(
                         chartUuid,
                         versionTimestamp,
                     );
-                if (version) {
-                    await this.assertCanRestore(
-                        account,
-                        chartUuid,
-                        version.versionUuid,
-                        tx,
-                    );
-                }
+                return version
+                    ? { chartUuid, versionUuid: version.versionUuid }
+                    : null;
             }),
         );
+        return this.assertCanRestore(
+            account,
+            targets.filter((target) => target !== null),
+        );
+    }
+
+    /** Holds the charts against new versions, refusing any that changed since its restore was checked. */
+    async lockCheckedRestores(
+        restores: ChartRestore[],
+        tx: Knex.Transaction,
+    ): Promise<void> {
+        if (restores.length === 0) return;
+        const currentVersionUuids =
+            await this.savedChartModel.lockCurrentVersionUuids(
+                restores.map((restore) => restore.chartUuid),
+                tx,
+            );
+        if (
+            restores.some(
+                (restore) =>
+                    currentVersionUuids.get(restore.chartUuid) !==
+                    restore.currentVersionUuid,
+            )
+        ) {
+            throw new ConflictError(
+                'The chart changed while it was being restored. Try again.',
+            );
+        }
     }
 
     async createVersion(
@@ -3264,18 +3305,16 @@ export class SavedChartService
             user,
             chartUuid,
         );
-        const { currentChartVersion, newChartVersion } =
-            await this.savedChartModel.transaction(async (tx) => {
-                await this.savedChartModel.lockForVersioning([chartUuid], tx);
-                const { current, restored } = await this.assertCanRestore(
-                    account,
+        const [restore] = await this.assertCanRestore(account, [
+            { chartUuid, versionUuid },
+        ]);
+        const currentChartVersion = restore.current;
+        const newChartVersion = await this.savedChartModel.transaction(
+            async (tx) => {
+                await this.lockCheckedRestores([restore], tx);
+                return this.savedChartModel.createVersion(
                     chartUuid,
-                    versionUuid,
-                    tx,
-                );
-                const created = await this.savedChartModel.createVersion(
-                    chartUuid,
-                    restored,
+                    restore.restored,
                     user,
                     tx,
                     {
@@ -3288,11 +3327,8 @@ export class SavedChartService
                         organizationUuid: savedChart.organizationUuid,
                     }),
                 );
-                return {
-                    currentChartVersion: current,
-                    newChartVersion: created,
-                };
-            });
+            },
+        );
         this.analytics.track({
             event: 'saved_chart_version.rollback',
             userId: user.userUuid,

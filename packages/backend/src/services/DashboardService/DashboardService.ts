@@ -3768,7 +3768,15 @@ export class DashboardService
                                           exploreName:
                                               chart.metricQuery.exploreName,
                                           additionalMetrics: [metric],
-                                          savedAdditionalMetrics: [savedMetric],
+                                          // The chart's own metric: the registry may hold SQL a rollback restored
+                                          savedAdditionalMetrics: (
+                                              chart.metricQuery
+                                                  .additionalMetrics ?? []
+                                          ).filter(
+                                              (chartMetric) =>
+                                                  getItemId(chartMetric) ===
+                                                  metricId,
+                                          ),
                                       },
                                   ),
                               ),
@@ -5062,14 +5070,14 @@ export class DashboardService
             ),
         ];
 
+        const chartRestores = await this.savedChartService.assertCanRestoreAt(
+            account,
+            uniqueChartUuids,
+            targetVersion.updatedAt,
+        );
+
         // Rollback dashboard and all owned charts in a single transaction
         await this.savedChartModel.transaction(async (tx) => {
-            await this.savedChartService.lockAndAssertCanRestoreAt(
-                account,
-                uniqueChartUuids,
-                targetVersion.updatedAt,
-                tx,
-            );
             await assertCanRollbackComposerCharts(
                 this.composerChartModel,
                 this.getComposerChartService,
@@ -5098,35 +5106,20 @@ export class DashboardService
                 agentIdentity,
             );
 
-            // Rollback each dashboard-owned chart to its version at the target dashboard version time
-            if (uniqueChartUuids.length > 0) {
-                this.logger.info(
-                    `Rolling back ${uniqueChartUuids.length} dashboard-owned charts`,
-                );
-
-                await Promise.all(
-                    uniqueChartUuids.map(async (chartUuid) => {
-                        const result =
-                            await this.savedChartModel.rollbackToVersionAtTimestamp(
-                                chartUuid,
-                                targetVersion.updatedAt,
-                                user,
-                                tx,
-                                agentIdentity,
-                            );
-
-                        if (result) {
-                            this.logger.info(`Rolled back chart ${chartUuid}`);
-                        } else {
-                            this.logger.warn(
-                                `No chart version found for ${chartUuid} at timestamp ${targetVersion.updatedAt}. Chart may have been created after this dashboard version.`,
-                            );
-                        }
-                    }),
-                );
-            } else {
-                this.logger.info('No dashboard-owned charts to rollback');
-            }
+            // Charts created after the target version have no restore and stay as they are
+            await this.savedChartService.lockCheckedRestores(chartRestores, tx);
+            await Promise.all(
+                chartRestores.map((restore) =>
+                    this.savedChartModel.createVersion(
+                        restore.chartUuid,
+                        restore.restored,
+                        user,
+                        tx,
+                        undefined,
+                        agentIdentity,
+                    ),
+                ),
+            );
             await rollbackComposerCharts(
                 this.composerChartModel,
                 targetVersion.tiles,

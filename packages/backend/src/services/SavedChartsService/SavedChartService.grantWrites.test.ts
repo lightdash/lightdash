@@ -157,7 +157,12 @@ const savedChartModel = {
     createVersion: vi.fn(async () => ownedChart),
     updateChartFieldUsage: vi.fn(async () => undefined),
     transaction: vi.fn(async (fn) => fn('transaction')),
-    lockForVersioning: vi.fn(),
+    getCurrentVersionUuids: vi.fn(
+        async (uuids: string[]) => new Map(uuids.map((u) => [u, 'current'])),
+    ),
+    lockCurrentVersionUuids: vi.fn(
+        async (uuids: string[]) => new Map(uuids.map((u) => [u, 'current'])),
+    ),
 };
 
 const projectModel = {

@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    ConflictError,
     CustomDimensionType,
     DashboardTileTypes,
     DimensionType,
@@ -59,15 +60,19 @@ const setup = (current: SavedChart, restored: SavedChart) => {
     const savedChartModel = {
         getSummary: vi.fn().mockResolvedValue(chart),
         get: vi.fn(async (_uuid: string, versionUuid?: string) =>
-            versionUuid ? restored : current,
+            versionUuid === 'old-version' ? restored : current,
         ),
         getVersionSummaryAtTimestamp: vi
             .fn()
             .mockResolvedValue({ versionUuid: 'old-version' }),
-        lockForVersioning: vi.fn(),
+        getCurrentVersionUuids: vi
+            .fn()
+            .mockResolvedValue(new Map([[chart.uuid, 'current-version']])),
+        lockCurrentVersionUuids: vi
+            .fn()
+            .mockResolvedValue(new Map([[chart.uuid, 'current-version']])),
         createVersion: vi.fn().mockResolvedValue(restored),
         transaction: vi.fn(async (fn) => fn('transaction')),
-        rollbackToVersionAtTimestamp: vi.fn(),
     };
     const dashboardModel = {
         getByIdOrSlug: vi.fn().mockResolvedValue(dashboard),
@@ -172,6 +177,22 @@ describe('restoring a chart version', () => {
         );
         expect(savedChartModel.createVersion).not.toHaveBeenCalled();
     });
+
+    it('refuses when the chart got a new version after the check', async () => {
+        const { chartService, savedChartModel } = setup(chart, chart);
+        savedChartModel.lockCurrentVersionUuids.mockResolvedValue(
+            new Map([[chart.uuid, 'newer-version']]),
+        );
+
+        await expect(
+            chartService.rollback(
+                fromSession(editor),
+                chart.uuid,
+                'old-version',
+            ),
+        ).rejects.toThrow(ConflictError);
+        expect(savedChartModel.createVersion).not.toHaveBeenCalled();
+    });
 });
 
 describe('restoring a dashboard', () => {
@@ -189,8 +210,6 @@ describe('restoring a dashboard', () => {
             ),
         ).rejects.toThrow(ForbiddenError);
         expect(dashboardModel.addVersion).not.toHaveBeenCalled();
-        expect(
-            savedChartModel.rollbackToVersionAtTimestamp,
-        ).not.toHaveBeenCalled();
+        expect(savedChartModel.createVersion).not.toHaveBeenCalled();
     });
 });
