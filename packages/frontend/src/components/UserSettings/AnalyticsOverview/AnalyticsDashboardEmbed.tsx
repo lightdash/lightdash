@@ -29,7 +29,9 @@ const useDashboardFrame = () => {
                     !body.querySelector(`.${DASHBOARD_GRID_CLASS}`)
                 )
                     return;
-                setHeight(Math.ceil(body.getBoundingClientRect().height));
+                // A frame with no height is not drawn, so it would never report growing: wait for a real height
+                const next = Math.ceil(body.getBoundingClientRect().height);
+                if (next > 0) setHeight(next);
             };
             const sizes = new ResizeObserver(measure);
             sizes.observe(body);
