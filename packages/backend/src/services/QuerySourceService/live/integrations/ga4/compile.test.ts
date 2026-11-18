@@ -368,13 +368,6 @@ describe('compileGa4Query dates', () => {
         });
         expect(fieldIdsByColumn.yearMonth).toBe(field('date_month'));
     });
-
-    test('keeps year and month text where it is the text dimension', () => {
-        expect(
-            compileLive(query({ dimensions: [field('year_month')] }))
-                .periodColumns,
-        ).toEqual({});
-    });
 });
 
 describe('withGa4MetadataFields', () => {

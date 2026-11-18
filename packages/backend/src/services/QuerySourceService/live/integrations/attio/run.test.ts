@@ -53,9 +53,6 @@ describe('attioIntegration listing', () => {
                 'record_id',
                 'web_url',
                 'created_at',
-                'created_at_week',
-                'created_at_month',
-                'created_at_year',
                 'name',
                 'stage.status',
                 'value.currency_value',
@@ -88,9 +85,6 @@ describe('attioIntegration listing', () => {
                 record_id: 'd1',
                 web_url: 'https://app.attio.com/acme/deals/d1',
                 created_at: '2026-11-12',
-                created_at_week: '2026-11-09',
-                created_at_month: '2026-11-01',
-                created_at_year: '2026-01-01',
                 name: 'Deal d1',
                 'stage.status': 'Won',
                 'value.currency_value': 1000,
@@ -156,84 +150,6 @@ describe('attioIntegration listing', () => {
     it('fails clearly when Attio answers in an unexpected shape', async () => {
         const { source } = connect(response({ records: [] }));
         await expect(run(source, { columns: ['name'] })).rejects.toThrow();
-    });
-});
-
-describe('attioIntegration count and totals', () => {
-    it('counts and totals every matching record by the other columns', async () => {
-        const { source, send } = connect(
-            page([
-                attioDeal('d1', { stage: 'Won', value: 100 }),
-                attioDeal('d2', { stage: 'Lost', value: 50 }),
-                attioDeal('d3', { stage: 'Won', value: null }),
-                attioDeal('d4', { stage: 'Won', value: 25 }),
-            ]),
-        );
-
-        const result = await run(source, {
-            columns: ['stage.status', 'count', 'total:value.currency_value'],
-        });
-
-        expect(send.mock.calls[0][0].body).toEqual({
-            limit: ATTIO_PAGE_SIZE,
-            offset: 0,
-        });
-        expect(result.rows).toEqual([
-            {
-                'stage.status': 'Won',
-                count: 3,
-                'total:value.currency_value': 125,
-            },
-            {
-                'stage.status': 'Lost',
-                count: 1,
-                'total:value.currency_value': 50,
-            },
-        ]);
-        expect(result.hasMoreRows).toBe(false);
-    });
-
-    it('counts all matching records without dimensions', async () => {
-        const { source, send } = connect(
-            page(deals(ATTIO_PAGE_SIZE)),
-            page(deals(3, ATTIO_PAGE_SIZE)),
-        );
-
-        const result = await run(source, { columns: ['count'] });
-
-        expect(send).toHaveBeenCalledTimes(2);
-        expect(result.rows).toEqual([{ count: ATTIO_PAGE_SIZE + 3 }]);
-    });
-
-    it('refuses a count over more records than one query can read', async () => {
-        const pages = Array.from({ length: 20 }, (_, index) =>
-            page(deals(ATTIO_PAGE_SIZE, index * ATTIO_PAGE_SIZE)),
-        );
-        const { source, send } = connect(...pages);
-
-        await expect(run(source, { columns: ['count'] })).rejects.toThrow(
-            'more than 9,999 rows',
-        );
-        expect(send).toHaveBeenCalledTimes(20);
-    });
-
-    it('returns the groups asked for and reports the rest', async () => {
-        const { source } = connect(
-            page([
-                attioDeal('d1', { stage: 'Won' }),
-                attioDeal('d2', { stage: 'Lost' }),
-                attioDeal('d3', { stage: 'Open' }),
-            ]),
-        );
-
-        const result = await run(
-            source,
-            { columns: ['stage.status', 'count'] },
-            2,
-        );
-
-        expect(result.rows).toHaveLength(2);
-        expect(result.hasMoreRows).toBe(true);
     });
 });
 

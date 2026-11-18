@@ -8,11 +8,7 @@ import {
 import { linkedInAdsIntegration } from '.';
 import { connectLiveSource } from '../../liveSource.mock';
 import { type LiveHttpRequest, type LiveHttpResponse } from '../../types';
-import {
-    getLinkedInAdsCampaignGroupsPath,
-    getLinkedInAdsCampaignsPath,
-    LINKEDIN_ADS_ANALYTICS_PATH,
-} from './run';
+import { LINKEDIN_ADS_ANALYTICS_PATH } from './run';
 
 const ACCOUNT = '507404993';
 
@@ -51,7 +47,7 @@ const REQUEST = {
     timeGranularity: 'DAILY',
     dateRange: { start: '2026-10-01', end: '2026-10-03' },
     fields: ['impressions', 'costInLocalCurrency'],
-    dimensions: ['day', 'campaign.id', 'campaign.name', 'campaignGroup.name'],
+    dimensions: ['day', 'campaign.id'],
 };
 
 const execute = (
@@ -65,24 +61,10 @@ const execute = (
     });
 
 describe('linkedInAdsIntegration run', () => {
-    it('sends Rest.li syntax with the connection account and joins names', async () => {
-        const { source, send } = connect((request) => {
-            if (request.path === LINKEDIN_ADS_ANALYTICS_PATH) {
-                return jsonResponse({ elements: [element('11', 1, 54)] });
-            }
-            if (request.path === getLinkedInAdsCampaignsPath(ACCOUNT)) {
-                return jsonResponse({
-                    elements: [
-                        {
-                            id: 11,
-                            name: 'Launch',
-                            campaignGroup: 'urn:li:sponsoredCampaignGroup:7',
-                        },
-                    ],
-                });
-            }
-            return jsonResponse({ elements: [{ id: 7, name: 'Brand' }] });
-        });
+    it('sends Rest.li syntax with the connection account in one call', async () => {
+        const { source, send } = connect(() =>
+            jsonResponse({ elements: [element('11', 1, 54)] }),
+        );
         const result = await execute(source, {
             ...REQUEST,
             campaigns: ['11'],
@@ -103,44 +85,12 @@ describe('linkedInAdsIntegration run', () => {
             {
                 day: '2026-10-01',
                 'campaign.id': '11',
-                'campaign.name': 'Launch',
-                'campaignGroup.name': 'Brand',
                 impressions: 54,
                 costInLocalCurrency: 19.91,
             },
         ]);
         expect(result.hasMoreRows).toBe(false);
-    });
-
-    it('makes no lookup when only ids are selected', async () => {
-        const { source, send } = connect(() =>
-            jsonResponse({ elements: [element('11', 1, 5)] }),
-        );
-        await execute(source, {
-            ...REQUEST,
-            dimensions: ['campaign.id'],
-        });
         expect(send).toHaveBeenCalledTimes(1);
-    });
-
-    it('pages through campaigns', async () => {
-        const { source, send } = connect((request) => {
-            if (request.path === LINKEDIN_ADS_ANALYTICS_PATH) {
-                return jsonResponse({ elements: [element('12', 1, 5)] });
-            }
-            return request.rawQuery?.includes('pageToken')
-                ? jsonResponse({ elements: [{ id: 12, name: 'Second' }] })
-                : jsonResponse({
-                      elements: [{ id: 11, name: 'First' }],
-                      metadata: { nextPageToken: 'tok/en' },
-                  });
-        });
-        const result = await execute(source, {
-            ...REQUEST,
-            dimensions: ['campaign.name'],
-        });
-        expect(send.mock.calls[2][0].rawQuery).toContain('pageToken=tok%2Fen');
-        expect(result.rows[0]['campaign.name']).toBe('Second');
     });
 
     it('turns months into their first day and keeps group pivots', async () => {
@@ -165,6 +115,14 @@ describe('linkedInAdsIntegration run', () => {
         expect(result.rows).toEqual([
             { month: '2026-03-01', 'campaignGroup.id': '7', impressions: 1 },
         ]);
+    });
+
+    it('rejects names, which adAnalytics does not report', async () => {
+        const { source, send } = connect(() => jsonResponse({}));
+        await expect(
+            execute(source, { ...REQUEST, dimensions: ['campaign.name'] }),
+        ).rejects.toThrow(ParameterError);
+        expect(send).not.toHaveBeenCalled();
     });
 
     it('rejects a request naming another account', async () => {
@@ -204,20 +162,6 @@ describe('linkedInAdsIntegration run', () => {
         expect(result.hasMoreRows).toBe(true);
     });
 
-    it('refuses an account with too many campaigns to look up', async () => {
-        const { source } = connect((request) =>
-            request.path === LINKEDIN_ADS_ANALYTICS_PATH
-                ? jsonResponse({ elements: [element('1', 1, 1)] })
-                : jsonResponse({
-                      elements: [],
-                      metadata: { nextPageToken: 'more' },
-                  }),
-        );
-        await expect(
-            execute(source, { ...REQUEST, dimensions: ['campaign.name'] }),
-        ).rejects.toThrow('more campaigns than one query can look up');
-    });
-
     it.each([
         [401, WarehouseConnectionError, 'Reconnect'],
         [403, WarehouseConnectionError, `ad account ${ACCOUNT}`],
@@ -229,16 +173,5 @@ describe('linkedInAdsIntegration run', () => {
         const result = execute(source, REQUEST);
         await expect(result).rejects.toBeInstanceOf(errorClass);
         await expect(result).rejects.toThrow(message);
-    });
-
-    it('looks up campaign groups only when a name is asked for', async () => {
-        const { source, send } = connect(() => jsonResponse({ elements: [] }));
-        await execute(source, { ...REQUEST, dimensions: ['campaign.id'] });
-        expect(
-            send.mock.calls.some(
-                ([request]) =>
-                    request.path === getLinkedInAdsCampaignGroupsPath(ACCOUNT),
-            ),
-        ).toBe(false);
     });
 });

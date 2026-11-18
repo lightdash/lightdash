@@ -59,9 +59,7 @@ export const attioIntegration = defineLiveIntegration({
         timeoutMs: 30_000,
         maxRows: ATTIO_MAX_RECORDS,
     },
-    // Attio's filter takes any mix of $and, $or and $not. Count and totals
-    // group the records we read, so dates group by our own grains. Dates are
-    // UTC days.
+    // Attio's filter takes any mix of $and, $or and $not. Dates are UTC days.
     capabilities: {
         filters: {
             operators: {
@@ -79,12 +77,7 @@ export const attioIntegration = defineLiveIntegration({
         dates: {
             rangeRequired: false,
             operators: ATTIO_DATE_FILTERS,
-            grains: [
-                TimeFrames.DAY,
-                TimeFrames.WEEK,
-                TimeFrames.MONTH,
-                TimeFrames.YEAR,
-            ],
+            grains: [TimeFrames.DAY],
             timezone: 'fixed',
         },
         pushdown: ALL_PUSHDOWN_REFUSED,

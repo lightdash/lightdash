@@ -14,7 +14,6 @@ import {
     type LiveCompiledRequest,
 } from '../../explores/definition';
 import { resolveAbsoluteDateRange } from '../../query/dateRange';
-import { getGrainIssues, type LiveGrain } from '../../query/grain';
 import {
     LINKEDIN_ADS_CAMPAIGN_COLUMNS,
     LINKEDIN_ADS_CAMPAIGN_GROUP_COLUMNS,
@@ -55,21 +54,6 @@ const getPivot = (dimensions: string[]): LinkedInAdsPivot => {
         return 'CAMPAIGN';
     }
     return pivots.includes('CAMPAIGN_GROUP') ? 'CAMPAIGN_GROUP' : 'ACCOUNT';
-};
-
-// A campaign or campaign group name identifies its rows on its own, as a
-// campaign name does on Google Ads and Meta Ads.
-const GRAINS: Partial<Record<LinkedInAdsPivot, LiveGrain>> = {
-    CAMPAIGN: {
-        entity: 'campaign',
-        identities: [['campaign.id'], ['campaign.name']],
-        fix: 'Add Campaign name or Campaign ID.',
-    },
-    CAMPAIGN_GROUP: {
-        entity: 'campaign group',
-        identities: [['campaignGroup.id'], ['campaignGroup.name']],
-        fix: 'Add Campaign group name or Campaign group ID.',
-    },
 };
 
 const toIds = (rule: FilterRule) => {
@@ -150,20 +134,8 @@ export const compileLinkedInAdsQuery = ({
     if (dateColumns.length > 1) {
         throw refuse(null, 'Pick one date grain: day, month or year.');
     }
+    // Only IDs pick the pivot, so every row is one campaign or campaign group
     const pivot = getPivot(dimensions);
-
-    const grainIssues = getGrainIssues({
-        explore,
-        integration: 'LinkedIn Ads',
-        grains: GRAINS,
-        level: pivot,
-        levelOf: getColumnPivot,
-        dimensions: metricQuery.dimensions,
-        apiName,
-    });
-    if (grainIssues.length > 0) {
-        throw toLiveQueryError(grainIssues);
-    }
 
     const metrics =
         metricQuery.metrics.length > 0

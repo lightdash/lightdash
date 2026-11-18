@@ -218,7 +218,6 @@ const toAttioSorts = (
 
 /**
  * Compiles a metric query on an Attio explore into one records query.
- * Count and totals group the records we read, so their sorts are ours.
  * `today` is in UTC, the time zone Attio stores timestamps in.
  */
 export const compileAttioQuery = ({
@@ -233,10 +232,10 @@ export const compileAttioQuery = ({
     const apiSource = getLiveExplore(explore);
     const itemsMap = getItemMap(explore);
     const apiName = (fieldId: string) => getApiName(apiSource, fieldId);
-    // Built-in grains and web_url have no attribute to sort by
+    // web_url has no attribute to sort by
     const typeOf = (fieldId: string): DimensionType | null => {
         const item = itemsMap[fieldId];
-        if (!item || !isDimension(item) || item.timeInterval) {
+        if (!item || !isDimension(item)) {
             return null;
         }
         return apiName(fieldId) === 'web_url' ? null : item.type;
@@ -275,13 +274,12 @@ export const compileAttioQuery = ({
         ? toGroupCondition(metricQuery.filters.dimensions)
         : null;
 
-    const columns = [...metricQuery.dimensions, ...metricQuery.metrics].map(
+    const columns = metricQuery.dimensions.map(apiName);
+    const { sorts, localSorts } = toAttioSorts(
+        metricQuery.sorts,
         apiName,
+        typeOf,
     );
-    const { sorts, localSorts } =
-        metricQuery.metrics.length > 0
-            ? { sorts: undefined, localSorts: metricQuery.sorts }
-            : toAttioSorts(metricQuery.sorts, apiName, typeOf);
     const request: AttioRequest = {
         columns,
         ...(filter ? { filter } : {}),
