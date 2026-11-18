@@ -45,6 +45,11 @@ export type CaptureSurface = {
     getRegion: () => DOMRect;
     /** False when the surface only needs marks and words, not pictures. */
     captureImages: boolean;
+    /**
+     * The surface's own picture of its whole page, from the top. Used instead
+     * of tab capture when the `inlineCapture=app` switch is on.
+     */
+    grabAppImage?: (() => Promise<Blob>) | null;
     /** What is at a viewport point (a tile, a data point). */
     resolveTarget:
         | ((point: { x: number; y: number }) => CaptureTarget | null)

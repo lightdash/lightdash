@@ -19,7 +19,7 @@ const waitForFreshFrame = (video: HTMLVideoElement): Promise<void> =>
         }
     });
 
-const toThumb = (bitmap: ImageBitmap): Uint8ClampedArray => {
+export const toThumb = (bitmap: ImageBitmap): Uint8ClampedArray => {
     const canvas = document.createElement('canvas');
     canvas.width = THUMB_SIZE;
     canvas.height = THUMB_SIZE;

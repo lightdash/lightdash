@@ -8,6 +8,12 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
+import {
+    currentFrameSourceMode,
+    grabAppFrame,
+    logInlineCapture,
+    resolveFrameSource,
+} from './appFrame';
 import { buildSummary } from './buildSummary';
 import {
     captureReducer,
@@ -113,6 +119,8 @@ export const useCapture = (
     const finishRef = useRef<() => void>(() => {});
     const finishingRef = useRef(false);
     const voiceOnRef = useRef(false);
+    // Where this recording's pictures come from; decided when it starts.
+    const frameSourceRef = useRef<'tab' | 'app'>('tab');
     const [finishing, setFinishing] = useState(false);
     const absoluteNow = useCallback(() => performance.now(), []);
 
@@ -147,7 +155,21 @@ export const useCapture = (
         startingRef.current = true;
         void (async () => {
             try {
-                if (current.captureImages) {
+                const choice = current.captureImages
+                    ? await resolveFrameSource({
+                          mode: currentFrameSourceMode(),
+                          probe: current.grabAppImage ?? null,
+                      })
+                    : null;
+                frameSourceRef.current = choice?.source ?? 'tab';
+                if (choice?.source === 'app') {
+                    logInlineCapture(`method=app ms=${choice.ms} (first ask)`);
+                } else if (choice && choice.reason !== 'switch-off') {
+                    logInlineCapture(
+                        `method=tab, the app gave no picture (${choice.reason})`,
+                    );
+                }
+                if (current.captureImages && choice?.source !== 'app') {
                     const stream = await ensureStream();
                     if (!stream.ok) {
                         showToastError(STREAM_ERROR_TITLES[stream.error]);
@@ -296,20 +318,45 @@ export const useCapture = (
         setInkVisible(false);
         setRect(region);
         setHolding(true);
-        if (hidePill && current.captureImages) setPillHidden(true);
+        const grabAppImage = current.grabAppImage ?? null;
+        // The app draws its own page, so the pill and ink are never in it.
+        const fromApp =
+            current.captureImages &&
+            frameSourceRef.current === 'app' &&
+            grabAppImage !== null;
+        if (hidePill && current.captureImages && !fromApp) setPillHidden(true);
 
-        const frame = current.captureImages
-            ? (async () => {
-                  await nextPaint();
-                  try {
-                      return await grab(region);
-                  } finally {
-                      setPillHidden(false);
-                      setInkVisible(true);
-                  }
-              })()
-            : Promise.resolve(null);
-        if (!current.captureImages) setInkVisible(true);
+        const grabStartedAt = performance.now();
+        const logFrame = (method: 'app' | 'tab', outcome: string) =>
+            logInlineCapture(
+                `method=${method} ms=${Math.round(performance.now() - grabStartedAt)}${outcome}`,
+            );
+        let frame: Promise<TabFrame | null> = Promise.resolve(null);
+        if (fromApp && grabAppImage) {
+            frame = grabAppFrame(grabAppImage, region).then(
+                (grabbed) => {
+                    logFrame('app', '');
+                    return grabbed;
+                },
+                (error: unknown) => {
+                    logFrame('app', ' failed');
+                    throw error;
+                },
+            );
+        } else if (current.captureImages) {
+            frame = (async () => {
+                await nextPaint();
+                try {
+                    const grabbed = await grab(region);
+                    logFrame('tab', '');
+                    return grabbed;
+                } finally {
+                    setPillHidden(false);
+                    setInkVisible(true);
+                }
+            })();
+        }
+        if (!current.captureImages || fromApp) setInkVisible(true);
         // Failures are reported when the hold ends.
         frame.catch(() => {});
         holdRef.current = {

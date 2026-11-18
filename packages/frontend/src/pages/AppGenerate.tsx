@@ -1236,13 +1236,14 @@ const AppGenerate: FC = () => {
                           previewContentRef.current?.getBoundingClientRect() ??
                           new DOMRect(),
                       captureImages: true,
+                      grabAppImage: capturePreviewScreenshot,
                       resolveTarget: null,
                       transcribe: (audio) =>
                           transcribeCapture(projectUuid, audio),
                       onCapture: (result) => captureHandlerRef.current(result),
                   }
                 : null,
-        [captureAvailable, projectUuid],
+        [captureAvailable, capturePreviewScreenshot, projectUuid],
     );
     const captureRef = useRef<CaptureHostHandle>(null);
     const [isCaptureRecording, setIsCaptureRecording] = useState(false);
