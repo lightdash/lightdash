@@ -109,6 +109,12 @@ export const isPendingToolResult = (output: AnyType) =>
 export const isErrorToolResult = (output: AnyType) =>
     toolResultStatus(output) === 'error';
 
+/** The user rejected, or never answered, the call's SQL approval. */
+export const isUnapprovedToolResult = (output: AnyType) => {
+    const status = toolResultStatus(output);
+    return status === 'rejected' || status === 'timeout';
+};
+
 export const summarizeToolResult = (toolName: string, output: AnyType) => {
     if (!output || typeof output !== 'object') return `Finished ${toolName}`;
     const metadataStatus =

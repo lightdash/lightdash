@@ -10,7 +10,7 @@ import {
     type TablerIcon,
 } from '@tabler/icons-react';
 import { type LiveActivityToolGroup } from '../LiveActivityCard';
-import { isToolCallSuccessful } from './toolCallFailure';
+import { isToolCallFailedOrUnapproved } from './toolCallFailure';
 
 type ActivityTitle = {
     title: string;
@@ -62,7 +62,7 @@ export const getActivityTitle = (
         calls.some(
             (call) =>
                 isTool(call.toolName) &&
-                isToolCallSuccessful(call, toolResults),
+                !isToolCallFailedOrUnapproved(call, toolResults),
         );
     const hasDashboard = succeeded((n) => n === 'generateDashboard');
     const hasCreateContent = toolNames.includes('createContent');

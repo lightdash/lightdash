@@ -65,13 +65,12 @@ export const getToolCallFailure = (
     };
 };
 
-/** True unless the call errored or its SQL was not approved. */
-export const isToolCallSuccessful = (
+export const isToolCallFailedOrUnapproved = (
     call: ToolCallSummary,
     toolResults?: AiAgentToolResult[],
 ): boolean => {
     const status = readCallOutput(call, toolResults)?.status;
-    return status !== 'error' && !UNAPPROVED_STATUSES.has(status);
+    return status === 'error' || UNAPPROVED_STATUSES.has(status);
 };
 
 export const getToolCallFailures = (

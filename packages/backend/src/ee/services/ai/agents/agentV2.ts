@@ -194,6 +194,7 @@ import { toolErrorOutput } from '../utils/toolErrorHandler';
 import {
     isErrorToolResult,
     isPendingToolResult,
+    isUnapprovedToolResult,
     summarizeToolCall,
     summarizeToolResult,
 } from '../utils/toolSummaries';
@@ -1264,7 +1265,14 @@ export const getDataAnswerFastResponse = (
     steps: ReadonlyArray<FastChartStep>,
 ): string | null => {
     const results = steps.flatMap((step) => step.toolResults);
-    if (results.some((result) => isErrorToolResult(result.output))) return null;
+    if (
+        results.some(
+            (result) =>
+                isErrorToolResult(result.output) ||
+                isUnapprovedToolResult(result.output),
+        )
+    )
+        return null;
 
     const queryResults = results.filter(
         (result) => result.toolName === 'runQuery',

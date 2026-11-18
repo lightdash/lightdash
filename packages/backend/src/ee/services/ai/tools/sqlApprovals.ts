@@ -240,7 +240,6 @@ export type SqlNotApprovedOutput = ExecuteToolErrorResult<{
     status: SqlNotApprovedError['outcome'];
 }>;
 
-/** Tool output for SQL the user did not approve; its status is not 'error'. */
 export const sqlNotApprovedOutput = (
     error: SqlNotApprovedError,
 ): SqlNotApprovedOutput => ({
