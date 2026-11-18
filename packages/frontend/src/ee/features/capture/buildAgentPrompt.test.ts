@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildAgentPrompt } from './buildAgentPrompt';
 
 const summary = [
-    '[Inline capture, 0:12. The 2 attached images show the page with numbered red marks, in order.]',
+    '[Voice Design capture, 0:12. The 2 attached images show the page with numbered red marks, in order.]',
     'Image 1:',
     '- ① circle on "Revenue": "why is this so high"',
     'Image 2:',

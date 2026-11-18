@@ -57,10 +57,10 @@ const describeMark = (mark: CaptureMark): string => {
 const header = (durationMs: number, imageCount: number): string => {
     const clock = formatClock(durationMs);
     if (imageCount === 0)
-        return `[Inline capture, ${clock}. No marks were drawn.]`;
+        return `[Voice Design capture, ${clock}. No marks were drawn.]`;
     if (imageCount === 1)
-        return `[Inline capture, ${clock}. The attached image shows the page with numbered red marks.]`;
-    return `[Inline capture, ${clock}. The ${imageCount} attached images show the page with numbered red marks, in order.]`;
+        return `[Voice Design capture, ${clock}. The attached image shows the page with numbered red marks.]`;
+    return `[Voice Design capture, ${clock}. The ${imageCount} attached images show the page with numbered red marks, in order.]`;
 };
 
 type Entry =

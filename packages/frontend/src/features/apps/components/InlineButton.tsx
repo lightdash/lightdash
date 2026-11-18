@@ -8,12 +8,12 @@ const InlineButton: FC<{
     onClick: () => void;
     disabled: boolean;
 }> = ({ onClick, disabled }) => (
-    <Tooltip label="Inline" position="bottom">
+    <Tooltip label="Voice Design" position="bottom">
         <ActionIcon
             size="md"
             onClick={onClick}
             disabled={disabled}
-            aria-label="Inline"
+            aria-label="Voice Design"
         >
             <MantineIcon icon={IconMicrophone} size={16} />
         </ActionIcon>

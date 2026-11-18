@@ -383,10 +383,10 @@ const DashboardCapture: FC = () => {
     if (!surface || !dashboard) return null;
 
     const micButton = (
-        <Tooltip label="Inline" position="top">
+        <Tooltip label="Voice Design" position="top">
             <button
                 type="button"
-                aria-label="Inline"
+                aria-label="Voice Design"
                 className={`${launcherClasses.dockTab} ${launcherClasses.dockIconTab} ${classes.mic}`}
                 onClick={() => captureRef.current?.start()}
             >
