@@ -2,16 +2,15 @@ import { IconX } from '@tabler/icons-react';
 import { forwardRef, useEffect, useState } from 'react';
 import { formatClock } from '../buildSummary';
 import { type VoiceState } from '../types';
+import { type VoiceOffReason } from '../useVoiceRecorder';
 import classes from './CapturePill.module.css';
 
 type Props = {
     startedAt: number;
     voice: VoiceState;
-    liveText: string;
-    /** Set when voice started but the browser cannot transcribe. */
-    voiceProblem: string | null;
-    /** Why voice is off, as reported by the browser. */
-    voiceOffReason: string | null;
+    voiceOffReason: VoiceOffReason | null;
+    /** Stop was pressed and the audio is being transcribed. */
+    finishing: boolean;
     atImageLimit: boolean;
     /** Hidden for a moment while the screen is photographed. */
     hidden: boolean;
@@ -19,14 +18,10 @@ type Props = {
     onCancel: () => void;
 };
 
-const LIVE_TEXT_LENGTH = 80;
-
-const voiceOffCaption = (reason: string | null): string => {
-    if (reason === 'waiting') return 'Waiting for microphone permission';
-    if (reason === 'not-allowed' || reason === 'service-not-allowed')
-        return 'Voice is off: microphone is blocked for this site or browser';
-    if (reason === 'audio-capture') return 'Voice is off: no microphone found';
-    return reason ? `Voice is off (${reason})` : 'Voice is off';
+const VOICE_OFF_CAPTIONS: Record<VoiceOffReason, string> = {
+    blocked: 'Voice is off: microphone is blocked for this site or browser',
+    'no-microphone': 'Voice is off: no microphone found',
+    unsupported: 'Voice is off: this browser cannot record audio',
 };
 
 const CapturePill = forwardRef<HTMLDivElement, Props>(
@@ -34,9 +29,8 @@ const CapturePill = forwardRef<HTMLDivElement, Props>(
         {
             startedAt,
             voice,
-            liveText,
-            voiceProblem,
             voiceOffReason,
+            finishing,
             atImageLimit,
             hidden,
             onStop,
@@ -53,12 +47,14 @@ const CapturePill = forwardRef<HTMLDivElement, Props>(
             return () => window.clearInterval(timer);
         }, [startedAt]);
 
-        let caption = liveText.slice(-LIVE_TEXT_LENGTH);
-        if (voice === 'off') caption = voiceOffCaption(voiceOffReason);
-        if (voiceProblem)
-            caption = `Voice is not working in this browser (${voiceProblem})`;
+        let caption = 'Hold Shift to draw, and talk';
+        if (voice === 'off') {
+            caption = voiceOffReason
+                ? VOICE_OFF_CAPTIONS[voiceOffReason]
+                : 'Voice is off';
+        }
         if (atImageLimit) caption = 'Image limit reached';
-        if (!caption) caption = 'Hold Shift to draw';
+        if (finishing) caption = 'Transcribing your voice';
 
         return (
             <div
@@ -78,6 +74,7 @@ const CapturePill = forwardRef<HTMLDivElement, Props>(
                         type="button"
                         className={classes.stop}
                         onClick={onStop}
+                        disabled={finishing}
                     >
                         Stop
                     </button>

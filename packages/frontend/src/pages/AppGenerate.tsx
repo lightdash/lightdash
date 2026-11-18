@@ -185,6 +185,7 @@ import {
     refToWireString,
 } from '../features/apps/utils/elementRefs';
 import { getHistoryLiveBuild } from '../features/apps/utils/historyLiveBuild';
+import { transcribeCapture } from '../features/apps/utils/transcribeCapture';
 import { getVersionNarration } from '../features/apps/utils/versionNarration';
 import { versionsToThreadChat } from '../features/apps/utils/versionsToChatMessages';
 import DataAppVizResultCard from '../features/chartTypes/components/DataAppVizResultCard';
@@ -1222,20 +1223,25 @@ const AppGenerate: FC = () => {
     const previewContentRef = useRef<HTMLDivElement>(null);
     const captureHandlerRef = useRef<(result: CaptureResult) => void>(() => {});
     const captureAvailable = Boolean(
-        previewApp && captureFlag.data?.enabled && capturesEnabled,
+        projectUuid &&
+        previewApp &&
+        captureFlag.data?.enabled &&
+        capturesEnabled,
     );
     const captureSurface = useMemo<CaptureSurface | null>(
         () =>
-            captureAvailable
+            captureAvailable && projectUuid
                 ? {
                       getRegion: () =>
                           previewContentRef.current?.getBoundingClientRect() ??
                           new DOMRect(),
                       resolveTarget: null,
+                      transcribe: (audio) =>
+                          transcribeCapture(projectUuid, audio),
                       onCapture: (result) => captureHandlerRef.current(result),
                   }
                 : null,
-        [captureAvailable],
+        [captureAvailable, projectUuid],
     );
     const captureRef = useRef<CaptureHostHandle>(null);
     const [isCaptureRecording, setIsCaptureRecording] = useState(false);

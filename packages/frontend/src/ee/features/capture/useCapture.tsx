@@ -25,9 +25,11 @@ import {
     type CaptureTarget,
     type Point,
     type Stroke,
+    type TranscriptPhrase,
 } from './types';
-import { useSpeechTranscript } from './useSpeechTranscript';
 import { useTabFrame, type TabFrame, type TabFrameError } from './useTabFrame';
+import { useVoiceRecorder } from './useVoiceRecorder';
+import { wordsToPhrases } from './wordsToPhrases';
 
 const FADE_MS = 600;
 const IDLE: CaptureState = { status: 'idle' };
@@ -106,16 +108,18 @@ export const useCapture = (
     const pillRef = useRef<HTMLDivElement | null>(null);
     const fadeTimerRef = useRef<number | null>(null);
     const finishRef = useRef<() => void>(() => {});
+    const finishingRef = useRef(false);
+    const [finishing, setFinishing] = useState(false);
+    const absoluteNow = useCallback(() => performance.now(), []);
 
     const now = useCallback(() => performance.now() - startedAtRef.current, []);
+    // The recorder keeps absolute time; finish() converts to the capture clock.
     const {
-        start: startSpeech,
-        stop: stopSpeech,
-        liveText,
-        problem: voiceProblem,
+        start: startVoice,
+        stop: stopVoice,
         listening,
         offReason: voiceOffReason,
-    } = useSpeechTranscript({ now });
+    } = useVoiceRecorder({ now: absoluteNow });
     const { ensureStream, grab } = useTabFrame({
         onStreamEnded: () => finishRef.current(),
     });
@@ -144,7 +148,7 @@ export const useCapture = (
                     showToastError(STREAM_ERROR_TITLES[stream.error]);
                     return;
                 }
-                const voice = await startSpeech();
+                const voice = await startVoice();
                 // The clock starts once the share and mic prompts are answered.
                 startedAtRef.current = performance.now();
                 setStartedAt(startedAtRef.current);
@@ -155,7 +159,7 @@ export const useCapture = (
                 startingRef.current = false;
             }
         })();
-    }, [dispatch, ensureStream, showToastError, startSpeech]);
+    }, [dispatch, ensureStream, showToastError, startVoice]);
 
     const endHold = useCallback(() => {
         const hold = holdRef.current;
@@ -234,7 +238,7 @@ export const useCapture = (
 
     const beginHold = useCallback(() => {
         const current = surfaceRef.current;
-        if (!current || holdRef.current) return;
+        if (!current || holdRef.current || finishingRef.current) return;
         if (stateRef.current.status !== 'recording') return;
         const region = current.getRegion();
         const pill = pillRef.current?.getBoundingClientRect();
@@ -299,19 +303,46 @@ export const useCapture = (
 
     const finish = useCallback(() => {
         if (stateRef.current.status !== 'recording') return;
+        if (finishingRef.current) return;
+        finishingRef.current = true;
+        setFinishing(true);
         endHold();
         const durationMs = now();
-        const phrases = stopSpeech();
+        const recordingPromise = stopVoice();
         queueRef.current = queueRef.current.then(async () => {
-            const final = stateRef.current;
-            if (final.status !== 'recording') return;
-            const current = surfaceRef.current;
-            if (finishOutcome(final, phrases) === 'empty' || !current) {
-                showToastWarning('Nothing captured');
-                clearSession();
-                return;
-            }
             try {
+                const marked = stateRef.current;
+                if (marked.status !== 'recording') return;
+
+                let phrases: TranscriptPhrase[] = [];
+                const recording = await recordingPromise;
+                const transcribe = surfaceRef.current?.transcribe ?? null;
+                if (recording && transcribe) {
+                    try {
+                        phrases = wordsToPhrases(
+                            await transcribe(recording.audio),
+                            {
+                                offsetMs:
+                                    recording.startedAtMs -
+                                    startedAtRef.current,
+                                breakAtMs: marked.marks.map(
+                                    (mark) => mark.startMs,
+                                ),
+                            },
+                        );
+                    } catch {
+                        showToastWarning('Could not transcribe your voice');
+                    }
+                }
+
+                // Cancelled while the audio was being transcribed.
+                const final = stateRef.current;
+                const current = surfaceRef.current;
+                if (final.status !== 'recording') return;
+                if (finishOutcome(final, phrases) === 'empty' || !current) {
+                    showToastWarning('Nothing captured');
+                    return;
+                }
                 const images = await Promise.all(
                     framesRef.current
                         .slice(0, final.imageCount)
@@ -340,7 +371,9 @@ export const useCapture = (
             } catch {
                 showToastError('Could not save the capture');
             } finally {
-                clearSession();
+                if (stateRef.current.status === 'recording') clearSession();
+                finishingRef.current = false;
+                setFinishing(false);
             }
         });
     }, [
@@ -349,15 +382,15 @@ export const useCapture = (
         now,
         showToastError,
         showToastWarning,
-        stopSpeech,
+        stopVoice,
     ]);
     finishRef.current = finish;
 
     const cancel = useCallback(() => {
         if (stateRef.current.status !== 'recording') return;
-        stopSpeech();
+        void stopVoice();
         clearSession();
-    }, [clearSession, stopSpeech]);
+    }, [clearSession, stopVoice]);
 
     const isRecording = state.status === 'recording';
 
@@ -428,10 +461,9 @@ export const useCapture = (
                       <CapturePill
                           ref={pillRef}
                           startedAt={startedAt}
-                          voice={listening ? 'on' : 'off'}
+                          voice={listening || finishing ? 'on' : 'off'}
                           voiceOffReason={voiceOffReason}
-                          liveText={liveText}
-                          voiceProblem={voiceProblem}
+                          finishing={finishing}
                           atImageLimit={state.atImageLimit}
                           hidden={pillHidden}
                           onStop={finish}

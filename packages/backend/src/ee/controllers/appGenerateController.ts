@@ -8,6 +8,7 @@ import {
     type ApiAppSchedulersResponse,
     type ApiAppThumbnailUrlResponse,
     type ApiCancelAppVersionResponse,
+    type ApiCaptureTranscriptResponse,
     type ApiClarifyAppRequest,
     type ApiClarifyAppResponse,
     type ApiContentVerificationDeleteResponse,
@@ -697,6 +698,41 @@ export class AppGenerateController extends BaseController {
     ): Promise<ApiAppFileUploadResponse> {
         this.setStatus(200);
         return this.handleUploadFile(req, projectUuid, appUuid, filename, kind);
+    }
+
+    /**
+     * Transcribe the audio of a point-and-talk capture into timed words.
+     * Send the raw audio bytes with their Content-Type header.
+     * @summary Transcribe capture audio
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/transcribe-capture')
+    @OperationId('transcribeDataAppCapture')
+    async transcribeCapture(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiCaptureTranscriptResponse> {
+        assertRegisteredAccount(req.account);
+        const mimeType = req.headers['content-type'];
+        if (!mimeType) {
+            throw new ParameterError('Content-Type header is required');
+        }
+        const contentLength = parseInt(req.headers['content-length'] ?? '', 10);
+        if (Number.isNaN(contentLength) || contentLength <= 0) {
+            throw new ParameterError(
+                'Content-Length must be a positive integer',
+            );
+        }
+        const words = await this.getAppGenerateService().transcribeCapture(
+            toSessionUser(req.account),
+            projectUuid,
+            mimeType,
+            req,
+            contentLength,
+        );
+        this.setStatus(200);
+        return { status: 'ok', results: { words } };
     }
 
     /**
