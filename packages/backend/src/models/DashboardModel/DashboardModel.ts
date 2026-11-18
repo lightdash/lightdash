@@ -2393,7 +2393,8 @@ export class DashboardModel {
             await this.database.transaction(async (trx) => doWork(trx));
         }
 
-        return this.getByIdOrSlug(dashboardUuid);
+        // In the caller's transaction, which may hold the dashboard locked
+        return this.getByIdOrSlug(dashboardUuid, undefined, tx);
     }
 
     /**
