@@ -9,6 +9,7 @@ import {
     getWarehouseTableType,
     Metric,
     MetricType,
+    QueryExecutionContext,
     setCatalogTimestampDomain,
     SslConfiguration,
     SupportedDbtAdapter,
@@ -158,6 +159,31 @@ export const getPostgresTimestampDomain = (
 };
 
 const { builtins } = pg.types;
+
+function getWallClockTypeParser<T>(
+    oid: number,
+    format?: 'text',
+): (value: string) => T | string;
+function getWallClockTypeParser<T>(
+    oid: number,
+    format: 'binary',
+): (value: Buffer) => T | string;
+function getWallClockTypeParser(
+    oid: number,
+    format: 'text' | 'binary' = 'text',
+) {
+    if (format === 'binary') return types.getTypeParser(oid, format);
+    if (oid === builtins.DATE || oid === builtins.TIMESTAMP) {
+        return (value: string) => value;
+    }
+    return types.getTypeParser(oid, format);
+}
+
+// Pre-aggregate builds keep DATE and TIMESTAMP as written; pg would read them in the server's timezone.
+const wallClockTypes: pg.CustomTypesConfig = {
+    getTypeParser: getWallClockTypeParser,
+};
+
 const POSTGRES_NAME_TOO_LONG_SQLSTATE = '42622';
 
 // Server-side ceiling for a single streamed query, bounded just under the
@@ -560,6 +586,10 @@ export class PostgresClient<
                         new QueryStream(
                             this.getSQLWithMetadata(sql, options?.tags),
                             options?.values,
+                            options?.tags?.query_context ===
+                                QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
+                                ? { types: wallClockTypes }
+                                : undefined,
                         ),
                     );
 
