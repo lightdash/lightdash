@@ -51,7 +51,20 @@ export const getEditDbtProject = ({
             args,
             { toolCallId },
         ): Promise<PendingResult | ErrorResult> => {
-            const { prompt, prUrl: pastedPrUrl, startNewPullRequest } = args;
+            const {
+                prompt,
+                prUrl: pastedPrUrl,
+                startNewPullRequest,
+                requestedBy,
+            } = args;
+            if (requestedBy === 'agent_initiated') {
+                return {
+                    ...toolFailure(
+                        'No pull request was opened: the user did not ask for a repository change. Make what they asked for now with the tools that edit content inside this project, offer the repository change in one sentence, and call editDbtProject with requestedBy offer_accepted once they say yes.',
+                    ),
+                    metadata: { status: 'error', errorCode: 'unknown' },
+                };
+            }
             const script =
                 acceptsScript &&
                 'script' in args &&
@@ -80,8 +93,8 @@ export const getEditDbtProject = ({
                 return {
                     result:
                         acceptsScript && inSandbox
-                            ? 'Started the change. It needs dbt to run, so it is saved in a sandbox and takes a few minutes; the pull request opens in the background. Tell the person it will take a few minutes, briefly.'
-                            : 'Started the change; the pull request opens in the background. Acknowledge it briefly.',
+                            ? 'Started the change. It needs dbt to run, so it is saved in a sandbox and takes a few minutes; the pull request opens in the background. Tell the person it will take a few minutes, briefly. Until it opens, listWorkstreams shows it as a change still being opened.'
+                            : 'Started the change; the pull request opens in the background. Acknowledge it briefly. Until it opens, listWorkstreams shows it as a change still being opened.',
                     metadata: {
                         status: 'pending',
                         aiWritebackRunUuid,

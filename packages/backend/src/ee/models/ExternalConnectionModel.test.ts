@@ -13,6 +13,7 @@ import {
 import {
     ExternalConnectionModel,
     parseApiSourceSchemaScan,
+    readLiveSourceCacheSettings,
 } from './ExternalConnectionModel';
 
 const PROJECT_UUID = '00000000-0000-0000-0000-000000000001';
@@ -1038,6 +1039,36 @@ describe('parseApiSourceSchemaScan', () => {
             status: 'failed',
             scannedAt: requestedAt,
             error: 'The schema scan did not finish',
+        });
+    });
+});
+
+describe('readLiveSourceCacheSettings', () => {
+    it('reads the window and purge time kept under cache', () => {
+        expect(
+            readLiveSourceCacheSettings({
+                connector: 'posthog',
+                projectId: '1',
+                cache: {
+                    ttlSeconds: 900,
+                    purgedAt: '2026-11-17T12:00:00.000Z',
+                },
+            }),
+        ).toEqual({
+            cacheTtlSeconds: 900,
+            cachePurgedAt: new Date('2026-11-17T12:00:00.000Z'),
+        });
+    });
+
+    it.each([
+        { connector: 'posthog', projectId: '1' },
+        { cache: null },
+        { cache: { ttlSeconds: null } },
+        { cache: { ttlSeconds: -5, purgedAt: 'not a date' } },
+    ])('falls back to defaults for missing or broken settings: %j', (value) => {
+        expect(readLiveSourceCacheSettings(value)).toEqual({
+            cacheTtlSeconds: null,
+            cachePurgedAt: null,
         });
     });
 });

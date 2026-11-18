@@ -14,6 +14,7 @@ import {
     type ApiSemanticLayerStatusResponse,
     type ApiSemanticLayerStoredModelsResponse,
     type ApiSemanticLayerUndoResponse,
+    type ApiSemanticStudioCheckoutResponse,
     type ApiSemanticStudioSourceFileResponse,
     type ApiSemanticStudioSourceSaveResponse,
     type ApiSemanticStudioSourcesResponse,
@@ -171,6 +172,50 @@ export class SemanticStudioController extends BaseController {
     }
 
     /**
+     * The change you have checked out, which the whole app shows you; null on what is published.
+     * @summary Get my Semantic Studio checkout
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/checkout')
+    @OperationId('getSemanticStudioCheckout')
+    async getCheckout(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSemanticStudioCheckoutResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().getCheckout(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
+        };
+    }
+
+    /**
+     * Compiles the branch of your checked-out dbt change again.
+     * @summary Compile my Semantic Studio checkout
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/checkout/compile')
+    @OperationId('compileSemanticStudioCheckout')
+    async compileCheckout(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSemanticStudioCheckoutResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().compileCheckout(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
+        };
+    }
+
+    /**
      * The project's YAML and SQL files, at a change's open pull request or the branch it deploys from.
      * @summary List Semantic Studio source files
      */
@@ -311,6 +356,30 @@ export class SemanticStudioController extends BaseController {
         return {
             status: 'ok',
             results: await this.getService().activateWorkspace(
+                toSessionUser(req.account),
+                projectUuid,
+                workspaceUuid,
+            ),
+        };
+    }
+
+    /**
+     * One of your workspaces' changes replayed on what is live, without changes from before drafts had workspaces.
+     * @summary Get a Semantic Studio workspace's draft
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/workspaces/{workspaceUuid}/draft')
+    @OperationId('getSemanticStudioWorkspaceDraft')
+    async getWorkspaceDraft(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() workspaceUuid: UUID,
+    ): Promise<ApiSemanticLayerDraftResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().getWorkspaceDraft(
                 toSessionUser(req.account),
                 projectUuid,
                 workspaceUuid,

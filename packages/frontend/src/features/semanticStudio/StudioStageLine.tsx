@@ -19,7 +19,7 @@ export type StudioStage =
 
 type StepState = 'done' | 'now' | 'busy' | 'stopped' | 'todo';
 
-const STEPS = ['Proposed', 'Saved', 'In review', 'Live'] as const;
+const STEPS = ['Proposed', 'Saved', 'In review', 'Published'] as const;
 
 const withNumber = (label: string, pullRequestNumber: string | null) =>
     pullRequestNumber ? `${label} #${pullRequestNumber}` : label;
@@ -61,7 +61,7 @@ const positionOf = (
                 case 'done':
                     return {
                         index: 3,
-                        label: 'Live for everyone',
+                        label: 'Published for everyone',
                         state: 'done',
                     };
                 case 'unknown':

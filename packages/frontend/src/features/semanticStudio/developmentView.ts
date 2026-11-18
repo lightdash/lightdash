@@ -5,6 +5,8 @@ import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 
 const STORAGE_KEY = 'lightdash-development-view-project';
 const PREVIEW_STORAGE_KEY = 'lightdash-development-preview';
+/** The project the person has a draft checked out on, so the whole app reads it from the first request. */
+const CHECKOUT_STORAGE_KEY = 'lightdash-checked-out-project';
 
 /** Asks the server to apply this person's unpublished model changes to what a request reads. */
 export const DEVELOPMENT_VIEW_HEADER = 'Lightdash-Development-View';
@@ -19,9 +21,12 @@ const SAME_IN_EITHER_VIEW = new Set([
     'semantic-studio-sources',
     'semantic-studio-workspaces',
     'semantic-studio-model-version',
+    'semantic-studio-checkout',
 ]);
 
 const PROJECT_IN_PATH = /\/projects\/([^/]+)/;
+// Studio shows the checkout itself, and its Try switch decides what it reads.
+const STUDIO_PATH = /\/projects\/[^/]+\/semantic-layer(?=\/|$)/;
 
 const findProjectInPath = (pathname: string): string | null =>
     PROJECT_IN_PATH.exec(pathname)?.[1] ?? null;
@@ -39,6 +44,7 @@ export const clearDevelopmentView = () => {
     try {
         localStorage.removeItem(STORAGE_KEY);
         localStorage.removeItem(PREVIEW_STORAGE_KEY);
+        localStorage.removeItem(CHECKOUT_STORAGE_KEY);
     } catch {
         // Nothing stored without storage.
     }
@@ -56,17 +62,32 @@ export const getDevelopmentPreview = (): string | null => {
 /** The headers that put a request in the development view; none when it is off. Read outside React by the API client. */
 export const getDevelopmentViewHeaders = (): Record<string, string> => {
     try {
-        const project = localStorage.getItem(STORAGE_KEY);
-        if (!isOnFor(project, window.location.pathname)) return {};
-        const preview = localStorage.getItem(PREVIEW_STORAGE_KEY);
-        return {
-            [DEVELOPMENT_VIEW_HEADER]: 'true',
-            ...(preview ? { [DEVELOPMENT_PREVIEW_HEADER]: preview } : {}),
-        };
+        const { pathname } = window.location;
+        if (isOnFor(localStorage.getItem(STORAGE_KEY), pathname)) {
+            const preview = localStorage.getItem(PREVIEW_STORAGE_KEY);
+            return {
+                [DEVELOPMENT_VIEW_HEADER]: 'true',
+                ...(preview ? { [DEVELOPMENT_PREVIEW_HEADER]: preview } : {}),
+            };
+        }
+        return isOnFor(localStorage.getItem(CHECKOUT_STORAGE_KEY), pathname) &&
+            !STUDIO_PATH.test(pathname)
+            ? { [DEVELOPMENT_VIEW_HEADER]: 'true' }
+            : {};
     } catch {
         return {};
     }
 };
+
+/** Open Try it sessions; each keeps the view it started on, so nothing moves it under them. */
+let pins = 0;
+export const pinDevelopmentView = (): (() => void) => {
+    pins += 1;
+    return () => {
+        pins -= 1;
+    };
+};
+export const isDevelopmentViewPinned = (): boolean => pins > 0;
 
 export const isDevelopmentViewOn = (): boolean =>
     Object.keys(getDevelopmentViewHeaders()).length > 0;
@@ -132,4 +153,46 @@ export const useDevelopmentView = (): [
         [pathname, queryClient, setProject, projectRoute],
     );
     return [isOnFor(project, pathname), set];
+};
+
+/** What the checked-out view last showed in this page: its change and compile. */
+let shownCheckout: string | null = null;
+
+/**
+ * Keeps every request on a project's pages reading the person's checked-out
+ * draft, given the project's identifiers and what it shows (null on what is
+ * published); a change refetches everything, since any query may read a model.
+ */
+export const useCheckedOutView = () => {
+    const queryClient = useQueryClient();
+    return useCallback(
+        (projectIdentifiers: string | null, shown: string | null) => {
+            let stored: string | null;
+            try {
+                stored = localStorage.getItem(CHECKOUT_STORAGE_KEY);
+                if (projectIdentifiers === null) {
+                    localStorage.removeItem(CHECKOUT_STORAGE_KEY);
+                } else {
+                    localStorage.setItem(
+                        CHECKOUT_STORAGE_KEY,
+                        projectIdentifiers,
+                    );
+                }
+            } catch {
+                // Without storage the app reads what is published.
+                return;
+            }
+            const isFirst = shownCheckout === null;
+            const changed =
+                stored !== projectIdentifiers || shownCheckout !== shown;
+            shownCheckout = shown;
+            // A page that loaded with the right project stored already read the latest compile.
+            if (!changed || (isFirst && stored === projectIdentifiers)) return;
+            void queryClient.invalidateQueries({
+                predicate: ({ queryKey }) =>
+                    !SAME_IN_EITHER_VIEW.has(String(queryKey[0])),
+            });
+        },
+        [queryClient],
+    );
 };

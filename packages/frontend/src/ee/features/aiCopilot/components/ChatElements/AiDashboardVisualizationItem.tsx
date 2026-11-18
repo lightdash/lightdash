@@ -23,12 +23,13 @@ import { memo, useCallback, useState, type FC } from 'react';
 import CodeBlock from '../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
+import { useCanViewAiAgentSql } from '../../../../../features/composerCharts/hooks/useCanViewAiAgentSql';
+import { ArtifactLoadingSketch } from '../../../../../features/composerCharts/lineage/ArtifactLoadingSketch';
 import { useCompiledSqlFromMetricQuery } from '../../../../../hooks/useCompiledSql';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { getAiAgentArtifactResultsUrl } from '../../hooks/aiAgentRouting';
-import { useCanViewAiAgentSql } from '../../hooks/useCanViewAiAgentSql';
 import {
     getAiAgentDashboardChartVizQueryKey,
     useAiAgentDashboardChartVizQuery,
@@ -37,7 +38,6 @@ import { AiAccessCallout } from './AiAccessCallout';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
 import classes from './AiDashboardVisualizationItem.module.css';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
-import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
 
 type Props = {
     visualization: DashboardV2Visualization;

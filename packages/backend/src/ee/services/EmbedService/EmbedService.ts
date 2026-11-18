@@ -3298,6 +3298,7 @@ export class EmbedService extends BaseService {
                 canExportPagePdf: false,
             },
             userAttributes: decodedToken.userAttributes,
+            usageAnalytics: decodedToken.usageAnalytics,
             user: decodedToken.user,
             iat: decodedToken.iat,
             exp: decodedToken.exp,

@@ -66,6 +66,11 @@ import {
     embedReachSql,
 } from '../../../analytics/systemExplores/embedReach';
 import {
+    embedViewExploreColumns,
+    embedViewExploreMetrics,
+    embedViewExploreSql,
+} from '../../../analytics/systemExplores/embedViewEvents';
+import {
     currentPeopleSql,
     peopleAdoptionColumns,
     peopleAdoptionMetrics,
@@ -122,6 +127,7 @@ export const analyticsExploreNames = [
     'people_adoption',
     'people_membership',
     'embed_reach',
+    'embed_view_events',
 ] as const;
 
 // Keep managed chart field IDs and existing filter targets stable.
@@ -151,6 +157,10 @@ export const createAnalyticsExplores = (): Explore[] => {
             embed_reach: {
                 columns: embedReachColumns,
                 metrics: embedReachMetrics,
+            },
+            embed_view_events: {
+                columns: embedViewExploreColumns,
+                metrics: embedViewExploreMetrics,
             },
             historical_activity: {
                 columns: historicalActivityColumns,
@@ -242,6 +252,7 @@ export const createAnalyticsExplores = (): Explore[] => {
         };
         const modelDefinition =
             name === 'embed_reach' ||
+            name === 'embed_view_events' ||
             name === 'historical_activity' ||
             name === 'semantic_usage' ||
             name === 'user_activity' ||
@@ -371,6 +382,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                 : ((
                       {
                           embed_reach: embedReachSql,
+                          embed_view_events: embedViewExploreSql,
                           tool_activity: toolActivitySql,
                           content_reach: contentReachSql,
                           content_health: contentHealthSql,
@@ -421,6 +433,30 @@ export const createAnalyticsExplores = (): Explore[] => {
                 'Explicit external ID supplied by the embed issuer; not a registered user or a tenant ID. Missing IDs remain null.';
             table.dimensions.event_ts.description =
                 'Time of the successful authorized dashboard fetch. Capture begins after deployment; no historical loads are reconstructed.';
+        }
+        if (name === 'embed_view_events') {
+            const { dimensions } = table;
+            dimensions.viewer_key.hidden = true;
+            dimensions.tenant_key.hidden = true;
+            dimensions.external_user_id.label = 'External viewer ID';
+            dimensions.embed_tenant_id.label = 'Embed tenant ID';
+            dimensions.embed_tenant_attribute.label = 'Embed tenant attribute';
+        }
+        if (name === 'query_events' || name === 'export_events') {
+            const { dimensions } = table;
+            dimensions.external_user_id.label = 'External viewer ID';
+            dimensions.external_user_id.description =
+                'Viewer ID supplied by the embed issuer. Separate from the registered User UUID.';
+            dimensions.embed_token_fingerprint.label =
+                'Embed token fingerprint';
+            dimensions.embed_token_fingerprint.description =
+                'Identifies one signed embed token when no external viewer ID was provided. A refreshed token may have a different fingerprint.';
+            dimensions.embed_tenant_attribute.label = 'Embed tenant attribute';
+            dimensions.embed_tenant_attribute.description =
+                'Name of the signed user attribute explicitly selected for reporting.';
+            dimensions.embed_tenant_id.label = 'Embed tenant ID';
+            dimensions.embed_tenant_id.description =
+                'Value of the selected tenant attribute; null when the embed issuer has not opted in.';
         }
         if (name === 'query_events') {
             table.dimensions.semantic_field_references.hidden = true;
@@ -559,7 +595,8 @@ export const createAnalyticsExplores = (): Explore[] => {
             name !== 'content_inventory' &&
             name !== 'people_adoption' &&
             name !== 'people_membership' &&
-            name !== 'embed_reach'
+            name !== 'embed_reach' &&
+            name !== 'embed_view_events'
         ) {
             dimensions.push('users');
         }

@@ -103,6 +103,8 @@ To put a filter in an existing section, set its `sectionSlug` to a `slug` from `
 4. Check the chart: call `runContentQuery` with `source.type: "metricQuery"` and the chart's `tableName`/`metricQuery` as it will be saved.
 5. Call `createContent` with the checked chart JSON.
 
+When explore fields cannot produce the chart, read `sql-chart-reference` before going further: it says what to offer the user.
+
 For a weekly chart of "the last 12 weeks up to today" where every week starts on its first day, put the `inThePast` filter on the week dimension (e.g. `orders_order_date_week`, `completed: false`, `unitOfTime: weeks`, `values: [12]`), not on the day or raw date. That gives 12 weekly rows: 11 full weeks plus the current week to date. The same filter on a day field starts mid-week, so the first week is partial.
 
 ### Create Dashboards
@@ -115,9 +117,7 @@ For a weekly chart of "the last 12 weeks up to today" where every week starts on
 
 ### Create and Edit SQL Charts
 
-Use SQL charts only when the semantic layer cannot express the question. Always read `sql-chart-reference` first. A dashboard of SQL charts references their persisted slugs in `sql_chart` tiles.
-
-To edit a SQL chart, read it, then patch it with `editContent` (`type: sql_chart`).
+Always read `sql-chart-reference` first: it says when to create a SQL chart, and how to save, edit and place one on a dashboard.
 
 ## Editing Charts
 

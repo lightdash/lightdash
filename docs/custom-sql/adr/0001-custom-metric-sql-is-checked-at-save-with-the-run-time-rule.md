@@ -18,7 +18,8 @@ match within the same table, one of:
 
 1. a modelled field of the explore as that user sees it, or a reference to one;
 2. SQL the chart being edited already saved (for a dashboard's shared metric,
-   the SQL the shared metric already had);
+   the SQL each chart using it already has, or the SQL the shared metric
+   already had when no chart uses it);
 3. SQL already saved on a chart the user can view, in the same project and
    explore. Only registered users get this clause, as at run time.
 
@@ -28,9 +29,10 @@ saved-chart lookup with the space view check for clause 3. Run time behaves as
 before.
 
 - **Checked writers:** chart create, new chart version, content-as-code upload,
-  dashboard shared custom metrics.
-- **Not checked:** duplicate chart, duplicate dashboard, move, restore version,
-  restore from trash, promote. They copy a stored chart and store no new SQL.
+  dashboard shared custom metrics, restoring a chart or dashboard version
+  (checked against the chart's current version).
+- **Not checked:** duplicate chart, duplicate dashboard, move, restore from
+  trash, promote. They copy a chart's current version and store no new SQL.
 
 ## What must keep working
 
@@ -42,7 +44,8 @@ hand-written metric, all of these work before and after:
   (rename, chart config, fields, filters, the metric's label, format,
   aggregation or filters)
 - save as a new chart, save to a dashboard
-- duplicate, move, restore a version, restore from trash, promote
+- duplicate, move, restore from trash, promote
+- restore a version whose metric SQL matches the current version
 - build a metric from a modelled field in Explore, and save it
 
 The only save that is refused is one that stores hand-written SQL the user
@@ -86,8 +89,8 @@ could not already run.
   reason for the difference. It is left alone here because aligning it
   loosens a live check on two other kinds of field, which is a separate
   change with its own review.
-- The saved-chart lookup matches any version of a chart that is not deleted,
-  not only its latest, and counts a dashboard-owned chart through its
+- The saved-chart lookup matches only the current version of each chart that
+  is not deleted, and counts a dashboard-owned chart through its
   dashboard's space. Both are as at run time.
 - The lookup has no index on the stored SQL. It walks the project's charts and
   their versions for the explore through indexed joins, so its cost grows with

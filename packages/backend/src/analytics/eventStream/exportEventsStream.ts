@@ -1,4 +1,8 @@
 import type { DownloadCsv } from '../LightdashAnalytics';
+import {
+    embeddedUsageColumns,
+    embeddedUsageFields,
+} from './embeddedUsageColumns';
 import { buildEnvelope, type ProjectionResult } from './projection';
 import type { CompactedStreamColumn } from './types';
 
@@ -9,6 +13,7 @@ export const exportEventsCompactedColumns: CompactedStreamColumn[] = [
     { name: 'event_ts', type: 'TIMESTAMP' },
     { name: 'schema_version', type: 'INTEGER' },
     { name: 'project_id', type: 'VARCHAR' },
+    ...embeddedUsageColumns,
     { name: 'query_id', type: 'VARCHAR' },
     { name: 'format', type: 'VARCHAR' },
     { name: 'context', type: 'VARCHAR' },
@@ -24,6 +29,8 @@ const projectExportEvent = (payload: DownloadCsv): ProjectionResult => {
         stream: 'export_events',
         row: {
             ...buildEnvelope(payload, properties.organizationId),
+            ...(payload.anonymousId === 'embed' ? { user_id: null } : {}),
+            ...embeddedUsageFields(properties.embeddedUsage),
             project_id: properties.projectId,
             query_id: properties.queryId ?? null,
             format: properties.fileType,

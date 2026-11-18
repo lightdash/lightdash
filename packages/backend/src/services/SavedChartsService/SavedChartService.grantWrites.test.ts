@@ -7,6 +7,7 @@ import {
     type SpaceAccess,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { fromSession } from '../../auth/account';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
@@ -155,6 +156,13 @@ const savedChartModel = {
     })),
     createVersion: vi.fn(async () => ownedChart),
     updateChartFieldUsage: vi.fn(async () => undefined),
+    transaction: vi.fn(async (fn) => fn('transaction')),
+    getCurrentVersionUuids: vi.fn(
+        async (uuids: string[]) => new Map(uuids.map((u) => [u, 'current'])),
+    ),
+    lockCurrentVersionUuids: vi.fn(
+        async (uuids: string[]) => new Map(uuids.map((u) => [u, 'current'])),
+    ),
 };
 
 const projectModel = {
@@ -370,15 +378,15 @@ describe('SavedChartService direct-grant write parity', () => {
 
     it('rolls back a chart version using the authorized ownership snapshot', async () => {
         await service.rollback(
-            grantOnlyEditor,
+            fromSession(grantOnlyEditor),
             ownedChart.uuid,
             'version-uuid',
         );
         expect(savedChartModel.createVersion).toHaveBeenCalledWith(
             ownedChart.uuid,
             ownedChart,
-            grantOnlyEditor,
-            undefined,
+            expect.objectContaining({ userUuid: grantOnlyEditor.userUuid }),
+            'transaction',
             {
                 projectUuid: ownedChart.projectUuid,
                 dashboardUuid: OWNING_DASHBOARD,
@@ -418,13 +426,17 @@ describe('SavedChartService direct-grant write parity', () => {
             new ConflictError('Chart location changed'),
         );
         await expect(
-            service.rollback(grantOnlyEditor, ownedChart.uuid, 'version-uuid'),
+            service.rollback(
+                fromSession(grantOnlyEditor),
+                ownedChart.uuid,
+                'version-uuid',
+            ),
         ).rejects.toThrow(ConflictError);
         expect(savedChartModel.createVersion).toHaveBeenCalledWith(
             ownedChart.uuid,
             movedChart,
-            grantOnlyEditor,
-            undefined,
+            expect.objectContaining({ userUuid: grantOnlyEditor.userUuid }),
+            'transaction',
             {
                 projectUuid: ownedChart.projectUuid,
                 dashboardUuid: OWNING_DASHBOARD,

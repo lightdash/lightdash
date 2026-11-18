@@ -24,6 +24,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
+import { createHash } from 'node:crypto';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import * as BitbucketClient from '../../../clients/bitbucket/Bitbucket';
 import {
@@ -55,7 +56,6 @@ import { AiAgentService } from '../AiAgentService/AiAgentService';
 import { createSandboxManager, SandboxManager } from '../SandboxRuntime';
 import {
     AiWritebackService,
-    findDbtErrorLines,
     mergeSourceCodeRepoAccess,
     workstreamLockKey,
 } from './AiWritebackService';
@@ -3562,35 +3562,6 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         },
     );
 
-    it('hands over the project a dbt change parses to only when asked', async () => {
-        const sandbox = fakeSandbox(0, true);
-        fakeSandboxProvider.create.mockResolvedValue(sandbox);
-        const onDbtProject = vi.fn().mockResolvedValue(undefined);
-
-        await runService(sandbox, { onDbtProject });
-
-        expect(onDbtProject).toHaveBeenCalledWith({
-            manifestJson: 'model contents',
-            lightdashConfigYaml: 'model contents',
-            changedFiles: expect.any(Array),
-            prUrl: expect.any(String),
-        });
-        const parse = (sandbox.commands.run as import('vitest').Mock).mock.calls
-            .map((call) => String(call[0]))
-            .find((command) => command.includes('dbt parse'));
-        expect(parse).toContain('-u ANTHROPIC_API_KEY');
-        expect(parse).toContain('--target-path /tmp/ld-try-out-target');
-
-        const quiet = fakeSandbox(0, true);
-        fakeSandboxProvider.create.mockResolvedValue(quiet);
-        await runService(quiet);
-        expect(
-            (quiet.commands.run as import('vitest').Mock).mock.calls.some(
-                (call) => String(call[0]).includes('dbt parse'),
-            ),
-        ).toBe(false);
-    });
-
     it('opens a PR and kills the sandbox for a one-shot run with changes', async () => {
         const sandbox = fakeSandbox(0, true);
         fakeSandboxProvider.create.mockResolvedValue(sandbox);
@@ -4345,7 +4316,9 @@ describe('AiWritebackService repo read access', () => {
 });
 
 describe('AiWritebackService.listWorkstreams', () => {
-    it('returns [] without querying when the thread has no uuid', async () => {
+    const EMPTY = { workstreams: [], pendingStartedAt: [], otherThreads: [] };
+
+    it('returns nothing without querying when the thread has no uuid', async () => {
         const listByAiThreadUuid = vi.fn();
         const service = buildService({
             aiWritebackThreadModel: { listByAiThreadUuid } as AnyType,
@@ -4353,43 +4326,64 @@ describe('AiWritebackService.listWorkstreams', () => {
         await expect(
             service.listWorkstreams({
                 aiThreadUuid: undefined,
+                projectUuid: 'project-1',
                 repoTarget: null,
             }),
-        ).resolves.toEqual([]);
+        ).resolves.toEqual(EMPTY);
         expect(listByAiThreadUuid).not.toHaveBeenCalled();
     });
 
-    it('maps rows to owner/repo workstreams, passing the repo filter through', async () => {
-        const listByAiThreadUuid = vi.fn().mockResolvedValue([
-            {
-                owner: 'acme',
-                repo: 'analytics',
-                provider: PullRequestProvider.GITHUB,
-                pr_url: PR_7,
-                pr_number: 7,
-                summary: 'Fix the typo',
-                created_at: new Date(),
-            },
-        ]);
+    it('lists own PRs, runs still opening one, and PRs from other threads, passing the repo filter through', async () => {
+        const row = {
+            owner: 'acme',
+            repo: 'analytics',
+            provider: PullRequestProvider.GITHUB,
+            pr_url: PR_7,
+            pr_number: 7,
+            summary: 'Fix the typo',
+            created_at: new Date(),
+        };
+        const startedAt = new Date('2026-01-01T10:00:00Z');
+        const listByAiThreadUuid = vi.fn().mockResolvedValue([row]);
+        const listInProgressByAiThreadUuid = vi
+            .fn()
+            .mockResolvedValue([{ created_at: startedAt }]);
+        const listByProjectUuidExcludingThread = vi
+            .fn()
+            .mockResolvedValue([{ ...row, pr_number: 8, summary: null }]);
         const service = buildService({
-            aiWritebackThreadModel: { listByAiThreadUuid } as AnyType,
+            aiWritebackThreadModel: {
+                listByAiThreadUuid,
+                listByProjectUuidExcludingThread,
+            } as AnyType,
+            aiWritebackRunModel: { listInProgressByAiThreadUuid } as AnyType,
         });
 
+        const workstream = {
+            repository: 'acme/analytics',
+            provider: PullRequestProvider.GITHUB,
+            prUrl: PR_7,
+            prNumber: 7,
+            summary: 'Fix the typo',
+        };
         await expect(
             service.listWorkstreams({
                 aiThreadUuid: 'thread-1',
+                projectUuid: 'project-1',
                 repoTarget: 'acme/analytics',
             }),
-        ).resolves.toEqual([
-            {
-                repository: 'acme/analytics',
-                provider: PullRequestProvider.GITHUB,
-                prUrl: PR_7,
-                prNumber: 7,
-                summary: 'Fix the typo',
-            },
-        ]);
+        ).resolves.toEqual({
+            workstreams: [workstream],
+            pendingStartedAt: [startedAt],
+            otherThreads: [{ ...workstream, prNumber: 8, summary: null }],
+        });
         expect(listByAiThreadUuid).toHaveBeenCalledWith(
+            'thread-1',
+            'acme/analytics',
+        );
+        expect(listInProgressByAiThreadUuid).toHaveBeenCalledWith('thread-1');
+        expect(listByProjectUuidExcludingThread).toHaveBeenCalledWith(
+            'project-1',
             'thread-1',
             'acme/analytics',
         );
@@ -6370,6 +6364,135 @@ describe('AiWritebackService.saveWithScript compile check', () => {
         return { save, provider, checkout, service };
     };
 
+    it.each([true, false])(
+        'rejects a stale source before writing (dry run: %s)',
+        async (dryRun) => {
+            const { service, checkout, provider } = setUp();
+            checkout.readFile.mockResolvedValue('notes: 2');
+            await expect(
+                service.saveWithScript(
+                    {
+                        agentPermissionsApply: true,
+                        user: defaultSessionUser,
+                        projectUuid: 'project-1',
+                        prompt: 'Edit notes',
+                        prUrl: null,
+                        source: 'web',
+                    },
+                    script,
+                    {
+                        dryRun,
+                        assertPublishAllowed: null,
+                        checkDbt: null,
+                        expectedSource: {
+                            path: 'models/notes.yml',
+                            revision: null,
+                        },
+                    },
+                ),
+            ).rejects.toThrow(
+                'This file changed since you opened it. Reload it to see the latest version, then make your edit again.',
+            );
+            expect(checkout.readFile).toHaveBeenCalledWith(
+                'dbt/models/notes.yml',
+            );
+            expect(provider.commitApiChanges).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each(['notes: 1', 'notes: 2', null])(
+        'compares the loaded content revision against %s',
+        async (current) => {
+            const { service, checkout, provider } = setUp();
+            checkout.readFile.mockResolvedValue(current);
+            const saving = service.saveWithScript(
+                {
+                    agentPermissionsApply: true,
+                    user: defaultSessionUser,
+                    projectUuid: 'project-1',
+                    prompt: 'Edit notes',
+                    prUrl: null,
+                    source: 'web',
+                },
+                script,
+                {
+                    dryRun: false,
+                    assertPublishAllowed: null,
+                    checkDbt: null,
+                    expectedSource: {
+                        path: 'models/notes.yml',
+                        revision: createHash('sha256')
+                            .update('notes: 1')
+                            .digest('hex'),
+                    },
+                },
+            );
+            if (current === 'notes: 1') {
+                await expect(saving).resolves.toMatchObject({
+                    status: 'saved',
+                });
+                expect(provider.commitApiChanges).toHaveBeenCalledOnce();
+            } else {
+                await expect(saving).rejects.toThrow(
+                    'This file changed since you opened it.',
+                );
+                expect(provider.commitApiChanges).not.toHaveBeenCalled();
+            }
+        },
+    );
+
+    it('creates a missing source with a null revision', async () => {
+        const { service, provider } = setUp();
+        await expect(
+            service.saveWithScript(
+                {
+                    agentPermissionsApply: true,
+                    user: defaultSessionUser,
+                    projectUuid: 'project-1',
+                    prompt: 'Edit notes',
+                    prUrl: null,
+                    source: 'web',
+                },
+                script,
+                {
+                    dryRun: false,
+                    assertPublishAllowed: null,
+                    checkDbt: null,
+                    expectedSource: {
+                        path: 'models/notes.yml',
+                        revision: null,
+                    },
+                },
+            ),
+        ).resolves.toMatchObject({ status: 'saved' });
+        expect(provider.commitApiChanges).toHaveBeenCalledOnce();
+    });
+
+    it('continues the thread pull request on a hand save retry without a URL', async () => {
+        const { service, provider } = setUp();
+        const findLatestPrUrlByThread = vi.fn().mockResolvedValue(PR_7);
+        Object.assign(service, {
+            aiWritebackRunModel: { findLatestPrUrlByThread },
+        });
+        await service.saveWithScript(
+            {
+                agentPermissionsApply: true,
+                user: defaultSessionUser,
+                projectUuid: 'project-1',
+                prompt: 'Edit notes',
+                prUrl: null,
+                source: 'web',
+                aiThreadUuid: 'thread-1',
+                startNewPullRequest: false,
+            },
+            script,
+            { dryRun: false, assertPublishAllowed: null, checkDbt: null },
+        );
+        expect(provider.openApiCheckout).toHaveBeenCalledWith(
+            expect.objectContaining({ prUrl: PR_7 }),
+        );
+    });
+
     it('sends what does not compile back to the model and commits nothing', async () => {
         const { save, provider } = setUp();
         const checkDbt = vi.fn().mockResolvedValue({
@@ -6520,15 +6643,5 @@ describe('AiWritebackService.canReadSourceCode', () => {
         await expect(
             service.canReadSourceCode({ user: user(true), projectUuid: 'p1' }),
         ).resolves.toBe(false);
-    });
-});
-
-describe('findDbtErrorLines', () => {
-    it('keeps the error lines and drops the SQL around them', () => {
-        expect(
-            findDbtErrorLines(
-                'select secret_col\nfrom orders\n  Compilation Error in model orders\nDone.',
-            ),
-        ).toEqual(['Compilation Error in model orders']);
     });
 });

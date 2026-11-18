@@ -16,6 +16,10 @@ import {
     type UpdateManagedAgentSettings,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import {
+    queryHistoryRequestColumnSql,
+    queryHistoryRequestUuidSql,
+} from '../../database/entities/queryHistory';
 import { usersInProjectSql } from '../../models/AnalyticsModelSql';
 import {
     ManagedAgentActionsTableName,
@@ -953,13 +957,13 @@ export class ManagedAgentModel {
             .leftJoin(
                 'saved_queries as sq',
                 this.database.raw(
-                    `sq.saved_query_uuid = (qh.request_parameters->>'savedChartUuid')::uuid AND sq.deleted_at IS NULL`,
+                    `sq.saved_query_uuid = ${queryHistoryRequestUuidSql('qh', 'request_chart_uuid')} AND sq.deleted_at IS NULL`,
                 ),
             )
             .leftJoin(
                 'dashboards as d',
                 this.database.raw(
-                    `d.dashboard_uuid = (qh.request_parameters->>'dashboardUuid')::uuid AND d.deleted_at IS NULL`,
+                    `d.dashboard_uuid = ${queryHistoryRequestUuidSql('qh', 'request_dashboard_uuid')} AND d.deleted_at IS NULL`,
                 ),
             )
             .where('qh.project_uuid', projectUuid)
@@ -973,11 +977,11 @@ export class ManagedAgentModel {
                 'qh.warehouse_execution_time_ms as execution_time_ms',
                 'qh.context',
                 this.database.raw(
-                    `qh.request_parameters->>'savedChartUuid' as chart_uuid`,
+                    `${queryHistoryRequestColumnSql('qh', 'request_chart_uuid')} as chart_uuid`,
                 ),
                 'sq.name as chart_name',
                 this.database.raw(
-                    `qh.request_parameters->>'dashboardUuid' as dashboard_uuid`,
+                    `${queryHistoryRequestColumnSql('qh', 'request_dashboard_uuid')} as dashboard_uuid`,
                 ),
                 'd.name as dashboard_name',
                 'qh.created_at',

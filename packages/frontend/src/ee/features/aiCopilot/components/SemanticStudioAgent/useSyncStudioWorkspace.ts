@@ -20,7 +20,7 @@ export const nameFromRequest = (request: string | undefined): string => {
             .split('\n')
             .map((text) => text.trim())
             .find((text) => text && !/, lines \d+ to \d+:$/.test(text)) ?? '';
-    if (!line) return 'Untitled change';
+    if (!line) return 'Untitled';
     const named = line.charAt(0).toUpperCase() + line.slice(1);
     return named.length > NAME_LENGTH
         ? `${named.slice(0, NAME_LENGTH - 1).trimEnd()}…`
@@ -35,6 +35,7 @@ export const nameFromRequest = (request: string | undefined): string => {
 export const useSyncStudioWorkspace = (
     projectUuid: string,
     hasChanges: boolean,
+    syncThread: boolean,
 ) => {
     const [stored, setStored] = useStoredStudioThread(projectUuid);
     const { data: workspaces } = useStudioWorkspaces(projectUuid);
@@ -43,7 +44,12 @@ export const useSyncStudioWorkspace = (
 
     const followed = useRef<string | null>(null);
     useEffect(() => {
-        if (!active?.agentUuid || followed.current === active.workspaceUuid) {
+        if (
+            !syncThread ||
+            !active?.threadUuid ||
+            !active.agentUuid ||
+            followed.current === active.workspaceUuid
+        ) {
             return;
         }
         followed.current = active.workspaceUuid;
@@ -53,7 +59,7 @@ export const useSyncStudioWorkspace = (
                 agentUuid: active.agentUuid,
             });
         }
-    }, [active, stored, setStored]);
+    }, [syncThread, active, stored, setStored]);
 
     const { data: thread } = useStudioThread(
         projectUuid,
@@ -66,7 +72,8 @@ export const useSyncStudioWorkspace = (
     const started = useRef<string | null>(null);
     const { mutate, isLoading } = action;
     useEffect(() => {
-        if (!stored || !hasChanges || !workspaces || isLoading) return;
+        if (!syncThread || !stored || !hasChanges || !workspaces || isLoading)
+            return;
         const own = workspaces.mine.find(
             ({ threadUuid }) => threadUuid === stored.threadUuid,
         );
@@ -79,18 +86,33 @@ export const useSyncStudioWorkspace = (
                 name: own?.name ?? nameFromRequest(firstRequest?.message),
             },
         });
-    }, [stored, hasChanges, workspaces, isLoading, mutate, firstRequest]);
+    }, [
+        syncThread,
+        stored,
+        hasChanges,
+        workspaces,
+        isLoading,
+        mutate,
+        firstRequest,
+    ]);
 
     // The generated title says what the change is better than the first message, unless someone renamed it.
     const title = thread?.title?.trim() ?? '';
     const retitled = useRef<string | null>(null);
     useEffect(() => {
-        if (!stored || !title || !workspaces || isLoading) return;
+        if (!syncThread || !stored || !title || !workspaces || isLoading)
+            return;
         const own = workspaces.mine.find(
             ({ threadUuid }) => threadUuid === stored.threadUuid,
         );
         if (!own || own.name === title) return;
-        if (own.name !== nameFromRequest(firstRequest?.message)) return;
+        // A workspace the server started before the chat had a title is named for no request.
+        if (
+            own.name !== nameFromRequest(firstRequest?.message) &&
+            own.name !== nameFromRequest(undefined)
+        ) {
+            return;
+        }
         if (retitled.current === `${own.workspaceUuid}:${title}`) return;
         retitled.current = `${own.workspaceUuid}:${title}`;
         mutate({
@@ -98,7 +120,15 @@ export const useSyncStudioWorkspace = (
             workspaceUuid: own.workspaceUuid,
             name: title,
         });
-    }, [stored, title, workspaces, isLoading, mutate, firstRequest]);
+    }, [
+        syncThread,
+        stored,
+        title,
+        workspaces,
+        isLoading,
+        mutate,
+        firstRequest,
+    ]);
 
     return active;
 };

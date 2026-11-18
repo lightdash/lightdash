@@ -54,6 +54,13 @@ const SAMPLE_SETTINGS: {
         owner: 'lightdash',
         repo: 'lightdash',
     },
+    [ApiConnectorType.PYLON]: {
+        connector: ApiConnectorType.PYLON,
+    },
+    [ApiConnectorType.ATTIO]: {
+        connector: ApiConnectorType.ATTIO,
+        object: 'companies',
+    },
 };
 
 const SERVER_ERROR: LiveHttpResponse = {
@@ -115,11 +122,14 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
                     isExistingSource: true,
                 }),
             });
-            const [metric] = integration.explores[0].metrics;
+            // A metric where the explore has one, else a dimension
+            const [definition] = integration.explores;
+            const [metric] = definition.metrics;
+            const [dimension] = definition.dimensions;
             const metricQuery: MetricQuery = {
                 exploreName: explore.name,
-                dimensions: [],
-                metrics: [`${explore.name}_${metric.name}`],
+                dimensions: metric ? [] : [`${explore.name}_${dimension.name}`],
+                metrics: metric ? [`${explore.name}_${metric.name}`] : [],
                 filters: {},
                 sorts: [],
                 limit: 10,

@@ -7,6 +7,7 @@ import {
 } from '../../../../../../types/savedCharts';
 import { formatFieldLabel } from '../../../shared/formatFieldLabel';
 import { type RunQueryBuiltinChartInput } from '../../types';
+import { getBarStackId } from './barStack';
 
 export const getBarChartConfig = ({
     queryTool,
@@ -81,7 +82,7 @@ export const getBarChartConfig = ({
                         type: CartesianSeriesType.BAR,
                         yAxisIndex: 0,
                         ...(chartConfig?.stackBars && {
-                            stack: metric,
+                            stack: getBarStackId(metric, chartConfig.groupBy),
                         }),
                         encode: {
                             xRef: { field: xDimension },

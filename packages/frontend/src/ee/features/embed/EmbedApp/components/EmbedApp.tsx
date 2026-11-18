@@ -6,6 +6,7 @@ import AppIframePreview from '../../../../../features/apps/AppIframePreview';
 import { getVisiblePreviewTokenError } from '../../../../../features/apps/hooks/previewTokenQueryOptions';
 import { useEmbedAppPreviewToken } from '../../../../../features/apps/hooks/useEmbedAppPreviewToken';
 import { usePreviewOrigin } from '../../../../../features/apps/previewOrigin';
+import useApp from '../../../../../providers/App/useApp';
 import styles from './EmbedApp.module.css';
 
 type Props = {
@@ -20,6 +21,9 @@ type Props = {
  * `dataApp` JWT); the sandboxed iframe + postMessage bridge are identical.
  */
 const EmbedApp: FC<Props> = ({ appUuid, projectUuid }) => {
+    // previewOrigin falls back to the page origin until health loads, and the
+    // main domain 404s app paths.
+    const { health } = useApp();
     const previewOrigin = usePreviewOrigin();
     const tokenQuery = useEmbedAppPreviewToken(projectUuid, appUuid);
 
@@ -49,7 +53,10 @@ const EmbedApp: FC<Props> = ({ appUuid, projectUuid }) => {
                     title="No access"
                     description="This data app isn't authorized for this embed."
                 />
-            ) : tokenQuery.isLoading || !previewUrl || !tokenQuery.data ? (
+            ) : health.isInitialLoading ||
+              tokenQuery.isLoading ||
+              !previewUrl ||
+              !tokenQuery.data ? (
                 <Stack align="center" justify="center" h="100%">
                     <Loader size="sm" />
                 </Stack>

@@ -11,7 +11,10 @@ import {
     type OAuthClientSummary,
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
-import { MobileOrgDisabledOAuthError } from '../../auth/mobileAppAccess';
+import {
+    MobileOrgDisabledOAuthError,
+    type MobileGrant,
+} from '../../auth/mobileAppAccess';
 import { assertOAuthCredentialOperationAllowed } from '../../auth/oauthScopes/credentials';
 import {
     oauthApiResource,
@@ -44,11 +47,16 @@ export type OAuthGrantRevokedHandler = (args: {
     clientId: string;
 }) => Promise<void>;
 
+export type OAuthMobileAccessDeniedHandler = (
+    args: MobileGrant & { organizationUuid: string },
+) => Promise<void>;
+
 type OAuthServiceArguments = {
     userModel: UserModel;
     oauthModel: OAuth2Model;
     lightdashConfig: LightdashConfig;
     onGrantRevoked?: OAuthGrantRevokedHandler;
+    onMobileAccessDenied?: OAuthMobileAccessDeniedHandler;
     getManagedSignInService?: () => ManagedSignInService;
     getMobileSignInService?: () => MobileSignInService;
 };
@@ -69,6 +77,8 @@ export class OAuthService extends BaseService {
 
     private onGrantRevoked: OAuthGrantRevokedHandler | undefined;
 
+    private onMobileAccessDenied: OAuthMobileAccessDeniedHandler | undefined;
+
     private getManagedSignInService: (() => ManagedSignInService) | undefined;
 
     private getMobileSignInService: (() => MobileSignInService) | undefined;
@@ -78,6 +88,7 @@ export class OAuthService extends BaseService {
         oauthModel,
         lightdashConfig,
         onGrantRevoked,
+        onMobileAccessDenied,
         getManagedSignInService,
         getMobileSignInService,
     }: OAuthServiceArguments) {
@@ -86,6 +97,7 @@ export class OAuthService extends BaseService {
         this.oauthModel = oauthModel;
         this.lightdashConfig = lightdashConfig;
         this.onGrantRevoked = onGrantRevoked;
+        this.onMobileAccessDenied = onMobileAccessDenied;
         this.getManagedSignInService = getManagedSignInService;
         this.getMobileSignInService = getMobileSignInService;
         this.initializeOAuthServer();
@@ -118,6 +130,11 @@ export class OAuthService extends BaseService {
                             client,
                             (user as UserWithOrganizationUuid).organizationUuid,
                             'invalid_grant',
+                            {
+                                userId: (user as UserWithOrganizationUuid)
+                                    .userId,
+                                clientId: client.id,
+                            },
                         ),
                 ) as unknown as typeof OAuth2Server.AbstractGrantType,
                 ...(getManagedSignInService
@@ -274,11 +291,40 @@ export class OAuthService extends BaseService {
         }
     }
 
+    private async reportMobileAccessDenied<Result>(
+        run: () => Promise<Result>,
+    ): Promise<Result> {
+        try {
+            return await run();
+        } catch (error) {
+            if (
+                error instanceof MobileOrgDisabledOAuthError &&
+                error.grant !== null &&
+                this.onMobileAccessDenied !== undefined
+            ) {
+                try {
+                    await this.onMobileAccessDenied({
+                        ...error.grant,
+                        organizationUuid: error.organizationUuid,
+                    });
+                } catch (handlerError) {
+                    this.logger.warn(
+                        'Unable to remove mobile push installations of a denied grant',
+                        { error: handlerError },
+                    );
+                }
+            }
+            throw error;
+        }
+    }
+
     public async token(
         request: OAuth2Server.Request,
         response: OAuth2Server.Response,
     ): Promise<OAuth2Server.Token> {
-        return this.oauthServer.token(request, response);
+        return this.reportMobileAccessDenied(() =>
+            this.oauthServer.token(request, response),
+        );
     }
 
     public async isAccessTokenBoundToGrant(
@@ -288,6 +334,15 @@ export class OAuthService extends BaseService {
     }
 
     public async authenticate(
+        request: OAuth2Server.Request,
+        response: OAuth2Server.Response,
+    ): Promise<OAuth2Server.Token> {
+        return this.reportMobileAccessDenied(() =>
+            this.authenticateBearer(request, response),
+        );
+    }
+
+    private async authenticateBearer(
         request: OAuth2Server.Request,
         response: OAuth2Server.Response,
     ): Promise<OAuth2Server.Token> {

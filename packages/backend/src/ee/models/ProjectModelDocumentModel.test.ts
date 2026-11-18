@@ -33,6 +33,7 @@ describe('ProjectModelDocumentModel', () => {
             {
                 projectUuid: 'project',
                 userUuid: 'user',
+                workspaceUuid: null,
                 source: { kind: 'undo', reverts: [] },
                 readVersions: new Map(),
                 documents: [{ name: 'orders', content: 'type: model' }],
@@ -57,5 +58,47 @@ describe('ProjectModelDocumentModel', () => {
                     sql.includes('"base_versions"'),
             ),
         ).toBe(true);
+    });
+
+    it.each([
+        ['an active workspace', 'workspace', ['workspace']],
+        ['no active workspace', null, []],
+    ])(
+        'reads only the draft of %s',
+        async (_case, workspaceUuid, workspaceBindings) => {
+            tracker.on.select('project_model_draft_changes').response([]);
+            await model.findDraftChanges({
+                projectUuid: 'project',
+                userUuid: 'user',
+                workspaceUuid,
+            });
+            const [{ sql, bindings }] = tracker.history.select;
+            expect(sql).toContain(
+                workspaceUuid === null
+                    ? '"project_model_draft_changes"."workspace_uuid" is null'
+                    : '"project_model_draft_changes"."workspace_uuid" = $1',
+            );
+            expect(bindings).toEqual([
+                ...workspaceBindings,
+                'project',
+                'user',
+                'draft',
+            ]);
+        },
+    );
+
+    it("reads one workspace's draft without changes from before drafts had workspaces", async () => {
+        tracker.on.select('project_model_draft_changes').response([]);
+        await model.findWorkspaceDraftChanges({
+            projectUuid: 'project',
+            userUuid: 'user',
+            workspaceUuid: 'workspace',
+        });
+        const [{ sql, bindings }] = tracker.history.select;
+        expect(sql).toContain(
+            '"project_model_draft_changes"."workspace_uuid" = $1',
+        );
+        expect(sql).not.toContain('is null');
+        expect(bindings).toContain('workspace');
     });
 });

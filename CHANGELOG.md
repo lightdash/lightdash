@@ -1,3 +1,323 @@
+# [3.312.0](https://github.com/lightdash/lightdash/compare/3.311.0...3.312.0) (2026-11-18)
+
+
+### Features
+
+* **semantic-studio:** call the default state Published and changes drafts ([#32860](https://github.com/lightdash/lightdash/issues/32860)) ([dabbe51](https://github.com/lightdash/lightdash/commit/dabbe513b7a58332f3dd243e75591f0c039a669a))
+* **semantic-studio:** say draft where the copy means the whole draft ([#32870](https://github.com/lightdash/lightdash/issues/32870)) ([fdf475b](https://github.com/lightdash/lightdash/commit/fdf475bdb4dd4fb1dc0d78e0246387f9b888840f))
+
+# [3.311.0](https://github.com/lightdash/lightdash/compare/3.310.2...3.311.0) (2026-11-18)
+
+
+### Bug Fixes
+
+* **ai-agent:** create a SQL chart only when the user chooses one ([#32857](https://github.com/lightdash/lightdash/issues/32857)) ([71c804e](https://github.com/lightdash/lightdash/commit/71c804e7e0fbdf36daea8c3deee3b3fa9a2c9cca))
+* **ai-agent:** don't show unapproved SQL as a failed step ([#32856](https://github.com/lightdash/lightdash/issues/32856)) ([43baf16](https://github.com/lightdash/lightdash/commit/43baf16abb6f5c476aacaf438b88456c0627c945))
+
+
+### Features
+
+* **live-sources:** remove fields that cost extra API calls ([#32865](https://github.com/lightdash/lightdash/issues/32865)) ([1e1c6a7](https://github.com/lightdash/lightdash/commit/1e1c6a7f344a6aeddcc4329923d83d52a57322f2)), closes [#32864](https://github.com/lightdash/lightdash/issues/32864)
+* **semantic-studio:** compile a draft's branch on the worker ([#32866](https://github.com/lightdash/lightdash/issues/32866)) ([22c75a5](https://github.com/lightdash/lightdash/commit/22c75a562ecf9eaa704b2184ccf07bb34e800ddf))
+* **semantic-studio:** read and recompile the checked-out draft ([#32867](https://github.com/lightdash/lightdash/issues/32867)) ([d59d885](https://github.com/lightdash/lightdash/commit/d59d885495dd64709c690944029a9d712d0c4bf9))
+* **semantic-studio:** show the checked-out draft across the app ([#32868](https://github.com/lightdash/lightdash/issues/32868)) ([609b9ce](https://github.com/lightdash/lightdash/commit/609b9ce99cb103218f10dec0d6464af0af122adf))
+
+## [3.310.2](https://github.com/lightdash/lightdash/compare/3.310.1...3.310.2) (2026-11-18)
+
+
+### Performance Improvements
+
+* **query-history:** read copied request columns and use uuid-typed joins ([#32839](https://github.com/lightdash/lightdash/issues/32839)) ([b016df1](https://github.com/lightdash/lightdash/commit/b016df12d763bab752cd9ec5234c169ef21dc7a4))
+
+## [3.310.1](https://github.com/lightdash/lightdash/compare/3.310.0...3.310.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **semantic-studio:** show the Pre-aggregates tab only on modelled explores ([#32854](https://github.com/lightdash/lightdash/issues/32854)) ([fa1fba7](https://github.com/lightdash/lightdash/commit/fa1fba7d99d435244d3dac09aac148ba951174c6))
+
+# [3.310.0](https://github.com/lightdash/lightdash/compare/3.309.0...3.310.0) (2026-11-18)
+
+
+### Features
+
+* **semantic-studio:** name the change the agent starts and say so ([#32843](https://github.com/lightdash/lightdash/issues/32843)) ([e16772f](https://github.com/lightdash/lightdash/commit/e16772f8327207668d5c32ec168608358d984470))
+
+# [3.309.0](https://github.com/lightdash/lightdash/compare/3.308.1...3.309.0) (2026-11-18)
+
+
+### Features
+
+* **semantic-studio:** let a change exist without a chat thread ([#32838](https://github.com/lightdash/lightdash/issues/32838)) ([f3d4507](https://github.com/lightdash/lightdash/commit/f3d4507308a4419c48e613c618aa521591af27da))
+
+## [3.308.1](https://github.com/lightdash/lightdash/compare/3.308.0...3.308.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **ai:** show joined field descriptions and table filter notes once per grepFields result ([#32845](https://github.com/lightdash/lightdash/issues/32845)) ([a4ac8b4](https://github.com/lightdash/lightdash/commit/a4ac8b41553ffe12226b879de8ceebb6c0b0d555))
+* **exports:** keep Google Sheets export running after its menu closes ([#32847](https://github.com/lightdash/lightdash/issues/32847)) ([fcf1274](https://github.com/lightdash/lightdash/commit/fcf12743bac78cf547bc244e76ad31433bb14487))
+
+# [3.308.0](https://github.com/lightdash/lightdash/compare/3.307.0...3.308.0) (2026-11-18)
+
+
+### Features
+
+* **semantic-studio:** check out Live or a change from the Studio header ([#32834](https://github.com/lightdash/lightdash/issues/32834)) ([74bd384](https://github.com/lightdash/lightdash/commit/74bd384432465992178143cd9b35f0eb50e01545))
+
+# [3.307.0](https://github.com/lightdash/lightdash/compare/3.306.3...3.307.0) (2026-11-18)
+
+
+### Features
+
+* **analytics:** add embedded dashboard view events ([#32841](https://github.com/lightdash/lightdash/issues/32841)) ([12b968c](https://github.com/lightdash/lightdash/commit/12b968c199a72d105aeaac5389ad4eb690909625))
+
+## [3.306.3](https://github.com/lightdash/lightdash/compare/3.306.2...3.306.3) (2026-11-18)
+
+
+### Bug Fixes
+
+* **embed:** wait for the preview origin before loading an embedded data app ([#32670](https://github.com/lightdash/lightdash/issues/32670)) ([7c96982](https://github.com/lightdash/lightdash/commit/7c96982d8d37a15c0a15a5ccc76ad11fc1c5780c))
+
+## [3.306.2](https://github.com/lightdash/lightdash/compare/3.306.1...3.306.2) (2026-11-18)
+
+
+### Bug Fixes
+
+* **dashboards:** let dashboards already over a limit be saved ([#32840](https://github.com/lightdash/lightdash/issues/32840)) ([c9f15d5](https://github.com/lightdash/lightdash/commit/c9f15d545f98a2997301f2873f8fff4ab46e1983))
+
+## [3.306.1](https://github.com/lightdash/lightdash/compare/3.306.0...3.306.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **semantic-studio:** theme the Lineage diagram for dark mode ([#32842](https://github.com/lightdash/lightdash/issues/32842)) ([a515655](https://github.com/lightdash/lightdash/commit/a51565542a1f0a34f2280315cca1608e4f895604))
+
+# [3.306.0](https://github.com/lightdash/lightdash/compare/3.305.1...3.306.0) (2026-11-18)
+
+
+### Features
+
+* **live-sources:** follow project results caching for live data sources ([#32825](https://github.com/lightdash/lightdash/issues/32825)) ([9a7141b](https://github.com/lightdash/lightdash/commit/9a7141bb80d56e445269006eb82d1eb57000b752))
+
+## [3.305.1](https://github.com/lightdash/lightdash/compare/3.305.0...3.305.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **dashboards:** read only the latest version for pinned and favourites ([#32771](https://github.com/lightdash/lightdash/issues/32771)) ([63481ef](https://github.com/lightdash/lightdash/commit/63481ef95b2a471ababf8a0a9f436e96c6220371))
+
+# [3.305.0](https://github.com/lightdash/lightdash/compare/3.304.1...3.305.0) (2026-11-18)
+
+
+### Bug Fixes
+
+* **ai-agent:** stack bars across y columns when there is no groupBy ([#32833](https://github.com/lightdash/lightdash/issues/32833)) ([7420716](https://github.com/lightdash/lightdash/commit/7420716ff7513c09b3fe6bb346c71654ab782f7d))
+* **ai:** refuse agent-initiated semantic-layer pull requests so dashboard edits are built now ([#32830](https://github.com/lightdash/lightdash/issues/32830)) ([ef72cd7](https://github.com/lightdash/lightdash/commit/ef72cd7f939fb658e6788ade842de7c0bc07e1af))
+* open Semantic Studio chat by default ([#32832](https://github.com/lightdash/lightdash/issues/32832)) ([1ae36a1](https://github.com/lightdash/lightdash/commit/1ae36a1e905384f37c7c121f2e0d4160ada1e87d))
+
+
+### Features
+
+* **pre-aggregates:** configure Parquet writer memory ([#32831](https://github.com/lightdash/lightdash/issues/32831)) ([97c3f23](https://github.com/lightdash/lightdash/commit/97c3f23ad5060c821ba86b8dfa23096ffa82765b))
+
+## [3.304.1](https://github.com/lightdash/lightdash/compare/3.304.0...3.304.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **ai:** list in-flight and sibling-thread pull requests in listWorkstreams ([#32829](https://github.com/lightdash/lightdash/issues/32829)) ([7497e18](https://github.com/lightdash/lightdash/commit/7497e18cd3dfe0ba6a938023d23e600b9e28e4cc))
+
+# [3.304.0](https://github.com/lightdash/lightdash/compare/3.303.2...3.304.0) (2026-11-18)
+
+
+### Features
+
+* **bigquery:** flag to request Drive read access on BigQuery sign-in ([#32378](https://github.com/lightdash/lightdash/issues/32378)) ([9804eca](https://github.com/lightdash/lightdash/commit/9804eca797366109319f6be92ff0c058609e71c7))
+
+## [3.303.2](https://github.com/lightdash/lightdash/compare/3.303.1...3.303.2) (2026-11-18)
+
+
+### Bug Fixes
+
+* **mobile:** hide the phone entry after Not interested ([#32760](https://github.com/lightdash/lightdash/issues/32760)) ([e9e17ec](https://github.com/lightdash/lightdash/commit/e9e17ecc3f5515310a4fcbc850073a7481c66f7a))
+* **mobile:** no push registration, and no pushes after re-enable without sign-in, for a disabled org ([#32762](https://github.com/lightdash/lightdash/issues/32762)) ([dfbf9de](https://github.com/lightdash/lightdash/commit/dfbf9de8a8866c431bd3590b0a18e45b94e72e7d))
+
+## [3.303.1](https://github.com/lightdash/lightdash/compare/3.303.0...3.303.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **charts:** apply chart save checks when a chart or dashboard is rolled back ([#32819](https://github.com/lightdash/lightdash/issues/32819)) ([56273b8](https://github.com/lightdash/lightdash/commit/56273b8edaedd0901b02c75b1e4827cea22bf84f))
+
+# [3.303.0](https://github.com/lightdash/lightdash/compare/3.302.1...3.303.0) (2026-11-18)
+
+
+### Bug Fixes
+
+* **content-as-code:** apply composer chart files when pulling from git ([#32820](https://github.com/lightdash/lightdash/issues/32820)) ([ed25f08](https://github.com/lightdash/lightdash/commit/ed25f085547da6505a78dd8a07ae866218674633))
+
+
+### Features
+
+* **composer:** view a composer tile's lineage, with its chart, in a modal ([#32754](https://github.com/lightdash/lightdash/issues/32754)) ([42374c5](https://github.com/lightdash/lightdash/commit/42374c5fe05c4e6ad1c2a3da74240844ceee94c6))
+
+## [3.302.1](https://github.com/lightdash/lightdash/compare/3.302.0...3.302.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **dbt:** float dbt-core patch releases in the dbt 1.12 venv ([#32818](https://github.com/lightdash/lightdash/issues/32818)) ([b972368](https://github.com/lightdash/lightdash/commit/b9723684c498024fbd06b422d7a50b2cb0c13276))
+* **explorer:** keep the last results column's menu clear of the add-column button ([#32823](https://github.com/lightdash/lightdash/issues/32823)) ([d791503](https://github.com/lightdash/lightdash/commit/d7915031ee70238cc5cc307e7e6d56a04e00158b))
+
+# [3.302.0](https://github.com/lightdash/lightdash/compare/3.301.2...3.302.0) (2026-11-18)
+
+
+### Features
+
+* attribute embedded analytics to viewers and tenants ([#32751](https://github.com/lightdash/lightdash/issues/32751)) ([27fe137](https://github.com/lightdash/lightdash/commit/27fe137748b55b0ba05353e6e353dca1a57a635f))
+
+## [3.301.2](https://github.com/lightdash/lightdash/compare/3.301.1...3.301.2) (2026-11-18)
+
+
+### Bug Fixes
+
+* **content-as-code:** write back composer charts a dashboard's tiles name ([#32759](https://github.com/lightdash/lightdash/issues/32759)) ([78297b8](https://github.com/lightdash/lightdash/commit/78297b8ef94c01032e11758be7bc0fd9d128593e))
+
+## [3.301.1](https://github.com/lightdash/lightdash/compare/3.301.0...3.301.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **composer:** apply chart write checks when a dashboard is rolled back ([#32774](https://github.com/lightdash/lightdash/issues/32774)) ([c2cc17c](https://github.com/lightdash/lightdash/commit/c2cc17ca1e2bc98111469f70ccb9a85aeb4cdd4a))
+
+# [3.301.0](https://github.com/lightdash/lightdash/compare/3.300.1...3.301.0) (2026-11-17)
+
+
+### Features
+
+* **live-sources:** add cache settings, purge and freshness to live data sources ([#32778](https://github.com/lightdash/lightdash/issues/32778)) ([dce8e19](https://github.com/lightdash/lightdash/commit/dce8e193e7c26f1ff3172ae1f86a3f0de77f0b79))
+* **live-sources:** share live data source results across viewers with a freshness window per source ([#32777](https://github.com/lightdash/lightdash/issues/32777)) ([a05d332](https://github.com/lightdash/lightdash/commit/a05d332c11c384d3e04425cb224cee6aab1e2d4a))
+
+## [3.300.1](https://github.com/lightdash/lightdash/compare/3.300.0...3.300.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **frontend:** say it was you when your other Studio change published under this draft ([#32802](https://github.com/lightdash/lightdash/issues/32802)) ([b6fd94e](https://github.com/lightdash/lightdash/commit/b6fd94e5c1a8c2275ff372dddedcbc02f0b6d2ee))
+
+# [3.300.0](https://github.com/lightdash/lightdash/compare/3.299.0...3.300.0) (2026-11-17)
+
+
+### Features
+
+* **semantic-studio:** give each Studio workspace its own draft ([#32800](https://github.com/lightdash/lightdash/issues/32800)) ([7cabbfb](https://github.com/lightdash/lightdash/commit/7cabbfb2f849a7f1d645c4e4984ac77b86d3b837))
+
+# [3.299.0](https://github.com/lightdash/lightdash/compare/3.298.1...3.299.0) (2026-11-17)
+
+
+### Features
+
+* **live-sources:** show a plain-language live data source test result ([#32776](https://github.com/lightdash/lightdash/issues/32776)) ([2fc7b59](https://github.com/lightdash/lightdash/commit/2fc7b59aca046f278e0550b7981c2d69c2e56d86)), closes [#32775](https://github.com/lightdash/lightdash/issues/32775)
+
+## [3.298.1](https://github.com/lightdash/lightdash/compare/3.298.0...3.298.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **ai:** keep hand saves in Semantic Studio from overwriting newer edits or opening a second pull request ([#32786](https://github.com/lightdash/lightdash/issues/32786)) ([371687d](https://github.com/lightdash/lightdash/commit/371687de223227943a64b30e3cdd14bc0d5e9bfa))
+
+# [3.298.0](https://github.com/lightdash/lightdash/compare/3.297.0...3.298.0) (2026-11-17)
+
+
+### Features
+
+* **frontend:** pre-aggregate card in Semantic Studio with a sample, daily usage, chart misses and details ([#32796](https://github.com/lightdash/lightdash/issues/32796)) ([b82dda2](https://github.com/lightdash/lightdash/commit/b82dda29538dc79a5c21bccb41dc7e8d3a61d0f1))
+
+# [3.297.0](https://github.com/lightdash/lightdash/compare/3.296.0...3.297.0) (2026-11-17)
+
+
+### Features
+
+* **live-sources:** add the Attio live integration ([#32742](https://github.com/lightdash/lightdash/issues/32742)) ([071b76d](https://github.com/lightdash/lightdash/commit/071b76d8c2d9793e9dd25d37e4ca946134f06b0c))
+
+# [3.296.0](https://github.com/lightdash/lightdash/compare/3.295.1...3.296.0) (2026-11-17)
+
+
+### Features
+
+* **frontend:** list a model's pre-aggregates under its file in Semantic Studio ([#32793](https://github.com/lightdash/lightdash/issues/32793)) ([2952dd4](https://github.com/lightdash/lightdash/commit/2952dd4ffe98d3c06f64202dfbac4f8adb0a1dff))
+
+## [3.295.1](https://github.com/lightdash/lightdash/compare/3.295.0...3.295.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **ai:** keep a model's pre-aggregates when Semantic Studio publishes it ([#32792](https://github.com/lightdash/lightdash/issues/32792)) ([254212c](https://github.com/lightdash/lightdash/commit/254212cd49e5bbade8f0f02cf2889cad0e0aa6ac))
+
+# [3.295.0](https://github.com/lightdash/lightdash/compare/3.294.3...3.295.0) (2026-11-17)
+
+
+### Bug Fixes
+
+* **ai:** show a Semantic Studio pull request merged or closed outside the app ([#32787](https://github.com/lightdash/lightdash/issues/32787)) ([982cdbf](https://github.com/lightdash/lightdash/commit/982cdbfb16d2fdaa46cb3484f32d5c7846bdb076))
+* **frontend:** stop Semantic Studio promising edits on models deployed from outside ([#32790](https://github.com/lightdash/lightdash/issues/32790)) ([a1f35f1](https://github.com/lightdash/lightdash/commit/a1f35f18fcc0f1f251859470fe2cf0b8356a009d))
+
+
+### Features
+
+* **frontend:** show a model's pre-aggregates in Semantic Studio ([#32788](https://github.com/lightdash/lightdash/issues/32788)) ([b8eaefe](https://github.com/lightdash/lightdash/commit/b8eaefe0cc24b602f29518758cbeecb0aa332870))
+
+## [3.294.3](https://github.com/lightdash/lightdash/compare/3.294.2...3.294.3) (2026-11-17)
+
+
+### Bug Fixes
+
+* **ai:** address Semantic Studio feedback on pull requests, previews and the code view ([#32761](https://github.com/lightdash/lightdash/issues/32761)) ([c7f57d7](https://github.com/lightdash/lightdash/commit/c7f57d7ec15b4715ca9e0642f3f833367b205cae))
+
+## [3.294.2](https://github.com/lightdash/lightdash/compare/3.294.1...3.294.2) (2026-11-17)
+
+
+### Bug Fixes
+
+* **mobile:** hide the mobile nav item when organization mobile access is off ([#32770](https://github.com/lightdash/lightdash/issues/32770)) ([50f40cb](https://github.com/lightdash/lightdash/commit/50f40cb004b326d479e4b46a42afac0c0aea36f2))
+
+## [3.294.1](https://github.com/lightdash/lightdash/compare/3.294.0...3.294.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **dashboards:** read only the latest dashboard version in list queries ([#32763](https://github.com/lightdash/lightdash/issues/32763)) ([2c7cf23](https://github.com/lightdash/lightdash/commit/2c7cf23e502af4abb3061ed69b797085e79683d4))
+
+# [3.294.0](https://github.com/lightdash/lightdash/compare/3.293.1...3.294.0) (2026-11-17)
+
+
+### Features
+
+* **semantic-studio:** show each explore's lineage and joins on the Semantic Layer page ([#32593](https://github.com/lightdash/lightdash/issues/32593)) ([2118a43](https://github.com/lightdash/lightdash/commit/2118a431309f63f14e155a2e284999c13f1ba490))
+
+## [3.293.1](https://github.com/lightdash/lightdash/compare/3.293.0...3.293.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **chart-types:** render custom chart type from an unpublished chart draft ([#32733](https://github.com/lightdash/lightdash/issues/32733)) ([52f4bbe](https://github.com/lightdash/lightdash/commit/52f4bbe1dde5e27a3d4849f3ae0321e5fc8142e8))
+* **charts:** run unpublished chart changes on the chart page in view mode ([#32737](https://github.com/lightdash/lightdash/issues/32737)) ([e38f19d](https://github.com/lightdash/lightdash/commit/e38f19d5fdf4b58434369f03709b9f4da535a3ce))
+
+# [3.293.0](https://github.com/lightdash/lightdash/compare/3.292.0...3.293.0) (2026-11-17)
+
+
+### Features
+
+* **live-sources:** add Pylon live integration ([#32746](https://github.com/lightdash/lightdash/issues/32746)) ([30b0116](https://github.com/lightdash/lightdash/commit/30b0116fa52b839987b36d1e8088be54fdfb1747))
+
+# [3.292.0](https://github.com/lightdash/lightdash/compare/3.291.0...3.292.0) (2026-11-17)
+
+
+### Features
+
+* **dashboards:** scroll to and select a tile added from the edit toolbar ([#32765](https://github.com/lightdash/lightdash/issues/32765)) ([b9cfa46](https://github.com/lightdash/lightdash/commit/b9cfa466986d2bc9fc7a68288ac9d41533b3ec10))
+
 # [3.291.0](https://github.com/lightdash/lightdash/compare/3.290.2...3.291.0) (2026-11-17)
 
 

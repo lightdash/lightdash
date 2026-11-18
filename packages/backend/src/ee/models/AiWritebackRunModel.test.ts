@@ -30,6 +30,45 @@ const buildModel = (qb: AnyType) => {
 };
 
 describe('AiWritebackRunModel', () => {
+    describe('findLatestPrUrlByThread', () => {
+        it.each([null, 'https://github.com/acme/analytics/pull/1'])(
+            'falls back to the unfinished workspace when no run has a pull request: %s',
+            async (url) => {
+                const qb = buildQueryBuilder({
+                    whereNotNull: vi.fn().mockReturnThis(),
+                    whereNull: vi.fn().mockReturnThis(),
+                    orderBy: vi.fn().mockReturnThis(),
+                    first: vi
+                        .fn()
+                        .mockResolvedValueOnce(undefined)
+                        .mockResolvedValueOnce({ pull_request_url: url }),
+                });
+                const { model, database } = buildModel(qb);
+                await expect(
+                    model.findLatestPrUrlByThread('thread-1'),
+                ).resolves.toBe(url);
+                expect(database).toHaveBeenLastCalledWith(
+                    'semantic_studio_workspaces',
+                );
+                expect(qb.whereNull).toHaveBeenCalledWith('finished_at');
+            },
+        );
+
+        it('prefers the latest writeback run', async () => {
+            const qb = buildQueryBuilder({
+                whereNotNull: vi.fn().mockReturnThis(),
+                orderBy: vi.fn().mockReturnThis(),
+                first: vi.fn().mockResolvedValue({
+                    pr_url: 'https://github.com/acme/analytics/pull/2',
+                }),
+            });
+            const { model, database } = buildModel(qb);
+            await expect(
+                model.findLatestPrUrlByThread('thread-1'),
+            ).resolves.toBe('https://github.com/acme/analytics/pull/2');
+            expect(database).toHaveBeenCalledTimes(1);
+        });
+    });
     describe('create', () => {
         it('inserts a pending row and returns it', async () => {
             const qb = buildQueryBuilder();

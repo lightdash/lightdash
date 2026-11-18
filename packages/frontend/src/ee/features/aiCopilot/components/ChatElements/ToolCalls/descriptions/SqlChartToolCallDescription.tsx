@@ -4,7 +4,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconChartBar } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
-import { useCanViewAiAgentSql } from '../../../../hooks/useCanViewAiAgentSql';
+import { useCanViewAiAgentSql } from '../../../../../../../features/composerCharts/hooks/useCanViewAiAgentSql';
 import { AiSqlModal } from '../../AiSqlModal';
 import {
     SqlApprovalActions,

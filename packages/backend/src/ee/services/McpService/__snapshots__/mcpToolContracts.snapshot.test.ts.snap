@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`MCP tool contracts > matches the 'filter-expression' MCP server instructions snapshot 1`] = `
+exports[`MCP tool contracts > matches the filter-expression MCP server instructions snapshot 1`] = `
 "## Query Building Workflow
 
 For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
@@ -25,7 +25,7 @@ For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`ru
 "
 `;
 
-exports[`MCP tool contracts > matches the 'structured-filter' MCP server instructions snapshot 1`] = `
+exports[`MCP tool contracts > matches the structured-filter MCP server instructions snapshot 1`] = `
 "## Query Building Workflow
 
 For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
@@ -340,7 +340,7 @@ When to use:
 Returns:
 Matching fields as \`explore/fieldId  [kind type]\` lines grouped by explore. Pick the single explore that answers at the right grain before building a query.
 - A description or hint ending in "...(truncated)" is incomplete; read the full text with get_metadata before using that field.
-- A field annotated with \`⚠params: <names>\` depends on those Lightdash parameters; read their definitions with get_metadata on its explore before querying it.
+- A field annotated with \`requires params: <names>\` depends on those Lightdash parameters; read their definitions with get_metadata on its explore before querying it.
 
 Recovery:
 When no field matches literally, the result lists the closest catalog matches (fuzzy search) under "No exact grep matches". Use those rather than re-grepping a long list of synonyms; broaden the patterns only when those miss too.

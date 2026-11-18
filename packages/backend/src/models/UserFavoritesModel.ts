@@ -8,7 +8,10 @@ import {
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { AppsTableName, AppVersionsTableName } from '../database/entities/apps';
-import { DashboardsTableName } from '../database/entities/dashboards';
+import {
+    DashboardsTableName,
+    DashboardVersionsTableName,
+} from '../database/entities/dashboards';
 import { OrganizationTableName } from '../database/entities/organizations';
 import { PinnedAppTableName } from '../database/entities/pinnedList';
 import { ProjectTableName } from '../database/entities/projects';
@@ -18,6 +21,7 @@ import {
     UserFavoritesTableName,
     type CreateDbUserFavorite,
 } from '../database/entities/userFavorites';
+import { leftJoinLatestDashboardVersion } from './DashboardModel/latestDashboardVersion';
 import { type ResourceViewSpaceItemBase } from './ResourceViewItemModel';
 
 type UserFavoritesModelArguments = {
@@ -194,21 +198,13 @@ export class UserFavoritesModel {
                 `${DashboardsTableName}.space_id`,
                 `${SpaceTableName}.space_id`,
             )
-            .innerJoin(
-                this.database('dashboard_versions')
-                    .distinctOn('dashboard_id')
-                    .orderBy('dashboard_id')
-                    .orderBy('created_at', 'desc')
-                    .select(
-                        'dashboard_id',
-                        'created_at as updated_at',
-                        'updated_by_user_uuid',
-                    )
-                    .as('dv'),
-                `${DashboardsTableName}.dashboard_id`,
-                'dv.dashboard_id',
+            .modify(leftJoinLatestDashboardVersion)
+            .whereNotNull(`${DashboardVersionsTableName}.dashboard_version_id`)
+            .leftJoin(
+                'users',
+                `${DashboardVersionsTableName}.updated_by_user_uuid`,
+                'users.user_uuid',
             )
-            .leftJoin('users', 'dv.updated_by_user_uuid', 'users.user_uuid')
             .whereIn(`${DashboardsTableName}.dashboard_uuid`, dashboardUuids)
             .where((accessFilter) => {
                 void accessFilter.whereIn(
@@ -235,7 +231,7 @@ export class UserFavoritesModel {
                 views: `${DashboardsTableName}.views_count`,
                 first_viewed_at: `${DashboardsTableName}.first_viewed_at`,
                 description: `${DashboardsTableName}.description`,
-                updated_at: 'dv.updated_at',
+                updated_at: `${DashboardVersionsTableName}.created_at`,
                 updated_by_user_first_name: 'users.first_name',
                 updated_by_user_last_name: 'users.last_name',
             })

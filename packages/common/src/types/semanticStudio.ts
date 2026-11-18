@@ -74,6 +74,7 @@ export type ApiSemanticStudioSourcesResponse =
     ApiSuccess<SemanticStudioSources>;
 
 export type SemanticStudioSourceFile = {
+    revision: string | null;
     path: string;
     content: string | null;
 };
@@ -82,6 +83,8 @@ export type ApiSemanticStudioSourceFileResponse =
     ApiSuccess<SemanticStudioSourceFile>;
 
 export type SaveSemanticStudioSourceRequest = {
+    /** The revision the edit was based on, null for a new file; older clients omit it and skip the check. */
+    revision?: string | null;
     path: string;
     content: string;
     /** The change's open pull request to add the commit to, or null to open one. */
@@ -98,6 +101,8 @@ export type SemanticStudioSourceSave =
           prAction: 'opened' | 'updated';
           commitSha: string;
           checked: boolean;
+          /** The revision of the file as saved, for the next save to be based on. */
+          revision: string;
       }
     | { status: 'failed'; error: string };
 
@@ -186,8 +191,8 @@ export type SemanticLayerDraftModel = {
     reconciliation: SemanticLayerDraftReconciliation | null;
     /** Other people with unpublished changes to this model, and the parts each is changing; never the content. */
     alsoChanging: SemanticLayerDrafter[];
-    /** The latest change someone else published to this model since this draft first touched it; null when none. */
-    publishedSince: { by: string | null; at: Date } | null;
+    /** The latest change published to this model since this draft first touched it, from another person or another of yours; null when none. */
+    publishedSince: { by: string | null; at: Date; isYours: boolean } | null;
 };
 
 /** What became of a change that left the draft. */
@@ -322,7 +327,7 @@ export type SemanticStudioWorkspace = {
     workspaceUuid: string;
     projectUuid: string;
     name: string;
-    threadUuid: string;
+    threadUuid: string | null;
     agentUuid: string | null;
     owner: { userUuid: string; name: string };
     isMine: boolean;
@@ -353,8 +358,39 @@ export type ApiSemanticStudioWorkspacesResponse =
 export type ApiSemanticStudioWorkspaceResponse =
     ApiSuccess<SemanticStudioWorkspace>;
 
+export type SemanticStudioBranchCompileStatus =
+    | 'compiling'
+    | 'ready'
+    | 'failed';
+
+/** Where the compile of a dbt change's branch stands. */
+export type SemanticStudioBranchCompile = {
+    status: SemanticStudioBranchCompileStatus;
+    /** Null until a compile has read the branch. */
+    branch: string | null;
+    /** Why the latest compile failed; null otherwise. */
+    error: string | null;
+    /** Whether a compile has succeeded; until one has, Explore shows what is published. */
+    hasExplores: boolean;
+    requestedAt: Date;
+    compiledAt: Date | null;
+};
+
+/** The change a person has checked out in a project, which the whole app shows them. */
+export type SemanticStudioCheckout = {
+    workspaceUuid: string;
+    name: string;
+    appliesAs: SemanticLayerApplyMode;
+    /** Null for a change kept on the server, and for a dbt change with no compile asked for yet. */
+    branchCompile: SemanticStudioBranchCompile | null;
+};
+
+/** Null when the person is on what is published. */
+export type ApiSemanticStudioCheckoutResponse =
+    ApiSuccess<SemanticStudioCheckout | null>;
+
 export type SemanticStudioWorkspaceStartBody = {
-    threadUuid: string;
+    threadUuid: string | null;
     name: string;
 };
 

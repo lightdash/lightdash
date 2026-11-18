@@ -277,6 +277,15 @@
     padding-right: 36px;
 }
 
+.edgeHost[data-with-edge]
+    .results:not([data-grouped])
+    table
+    thead
+    th:last-child:not(:first-child)
+    [class*='thActionsContainer'] {
+    right: 32px;
+}
+
 .edgeAction {
     position: absolute;
     top: var(--edge-top, 0);

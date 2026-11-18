@@ -175,6 +175,7 @@ const buildService = (
         appRuntimeS3: null,
         appThumbnailClient: buildAppThumbnailClientMock(),
         chartRegistryClient: {} as never,
+        contentDraftModel: {} as never,
         contentVerificationModel: contentVerificationModel as never,
     });
     return { service, appModel, analytics };

@@ -8,7 +8,7 @@ export type DbSemanticStudioWorkspace = {
     organization_uuid: string;
     project_uuid: string;
     created_by_user_uuid: string | null;
-    ai_thread_uuid: string;
+    ai_thread_uuid: string | null;
     name: string;
     is_active: boolean;
     /** The pull request `pull_request_state` was last checked for. */

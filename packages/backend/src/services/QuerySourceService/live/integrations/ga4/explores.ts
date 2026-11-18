@@ -145,12 +145,6 @@ export const GA4_REPORT_EXPLORE: LiveExploreDefinition = {
                 'First day of the year, in the property time zone. Filter the date to choose the years.',
         },
         dimension(
-            'year_month',
-            'yearMonth',
-            'Year and month',
-            'YYYYMM, e.g. 202610.',
-        ),
-        dimension(
             'country',
             'country',
             'Country',
@@ -377,11 +371,6 @@ export const GA4_REPORT_EXPLORE: LiveExploreDefinition = {
             fields: ITEM_SCOPED_DIMENSIONS,
             with: SESSION_AND_EVENT_METRICS,
             reason: 'Google Analytics only reports item dimensions with item metrics.',
-        },
-        {
-            fields: ['date_month'],
-            with: ['year_month'],
-            reason: 'both read the GA4 yearMonth dimension; pick one.',
         },
     ],
 };

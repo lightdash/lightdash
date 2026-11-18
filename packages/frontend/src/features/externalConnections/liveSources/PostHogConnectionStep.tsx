@@ -1,3 +1,4 @@
+import { POSTHOG_TEST_QUERY } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -50,7 +51,7 @@ export const PostHogConnectionStep: FC<Props> = ({
             config,
             method: 'POST',
             path: getPostHogQueryPath(form.values.projectId.trim()),
-            body: { query: { kind: 'HogQLQuery', query: 'SELECT 1' } },
+            body: { query: { kind: 'HogQLQuery', query: POSTHOG_TEST_QUERY } },
         });
     };
 
@@ -158,7 +159,7 @@ export const PostHogConnectionStep: FC<Props> = ({
                                 isEditing && form.values.apiKey.trim() === ''
                             }
                         >
-                            Test connection
+                            Test access
                         </Button>
                     </Group>
                 </>

@@ -15,15 +15,18 @@ import {
     Title,
 } from '@mantine/core';
 import {
+    IconClockHour4,
     IconDots,
     IconPencil,
     IconPlus,
     IconRefresh,
+    IconRefreshDot,
     IconReload,
     IconTrash,
 } from '@tabler/icons-react';
 import { type FC, type KeyboardEvent, type MouseEvent } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useResultsCacheStatus } from '../../../hooks/useProjectResultsCacheSettings';
 import { useExternalConnectionApiUsage } from '../../externalConnections/hooks/useExternalConnectionApiUsage';
 import { useExternalConnections } from '../../externalConnections/hooks/useExternalConnections';
 import {
@@ -34,6 +37,7 @@ import { formatChartCount } from '../../externalConnections/liveSources/liveSour
 import { LiveSourceIcon } from '../../externalConnections/liveSources/LiveSourceIcon';
 import { useLiveSourceActions } from './liveSourceActions';
 import {
+    getLiveSourceFreshness,
     toLiveSourceRow,
     toLiveSourceRows,
     type LiveSourceConnection,
@@ -93,6 +97,19 @@ const LiveSourceMenu: FC<{
                         Sign in again
                     </Menu.Item>
                 ) : null}
+                <Menu.Divider />
+                <Menu.Item
+                    leftSection={<MantineIcon icon={IconClockHour4} />}
+                    onClick={() => actions.cacheSettings(connection)}
+                >
+                    Cache settings
+                </Menu.Item>
+                <Menu.Item
+                    leftSection={<MantineIcon icon={IconRefreshDot} />}
+                    onClick={() => actions.purgeCache(connection)}
+                >
+                    Purge cache
+                </Menu.Item>
                 <Menu.Divider />
                 <Menu.Item
                     color="red"
@@ -280,6 +297,8 @@ export const LiveSourceSummary: FC<{
         projectUuid,
         connectionUuid: connection.externalConnectionUuid,
     });
+    const { data: projectCache } = useResultsCacheStatus(projectUuid);
+    const isProjectCacheOff = projectCache?.enabled === false;
     const row = toLiveSourceRow(connection, usage);
     const inUse = fields?.fields.filter((field) => field.inUse).length;
     return (
@@ -305,6 +324,19 @@ export const LiveSourceSummary: FC<{
             <Stat label="Data read" value={row.usage.dataRead} />
             <Stat label="API calls" value={row.usage.apiCalls} />
             <Stat label="Cache hits" value={row.usage.cacheHits} />
+            <Stat
+                label="Freshness"
+                value={
+                    isProjectCacheOff
+                        ? 'Not cached'
+                        : getLiveSourceFreshness(connection).label
+                }
+                title={
+                    isProjectCacheOff
+                        ? 'Results caching is off for this project'
+                        : 'How long a result answers the same query for everyone'
+                }
+            />
             <Stat
                 label="Median latency"
                 value={row.usage.medianLatency ?? '—'}

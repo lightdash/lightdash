@@ -25,17 +25,14 @@ export const LINKEDIN_ADS_ID_FILTERS = [FilterOperator.EQUALS];
 // pivotValues (https://learn.microsoft.com/linkedin/marketing/integrations/ads-reporting/ads-reporting)
 const MAX_METRICS = 18;
 
-export const LINKEDIN_ADS_CAMPAIGN_COLUMNS = [
-    'campaign.id',
-    'campaign.name',
-    'campaign.status',
-    'campaign.type',
-    'campaign.objectiveType',
-] as const;
+/**
+ * adAnalytics reports IDs only. Names, statuses and types would need an
+ * account-wide lookup on every query, so the explore has none.
+ */
+export const LINKEDIN_ADS_CAMPAIGN_COLUMNS = ['campaign.id'] as const;
 
 export const LINKEDIN_ADS_CAMPAIGN_GROUP_COLUMNS = [
     'campaignGroup.id',
-    'campaignGroup.name',
 ] as const;
 
 export const LINKEDIN_ADS_DATE_COLUMNS = ['day', 'month', 'year'] as const;
@@ -148,47 +145,12 @@ export const LINKEDIN_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             LINKEDIN_ADS_ID_FILTERS,
         ),
         dimension(
-            'campaign_group_name',
-            'campaignGroup.name',
-            'Campaign group name',
-            'Campaign group',
-            'Current name of the campaign group.',
-        ),
-        dimension(
             'campaign_id',
             'campaign.id',
             'Campaign ID',
             'Campaign',
             'Numeric campaign ID.',
             LINKEDIN_ADS_ID_FILTERS,
-        ),
-        dimension(
-            'campaign_name',
-            'campaign.name',
-            'Campaign name',
-            'Campaign',
-            'Current name of the campaign.',
-        ),
-        dimension(
-            'campaign_status',
-            'campaign.status',
-            'Campaign status',
-            'Campaign',
-            'Current status, such as ACTIVE, PAUSED, ARCHIVED or COMPLETED.',
-        ),
-        dimension(
-            'campaign_type',
-            'campaign.type',
-            'Campaign type',
-            'Campaign',
-            'TEXT_AD, SPONSORED_UPDATES, SPONSORED_INMAILS or DYNAMIC.',
-        ),
-        dimension(
-            'campaign_objective',
-            'campaign.objectiveType',
-            'Campaign objective',
-            'Campaign',
-            'Objective, such as BRAND_AWARENESS, LEAD_GENERATION or WEBSITE_VISIT.',
         ),
     ],
     metrics: [
@@ -325,5 +287,12 @@ export const LINKEDIN_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
     maxDimensions: null,
     maxMetrics: MAX_METRICS,
     dateRange: { dimension: 'date', defaultDays: 28 },
-    incompatible: [],
+    incompatible: [
+        {
+            fields: ['campaign_group_id'],
+            with: ['campaign_id'],
+            reason: 'LinkedIn reports campaigns without their campaign group. Remove Campaign group ID, or filter by it instead.',
+            selectedOnly: true,
+        },
+    ],
 };

@@ -492,7 +492,16 @@ With the flag off for an organisation, the server:
 - sends a browser sign-in for a mobile client back to the app with
   `error=access_denied`;
 - refuses QR code creation on the web with reason `mobile_app_disabled`;
-- sends no push notification and no live activity update for the organisation.
+- sends no push notification and no live activity update for the organisation;
+- refuses a new push installation, push-to-start token or live activity
+  registration with the 401 above, for any credential, and creates no start
+  attempts for a new prompt;
+- removes the push installations of a mobile grant when it denies that grant,
+  together with the installations the same person registered with a cookie
+  session;
+- removes the push installations a person registered with a cookie session
+  when it answers that person with the 401 above on the health check or on a
+  push registration route.
 
 OAuth responses carry `error_description = "mobile_org_disabled"` and
 `organization_uuid`. The organisation is always the one the presented
@@ -514,7 +523,12 @@ finishes.
 
 **Enable again.** The server keeps no revocation record. New sign-ins work at
 once, and an unexpired token works again. An app that received the denial has
-deleted its tokens, so the person signs in again.
+deleted its tokens, so the person signs in again. A device that the
+server answered with the denial has no push installation left, so it receives
+pushes again only after the app registers one, which needs a valid sign-in.
+This does not depend on a request from the app to remove the installation. A
+device that stayed offline for the whole time keeps its installation and its
+sign-in.
 
 **ENV.** `LIGHTDASH_DISABLE_FEATURE_FLAGS=mobile-app-access` turns mobile access
 off for the whole deployment. `LIGHTDASH_ENABLE_FEATURE_FLAGS=mobile-app-access`
@@ -562,3 +576,20 @@ The web makes one uncached, bounded discovery request per mint attempt with a so
 project. Unknown or failed discovery uses the exact legacy mint shape. It retains
 no positive result. Disabling QR sign-in still refuses mint and normal QR actions;
 static protocol discovery grants no access and issues no code or token.
+
+## BigQuery OAuth Drive access
+
+`bigquery-oauth-drive-access` is organization-scoped and off by default. When on,
+"Sign in with Google" for BigQuery (`/login/bigquery`) also requests
+`https://www.googleapis.com/auth/drive.readonly`, so personal BigQuery
+credentials can query external tables backed by Google Sheets or other Drive
+files. BigQuery rejects `drive.file`, `spreadsheets` and `spreadsheets.readonly`
+for these tables.
+
+`drive.readonly` is a restricted Google scope. Only enable the flag for an
+organization once the instance's OAuth app is verified for it; until then users
+see Google's unverified-app screen, which counts towards the 100-user cap.
+Existing users must sign in to BigQuery again to grant the scope. The Google
+login with `AUTH_GOOGLE_INCLUDE_BIGQUERY_SCOPE` does not request it, because the
+organization is unknown at login. Disabling the flag stops new requests for the
+scope; it does not revoke tokens already granted.

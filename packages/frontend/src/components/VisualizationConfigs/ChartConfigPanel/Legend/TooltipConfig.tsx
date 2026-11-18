@@ -12,7 +12,6 @@ import { useDebouncedCallback } from '@mantine/hooks';
 import { IconHelpCircle } from '@tabler/icons-react';
 import { type editor, type IDisposable, type languages } from 'monaco-editor';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
-import { useDeepCompareEffect } from 'react-use';
 import { AiTooltipInput } from '../../../../ee/features/ambientAi/components/tooltip';
 import { useAmbientAiEnabled } from '../../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
 import useIsEmbedded from '../../../../ee/providers/Embed/useIsEmbedded';
@@ -158,7 +157,7 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
         EditorProps['options'] | undefined
     >();
 
-    useDeepCompareEffect(() => {
+    useEffect(() => {
         /** Creates a container that belongs to body, outside of the sidebar
          * so we can place the autocomplete tooltip and it doesn't overflow
          * CSS for this component is set on `monaco.css`
@@ -177,7 +176,7 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
             ...MONACO_DEFAULT_OPTIONS,
             overflowWidgetsDomNode: container,
         });
-    }, [monacoOptions]);
+    }, []);
 
     const beforeMount: BeforeMount = useCallback(
         (monaco) => {

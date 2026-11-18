@@ -13,15 +13,16 @@ import {
     type SemanticLayerModelCode,
     type SemanticLayerStatus,
     type SemanticLayerStoredModels,
+    type SemanticStudioCheckout,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
-import { isDevelopmentViewOn } from './developmentView';
+import { isDevelopmentViewOn, useCheckedOutView } from './developmentView';
 
-const DRAFT_KEY = 'semantic-layer-draft';
+export const DRAFT_KEY = 'semantic-layer-draft';
 const DRAFT_STATE_KEY = 'semantic-layer-draft-state';
 const MODEL_KEY = 'semantic-layer-model';
 const PENDING_POLL_MS = 2000;
@@ -65,7 +66,8 @@ const useGet = <T extends ApiResponse['results']>(
     });
 };
 
-const useStatus = (projectUuid: string) =>
+/** Whether this person can change this project's models here and what applying does; undefined until read. */
+export const useSemanticLayerStatus = (projectUuid: string) =>
     useGet<SemanticLayerStatus>(
         ['semantic-layer-status', projectUuid],
         projectUuid,
@@ -73,17 +75,67 @@ const useStatus = (projectUuid: string) =>
         projectUuid !== '',
     ).data;
 
+export const CHECKOUT_KEY = 'semantic-studio-checkout';
+
+/** The draft this person has checked out, which the whole app shows them; null on what is published. */
+const useDraftCheckout = (projectUuid: string | undefined) =>
+    useGet<SemanticStudioCheckout | null>(
+        [CHECKOUT_KEY, projectUuid ?? null],
+        projectUuid ?? '',
+        '/checkout',
+        !!projectUuid,
+        (checkout) => checkout?.branchCompile?.status === 'compiling',
+    );
+
+/** The checked-out draft, kept as what every request on this project's pages reads. */
+export const useDraftCheckoutView = (
+    projectUuid: string | undefined,
+    projectUrlIdentifier: string | undefined,
+): SemanticStudioCheckout | null => {
+    const { data } = useDraftCheckout(projectUuid);
+    const sync = useCheckedOutView();
+    const identifiers =
+        data && projectUuid
+            ? [projectUuid, projectUrlIdentifier].filter(Boolean).join(' ')
+            : null;
+    const shown = data
+        ? `${data.workspaceUuid}:${String(data.branchCompile?.compiledAt ?? '')}`
+        : null;
+    useEffect(() => {
+        // Unknown until read; a page that cannot read it keeps what it has.
+        if (data === undefined) return;
+        sync(identifiers, shown);
+    }, [data, identifiers, shown, sync]);
+    return data ?? null;
+};
+
+/** Compiles the checked-out draft's branch again. */
+export const useCompileCheckout = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
+    return useMutation<SemanticStudioCheckout | null, ApiError>({
+        mutationFn: () =>
+            lightdashApi<SemanticStudioCheckout | null>({
+                url: toUrl(projectUuid, '/checkout/compile'),
+                method: 'POST',
+                body: undefined,
+            }),
+        onSuccess: (checkout) =>
+            queryClient.setQueryData([CHECKOUT_KEY, projectUuid], checkout),
+    });
+};
+
 /** Whether this person can change this project's models here. */
 export const useCanEditSemanticLayer = (projectUuid: string): boolean =>
-    useStatus(projectUuid)?.enabled === true;
+    useSemanticLayerStatus(projectUuid)?.enabled === true;
 
 /** Whether changes here go through a draft; false on a dbt project, where the agent edits the repository in a pull request. */
 export const useKeepsSemanticLayerDraft = (projectUuid: string): boolean =>
-    useStatus(projectUuid)?.appliesAs !== 'dbt_pull_request';
+    useSemanticLayerStatus(projectUuid)?.appliesAs !== 'dbt_pull_request';
 
 /** Whether applying a draft opens a pull request on the project's repository instead of going live. */
 export const useAppliesAsPullRequest = (projectUuid: string): boolean =>
-    useStatus(projectUuid)?.appliesAs === 'pull_request';
+    useSemanticLayerStatus(projectUuid)?.appliesAs === 'pull_request';
 
 /** The models whose YAML the project keeps; empty for someone who cannot change the project. */
 export const useSemanticLayerStoredModels = (
@@ -118,6 +170,18 @@ export const useSemanticLayerDraft = (
         enabled,
     );
 
+/** One of this person's workspaces, replayed on what is live; nothing is read for null. */
+export const useSemanticLayerWorkspaceDraft = (
+    projectUuid: string,
+    workspaceUuid: string | null,
+) =>
+    useGet<SemanticLayerDraft>(
+        [DRAFT_KEY, projectUuid, 'workspace', workspaceUuid],
+        projectUuid,
+        `/workspaces/${workspaceUuid ?? ''}/draft`,
+        workspaceUuid !== null,
+    );
+
 /**
  * Keeps the draft on a page current without reading it on a timer: a cheap
  * value is asked for instead, and the draft is read again only when it changes.
@@ -141,6 +205,9 @@ export const useDraftFreshness = (projectUuid: string) => {
         seen.current = fingerprint;
         // The first value is what the draft on screen was already read against.
         if (previous === null || previous === fingerprint) return;
+        void queryClient.invalidateQueries({
+            queryKey: ['semantic-studio-workspaces', projectUuid],
+        });
         // A read already under way, as after a write here, sees the change.
         if (queryClient.isFetching({ queryKey: [DRAFT_KEY, projectUuid] }))
             return;
@@ -250,7 +317,12 @@ const useWrite = <TResult extends ApiResponse['results'], TInput>({
                     [DRAFT_STATE_KEY, projectUuid],
                     // Explores read the draft while the development view is on.
                     ...(isDevelopmentViewOn() ? [['tables']] : []),
-                    ...(changesLive ? [[MODEL_KEY, projectUuid]] : []),
+                    ...(changesLive
+                        ? [
+                              [MODEL_KEY, projectUuid],
+                              ['preAggregateMaterializations', projectUuid],
+                          ]
+                        : []),
                 ].map((queryKey) =>
                     queryClient.invalidateQueries({ queryKey }),
                 ),

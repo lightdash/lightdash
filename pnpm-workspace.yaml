@@ -24,7 +24,7 @@ overrides:
   hono: 4.13.11
   tar: 7.5.21
   eslint: 8.57.1
-  canvas: 3.2.1
+  canvas: 3.2.3
   ssh2: 1.17.0
   cpu-features: 0.0.10
   nan: 2.27.0

@@ -680,6 +680,29 @@ const manifestWithCompilationSelection = (
     };
 };
 
+/** The same git connection, reading another branch. */
+const withGitBranch = (
+    connection: DbtProjectConfig,
+    branch: string,
+): DbtProjectConfig => {
+    switch (connection.type) {
+        case DbtProjectType.GITHUB:
+        case DbtProjectType.GITLAB:
+        case DbtProjectType.BITBUCKET:
+        case DbtProjectType.AZURE_DEVOPS:
+            return { ...connection, branch };
+        case DbtProjectType.DBT:
+        case DbtProjectType.DBT_CLOUD_IDE:
+        case DbtProjectType.NONE:
+        case DbtProjectType.MANIFEST:
+            throw new ParameterError(
+                'Only a project connected to a git repository can compile a branch',
+            );
+        default:
+            return assertUnreachable(connection, 'Unknown dbt connection');
+    }
+};
+
 const gzipAsync = promisify(gzip);
 
 type TestProjectAdapterCredentials =
@@ -5716,7 +5739,7 @@ export class ProjectService
     }
 
     // Onboarding can start from a live source and add the warehouse later.
-    // ponytail: fires on save, before the worker tests the connection, as project creation does.
+    // Fires on save, before the worker tests the connection, as project creation does.
     private async trackWarehouseAddedToProject(
         account: Account,
         savedProject: Pick<
@@ -8352,15 +8375,24 @@ export class ProjectService
             dbtTargetPolicy: DbtTargetPolicy;
         }) => Promise<T>,
         manifestFetchAdapters: ProjectAdapter[],
+        /** Compiles this branch of the project's repository instead, leaving the live project as it is. */
+        branch: string | null = null,
     ): Promise<T> {
-        const {
-            project,
-            dbtConnection,
-            warehouseCredentials,
-            cachedWarehouse,
-            dbtVersionOption,
-            dbtPartialParse,
-        } = await this.prepareCompileAdapter(projectUuid, user);
+        const prepared = await this.prepareCompileAdapter(projectUuid, user);
+        const { project, warehouseCredentials, dbtVersionOption } = prepared;
+        const dbtConnection =
+            branch === null
+                ? prepared.dbtConnection
+                : withGitBranch(prepared.dbtConnection, branch);
+        const dbtPartialParse = branch === null && prepared.dbtPartialParse;
+        // Columns a branch adds stay out of the live project's warehouse cache.
+        const cachedWarehouse: CachedWarehouse =
+            branch === null
+                ? prepared.cachedWarehouse
+                : {
+                      ...prepared.cachedWarehouse,
+                      onWarehouseCatalogChange: async () => {},
+                  };
         const dbtTargetPolicy = await this.getDbtTargetPolicy(
             project.organizationUuid,
         );
@@ -8420,6 +8452,24 @@ export class ProjectService
                     );
                 }
             },
+        );
+    }
+
+    /**
+     * Compiles a branch of a git-connected project's repository the way a refresh
+     * compiles its own branch, without saving anything; only the primary dbt source.
+     */
+    async compileExploresFromBranch(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        projectUuid: string,
+        branch: string,
+    ): Promise<(Explore | ExploreError)[]> {
+        return this.withCompileAdapter(
+            projectUuid,
+            user,
+            ({ adapter }) => adapter.compileAllExplores(undefined, false, true),
+            [],
+            branch,
         );
     }
 
@@ -9619,9 +9669,9 @@ export class ProjectService
     }
 
     /**
-     * Custom SQL already saved on a chart `account` can view, in the same project
-     * and explore. Matches any version of a chart that is not deleted; a
-     * dashboard-owned chart counts through its dashboard's space.
+     * Custom SQL on the current version of a chart `account` can view, in the
+     * same project and explore. A dashboard-owned chart counts through its
+     * dashboard's space.
      */
     private async findViewableCustomSqlProvenance({
         account,
@@ -9789,7 +9839,7 @@ export class ProjectService
      * with hand-authored SQL is gated like a custom SQL dimension.
      *
      * A caller who lacks the scope may still run SQL that is byte-identical to SQL
-     * already persisted in a saved chart they can view (same project + explore), so
+     * on the current version of a saved chart they can view (same project + explore), so
      * editors can re-run and filter existing saved charts in Explore edit mode
      * without gaining authoring rights. That general exemption is only granted to
      * registered users. Embedded Explore has a narrower path: it may use only the
@@ -11577,6 +11627,7 @@ export class ProjectService
                 invalidateCache,
                 explore,
                 chartUuid,
+                storedChartSql: true,
             });
 
         return {
@@ -11834,6 +11885,7 @@ export class ProjectService
         explore: validExplore,
         dateZoom,
         chartUuid,
+        storedChartSql = false,
     }: {
         account: Account;
         metricQuery: MetricQuery;
@@ -11846,6 +11898,7 @@ export class ProjectService
         explore?: Explore;
         dateZoom?: DateZoom;
         chartUuid: string | undefined;
+        storedChartSql?: boolean;
     }): Promise<ApiQueryResults> {
         return wrapSentryTransaction(
             'ProjectService.runQueryAndFormatRows',
@@ -11873,6 +11926,7 @@ export class ProjectService
                     explore,
                     dateZoom,
                     chartUuid,
+                    storedChartSql,
                 });
                 span.setAttribute('rows', rows.length);
 
@@ -12166,6 +12220,7 @@ export class ProjectService
         chartUuid,
         parameters,
         userAttributeOverrides,
+        storedChartSql = false,
     }: {
         account: Account;
         metricQuery: MetricQuery;
@@ -12178,6 +12233,8 @@ export class ProjectService
         explore?: Explore;
         dateZoom?: DateZoom;
         chartUuid: string | undefined; // for analytics
+        // A saved chart version the caller may view runs its stored SQL, as saved chart runs do
+        storedChartSql?: boolean;
         parameters?: ParametersValuesMap;
         userAttributeOverrides?: UserAttributeValueMap; // EXPERIMENTAL: used to override user attributes for MCP
     }): Promise<{
@@ -12212,13 +12269,22 @@ export class ProjectService
                         throw new ForbiddenError();
                     }
 
-                    await this.assertCustomSqlAuthorizedForQuery({
-                        account,
-                        projectUuid,
-                        organizationUuid,
-                        exploreName,
-                        metricQuery,
-                    });
+                    if (storedChartSql) {
+                        await this.assertAgentCustomSqlAuthorizedForQuery({
+                            account,
+                            projectUuid,
+                            exploreName,
+                            metricQuery,
+                        });
+                    } else {
+                        await this.assertCustomSqlAuthorizedForQuery({
+                            account,
+                            projectUuid,
+                            organizationUuid,
+                            exploreName,
+                            metricQuery,
+                        });
+                    }
 
                     const { maxLimit, csvCellsLimit } =
                         await resolveOrganizationExportLimits(

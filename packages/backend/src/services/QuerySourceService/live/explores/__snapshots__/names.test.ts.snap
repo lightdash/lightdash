@@ -1,6 +1,26 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`live data source names > 'GitHub' explore names and field ids never change 1`] = `
+exports[`live data source names > Attio explore names and field ids never change 1`] = `
+{
+  "explores": [
+    {
+      "fieldIds": [
+        "attio_records_attribute_count",
+        "attio_records_created_at",
+        "attio_records_name",
+        "attio_records_record_id",
+        "attio_records_stage",
+        "attio_records_value",
+        "attio_records_web_url",
+      ],
+      "name": "attio_records",
+    },
+  ],
+  "reservedExploreNames": [],
+}
+`;
+
+exports[`live data source names > GitHub explore names and field ids never change 1`] = `
 {
   "explores": [
     {
@@ -60,7 +80,7 @@ exports[`live data source names > 'GitHub' explore names and field ids never cha
 }
 `;
 
-exports[`live data source names > 'Google Ads' explore names and field ids never change 1`] = `
+exports[`live data source names > Google Ads explore names and field ids never change 1`] = `
 {
   "explores": [
     {
@@ -95,7 +115,6 @@ exports[`live data source names > 'Google Ads' explore names and field ids never
         "google_ads_performance_date_year",
         "google_ads_performance_day_of_week",
         "google_ads_performance_device",
-        "google_ads_performance_engagements",
         "google_ads_performance_impressions",
         "google_ads_performance_interaction_rate",
         "google_ads_performance_interactions",
@@ -121,7 +140,7 @@ exports[`live data source names > 'Google Ads' explore names and field ids never
 }
 `;
 
-exports[`live data source names > 'Google Analytics' explore names and field ids never change 1`] = `
+exports[`live data source names > Google Analytics explore names and field ids never change 1`] = `
 {
   "explores": [
     {
@@ -163,7 +182,6 @@ exports[`live data source names > 'Google Analytics' explore names and field ids
         "google_analytics_report_sessions",
         "google_analytics_report_total_revenue",
         "google_analytics_report_total_users",
-        "google_analytics_report_year_month",
       ],
       "name": "google_analytics_report",
     },
@@ -174,18 +192,13 @@ exports[`live data source names > 'Google Analytics' explore names and field ids
 }
 `;
 
-exports[`live data source names > 'LinkedIn Ads' explore names and field ids never change 1`] = `
+exports[`live data source names > LinkedIn Ads explore names and field ids never change 1`] = `
 {
   "explores": [
     {
       "fieldIds": [
         "linkedin_ads_performance_campaign_group_id",
-        "linkedin_ads_performance_campaign_group_name",
         "linkedin_ads_performance_campaign_id",
-        "linkedin_ads_performance_campaign_name",
-        "linkedin_ads_performance_campaign_objective",
-        "linkedin_ads_performance_campaign_status",
-        "linkedin_ads_performance_campaign_type",
         "linkedin_ads_performance_clicks",
         "linkedin_ads_performance_comments",
         "linkedin_ads_performance_conversion_value",
@@ -220,7 +233,7 @@ exports[`live data source names > 'LinkedIn Ads' explore names and field ids nev
 }
 `;
 
-exports[`live data source names > 'Meta Ads' explore names and field ids never change 1`] = `
+exports[`live data source names > Meta Ads explore names and field ids never change 1`] = `
 {
   "explores": [
     {
@@ -254,7 +267,6 @@ exports[`live data source names > 'Meta Ads' explore names and field ids never c
         "meta_ads_insights_purchase_value",
         "meta_ads_insights_purchases",
         "meta_ads_insights_reach",
-        "meta_ads_insights_region",
         "meta_ads_insights_registrations_completed",
         "meta_ads_insights_spend",
       ],
@@ -269,7 +281,7 @@ exports[`live data source names > 'Meta Ads' explore names and field ids never c
 }
 `;
 
-exports[`live data source names > 'PostHog' explore names and field ids never change 1`] = `
+exports[`live data source names > PostHog explore names and field ids never change 1`] = `
 {
   "explores": [
     {
@@ -305,7 +317,67 @@ exports[`live data source names > 'PostHog' explore names and field ids never ch
 }
 `;
 
-exports[`live data source names > 'Search Console' explore names and field ids never change 1`] = `
+exports[`live data source names > Pylon explore names and field ids never change 1`] = `
+{
+  "explores": [
+    {
+      "fieldIds": [
+        "pylon_issues_account_id",
+        "pylon_issues_account_name",
+        "pylon_issues_assignee_email",
+        "pylon_issues_created_at",
+        "pylon_issues_csat_score",
+        "pylon_issues_first_response_minutes",
+        "pylon_issues_link",
+        "pylon_issues_number",
+        "pylon_issues_resolution_hours",
+        "pylon_issues_resolved_at",
+        "pylon_issues_source",
+        "pylon_issues_state",
+        "pylon_issues_tags",
+        "pylon_issues_team_id",
+        "pylon_issues_title",
+        "pylon_issues_touches",
+        "pylon_issues_type",
+        "pylon_issues_updated_at",
+      ],
+      "name": "pylon_issues",
+    },
+    {
+      "fieldIds": [
+        "pylon_accounts_created_at",
+        "pylon_accounts_domain",
+        "pylon_accounts_id",
+        "pylon_accounts_last_customer_activity_at",
+        "pylon_accounts_last_vendor_activity_at",
+        "pylon_accounts_name",
+        "pylon_accounts_owner_email",
+        "pylon_accounts_tags",
+        "pylon_accounts_type",
+      ],
+      "name": "pylon_accounts",
+    },
+    {
+      "fieldIds": [
+        "pylon_contacts_account_id",
+        "pylon_contacts_account_name",
+        "pylon_contacts_email",
+        "pylon_contacts_id",
+        "pylon_contacts_name",
+        "pylon_contacts_portal_role",
+      ],
+      "name": "pylon_contacts",
+    },
+  ],
+  "reservedExploreNames": [
+    "pylon_messages",
+    "pylon_users",
+    "pylon_teams",
+  ],
+}
+`;
+
+exports[`live data source names > Search Console explore names and field ids never change 1`] = `
 {
   "explores": [
     {
@@ -319,7 +391,6 @@ exports[`live data source names > 'Search Console' explore names and field ids n
         "search_console_performance_page",
         "search_console_performance_position",
         "search_console_performance_query",
-        "search_console_performance_search_appearance",
       ],
       "name": "search_console_performance",
     },
@@ -330,7 +401,7 @@ exports[`live data source names > 'Search Console' explore names and field ids n
 }
 `;
 
-exports[`live data source names > 'YouTube Analytics' explore names and field ids never change 1`] = `
+exports[`live data source names > YouTube Analytics explore names and field ids never change 1`] = `
 {
   "explores": [
     {

@@ -45,6 +45,7 @@ const resolve = {
 };
 
 const shared = {
+    clearMocks: false,
     environment: 'node',
     globals: true,
     setupFiles: ['./setupVitest.ts'],
@@ -55,11 +56,34 @@ const shared = {
     },
 };
 
+// Base for the other backend configs, which spread it and set their own include.
+export const baseConfig = {
+    resolve,
+    test: { ...shared, maxWorkers: '50%' },
+};
+
 export default defineConfig({
     test: {
-        maxWorkers: '50%',
+        clearMocks: false,
+        maxWorkers: baseConfig.test.maxWorkers,
+        // What `--changed` treats as changed, and the files that make it run everything.
+        experimental: {
+            vcsProvider: path.resolve(
+                __dirname,
+                '../../scripts/vitest-changed-files.mjs',
+            ),
+        },
+        forceRerunTriggers: [
+            '**/package.json',
+            '**/pnpm-lock.yaml',
+            '**/{vitest,vite}.config.*',
+            '**/tsconfig*.json',
+            '**/packages/backend/setupVitest.ts',
+            '**/scripts/vitest-changed-files.mjs',
+        ],
         projects: [
             {
+                extends: false,
                 resolve,
                 test: {
                     ...shared,
@@ -70,6 +94,7 @@ export default defineConfig({
                 },
             },
             {
+                extends: false,
                 resolve,
                 test: {
                     ...shared,

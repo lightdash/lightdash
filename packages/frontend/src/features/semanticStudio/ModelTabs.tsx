@@ -7,20 +7,20 @@ import {
     Button,
     Group,
     Paper,
-    SegmentedControl,
     Tabs,
     Text,
     useComputedColorScheme,
 } from '@mantine/core';
 import { File, WorkerPoolContextProvider } from '@pierre/diffs/react';
 import dayjs from 'dayjs';
-import { useState, type FC, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FC, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
 } from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
+import useHealth from '../../hooks/health/useHealth';
 import { ChangeDiff } from './ChangeDiff';
 import {
     CHANGE_KIND_VERBS,
@@ -28,18 +28,29 @@ import {
     DRAFT_REVIEW,
     getChangeKind,
     changeTitle,
-    findFieldLine,
+    findFieldBlock,
     VIEW_PARAM,
 } from './modelCode';
+import { ModelPreAggregates } from './ModelPreAggregates';
 import classes from './ModelTabs.module.css';
 import {
-    useSemanticLayerDraft,
     useSemanticLayerModel,
     useAppliesAsPullRequest,
     useUndoSemanticLayerChanges,
 } from './useSemanticLayerModel';
+import { findCheckedOutModel, useStudioCheckout } from './useStudioCheckout';
 
-/** A model's YAML, read only: its draft when it has one, or what is live. */
+/** Fades the lines around the marked definition; hovering the code brings them back. */
+const ISOLATE_BLOCK_CSS = `
+[data-line]:not([data-selected-line]),
+[data-column-number]:not([data-selected-line]) {
+    opacity: 0.3;
+    transition: opacity 150ms ease;
+}
+:host(:hover) :is([data-line], [data-column-number]) { opacity: 1; }
+`;
+
+/** A model's YAML, read only, as the checked-out change leaves it. */
 export const ModelCodeView: FC<{
     projectUuid: string;
     modelName: string;
@@ -50,17 +61,34 @@ export const ModelCodeView: FC<{
         projectUuid,
         modelName,
     );
-    const { data: draft } = useSemanticLayerDraft(projectUuid);
-    const draftContent = draft?.models.find(
-        (drafted) => drafted.model === modelName,
-    )?.contentAfter;
-    const [version, setVersion] = useState<'draft' | 'live'>('draft');
-    const isDraft = draftContent !== undefined && version === 'draft';
-    const content = isDraft ? draftContent : (model?.content ?? null);
-    const line =
-        fieldName && content ? findFieldLine(content, fieldName) : null;
+    const { shown } = useStudioCheckout();
+    const drafted = findCheckedOutModel(shown, modelName);
+    const isDraft = drafted !== null;
+    const content = drafted ? drafted.contentAfter : (model?.content ?? null);
+    const block =
+        fieldName && content ? findFieldBlock(content, fieldName) : null;
+    const line = block?.start ?? null;
+    const editor = useRef<HTMLDivElement>(null);
+    // The viewer marks the line but does not bring it into view, and it renders after this does.
+    useEffect(() => {
+        if (line === null) return undefined;
+        let frame = 0;
+        let tries = 0;
+        const reveal = () => {
+            const target = editor.current
+                ?.querySelector('diffs-container')
+                ?.shadowRoot?.querySelector(`[data-line="${line}"]`);
+            if (target) target.scrollIntoView({ block: 'center' });
+            else if (tries < 60) {
+                tries += 1;
+                frame = requestAnimationFrame(reveal);
+            }
+        };
+        reveal();
+        return () => cancelAnimationFrame(frame);
+    }, [line, modelName]);
     if (isLoading) return null;
-    if (!model && draftContent === undefined) {
+    if (!model && !isDraft) {
         return (
             <Text fz="sm" c="dimmed" ta="center" py="xl">
                 This model was deployed from elsewhere, so its YAML is not here.
@@ -76,31 +104,20 @@ export const ModelCodeView: FC<{
             >
                 <Text fz="xs" c="dimmed" truncate>
                     {modelName}.yml
-                    {isDraft ? ', your draft' : `, version ${model?.version}`}
+                    {isDraft
+                        ? ', not published yet'
+                        : `, version ${model?.version}`}
                 </Text>
                 <Group gap="xs" wrap="nowrap" flex="none">
-                    {draftContent !== undefined && model ? (
-                        <SegmentedControl
-                            size="xs"
-                            value={version}
-                            onChange={(next) =>
-                                setVersion(next === 'live' ? 'live' : 'draft')
-                            }
-                            data={[
-                                { value: 'draft', label: 'Draft' },
-                                { value: 'live', label: 'Live' },
-                            ]}
-                        />
-                    ) : null}
                     {content !== null ? (
                         <CopyActionIcon value={content} copyLabel="Copy YAML" />
                     ) : null}
                 </Group>
             </Group>
-            <Box className={classes.codeEditor}>
+            <Box className={classes.codeEditor} ref={editor}>
                 {content === null ? (
                     <Text fz="sm" c="dimmed" p="md">
-                        Your draft removes this model.
+                        This change removes this model.
                     </Text>
                 ) : (
                     <WorkerPoolContextProvider
@@ -112,11 +129,7 @@ export const ModelCodeView: FC<{
                                 name: `${modelName}.yml`,
                                 contents: content,
                             }}
-                            selectedLines={
-                                line === null
-                                    ? null
-                                    : { start: line, end: line }
-                            }
+                            selectedLines={block}
                             options={{
                                 theme:
                                     colorScheme === 'dark'
@@ -124,6 +137,7 @@ export const ModelCodeView: FC<{
                                         : 'pierre-light',
                                 overflow: 'wrap',
                                 disableFileHeader: true,
+                                unsafeCSS: block ? ISOLATE_BLOCK_CSS : '',
                             }}
                         />
                     </WorkerPoolContextProvider>
@@ -139,9 +153,9 @@ const HistoryPane: FC<{
     history: SemanticLayerModelChange[];
 }> = ({ projectUuid, modelName, history }) => {
     const undo = useUndoSemanticLayerChanges(projectUuid);
-    const { data: draft } = useSemanticLayerDraft(projectUuid);
+    const { shown } = useStudioCheckout();
     const [, setSearchParams] = useSearchParams();
-    const unpublished = draft?.models.find(({ model }) => model === modelName);
+    const unpublished = findCheckedOutModel(shown, modelName);
     const [open, setOpen] = useState<string | null>(
         history[0]?.changeSetUuid ?? null,
     );
@@ -255,36 +269,86 @@ const HistoryPane: FC<{
 export const ModelTabs: FC<{
     projectUuid: string;
     modelName: string;
+    /** The explore queries run on; pre-aggregates are kept by this name. */
+    exploreName: string;
     fields: ReactNode;
-}> = ({ projectUuid, modelName, fields }) => {
+    /** The explore's lineage: its upstream dbt models and its joins; null where it does not apply. */
+    lineage?: ReactNode;
+    /** Only modelled (dbt) explores have pre-aggregates; live and external sources do not. */
+    isModelled: boolean;
+}> = ({
+    projectUuid,
+    modelName,
+    exploreName,
+    fields,
+    lineage = null,
+    isModelled,
+}) => {
     const { data: model } = useSemanticLayerModel(projectUuid, modelName);
     // A repository keeps its own history.
     const asPullRequest = useAppliesAsPullRequest(projectUuid);
+    const hasHistory = !!model && !asPullRequest;
+    const hasLineage = lineage !== null;
+    const preAggregatesEnabled =
+        useHealth().data?.preAggregates.enabled === true;
+    const hasPreAggregates = isModelled && preAggregatesEnabled;
     const [searchParams, setSearchParams] = useSearchParams();
+    const requested = searchParams.get(VIEW_PARAM);
     const view =
-        model && !asPullRequest && searchParams.get(VIEW_PARAM) === 'history'
+        hasHistory && requested === 'history'
             ? 'history'
-            : 'fields';
+            : hasLineage && requested === 'lineage'
+              ? 'lineage'
+              : hasPreAggregates && requested === 'pre-aggregates'
+                ? 'pre-aggregates'
+                : 'fields';
     return (
         <Tabs
             className={classes.root}
             value={view}
             onChange={(next) =>
                 setSearchParams(
-                    next === 'history' ? { [VIEW_PARAM]: next } : {},
+                    next === 'history' ||
+                        next === 'lineage' ||
+                        next === 'pre-aggregates'
+                        ? { [VIEW_PARAM]: next }
+                        : {},
                     { replace: true },
                 )
             }
         >
-            {model && !asPullRequest ? (
+            {hasHistory || hasLineage || hasPreAggregates ? (
                 <Tabs.List mb="md">
                     <Tabs.Tab value="fields">Fields</Tabs.Tab>
-                    <Tabs.Tab value="history">History</Tabs.Tab>
+                    {hasLineage ? (
+                        <Tabs.Tab value="lineage">Lineage</Tabs.Tab>
+                    ) : null}
+                    {hasPreAggregates ? (
+                        <Tabs.Tab value="pre-aggregates">
+                            Pre-aggregates
+                        </Tabs.Tab>
+                    ) : null}
+                    {hasHistory ? (
+                        <Tabs.Tab value="history">History</Tabs.Tab>
+                    ) : null}
                 </Tabs.List>
             ) : null}
             <Tabs.Panel value="fields" className={classes.panel}>
                 {fields}
             </Tabs.Panel>
+            {view === 'lineage' ? (
+                <Tabs.Panel value="lineage" className={classes.panel}>
+                    {lineage}
+                </Tabs.Panel>
+            ) : null}
+            {view === 'pre-aggregates' ? (
+                <Tabs.Panel value="pre-aggregates" className={classes.panel}>
+                    <ModelPreAggregates
+                        projectUuid={projectUuid}
+                        exploreName={exploreName}
+                    />
+                </Tabs.Panel>
+            ) : null}
             {model && view === 'history' ? (
                 <Tabs.Panel value="history" className={classes.panel}>
                     <HistoryPane

@@ -102,6 +102,19 @@ describe.each([
             'false',
         );
     });
+
+    it('says the SQL was not approved instead of claiming the run', () => {
+        renderRow({
+            status: 'done',
+            call: {
+                ...toolCall,
+                toolOutput: { result: '', metadata: { status: 'rejected' } },
+                isPreliminary: false,
+            },
+        });
+        expect(screen.getByText('SQL not approved')).toBeVisible();
+        expect(screen.queryByText(label)).not.toBeInTheDocument();
+    });
 });
 
 describe.each(['findCustomChartTypes', 'visualize'] as const)(

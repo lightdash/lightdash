@@ -1,7 +1,7 @@
 import {
     type ApiError,
     type ApiTestExternalConnectionRequest,
-    type ExternalFetchResponse,
+    type ExternalConnectionTestResponse,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
 import { type LightdashApi } from '../../../api';
@@ -16,8 +16,8 @@ type TestConnectionParams = {
 const testConnection = async (
     lightdashApi: LightdashApi,
     { projectUuid, connectionUuid, ...body }: TestConnectionParams,
-): Promise<ExternalFetchResponse> =>
-    lightdashApi<ExternalFetchResponse>({
+): Promise<ExternalConnectionTestResponse> =>
+    lightdashApi<ExternalConnectionTestResponse>({
         method: 'POST',
         url: `/ee/projects/${projectUuid}/external-connections/${connectionUuid}/test`,
         body: JSON.stringify(body),
@@ -27,7 +27,11 @@ const testConnection = async (
 export const useTestConnection = () => {
     const lightdashApi = useLightdashApi();
     const { showToastApiError } = useToaster();
-    return useMutation<ExternalFetchResponse, ApiError, TestConnectionParams>({
+    return useMutation<
+        ExternalConnectionTestResponse,
+        ApiError,
+        TestConnectionParams
+    >({
         mutationFn: (args: TestConnectionParams) =>
             testConnection(lightdashApi, args),
         onError: ({ error }) => {

@@ -429,6 +429,7 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
         isEnabled,
         agent,
         thread,
+        isLoadingAgents,
         setStored,
         startNewThread,
         previousThread,
@@ -443,7 +444,24 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
             position: SidebarPosition.RIGHT,
         });
 
-    if (!isEnabled || !agent) return null;
+    if (!isEnabled) return null;
+    if (!agent) {
+        return (
+            <Box className={classes.panel} p="md">
+                {isLoadingAgents ? (
+                    <Loader size="sm" />
+                ) : (
+                    <>
+                        <Text fw={500}>No agent available</Text>
+                        <Text size="sm" c="dimmed">
+                            Ask a project administrator to set up an agent or
+                            grant you access.
+                        </Text>
+                    </>
+                )}
+            </Box>
+        );
+    }
     if (!isOpen) return null;
     return (
         <QuietCardsContext.Provider value>

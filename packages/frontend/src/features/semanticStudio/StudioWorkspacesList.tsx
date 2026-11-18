@@ -10,12 +10,13 @@ import { RunMeta, RunRing } from './StudioRunRing';
 import { needsYou, toStudioRun, type StudioRun } from './studioRuns';
 import classes from './StudioWorkspacesList.module.css';
 import { pullRequestNumberOf } from './urls';
+import { isOpenWorkspace } from './useStudioCheckout';
 import { useStudioRuns, type StudioRunRow } from './useStudioRuns';
 import { useStudioWorkspaces } from './useStudioWorkspaces';
 
 dayjs.extend(relativeTime);
 
-const STAGES = ['Proposed', 'Saved', 'In review', 'Live'] as const;
+const STAGES = ['Proposed', 'Saved', 'In review', 'Published'] as const;
 
 /** How many stages are behind the run, and the one it is on. */
 const stageOf = (run: StudioRun): number => {
@@ -71,19 +72,29 @@ const MineRow: FC<{
     row: StudioRunRow;
     startedAt: string | null;
     onOpen: () => void;
-}> = ({ row: { workspace, run }, startedAt, onOpen }) => (
-    <UnstyledButton
-        className={classes.row}
-        data-current={workspace.isActive || undefined}
-        aria-current={workspace.isActive || undefined}
-        onClick={onOpen}
-    >
+    /** Null where opening the change already checks it out, or it is checked out. */
+    onCheckOut: (() => void) | null;
+    isCheckingOut: boolean;
+}> = ({
+    row: { workspace, run },
+    startedAt,
+    onOpen,
+    onCheckOut,
+    isCheckingOut,
+}) => (
+    <Box className={classes.row} data-current={workspace.isActive || undefined}>
         <RunRing run={run} size={40} />
         <span className={classes.text}>
             <span className={classes.nameLine}>
-                <Text component="span" className={classes.name}>
-                    {workspace.name}
-                </Text>
+                <UnstyledButton
+                    className={classes.rowLink}
+                    aria-current={workspace.isActive || undefined}
+                    onClick={onOpen}
+                >
+                    <Text component="span" className={classes.name}>
+                        {workspace.name}
+                    </Text>
+                </UnstyledButton>
             </span>
             <span className={classes.meta} data-kind={run.kind}>
                 <RunMeta
@@ -97,7 +108,17 @@ const MineRow: FC<{
             </span>
         </span>
         <StageTrack run={run} />
-        {needsYou(run) ? (
+        {onCheckOut ? (
+            <Button
+                size="compact-sm"
+                variant="default"
+                className={classes.rowAction}
+                loading={isCheckingOut}
+                onClick={onCheckOut}
+            >
+                Check out
+            </Button>
+        ) : needsYou(run) ? (
             <Button
                 component="span"
                 size="compact-sm"
@@ -113,7 +134,7 @@ const MineRow: FC<{
                 className={classes.chevron}
             />
         )}
-    </UnstyledButton>
+    </Box>
 );
 
 const whereItStands = ({ pullRequest }: SemanticStudioWorkspace): string => {
@@ -134,7 +155,10 @@ export const StudioWorkspacesList: FC<{
     projectUuid: string;
     saving: StudioPendingChange | null;
     onOpen: (workspace: SemanticStudioWorkspace) => void;
-}> = ({ projectUuid, saving, onOpen }) => {
+    /** Null where opening one of your changes checks it out. */
+    onCheckOut: ((workspace: SemanticStudioWorkspace) => void) | null;
+    isCheckingOut: boolean;
+}> = ({ projectUuid, saving, onOpen, onCheckOut, isCheckingOut }) => {
     const { data, isInitialLoading, error } = useStudioWorkspaces(projectUuid);
     const rows = useStudioRuns(projectUuid, data?.mine ?? [], saving);
     if (isInitialLoading) return null;
@@ -158,25 +182,33 @@ export const StudioWorkspacesList: FC<{
             row={row}
             startedAt={saving?.startedAt ?? null}
             onOpen={() => onOpen(row.workspace)}
+            onCheckOut={
+                onCheckOut &&
+                !row.workspace.isActive &&
+                isOpenWorkspace(row.workspace)
+                    ? () => onCheckOut(row.workspace)
+                    : null
+            }
+            isCheckingOut={isCheckingOut}
         />
     );
     return (
         <Box className={classes.page}>
             <header className={classes.hero}>
-                <Text className={classes.title}>Changes</Text>
+                <Text className={classes.title}>Drafts</Text>
                 <Text className={classes.lede}>
                     {rows.length === 0
-                        ? 'Nothing in flight yet. Ask for a change to get started.'
+                        ? 'No drafts yet. Ask for a change to start one.'
                         : 'Pick up where you and your team left off.'}
                 </Text>
             </header>
             {rows.length === 0 ? (
                 <div className={classes.empty}>
                     <Text fz="sm" fw={500}>
-                        Nothing in flight
+                        No drafts yet
                     </Text>
                     <Text fz="xs" c="dimmed">
-                        Start one with New change, or ask for a change in the
+                        Start one with New draft, or ask for a change in the
                         chat.
                     </Text>
                 </div>
@@ -234,7 +266,7 @@ export const StudioWorkspacesList: FC<{
                 </Section>
             ) : null}
             {recent.length > 0 ? (
-                <Section label="Live lately" count={recent.length}>
+                <Section label="Published lately" count={recent.length}>
                     <ol className={classes.timeline}>
                         {recent.map((workspace) => (
                             <li key={workspace.workspaceUuid}>

@@ -835,6 +835,8 @@ export class ServiceRepository
                     oauthModel: this.models.getOauthModel(),
                     getUserService: () => this.getUserService(),
                     getProjectService: () => this.getProjectService(),
+                    getMobilePushNotificationService: () =>
+                        this.getMobilePushNotificationService(),
                     analytics: this.context.lightdashAnalytics,
                 }),
         );
@@ -2403,6 +2405,7 @@ export class ServiceRepository
                     getStatus: () => ({ enabled: false, environments: [] }),
                     registerInstallation: async () => undefined,
                     revokeInstallation: async () => undefined,
+                    revokeInstallationsWithoutGrant: async () => undefined,
                     registerLiveActivity: async () => undefined,
                     revokeLiveActivity: async () => undefined,
                     enqueueThreadReconciliation: async () => undefined,

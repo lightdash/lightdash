@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.291.0",
-  "previousVersion": "3.290.2",
-  "releaseDate": "2026-11-17T17:32:34.868Z",
+  "version": "3.312.0",
+  "previousVersion": "3.311.0",
+  "releaseDate": "2026-11-18T15:26:14.929Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20261117150000_add_cache_hit_to_api_source_calls.ts",
-        "edition": "ee",
-        "tables": [
-          "api_source_calls"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

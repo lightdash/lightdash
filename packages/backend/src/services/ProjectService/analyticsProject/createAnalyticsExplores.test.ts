@@ -300,6 +300,7 @@ describe('createAnalyticsExplores', () => {
             'people_adoption',
             'people_membership',
             'embed_reach',
+            'embed_view_events',
         ]);
         expect(apps.tables.data_app_events.dimensions.app_id).toBeDefined();
         expect(apps.tables.data_app_events.dimensions.user_id).toBeDefined();

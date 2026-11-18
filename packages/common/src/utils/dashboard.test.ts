@@ -143,6 +143,7 @@ describe('assertDashboardWithinLimits', () => {
                     tabs,
                 },
                 limits,
+                null,
             ),
         ).not.toThrow();
     });
@@ -155,6 +156,7 @@ describe('assertDashboardWithinLimits', () => {
                     tabs: [...tabs, { uuid: 'tab3', name: 'Third', order: 2 }],
                 },
                 limits,
+                null,
             ),
         ).toThrow(
             new ParameterError(
@@ -168,6 +170,7 @@ describe('assertDashboardWithinLimits', () => {
             assertDashboardWithinLimits(
                 { tiles: [{}, { tabUuid: null }, {}], tabs: [] },
                 limits,
+                null,
             ),
         ).toThrow(
             new ParameterError(
@@ -181,6 +184,7 @@ describe('assertDashboardWithinLimits', () => {
             assertDashboardWithinLimits(
                 { tiles: [{ tabUuid: 'x' }, { tabUuid: 'y' }, {}], tabs: [] },
                 limits,
+                null,
             ),
         ).toThrow(
             new ParameterError(
@@ -194,6 +198,7 @@ describe('assertDashboardWithinLimits', () => {
                     tabs,
                 },
                 limits,
+                null,
             ),
         ).toThrow(
             new ParameterError(
@@ -210,6 +215,7 @@ describe('assertDashboardWithinLimits', () => {
                     tabs,
                 },
                 limits,
+                null,
             ),
         ).toThrow(
             new ParameterError(
@@ -231,10 +237,122 @@ describe('getDashboardLimitViolations', () => {
                     ],
                 },
                 { maxTilesPerTab: 2, maxTabsPerDashboard: 1 },
+                null,
             ),
         ).toEqual([
             { type: 'tabs', count: 2, limit: 1 },
             { type: 'tiles', tabUuid: 'a', tabName: 'A', count: 3, limit: 2 },
         ]);
+    });
+});
+
+describe('assertDashboardWithinLimits with a saved dashboard', () => {
+    const limits = { maxTilesPerTab: 2, maxTabsPerDashboard: 2 };
+    const tabs = [
+        { uuid: 'tab1', name: 'First', order: 0 },
+        { uuid: 'tab2', name: 'Second', order: 1 },
+    ];
+    const tilesOn = (tabUuid: string | null, count: number) =>
+        Array.from({ length: count }, () => ({ tabUuid }));
+    const savedOverTiles = { tiles: tilesOn('tab1', 4), tabs };
+
+    it('allows a tab that stays at or below its saved tile count', () => {
+        [4, 3].forEach((count) =>
+            expect(() =>
+                assertDashboardWithinLimits(
+                    { tiles: tilesOn('tab1', count), tabs },
+                    limits,
+                    savedOverTiles,
+                ),
+            ).not.toThrow(),
+        );
+    });
+
+    it('rejects a tab that grows past its saved tile count', () => {
+        expect(() =>
+            assertDashboardWithinLimits(
+                { tiles: tilesOn('tab1', 5), tabs },
+                limits,
+                savedOverTiles,
+            ),
+        ).toThrow(
+            new ParameterError(
+                'Tab "First" has 5 tiles, which is over the limit of 2 tiles per tab',
+            ),
+        );
+    });
+
+    it('rejects another tab going over the limit', () => {
+        expect(() =>
+            assertDashboardWithinLimits(
+                {
+                    tiles: [...tilesOn('tab1', 4), ...tilesOn('tab2', 3)],
+                    tabs,
+                },
+                limits,
+                savedOverTiles,
+            ),
+        ).toThrow(
+            new ParameterError(
+                'Tab "Second" has 3 tiles, which is over the limit of 2 tiles per tab',
+            ),
+        );
+    });
+
+    it('compares the tab count with the saved tab count', () => {
+        const manyTabs = [
+            ...tabs,
+            { uuid: 'tab3', name: 'Third', order: 2 },
+            { uuid: 'tab4', name: 'Fourth', order: 3 },
+        ];
+        const saved = { tiles: [], tabs: manyTabs };
+        [manyTabs, manyTabs.slice(0, 3)].forEach((writtenTabs) =>
+            expect(() =>
+                assertDashboardWithinLimits(
+                    { tiles: [], tabs: writtenTabs },
+                    limits,
+                    saved,
+                ),
+            ).not.toThrow(),
+        );
+        expect(() =>
+            assertDashboardWithinLimits(
+                {
+                    tiles: [],
+                    tabs: [
+                        ...manyTabs,
+                        { uuid: 'tab5', name: 'Fifth', order: 4 },
+                    ],
+                },
+                limits,
+                saved,
+            ),
+        ).toThrow(
+            new ParameterError(
+                'Dashboard has 5 tabs, which is over the limit of 2 tabs per dashboard',
+            ),
+        );
+    });
+
+    it('uses the saved untabbed tile count for the first tab', () => {
+        const saved = { tiles: tilesOn(null, 4), tabs: [] };
+        expect(() =>
+            assertDashboardWithinLimits(
+                { tiles: tilesOn('tab1', 4), tabs },
+                limits,
+                saved,
+            ),
+        ).not.toThrow();
+        expect(() =>
+            assertDashboardWithinLimits(
+                { tiles: tilesOn('tab2', 4), tabs },
+                limits,
+                saved,
+            ),
+        ).toThrow(
+            new ParameterError(
+                'Tab "Second" has 4 tiles, which is over the limit of 2 tiles per tab',
+            ),
+        );
     });
 });

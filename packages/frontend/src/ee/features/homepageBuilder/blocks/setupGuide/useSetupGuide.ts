@@ -59,7 +59,7 @@ export const useSetupGuide = (
         isEligible && chartTypesEnabled.enabled ? projectUuid : undefined,
     );
 
-    // ponytail: dismissal is per user and project in localStorage, the server skip table only accepts checklist keys
+    // Dismissal is per user and project in localStorage, the server skip table only accepts checklist keys
     const [isDismissed, setIsDismissed] = useLocalStorage<boolean>(
         `homepage-setup-guide-dismissed-${userUuid ?? 'anon'}-${projectUuid}`,
     );
@@ -69,7 +69,7 @@ export const useSetupGuide = (
         { getInitialValueInEffect: false },
     );
 
-    // ponytail: same per-browser store for steps the server skip table can't hold
+    // Same per-browser store for steps the server skip table can't hold
     const [skippedRows, setSkippedRows] = useLocalStorage<SetupGuideRowId[]>(
         `homepage-setup-guide-skipped-${userUuid ?? 'anon'}-${projectUuid}`,
         [],

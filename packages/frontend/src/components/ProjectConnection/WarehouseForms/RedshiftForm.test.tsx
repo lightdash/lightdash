@@ -80,18 +80,6 @@ describe('RedshiftForm', () => {
         });
     });
 
-    it('keeps an existing IAM browser authentication type when the form opens', async () => {
-        const { formRef } = renderRedshiftForm(
-            RedshiftAuthenticationType.IAM_BROWSER,
-        );
-
-        await waitFor(() => {
-            expect(getAuthenticationType(formRef)).toBe(
-                RedshiftAuthenticationType.IAM_BROWSER,
-            );
-        });
-    });
-
     it('renders the username and password fields for password authentication', async () => {
         const { findByLabelText, queryByLabelText } = renderRedshiftForm(
             RedshiftAuthenticationType.PASSWORD,

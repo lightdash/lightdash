@@ -114,6 +114,9 @@ const buildService = ({
         tryCountApiSourceCall: vi.fn().mockResolvedValue(true),
         releaseApiSourceCallLease: vi.fn().mockResolvedValue(undefined),
         insertApiSourceCall: vi.fn().mockResolvedValue(undefined),
+        setLiveSourceCacheTtl: vi.fn().mockResolvedValue(undefined),
+        purgeLiveSourceCache: vi.fn().mockResolvedValue(undefined),
+        rotateSecret: vi.fn().mockResolvedValue(undefined),
         getApiSourceUsage: vi.fn().mockResolvedValue([]),
         setApiSourceSchema: vi.fn().mockResolvedValue(undefined),
         getApiSourceSchemas: vi.fn().mockResolvedValue(new Map()),
@@ -805,6 +808,106 @@ describe('ExternalConnectionService live source writes', () => {
     });
 });
 
+describe('ExternalConnectionService live source cache', () => {
+    it('shares results across the source with its integration window by default', async () => {
+        const { service } = buildService();
+        const source = await service.getLiveSourceForExplore(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+        expect(source.cache).toEqual({
+            scope: { kind: 'source' },
+            ttlSeconds: 3_600,
+            purgedAt: null,
+        });
+    });
+
+    it('uses the admin window and purge time when set', async () => {
+        const purgedAt = new Date('2026-11-17T12:00:00Z');
+        const { service } = buildService({
+            connections: [
+                posthogConnection({
+                    cacheTtlSeconds: 900,
+                    cachePurgedAt: purgedAt,
+                }),
+            ],
+        });
+        const source = await service.getLiveSourceForExplore(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+        expect(source.cache).toMatchObject({ ttlSeconds: 900, purgedAt });
+    });
+
+    it.each([0, 900, 86_400, null])(
+        'saves a window of %s',
+        async (ttlSeconds) => {
+            const { service, externalConnectionModel } = buildService();
+            await service.updateLiveSourceCache(account, 'proj-1', 'conn-1', {
+                ttlSeconds,
+            });
+            expect(
+                externalConnectionModel.setLiveSourceCacheTtl,
+            ).toHaveBeenCalledExactlyOnceWith('conn-1', ttlSeconds);
+        },
+    );
+
+    it.each([-1, 1.5, 86_401])('rejects a window of %s', async (ttlSeconds) => {
+        const { service, externalConnectionModel } = buildService();
+        await expect(
+            service.updateLiveSourceCache(account, 'proj-1', 'conn-1', {
+                ttlSeconds,
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(
+            externalConnectionModel.setLiveSourceCacheTtl,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('purges the source cache from now', async () => {
+        const { service, externalConnectionModel } = buildService();
+        const before = Date.now();
+        await service.purgeLiveSourceCache(account, 'proj-1', 'conn-1');
+        const [[uuid, at]] =
+            externalConnectionModel.purgeLiveSourceCache.mock.calls;
+        expect(uuid).toBe('conn-1');
+        expect(at.getTime()).toBeGreaterThanOrEqual(before);
+    });
+
+    it('only lets people who manage the source change its cache', async () => {
+        const { service, externalConnectionModel } = buildService({
+            canManage: false,
+        });
+        await expect(
+            service.purgeLiveSourceCache(account, 'proj-1', 'conn-1'),
+        ).rejects.toThrow();
+        await expect(
+            service.updateLiveSourceCache(account, 'proj-1', 'conn-1', {
+                ttlSeconds: 60,
+            }),
+        ).rejects.toThrow();
+        expect(
+            externalConnectionModel.purgeLiveSourceCache,
+        ).not.toHaveBeenCalled();
+        expect(
+            externalConnectionModel.setLiveSourceCacheTtl,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('refuses connections that are not live data sources', async () => {
+        const { service } = buildService({
+            connections: [
+                posthogConnection({ kind: 'data_app', apiSource: null }),
+            ],
+        });
+        await expect(
+            service.purgeLiveSourceCache(account, 'proj-1', 'conn-1'),
+        ).rejects.toThrow('is not a live data source');
+    });
+});
+
 describe('ExternalConnectionService live source explores', () => {
     const PROPERTY_DEFINITIONS = '/api/projects/303731/property_definitions/';
     const postHogSource: CreateExternalConnection = {
@@ -951,6 +1054,54 @@ describe('ExternalConnectionService live source explores', () => {
         });
 
         expect(projectModel.replaceApiSourceExplores).not.toHaveBeenCalled();
+    });
+
+    it("stops reusing the old target's results when the target changes", async () => {
+        respondToScan('ok');
+        const { service, externalConnectionModel } = buildService();
+        const target = {
+            connector: ApiConnectorType.POSTHOG,
+            projectId: '999',
+        } as const;
+        externalConnectionModel.update.mockResolvedValue(
+            posthogConnection({ apiSource: target }),
+        );
+
+        await service.update(account, 'proj-1', 'conn-1', {
+            apiSource: target,
+        });
+
+        expect(
+            externalConnectionModel.purgeLiveSourceCache,
+        ).toHaveBeenCalledExactlyOnceWith('conn-1', expect.any(Date));
+    });
+
+    it("stops reusing the old key's results when the secret changes", async () => {
+        respondToScan('ok');
+        const { service, externalConnectionModel } = buildService();
+
+        await service.update(account, 'proj-1', 'conn-1', {
+            secret: 'phx_new',
+        });
+        await service.rotateSecret(account, 'proj-1', 'conn-1', 'phx_newer');
+
+        expect(
+            externalConnectionModel.purgeLiveSourceCache,
+        ).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps reusing results after a rename', async () => {
+        respondToScan('ok');
+        const { service, externalConnectionModel } = buildService();
+        externalConnectionModel.update.mockResolvedValue(
+            posthogConnection({ name: 'Renamed' }),
+        );
+
+        await service.update(account, 'proj-1', 'conn-1', { name: 'Renamed' });
+
+        expect(
+            externalConnectionModel.purgeLiveSourceCache,
+        ).not.toHaveBeenCalled();
     });
 
     describe('AI hint', () => {

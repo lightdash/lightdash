@@ -114,12 +114,29 @@ export type DashboardLimitViolation =
           limit: number;
       };
 
+/**
+ * With a saved dashboard, counts that are not above the saved ones are not
+ * violations, so a dashboard already over a limit can be saved until it grows.
+ */
 export const getDashboardLimitViolations = (
     dashboard: LimitedDashboard,
     { maxTilesPerTab, maxTabsPerDashboard }: DashboardLimits,
+    savedDashboard: LimitedDashboard | null,
 ): DashboardLimitViolation[] => {
+    const savedTileCounts = savedDashboard
+        ? getDashboardTileCountsByTab(savedDashboard)
+        : new Map<string | null, number>();
+    const firstTabUuid = [...dashboard.tabs].sort(
+        (a, b) => a.order - b.order,
+    )[0]?.uuid;
+    // Tiles saved without tabs render on the first tab once tabs are added
+    const getSavedTileCount = (tabUuid: string | null) =>
+        savedTileCounts.get(tabUuid) ??
+        (tabUuid === firstTabUuid ? savedTileCounts.get(null) : undefined) ??
+        0;
     const tabViolations: DashboardLimitViolation[] =
-        dashboard.tabs.length > maxTabsPerDashboard
+        dashboard.tabs.length >
+        Math.max(maxTabsPerDashboard, savedDashboard?.tabs.length ?? 0)
             ? [
                   {
                       type: 'tabs',
@@ -129,7 +146,10 @@ export const getDashboardLimitViolations = (
               ]
             : [];
     const tileViolations = [...getDashboardTileCountsByTab(dashboard).entries()]
-        .filter(([, count]) => count > maxTilesPerTab)
+        .filter(
+            ([tabUuid, count]) =>
+                count > Math.max(maxTilesPerTab, getSavedTileCount(tabUuid)),
+        )
         .map(
             ([tabUuid, count]): DashboardLimitViolation => ({
                 type: 'tiles',
@@ -147,8 +167,13 @@ export const getDashboardLimitViolations = (
 export const assertDashboardWithinLimits = (
     dashboard: LimitedDashboard,
     limits: DashboardLimits,
+    savedDashboard: LimitedDashboard | null,
 ): void => {
-    const [violation] = getDashboardLimitViolations(dashboard, limits);
+    const [violation] = getDashboardLimitViolations(
+        dashboard,
+        limits,
+        savedDashboard,
+    );
     if (!violation) return;
     if (violation.type === 'tabs') {
         throw new ParameterError(

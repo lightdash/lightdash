@@ -331,6 +331,7 @@ async function buildScenario() {
         } as never,
         appModel: appModel as never,
         chartRegistryClient: {} as never,
+        contentDraftModel: {} as never,
         contentVerificationModel: {
             getByContent: async () => null,
             verify: async () => undefined,

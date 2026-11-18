@@ -19,6 +19,7 @@ import {
     type AiDeepResearchWorkerTaskInput,
     type AiSemanticChartArtifactConfig,
     type ApiConnectorType,
+    type StudioChangeSummary,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
@@ -489,6 +490,7 @@ export type AiAgentDependencies = {
     editDbtProject: EditDbtProjectFn;
     editProjectContext: EditProjectContextFn;
     proposeSemanticLayerChange: ProposeSemanticLayerChangeFn;
+    listChanges: () => Promise<StudioChangeSummary[]>;
     readSemanticModel: ReadSemanticModelFn;
     syncDbtProject: SyncDbtProjectFn;
     exploreRepo: ExploreRepoFn;

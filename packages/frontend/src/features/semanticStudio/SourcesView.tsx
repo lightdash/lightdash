@@ -9,6 +9,7 @@ import {
     Kbd,
     Loader,
     Menu,
+    Stack,
     Text,
     TextInput,
     Tooltip,
@@ -65,11 +66,14 @@ import {
 } from './useStudioSources';
 import classes from './WorkbenchView.module.css';
 
-// ponytail: unsaved edits live for the tab only; leaving the page warns while any are kept.
-const unsavedEdits = new Map<string, string>();
+// Unsaved edits live for the tab only; leaving the page warns while any are kept.
+const unsavedEdits = new Map<
+    string,
+    { text: string; revision: string | null }
+>();
 let warnsOnLeave = false;
-const keepUnsaved = (key: string, text: string) => {
-    unsavedEdits.set(key, text);
+const keepUnsaved = (key: string, text: string, revision: string | null) => {
+    unsavedEdits.set(key, { text, revision });
     if (warnsOnLeave) return;
     warnsOnLeave = true;
     window.addEventListener('beforeunload', (event) => {
@@ -463,7 +467,12 @@ export const SourcePane: FC<{
             (entry) => entry.path === path,
         ) ?? null;
     const isChangedFile = !!change && !change.isProposed;
-    const { data: file, isFetching } = useStudioSourceFile(
+    const {
+        data: file,
+        isFetching,
+        error: readError,
+        refetch,
+    } = useStudioSourceFile(
         target.projectUuid,
         target.prUrl,
         target.head,
@@ -499,26 +508,38 @@ export const SourcePane: FC<{
     const [justSaved, setJustSaved] = useState<{
         key: string;
         content: string;
+        revision: string;
     } | null>(null);
-    const loaded =
-        file?.content ??
-        (justSaved?.key === editKey ? justSaved.content : null);
+    const saved = justSaved?.key === editKey ? justSaved : null;
+    const loaded = file?.content ?? saved?.content ?? null;
+    const sourceRevision = useRef<string | null>(null);
+    // The revision is that of whatever is shown: the file once read, or what was just saved until then.
+    if (text === null) {
+        sourceRevision.current =
+            file?.content != null
+                ? file.revision
+                : (saved?.revision ?? file?.revision ?? null);
+    }
     const value = text ?? loaded ?? '';
     const isDirty = text !== null && text !== loaded;
     // A proposal shown in the editor is the agent's until the person types over it.
     const hasOwnEdits = isDirty && text !== offered;
+    const open = useRef({ key: editKey, path });
+    open.current = { key: editKey, path };
     // Null at first, so coming back to Sources brings back what was left unsaved.
     const shownKey = useRef<string | null>(null);
     useEffect(() => {
         if (shownKey.current === editKey) {
-            if (hasOwnEdits && text !== null) keepUnsaved(editKey, text);
+            if (hasOwnEdits && text !== null)
+                keepUnsaved(editKey, text, sourceRevision.current);
             else unsavedEdits.delete(editKey);
             return;
         }
         shownKey.current = editKey;
         const kept = unsavedEdits.get(editKey) ?? null;
-        setBase(kept);
-        setText(kept);
+        setBase(kept?.text ?? null);
+        setText(kept?.text ?? null);
+        if (kept) sourceRevision.current = kept.revision;
         setNotice(null);
         setProposedFrom(null);
         setOffered(null);
@@ -569,10 +590,16 @@ export const SourcePane: FC<{
     };
     const submit = () => {
         if (!path || !isDirty || save.isLoading || !target.canEdit) return;
+        // The save may land after another file is opened; it then leaves that file alone.
+        const savedKey = editKey;
+        const isStillOpen = () => open.current.key === savedKey;
+        const named = (message: string) =>
+            isStillOpen() ? message : `${fileName(path)}: ${message}`;
         save.mutate(
             {
                 path,
                 content: value,
+                revision: sourceRevision.current,
                 prUrl: target.prUrl,
                 threadUuid: target.threadUuid,
                 newChangeAgentUuid: target.newChangeAgentUuid,
@@ -580,26 +607,49 @@ export const SourcePane: FC<{
             {
                 onSuccess: (result) => {
                     if (result.status === 'failed') {
-                        setNotice({ tone: 'error', text: result.error });
+                        setNotice({ tone: 'error', text: named(result.error) });
                         return;
                     }
                     setJustSaved({
                         key: `${target.projectUuid}\n${result.prUrl}\n${path}`,
                         content: value,
+                        revision: result.revision,
                     });
-                    reset();
-                    setNotice(
-                        result.checked
-                            ? null
-                            : {
-                                  tone: 'info',
-                                  text: 'Saved. SQL is checked when dbt next builds the change.',
-                              },
-                    );
+                    unsavedEdits.delete(savedKey);
+                    // A save from live moves to its new change, and what is typed in another live file comes along.
+                    const liveKey = `${target.projectUuid}\n\n${open.current.path ?? ''}`;
+                    const typed = unsavedEdits.get(open.current.key);
+                    if (
+                        target.prUrl === null &&
+                        open.current.key === liveKey &&
+                        !isStillOpen() &&
+                        typed !== undefined
+                    ) {
+                        unsavedEdits.delete(open.current.key);
+                        keepUnsaved(
+                            `${target.projectUuid}\n${result.prUrl}\n${open.current.path ?? ''}`,
+                            typed.text,
+                            typed.revision,
+                        );
+                    }
+                    if (isStillOpen()) {
+                        reset();
+                        setNotice(
+                            result.checked
+                                ? null
+                                : {
+                                      tone: 'info',
+                                      text: 'Saved. SQL is checked when dbt next builds the change.',
+                                  },
+                        );
+                    }
                     onSaved(result.prUrl, result.thread);
                 },
                 onError: (error) =>
-                    setNotice({ tone: 'error', text: saveErrorText(error) }),
+                    setNotice({
+                        tone: 'error',
+                        text: named(saveErrorText(error)),
+                    }),
             },
         );
     };
@@ -636,6 +686,23 @@ export const SourcePane: FC<{
             </Text>
         );
     }
+    // An unread file is not shown as an empty one, which could be typed in and saved over it.
+    if (readError && loaded === null && text === null) {
+        return (
+            <Stack align="center" gap="xs" py="xl">
+                <Text fz="sm" c="dimmed">
+                    {readError.error.message}
+                </Text>
+                <Button
+                    size="xs"
+                    variant="default"
+                    onClick={() => void refetch()}
+                >
+                    Try again
+                </Button>
+            </Stack>
+        );
+    }
     const compare = isChangedFile
         ? target.canEdit
             ? (live?.content ?? null)
@@ -662,7 +729,7 @@ export const SourcePane: FC<{
             ? { label: 'Added', color: 'green' }
             : { label: 'Modified', color: 'yellow' };
     // Like a pull request's compare: what the diff starts from, and what it shows.
-    const comparison = `${!target.canEdit ? 'Before' : isChangedFile || !target.prUrl ? 'Live' : 'This change'} → ${
+    const comparison = `${!target.canEdit ? 'Before' : isChangedFile || !target.prUrl ? 'Published' : 'This draft'} → ${
         proposedFrom !== null ? 'Proposal' : isDirty ? 'Unsaved' : 'This change'
     }`;
     const check = (isOn: boolean) =>

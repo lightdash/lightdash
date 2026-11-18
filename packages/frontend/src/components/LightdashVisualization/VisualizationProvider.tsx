@@ -101,6 +101,7 @@ export type VisualizationProviderProps = {
     onPivotRowsChange?: (value: string[] | undefined) => void;
     savedChartUuid?: string;
     savedChartReference?: SavedChartReference;
+    hasUnpublishedChanges?: boolean;
     dashboardFilters?: DashboardFilters;
     invalidateCache?: boolean;
     colorPalette: string[];
@@ -256,6 +257,7 @@ const VisualizationProvider: FC<
     children,
     savedChartUuid,
     savedChartReference,
+    hasUnpublishedChanges = false,
     dashboardFilters,
     invalidateCache,
     colorPalette,
@@ -472,6 +474,7 @@ const VisualizationProvider: FC<
             invalidateCache,
             savedChartUuid,
             savedChartReference,
+            hasUnpublishedChanges,
             isDashboard,
             isEditMode,
             embeddedDashboardInteractivity,
@@ -497,6 +500,7 @@ const VisualizationProvider: FC<
             invalidateCache,
             savedChartUuid,
             savedChartReference,
+            hasUnpublishedChanges,
             isDashboard,
             isEditMode,
             embeddedDashboardInteractivity,

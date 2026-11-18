@@ -69,6 +69,7 @@ export const AGENT_TOOL_CAPABILITIES = {
     editDbtProject: [AgentCapability.DbtWriteback],
     editProjectContext: [AgentCapability.DbtWriteback],
     proposeSemanticLayerChange: [AgentCapability.DbtWriteback],
+    listChanges: [AgentCapability.ReadDiscover],
     readSemanticModel: [AgentCapability.ReadDiscover],
     exploreRepo: [AgentCapability.ReadDiscover],
     exportChartAsCode: [AgentCapability.Export],
@@ -928,6 +929,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ExternalConnectionController.proposeExternalConnectionConfig': [
         AgentCapability.Administration,
     ],
+    'ExternalConnectionController.purgeLiveSourceCache': [
+        AgentCapability.Administration,
+    ],
     'ExternalConnectionController.reattachLiveSource': [
         AgentCapability.Administration,
     ],
@@ -950,6 +954,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.Administration,
     ],
     'ExternalConnectionController.updateExternalConnection': [
+        AgentCapability.Administration,
+    ],
+    'ExternalConnectionController.updateLiveSourceCache': [
         AgentCapability.Administration,
     ],
     'ExternalConnectionController.updateLiveSourceFields': [
@@ -1051,6 +1058,8 @@ export const REST_OPERATION_CAPABILITIES = {
     'SemanticStudioController.applyDraft': [AgentCapability.DbtWriteback],
     'SemanticStudioController.applyDraftModel': [AgentCapability.DbtWriteback],
     'SemanticStudioController.checkDraftImpact': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.compileCheckout': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.getCheckout': [AgentCapability.ReadDiscover],
     'SemanticStudioController.discardDraftModel': [
         AgentCapability.DbtWriteback,
     ],
@@ -1078,6 +1087,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'SemanticStudioController.startWorkspace': [AgentCapability.DbtWriteback],
     'SemanticStudioController.leaveWorkspace': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getWorkspace': [AgentCapability.ReadDiscover],
+    'SemanticStudioController.getWorkspaceDraft': [
+        AgentCapability.DbtWriteback,
+    ],
     'SemanticStudioController.renameWorkspace': [AgentCapability.DbtWriteback],
     'SemanticStudioController.activateWorkspace': [
         AgentCapability.DbtWriteback,

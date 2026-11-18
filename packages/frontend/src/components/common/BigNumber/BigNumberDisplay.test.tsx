@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { ComparisonDiffTypes } from '@lightdash/common';
 import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

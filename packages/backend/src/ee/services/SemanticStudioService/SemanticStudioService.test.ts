@@ -7,6 +7,7 @@ import {
     FieldImpactSeverity,
     ForbiddenError,
     isExploreError,
+    JobStatusType,
     MetricType,
     NotFoundError,
     ParameterError,
@@ -14,6 +15,7 @@ import {
     ValidationErrorType,
     ValidationSourceType,
     WarehouseTypes,
+    type CompileSemanticStudioBranchPayload,
     type CreateValidation,
     type Explore,
     type ExploreError,
@@ -21,11 +23,14 @@ import {
     type PossibleAbilities,
     type Project,
     type SemanticLayerModelChange,
+    type SemanticStudioWorkspace,
+    type SemanticStudioWorkspacePullRequestState,
     type SessionUser,
 } from '@lightdash/common';
 import { Readable } from 'node:stream';
 import { stringify } from 'yaml';
 import { user } from '../../../services/ProjectService/ProjectService.mock';
+import { type DbSemanticStudioBranchCompile } from '../../database/entities/semanticStudioBranchCompiles';
 import {
     ModelDocumentsChangedError,
     type ChangeSet,
@@ -133,6 +138,12 @@ const TRY_OUT_EXPLORE: ExploreError = {
     errors: [],
 };
 
+const BRANCH_EXPLORE: ExploreError = {
+    name: 'branch_compiled',
+    label: 'Branch compiled',
+    errors: [],
+};
+
 const setup = ({
     stored = [{ name: 'orders', content: orders }],
     otherDrafters = [],
@@ -140,6 +151,7 @@ const setup = ({
     usedFields = [],
     previewOf = PROJECT_UUID,
     previewExplores = {},
+    previewCompile = null,
     publishedSince = new Map(),
     enabled = true,
     dbtConnection = { type: DbtProjectType.NONE },
@@ -164,7 +176,11 @@ const setup = ({
     /** The project the preview project was built from. */
     previewOf?: string;
     previewExplores?: Record<string, Explore | ExploreError>;
-    publishedSince?: Map<string, { by: string | null; at: Date }>;
+    previewCompile?: JobStatusType | null;
+    publishedSince?: Map<
+        string,
+        { by: string | null; at: Date; isYours: boolean }
+    >;
     enabled?: boolean;
     /** A repository connection makes `stored` the models in that repository. */
     dbtConnection?: Project['dbtConnection'];
@@ -312,18 +328,41 @@ const setup = ({
         }) => ({ url: PULL_REQUEST_URL }),
     );
     const queueImpactCheck = vi.fn(async () => undefined);
+    const createPreviewForPullRequest = vi.fn(async () => null);
     const compileExploresFromManifest = vi.fn(
         async (): Promise<(Explore | ExploreError)[]> => [TRY_OUT_EXPLORE],
     );
     const files = new Map<string, string>();
+    const branchCompiles = new Map<string, DbSemanticStudioBranchCompile>();
+    let compileRequests = 0;
+    const queueBranchCompile = vi.fn(
+        async (_payload: CompileSemanticStudioBranchPayload) => undefined,
+    );
+    const compileExploresFromBranch = vi.fn(
+        async (): Promise<(Explore | ExploreError)[]> => [BRANCH_EXPLORE],
+    );
+    const findPullRequestBranch = vi.fn(async () => 'studio-branch');
     let activeWorkspace: { threadUuid: string; prUrl: string | null } | null =
         null;
     const unused = async (): Promise<never> => {
         throw new Error('not used in these tests');
     };
+    const studioThreads = new Set<string>();
+    /** The workspace each draft change was made in; a change missing here is from before workspaces. */
+    const draftWorkspaces = new Map<string, string | null>();
+    const workspaceOf = (threadUuid: string) => `workspace-${threadUuid}`;
+    const startWorkspace = vi.fn(
+        async (_owner: unknown, thread: { threadUuid: string }) => {
+            activeWorkspace = { threadUuid: thread.threadUuid, prUrl: null };
+            return workspaceOf(thread.threadUuid);
+        },
+    );
+    const finishWorkspace = vi.fn(
+        async (_owner: unknown, _workspaceUuid: string | null) => 1,
+    );
     const findActive = async () =>
         activeWorkspace && {
-            workspaceUuid: 'workspace-uuid',
+            workspaceUuid: workspaceOf(activeWorkspace.threadUuid),
             projectUuid: PROJECT_UUID,
             name: 'A change',
             threadUuid: activeWorkspace.threadUuid,
@@ -338,27 +377,118 @@ const setup = ({
             updatedAt: new Date(),
             finishedAt: null,
         };
+    const workspaces: SemanticStudioWorkspace[] = [];
+    const getPullRequestState = vi.fn(
+        async (): Promise<SemanticStudioWorkspacePullRequestState | null> =>
+            null,
+    );
+    const recordPullRequestState = vi.fn(
+        async (
+            _projectUuid: string,
+            url: string,
+            state: SemanticStudioWorkspacePullRequestState,
+        ) => {
+            for (const workspace of workspaces) {
+                if (workspace.pullRequest?.url === url) {
+                    workspace.pullRequest.state = state;
+                    workspace.finishedAt = new Date();
+                    workspace.isActive = false;
+                }
+            }
+        },
+    );
     const args: SemanticStudioServiceArguments = {
         aiWritebackService: {
             openStudioCheckout: unused,
             saveWithScript: unused,
+            findPullRequestBranch,
         },
         workspaceModel: {
+            listChanges: async () => [],
+            create: unused,
             findActive,
-            findStudioThread: unused,
+            findStudioThread: async (_owner, threadUuid) =>
+                studioThreads.has(threadUuid)
+                    ? {
+                          organizationUuid: ORGANIZATION_UUID,
+                          agentUuid: null,
+                          title: null,
+                      }
+                    : null,
             findInProject: async () => {
                 const workspace = await findActive();
-                return workspace ? [workspace] : [];
+                return [...workspaces, ...(workspace ? [workspace] : [])];
             },
-            find: unused,
-            start: unused,
+            find: async (workspaceUuid, userUuid) =>
+                workspaceUuid.startsWith('workspace-')
+                    ? {
+                          workspaceUuid,
+                          projectUuid: PROJECT_UUID,
+                          name: 'A change',
+                          threadUuid: workspaceUuid.slice('workspace-'.length),
+                          agentUuid: null,
+                          owner: { userUuid: USER_UUID, name: 'Someone' },
+                          isMine: userUuid === USER_UUID,
+                          isActive: false,
+                          pullRequest:
+                              activeWorkspace?.prUrl &&
+                              workspaceOf(activeWorkspace.threadUuid) ===
+                                  workspaceUuid
+                                  ? { url: activeWorkspace.prUrl, state: null }
+                                  : null,
+                          createdAt: new Date(),
+                          updatedAt: new Date(),
+                          finishedAt: null,
+                      }
+                    : null,
+            start: startWorkspace,
             activate: unused,
             leave: unused,
             rename: unused,
-            finish: async () => 0,
+            finish: finishWorkspace,
             attachPullRequest: async () => undefined,
             attachThreadPullRequest: async () => undefined,
-            recordPullRequestState: unused,
+            recordPullRequestState,
+            requestBranchCompile: async (workspaceUuid) => {
+                compileRequests += 1;
+                const compileRequestUuid = `request-${compileRequests}`;
+                const previous = branchCompiles.get(workspaceUuid);
+                branchCompiles.set(workspaceUuid, {
+                    semantic_studio_workspace_uuid: workspaceUuid,
+                    compile_request_uuid: compileRequestUuid,
+                    status: 'compiling',
+                    branch: previous?.branch ?? null,
+                    error: null,
+                    explores: previous?.explores ?? null,
+                    requested_at: new Date(),
+                    compiled_at: previous?.compiled_at ?? null,
+                });
+                return compileRequestUuid;
+            },
+            finishBranchCompile: async (
+                workspaceUuid,
+                compileRequestUuid,
+                outcome,
+            ) => {
+                const row = branchCompiles.get(workspaceUuid);
+                if (row?.compile_request_uuid !== compileRequestUuid)
+                    return false;
+                branchCompiles.set(
+                    workspaceUuid,
+                    outcome.status === 'ready'
+                        ? {
+                              ...row,
+                              ...outcome,
+                              error: null,
+                              compiled_at: new Date(),
+                          }
+                        : { ...row, ...outcome },
+                );
+                return true;
+            },
+            findBranchCompile: async (workspaceUuid) =>
+                branchCompiles.get(workspaceUuid) ?? null,
+            deleteFinishedBranchCompiles: async () => undefined,
         },
         featureFlagModel: {
             get: async () => ({ id: 'semantic-studio-editing', enabled }),
@@ -417,7 +547,18 @@ const setup = ({
                     uuids.includes(changeSetUuid),
                 ),
             findModelHistory,
-            findDraftChanges: async () => drafts,
+            findDraftChanges: async ({ workspaceUuid }) =>
+                drafts.filter((change) => {
+                    const madeIn =
+                        draftWorkspaces.get(change.draftChangeUuid) ?? null;
+                    return madeIn === workspaceUuid;
+                }),
+            findWorkspaceDraftChanges: async ({ workspaceUuid }) =>
+                drafts.filter(
+                    (change) =>
+                        draftWorkspaces.get(change.draftChangeUuid) ===
+                        workspaceUuid,
+                ),
             findOtherDrafters: async () => otherDrafters,
             withPublishLock: async (_owner, publish) => publish(),
             findDraftState: async () => ({ versions: [], changes: [] }),
@@ -432,8 +573,21 @@ const setup = ({
             },
             findPublishedSince: async () => publishedSince,
             findSettledDraftChanges: async () => [],
-            createDraftChange: async ({ promptUuid, models, baseVersions }) => {
+            createCheckedOutDraftChange: async ({
+                workspaceUuid,
+                promptUuid,
+                changeName,
+                models,
+                baseVersions,
+            }) => {
                 const draftChangeUuid = `draft-${drafts.length + 1}`;
+                const started = !activeWorkspace;
+                if (!activeWorkspace)
+                    activeWorkspace = { threadUuid: 'first', prUrl: null };
+                draftWorkspaces.set(
+                    draftChangeUuid,
+                    workspaceUuid ?? workspaceOf(activeWorkspace.threadUuid),
+                );
                 drafts.push({
                     draftChangeUuid,
                     promptUuid,
@@ -442,7 +596,15 @@ const setup = ({
                     models,
                     baseVersions,
                 });
-                return draftChangeUuid;
+                const checkedOut =
+                    workspaceUuid ?? workspaceOf(activeWorkspace.threadUuid);
+                return {
+                    draftChangeUuid,
+                    workspaceUuid: checkedOut,
+                    startedChange: started
+                        ? { workspaceUuid: checkedOut, name: changeName }
+                        : null,
+                };
             },
             updateDraftChangeStatus: async ({
                 drafts: selection,
@@ -488,10 +650,14 @@ const setup = ({
                 };
             },
         },
-        schedulerClient: { checkSemanticLayerDraftImpact: queueImpactCheck },
+        schedulerClient: {
+            checkSemanticLayerDraftImpact: queueImpactCheck,
+            compileSemanticStudioBranch: queueBranchCompile,
+        },
         validationService: { generateValidation },
         savedChartModel: { analyzeFieldImpact },
         repoModels: {
+            getPullRequestState,
             isInstalled: async () => appInstalled,
             load: async (_organizationUuid, connection) => ({
                 connection,
@@ -519,7 +685,10 @@ const setup = ({
             runSqlQuery,
             setExplores,
             compileExploresFromManifest,
+            compileExploresFromBranch,
         },
+        jobModel: { findLatestCompileStatus: async () => previewCompile },
+        writebackPreviewService: { createPreviewForPullRequest },
         fileStorageClient: {
             isEnabled: () => true,
             uploadTxt: async (txt, id) => {
@@ -542,10 +711,24 @@ const setup = ({
     const service = new SemanticStudioService(args);
     return {
         service,
+        workspaces,
+        getPullRequestState,
+        recordPullRequestState,
+        aiWritebackService: args.aiWritebackService,
+        workspaceModel: args.workspaceModel,
         setActiveWorkspace: (next: typeof activeWorkspace) => {
             activeWorkspace = next;
         },
+        studioThreads,
+        draftWorkspaces,
+        startWorkspace,
+        finishWorkspace,
+        workspaceOf,
         compileExploresFromManifest,
+        compileExploresFromBranch,
+        findPullRequestBranch,
+        queueBranchCompile,
+        branchCompiles,
         upsert,
         openPullRequest,
         recordedPullRequests,
@@ -582,6 +765,7 @@ const draftAndApply = async (
         PROJECT_UUID,
         fragments.map(toDraftModel),
         null,
+        null,
     );
     const { exploreCount } = await context.service.applyDraft(
         deployer,
@@ -599,7 +783,8 @@ describe('SemanticStudioService', () => {
                 deployer,
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
-                'prompt-1',
+                { promptUuid: 'prompt-1', threadUuid: 'thread-1' },
+                null,
             );
             expect(proposal.results[0].status).toBe('ready');
             expect(proposal.draftChangeUuid).toBe('draft-1');
@@ -609,6 +794,40 @@ describe('SemanticStudioService', () => {
             expect(context.upsert).not.toHaveBeenCalled();
         });
 
+        it('names the draft an edit on Published starts, and only that one', async () => {
+            const context = setup();
+            const first = await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+                '  Orders revenue  ',
+            );
+            expect(first.startedChange).toEqual({
+                workspaceUuid: 'workspace-first',
+                name: 'Orders revenue',
+            });
+            const second = await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel('label: Orders\n')],
+                null,
+                'Ignored',
+            );
+            expect(second.startedChange).toBeNull();
+        });
+
+        it('calls a draft started without a name Untitled', async () => {
+            const { startedChange } = await setup().service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+                ' ',
+            );
+            expect(startedChange?.name).toBe('Untitled');
+        });
+
         it('builds on what is already in the draft', async () => {
             const context = setup();
             await context.service.proposeDraftChange(
@@ -616,11 +835,13 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
                 null,
+                null,
             );
             const second = await context.service.proposeDraftChange(
                 deployer,
                 PROJECT_UUID,
                 [draftModel('label: Orders\n')],
+                null,
                 null,
             );
             expect(second.results).toHaveLength(1);
@@ -640,6 +861,7 @@ describe('SemanticStudioService', () => {
                     ),
                 ],
                 null,
+                null,
             );
             expect(results[0].changes).toEqual([
                 { path: 'dimensions.amount.sql', action: 'redefined' },
@@ -653,6 +875,7 @@ describe('SemanticStudioService', () => {
                 deployer,
                 PROJECT_UUID,
                 [draftModel(null, { remove: ['dimensions.customer_id'] })],
+                null,
                 null,
             );
             expect(results[0].changes).toEqual([
@@ -676,6 +899,7 @@ describe('SemanticStudioService', () => {
                 deployer,
                 PROJECT_UUID,
                 [draftModel(null, { name: 'customers', removeModel: true })],
+                null,
                 null,
             );
             expect(removal.diffs[0].contentAfter).toBeNull();
@@ -713,6 +937,7 @@ describe('SemanticStudioService', () => {
                         }),
                     ],
                     null,
+                    null,
                 );
             expect(results[0].status).toBe('failed');
             expect(results[0].error).toContain('This would break orders');
@@ -731,6 +956,7 @@ describe('SemanticStudioService', () => {
                         ),
                     ],
                     null,
+                    null,
                 );
             expect(results[0].refusals[0].reason).toBe('access');
             expect(draftChangeUuid).toBeNull();
@@ -743,6 +969,7 @@ describe('SemanticStudioService', () => {
                     deployer,
                     PROJECT_UUID,
                     [draftModel(REVENUE_YAML)],
+                    null,
                     null,
                 );
             expect(results[0].status).toBe('failed');
@@ -758,6 +985,7 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [draftModel('- not a mapping')],
                 null,
+                null,
             );
             expect(results[0].status).toBe('failed');
             expect(context.drafts).toEqual([]);
@@ -769,6 +997,7 @@ describe('SemanticStudioService', () => {
                     viewer,
                     PROJECT_UUID,
                     [draftModel(REVENUE_YAML)],
+                    null,
                     null,
                 ),
             ).rejects.toThrow();
@@ -782,6 +1011,7 @@ describe('SemanticStudioService', () => {
                 deployer,
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
+                null,
                 null,
             );
             const draft = await context.service.getDraft(
@@ -803,6 +1033,7 @@ describe('SemanticStudioService', () => {
                 deployer,
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
+                null,
                 null,
             );
             expect(
@@ -852,6 +1083,7 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [dropCustomerId],
                 null,
+                null,
             );
             expect(context.queueImpactCheck).toHaveBeenCalledTimes(1);
             expect(await impact(context, null)).toEqual({
@@ -873,6 +1105,7 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
                 null,
+                null,
             );
             expect(context.queueImpactCheck).toHaveBeenCalledTimes(2);
             expect((await impact(context, null)).status).toBe('checking');
@@ -884,6 +1117,7 @@ describe('SemanticStudioService', () => {
                 deployer,
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
+                null,
                 null,
             );
             expect(context.queueImpactCheck).not.toHaveBeenCalled();
@@ -908,6 +1142,7 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [dropCustomerId, toDraftModel(customers)],
                 null,
+                null,
             );
             await context.runImpactCheck();
             expect((await impact(context, 'orders')).breaks).toEqual([
@@ -928,6 +1163,7 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
                 null,
+                null,
             );
             context.generateValidation.mockRejectedValueOnce(
                 new Error('validator down'),
@@ -944,6 +1180,7 @@ describe('SemanticStudioService', () => {
                 deployer,
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
+                null,
                 null,
             );
             expect(
@@ -974,6 +1211,7 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
                 null,
+                null,
             );
             const explores = await context.service.findDevelopmentExplores(
                 deployer,
@@ -994,6 +1232,7 @@ describe('SemanticStudioService', () => {
                 deployer,
                 PROJECT_UUID,
                 [draftModel(null, { removeModel: true })],
+                null,
                 null,
             );
             expect(
@@ -1080,15 +1319,8 @@ describe('SemanticStudioService', () => {
 
     describe('trying a dbt change before its preview', () => {
         const project = {
-            manifestJson: JSON.stringify({
-                nodes: {},
-                metadata: { adapter_type: 'postgres' },
-                metrics: {},
-                docs: {},
-            }),
-            lightdashConfigYaml: 'spotlight:\n  default_visibility: show\n',
-            changedFiles: [],
             prUrl: 'https://github.com/acme/shop/pull/1',
+            explores: [TRY_OUT_EXPLORE],
         };
         const dbt = (overrides: Parameters<typeof setup>[0] = {}) =>
             setup({ dbtConnection: DBT_IN_GITHUB, ...overrides });
@@ -1101,17 +1333,11 @@ describe('SemanticStudioService', () => {
                     PROJECT_UUID,
                 ),
             ).toBeNull();
-            await context.service.saveDbtTryOut(
+            await context.service.saveDbtScriptTryOut(
                 repoWriter,
                 PROJECT_UUID,
-                project,
                 null,
-            );
-            expect(context.compileExploresFromManifest).toHaveBeenCalledWith(
-                repoWriter,
-                PROJECT_UUID,
-                expect.anything(),
-                project.lightdashConfigYaml,
+                project,
             );
             expect(
                 (
@@ -1131,11 +1357,11 @@ describe('SemanticStudioService', () => {
 
         it('is forgotten once its own pull request closes, not another one', async () => {
             const context = dbt();
-            await context.service.saveDbtTryOut(
+            await context.service.saveDbtScriptTryOut(
                 repoWriter,
                 PROJECT_UUID,
-                project,
                 null,
+                project,
             );
             await context.service.retireDbtTryOut(
                 repoWriter,
@@ -1163,11 +1389,11 @@ describe('SemanticStudioService', () => {
 
         it("reads the active workspace's own change, not an older one for another pull request", async () => {
             const context = dbt();
-            await context.service.saveDbtTryOut(
+            await context.service.saveDbtScriptTryOut(
                 repoWriter,
                 PROJECT_UUID,
-                project,
                 null,
+                project,
             );
             context.setActiveWorkspace({
                 threadUuid: 'thread-2',
@@ -1179,11 +1405,11 @@ describe('SemanticStudioService', () => {
                     PROJECT_UUID,
                 ),
             ).toBeNull();
-            await context.service.saveDbtTryOut(
+            await context.service.saveDbtScriptTryOut(
                 repoWriter,
                 PROJECT_UUID,
-                project,
                 'thread-2',
+                project,
             );
             expect(
                 (
@@ -1209,11 +1435,11 @@ describe('SemanticStudioService', () => {
 
         it('stands in for a preview that has not compiled yet', async () => {
             const context = dbt({ previewExplores: {} });
-            await context.service.saveDbtTryOut(
+            await context.service.saveDbtScriptTryOut(
                 repoWriter,
                 PROJECT_UUID,
-                project,
                 null,
+                project,
             );
             expect(
                 (
@@ -1226,22 +1452,41 @@ describe('SemanticStudioService', () => {
             ).toEqual(TRY_OUT_EXPLORE);
         });
 
-        it('compiles nothing for someone who cannot change the project, or a manifest that is not JSON', async () => {
-            const context = dbt();
-            await context.service.saveDbtTryOut(
-                deployer,
-                PROJECT_UUID,
-                project,
-                null,
-            );
-            await context.service.saveDbtTryOut(
-                repoWriter,
-                PROJECT_UUID,
-                { ...project, manifestJson: '{not json' },
-                null,
-            );
-            expect(context.compileExploresFromManifest).not.toHaveBeenCalled();
-        });
+        it.each([
+            [JobStatusType.RUNNING, 'try_out'],
+            [JobStatusType.ERROR, 'try_out'],
+            [JobStatusType.DONE, 'payments'],
+        ])(
+            'reads a reused preview only once its compile is done (%s)',
+            async (previewCompile, shown) => {
+                const context = dbt({
+                    previewExplores: {
+                        payments: {
+                            name: 'payments',
+                            label: 'Payments',
+                            errors: [],
+                        },
+                    },
+                    previewCompile,
+                });
+                await context.service.saveDbtScriptTryOut(
+                    repoWriter,
+                    PROJECT_UUID,
+                    null,
+                    project,
+                );
+                const explores = await context.service.findPreviewExplores(
+                    repoWriter,
+                    PROJECT_UUID,
+                    PREVIEW_UUID,
+                );
+                expect(
+                    ['try_out', 'payments'].filter((name) =>
+                        explores?.has(name),
+                    ),
+                ).toEqual([shown]);
+            },
+        );
     });
 
     describe('the order of a draft', () => {
@@ -1252,11 +1497,13 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
                 null,
+                null,
             );
             await context.service.proposeDraftChange(
                 deployer,
                 PROJECT_UUID,
                 [draftModel('label: Orders\n')],
+                null,
                 null,
             );
             const order = () =>
@@ -1317,6 +1564,7 @@ describe('SemanticStudioService', () => {
                     ),
                 ],
                 null,
+                null,
             );
             const usage = await context.service.getDraftUsage(
                 deployer,
@@ -1361,13 +1609,14 @@ describe('SemanticStudioService', () => {
                     },
                 ],
                 publishedSince: new Map([
-                    ['orders', { by: 'Grace Hopper', at }],
+                    ['orders', { by: 'Grace Hopper', at, isYours: false }],
                 ]),
             });
             await context.service.proposeDraftChange(
                 deployer,
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
+                null,
                 null,
             );
             const draft = await context.service.getDraft(
@@ -1378,7 +1627,7 @@ describe('SemanticStudioService', () => {
                 expect.objectContaining({
                     model: 'orders',
                     alsoChanging: [{ name: 'Ada Lovelace', paths: ['label'] }],
-                    publishedSince: { by: 'Grace Hopper', at },
+                    publishedSince: { by: 'Grace Hopper', at, isYours: false },
                 }),
             ]);
         });
@@ -1390,6 +1639,7 @@ describe('SemanticStudioService', () => {
                 deployer,
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
+                null,
                 null,
             );
             return context;
@@ -1502,6 +1752,7 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [draftModel('label: Sales\n')],
                 null,
+                null,
             );
             context.drafts[0].baseVersions = { orders: 0 };
             expect((await reconciliationOf(context))?.state).toBe('conflict');
@@ -1545,6 +1796,7 @@ describe('SemanticStudioService', () => {
                 deployer,
                 PROJECT_UUID,
                 [draftModel('label: Sales\n')],
+                null,
                 null,
             );
             context.drafts[0].baseVersions = { orders: 0 };
@@ -1605,13 +1857,15 @@ describe('SemanticStudioService', () => {
                 deployer,
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
-                'prompt-1',
+                { promptUuid: 'prompt-1', threadUuid: 'thread-1' },
+                null,
             );
             await context.service.proposeDraftChange(
                 deployer,
                 PROJECT_UUID,
                 [draftModel('label: Orders\n')],
-                'prompt-2',
+                { promptUuid: 'prompt-2', threadUuid: 'thread-1' },
+                null,
             );
             const outcome = await context.service.applyDraft(
                 deployer,
@@ -1638,6 +1892,11 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
                 null,
+                null,
+            );
+            context.draftWorkspaces.set(
+                'draft-2',
+                context.workspaceOf('first'),
             );
             context.drafts.push({
                 draftChangeUuid: 'draft-2',
@@ -1758,6 +2017,7 @@ describe('SemanticStudioService', () => {
                 deployer,
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
+                null,
                 null,
             );
             await context.service.discardDraft(deployer, PROJECT_UUID, {
@@ -1948,6 +2208,183 @@ describe('SemanticStudioService', () => {
         expect(deployed.tables.orders.metrics).toEqual({});
     });
 
+    describe('one draft per workspace', () => {
+        const proposeIn = (
+            context: ReturnType<typeof setup>,
+            threadUuid: string,
+            yaml: string,
+        ) => {
+            context.studioThreads.add(threadUuid);
+            return context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel(yaml)],
+                { promptUuid: `prompt-${threadUuid}`, threadUuid },
+                null,
+            );
+        };
+        const draftedQuestions = async (context: ReturnType<typeof setup>) =>
+            (
+                await context.service.getDraft(deployer, PROJECT_UUID)
+            ).changes.map(({ draftChangeUuid }) => draftChangeUuid);
+
+        it('keeps edits from different conversations in the same checkout', async () => {
+            const context = setup();
+            await proposeIn(context, 'thread-1', REVENUE_YAML);
+            await proposeIn(context, 'thread-2', 'label: Orders\n');
+            expect(await draftedQuestions(context)).toEqual([
+                'draft-1',
+                'draft-2',
+            ]);
+            expect(context.startWorkspace).not.toHaveBeenCalled();
+        });
+
+        it("reads one workspace's changes alone, whichever is active, without changes from before workspaces", async () => {
+            const context = setup();
+            context.drafts.push({
+                draftChangeUuid: 'legacy',
+                baseVersions: null,
+                promptUuid: null,
+                question: null,
+                createdAt: new Date(),
+                models: [draftModel('label: Legacy\n')],
+            });
+            context.setActiveWorkspace({ threadUuid: 'thread-1', prUrl: null });
+            await proposeIn(context, 'thread-1', REVENUE_YAML);
+            context.setActiveWorkspace({ threadUuid: 'thread-2', prUrl: null });
+            await proposeIn(context, 'thread-1', 'label: Orders\n');
+            const first = await context.service.getWorkspaceDraft(
+                deployer,
+                PROJECT_UUID,
+                context.workspaceOf('thread-1'),
+            );
+            expect(
+                first.changes.map(({ draftChangeUuid }) => draftChangeUuid),
+            ).toEqual(['draft-2']);
+            expect(first.models[0].contentAfter).toContain('revenue');
+            const second = await context.service.getWorkspaceDraft(
+                deployer,
+                PROJECT_UUID,
+                context.workspaceOf('thread-2'),
+            );
+            expect(
+                second.changes.map(({ draftChangeUuid }) => draftChangeUuid),
+            ).toEqual(['draft-3']);
+            expect(second.models[0].contentAfter).not.toContain('revenue');
+        });
+
+        it("refuses to read someone else's workspace", async () => {
+            const context = setup();
+            context.setActiveWorkspace({ threadUuid: 'thread-1', prUrl: null });
+            await proposeIn(context, 'thread-1', REVENUE_YAML);
+            await expect(
+                context.service.getWorkspaceDraft(
+                    { ...deployer, userUuid: 'someone-else' },
+                    PROJECT_UUID,
+                    context.workspaceOf('thread-1'),
+                ),
+            ).rejects.toThrow("This change is someone else's");
+        });
+
+        it('publishes only the active workspace and finishes that workspace', async () => {
+            const context = setup();
+            context.setActiveWorkspace({ threadUuid: 'thread-1', prUrl: null });
+            await proposeIn(context, 'thread-1', REVENUE_YAML);
+            context.setActiveWorkspace({ threadUuid: 'thread-2', prUrl: null });
+            await proposeIn(context, 'thread-1', 'label: Orders\n');
+            await context.service.applyDraft(deployer, PROJECT_UUID, null);
+            expect(context.commitCalls[0].source).toMatchObject({
+                drafts: { changeUuids: ['draft-2'] },
+            });
+            expect(context.commitCalls[0].workspaceUuid).toBe(
+                context.workspaceOf('thread-2'),
+            );
+            expect(context.finishWorkspace).toHaveBeenCalledWith(
+                expect.anything(),
+                context.workspaceOf('thread-2'),
+            );
+        });
+
+        it('finishes the workspace when its whole draft is discarded, not when one change is', async () => {
+            const context = setup();
+            context.setActiveWorkspace({ threadUuid: 'thread-1', prUrl: null });
+            await proposeIn(context, 'thread-1', REVENUE_YAML);
+            await proposeIn(context, 'thread-1', 'label: Orders\n');
+            await context.service.discardDraft(deployer, PROJECT_UUID, {
+                kind: 'change',
+                changeUuid: 'draft-1',
+            });
+            expect(context.finishWorkspace).not.toHaveBeenCalled();
+            await context.service.discardDraft(deployer, PROJECT_UUID, {
+                kind: 'all',
+            });
+            expect(context.finishWorkspace).toHaveBeenCalledWith(
+                {
+                    projectUuid: PROJECT_UUID,
+                    userUuid: USER_UUID,
+                    workspaceUuid: context.workspaceOf('thread-1'),
+                },
+                context.workspaceOf('thread-1'),
+            );
+            expect(context.drafts).toEqual([]);
+        });
+
+        it('finishes the threadless workspace started by a manual edit', async () => {
+            const context = setup();
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+                null,
+            );
+            await context.service.discardDraft(deployer, PROJECT_UUID, {
+                kind: 'all',
+            });
+            expect(context.finishWorkspace).toHaveBeenCalledWith(
+                expect.anything(),
+                context.workspaceOf('first'),
+            );
+        });
+
+        it("refuses to publish a workspace's change to a model another workspace published to the same part since", async () => {
+            const stored = [{ name: 'orders', content: orders, version: 1 }];
+            const context = setup({
+                stored,
+                baseContents: [['orders', orders]],
+            });
+            context.setActiveWorkspace({ threadUuid: 'thread-1', prUrl: null });
+            await proposeIn(context, 'thread-1', REVENUE_YAML);
+            context.setActiveWorkspace({ threadUuid: 'thread-2', prUrl: null });
+            await proposeIn(
+                context,
+                'thread-1',
+                REVENUE_YAML.replace('sum', 'count'),
+            );
+            const published = await context.service.applyDraft(
+                deployer,
+                PROJECT_UUID,
+                null,
+            );
+            expect(published.failures).toEqual([]);
+            stored.splice(0, 1, {
+                name: 'orders',
+                content: context.commitCalls[0].documents[0].content ?? '',
+                version: 2,
+            });
+            context.setActiveWorkspace({ threadUuid: 'thread-1', prUrl: null });
+            const refused = await context.service.applyDraft(
+                deployer,
+                PROJECT_UUID,
+                null,
+            );
+            expect(refused.failures).toEqual([
+                expect.objectContaining({ model: 'orders' }),
+            ]);
+            expect(context.commitCalls).toHaveLength(1);
+        });
+    });
+
     describe('derived models', () => {
         const latest: LightdashModelFragment = {
             name: 'latest_orders',
@@ -2085,6 +2522,7 @@ describe('SemanticStudioService', () => {
                 asUser,
                 PROJECT_UUID,
                 [toDraftModel(customers)],
+                null,
                 null,
             );
         await expect(propose(setup(), viewer)).rejects.toThrow(ForbiddenError);
@@ -2261,6 +2699,7 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
                 null,
+                null,
             );
             const outcome = await context.service.applyDraft(
                 repoWriter,
@@ -2287,6 +2726,7 @@ describe('SemanticStudioService', () => {
                 repoWriter,
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
+                null,
                 null,
             );
             await context.service.applyDraft(repoWriter, PROJECT_UUID, null);
@@ -2568,10 +3008,97 @@ dimensions:
 
 describe('saving a hand edit', () => {
     const edit = (prUrl: string | null) => ({
+        revision: null,
         path: 'models/orders.yml',
         content: 'version: 2',
         prUrl,
         threadUuid: null,
+    });
+
+    it('passes the loaded revision to both save attempts and permits continuation', async () => {
+        const context = setup();
+        const save = vi
+            .spyOn(context.aiWritebackService, 'saveWithScript')
+            .mockResolvedValueOnce({ status: 'checked' })
+            .mockResolvedValueOnce({
+                status: 'script_failed',
+                error: 'changed',
+                logs: [],
+            });
+        await expect(
+            context.service.saveSource(deployer, PROJECT_UUID, {
+                ...edit(null),
+                revision: 'original',
+            }),
+        ).resolves.toEqual({ status: 'failed', error: 'changed' });
+        expect(save).toHaveBeenCalledTimes(2);
+        for (const [args, , options] of save.mock.calls) {
+            expect(args.startNewPullRequest).toBe(false);
+            expect(options.expectedSource).toEqual({
+                path: 'models/orders.yml',
+                revision: 'original',
+            });
+        }
+    });
+
+    it('refuses to continue a thread owned by someone else', async () => {
+        const context = setup();
+        vi.spyOn(context.workspaceModel, 'findStudioThread').mockResolvedValue(
+            null,
+        );
+        const save = vi.spyOn(context.aiWritebackService, 'saveWithScript');
+        await expect(
+            context.service.saveSource(deployer, PROJECT_UUID, {
+                ...edit(null),
+                threadUuid: 'other-thread',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(save).not.toHaveBeenCalled();
+    });
+
+    it('returns a null revision for a missing file and a content hash for an existing file', async () => {
+        const context = setup();
+        const readFile = vi
+            .fn()
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce('select 1');
+        vi.spyOn(
+            context.aiWritebackService,
+            'openStudioCheckout',
+        ).mockResolvedValue({
+            root: 'dbt/',
+            checkout: {
+                prUrl: null,
+                branch: 'main',
+                baseBranch: 'main',
+                headSha: 'head',
+                listFiles: async () => [],
+                readFile,
+                readFileAt: async () => null,
+                listFilesChangedSince: async () => [],
+            },
+        });
+        await expect(
+            context.service.readSource(
+                deployer,
+                PROJECT_UUID,
+                null,
+                'models/orders.sql',
+            ),
+        ).resolves.toEqual({
+            path: 'models/orders.sql',
+            content: null,
+            revision: null,
+        });
+        const file = await context.service.readSource(
+            deployer,
+            PROJECT_UUID,
+            null,
+            'models/orders.sql',
+        );
+        expect(file.revision).toMatch(/^[a-f0-9]{64}$/);
+        expect(file.content).toBe('select 1');
+        expect(readFile).toHaveBeenCalledWith('dbt/models/orders.sql');
     });
 
     it('refuses a pull request that is not your own change', async () => {
@@ -2617,5 +3144,265 @@ describe('isSourcePath', () => {
         expect(isSourcePath('models//orders.yml')).toBe(false);
         expect(isSourcePath('profiles.yml')).toBe(false);
         expect(isSourcePath('/etc/models/x.yml')).toBe(false);
+    });
+});
+
+describe('workspace pull request reconciliation', () => {
+    const workspace = (index: number): SemanticStudioWorkspace => ({
+        workspaceUuid: String(index),
+        projectUuid: PROJECT_UUID,
+        name: 'Update orders',
+        threadUuid: String(index),
+        agentUuid: null,
+        owner: { userUuid: USER_UUID, name: 'Owner' },
+        isMine: true,
+        isActive: false,
+        pullRequest: {
+            url: `https://github.com/acme/orders/pull/${index}`,
+            state: 'open',
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        finishedAt: null,
+    });
+
+    it.each(['merged', 'closed'] as const)(
+        'returns externally %s changes as finished',
+        async (state) => {
+            const context = setup();
+            context.workspaces.push(workspace(1));
+            context.getPullRequestState.mockResolvedValue(state);
+            const result = await context.service.listWorkspaces(
+                deployer,
+                PROJECT_UUID,
+            );
+            expect(result.mine).toEqual([]);
+            expect(result.recent[0].pullRequest?.state).toBe(state);
+            expect(result.recent[0].isActive).toBe(false);
+            expect(context.recordPullRequestState).toHaveBeenCalledWith(
+                PROJECT_UUID,
+                workspace(1).pullRequest?.url,
+                state,
+            );
+        },
+    );
+
+    it('only checks five own unfinished pull requests, active first', async () => {
+        const context = setup();
+        context.workspaces.push(
+            { ...workspace(0), isMine: false },
+            { ...workspace(1), finishedAt: new Date() },
+            { ...workspace(2), pullRequest: null },
+            ...Array.from({ length: 7 }, (_, i) => workspace(i + 3)),
+            { ...workspace(10), isActive: true },
+        );
+        await context.service.listWorkspaces(deployer, PROJECT_UUID);
+        expect(context.getPullRequestState).toHaveBeenCalledTimes(5);
+        expect(context.getPullRequestState.mock.calls[0]).toEqual([
+            ORGANIZATION_UUID,
+            { type: DbtProjectType.NONE },
+            workspace(10).pullRequest?.url,
+        ]);
+    });
+
+    it('keeps stored state on provider failure or unavailable state', async () => {
+        const context = setup();
+        context.workspaces.push(workspace(1), workspace(2));
+        context.getPullRequestState.mockRejectedValueOnce(
+            new Error('Unavailable'),
+        );
+        const result = await context.service.listWorkspaces(
+            deployer,
+            PROJECT_UUID,
+        );
+        expect(result.mine).toHaveLength(2);
+        expect(context.recordPullRequestState).not.toHaveBeenCalled();
+    });
+
+    it('does not write an unchanged open state', async () => {
+        const context = setup();
+        context.workspaces.push(workspace(1));
+        context.getPullRequestState.mockResolvedValue('open');
+        await context.service.listWorkspaces(deployer, PROJECT_UUID);
+        expect(context.recordPullRequestState).not.toHaveBeenCalled();
+    });
+});
+
+describe('compiling a dbt change on its branch', () => {
+    const OWN_PULL_REQUEST = 'https://github.com/acme/shop/pull/7';
+    const onChange = (overrides: Parameters<typeof setup>[0] = {}) => {
+        const context = setup({ dbtConnection: DBT_IN_GITHUB, ...overrides });
+        context.setActiveWorkspace({
+            threadUuid: 'thread',
+            prUrl: OWN_PULL_REQUEST,
+        });
+        return context;
+    };
+    /** Stands in for the worker picking the queued compile up. */
+    const runQueued = (context: ReturnType<typeof setup>, index = 0) =>
+        context.service.compileBranch(
+            context.queueBranchCompile.mock.calls[index][0],
+        );
+
+    it('queues a compile of the change on the saved pull request, and shows the person what its branch compiles to', async () => {
+        const context = onChange();
+        await context.service.queueBranchCompile(
+            repoWriter,
+            PROJECT_UUID,
+            OWN_PULL_REQUEST,
+        );
+        expect(context.queueBranchCompile).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid: PROJECT_UUID,
+                userUuid: repoWriter.userUuid,
+                workspaceUuid: 'workspace-thread',
+            }),
+        );
+        await runQueued(context);
+        expect(context.findPullRequestBranch).toHaveBeenCalledWith(
+            ORGANIZATION_UUID,
+            PROJECT_UUID,
+            OWN_PULL_REQUEST,
+        );
+        expect(context.compileExploresFromBranch).toHaveBeenCalledWith(
+            {
+                userUuid: repoWriter.userUuid,
+                organizationUuid: ORGANIZATION_UUID,
+            },
+            PROJECT_UUID,
+            'studio-branch',
+        );
+        const explores = await context.service.findDevelopmentExplores(
+            repoWriter,
+            PROJECT_UUID,
+        );
+        expect(explores?.get(BRANCH_EXPLORE.name)).toEqual(BRANCH_EXPLORE);
+    });
+
+    it('queues nothing for a pull request that is not one of your changes, or on a project kept on the server', async () => {
+        const other = onChange();
+        await other.service.queueBranchCompile(
+            repoWriter,
+            PROJECT_UUID,
+            'https://github.com/acme/shop/pull/8',
+        );
+        expect(other.queueBranchCompile).not.toHaveBeenCalled();
+        const native = onChange({
+            dbtConnection: { type: DbtProjectType.NONE },
+        });
+        await native.service.queueBranchCompile(
+            deployer,
+            PROJECT_UUID,
+            OWN_PULL_REQUEST,
+        );
+        expect(native.queueBranchCompile).not.toHaveBeenCalled();
+    });
+
+    it('drops a compile asked for before a newer one', async () => {
+        const context = onChange();
+        await context.service.queueBranchCompile(
+            repoWriter,
+            PROJECT_UUID,
+            OWN_PULL_REQUEST,
+        );
+        await context.service.queueBranchCompile(
+            repoWriter,
+            PROJECT_UUID,
+            OWN_PULL_REQUEST,
+        );
+        await runQueued(context, 0);
+        expect(context.branchCompiles.get('workspace-thread')).toMatchObject({
+            status: 'compiling',
+            explores: null,
+        });
+        await runQueued(context, 1);
+        expect(context.branchCompiles.get('workspace-thread')).toMatchObject({
+            status: 'ready',
+            branch: 'studio-branch',
+        });
+    });
+
+    it('keeps the last good compile through a failed one, with what failed', async () => {
+        const context = onChange();
+        await context.service.queueBranchCompile(
+            repoWriter,
+            PROJECT_UUID,
+            OWN_PULL_REQUEST,
+        );
+        await runQueued(context, 0);
+        context.compileExploresFromBranch.mockRejectedValueOnce(
+            new Error('Compilation Error in model orders'),
+        );
+        await context.service.queueBranchCompile(
+            repoWriter,
+            PROJECT_UUID,
+            OWN_PULL_REQUEST,
+        );
+        await runQueued(context, 1);
+        expect(context.branchCompiles.get('workspace-thread')).toMatchObject({
+            status: 'failed',
+            error: 'Compilation Error in model orders',
+        });
+        expect(
+            (
+                await context.service.findDevelopmentExplores(
+                    repoWriter,
+                    PROJECT_UUID,
+                )
+            )?.get(BRANCH_EXPLORE.name),
+        ).toEqual(BRANCH_EXPLORE);
+    });
+
+    it('tells the person which change they are on and where its compile stands', async () => {
+        const context = onChange();
+        expect(
+            await context.service.getCheckout(repoWriter, PROJECT_UUID),
+        ).toMatchObject({
+            workspaceUuid: 'workspace-thread',
+            appliesAs: 'dbt_pull_request',
+            branchCompile: null,
+        });
+        await context.service.compileCheckout(repoWriter, PROJECT_UUID);
+        expect(
+            (await context.service.getCheckout(repoWriter, PROJECT_UUID))
+                ?.branchCompile,
+        ).toMatchObject({ status: 'compiling', hasExplores: false });
+        await runQueued(context);
+        expect(
+            (await context.service.getCheckout(repoWriter, PROJECT_UUID))
+                ?.branchCompile,
+        ).toMatchObject({
+            status: 'ready',
+            branch: 'studio-branch',
+            hasExplores: true,
+        });
+        expect(
+            await context.service.getCheckout(viewer, PROJECT_UUID),
+        ).toBeNull();
+        await expect(
+            context.service.compileCheckout(viewer, PROJECT_UUID),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        context.setActiveWorkspace(null);
+        expect(
+            await context.service.getCheckout(repoWriter, PROJECT_UUID),
+        ).toBeNull();
+    });
+
+    it("says plainly when the pull request's branch cannot be read", async () => {
+        const context = onChange();
+        context.findPullRequestBranch.mockRejectedValueOnce(
+            new ParameterError('Pull request #7 is already merged'),
+        );
+        await context.service.queueBranchCompile(
+            repoWriter,
+            PROJECT_UUID,
+            OWN_PULL_REQUEST,
+        );
+        await runQueued(context);
+        expect(context.compileExploresFromBranch).not.toHaveBeenCalled();
+        expect(context.branchCompiles.get('workspace-thread')).toMatchObject({
+            status: 'failed',
+            error: "Could not read this draft's branch. Its pull request may be merged, closed or in another repository.",
+        });
     });
 });

@@ -129,10 +129,12 @@ const managedSignIn = {
     })),
     recordSignInAllowed: vi.fn(),
 };
+const onMobileAccessDenied = vi.fn(async () => undefined);
 const oauthService = new OAuthService({
     lightdashConfig: config,
     userModel: {} as UserModel,
     oauthModel,
+    onMobileAccessDenied,
     getManagedSignInService: () =>
         managedSignIn as unknown as ManagedSignInService,
 });
@@ -655,6 +657,141 @@ describe('the other grants for a mobile client', () => {
         expect(response.body.error).toBe('unauthorized_client');
         expect(managedSignIn.exchangeIdToken).not.toHaveBeenCalled();
         expect(tracker.history.insert).toHaveLength(0);
+    });
+});
+
+describe('the push installations of a denied grant', () => {
+    const deniedGrant = {
+        userId: 42,
+        clientId: 'mobile-client',
+        organizationUuid: disabledOrg,
+    };
+
+    it('are reported for removal when a mobile access token is denied', async () => {
+        flagState.overrides.set(disabledOrg, false);
+        const url = await start();
+
+        expect((await getProjects(url, 'mobile-access')).status).toBe(401);
+
+        expect(onMobileAccessDenied).toHaveBeenCalledTimes(1);
+        expect(onMobileAccessDenied).toHaveBeenCalledWith(deniedGrant);
+    });
+
+    it('are reported for removal when a refresh is denied', async () => {
+        flagState.overrides.set(disabledOrg, false);
+        const url = await start();
+
+        expect(
+            (await refresh(url, 'mobile-refresh', 'mobile-client')).status,
+        ).toBe(400);
+
+        expect(onMobileAccessDenied).toHaveBeenCalledWith(deniedGrant);
+    });
+
+    it('are reported for removal when the switch races a token save', async () => {
+        flagState.onOverrideRead = (read) => {
+            if (read === 1) flagState.overrides.set(disabledOrg, false);
+        };
+        const url = await start();
+
+        expect(
+            (await refresh(url, 'mobile-refresh', 'mobile-client')).status,
+        ).toBe(403);
+
+        expect(onMobileAccessDenied).toHaveBeenCalledWith(deniedGrant);
+    });
+
+    it('are left alone for an enabled organization, another organization and a non-mobile client', async () => {
+        flagState.overrides.set(disabledOrg, false);
+        const url = await start();
+
+        const statuses = [
+            (await getProjects(url, 'other-org-mobile-access')).status,
+            (await getProjects(url, 'cli-access')).status,
+            (await refresh(url, 'cli-refresh', 'cli-client')).status,
+        ];
+        flagState.overrides.delete(disabledOrg);
+        statuses.push(
+            (await getProjects(url, 'mobile-access')).status,
+            (await refresh(url, 'mobile-refresh', 'mobile-client')).status,
+        );
+
+        expect(statuses).toEqual([200, 200, 200, 200, 200]);
+        expect(onMobileAccessDenied).not.toHaveBeenCalled();
+    });
+
+    it('are reported for the person who signs in, not for a fixed user, when a sign-in grant is denied', async () => {
+        managedSignIn.exchangeIdToken.mockResolvedValueOnce({
+            ...defaultSessionUser,
+            userId: 77,
+            organizationUuid: disabledOrg,
+        });
+        flagState.overrides.set(disabledOrg, false);
+        const url = await start();
+
+        const response = await send(`${url}/api/v1/oauth/token`, {
+            form: {
+                grant_type: TOKEN_EXCHANGE_GRANT_TYPE,
+                subject_token: 'a-microsoft-id-token',
+                subject_token_type: ID_TOKEN_TYPE,
+                scope: 'read',
+                client_id: 'mobile-client',
+            },
+        });
+
+        expect(response.status).toBe(403);
+        expect(onMobileAccessDenied).toHaveBeenCalledTimes(1);
+        expect(onMobileAccessDenied).toHaveBeenCalledWith({
+            userId: 77,
+            clientId: 'mobile-client',
+            organizationUuid: disabledOrg,
+        });
+    });
+
+    it('do not change a denied refresh when the removal fails', async () => {
+        const warn = vi.spyOn(Logger, 'warn').mockImplementation(() => Logger);
+        onMobileAccessDenied.mockRejectedValueOnce(new Error('database down'));
+        flagState.overrides.set(disabledOrg, false);
+        const url = await start();
+
+        const denied = await refresh(url, 'mobile-refresh', 'mobile-client');
+
+        expect(denied.status).toBe(400);
+        expect(denied.body).toEqual({
+            error: 'invalid_grant',
+            error_description: 'mobile_org_disabled',
+            organization_uuid: disabledOrg,
+        });
+        expect(warn).toHaveBeenCalledWith(
+            'Unable to remove mobile push installations of a denied grant',
+            expect.anything(),
+        );
+    });
+
+    it('are left alone when the browser authorize step is refused', async () => {
+        flagState.overrides.set(disabledOrg, false);
+
+        await expect(
+            oauthService.isMobileAppAccessDenied('mobile-client', disabledOrg),
+        ).resolves.toBe(true);
+
+        expect(onMobileAccessDenied).not.toHaveBeenCalled();
+    });
+
+    it('do not change the denial when the removal fails', async () => {
+        const warn = vi.spyOn(Logger, 'warn').mockImplementation(() => Logger);
+        onMobileAccessDenied.mockRejectedValueOnce(new Error('database down'));
+        flagState.overrides.set(disabledOrg, false);
+        const url = await start();
+
+        const denied = await getProjects(url, 'mobile-access');
+
+        expect(denied.status).toBe(401);
+        expect(denied.body).toEqual(deniedEnvelope);
+        expect(warn).toHaveBeenCalledWith(
+            'Unable to remove mobile push installations of a denied grant',
+            expect.anything(),
+        );
     });
 });
 

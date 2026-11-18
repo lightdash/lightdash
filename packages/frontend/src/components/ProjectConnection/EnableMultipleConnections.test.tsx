@@ -320,22 +320,6 @@ describe('Enable multiple connections', () => {
         ).toBeDisabled();
     });
 
-    it('offers nothing while the rollout flag is off', async () => {
-        flag.enabled = false;
-        routeApi({ availability: { canSwitch: true, reason: null } });
-        renderPanel();
-
-        await new Promise((resolve) => {
-            setTimeout(resolve, 50);
-        });
-        expect(
-            screen.queryByRole('button', {
-                name: 'Enable multiple connections',
-            }),
-        ).not.toBeInTheDocument();
-        expect(mockApi).not.toHaveBeenCalled();
-    });
-
     it('opens one dialog on the setup form, with what happens next', async () => {
         routeApi({ availability: { canSwitch: true, reason: null } });
         const user = renderPanel();

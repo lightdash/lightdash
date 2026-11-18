@@ -20,6 +20,8 @@ export const toolEditContentArgsSchema = z.object({
 
 const toolEditContentMetadataSchema = z.discriminatedUnion('status', [
     z.object({ status: z.literal('error') }),
+    // The user rejected, or never answered, the SQL chart's approval.
+    z.object({ status: z.enum(['rejected', 'timeout']) }),
     z.object({
         status: z.literal('success'),
         slug: z.string(),

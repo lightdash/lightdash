@@ -1,0 +1,47 @@
+name: Unit tests on main
+
+# PR checks run only the backend and frontend tests a diff can affect. This runs
+# both suites in full on the merged result, so a dependency the selection missed
+# shows up as a failed run on main.
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# One run at a time; GitHub keeps only the newest pending run, so merges in quick succession share one.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    if: ${{ github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release):') }}
+    name: Backend and frontend unit tests
+    runs-on: depot-ubuntu-24.04-8
+    env:
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+      TURBO_API: https://cache.depot.dev
+      NODE_OPTIONS: "--max-old-space-size=8192"
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+        with:
+          cache: true
+          save-cache: false
+          install: false
+      - name: Install packages
+        run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
+      # One package at a time, so the two suites do not compete for the same cores.
+      - name: Backend unit tests
+        run: pnpm turbo run test --filter=backend -- --maxWorkers=75%
+      - name: Frontend unit tests
+        if: ${{ !cancelled() }}
+        run: pnpm turbo run test --filter=@lightdash/frontend -- --maxWorkers=75%

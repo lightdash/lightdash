@@ -21,14 +21,19 @@ type MobileOrgDisabledOAuthPayload = {
     organization_uuid: string;
 };
 
+export type MobileGrant = { userId: number; clientId: string };
+
 export class MobileOrgDisabledOAuthError extends OAuth2Server.OAuthError {
     readonly organizationUuid: string;
 
     readonly errorName: MobileOrgDisabledOAuthErrorName;
 
+    readonly grant: MobileGrant | null;
+
     constructor(
         organizationUuid: string,
-        errorName: MobileOrgDisabledOAuthErrorName = 'access_denied',
+        errorName: MobileOrgDisabledOAuthErrorName,
+        grant: MobileGrant | null,
     ) {
         super(MOBILE_ORG_DISABLED_CODE, {
             code: errorName === 'invalid_grant' ? 400 : 403,
@@ -36,6 +41,7 @@ export class MobileOrgDisabledOAuthError extends OAuth2Server.OAuthError {
         });
         this.organizationUuid = organizationUuid;
         this.errorName = errorName;
+        this.grant = grant;
     }
 
     toJSON(): MobileOrgDisabledOAuthPayload {

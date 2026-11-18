@@ -25,6 +25,7 @@ import {
     metaAdsRequestSchema,
     runMetaAdsQuery,
 } from './run';
+import { summarizeMetaAdsTest } from './testSummary';
 
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.META_ADS];
 const LABEL = CATALOG.messageLabel;
@@ -99,4 +100,5 @@ export const metaAdsIntegration = defineLiveIntegration({
     run: runMetaAdsQuery,
     toError: (response, { adAccountId }) =>
         toMetaAdsError(response, adAccountId),
+    summarizeTest: summarizeMetaAdsTest,
 });

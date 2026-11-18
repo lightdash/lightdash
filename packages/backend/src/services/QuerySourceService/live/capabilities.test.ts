@@ -100,6 +100,18 @@ const SOURCES = [
         date: 'created_at',
         selectsDimension: false,
     },
+    {
+        apiSource: { connector: ApiConnectorType.PYLON },
+        // Record lists have no metrics
+        fields: { dimension: 'state', other: 'source' },
+        date: 'created_at',
+    },
+    {
+        apiSource: { connector: ApiConnectorType.ATTIO, object: 'deals' },
+        // Built-in fields only: attributes come from a scan. No metrics.
+        fields: { dimension: 'record_id', other: 'record_id' },
+        date: 'created_at',
+    },
 ] as const;
 
 const CONNECTORS: ApiConnectorType[] = SOURCES.map(
@@ -196,7 +208,10 @@ const everywhere = (message: string): Refusals =>
 
 /** Refused by the connectors whose declaration matches, in each one's words. */
 const wherever = (
-    matches: (capabilities: LiveCapabilities) => boolean,
+    matches: (
+        capabilities: LiveCapabilities,
+        connector: ApiConnectorType,
+    ) => boolean,
     message: (
         connector: ApiConnectorType,
         capabilities: LiveCapabilities,
@@ -205,7 +220,7 @@ const wherever = (
     Object.fromEntries(
         CONNECTORS.flatMap((connector) => {
             const { capabilities } = getLiveBaseLayer(connector);
-            return matches(capabilities)
+            return matches(capabilities, connector)
                 ? [[connector, [message(connector, capabilities)]]]
                 : [];
         }),
@@ -225,10 +240,18 @@ const reportApisOnly = (message: string) => ({
     stale: everywhere(message),
 });
 
-const id = (
-    connector: ApiConnectorType,
-    key: keyof (typeof SOURCES)[number]['fields'],
-) => toFieldId(connector, getSource(connector).fields[key]);
+type FieldKey = 'dimension' | 'other' | 'metric';
+const fieldName = (connector: ApiConnectorType, key: FieldKey) => {
+    const { fields } = getSource(connector);
+    return key in fields ? String(fields[key as keyof typeof fields]) : null;
+};
+const id = (connector: ApiConnectorType, key: FieldKey) => {
+    const name = fieldName(connector, key);
+    if (!name) throw new Error(`${connector} has no ${key} field`);
+    return toFieldId(connector, name);
+};
+const hasMetric = (connector: ApiConnectorType) =>
+    fieldName(connector, 'metric') !== null;
 const date = (connector: ApiConnectorType) => {
     // A source names its date field when it isn't `date`
     const source = getSource(connector);
@@ -394,22 +417,26 @@ const CASES: Case[] = [
     {
         name: 'a metric filter',
         code: 'live_source.refused.metric_filter',
-        query: (connector) => ({
-            filters: {
-                metrics: {
-                    id: 'metrics',
-                    and: [
-                        rule(
-                            id(connector, 'metric'),
-                            FilterOperator.GREATER_THAN,
-                            [1],
-                        ),
-                    ],
-                },
-            },
-        }),
+        query: (connector) =>
+            hasMetric(connector)
+                ? {
+                      filters: {
+                          metrics: {
+                              id: 'metrics',
+                              and: [
+                                  rule(
+                                      id(connector, 'metric'),
+                                      FilterOperator.GREATER_THAN,
+                                      [1],
+                                  ),
+                              ],
+                          },
+                      },
+                  }
+                : {},
         expected: wherever(
-            ({ metricFilters }) => !metricFilters,
+            ({ metricFilters }, connector) =>
+                !metricFilters && hasMetric(connector),
             (connector) =>
                 `${fieldLabel(connector, id(connector, 'metric'))} can't be filtered on ${sourceLabel(connector)}.`,
         ),
@@ -488,9 +515,10 @@ const CASES: Case[] = [
     {
         name: 'a date operator the API lacks',
         code: 'live_source.refused.date_operator',
-        // GitHub has no date range, so its dates are ordinary filters
+        // GitHub and Attio have no date range, so their dates are ordinary filters
         codes: {
             [ApiConnectorType.GITHUB]: 'live_source.refused.filter_operator',
+            [ApiConnectorType.ATTIO]: 'live_source.refused.filter_operator',
         },
         query: (connector) => ({
             filters: {
@@ -529,7 +557,7 @@ const toQuery = (
         'selectsDimension' in getSource(connector)
             ? []
             : [id(connector, 'dimension')],
-    metrics: [id(connector, 'metric')],
+    metrics: hasMetric(connector) ? [id(connector, 'metric')] : [],
     filters: {},
     sorts: [],
     limit: 100,

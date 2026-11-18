@@ -64,11 +64,16 @@ describe('live source result reuse', () => {
         resultsCreatedAt: new Date(now - 30_000),
         resultsExpiresAt: new Date(now + 60_000),
     };
+    const policy = { ttlSeconds: 60, purgedAt: null };
 
-    it('reuses ready rows fetched within the last minute', () => {
-        expect(canReuseApiResult(apiResult, now)).toBe(true);
+    it('reuses ready rows fetched within the source freshness window', () => {
+        expect(canReuseApiResult(apiResult, policy, now)).toBe(true);
         expect(
-            canReuseApiResult({ ...apiResult, resultsExpiresAt: null }, now),
+            canReuseApiResult(
+                { ...apiResult, resultsExpiresAt: null },
+                policy,
+                now,
+            ),
         ).toBe(true);
     });
     it.each([
@@ -79,6 +84,40 @@ describe('live source result reuse', () => {
         { resultsCreatedAt: new Date(now - 61_000) },
         { resultsExpiresAt: new Date(now) },
     ])('fetches again for missing, failed or stale rows: %j', (change) => {
-        expect(canReuseApiResult({ ...apiResult, ...change }, now)).toBe(false);
+        expect(
+            canReuseApiResult({ ...apiResult, ...change }, policy, now),
+        ).toBe(false);
+    });
+    it('follows the source freshness window, not a fixed minute', () => {
+        const old = { ...apiResult, resultsCreatedAt: new Date(now - 600_000) };
+        expect(canReuseApiResult(old, policy, now)).toBe(false);
+        expect(
+            canReuseApiResult(old, { ...policy, ttlSeconds: 900 }, now),
+        ).toBe(true);
+    });
+    it('never reuses with a window of 0', () => {
+        expect(
+            canReuseApiResult(
+                { ...apiResult, resultsCreatedAt: new Date(now - 1) },
+                { ...policy, ttlSeconds: 0 },
+                now,
+            ),
+        ).toBe(false);
+    });
+    it('never reuses rows fetched before a purge', () => {
+        expect(
+            canReuseApiResult(
+                apiResult,
+                { ...policy, purgedAt: new Date(now - 10_000) },
+                now,
+            ),
+        ).toBe(false);
+        expect(
+            canReuseApiResult(
+                apiResult,
+                { ...policy, purgedAt: new Date(now - 40_000) },
+                now,
+            ),
+        ).toBe(true);
     });
 });

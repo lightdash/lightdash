@@ -8,6 +8,7 @@ import {
     JoinRelationship,
     MetricType,
     parseModelDocument,
+    preAggregatePostProcessor,
     QueryExecutionContext,
     setModelJoinRelationships,
     type Account,
@@ -87,13 +88,13 @@ const POST_CALCULATION_METRICS = new Set<MetricType>([
     MetricType.RUNNING_TOTAL,
 ]);
 
-// ponytail: a few whole compiles kept per process; shrink or add a TTL if large projects weigh on memory.
+// A few whole compiles kept per process; shrink or add a TTL if large projects weigh on memory.
 const MAX_KEPT_COMPILES = 4;
 
 // A dimension that reads a column as it is, so the column's type is its type.
 const PLAIN_COLUMN = /^\s*\$\{TABLE\}\.\w+\s*$/;
 
-// ponytail: a fixed cap on the rows a key check reads; make it a setting if admins need to tune cost.
+// A fixed cap on the rows a key check reads; make it a setting if admins need to tune cost.
 const MAX_KEY_CHECK_ROWS = 1_000_000;
 const KEY_CHECK_TTL_MS = 10 * 60 * 1000;
 const MAX_KEPT_KEY_CHECKS = 200;
@@ -144,6 +145,8 @@ const compileDocuments = async (
         ),
         warehouseSqlBuilder,
         lightdashProjectConfig: { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        // Without this a model's pre_aggregates are dropped, as the CLI and repository compilers keep them.
+        postProcessors: [preAggregatePostProcessor],
     });
     return { explores, quote: warehouseSqlBuilder.getFieldQuoteChar() };
 };
@@ -346,7 +349,7 @@ export class DraftChecker {
                 }),
             ),
         );
-        // ponytail: misses errors only a real value raises, such as a bad cast; run one row if that matters.
+        // Misses errors only a real value raises, such as a bad cast; run one row if that matters.
         const noRows = (sqlTable: string) =>
             `(SELECT * FROM ${sqlTable} AS no_rows WHERE 1 = 0${partitionFilters.get(sqlTable) ?? ''})`;
         const from = [

@@ -86,6 +86,11 @@ const dashboardModel = {
     softDelete: vi.fn(async () => dashboard),
 
     addVersion: vi.fn(async () => dashboard),
+    lockForVersioning: vi.fn(),
+
+    getVersionByUuid: vi.fn(
+        async (): Promise<Dashboard | undefined> => undefined,
+    ),
 
     getOrphanedCharts: vi.fn(async () => []),
 
@@ -260,6 +265,18 @@ const catalogModel = {
     updateFieldsChartUsage: vi.fn(async () => undefined),
 };
 
+const composerChartModel = {
+    deleteOrphans: vi.fn(async () => {}),
+    lockRollbackPipelines: vi.fn(
+        async (): Promise<{ restored: unknown; current: unknown }[]> => [],
+    ),
+    rollbackToDashboardVersion: vi.fn(async () => {}),
+};
+const composerChartService = {
+    getParameterReferences: vi.fn(),
+    assertCanRestore: vi.fn(async () => {}),
+};
+
 const featureFlagModel = { get: vi.fn().mockResolvedValue({ enabled: false }) };
 
 vi.spyOn(analyticsMock, 'track');
@@ -269,7 +286,7 @@ describe('DashboardService', () => {
     const service = new DashboardService({
         featureFlagModel,
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
-        getComposerChartService: () => ({ getParameterReferences: vi.fn() }),
+        getComposerChartService: () => composerChartService,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         dashboardModel: dashboardModel as unknown as DashboardModel,
@@ -283,10 +300,11 @@ describe('DashboardService', () => {
         } as unknown as SchedulerService,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         savedSqlModel: savedSqlModel as unknown as SavedSqlModel,
-        composerChartModel: {
-            deleteOrphans: vi.fn(async () => {}),
-        } as unknown as ComposerChartModel,
-        savedChartService: {} as SavedChartService, // Mock for test
+        composerChartModel: composerChartModel as unknown as ComposerChartModel,
+        savedChartService: {
+            assertCanRestoreAt: vi.fn().mockResolvedValue([]),
+            lockCheckedRestores: vi.fn(),
+        } as unknown as SavedChartService,
         projectModel: projectModel as unknown as ProjectModel,
         slackClient: slackClient as unknown as SlackClient,
         schedulerClient: schedulerClient as unknown as SchedulerClient,
@@ -1998,6 +2016,28 @@ describe('DashboardService', () => {
         expect(dashboardModel.update).not.toHaveBeenCalled();
         expect(dashboardModel.addVersion).not.toHaveBeenCalled();
     });
+    test('should only reject an update of an over-limit dashboard when it grows', async () => {
+        const tiles = (count: number) =>
+            Array(count).fill(createDashboard.tiles[0]);
+        const { maxTilesPerTab } = lightdashConfigMock.dashboard;
+        const saved = { ...dashboard, tiles: tiles(maxTilesPerTab + 1) };
+
+        dashboardModel.getByIdOrSlug.mockResolvedValueOnce(saved);
+        await expect(
+            service.update(user, dashboardUuid, {
+                ...updateDashboardDetailsAndTiles,
+                tiles: tiles(maxTilesPerTab + 1),
+            }),
+        ).resolves.toBeDefined();
+        dashboardModel.getByIdOrSlug.mockResolvedValueOnce(saved);
+        await expect(
+            service.update(user, dashboardUuid, {
+                ...updateDashboardDetailsAndTiles,
+                tiles: tiles(maxTilesPerTab + 2),
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(dashboardModel.addVersion).toHaveBeenCalledTimes(1);
+    });
     test('should not fail save when an orphan chart is already gone', async () => {
         // Race with a retried save: getOrphanedCharts returns a chart that
         // permanentDelete then can't find. The save must still succeed.
@@ -2557,6 +2597,24 @@ describe('DashboardService', () => {
                 service as any,
                 'duplicateChartForDashboard',
             ).mockResolvedValue('new-duplicated-chart-uuid');
+        });
+
+        test('should duplicate a dashboard that is over the tiles-per-tab limit', async () => {
+            (
+                dashboardModel.getByIdOrSlug as import('vitest').Mock
+            ).mockResolvedValue({
+                ...dashboardWithScopedCharts,
+                tiles: Array(
+                    lightdashConfigMock.dashboard.maxTilesPerTab + 1,
+                ).fill(dashboardWithScopedCharts.tiles[0]),
+            });
+
+            await service.duplicate(user, projectUuid, dashboard.uuid, {
+                dashboardName: 'Duplicated',
+                dashboardDesc: 'desc',
+            });
+
+            expect(dashboardModel.create).toHaveBeenCalled();
         });
 
         test('should make whoever duplicates the owner of the copy', async () => {
@@ -3182,6 +3240,150 @@ describe('DashboardService', () => {
         });
     });
 
+    describe('rollback with composer charts', () => {
+        const composerTile = {
+            uuid: 'composer-tile-uuid',
+            type: DashboardTileTypes.COMPOSER_CHART,
+            x: 0,
+            y: 0,
+            h: 9,
+            w: 12,
+            tabUuid: undefined,
+            properties: {
+                title: 'Orders',
+                composerChartUuid: 'composer-chart-uuid',
+                chartName: null,
+            },
+        };
+        const targetVersion = {
+            ...dashboard,
+            versionUuid: 'old-version-uuid',
+            tiles: [composerTile],
+        } as Dashboard;
+        const pipeline = (sql: string) => ({
+            schemaVersion: 1,
+            terminalNodeId: 'orders',
+            nodes: [
+                {
+                    sourceType: 'sql',
+                    nodeId: 'orders',
+                    title: 'Orders',
+                    sql,
+                },
+            ],
+        });
+        const account = fromSession({
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Dashboard', action: 'manage' },
+            ]),
+        });
+
+        beforeEach(() => {
+            dashboardModel.getVersionByUuid.mockResolvedValue(targetVersion);
+        });
+
+        test('refuses when a restored pipeline is one the user may not save', async () => {
+            composerChartModel.lockRollbackPipelines.mockResolvedValueOnce([
+                {
+                    restored: pipeline('select 1'),
+                    current: pipeline('select 2'),
+                },
+            ]);
+            composerChartService.assertCanRestore.mockRejectedValueOnce(
+                new ForbiddenError('requires SQL runner access'),
+            );
+
+            await expect(
+                service.rollback(account, dashboard.uuid, 'old-version-uuid'),
+            ).rejects.toThrowError('requires SQL runner access');
+            expect(
+                composerChartModel.lockRollbackPipelines,
+            ).toHaveBeenCalledWith(
+                ['composer-chart-uuid'],
+                'old-version-uuid',
+                undefined,
+            );
+            expect(composerChartService.assertCanRestore).toHaveBeenCalledWith(
+                account,
+                {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                },
+                pipeline('select 1'),
+            );
+            expect(dashboardModel.addVersion).not.toHaveBeenCalled();
+            expect(
+                composerChartModel.rollbackToDashboardVersion,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('restores a pipeline equal to the current one without the save check', async () => {
+            composerChartModel.lockRollbackPipelines.mockResolvedValueOnce([
+                {
+                    restored: pipeline('select 1'),
+                    current: pipeline('select 1'),
+                },
+            ]);
+
+            await service.rollback(account, dashboard.uuid, 'old-version-uuid');
+
+            expect(
+                composerChartService.assertCanRestore,
+            ).not.toHaveBeenCalled();
+            expect(dashboardModel.addVersion).toHaveBeenCalled();
+            expect(
+                composerChartModel.rollbackToDashboardVersion,
+            ).toHaveBeenCalledWith(
+                'composer-chart-uuid',
+                'old-version-uuid',
+                user.userUuid,
+                undefined,
+            );
+        });
+
+        test('only refuses an over-limit version that is larger than the current one', async () => {
+            const tiles = (count: number) =>
+                Array(count).fill(dashboard.tiles[0]);
+            const { maxTilesPerTab } = lightdashConfigMock.dashboard;
+            const saved = { ...dashboard, tiles: tiles(maxTilesPerTab + 1) };
+
+            dashboardModel.getByIdOrSlug.mockResolvedValueOnce(saved);
+            dashboardModel.getVersionByUuid.mockResolvedValueOnce({
+                ...targetVersion,
+                tiles: tiles(maxTilesPerTab + 1),
+            });
+            await service.rollback(account, dashboard.uuid, 'old-version-uuid');
+            expect(dashboardModel.addVersion).toHaveBeenCalledTimes(1);
+
+            dashboardModel.getByIdOrSlug.mockResolvedValueOnce(saved);
+            dashboardModel.getVersionByUuid.mockResolvedValueOnce({
+                ...targetVersion,
+                tiles: tiles(maxTilesPerTab + 2),
+            });
+            await expect(
+                service.rollback(account, dashboard.uuid, 'old-version-uuid'),
+            ).rejects.toThrow(ParameterError);
+        });
+
+        test('reads no composer chart for a version without composer tiles', async () => {
+            dashboardModel.getVersionByUuid.mockResolvedValueOnce({
+                ...targetVersion,
+                tiles: [],
+            });
+
+            await service.rollback(account, dashboard.uuid, 'old-version-uuid');
+
+            expect(
+                composerChartModel.lockRollbackPipelines,
+            ).not.toHaveBeenCalled();
+            expect(
+                composerChartService.assertCanRestore,
+            ).not.toHaveBeenCalled();
+            expect(dashboardModel.addVersion).toHaveBeenCalled();
+        });
+    });
+
     describe('updateCustomMetric', () => {
         const registryMetric = {
             name: 'amount_avg',
@@ -3247,6 +3449,28 @@ describe('DashboardService', () => {
                 dashboardModel.updateLatestVersionConfig,
             ).not.toHaveBeenCalled();
             expect(savedChartModel.createVersion).not.toHaveBeenCalled();
+        });
+
+        test("checks each chart against its own metric, not the registry's", async () => {
+            const chartMetric = { ...registryMetric, sql: '${TABLE}.net' };
+            savedChartModel.get.mockResolvedValueOnce({
+                ...affectedChart,
+                metricQuery: {
+                    ...affectedChart.metricQuery,
+                    additionalMetrics: [chartMetric],
+                },
+            } as never);
+            await service.updateCustomMetric(user, dashboardUuid, {
+                metric: updatedMetric as never,
+            });
+            expect(
+                projectService.getCustomMetricsNeedingPermission,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    additionalMetrics: [updatedMetric],
+                    savedAdditionalMetrics: [chartMetric],
+                }),
+            );
         });
 
         test('saves a shared metric no chart using it needs permission for', async () => {

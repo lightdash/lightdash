@@ -72,6 +72,7 @@ describe('useDataAppVizRender', () => {
             undefined,
             undefined,
             undefined,
+            undefined,
         ]);
         expect(query.enabled).toBe(true);
         await query.queryFn();
@@ -158,6 +159,68 @@ describe('useDataAppVizRender', () => {
         expect(mockedLightdashApi).toHaveBeenLastCalledWith({
             method: 'GET',
             url: '/ee/projects/project-1/apps/visualizations/viz-1/charts/chart-1/render-metadata?chartVersionUuid=version-9',
+        });
+    });
+
+    it("asks for the viewer's unpublished draft only on the registered saved-chart route", async () => {
+        const base =
+            '/ee/projects/project-1/apps/visualizations/viz-1/charts/chart-1';
+        const metadataUrl = async (target: {
+            isEmbedded: boolean;
+            savedChartUuid: string;
+            chartVersionUuid?: string;
+            hasUnpublishedChanges?: boolean;
+        }) => {
+            const { result } = renderHook(() =>
+                useDataAppVizRenderMetadata('project-1', 'viz-1', target),
+            );
+            await (result.current as unknown as CapturedQuery).queryFn();
+            return mockedLightdashApi.mock.lastCall?.[0].url;
+        };
+        const draftTarget = {
+            isEmbedded: false,
+            savedChartUuid: 'chart-1',
+            hasUnpublishedChanges: true,
+        };
+
+        expect(await metadataUrl(draftTarget)).toBe(
+            `${base}/render-metadata?includeUnpublishedDraft=true`,
+        );
+        expect(
+            await metadataUrl({ ...draftTarget, hasUnpublishedChanges: false }),
+        ).toBe(`${base}/render-metadata`);
+        expect(
+            await metadataUrl({
+                ...draftTarget,
+                chartVersionUuid: 'version-9',
+            }),
+        ).toBe(`${base}/render-metadata?chartVersionUuid=version-9`);
+        expect(await metadataUrl({ ...draftTarget, isEmbedded: true })).toBe(
+            '/embed/project-1/chart/chart-1/visualizations/viz-1/render-metadata',
+        );
+
+        mockedLightdashApi.mockResolvedValue({ token: 'token-7' });
+        const { result } = renderHook(() =>
+            useDataAppVizPreviewToken('project-1', 'viz-1', 7, draftTarget),
+        );
+        const tokenQuery = result.current as unknown as CapturedQuery;
+        await tokenQuery.queryFn();
+        expect(mockedLightdashApi).toHaveBeenLastCalledWith({
+            method: 'GET',
+            url: `${base}/versions/7/preview-token?includeUnpublishedDraft=true`,
+        });
+        expect(tokenQuery.queryKey).toContain(true);
+
+        const { result: publishedResult } = renderHook(() =>
+            useDataAppVizPreviewToken('project-1', 'viz-1', 7, {
+                isEmbedded: false,
+                savedChartUuid: 'chart-1',
+            }),
+        );
+        await (publishedResult.current as unknown as CapturedQuery).queryFn();
+        expect(mockedLightdashApi).toHaveBeenLastCalledWith({
+            method: 'GET',
+            url: `${base}/versions/7/preview-token`,
         });
     });
 
@@ -301,6 +364,7 @@ describe('useDataAppVizRender', () => {
             7,
             'embed',
             'chart-1',
+            undefined,
             undefined,
             undefined,
             undefined,

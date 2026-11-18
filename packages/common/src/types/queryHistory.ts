@@ -59,6 +59,14 @@ export type SemanticQueryUsage = {
     references: SemanticFieldReference[];
 };
 
+/** Identifiers for the customer usage store only. */
+export type EmbeddedUsageAttribution = {
+    externalUserId: string | null;
+    tokenFingerprint: string | null;
+    tenantAttribute: string | null;
+    tenantId: string | null;
+};
+
 /** Server-owned attribution persisted with a query for background workers. */
 export type QueryUsageMetadata = {
     startedAtMs: number;
@@ -73,6 +81,7 @@ export type QueryUsageMetadata = {
     /** Set only on a node of a bound composer chart run. */
     chartKind?: 'composer_chart';
     semanticUsage?: SemanticQueryUsage;
+    embeddedUsage?: EmbeddedUsageAttribution;
     querySurface?: QuerySurface;
 };
 

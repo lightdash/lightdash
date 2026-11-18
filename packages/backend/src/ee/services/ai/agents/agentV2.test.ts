@@ -3527,6 +3527,22 @@ describe('buildAgentMessages', () => {
         ).toBe('**Orders:** 64,357');
         expect(
             getDataAnswerFastResponse([
+                result(
+                    { result: 'rejected', metadata: { status: 'rejected' } },
+                    'sql-1',
+                    'runContentQuery',
+                ),
+                result({
+                    result: 'csv',
+                    metadata: {
+                        status: 'success',
+                        fastResponse: '**Orders:** 64,357',
+                    },
+                }),
+            ]),
+        ).toBeNull();
+        expect(
+            getDataAnswerFastResponse([
                 result({
                     result: 'invalid date',
                     metadata: { status: 'error' },

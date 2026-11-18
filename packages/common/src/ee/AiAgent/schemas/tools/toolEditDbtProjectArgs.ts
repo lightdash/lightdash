@@ -7,7 +7,7 @@ export const AI_WRITEBACK_PENDING_GRACE_MS = 5 * 60 * 1000;
 export const TOOL_EDIT_DBT_PROJECT_DESCRIPTION = [
     "Open or update a pull request that changes this project's semantic layer (dbt or Lightdash YAML): it edits the repository in an isolated sandbox, validates the semantic layer and opens the pull request on your behalf, so report it as your own work.",
     'Call it, in the same turn you decide to make the change, when the user asks for one in the repository (add or rename a metric, edit a dimension or model, update YAML metadata) or accepts one you offered. It is not for questions about data or code, nor for changes that can be made inside Lightdash, such as to saved charts and dashboards.',
-    'It returns status "pending" once the run starts, and the pull request opens in the background: do not call it again to check on it.',
+    'It returns status "pending" once the run starts, and the pull request opens in the background a few minutes later: do not call it again to check on it. Until it opens, listWorkstreams shows the change as still being opened.',
 ].join(' ');
 
 export const toolEditDbtProjectArgsSchema = z.object({
@@ -27,6 +27,11 @@ export const toolEditDbtProjectArgsSchema = z.object({
         .nullable()
         .describe(
             'true opens a new pull request in this conversation for a change unrelated to the open one; null continues the most recent pull request. Ignored when prUrl is set.',
+        ),
+    requestedBy: z
+        .enum(['user_asked', 'offer_accepted', 'agent_initiated'])
+        .describe(
+            'Who asked for this repository change: user_asked when the user asked for it in the repository, offer_accepted when the user said yes to a change you offered, agent_initiated when you decided it alone. An agent_initiated change is not opened: the tool tells you to make what the user asked for with the content tools and offer the repository change instead.',
         ),
 });
 
@@ -85,6 +90,8 @@ export const toolEditDbtProjectMetadataSchema = z.discriminatedUnion('status', [
         // run made no preview (non-GitHub, or creation failed) or the row
         // predates this field. Replaces the old PR-comment scraping.
         previewUrl: z.string().nullish(),
+        // When the pull request was recorded ahead of its preview, as an ISO time; nullish once the preview is settled.
+        previewPendingSince: z.string().nullish(),
         // Ordered actions the sandbox took, surfaced as persistent step
         // rows under the writeback tool call. Generic shape (kind + label)
         // so the chat UI can group/render them without writeback knowledge.

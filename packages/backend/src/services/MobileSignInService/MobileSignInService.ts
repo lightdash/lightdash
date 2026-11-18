@@ -214,7 +214,15 @@ type MobileSignInServiceArguments = {
     oauthModel: Pick<OAuth2Model, 'getClient'>;
     getUserService: () => Pick<UserService, 'getManagedSignIn'>;
     getProjectService: () => Pick<ProjectService, 'getProject'>;
+    getMobilePushNotificationService: () => MobilePushInstallationRevoker;
     analytics: Pick<LightdashAnalytics, 'track'>;
+};
+
+type MobilePushInstallationRevoker = {
+    revokeInstallationsWithoutGrant(user: {
+        userUuid: string;
+        organizationUuid: string;
+    }): Promise<void>;
 };
 
 type TrackedCode = {
@@ -245,6 +253,8 @@ export class MobileSignInService extends BaseService {
 
     private readonly getProjectService: MobileSignInServiceArguments['getProjectService'];
 
+    private readonly getMobilePushNotificationService: MobileSignInServiceArguments['getMobilePushNotificationService'];
+
     constructor(args: MobileSignInServiceArguments) {
         super({ serviceName: 'MobileSignInService' });
         this.lightdashConfig = args.lightdashConfig;
@@ -257,6 +267,8 @@ export class MobileSignInService extends BaseService {
         this.getUserService = args.getUserService;
         this.analytics = args.analytics;
         this.getProjectService = args.getProjectService;
+        this.getMobilePushNotificationService =
+            args.getMobilePushNotificationService;
     }
 
     private track(
@@ -466,7 +478,7 @@ export class MobileSignInService extends BaseService {
     }
 
     async getAppAccess(
-        user: Pick<SessionUser, 'organizationUuid'>,
+        user: Pick<SessionUser, 'organizationUuid' | 'userUuid'>,
     ): Promise<MobileAppAccess> {
         if (!user.organizationUuid) {
             throw new ForbiddenError('Join an organization first', {
@@ -479,6 +491,19 @@ export class MobileSignInService extends BaseService {
                 user.organizationUuid,
             ))
         ) {
+            try {
+                await this.getMobilePushNotificationService().revokeInstallationsWithoutGrant(
+                    {
+                        userUuid: user.userUuid,
+                        organizationUuid: user.organizationUuid,
+                    },
+                );
+            } catch (error) {
+                this.logger.warn(
+                    'Unable to remove mobile push installations of a denied session',
+                    { error },
+                );
+            }
             throw new MobileOrgDisabledError(user.organizationUuid);
         }
         return { enabled: true, organizationUuid: user.organizationUuid };

@@ -83,6 +83,34 @@ describe('RESULTS_CACHE_ENABLED', () => {
     });
 });
 
+describe('PRE_AGGREGATE_DUCKDB_WRITE_MEMORY_LIMIT', () => {
+    it('defaults to 256MB independently of the query memory limit', () => {
+        process.env.PRE_AGGREGATE_DUCKDB_QUERY_MEMORY_LIMIT = '2GB';
+
+        expect(parseConfig().preAggregates).toMatchObject({
+            duckdbWriteMemoryLimit: '256MB',
+            duckdbQueryMemoryLimit: '2GB',
+        });
+    });
+
+    it.each(['512MB', '1GB', '18446744073GB'])('accepts %s', (value) => {
+        process.env.PRE_AGGREGATE_DUCKDB_WRITE_MEMORY_LIMIT = value;
+
+        expect(parseConfig().preAggregates.duckdbWriteMemoryLimit).toBe(value);
+    });
+
+    it.each(['', '0MB', '-1GB', '1.5GB', '256', '1KB', '18446744074GB'])(
+        'rejects %j',
+        (value) => {
+            process.env.PRE_AGGREGATE_DUCKDB_WRITE_MEMORY_LIMIT = value;
+
+            expect(() => parseConfig()).toThrow(
+                /PRE_AGGREGATE_DUCKDB_WRITE_MEMORY_LIMIT/,
+            );
+        },
+    );
+});
+
 describe('MOBILE_ANDROID_CERT_FINGERPRINTS', () => {
     const playAppSigning =
         'EB:2C:4B:A2:0C:21:91:EB:9A:47:DF:1C:09:69:36:80:89:95:93:F5:6A:E5:AF:E8:9F:3D:4B:B0:C1:E2:8C:90';

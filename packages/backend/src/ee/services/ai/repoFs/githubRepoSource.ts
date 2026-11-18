@@ -48,10 +48,10 @@ export const rethrowAsRecoverable = (error: unknown): never => {
 
 // The Contents API serves no file above 1MB, so the archive keeps the same line.
 const MAX_ARCHIVE_FILE_BYTES = 1024 * 1024;
-// ponytail: the archive is the whole repo, so a larger one (a monorepo around a small dbt project) is read file by file; fetch its blobs in batches if that case matters.
+// The archive is the whole repo, so a larger one (a monorepo around a small dbt project) is read file by file; fetch its blobs in batches if that case matters.
 const MAX_ARCHIVE_REPO_BYTES = 50 * 1024 * 1024;
 
-// ponytail: kept per process, so each API instance downloads a tree once; move to shared storage if that repeats too often.
+// Kept per process, so each API instance downloads a tree once; move to shared storage if that repeats too often.
 const MAX_KEPT_ARCHIVES_BYTES = 128 * 1024 * 1024;
 type KeptArchive = { files: Map<string, string>; bytes: number };
 const keptArchives = new Map<string, KeptArchive>();
@@ -236,7 +236,7 @@ export const createGithubRepoSource = ({
             }
             const inFlight = archiveDownloads.get(key);
             if (inFlight) return inFlight;
-            // ponytail: one download per source, so held archives stay within MAX_KEPT_ARCHIVES_BYTES plus those in flight; an evicted one is read file by file.
+            // One download per source, so held archives stay within MAX_KEPT_ARCHIVES_BYTES plus those in flight; an evicted one is read file by file.
             if (downloaded || tooLargeTrees.has(key)) return null;
             downloaded = true;
             const download = (async () => {

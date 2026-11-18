@@ -5,6 +5,7 @@ import {
     ParseError,
     type Project,
     type SemanticLayerDraftItemResult,
+    type SemanticStudioWorkspacePullRequestState,
 } from '@lightdash/common';
 import { randomBytes } from 'node:crypto';
 import { parseDocument } from 'yaml';
@@ -15,6 +16,7 @@ import {
     getFileContent,
     getInstallationAccessToken,
     getLastCommit,
+    getPullRequest,
     getRepoTree,
 } from '../../../clients/github/Github';
 import { type GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
@@ -50,7 +52,7 @@ const MODEL_TYPES = new Set(['model', 'model/v1beta', 'model/v1']);
 // The same two places, in the same order, that a native project is loaded from.
 const MODEL_DIRECTORIES = ['models', 'lightdash/models'];
 const YAML_FILE = /\.ya?ml$/;
-// ponytail: every file is one API call the first time a commit is read; read the tree's blobs in one request if a repo outgrows this.
+// Every file is one API call the first time a commit is read; read the tree's blobs in one request if a repo outgrows this.
 const MAX_MODEL_FILES = 500;
 const READ_CONCURRENCY = 10;
 const MAX_KEPT_COMMITS = 4;
@@ -145,7 +147,7 @@ export class RepoModelSource {
 
     private readonly commits = new Map<string, Promise<RepoModels>>();
 
-    // ponytail: per-process token cache keyed by installation, never pruned; fine for one installation per organization.
+    // Per-process token cache keyed by installation, never pruned; fine for one installation per organization.
     private readonly tokens = new Map<
         string,
         { token: string; expiresAt: number }
@@ -188,6 +190,41 @@ export class RepoModelSource {
             expiresAt: Date.parse(expiresAt),
         });
         return { installationId, token };
+    }
+
+    async getPullRequestState(
+        organizationUuid: string,
+        dbtConnection: Project['dbtConnection'],
+        prUrl: string,
+    ): Promise<SemanticStudioWorkspacePullRequestState | null> {
+        if (
+            dbtConnection.type !== DbtProjectType.GITHUB ||
+            dbtConnection.authorization_method !== 'installation_id' ||
+            normalizeCredentialHost(
+                dbtConnection.host_domain || DEFAULT_GITHUB_HOST_DOMAIN,
+            ) !== DEFAULT_GITHUB_HOST_DOMAIN
+        ) {
+            return null;
+        }
+        const match =
+            /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)$/.exec(
+                prUrl,
+            );
+        if (
+            !match ||
+            `${match[1]}/${match[2]}`.toLowerCase() !==
+                dbtConnection.repository.toLowerCase()
+        ) {
+            return null;
+        }
+        const { token } = await this.getAccess(organizationUuid);
+        const pullRequest = await getPullRequest({
+            owner: match[1],
+            repo: match[2],
+            pullNumber: Number(match[3]),
+            token,
+        });
+        return pullRequest.merged ? 'merged' : pullRequest.state;
     }
 
     /** The repository's models at the head of the project's branch; one commit is read once. */

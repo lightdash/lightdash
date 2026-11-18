@@ -504,7 +504,6 @@ describe('compileMetaAdsQuery', () => {
             ['age', 'country'],
             ['gender', 'publisher_platform'],
             ['country', 'publisher_platform'],
-            ['country', 'region'],
         ])(
             "refuses %s with %s: Meta can't break them down together",
             (a, b) => {

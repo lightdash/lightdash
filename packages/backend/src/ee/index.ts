@@ -5,6 +5,7 @@ import {
     createPullRequestComment,
     getInstallationToken,
     getPullRequest,
+    getPullRequestComments,
 } from '../clients/github/Github';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
@@ -289,6 +290,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                 userId,
                                 clientId,
                             }),
+                    onMobileAccessDenied: (grant) =>
+                        models
+                            .getMobilePushNotificationModel<MobilePushNotificationModel>()
+                            .deleteInstallationsOfGrant(grant),
                 }),
             linearAppService: ({ models, context, utils }) => {
                 const aiAgentReviewNotificationModel =
@@ -451,6 +456,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             models.getGithubAppInstallationsModel(),
                     }),
                     savedChartModel: models.getSavedChartModel(),
+                    jobModel: models.getJobModel(),
+                    writebackPreviewService:
+                        repository.getWritebackPreviewService<WritebackPreviewService>(),
                     aiWritebackService:
                         repository.getAiWritebackService<AiWritebackService>(),
                     fileStorageClient: clients.getFileStorageClient(),
@@ -569,6 +577,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         createPullRequestComment,
                         getInstallationToken,
                         getPullRequest,
+                        getPullRequestComments,
                     },
                 }),
             externalSourceService: ({ context, models, clients }) =>
@@ -692,6 +701,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     }),
                     contentVerificationModel:
                         models.getContentVerificationModel(),
+                    contentDraftModel: models.getContentDraftModel(),
                 }),
             roadmapService: ({ context }) =>
                 new RoadmapService({
