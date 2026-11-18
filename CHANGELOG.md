@@ -1,3 +1,10 @@
+## [3.310.2](https://github.com/lightdash/lightdash/compare/3.310.1...3.310.2) (2026-11-18)
+
+
+### Performance Improvements
+
+* **query-history:** read copied request columns and use uuid-typed joins ([#32839](https://github.com/lightdash/lightdash/issues/32839)) ([b016df1](https://github.com/lightdash/lightdash/commit/b016df12d763bab752cd9ec5234c169ef21dc7a4))
+
 ## [3.310.1](https://github.com/lightdash/lightdash/compare/3.310.0...3.310.1) (2026-11-18)
 
 
