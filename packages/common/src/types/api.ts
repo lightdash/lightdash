@@ -486,6 +486,7 @@ import {
     type ApiSemanticLayerDraftResponse,
     type ApiSemanticLayerDraftStateResponse,
     type ApiSemanticLayerDraftUsageResponse,
+    type ApiSemanticStudioCheckoutResponse,
     type ApiSemanticStudioSourceFileResponse,
     type ApiSemanticStudioSourceSaveResponse,
     type ApiSemanticStudioSourcesResponse,
@@ -1915,6 +1916,7 @@ type ApiResults =
     | ApiSemanticLayerDraftedModelsResponse['results']
     | ApiSemanticLayerDraftStateResponse['results']
     | ApiSemanticStudioWorkspacesResponse['results']
+    | ApiSemanticStudioCheckoutResponse['results']
     | ApiSemanticStudioSourcesResponse['results']
     | ApiSemanticStudioSourceFileResponse['results']
     | ApiSemanticStudioSourceSaveResponse['results']

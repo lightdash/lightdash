@@ -8,7 +8,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { isDevelopmentViewOn } from './developmentView';
-import { DRAFT_KEY, useCanEditSemanticLayer } from './useSemanticLayerModel';
+import {
+    CHECKOUT_KEY,
+    DRAFT_KEY,
+    useCanEditSemanticLayer,
+} from './useSemanticLayerModel';
 
 export const WORKSPACES_KEY = 'semantic-studio-workspaces';
 const toUrl = (projectUuid: string, path: string) =>
@@ -101,6 +105,8 @@ export const useStudioWorkspaceAction = (projectUuid: string) => {
                 queryClient.invalidateQueries([WORKSPACES_KEY, projectUuid]),
                 // The draft shown is the active workspace's.
                 queryClient.invalidateQueries([DRAFT_KEY, projectUuid]),
+                // The rest of the app shows the checked-out change.
+                queryClient.invalidateQueries([CHECKOUT_KEY, projectUuid]),
                 // Explores read the active workspace's changes while the development view is on.
                 ...(isDevelopmentViewOn()
                     ? [queryClient.invalidateQueries(['tables'])]
