@@ -22,18 +22,18 @@ This skill is shared with Lightdash's native agent, so its workflows use camelCa
 
 ## What You Can Do
 
-| Task                          | Tools/Action                                                    | References                            |
-| ----------------------------- | --------------------------------------------------------------- | ------------------------------------- |
-| Read dashboards and charts    | `readContent`                                                   | `dashboard-reference`, chart refs     |
-| Create, read, edit SQL charts | `createContent` / `readContent` / `editContent`, `sql_chart`    | `sql-chart-reference`                 |
+| Task                               | Tools/Action                                                      | References                            |
+| ---------------------------------- | ----------------------------------------------------------------- | ------------------------------------- |
+| Read dashboards and charts         | `readContent`                                                     | `dashboard-reference`, chart refs     |
+| Create, read, edit SQL charts      | `createContent` / `readContent` / `editContent`, `sql_chart`      | `sql-chart-reference`                 |
 | Create, read, edit composer charts | `createContent` / `readContent` / `editContent`, `composer_chart` | `composer-chart-reference`            |
-| Read data apps (read-only)    | `readContent` with `type: data_app`                             | manifest-shaped JSON, no source code  |
-| Edit dashboards               | `editContent` with RFC6902 JSON Patch                           | `dashboard-reference`                 |
-| Edit charts and tiles         | `editContent`, then update referencing dashboards if needed     | Chart refs, `dashboard-reference`     |
-| Create charts                 | `grepFields`, `getMetadata`, `runContentQuery`, `createContent` | Chart refs                            |
-| Create dashboards             | `grepFields`, `getMetadata`, `createContent`                    | `dashboard-reference`, best practices |
-| Add period comparisons        | Edit chart `metricQuery` and config                             | `period-over-period-reference`        |
-| Check changed metric queries  | `runContentQuery` with `source.type: "metricQuery"`             | Chart refs                            |
+| Read data apps (read-only)         | `readContent` with `type: data_app`                               | manifest-shaped JSON, no source code  |
+| Edit dashboards                    | `editContent` with RFC6902 JSON Patch                             | `dashboard-reference`                 |
+| Edit charts and tiles              | `editContent`, then update referencing dashboards if needed       | Chart refs, `dashboard-reference`     |
+| Create charts                      | `grepFields`, `getMetadata`, `runContentQuery`, `createContent`   | Chart refs                            |
+| Create dashboards                  | `grepFields`, `getMetadata`, `createContent`                      | `dashboard-reference`, best practices |
+| Add period comparisons             | Edit chart `metricQuery` and config                               | `period-over-period-reference`        |
+| Check changed metric queries       | `runContentQuery` with `source.type: "metricQuery"`               | Chart refs                            |
 
 Rules:
 
