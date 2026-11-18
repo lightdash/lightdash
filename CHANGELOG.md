@@ -1,3 +1,10 @@
+## [3.310.1](https://github.com/lightdash/lightdash/compare/3.310.0...3.310.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **semantic-studio:** show the Pre-aggregates tab only on modelled explores ([#32854](https://github.com/lightdash/lightdash/issues/32854)) ([fa1fba7](https://github.com/lightdash/lightdash/commit/fa1fba7d99d435244d3dac09aac148ba951174c6))
+
 # [3.310.0](https://github.com/lightdash/lightdash/compare/3.309.0...3.310.0) (2026-11-18)
 
 
