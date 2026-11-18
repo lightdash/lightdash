@@ -1,11 +1,16 @@
 ---
 name: sql-chart-reference
-description: SQL chart body, chart kinds and config, the SQL approval step, and how to build dashboards from SQL charts in Lightdash.
+description: When to save a SQL chart, its body, chart kinds and config, the SQL approval step, and how to build dashboards from SQL charts in Lightdash.
 ---
 
 # SQL Chart Reference
 
-A SQL chart is a chart saved from raw warehouse SQL rather than from an explore. Use one only when the semantic layer cannot express the question; prefer a chart built from an explore whenever it can.
+A SQL chart is a chart saved from raw warehouse SQL rather than from an explore, so it sits outside the semantic layer's governed fields. Saving one is the user's choice.
+
+## When to save one
+
+- The user asked for a SQL chart, gave SQL to save as a chart, or chose SQL earlier in this conversation: save it. Their choice holds for the rest of the conversation.
+- Every other saved chart comes from explore fields. When an attempt fails (a rejected formula, a query error), correct it and retry: the fault is in the chart, and the explore still holds the data. When no explore has a field the chart needs, stop before saving: tell the user what the semantic layer lacks and offer both paths, adding it to the semantic layer or saving a SQL chart. Continue with the path they choose.
 
 ## Requirements
 

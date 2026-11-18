@@ -115,9 +115,7 @@ For a weekly chart of "the last 12 weeks up to today" where every week starts on
 
 ### Create and Edit SQL Charts
 
-Use SQL charts only when the semantic layer cannot express the question. Always read `sql-chart-reference` first. A dashboard of SQL charts references their persisted slugs in `sql_chart` tiles.
-
-To edit a SQL chart, read it, then patch it with `editContent` (`type: sql_chart`).
+Always read `sql-chart-reference` first: it says when a SQL chart is the user's choice to make, and how to save, edit and place one on a dashboard.
 
 ## Editing Charts
 
@@ -232,7 +230,7 @@ For period comparisons, read `period-over-period-reference` in addition to the c
 - `sankey-chart-reference` - Flow diagrams
 - `custom-viz-reference` - Vega-Lite
 - `period-over-period-reference` - PoP comparisons
-- `sql-chart-reference` - Charts saved from raw warehouse SQL, their approval step, and dashboards built from them
+- `sql-chart-reference` - Charts saved from raw warehouse SQL: when to save one, the approval step, and dashboards built from them
 - `field-formatting-reference` - Chart-level field formatting overrides for metrics and dimensions
 
 ### Dashboards
