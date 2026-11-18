@@ -118,9 +118,16 @@ describe('live source freshness', () => {
             apiSource: { connector: ApiConnectorType.POSTHOG, projectId: '1' },
         } as LiveSourceConnection;
         expect(getLiveSourceFreshness(posthog)).toMatchObject({
-            seconds: 60,
+            seconds: 3_600,
             isDefault: true,
-            label: '1 min (default)',
+            label: '1 hour (default)',
+        });
+        expect(
+            getLiveSourceFreshness({ ...posthog, cacheTtlSeconds: 300 }),
+        ).toMatchObject({
+            seconds: 300,
+            isDefault: false,
+            label: '5 min',
         });
         expect(
             getLiveSourceFreshness({ ...posthog, cacheTtlSeconds: 0 }),
