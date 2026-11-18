@@ -12,6 +12,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
+import { fromSession } from '../../auth/account';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { DashboardService } from '../DashboardService/DashboardService';
 import {
@@ -217,7 +218,11 @@ describe('restoring a dashboard', () => {
         );
 
         await expect(
-            dashboardService.rollback(editor, dashboard.uuid, 'old-version'),
+            dashboardService.rollback(
+                fromSession(editor),
+                dashboard.uuid,
+                'old-version',
+            ),
         ).rejects.toThrow(ForbiddenError);
         expect(savedChartModel.lockForVersioning).toHaveBeenCalledWith(
             [chart.uuid],
@@ -238,7 +243,11 @@ describe('restoring a dashboard', () => {
             name: 'older name',
         });
 
-        await dashboardService.rollback(editor, dashboard.uuid, 'old-version');
+        await dashboardService.rollback(
+            fromSession(editor),
+            dashboard.uuid,
+            'old-version',
+        );
 
         expect(savedChartModel.rollbackToVersionAtTimestamp).toHaveBeenCalled();
     });

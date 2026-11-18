@@ -83,7 +83,7 @@ export type ComposerChartRunContext =
     | QueryExecutionContext.SCHEDULED_DELIVERY
     | QueryExecutionContext.CSV;
 
-type ProjectSubject = { organizationUuid: string; projectUuid: string };
+export type ProjectSubject = { organizationUuid: string; projectUuid: string };
 
 export class ComposerChartService extends BaseService {
     private readonly composerChartModel: ComposerChartModel;
@@ -317,6 +317,19 @@ export class ComposerChartService extends BaseService {
         }
         await this.assertCanWritePipeline(account, project, pipeline);
         await this.pinCustomChartType(project.projectUuid, input);
+    }
+
+    /** A rollback makes a stored pipeline current again, so it passes the checks a write does. */
+    async assertCanRestore(
+        account: RegisteredAccount,
+        project: ProjectSubject,
+        storedPipeline: unknown,
+    ): Promise<void> {
+        await this.assertCanWritePipeline(
+            account,
+            project,
+            parseComposerPipeline(storedPipeline),
+        );
     }
 
     async create(

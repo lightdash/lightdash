@@ -177,6 +177,7 @@ import {
 } from '../verifiedContentGuards';
 import { withVersionAgentIdentity } from '../VersionAgentIdentity';
 import {
+    assertCanRollbackComposerCharts,
     duplicateComposerChartTiles,
     rollbackComposerCharts,
 } from './composerChartTiles';
@@ -217,7 +218,7 @@ type DashboardServiceArguments = {
     >;
     getComposerChartService: () => Pick<
         ComposerChartService,
-        'getParameterReferences'
+        'getParameterReferences' | 'assertCanRestore'
     >;
 };
 
@@ -4983,10 +4984,11 @@ export class DashboardService
     }
 
     async rollback(
-        user: SessionUser,
+        account: RegisteredAccount,
         dashboardUuidOrSlug: UuidOrSlug,
         versionUuid: UUID,
     ): Promise<void> {
+        const user = toSessionUser(account);
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
 
@@ -5004,7 +5006,7 @@ export class DashboardService
                 dashboardUuid: dashboardDao.uuid,
                 spaceUuid: dashboardDao.spaceUuid,
             });
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'manage',
@@ -5036,7 +5038,6 @@ export class DashboardService
             targetVersion,
             this.lightdashConfig.dashboard,
         );
-
         const agentIdentity = getContentWriteAgentIdentity({
             userUuid: user.userUuid,
             organizationUuid: dashboardDao.organizationUuid,
@@ -5064,9 +5065,20 @@ export class DashboardService
         // Rollback dashboard and all owned charts in a single transaction
         await this.savedChartModel.transaction(async (tx) => {
             await this.savedChartService.lockAndAssertCanRestoreAt(
-                user,
+                account,
                 uniqueChartUuids,
                 targetVersion.updatedAt,
+                tx,
+            );
+            await assertCanRollbackComposerCharts(
+                this.composerChartModel,
+                this.getComposerChartService,
+                account,
+                {
+                    organizationUuid: dashboardDao.organizationUuid,
+                    projectUuid: dashboardDao.projectUuid,
+                },
+                targetVersion,
                 tx,
             );
 

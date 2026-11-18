@@ -180,6 +180,63 @@ export class ComposerChartModel {
             .delete();
     }
 
+    /** The chart's version that was current when the dashboard version was saved. */
+    private static versionAsOf(
+        database: Knex,
+        uuid: string,
+        dashboardVersionUuid: string,
+    ) {
+        // Compared in Postgres: a JS Date would drop the microseconds
+        return database(ComposerChartVersionsTableName)
+            .select('pipeline', 'chart')
+            .where('composer_chart_uuid', uuid)
+            .where(
+                'created_at',
+                '<=',
+                database(DashboardVersionsTableName)
+                    .select('created_at')
+                    .where('dashboard_version_uuid', dashboardVersionUuid),
+            )
+            .orderBy('created_at', 'desc')
+            .first();
+    }
+
+    /** Locks the charts against new versions, then returns each one's pipeline as of the dashboard version beside its current one. */
+    async lockRollbackPipelines(
+        uuids: string[],
+        dashboardVersionUuid: string,
+        trx: Knex.Transaction,
+    ): Promise<{ restored: unknown; current: unknown }[]> {
+        // A version insert takes a key-share lock on its chart, which this waits for or blocks
+        await trx(ComposerChartsTableName)
+            .select('composer_chart_uuid')
+            .whereIn('composer_chart_uuid', uuids)
+            .orderBy('composer_chart_uuid')
+            .forUpdate();
+        const pipelines: { restored: unknown; current: unknown }[] = [];
+        for (const uuid of uuids) {
+            /* eslint-disable no-await-in-loop */
+            const restored = await ComposerChartModel.versionAsOf(
+                trx,
+                uuid,
+                dashboardVersionUuid,
+            );
+            const current = await trx(ComposerChartVersionsTableName)
+                .select('pipeline')
+                .where('composer_chart_uuid', uuid)
+                .orderBy('created_at', 'desc')
+                .first();
+            /* eslint-enable no-await-in-loop */
+            if (restored && current) {
+                pipelines.push({
+                    restored: restored.pipeline,
+                    current: current.pipeline,
+                });
+            }
+        }
+        return pipelines;
+    }
+
     /** Appends a copy of the version current when the dashboard version was saved, if any. */
     async rollbackToDashboardVersion(
         uuid: string,
@@ -187,19 +244,11 @@ export class ComposerChartModel {
         userUuid: string,
         trx: Knex.Transaction,
     ): Promise<void> {
-        // Compared in Postgres: a JS Date would drop the microseconds
-        const version = await trx(ComposerChartVersionsTableName)
-            .select('pipeline', 'chart')
-            .where('composer_chart_uuid', uuid)
-            .where(
-                'created_at',
-                '<=',
-                trx(DashboardVersionsTableName)
-                    .select('created_at')
-                    .where('dashboard_version_uuid', dashboardVersionUuid),
-            )
-            .orderBy('created_at', 'desc')
-            .first();
+        const version = await ComposerChartModel.versionAsOf(
+            trx,
+            uuid,
+            dashboardVersionUuid,
+        );
         if (!version) return;
         await trx(ComposerChartVersionsTableName).insert({
             composer_chart_uuid: uuid,

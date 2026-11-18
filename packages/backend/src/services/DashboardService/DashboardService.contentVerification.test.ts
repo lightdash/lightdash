@@ -97,7 +97,10 @@ describe('DashboardService - Content Verification', () => {
             get: vi.fn().mockResolvedValue({ enabled: false }),
         },
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
-        getComposerChartService: () => ({ getParameterReferences: vi.fn() }),
+        getComposerChartService: () => ({
+            getParameterReferences: vi.fn(),
+            assertCanRestore: vi.fn(),
+        }),
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         dashboardModel: dashboardModel as unknown as DashboardModel,

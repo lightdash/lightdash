@@ -1385,6 +1385,51 @@ describe('Composer charts', () => {
             expect(again.body.results.action).toBe('no changes');
         });
 
+        it('refuses a rollback that changes a chart to a pipeline the user may not save', async () => {
+            const editor = await loginAsEditor();
+            const { dashboard, chart } = await createDashboardWithSqlChart();
+            const changedSql =
+                'select status as orders_status, max(amount) as orders_total_order_amount from orders group by 1';
+            const changed = await uploadChart({
+                ...(await downloadChart(chart.slug)),
+                pipeline: {
+                    schemaVersion: 1,
+                    terminalNodeId: 'orders',
+                    nodes: [
+                        {
+                            sourceType: QuerySourceType.SQL,
+                            nodeId: 'orders',
+                            title: 'Orders by status',
+                            sql: changedSql,
+                        },
+                    ],
+                },
+            });
+            expect(changed.body.results.action).toBe('update');
+            const current = await getDashboard(dashboard.uuid);
+            const saved = await saveTiles(current, current.tiles);
+            expect(saved.status).toBe(200);
+            const rollbackUrl = `/api/v1/dashboards/${dashboard.uuid}/rollback/${dashboard.versionUuid}`;
+
+            const refused = await editor.post(
+                rollbackUrl,
+                {},
+                { failOnStatusCode: false },
+            );
+            expect(refused.status).toBe(403);
+            expect(
+                (await getChart(chart.uuid)).body.results.pipeline.nodes[0],
+            ).toMatchObject({ sql: changedSql });
+            expect((await getDashboard(dashboard.uuid)).versionUuid).toBe(
+                saved.body.results.versionUuid,
+            );
+
+            expect((await admin.post(rollbackUrl, {})).status).toBe(200);
+            expect((await getChart(chart.uuid)).body.results.pipeline).toEqual(
+                chart.pipeline,
+            );
+        });
+
         it('writes a custom chart type as its slug and refuses one missing from the project', async () => {
             const created = await createComposerDashboard(
                 apiClientSend(admin),

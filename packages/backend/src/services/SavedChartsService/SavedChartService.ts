@@ -1180,13 +1180,13 @@ export class SavedChartService
 
     /** A restored version passes the checks a new version does, against the chart's current one. */
     private async assertCanRestoreVersion(
-        user: SessionUser,
+        account: Account,
         current: SavedChartDAO,
         restored: SavedChartDAO,
     ): Promise<void> {
         await this.assertCanWriteChartSql(
-            fromSession(user),
-            this.createAuditedAbility(user),
+            account,
+            this.createAuditedAbility(account),
             {
                 organizationUuid: current.organizationUuid,
                 projectUuid: current.projectUuid,
@@ -1199,7 +1199,7 @@ export class SavedChartService
 
     /** Locks the charts against new versions, then checks restoring each to its version at `at`. */
     async lockAndAssertCanRestoreAt(
-        user: SessionUser,
+        account: Account,
         chartUuids: string[],
         at: Date,
         tx: Knex.Transaction,
@@ -1228,7 +1228,7 @@ export class SavedChartService
                         tx,
                     ),
                 ]);
-                await this.assertCanRestoreVersion(user, current, restored);
+                await this.assertCanRestoreVersion(account, current, restored);
             }),
         );
     }
@@ -3277,7 +3277,11 @@ export class SavedChartService
                     undefined,
                     tx,
                 );
-                await this.assertCanRestoreVersion(user, current, restored);
+                await this.assertCanRestoreVersion(
+                    fromSession(user),
+                    current,
+                    restored,
+                );
                 const created = await this.savedChartModel.createVersion(
                     chartUuid,
                     restored,
