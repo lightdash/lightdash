@@ -34,3 +34,8 @@ export const APP_SDK_MANIFEST_MESSAGE = 'lightdash:sdk:manifest';
 
 // Iframe → host: a chart type painted the last pushed viz context.
 export const APP_SDK_VIZ_RENDERED_MESSAGE = 'lightdash:sdk:viz-rendered';
+
+// Iframe → host: the user pressed the editor's capture hotkey (mod+shift+X)
+// inside the app, where the host page cannot see key presses. It is the only
+// key combination the SDK forwards, and it carries no payload.
+export const APP_SDK_CAPTURE_HOTKEY_MESSAGE = 'lightdash:sdk:capture-hotkey';
