@@ -1921,8 +1921,12 @@ export class SemanticStudioService extends BaseService {
         await this.assertMaterializationAccess(user, projectUuid);
         const current = await this.readDraftedModel(user, projectUuid, model);
         if (!current.content) throw new NotFoundError('Model not found');
-        if (parseModelDocument(current.content, toModelPath(model)).materialize)
-            return;
+        const parsed = parseModelDocument(current.content, toModelPath(model));
+        if (parsed.materialize) return;
+        // A copy serves every query, so it replaces the model's pre-aggregates.
+        const preAggregates = (parsed.pre_aggregates ?? []).map(
+            ({ name }) => `pre_aggregates.${name}`,
+        );
         const definition = {
             name: model,
             materialize: {
@@ -1937,7 +1941,7 @@ export class SemanticStudioService extends BaseService {
                 {
                     name: model,
                     yaml: JSON.stringify(definition),
-                    remove: [],
+                    remove: preAggregates,
                     removeModel: false,
                 },
             ],

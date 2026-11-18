@@ -1825,6 +1825,38 @@ describe('SemanticStudioService', () => {
             expect(applied.failures).toEqual([]);
             expect(context.commitCalls).toHaveLength(1);
         });
+        it('replaces the model pre-aggregates so the copy can publish', async () => {
+            const context = setup({
+                stored: [
+                    {
+                        name: 'orders',
+                        content: `${orders}pre_aggregates:
+  - name: by_customer
+    dimensions: [customer_id]
+    metrics: []
+`,
+                    },
+                ],
+            });
+            await context.service.draftMaterialization(
+                deployer,
+                PROJECT_UUID,
+                'orders',
+            );
+            const drafted = await context.service.readDraftedModel(
+                deployer,
+                PROJECT_UUID,
+                'orders',
+            );
+            expect(drafted.content).toContain('materialize:');
+            expect(drafted.content).not.toContain('pre_aggregates');
+            const applied = await context.service.applyDraft(
+                deployer,
+                PROJECT_UUID,
+                null,
+            );
+            expect(applied.failures).toEqual([]);
+        });
         it('proposes a repository copy through the project pull request', async () => {
             const context = setup({ dbtConnection: MODELS_IN_GITHUB });
             await context.service.draftMaterialization(
