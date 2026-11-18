@@ -20,10 +20,10 @@ counts do not measure seat eligibility or membership history.
 
 Tool activity deduplicates stable call IDs within organization, source and
 agent prompt. Separate invocations remain separate calls. Legacy records without
-IDs are retained. Agent calls whose SQL approval was declined or unanswered are
-`rejected` or `timeout`. Historical agent records without an outcome are `unknown`;
-error rate divides failures by calls with explicit success/error outcomes and
-returns null when there are none. Latency uses observed call durations, not
+IDs are retained. Agent calls whose SQL approval was declined or unanswered
+are `rejected` or `timeout`. Historical agent records without an outcome are
+`unknown`; error rate divides failures by calls with explicit success/error
+outcomes and returns null when there are none. Latency uses observed call durations, not
 warehouse query duration or external assistant time.
 
 MCP capture uses configured usage storage on licensed deployments.

@@ -109,7 +109,7 @@ export const isPendingToolResult = (output: AnyType) =>
 export const isErrorToolResult = (output: AnyType) =>
     toolResultStatus(output) === 'error';
 
-/** Set when the user rejected, or never answered, the call's SQL approval. */
+/** The status when the user rejected, or never answered, the SQL approval; else null. */
 export const getUnapprovedToolResultStatus = (
     output: AnyType,
 ): 'rejected' | 'timeout' | null => {
