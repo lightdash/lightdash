@@ -18,6 +18,7 @@ This skill is shared with Lightdash's native agent, so its workflows use camelCa
 - Use `generate_hashes` for native `generateHashes`.
 - Replace `runContentQuery` with `run_metric_query` to check a chart's governed semantic-layer `metricQuery`. Do not use `run_sql` for this check.
 - Use `run_sql` where a workflow runs `runContentQuery` with `source.type: "sql"` or `chartType: "sql_chart"`; for a saved SQL chart, pass the `sql` from `read_content`.
+- Use `query` where a workflow runs `runContentQuery` with `chartType: "composer_chart"`; pass the pipeline from `read_content`.
 
 ## What You Can Do
 
@@ -119,10 +120,6 @@ For a weekly chart of "the last 12 weeks up to today" where every week starts on
 ### Create and Edit SQL Charts
 
 Always read `sql-chart-reference` first: it says when to create a SQL chart, and how to save, edit and place one on a dashboard.
-
-### Edit Composer Charts
-
-A `composer_chart` tile shows a chart drawn from a pipeline of queries. Read `composer-chart-reference` first: read the chart with `type: composer_chart`, test changed nodes with `query`, then patch it with `editContent` (`type: composer_chart`).
 
 ## Editing Charts
 
