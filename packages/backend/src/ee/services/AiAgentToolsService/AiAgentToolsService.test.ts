@@ -4958,6 +4958,259 @@ describe('AiAgentToolsService', () => {
     });
 });
 
+describe('AiAgentToolsService createContent composer_chart', () => {
+    const tabs = [
+        { uuid: 'second-tab', name: 'Second', order: 1 },
+        { uuid: 'first-tab', name: 'First', order: 0 },
+    ];
+    const salesDashboard = {
+        uuid: 'sales-uuid',
+        slug: 'sales',
+        spaceUuid: 'jaffle-uuid',
+        filters: { dimensions: [], metrics: [], tableCalculations: [] },
+        tabs,
+        tiles: [
+            { uuid: 'a', tabUuid: 'first-tab', x: 0, y: 0, w: 15, h: 9 },
+            { uuid: 'b', tabUuid: 'second-tab', x: 0, y: 0, w: 15, h: 30 },
+        ],
+    };
+    const rawNode = {
+        sourceType: 'sql',
+        nodeId: 'raw',
+        title: 'Orders',
+        sql: 'select status, amount from orders',
+        limit: 500,
+    };
+    const shapedNode = {
+        sourceType: 'duckdb',
+        nodeId: 'shaped',
+        title: 'Amount by status',
+        sql: 'select status, sum(amount) as amount from raw group by 1',
+        references: ['raw'],
+        limit: 500,
+    };
+    const fromNode = {
+        dashboardSlug: 'sales',
+        name: 'Amount by status',
+        description: null,
+        nodeId: 'shaped',
+        sessionId: null,
+        vizConfig: {
+            type: 'bar' as const,
+            x: 'status',
+            y: ['amount'],
+            groupBy: null,
+            stack: null,
+            horizontal: null,
+            y2: null,
+            labels: null,
+        },
+    };
+    const fromJson = {
+        dashboardSlug: 'sales',
+        name: 'Amount by status',
+        description: null,
+        pipeline: { schemaVersion: 1, terminalNodeId: 'raw', nodes: [rawNode] },
+        chart: { chartConfig: { type: 'table' } },
+    };
+
+    const makeCreateService = ({
+        threadBinding = null,
+        source = 'ai_agent',
+        sessionOwned = true,
+    }: {
+        threadBinding?: AiAgentToolsRuntimeContext['threadBinding'];
+        source?: 'ai_agent' | 'mcp';
+        sessionOwned?: boolean;
+    } = {}) => {
+        const create = vi.fn().mockResolvedValue({
+            uuid: 'composer-chart-uuid',
+            slug: 'amount-by-status',
+            name: 'Amount by status',
+        });
+        const update = vi.fn().mockResolvedValue(salesDashboard);
+        const listComposerQueryNodes = vi
+            .fn()
+            .mockResolvedValue([rawNode, shapedNode]);
+        const service = makeService({
+            dashboardService: {
+                getByIdOrSlug: vi.fn().mockResolvedValue(salesDashboard),
+                update,
+            },
+            dashboardModel: {
+                getByIdOrSlug: vi.fn().mockResolvedValue({
+                    uuid: 'bound-uuid',
+                    slug: 'ops',
+                }),
+            },
+            coderService: {
+                toStoredComposerChart: vi.fn(async (_project, chart) => chart),
+                getComposerChartsForRead: vi.fn(async () => ({
+                    composerCharts: [
+                        {
+                            slug: 'amount-by-status',
+                            dashboardSlug: 'sales',
+                            spaceSlug: 'jaffle',
+                        },
+                    ],
+                })),
+            },
+            composerChartService: {
+                isEnabled: vi.fn().mockResolvedValue(true),
+                preflightPipeline: vi.fn().mockResolvedValue(undefined),
+                create,
+            },
+            aiAgentModel: {
+                listComposerQueryNodes,
+                useComposerSession: vi.fn().mockResolvedValue(sessionOwned),
+            },
+        });
+        const run = vi.spyOn(
+            service as unknown as {
+                runComposerQueries: (...args: unknown[]) => Promise<unknown>;
+            },
+            'runComposerQueries',
+        );
+        run.mockResolvedValue({
+            status: 'success',
+            submissions: [],
+            terminal: {
+                queryUuid: 'query-uuid',
+                columns: {
+                    status: { reference: 'status', type: 'string' },
+                    amount: { reference: 'amount', type: 'number' },
+                },
+                rows: [],
+                rowCount: 0,
+            },
+            nodeStatuses: [],
+        });
+        const runtime =
+            source === 'mcp'
+                ? service.createRuntime(
+                      makeRuntimeContext({ source: 'mcp', threadBinding }),
+                  )
+                : service.createRuntime(
+                      makeRuntimeContext({
+                          threadBinding,
+                          threadUuid: 'thread-uuid',
+                      }),
+                  );
+        return { runtime, create, update, run, listComposerQueryNodes };
+    };
+
+    it('saves a query node with the nodes it reads, then adds its tile below the first tab, asking no approval', async () => {
+        const { runtime, create, update, run } = makeCreateService();
+        const approveSql = vi.fn();
+
+        const created = await runtime.createContent({
+            type: 'composer_chart',
+            content: fromNode,
+            approveSql,
+        });
+
+        expect(run).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                queries: [rawNode, shapedNode],
+                terminalNodeId: 'shaped',
+            }),
+        );
+        const [, , saved] = create.mock.calls[0];
+        expect(saved).toMatchObject({
+            dashboardUuid: 'sales-uuid',
+            name: 'Amount by status',
+            pipeline: { terminalNodeId: 'shaped' },
+        });
+        expect(
+            saved.pipeline.nodes.map(({ nodeId }: { nodeId: string }) => nodeId),
+        ).toEqual(['raw', 'shaped']);
+        expect(approveSql).not.toHaveBeenCalled();
+        const [, dashboardUuid, { tiles }] = update.mock.calls[0];
+        expect(dashboardUuid).toBe('sales-uuid');
+        expect(tiles[2]).toMatchObject({
+            type: 'composer_chart',
+            tabUuid: 'first-tab',
+            y: 9,
+            properties: {
+                composerChartUuid: 'composer-chart-uuid',
+                title: 'Amount by status',
+            },
+        });
+        expect(created).toMatchObject({
+            type: 'composer_chart',
+            uuid: 'composer-chart-uuid',
+        });
+        expect(created.href).toContain('/dashboards/sales-uuid/view');
+    });
+
+    it('approves the warehouse SQL of full JSON before saving it', async () => {
+        const { runtime, create } = makeCreateService();
+        const approveSql = vi.fn(async () => {
+            expect(create).not.toHaveBeenCalled();
+        });
+
+        await runtime.createContent({
+            type: 'composer_chart',
+            content: fromJson,
+            approveSql,
+        });
+
+        expect(approveSql).toHaveBeenCalledWith({
+            sql: '-- raw\nselect status, amount from orders',
+            chartName: 'Amount by status',
+            sqlChanged: true,
+        });
+        expect(create).toHaveBeenCalled();
+    });
+
+    it('refuses full JSON with warehouse SQL without SQL mode', async () => {
+        const { runtime, create } = makeCreateService();
+
+        await expect(
+            runtime.createContent({
+                type: 'composer_chart',
+                content: fromJson,
+                approveSql: null,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(create).not.toHaveBeenCalled();
+    });
+
+    it('refuses another dashboard in a thread bound to a dashboard', async () => {
+        const { runtime, create, update } = makeCreateService({
+            threadBinding: { type: 'dashboard', dashboardUuid: 'bound-uuid' },
+        });
+
+        await expect(
+            runtime.createContent({
+                type: 'composer_chart',
+                content: fromNode,
+                approveSql: vi.fn(),
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(create).not.toHaveBeenCalled();
+        expect(update).not.toHaveBeenCalled();
+    });
+
+    it('reads MCP nodes only from a query session the caller owns', async () => {
+        const { runtime, create, listComposerQueryNodes } = makeCreateService({
+            source: 'mcp',
+            sessionOwned: false,
+        });
+
+        await expect(
+            runtime.createContent({
+                type: 'composer_chart',
+                content: { ...fromNode, sessionId: 'someone-elses' },
+                approveSql: vi.fn(),
+            }),
+        ).rejects.toThrow(/belongs to another user or project/);
+        expect(listComposerQueryNodes).not.toHaveBeenCalled();
+        expect(create).not.toHaveBeenCalled();
+    });
+});
+
 describe('AiAgentToolsService runComposerQueries', () => {
     const composerQueries = [
         {

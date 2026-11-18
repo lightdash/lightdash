@@ -134,6 +134,10 @@ export const AGENT_TOOL_EFFECT_CAPABILITIES = {
         AgentCapability.ContentWrite,
         AgentCapability.RawSql,
     ],
+    'createContent.composer_chart_sql': [
+        AgentCapability.ContentWrite,
+        AgentCapability.RawSql,
+    ],
     'editContent.composer_chart_sql': [
         AgentCapability.ContentWrite,
         AgentCapability.RawSql,

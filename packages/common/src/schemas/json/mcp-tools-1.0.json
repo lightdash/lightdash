@@ -9,7 +9,7 @@
                 "readOnlyHint": false,
                 "title": "Create content"
             },
-            "description": "Create a dashboard, chart or SQL chart from its JSON; the developing-in-lightdash skill has the shapes. Save into a space whose canEdit is true in find_content or list_content results; a write to any other space is refused. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them.",
+            "description": "Create a dashboard, chart, SQL chart or composer chart from its JSON; the developing-in-lightdash skill has the shapes. Save into a space whose canEdit is true in find_content or list_content results; a write to any other space is refused. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them. A composer chart (type composer_chart) belongs to an existing dashboard and gets a tile at the bottom of its first tab. Create it from a query node (nodeId, with the vizConfig the user saw), or from full pipeline and chart JSON; the composer-chart-reference skill resource has both. Warehouse SQL written in the JSON needs the same approval as a SQL chart; a node's SQL was approved when query ran it.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -235,12 +235,329 @@
                                     "config"
                                 ],
                                 "type": "object"
+                            },
+                            {
+                                "description": "Composer chart from a query node: its pipeline and chart are built from the node.",
+                                "properties": {
+                                    "dashboardSlug": {
+                                        "description": "The existing dashboard the chart belongs to; it gets a tile at the bottom of its first tab.",
+                                        "minLength": 1,
+                                        "type": "string"
+                                    },
+                                    "description": {
+                                        "type": "string"
+                                    },
+                                    "name": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                    },
+                                    "nodeId": {
+                                        "description": "A node from a successful query call; the chart saves it and every node it reads.",
+                                        "type": "string"
+                                    },
+                                    "sessionId": {
+                                        "description": "The query sessionId holding the node. Null in an agent conversation, which keeps its own nodes.",
+                                        "type": "string"
+                                    },
+                                    "vizConfig": {
+                                        "anyOf": [
+                                            {
+                                                "properties": {
+                                                    "groupBy": {
+                                                        "anyOf": [
+                                                            {
+                                                                "items": {
+                                                                    "description": "A result column reference of the presented node",
+                                                                    "type": "string"
+                                                                },
+                                                                "type": "array"
+                                                            },
+                                                            {
+                                                                "type": "null"
+                                                            }
+                                                        ],
+                                                        "default": null,
+                                                        "description": "Columns that split y into one series per value. bar/line/area/scatter only. Must not include x."
+                                                    },
+                                                    "horizontal": {
+                                                        "default": null,
+                                                        "description": "bar only: draw bars horizontally.",
+                                                        "type": [
+                                                            "boolean",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "labels": {
+                                                        "anyOf": [
+                                                            {
+                                                                "properties": {
+                                                                    "x": {
+                                                                        "default": null,
+                                                                        "type": [
+                                                                            "string",
+                                                                            "null"
+                                                                        ]
+                                                                    },
+                                                                    "y": {
+                                                                        "default": null,
+                                                                        "type": [
+                                                                            "string",
+                                                                            "null"
+                                                                        ]
+                                                                    },
+                                                                    "y2": {
+                                                                        "default": null,
+                                                                        "type": [
+                                                                            "string",
+                                                                            "null"
+                                                                        ]
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
+                                                            {
+                                                                "type": "null"
+                                                            }
+                                                        ],
+                                                        "default": null,
+                                                        "description": "Axis titles. big_number uses labels.y as its label."
+                                                    },
+                                                    "stack": {
+                                                        "default": null,
+                                                        "description": "bar: stack series on top of each other. area always stacks. Ignored elsewhere.",
+                                                        "type": [
+                                                            "boolean",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "type": {
+                                                        "description": "Chart type. area is a filled line.",
+                                                        "enum": [
+                                                            "table",
+                                                            "big_number",
+                                                            "bar",
+                                                            "line",
+                                                            "area",
+                                                            "scatter",
+                                                            "pie",
+                                                            "funnel"
+                                                        ],
+                                                        "type": "string"
+                                                    },
+                                                    "x": {
+                                                        "anyOf": [
+                                                            {
+                                                                "description": "A result column reference of the presented node",
+                                                                "type": "string"
+                                                            },
+                                                            {
+                                                                "type": "null"
+                                                            }
+                                                        ],
+                                                        "default": null,
+                                                        "description": "Category or time column. bar/line/area/scatter/pie/funnel. null for table/big_number, or to use the first non-numeric column."
+                                                    },
+                                                    "y": {
+                                                        "anyOf": [
+                                                            {
+                                                                "items": {
+                                                                    "description": "A result column reference of the presented node",
+                                                                    "type": "string"
+                                                                },
+                                                                "type": "array"
+                                                            },
+                                                            {
+                                                                "type": "null"
+                                                            }
+                                                        ],
+                                                        "default": null,
+                                                        "description": "Value columns. big_number, pie and funnel use y[0]. null to use every numeric column not on x or groupBy."
+                                                    },
+                                                    "y2": {
+                                                        "anyOf": [
+                                                            {
+                                                                "description": "A result column reference of the presented node",
+                                                                "type": "string"
+                                                            },
+                                                            {
+                                                                "type": "null"
+                                                            }
+                                                        ],
+                                                        "default": null,
+                                                        "description": "Column on a secondary (right) y axis. bar/line/area (drawn as a line on area). Must not be in y."
+                                                    }
+                                                },
+                                                "required": ["type"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "customChartTypeSlug": {
+                                                        "description": "Slug of the custom chart type.",
+                                                        "type": "string"
+                                                    },
+                                                    "fieldMapping": {
+                                                        "additionalProperties": {
+                                                            "anyOf": [
+                                                                {
+                                                                    "description": "A result column reference of the presented node",
+                                                                    "type": "string"
+                                                                },
+                                                                {
+                                                                    "items": {
+                                                                        "description": "A result column reference of the presented node",
+                                                                        "type": "string"
+                                                                    },
+                                                                    "type": "array"
+                                                                }
+                                                            ]
+                                                        },
+                                                        "description": "Binds each slot of the type, by slot name, to a column, or ordered columns for a multiple slot. The slot's kind sets the column's role: a metric slot is measured, a series slot splits the chart into one series per value, and a dimension or column slot groups, so a numeric column there is grouped, not measured. A measure split by series goes in a metric slot.",
+                                                        "propertyNames": {
+                                                            "type": "string"
+                                                        },
+                                                        "type": "object"
+                                                    },
+                                                    "options": {
+                                                        "anyOf": [
+                                                            {
+                                                                "additionalProperties": {
+                                                                    "anyOf": [
+                                                                        {
+                                                                            "properties": {
+                                                                                "colors": {
+                                                                                    "items": {
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    "maxItems": 5,
+                                                                                    "minItems": 2,
+                                                                                    "type": "array"
+                                                                                },
+                                                                                "max": {
+                                                                                    "anyOf": [
+                                                                                        {
+                                                                                            "type": "number"
+                                                                                        },
+                                                                                        {
+                                                                                            "const": "auto",
+                                                                                            "type": "string"
+                                                                                        }
+                                                                                    ]
+                                                                                },
+                                                                                "min": {
+                                                                                    "anyOf": [
+                                                                                        {
+                                                                                            "type": "number"
+                                                                                        },
+                                                                                        {
+                                                                                            "const": "auto",
+                                                                                            "type": "string"
+                                                                                        }
+                                                                                    ]
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "colors",
+                                                                                "min",
+                                                                                "max"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        },
+                                                                        {
+                                                                            "type": "string"
+                                                                        },
+                                                                        {
+                                                                            "type": "number"
+                                                                        },
+                                                                        {
+                                                                            "type": "boolean"
+                                                                        }
+                                                                    ]
+                                                                },
+                                                                "propertyNames": {
+                                                                    "type": "string"
+                                                                },
+                                                                "type": "object"
+                                                            },
+                                                            {
+                                                                "type": "null"
+                                                            }
+                                                        ],
+                                                        "default": null,
+                                                        "description": "Values for the type's options; null for defaults."
+                                                    },
+                                                    "type": {
+                                                        "const": "custom",
+                                                        "description": "Renders one of this project's custom chart types.",
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "type",
+                                                    "customChartTypeSlug",
+                                                    "fieldMapping"
+                                                ],
+                                                "type": "object"
+                                            }
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "dashboardSlug",
+                                    "name",
+                                    "nodeId",
+                                    "vizConfig"
+                                ],
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": {},
+                                "properties": {
+                                    "chart": {
+                                        "additionalProperties": {},
+                                        "propertyNames": {
+                                            "type": "string"
+                                        },
+                                        "type": "object"
+                                    },
+                                    "dashboardSlug": {
+                                        "description": "The existing dashboard the chart belongs to; it gets a tile at the bottom of its first tab.",
+                                        "minLength": 1,
+                                        "type": "string"
+                                    },
+                                    "description": {
+                                        "type": "string"
+                                    },
+                                    "name": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                    },
+                                    "pipeline": {
+                                        "additionalProperties": {},
+                                        "propertyNames": {
+                                            "type": "string"
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "required": [
+                                    "dashboardSlug",
+                                    "name",
+                                    "pipeline",
+                                    "chart"
+                                ],
+                                "type": "object"
                             }
                         ]
                     },
                     "type": {
                         "description": "Type of Lightdash content to create.",
-                        "enum": ["dashboard", "chart", "sql_chart"],
+                        "enum": [
+                            "dashboard",
+                            "chart",
+                            "sql_chart",
+                            "composer_chart"
+                        ],
                         "type": "string"
                     }
                 },

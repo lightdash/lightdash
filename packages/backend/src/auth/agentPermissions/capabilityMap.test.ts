@@ -546,6 +546,7 @@ it('covers every role, membership and token controller operation with a human-on
 
 it('keeps reviewed tool effects separate from registered tools', () => {
     expect(Object.keys(AGENT_TOOL_EFFECT_CAPABILITIES).sort()).toEqual([
+        'createContent.composer_chart_sql',
         'createContent.sql_chart',
         'editContent.composer_chart_sql',
         'editContent.sql_chart',

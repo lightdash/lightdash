@@ -1,5 +1,8 @@
 import {
     createContentToolDefinition,
+    getSqlApprovalSql,
+    toolComposerChartAsCodeContentSchema,
+    toolComposerChartFromNodeSchema,
     documentAsCodeSchema,
     documentCreateContentArgsSchema,
     documentCreateContentToolDefinition,
@@ -12,6 +15,7 @@ import {
     type ToolCreateContentStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import { z } from 'zod';
 import type { CreateContentFn } from '../types/aiAgentDependencies';
 import { toAbsoluteHref } from '../utils/absoluteHref';
 import type { ArtifactChartExportAccess } from '../utils/artifactChartAsCode';
@@ -128,12 +132,19 @@ export const getCreateContent = ({
     chartsEnabled = true,
     artifacts,
 }: Dependencies) => {
-    const sqlChartGate = createSqlChartGate(sqlChartSaving, 'createContent');
+    // A composer chart create carries its SQL in the call, so approval reads it from there.
+    const sqlChartGate = createSqlChartGate(
+        sqlChartSaving,
+        'createContent',
+        async (args) => getSqlApprovalSql(args),
+    );
     const variant = getToolVariant(documentsEnabled, chartsEnabled);
 
     const getCreateArgs = async (
         args: { type: string; content: unknown },
         approveSql: ApproveSqlFn,
+        // Null without SQL mode, so composer JSON with warehouse SQL is refused.
+        composerApproveSql: ApproveSqlFn | null,
     ): Promise<Parameters<CreateContentFn>[0]> => {
         switch (args.type) {
             case 'document':
@@ -151,6 +162,20 @@ export const getCreateContent = ({
                         args.content,
                     ) as SqlChartAsCode,
                     approveSql,
+                };
+            case 'composer_chart':
+                return {
+                    type: 'composer_chart',
+                    content: z
+                        .union([
+                            toolComposerChartFromNodeSchema,
+                            toolComposerChartAsCodeContentSchema,
+                        ])
+                        .parse(args.content),
+                    approveSql:
+                        sqlChartSaving.mode === 'client_approved'
+                            ? approveClientSql
+                            : composerApproveSql,
                 };
             default:
                 return args as Parameters<CreateContentFn>[0];
@@ -175,6 +200,7 @@ export const getCreateContent = ({
                         await getCreateArgs(
                             args,
                             approveSql ?? approveClientSql,
+                            approveSql,
                         ),
                     );
                     const created = toCreatedContent(
@@ -213,7 +239,7 @@ export const getCreateContent = ({
                     }
                     return toolErrorOutput(
                         error,
-                        `Error creating ${type} "${content.slug}". Content was not created.`,
+                        `Error creating ${type} "${'slug' in content ? content.slug : content.name}". Content was not created.`,
                     );
                 }
             };

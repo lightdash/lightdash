@@ -149,6 +149,15 @@ const getComposerApprovalSql = (queries: unknown[]): string | null => {
     return sqlNodes.length > 0 ? sqlNodes.join('\n\n') : null;
 };
 
+/** Warehouse SQL a composer chart create writes as JSON; a node shortcut writes none. */
+const getComposerCreateApprovalSql = (toolArgs: unknown): string | null =>
+    isRecord(toolArgs) &&
+    isRecord(toolArgs.content) &&
+    isRecord(toolArgs.content.pipeline) &&
+    Array.isArray(toolArgs.content.pipeline.nodes)
+        ? getComposerApprovalSql(toolArgs.content.pipeline.nodes)
+        : null;
+
 /**
  * Composer gates only with warehouse SQL nodes; content tools only when they
  * run or save new SQL: a SQL content query, creating a SQL chart, or editing
@@ -172,7 +181,11 @@ export const isSqlApprovalToolCall = (
         case 'runContentQuery':
             return getContentQuerySql(toolArgs) !== null;
         case 'createContent':
-            return isSqlChartContentArgs(toolArgs);
+            return (
+                isSqlChartContentArgs(toolArgs) ||
+                (isComposerChartContentArgs(toolArgs) &&
+                    getComposerCreateApprovalSql(toolArgs) !== null)
+            );
         case 'editContent':
             return (
                 (isSqlChartContentArgs(toolArgs) &&
@@ -201,7 +214,9 @@ export const getSqlApprovalSql = (toolArgs: unknown): string | null => {
         return toolArgs.content.sql;
     }
     if (isComposerChartContentArgs(toolArgs)) {
-        return getComposerChartApprovalSql(toolArgs.patch);
+        return 'patch' in toolArgs
+            ? getComposerChartApprovalSql(toolArgs.patch)
+            : getComposerCreateApprovalSql(toolArgs);
     }
     return getPatchedSql(toolArgs.patch);
 };

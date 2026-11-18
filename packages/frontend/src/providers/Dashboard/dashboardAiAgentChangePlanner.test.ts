@@ -252,6 +252,53 @@ describe('planDashboardAiAgentChanges', () => {
         });
     });
 
+    it('reloads the current dashboard to show a created composer chart tile', () => {
+        const composerCreatePart = (dashboardSlug: string) =>
+            ({
+                type: 'toolCall',
+                toolCallId: 'composer-create',
+                toolName: 'createContent',
+                isPreliminary: false,
+                toolArgs: {
+                    type: 'composer_chart',
+                    content: {
+                        dashboardSlug,
+                        name: 'Amount by status',
+                        description: null,
+                        nodeId: 'shaped',
+                        sessionId: null,
+                        vizConfig: { type: 'table' },
+                    },
+                },
+                toolResult: {
+                    result: '{}',
+                    metadata: {
+                        status: 'success',
+                        slug: 'amount-by-status',
+                        name: 'Amount by status',
+                        uuid: 'composer-chart-uuid',
+                        href: '/projects/project-uuid/dashboards/dashboard-uuid/view',
+                        warnings: [],
+                    },
+                },
+            }) as unknown as StreamPart;
+        const plan = (dashboardSlug: string) =>
+            planDashboardAiAgentChanges({
+                parts: [composerCreatePart(dashboardSlug)],
+                handledToolCallIds: new Set(),
+                currentDashboardSlug: 'jaffle-dashboard',
+                pendingChartToFocus: null,
+            }).actions;
+
+        expect(plan('jaffle-dashboard')).toEqual([
+            {
+                type: 'refreshDashboard',
+                focusChart: { type: 'composer_chart', slug: 'amount-by-status' },
+            },
+        ]);
+        expect(plan('other-dashboard')).toEqual([]);
+    });
+
     it('uses the pending chart focus when the current dashboard is refreshed', () => {
         expect(
             planDashboardAiAgentChanges({

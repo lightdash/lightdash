@@ -42,7 +42,10 @@ const getContentEvent = (part: StreamPart): AgentContentEvent | null => {
         case 'document':
             return null;
         default:
-            return assertUnreachable(part.toolArgs, 'Unknown content type');
+            return assertUnreachable(
+                part.toolArgs.type,
+                'Unknown content type',
+            );
     }
 };
 

@@ -3,6 +3,7 @@ import type { DocumentChartContent } from '../../../../types/document';
 import { type ToolDescriptionContext } from '../defineTool';
 import { toolNameFor } from './discoveryToolNames';
 import {
+    COMPOSER_CHART_CREATE_GUIDANCE,
     SQL_CHART_CREATE_GUIDANCE,
     toolChartAsCodeMetricQuerySchema,
     toolCreateContentArgsSchema,
@@ -193,7 +194,7 @@ const getDocumentCreateGuidance = ({
 export const MCP_CREATE_CONTENT_DESCRIPTION = (
     context: ToolDescriptionContext,
 ): string =>
-    `Create a dashboard, chart, SQL chart or Document from its JSON; the developing-in-lightdash skill has the chart and dashboard shapes. ${SQL_CHART_CREATE_GUIDANCE} ${getDocumentCreateGuidance(context)}`;
+    `Create a dashboard, chart, SQL chart, composer chart or Document from its JSON; the developing-in-lightdash skill has the chart and dashboard shapes. ${SQL_CHART_CREATE_GUIDANCE} ${COMPOSER_CHART_CREATE_GUIDANCE} ${getDocumentCreateGuidance(context)}`;
 
 /** For an actor who can save Documents but not charts or dashboards. */
 export const DOCUMENT_CREATE_CONTENT_DESCRIPTION = (
@@ -215,7 +216,7 @@ export const DOCUMENT_EDIT_CONTENT_DESCRIPTION = ({
     `Edit a Document with documentEdit against the latest version ${toolNameFor('readContent', runtime)} returned. A Document in a Space can be edited only when that Space shows canEdit true in ${toolNameFor('findContent', runtime)} or ${toolNameFor('listContent', runtime)} results.`;
 
 export const mcpCreateContentArgsSchema = toolCreateContentArgsSchema.extend({
-    type: z.enum(['dashboard', 'chart', 'sql_chart', 'document']),
+    type: z.enum(['dashboard', 'chart', 'sql_chart', 'composer_chart', 'document']),
     content: z.union([
         documentAsCodeSchema,
         toolCreateContentArgsSchema.shape.content,

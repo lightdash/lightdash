@@ -52,6 +52,8 @@ import {
     SqlChartAsCode,
     TablePartitioning,
     ThreadComposerQueryNode,
+    ToolComposerChartAsCodeContent,
+    ToolComposerChartFromNode,
     ToolFindContentArgs,
     ToolFindFieldsArgs,
     ToolListContentArgs,
@@ -486,10 +488,19 @@ type CreateSqlChartArgs = {
     approveSql: ApproveSqlFn;
 };
 
+/** A composer chart from a query node or from full JSON; SQL in the JSON waits on approveSql. */
+export type CreateComposerChartArgs = {
+    type: 'composer_chart';
+    content: ToolComposerChartFromNode | ToolComposerChartAsCodeContent;
+    // Null without SQL mode: JSON with warehouse SQL is refused.
+    approveSql: ApproveSqlFn | null;
+};
+
 export type CreateContentFn = (
     args:
         | Exclude<CreateContentArgs, { type: 'sql_chart' }>
         | CreateSqlChartArgs
+        | CreateComposerChartArgs
         | { type: 'document'; content: McpDocumentAsCode },
 ) => Promise<
     | DocumentContentResult
@@ -508,6 +519,12 @@ export type CreateContentFn = (
     | {
           type: 'sql_chart';
           content: SqlChartAsCode;
+          uuid: string;
+          href: string;
+      }
+    | {
+          type: 'composer_chart';
+          content: ComposerChartAsCode;
           uuid: string;
           href: string;
       }

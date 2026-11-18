@@ -144,6 +144,46 @@ describe('composer chart edits', () => {
     });
 });
 
+describe('composer chart creates', () => {
+    const fromJson = {
+        type: 'composer_chart',
+        content: {
+            dashboardSlug: 'sales',
+            name: 'Revenue',
+            description: null,
+            pipeline: {
+                terminalNodeId: 'shaped',
+                nodes: [
+                    { nodeId: 'raw', sourceType: 'sql', sql: 'select 1' },
+                    { nodeId: 'shaped', sourceType: 'duckdb', sql: 'select 2' },
+                ],
+            },
+            chart: {},
+        },
+    };
+
+    it('asks to approve the warehouse SQL written in the JSON', () => {
+        expect(isSqlApprovalToolCall('createContent', fromJson)).toBe(true);
+        expect(getSqlApprovalSql(fromJson)).toBe('-- raw\nselect 1');
+    });
+
+    it('asks nothing for a query node, whose SQL was approved when it ran', () => {
+        const fromNode = {
+            type: 'composer_chart',
+            content: {
+                dashboardSlug: 'sales',
+                name: 'Revenue',
+                description: null,
+                nodeId: 'raw',
+                sessionId: null,
+                vizConfig: { type: 'table' },
+            },
+        };
+        expect(isSqlApprovalToolCall('createContent', fromNode)).toBe(false);
+        expect(getSqlApprovalSql(fromNode)).toBeNull();
+    });
+});
+
 describe('getSqlApprovalSql', () => {
     it('reads the SQL from runSql and SQL chart arguments', () => {
         expect(getSqlApprovalSql({ sql: 'select 1' })).toBe('select 1');
