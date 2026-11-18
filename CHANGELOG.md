@@ -1,3 +1,11 @@
+# [3.312.0](https://github.com/lightdash/lightdash/compare/3.311.0...3.312.0) (2026-11-18)
+
+
+### Features
+
+* **semantic-studio:** call the default state Published and changes drafts ([#32860](https://github.com/lightdash/lightdash/issues/32860)) ([dabbe51](https://github.com/lightdash/lightdash/commit/dabbe513b7a58332f3dd243e75591f0c039a669a))
+* **semantic-studio:** say draft where the copy means the whole draft ([#32870](https://github.com/lightdash/lightdash/issues/32870)) ([fdf475b](https://github.com/lightdash/lightdash/commit/fdf475bdb4dd4fb1dc0d78e0246387f9b888840f))
+
 # [3.311.0](https://github.com/lightdash/lightdash/compare/3.310.2...3.311.0) (2026-11-18)
 
 
