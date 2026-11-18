@@ -804,6 +804,7 @@ const MainPane: FC<{
                         projectUuid={view.project.id}
                         modelName={explore.id}
                         exploreName={explore.name}
+                        isModelled={source?.kind === 'modelled'}
                         lineage={
                             source?.kind === 'modelled' && !isAdded ? (
                                 <JoinDiagram
