@@ -1,5 +1,6 @@
 import { useCallback, type FC } from 'react';
 import ExportDataModal from '../../../../../components/DashboardTiles/ExportDataModal';
+import { NO_CELL_LIMITED_SCOPES } from '../../../../../components/ExportResults/exportCellEstimate';
 import { type Limit } from '../../../../../components/ExportResults/types';
 import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
 import { getAiSqlArtifactDownloadQueryUuid } from '../../utils/getAiSqlArtifactDownloadQueryUuid';
@@ -47,6 +48,7 @@ export const AiSqlArtifactDownloadModal: FC<Props> = ({
             getDownloadQueryUuid={getDownloadQueryUuid}
             columnOrder={columnOrder}
             chartName={chartName}
+            cellLimitedScopes={NO_CELL_LIMITED_SCOPES}
         />
     );
 };

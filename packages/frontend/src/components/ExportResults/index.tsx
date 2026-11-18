@@ -34,6 +34,8 @@ import { Can } from '../../providers/Ability';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import MantineIcon from '../common/MantineIcon';
 import { NumberInput } from '../common/NumberInput';
+import CellLimitNote from './CellLimitNote';
+import { DEFAULT_CELL_LIMITED_SCOPES } from './exportCellEstimate';
 import classes from './ExportResults.module.css';
 import LargeExportWarning from './LargeExportWarning';
 import { Limit } from './types';
@@ -72,6 +74,13 @@ export type ExportResultsProps = {
     showSubtotals?: boolean;
     hideLimitSelection?: boolean;
     forceShowLimitSelection?: boolean;
+    /**
+     * Result scopes whose download the backend caps at the organization's
+     * cell limit (it reruns the query with the cap). Defaults to "All results"
+     * and "Custom": "Table rows" usually streams the already-run query's stored
+     * results as they are. SQL queries bypass the cap, so they pass none.
+     */
+    cellLimitedScopes?: readonly Limit[];
     renderDialogActions?: (renderProps: ExportCsvRenderProps) => ReactNode;
 };
 
@@ -93,6 +102,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
         showSubtotals,
         hideLimitSelection = false,
         forceShowLimitSelection = false,
+        cellLimitedScopes = DEFAULT_CELL_LIMITED_SCOPES,
         renderDialogActions,
     }) => {
         const lightdashApi = useLightdashApi();
@@ -235,11 +245,6 @@ const ExportResults: FC<ExportResultsProps> = memo(
         const maxColumnLimit = health.data?.pivotTable?.maxColumnLimit || 60;
         const isPivotTable = exportPivotedData && !!pivotConfig;
         const isDialog = !!renderDialogActions;
-        const showLimitNote =
-            isPivotTable ||
-            (fileType === DownloadFileType.XLSX &&
-                (limit === Limit.ALL || limit === Limit.CUSTOM) &&
-                !isPivotTable);
 
         const limitSelection = (
             <Stack gap="sm">
@@ -489,9 +494,39 @@ const ExportResults: FC<ExportResultsProps> = memo(
                     </Stack>
                 </Paper>
 
-                {showLimitNote && (
-                    <Stack gap="xs">
-                        {isPivotTable && (
+                <Stack gap="xs">
+                    {!isPivotTable && (
+                        <CellLimitNote
+                            limit={limit}
+                            customLimit={customLimit}
+                            totalResults={totalResults}
+                            columnOrder={columnOrder}
+                            csvCellsLimit={csvCellsLimit}
+                            cellLimitApplies={cellLimitedScopes.includes(limit)}
+                        />
+                    )}
+
+                    {isPivotTable && (
+                        <Group gap="xs" wrap="nowrap" align="flex-start">
+                            <MantineIcon
+                                icon={IconInfoCircle}
+                                size="sm"
+                                color="dimmed"
+                            />
+                            <Text size="xs" c="dimmed">
+                                <Text span fw={500} c="foreground">
+                                    Pivot export limit.
+                                </Text>{' '}
+                                Pivot exports are limited to{' '}
+                                {csvCellsLimit.toLocaleString()} cells and{' '}
+                                {maxColumnLimit} columns.
+                            </Text>
+                        </Group>
+                    )}
+
+                    {fileType === DownloadFileType.XLSX &&
+                        (limit === Limit.ALL || limit === Limit.CUSTOM) &&
+                        !isPivotTable && (
                             <Group gap="xs" wrap="nowrap" align="flex-start">
                                 <MantineIcon
                                     icon={IconInfoCircle}
@@ -500,39 +535,13 @@ const ExportResults: FC<ExportResultsProps> = memo(
                                 />
                                 <Text size="xs" c="dimmed">
                                     <Text span fw={500} c="foreground">
-                                        Pivot export limit.
+                                        Excel row limit.
                                     </Text>{' '}
-                                    Pivot exports are limited to{' '}
-                                    {csvCellsLimit.toLocaleString()} cells and{' '}
-                                    {maxColumnLimit} columns.
+                                    Excel exports are limited to 1,000,000 rows.
                                 </Text>
                             </Group>
                         )}
-
-                        {fileType === DownloadFileType.XLSX &&
-                            (limit === Limit.ALL || limit === Limit.CUSTOM) &&
-                            !isPivotTable && (
-                                <Group
-                                    gap="xs"
-                                    wrap="nowrap"
-                                    align="flex-start"
-                                >
-                                    <MantineIcon
-                                        icon={IconInfoCircle}
-                                        size="sm"
-                                        color="dimmed"
-                                    />
-                                    <Text size="xs" c="dimmed">
-                                        <Text span fw={500} c="foreground">
-                                            Excel row limit.
-                                        </Text>{' '}
-                                        Excel exports are limited to 1,000,000
-                                        rows.
-                                    </Text>
-                                </Group>
-                            )}
-                    </Stack>
-                )}
+                </Stack>
 
                 {!isPivotTable && (
                     <LargeExportWarning

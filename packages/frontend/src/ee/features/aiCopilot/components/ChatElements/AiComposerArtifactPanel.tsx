@@ -37,6 +37,7 @@ import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
 import ExportDataModal from '../../../../../components/DashboardTiles/ExportDataModal';
 import { type EChartsReact } from '../../../../../components/EChartsReactWrapper';
+import { NO_CELL_LIMITED_SCOPES } from '../../../../../components/ExportResults/exportCellEstimate';
 import {
     SaveComposerChartModal,
     type SavedComposerChartLink,
@@ -560,6 +561,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                     columnOrder={columnOrder}
                     chartName={title}
                     hideLimitSelection
+                    cellLimitedScopes={NO_CELL_LIMITED_SCOPES}
                 />
             )}
         </Box>
