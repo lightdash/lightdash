@@ -27,7 +27,7 @@ export type StudioPullRequest = {
     prUrl: string;
     /** The commit the agent last pushed, when the change's latest save was its. */
     commitSha: string | null;
-    /** Changes whenever the pull request may have moved, by the agent or by hand. */
+    /** Changes when the agent pushes; a hand save refreshes what it moved itself. */
     revision: string;
     additions: number | null;
     deletions: number | null;
@@ -80,7 +80,7 @@ export const useStudioPullRequest = (
         (result) => result.prUrl === prUrl,
     );
     const metadata = ofThisPullRequest.at(-1);
-    const revision = `${metadata?.commitSha ?? ''}:${workspace ? String(workspace.updatedAt) : ''}`;
+    const revision = metadata?.commitSha ?? '';
     const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     // Checks are read at the branch head, since a hand save moves it without the agent knowing.

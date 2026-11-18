@@ -1078,7 +1078,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const isEmpty = view.project.explores.length === 0;
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
-    const { pathname } = useLocation();
+    const { pathname, key: visit } = useLocation();
     const routeWorkspaceUuid = parseSemanticStudioWorkspaceUuid(pathname);
     // On a change's own page the bare path shows it; elsewhere it is a view.
     const changesParams = useMemo(
@@ -1218,6 +1218,14 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     useEffect(() => {
         if (routeWorkspaceUuid) setIsOnLive(false);
     }, [routeWorkspaceUuid]);
+    // Home shows the changes when it opens with some; a change that lands later never swaps the page under you.
+    const home = useRef({ visit, showsChanges: false, sawSave: false });
+    if (home.current.visit !== visit) {
+        home.current = { visit, showsChanges: false, sawSave: false };
+    }
+    if (saving) home.current.sawSave = true;
+    if (changeOnPage && !home.current.sawSave) home.current.showsChanges = true;
+    const homeShowsChanges = isDefaultView && home.current.showsChanges;
     // Every change is read in one place, Sources, starting on its overview; only your open one is edited there.
     const opensInSources =
         !isOnLive &&
@@ -1226,27 +1234,19 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         !!changeOnPage &&
         (!!routeWorkspace ||
             searchParams.get(VIEW_PARAM) === 'changes' ||
-            isDefaultView);
+            homeShowsChanges);
     const isSources =
         opensInSources ||
         (agentAvailable &&
             !keepsDraft &&
             searchParams.get(VIEW_PARAM) === 'sources');
-    // When a save lands, the workspace opens its diff, so the change is reviewed where it was asked for.
-    const wasSaving = useRef(false);
-    useEffect(() => {
-        if (wasSaving.current && !saving && development) {
-            setSearchParams(changesParams, { replace: true });
-        }
-        wasSaving.current = !!saving;
-    }, [saving, development, setSearchParams, changesParams]);
     const proposal = useStudioProposal(view.project.id);
     const hasProposal = !keepsDraft && proposal.length > 0;
     // A dbt project's changes are its conversation's: what it proposes, and what its pull request holds.
     const isChanges =
         !keepsDraft &&
         (!!changeOnPage || hasProposal) &&
-        (searchParams.get(VIEW_PARAM) === 'changes' || isDefaultView);
+        (searchParams.get(VIEW_PARAM) === 'changes' || homeShowsChanges);
     const hasChanges = keepsDraft
         ? hasDraft && !isBuildingFirstModel
         : !!development || hasProposal;
@@ -1362,22 +1362,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         }
         return null;
     })();
-    // A new proposal opens the changes, like a save does.
-    const proposalKey = hasProposal ? proposal.join('\n') : null;
-    const lastProposalKey = useRef(proposalKey);
-    const isOnList = searchParams.get(VIEW_PARAM) === 'workspaces';
-    useEffect(() => {
-        // In Sources the proposal lands in the open file instead; the list you asked for stays.
-        if (
-            proposalKey &&
-            proposalKey !== lastProposalKey.current &&
-            !isSources &&
-            !isOnList
-        ) {
-            setSearchParams(changesParams, { replace: true });
-        }
-        lastProposalKey.current = proposalKey;
-    }, [proposalKey, setSearchParams, changesParams, isSources, isOnList]);
     // Changes asked for by view get the open chat's change address once it is known, so a reload or a link lands on it.
     const changeToAddress =
         searchParams.get(VIEW_PARAM) === 'changes' && !routeWorkspaceUuid
@@ -1398,7 +1382,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     // The workspace the conversation made, named for where its changes stand.
     const pullRequestNumber = /\/(\d+)\/?$/.exec(development?.prUrl ?? '')?.[1];
     const workspace = saving
-        ? { name: 'Saving', hint: 'The draft is being saved.' }
+        ? { name: 'New draft', hint: 'The draft is being saved.' }
         : development
           ? {
                 name: pullRequestNumber
@@ -2137,10 +2121,11 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                                 }
                                             >
                                                 {changePicker}
-                                                {/* An open draft's state is on Publish, so the pill shows only once it ends. */}
+                                                {/* The bar says how an open draft is doing, so the pill shows only once it ends. */}
                                                 {isChangeInSources &&
                                                 stage &&
-                                                stage.step !== 'in_review' ? (
+                                                stage.step !== 'in_review' &&
+                                                stage.step !== 'saving' ? (
                                                     <StudioStageLine
                                                         stage={stage}
                                                         href={changeUrl}
