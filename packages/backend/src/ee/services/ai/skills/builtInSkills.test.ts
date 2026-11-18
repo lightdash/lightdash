@@ -238,4 +238,11 @@ describe('repository-writeback skill', () => {
         expect(skill?.body).toContain('present a concise migration plan');
         expect(skill?.body).not.toContain('do **not** have the ability');
     });
+
+    it('tells the agent a pending change is listed as still being opened', async () => {
+        const skill = await BuiltInSkills.getAiAgentSkill(
+            'repository-writeback',
+        );
+        expect(skill?.body).toContain('still being opened');
+    });
 });

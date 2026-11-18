@@ -103,7 +103,7 @@ describe('getEditDbtProject', () => {
             aiWritebackRunUuid: 'run-1',
         });
         expect(output.result).toBe(
-            'Started the change; the pull request opens in the background. Acknowledge it briefly.',
+            'Started the change; the pull request opens in the background. Acknowledge it briefly. Until it opens, listWorkstreams shows it as a change still being opened.',
         );
         expect(output.result).not.toContain('run-1');
     });

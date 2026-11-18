@@ -4346,7 +4346,9 @@ describe('AiWritebackService repo read access', () => {
 });
 
 describe('AiWritebackService.listWorkstreams', () => {
-    it('returns [] without querying when the thread has no uuid', async () => {
+    const EMPTY = { workstreams: [], pendingStartedAt: [], otherThreads: [] };
+
+    it('returns nothing without querying when the thread has no uuid', async () => {
         const listByAiThreadUuid = vi.fn();
         const service = buildService({
             aiWritebackThreadModel: { listByAiThreadUuid } as AnyType,
@@ -4354,43 +4356,64 @@ describe('AiWritebackService.listWorkstreams', () => {
         await expect(
             service.listWorkstreams({
                 aiThreadUuid: undefined,
+                projectUuid: 'project-1',
                 repoTarget: null,
             }),
-        ).resolves.toEqual([]);
+        ).resolves.toEqual(EMPTY);
         expect(listByAiThreadUuid).not.toHaveBeenCalled();
     });
 
-    it('maps rows to owner/repo workstreams, passing the repo filter through', async () => {
-        const listByAiThreadUuid = vi.fn().mockResolvedValue([
-            {
-                owner: 'acme',
-                repo: 'analytics',
-                provider: PullRequestProvider.GITHUB,
-                pr_url: PR_7,
-                pr_number: 7,
-                summary: 'Fix the typo',
-                created_at: new Date(),
-            },
-        ]);
+    it('lists own PRs, runs still opening one, and PRs from other threads, passing the repo filter through', async () => {
+        const row = {
+            owner: 'acme',
+            repo: 'analytics',
+            provider: PullRequestProvider.GITHUB,
+            pr_url: PR_7,
+            pr_number: 7,
+            summary: 'Fix the typo',
+            created_at: new Date(),
+        };
+        const startedAt = new Date('2026-01-01T10:00:00Z');
+        const listByAiThreadUuid = vi.fn().mockResolvedValue([row]);
+        const listInProgressByAiThreadUuid = vi
+            .fn()
+            .mockResolvedValue([{ created_at: startedAt }]);
+        const listByProjectUuidExcludingThread = vi
+            .fn()
+            .mockResolvedValue([{ ...row, pr_number: 8, summary: null }]);
         const service = buildService({
-            aiWritebackThreadModel: { listByAiThreadUuid } as AnyType,
+            aiWritebackThreadModel: {
+                listByAiThreadUuid,
+                listByProjectUuidExcludingThread,
+            } as AnyType,
+            aiWritebackRunModel: { listInProgressByAiThreadUuid } as AnyType,
         });
 
+        const workstream = {
+            repository: 'acme/analytics',
+            provider: PullRequestProvider.GITHUB,
+            prUrl: PR_7,
+            prNumber: 7,
+            summary: 'Fix the typo',
+        };
         await expect(
             service.listWorkstreams({
                 aiThreadUuid: 'thread-1',
+                projectUuid: 'project-1',
                 repoTarget: 'acme/analytics',
             }),
-        ).resolves.toEqual([
-            {
-                repository: 'acme/analytics',
-                provider: PullRequestProvider.GITHUB,
-                prUrl: PR_7,
-                prNumber: 7,
-                summary: 'Fix the typo',
-            },
-        ]);
+        ).resolves.toEqual({
+            workstreams: [workstream],
+            pendingStartedAt: [startedAt],
+            otherThreads: [{ ...workstream, prNumber: 8, summary: null }],
+        });
         expect(listByAiThreadUuid).toHaveBeenCalledWith(
+            'thread-1',
+            'acme/analytics',
+        );
+        expect(listInProgressByAiThreadUuid).toHaveBeenCalledWith('thread-1');
+        expect(listByProjectUuidExcludingThread).toHaveBeenCalledWith(
+            'project-1',
             'thread-1',
             'acme/analytics',
         );

@@ -3525,8 +3525,9 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        const workstreams = await this.aiWritebackService.listWorkstreams({
+        const { workstreams } = await this.aiWritebackService.listWorkstreams({
             aiThreadUuid: threadUuid,
+            projectUuid: agent.projectUuid,
             repoTarget: null,
         });
         if (workstreams.length === 0) {
@@ -15537,6 +15538,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         const listWorkstreams: ListWorkstreamsFn = async ({ repoTarget }) =>
             this.aiWritebackService.listWorkstreams({
                 aiThreadUuid: prompt.threadUuid,
+                projectUuid,
                 repoTarget,
             });
 

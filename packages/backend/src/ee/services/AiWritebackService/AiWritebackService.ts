@@ -75,12 +75,14 @@ import type { AiWritebackRunModel } from '../../models/AiWritebackRunModel';
 import type {
     AiWritebackThreadModel,
     AiWritebackThreadWithPrUrl,
+    AiWritebackWorkstreamRow,
     ResumableWritebackThread,
 } from '../../models/AiWritebackThreadModel';
 import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { selectWritebackSource } from '../ai/decisions/writebackSource';
 import { type OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
+import type { AiWritebackWorkstreams } from '../ai/types/aiAgentDependencies';
 import { getWritebackConnectionSupport } from '../AiAgentService/writebackConnection';
 import {
     anthropicClaudeCodeAllowedHosts,
@@ -4943,28 +4945,38 @@ export class AiWritebackService extends BaseService {
      */
     async listWorkstreams(args: {
         aiThreadUuid: string | undefined;
+        projectUuid: string;
         repoTarget: string | null;
-    }): Promise<
-        {
-            repository: string;
-            provider: string;
-            prUrl: string;
-            prNumber: number;
-            summary: string | null;
-        }[]
-    > {
-        if (!args.aiThreadUuid) return [];
-        const rows = await this.aiWritebackThreadModel.listByAiThreadUuid(
-            args.aiThreadUuid,
-            args.repoTarget,
-        );
-        return rows.map((row) => ({
+    }): Promise<AiWritebackWorkstreams> {
+        if (!args.aiThreadUuid) {
+            return { workstreams: [], pendingStartedAt: [], otherThreads: [] };
+        }
+        const [own, pending, others] = await Promise.all([
+            this.aiWritebackThreadModel.listByAiThreadUuid(
+                args.aiThreadUuid,
+                args.repoTarget,
+            ),
+            this.aiWritebackRunModel.listInProgressByAiThreadUuid(
+                args.aiThreadUuid,
+            ),
+            this.aiWritebackThreadModel.listByProjectUuidExcludingThread(
+                args.projectUuid,
+                args.aiThreadUuid,
+                args.repoTarget,
+            ),
+        ]);
+        const toWorkstream = (row: AiWritebackWorkstreamRow) => ({
             repository: `${row.owner}/${row.repo}`,
             provider: row.provider,
             prUrl: row.pr_url,
             prNumber: row.pr_number,
             summary: row.summary,
-        }));
+        });
+        return {
+            workstreams: own.map(toWorkstream),
+            pendingStartedAt: pending.map((run) => run.created_at),
+            otherThreads: others.map(toWorkstream),
+        };
     }
 
     /**
