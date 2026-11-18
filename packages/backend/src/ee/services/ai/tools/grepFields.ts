@@ -294,7 +294,7 @@ const renderFieldAnnotation = (
         state.renderedAnnotations.set(key, field.path);
         return annotation;
     }
-    const reference = ` — description and hint as for ${firstPath} above`;
+    const reference = ` — same as ${firstPath} above`;
     return reference.length < annotation.length ? reference : annotation;
 };
 

@@ -262,9 +262,7 @@ describe('grepFields joined fields', () => {
         fieldLines
             .slice(1)
             .forEach((line) =>
-                expect(line).toContain(
-                    `description and hint as for ${firstPath} above`,
-                ),
+                expect(line).toContain(`— same as ${firstPath} above`),
             );
     });
 });
