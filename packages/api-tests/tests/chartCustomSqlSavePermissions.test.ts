@@ -584,7 +584,7 @@ describe('Saving a chart with custom SQL', () => {
                 expect((await currentQuery(restore.chartUuid)).limit).toBe(10);
             });
 
-            it('restores once when two rollbacks of a dashboard race, asking the later one to retry', async () => {
+            it('restores a dashboard when two rollbacks race, asking a conflicting one to retry', async () => {
                 const query = tableCalculation('1');
                 const restore = await dashboardWithChart(query, {
                     ...query,

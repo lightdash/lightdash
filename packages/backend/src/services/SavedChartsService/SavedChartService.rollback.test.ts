@@ -179,6 +179,24 @@ describe('restoring a chart version', () => {
         expect(savedChartModel.createVersion).not.toHaveBeenCalled();
     });
 
+    it('restores a chart requested by its uuid in upper case', async () => {
+        const { chartService, savedChartModel } = setup(chart, chart);
+
+        await chartService.rollback(
+            fromSession(editor),
+            chart.uuid.toUpperCase(),
+            'old-version',
+        );
+        expect(savedChartModel.createVersion).toHaveBeenCalledWith(
+            chart.uuid,
+            chart,
+            expect.anything(),
+            'transaction',
+            expect.anything(),
+            null,
+        );
+    });
+
     it('refuses when the chart got a new version after the check', async () => {
         const { chartService, savedChartModel } = setup(chart, chart);
         savedChartModel.lockCurrentVersionUuids.mockResolvedValue(

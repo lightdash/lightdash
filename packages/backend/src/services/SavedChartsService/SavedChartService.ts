@@ -3305,15 +3305,16 @@ export class SavedChartService
             user,
             chartUuid,
         );
+        // The stored uuid: version lookups are keyed by it, whatever case the request used
         const [restore] = await this.assertCanRestore(account, [
-            { chartUuid, versionUuid },
+            { chartUuid: savedChart.uuid, versionUuid },
         ]);
         const currentChartVersion = restore.current;
         const newChartVersion = await this.savedChartModel.transaction(
             async (tx) => {
                 await this.lockCheckedRestores([restore], tx);
                 return this.savedChartModel.createVersion(
-                    chartUuid,
+                    restore.chartUuid,
                     restore.restored,
                     user,
                     tx,
