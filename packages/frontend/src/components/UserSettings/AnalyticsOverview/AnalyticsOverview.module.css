@@ -151,6 +151,11 @@
     max-width: 100%;
 }
 
+.dashboardControls {
+    /* Stays on the right when it wraps under the tabs */
+    margin-left: auto;
+}
+
 .dashboardFrame {
     display: block;
     width: 100%;
