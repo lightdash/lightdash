@@ -60,6 +60,10 @@ import MantineModal from '../../components/common/MantineModal';
 import { ModelSelector } from '../../components/common/ModelSelector/ModelSelector';
 import { ChartIcon, IconBox } from '../../components/common/ResourceIcon';
 import { getChartIcon } from '../../components/common/ResourceIcon/utils';
+import {
+    VOICE_DESIGN_BUTTON_TOUR_ID,
+    VoiceDesignTour,
+} from '../../ee/features/capture/onboarding';
 import { useChartSummariesV2 } from '../../hooks/useChartSummariesV2';
 import { useInfiniteContent } from '../../hooks/useContent';
 import { useProject } from '../../hooks/useProject';
@@ -133,16 +137,20 @@ export const CaptureButton: FC<{
     onClick: () => void;
     disabled: boolean;
 }> = ({ onClick, disabled }) => (
-    <Tooltip label="Voice Design" position="bottom">
-        <ActionIcon
-            size="md"
-            onClick={onClick}
-            disabled={disabled}
-            aria-label="Voice Design"
-        >
-            <MantineIcon icon={IconMicrophone} size={16} />
-        </ActionIcon>
-    </Tooltip>
+    <>
+        <Tooltip label="Voice Design" position="bottom">
+            <ActionIcon
+                size="md"
+                onClick={onClick}
+                disabled={disabled}
+                aria-label="Voice Design"
+                data-tour={VOICE_DESIGN_BUTTON_TOUR_ID}
+            >
+                <MantineIcon icon={IconMicrophone} size={16} />
+            </ActionIcon>
+        </Tooltip>
+        <VoiceDesignTour surface="builder" />
+    </>
 );
 
 type ModelOption = {

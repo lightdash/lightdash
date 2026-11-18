@@ -48,6 +48,10 @@ import {
     type CaptureTarget,
 } from '../capture';
 import { buildAgentPrompt } from '../capture/buildAgentPrompt';
+import {
+    VOICE_DESIGN_BUTTON_TOUR_ID,
+    VoiceDesignTour,
+} from '../capture/onboarding';
 import { applyLayoutOps } from './applyLayoutOps';
 import classes from './DashboardCapture.module.css';
 import { describeLayoutOps } from './describeLayoutOps';
@@ -387,6 +391,7 @@ const DashboardCapture: FC = () => {
             <button
                 type="button"
                 aria-label="Voice Design"
+                data-tour={VOICE_DESIGN_BUTTON_TOUR_ID}
                 className={`${launcherClasses.dockTab} ${launcherClasses.dockIconTab} ${classes.mic}`}
                 onClick={() => captureRef.current?.start()}
             >
@@ -434,6 +439,7 @@ const DashboardCapture: FC = () => {
 
     return (
         <>
+            <VoiceDesignTour surface="dashboard" />
             <CaptureHost
                 ref={captureRef}
                 surface={surface}
