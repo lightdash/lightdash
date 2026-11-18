@@ -81,6 +81,27 @@ const {
 
 For other row limits, run `chart.metricQuery` with `chart.parameters` through `POST /api/v2/projects/{projectUuid}/query/metric-query` and use the returned `queryUuid`. Stored results are only readable by the same embed user, so the host's token needs the same `user.externalId`.
 
+### Data app events
+
+An embedded data app can tell the host page that something happened by calling `emitEvent(name, payload)` from `@lightdash/query-sdk`. Lightdash relays it as one fixed event type, in a standalone app embed and in a data app tile on an embedded dashboard:
+
+| Event                | Payload             | Trigger                                              |
+| -------------------- | ------------------- | ---------------------------------------------------- |
+| `lightdash:appEvent` | `{ name, payload }` | The app's code calls `emitEvent`, on its own timing. |
+
+`name` is the app's own event name (up to 100 characters) and `payload` is the JSON value it sent, or `null`. The payload is capped at 64 KB serialized; larger data belongs on an external connection, with the event carrying a reference to it.
+
+```js
+window.addEventListener('message', (event) => {
+    if (event.origin !== 'https://lightdash.example.com') return;
+    if (event.data?.type !== 'lightdash:appEvent') return;
+    const { name, payload } = event.data.payload;
+    if (name === 'import-confirmed') openAssistant(payload);
+});
+```
+
+The app chooses only `name` and `payload`, never the outer type, so it cannot pose as another Lightdash event. Both values are written by the app's author: validate them before acting. They reach only the origin that embeds the app, which already sees everything the embed token grants.
+
 ### Fitting an iframe to its content
 
 ```js
