@@ -61,11 +61,11 @@ describe('withTimeout', () => {
     });
 
     it('rejects when the answer is late', async () => {
-        const late = withTimeout(new Promise(() => {}), 100);
-        const check =
-            await expect(late).rejects.toBeInstanceOf(AppFrameTimeoutError);
+        const late = withTimeout(new Promise(() => {}), 100).catch(
+            (error: unknown) => error,
+        );
         await vi.advanceTimersByTimeAsync(100);
-        await check;
+        expect(await late).toBeInstanceOf(AppFrameTimeoutError);
     });
 
     it('passes a failure through', async () => {

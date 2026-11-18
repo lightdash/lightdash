@@ -3,10 +3,6 @@ import { buildAppCapturePrompt } from '../../../features/apps/utils/appViewCaptu
 import { captureTranscriber } from '../../../features/apps/utils/transcribeCapture';
 import useToaster from '../../../hooks/toaster/useToaster';
 import useApp from '../../../providers/App/useApp';
-import { useLauncherDock } from '../aiCopilot/components/Launcher/useLauncherDock';
-import { useCreateAgentThreadMutation } from '../aiCopilot/hooks/useProjectAiAgents';
-import { store as aiAgentStore } from '../aiCopilot/store';
-import { openPanel } from '../aiCopilot/store/aiAgentLauncherSlice';
 import {
     CaptureHost,
     type CaptureHostHandle,
@@ -14,7 +10,7 @@ import {
     type CaptureSurface,
 } from '../capture';
 import { imageToJpegBase64 } from '../dashboardCapture/routeRequest';
-import { uploadCaptureImages } from '../dashboardCapture/uploadCaptureImages';
+import { useSendCaptureToAgent } from '../dashboardCapture/useSendCaptureToAgent';
 
 type Props = {
     projectUuid: string;
@@ -32,56 +28,39 @@ const AppViewCapture = forwardRef<CaptureHostHandle, Props>(
         ref,
     ) => {
         const { showToastInfo, showToastError } = useToaster();
-        const { addItem: addDockItem } = useLauncherDock(projectUuid);
-        const { mutateAsync: createThread } = useCreateAgentThreadMutation(
-            projectUuid,
-            {
-                skipNavigation: true,
-                onCreated: (thread) => {
-                    addDockItem({
-                        threadId: thread.uuid,
-                        agentUuid: thread.agentUuid,
-                        title: thread.firstMessage.message,
-                    });
-                    aiAgentStore.dispatch(
-                        openPanel({
-                            threadId: thread.uuid,
-                            agentUuid: thread.agentUuid,
-                        }),
-                    );
-                },
-            },
-        );
+        const sendToAgent = useSendCaptureToAgent(projectUuid);
 
         const handleCapture = useCallback(
             async (result: CaptureResult) => {
                 showToastInfo({ title: 'Sending your questions to the agent' });
                 try {
                     // No screenshots is fine: the questions still go as text.
-                    const imageUuids = await Promise.all(
+                    const images = await Promise.all(
                         result.images.map(imageToJpegBase64),
-                    )
-                        .then(uploadCaptureImages)
-                        .catch((): string[] => []);
-                    await createThread({
+                    ).catch((): string[] => []);
+                    const { imagesLeftOut } = await sendToAgent({
                         agentUuid,
-                        prompt: buildAppCapturePrompt({
-                            appName,
-                            summary: result.summary,
-                            hasImages: imageUuids.length > 0,
-                        }),
-                        context: imageUuids.map((fileUuid) => ({
-                            type: 'thread_image' as const,
-                            fileUuid,
-                        })),
+                        buildPrompt: (hasImages) =>
+                            buildAppCapturePrompt({
+                                appName,
+                                summary: result.summary,
+                                hasImages,
+                            }),
+                        context: [],
+                        images,
                     });
+                    if (imagesLeftOut > 0) {
+                        showToastInfo({
+                            title: 'Some screenshots were left out: this conversation has reached its image limit.',
+                        });
+                    }
                 } catch {
                     showToastError({
                         title: 'Could not send your questions to the agent',
                     });
                 }
             },
-            [agentUuid, appName, createThread, showToastError, showToastInfo],
+            [agentUuid, appName, sendToAgent, showToastError, showToastInfo],
         );
         const handleCaptureRef = useRef(handleCapture);
         handleCaptureRef.current = handleCapture;

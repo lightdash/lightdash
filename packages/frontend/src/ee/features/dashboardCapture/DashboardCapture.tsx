@@ -37,15 +37,8 @@ import useDashboardContext from '../../../providers/Dashboard/useDashboardContex
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import launcherClasses from '../aiCopilot/components/Launcher/AiAgentsLauncher.module.css';
 import { useLauncherDockExtras } from '../aiCopilot/components/Launcher/launcherDockExtras';
-import { useLauncherDock } from '../aiCopilot/components/Launcher/useLauncherDock';
-import {
-    useCreateAgentThreadMutation,
-    useProjectAiAgents,
-} from '../aiCopilot/hooks/useProjectAiAgents';
-import {
-    openDefaultAgentPanel,
-    openPanel,
-} from '../aiCopilot/store/aiAgentLauncherSlice';
+import { useProjectAiAgents } from '../aiCopilot/hooks/useProjectAiAgents';
+import { openDefaultAgentPanel } from '../aiCopilot/store/aiAgentLauncherSlice';
 import { useAiAgentStoreDispatch } from '../aiCopilot/store/hooks';
 import {
     CaptureHost,
@@ -67,10 +60,12 @@ import {
     imageToJpegBase64,
     tileTarget,
 } from './routeRequest';
-import { uploadCaptureImages } from './uploadCaptureImages';
+import { useSendCaptureToAgent } from './useSendCaptureToAgent';
 
 const UNTITLED = 'Untitled tile';
 const MAX_ROUTE_IMAGES = 5;
+const IMAGES_LEFT_OUT =
+    'Some screenshots were left out: this conversation has reached its image limit.';
 const IMAGES_NOTE =
     'The attached screenshots show the dashboard as I recorded it, with my red marks drawn on. Use them to see exactly what I was pointing at.';
 
@@ -150,29 +145,7 @@ const DashboardCapture: FC = () => {
         redirectOnUnauthorized: false,
     });
     const agentUuid = agents?.[0]?.uuid ?? null;
-    const { addItem: addDockItem } = useLauncherDock(projectUuid);
-    const openedFirstThreadRef = useRef(true);
-    const { mutateAsync: createThread } = useCreateAgentThreadMutation(
-        projectUuid ?? '',
-        {
-            skipNavigation: true,
-            onCreated: (thread) => {
-                addDockItem({
-                    threadId: thread.uuid,
-                    agentUuid: thread.agentUuid,
-                    title: thread.firstMessage.message,
-                });
-                if (openedFirstThreadRef.current) return;
-                openedFirstThreadRef.current = true;
-                agentDispatch(
-                    openPanel({
-                        threadId: thread.uuid,
-                        agentUuid: thread.agentUuid,
-                    }),
-                );
-            },
-        },
-    );
+    const sendToAgent = useSendCaptureToAgent(projectUuid ?? '');
 
     const { mutateAsync: saveDashboard } = useUpdateDashboard(
         dashboard?.uuid,
@@ -238,34 +211,32 @@ const DashboardCapture: FC = () => {
             // request in front of it and changes do not race each other.
             const chartUuid =
                 questions.length === 1 ? chartUuidFor(questions[0]) : undefined;
-            openedFirstThreadRef.current = false;
-            void uploadCaptureImages(images)
-                .then((imageUuids) =>
-                    createThread({
-                        agentUuid,
-                        prompt:
-                            imageUuids.length > 0
-                                ? `${questionsToPrompt(questions)}\n\n${IMAGES_NOTE}`
-                                : questionsToPrompt(questions),
-                        context: [
-                            { type: 'dashboard', dashboardUuid },
-                            ...(chartUuid
-                                ? [{ type: 'chart' as const, chartUuid }]
-                                : []),
-                            ...imageUuids.map((fileUuid) => ({
-                                type: 'thread_image' as const,
-                                fileUuid,
-                            })),
-                        ],
-                    }),
-                )
+            void sendToAgent({
+                agentUuid,
+                buildPrompt: (hasImages) =>
+                    hasImages
+                        ? `${questionsToPrompt(questions)}\n\n${IMAGES_NOTE}`
+                        : questionsToPrompt(questions),
+                context: [
+                    { type: 'dashboard', dashboardUuid },
+                    ...(chartUuid
+                        ? [{ type: 'chart' as const, chartUuid }]
+                        : []),
+                ],
+                images,
+            })
+                .then(({ imagesLeftOut }) => {
+                    if (imagesLeftOut > 0) {
+                        showToastInfo({ title: IMAGES_LEFT_OUT });
+                    }
+                })
                 .catch(() => {
                     showToastError({
                         title: 'Could not send your requests to the agent',
                     });
                 });
         },
-        [agentDispatch, agentUuid, createThread, showToastError],
+        [agentDispatch, agentUuid, sendToAgent, showToastError, showToastInfo],
     );
 
     const handleCapture = useCallback(
