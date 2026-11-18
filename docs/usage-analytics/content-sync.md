@@ -35,5 +35,20 @@ managed Analytics space. A shipped source change queues a new version in the
 standard data app build pipeline. Find the app in the managed Analytics space.
 It shows adoption across the organization by team and feature using rolling windows.
 
+Content sync can also install chart types from the chart library into the
+Analytics project, for managed charts that use one. It reads the library at
+`LIGHTDASH_CHART_REGISTRY_URL`, which defaults to the official chart library;
+set it to an empty string to turn installs off. Installs run only when content
+is uploaded: by the automatic sync after a Lightdash upgrade changes the bundled
+content, or by "Sync content" in Settings. They are attributed to the
+organization admin running the sync and need no user action. A chart type that
+cannot be installed, or that does not fit the chart, leaves that chart in its
+plain form, and sync still completes. Failed installs are not retried until the
+next content upload; a manual sync from Settings retries them. An installed
+chart type is upgraded only when it is below the version a managed chart needs;
+unpinned charts in the Analytics project that use that type move with it, and
+pinned charts stay on their version. A chart type deleted from the Analytics
+project is installed again on the next content upload.
+
 Content sync updates definitions. Data freshness still depends on successful
 compaction and metadata refresh; it is not a data backfill.
