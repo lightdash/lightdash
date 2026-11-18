@@ -121,9 +121,11 @@ describe('summarizeRequiredFilters', () => {
             ],
         });
 
-        expect(summarizeRequiredFilters(explore)).toBe(
-            '⚠ table filters: required data_app_usage_timestamp inThePast [4]; suggested data_app_usage_role equals ["interactive_viewer"]. Required filters apply to every query on this explore, but their values are replaceable defaults, not fixed data limits: when the requested scope differs, filter the same field or a derived time dimension of it with that scope (e.g. ten months instead of a required 4 weeks). Suggested filters are soft defaults: apply them unless the user asks for a different scope.',
-        );
+        expect(summarizeRequiredFilters(explore)).toEqual({
+            line: '⚠ table filters: required data_app_usage_timestamp inThePast [4]; suggested data_app_usage_role equals ["interactive_viewer"]',
+            hasRequired: true,
+            hasSuggested: true,
+        });
     });
 });
 

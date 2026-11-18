@@ -38,10 +38,19 @@ export const getDefaultTimeDimensionFieldIds = (
     };
 };
 
+export type RequiredFiltersSummary = {
+    line: string;
+    hasRequired: boolean;
+    hasSuggested: boolean;
+};
+
 /**
- * One-line summary of an explore's table filters, or null if none.
+ * One-line list of an explore's table filters, or null if none. What the filter
+ * kinds mean is shared by every explore: see describeTableFilterKinds.
  */
-export const summarizeRequiredFilters = (explore: Explore): string | null => {
+export const summarizeRequiredFilters = (
+    explore: Explore,
+): RequiredFiltersSummary | null => {
     const filters = explore.tables[explore.baseTable]?.requiredFilters ?? [];
     if (filters.length === 0) return null;
     const parts = filters.map((filter) => {
@@ -59,18 +68,25 @@ export const summarizeRequiredFilters = (explore: Explore): string | null => {
         const kind = filter.required === false ? 'suggested' : 'required';
         return `${kind} ${fieldId} ${filter.operator}${values}`;
     });
-    const sentences = [`⚠ table filters: ${parts.join('; ')}`];
-    if (filters.some((filter) => filter.required !== false)) {
-        sentences.push(
-            'Required filters apply to every query on this explore, but their values are replaceable defaults, not fixed data limits: when the requested scope differs, filter the same field or a derived time dimension of it with that scope (e.g. ten months instead of a required 4 weeks)',
-        );
-    }
-    if (filters.some((filter) => filter.required === false)) {
-        sentences.push(
-            'Suggested filters are soft defaults: apply them unless the user asks for a different scope',
-        );
-    }
-    return sentences.length > 1 ? `${sentences.join('. ')}.` : sentences[0];
+    return {
+        line: `⚠ table filters: ${parts.join('; ')}`,
+        hasRequired: filters.some((filter) => filter.required !== false),
+        hasSuggested: filters.some((filter) => filter.required === false),
+    };
+};
+
+export const describeTableFilterKinds = (
+    summaries: RequiredFiltersSummary[],
+): string | null => {
+    const sentences = [
+        summaries.some((summary) => summary.hasRequired)
+            ? 'Required table filters apply to every query on their explore, but their values are replaceable defaults, not fixed data limits: when the requested scope differs, filter the same field or a derived time dimension of it with that scope (e.g. ten months instead of a required 4 weeks).'
+            : null,
+        summaries.some((summary) => summary.hasSuggested)
+            ? 'Suggested table filters are soft defaults: apply them unless the user asks for a different scope.'
+            : null,
+    ].filter(Boolean);
+    return sentences.length > 0 ? sentences.join(' ') : null;
 };
 
 /** One greppable "file": a field flattened with its searchable annotations. */
