@@ -9,7 +9,6 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
-import { isDevelopmentViewOn } from './developmentView';
 import {
     CHECKOUT_KEY,
     DRAFT_KEY,
@@ -109,10 +108,8 @@ export const useStudioWorkspaceAction = (projectUuid: string) => {
                 queryClient.invalidateQueries([DRAFT_KEY, projectUuid]),
                 // The rest of the app shows the checked-out change.
                 queryClient.invalidateQueries([CHECKOUT_KEY, projectUuid]),
-                // Explores read the active workspace's changes while the development view is on.
-                ...(isDevelopmentViewOn()
-                    ? [queryClient.invalidateQueries(['tables'])]
-                    : []),
+                // Explore reads the checked-out draft, on this page or any other.
+                queryClient.invalidateQueries(['tables']),
             ]),
     });
 };

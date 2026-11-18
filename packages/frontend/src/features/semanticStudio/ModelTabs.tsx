@@ -21,6 +21,7 @@ import {
     PIERRE_POOL_OPTIONS,
 } from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
 import useHealth from '../../hooks/health/useHealth';
+import useToaster from '../../hooks/toaster/useToaster';
 import { ChangeDiff } from './ChangeDiff';
 import {
     CHANGE_KIND_VERBS,
@@ -153,6 +154,8 @@ const HistoryPane: FC<{
     history: SemanticLayerModelChange[];
 }> = ({ projectUuid, modelName, history }) => {
     const undo = useUndoSemanticLayerChanges(projectUuid);
+    const { showToastSuccess } = useToaster();
+    const [armed, setArmed] = useState<string | null>(null);
     const { shown } = useStudioCheckout();
     const [, setSearchParams] = useSearchParams();
     const unpublished = findCheckedOutModel(shown, modelName);
@@ -242,11 +245,24 @@ const HistoryPane: FC<{
                                     variant="subtle"
                                     color="gray"
                                     disabled={undo.isLoading}
-                                    onClick={() =>
-                                        undo.mutate([change.changeSetUuid])
-                                    }
+                                    onBlur={() => setArmed(null)}
+                                    onClick={() => {
+                                        if (armed !== change.changeSetUuid) {
+                                            setArmed(change.changeSetUuid);
+                                            return;
+                                        }
+                                        setArmed(null);
+                                        undo.mutate([change.changeSetUuid], {
+                                            onSuccess: () =>
+                                                showToastSuccess({
+                                                    title: 'Undone for everyone',
+                                                }),
+                                        });
+                                    }}
                                 >
-                                    Undo
+                                    {armed === change.changeSetUuid
+                                        ? 'Confirm undo'
+                                        : 'Undo'}
                                 </Button>
                             ) : null}
                         </Group>

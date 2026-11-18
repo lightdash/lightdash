@@ -23,7 +23,7 @@ import useToaster from '../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
-import { isDevelopmentViewOn, useCheckedOutView } from './developmentView';
+import { useCheckedOutView } from './developmentView';
 import { canWriteProjectBranch } from './permissions';
 
 export const DRAFT_KEY = 'semantic-layer-draft';
@@ -360,8 +360,8 @@ const useWrite = <TResult extends ApiResponse['results'], TInput>({
                 [
                     [DRAFT_KEY, projectUuid],
                     [DRAFT_STATE_KEY, projectUuid],
-                    // Explores read the draft while the development view is on.
-                    ...(isDevelopmentViewOn() ? [['tables']] : []),
+                    // Explore reads the checked-out draft, on this page or any other.
+                    ['tables'],
                     ...(changesLive
                         ? [
                               [MODEL_KEY, projectUuid],

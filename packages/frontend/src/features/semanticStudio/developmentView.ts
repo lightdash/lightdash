@@ -128,7 +128,7 @@ export const pinDevelopmentView = (): (() => void) => {
 };
 export const isDevelopmentViewPinned = (): boolean => pins > 0;
 
-export const isDevelopmentViewOn = (): boolean =>
+const isDevelopmentViewOn = (): boolean =>
     Object.keys(getDevelopmentViewHeaders()).length > 0;
 
 /**

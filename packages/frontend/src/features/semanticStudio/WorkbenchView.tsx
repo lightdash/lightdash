@@ -125,11 +125,7 @@ import {
 } from './modelCode';
 import { ModelCodeView, ModelTabs } from './ModelTabs';
 import { getPreAggregateStatus } from './preAggregateSummary';
-import {
-    DraftDevelopmentBar,
-    DraftReview,
-    DraftReviewHeading,
-} from './SemanticLayerDraft';
+import { DraftDevelopmentBar, DraftReview } from './SemanticLayerDraft';
 import {
     AddSourceButton,
     BuildFirstModel,
@@ -1394,8 +1390,19 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 ),
             };
         }
-        if (shownWorkspace?.publishedLive) {
+        if (
+            shownWorkspace?.publishedLive ||
+            shownWorkspace?.pullRequest?.state === 'merged'
+        ) {
             return { step: 'live', update: 'done' };
+        }
+        if (shownWorkspace?.pullRequest?.state === 'closed') {
+            return {
+                step: 'closed',
+                pullRequestNumber: pullRequestNumberOf(
+                    shownWorkspace.pullRequest.url,
+                ),
+            };
         }
         // Finished without a merge or a publish: it was discarded.
         if (shownWorkspace?.finishedAt) {
@@ -1602,7 +1609,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     pullRequest={development}
                 />
             ) : null}
-            {keepsDraft && !isBuildingFirstModel ? (
+            {keepsDraft ? (
                 <DraftDevelopmentBar projectUuid={view.project.id} />
             ) : null}
         </Group>
@@ -1979,13 +1986,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             case 'review':
                 return draft ? (
                     <>
-                        {/* The toolbar's bar carries this except while a first model is being built, when it is hidden. */}
-                        {isBuildingFirstModel ? (
-                            <DraftReviewHeading
-                                projectUuid={view.project.id}
-                                draft={draft}
-                            />
-                        ) : null}
                         <Box className={classes.mainBody}>
                             <DraftReview
                                 projectUuid={view.project.id}
