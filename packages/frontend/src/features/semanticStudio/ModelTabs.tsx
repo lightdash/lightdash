@@ -7,7 +7,6 @@ import {
     Button,
     Group,
     Paper,
-    SegmentedControl,
     Tabs,
     Text,
     useComputedColorScheme,
@@ -35,11 +34,11 @@ import {
 import { ModelPreAggregates } from './ModelPreAggregates';
 import classes from './ModelTabs.module.css';
 import {
-    useSemanticLayerDraft,
     useSemanticLayerModel,
     useAppliesAsPullRequest,
     useUndoSemanticLayerChanges,
 } from './useSemanticLayerModel';
+import { findCheckedOutModel, useStudioCheckout } from './useStudioCheckout';
 
 /** Fades the lines around the marked definition; hovering the code brings them back. */
 const ISOLATE_BLOCK_CSS = `
@@ -51,7 +50,7 @@ const ISOLATE_BLOCK_CSS = `
 :host(:hover) :is([data-line], [data-column-number]) { opacity: 1; }
 `;
 
-/** A model's YAML, read only: its draft when it has one, or what is live. */
+/** A model's YAML, read only, as the checked-out change leaves it. */
 export const ModelCodeView: FC<{
     projectUuid: string;
     modelName: string;
@@ -62,13 +61,10 @@ export const ModelCodeView: FC<{
         projectUuid,
         modelName,
     );
-    const { data: draft } = useSemanticLayerDraft(projectUuid);
-    const draftContent = draft?.models.find(
-        (drafted) => drafted.model === modelName,
-    )?.contentAfter;
-    const [version, setVersion] = useState<'draft' | 'live'>('draft');
-    const isDraft = draftContent !== undefined && version === 'draft';
-    const content = isDraft ? draftContent : (model?.content ?? null);
+    const { shown } = useStudioCheckout();
+    const drafted = findCheckedOutModel(shown, modelName);
+    const isDraft = drafted !== null;
+    const content = drafted ? drafted.contentAfter : (model?.content ?? null);
     const block =
         fieldName && content ? findFieldBlock(content, fieldName) : null;
     const line = block?.start ?? null;
@@ -92,7 +88,7 @@ export const ModelCodeView: FC<{
         return () => cancelAnimationFrame(frame);
     }, [line, modelName]);
     if (isLoading) return null;
-    if (!model && draftContent === undefined) {
+    if (!model && !isDraft) {
         return (
             <Text fz="sm" c="dimmed" ta="center" py="xl">
                 This model was deployed from elsewhere, so its YAML is not here.
@@ -108,22 +104,11 @@ export const ModelCodeView: FC<{
             >
                 <Text fz="xs" c="dimmed" truncate>
                     {modelName}.yml
-                    {isDraft ? ', your draft' : `, version ${model?.version}`}
+                    {isDraft
+                        ? ', not published yet'
+                        : `, version ${model?.version}`}
                 </Text>
                 <Group gap="xs" wrap="nowrap" flex="none">
-                    {draftContent !== undefined && model ? (
-                        <SegmentedControl
-                            size="xs"
-                            value={version}
-                            onChange={(next) =>
-                                setVersion(next === 'live' ? 'live' : 'draft')
-                            }
-                            data={[
-                                { value: 'draft', label: 'Draft' },
-                                { value: 'live', label: 'Live' },
-                            ]}
-                        />
-                    ) : null}
                     {content !== null ? (
                         <CopyActionIcon value={content} copyLabel="Copy YAML" />
                     ) : null}
@@ -132,7 +117,7 @@ export const ModelCodeView: FC<{
             <Box className={classes.codeEditor} ref={editor}>
                 {content === null ? (
                     <Text fz="sm" c="dimmed" p="md">
-                        Your draft removes this model.
+                        This change removes this model.
                     </Text>
                 ) : (
                     <WorkerPoolContextProvider
@@ -168,9 +153,9 @@ const HistoryPane: FC<{
     history: SemanticLayerModelChange[];
 }> = ({ projectUuid, modelName, history }) => {
     const undo = useUndoSemanticLayerChanges(projectUuid);
-    const { data: draft } = useSemanticLayerDraft(projectUuid);
+    const { shown } = useStudioCheckout();
     const [, setSearchParams] = useSearchParams();
-    const unpublished = draft?.models.find(({ model }) => model === modelName);
+    const unpublished = findCheckedOutModel(shown, modelName);
     const [open, setOpen] = useState<string | null>(
         history[0]?.changeSetUuid ?? null,
     );

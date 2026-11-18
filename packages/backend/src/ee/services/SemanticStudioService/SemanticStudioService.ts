@@ -141,6 +141,7 @@ export type SemanticStudioServiceArguments = {
         | 'findChangeSets'
         | 'findModelHistory'
         | 'findDraftChanges'
+        | 'findWorkspaceDraftChanges'
         | 'findOtherDrafters'
         | 'swapDraftChanges'
         | 'withPublishLock'
@@ -560,12 +561,22 @@ export class SemanticStudioService extends BaseService {
         owner: DraftOwner,
         model: string | null,
     ): Promise<LoadedDraft> {
-        const [{ organizationUuid, repo, stored }, drafted] = await Promise.all(
-            [
-                this.loadStored(owner.projectUuid),
-                this.projectModelDocumentModel.findDraftChanges(owner),
-            ],
-        );
+        const [loaded, drafted] = await Promise.all([
+            this.loadStored(owner.projectUuid),
+            this.projectModelDocumentModel.findDraftChanges(owner),
+        ]);
+        return SemanticStudioService.foldOnLive(loaded, drafted, model);
+    }
+
+    private static foldOnLive(
+        {
+            organizationUuid,
+            repo,
+            stored,
+        }: Pick<LoadedDraft, 'organizationUuid' | 'repo' | 'stored'>,
+        drafted: StoredDraftChange[],
+        model: string | null,
+    ): LoadedDraft {
         const changes =
             model === null
                 ? drafted
@@ -1172,16 +1183,49 @@ export class SemanticStudioService extends BaseService {
         projectUuid: string,
     ): Promise<SemanticLayerDraft> {
         if (!(await this.canEditModels(user, projectUuid))) return EMPTY_DRAFT;
-        const [draft, settled] = await Promise.all([
-            this.loadDraft(
+        return this.describeDraft(
+            user,
+            projectUuid,
+            await this.loadDraft(
                 await this.findDraftOwner(projectUuid, user.userUuid),
                 null,
             ),
-            this.projectModelDocumentModel.findSettledDraftChanges(
+        );
+    }
+
+    /** One of this person's workspaces replayed on what is live, leaving out changes from before drafts had workspaces. */
+    async getWorkspaceDraft(
+        user: SessionUser,
+        projectUuid: string,
+        workspaceUuid: string,
+    ): Promise<SemanticLayerDraft> {
+        await this.getOwnWorkspace(user, projectUuid, workspaceUuid);
+        if (!(await this.canEditModels(user, projectUuid))) return EMPTY_DRAFT;
+        const [loaded, drafted] = await Promise.all([
+            this.loadStored(projectUuid),
+            this.projectModelDocumentModel.findWorkspaceDraftChanges({
+                projectUuid,
+                userUuid: user.userUuid,
+                workspaceUuid,
+            }),
+        ]);
+        return this.describeDraft(
+            user,
+            projectUuid,
+            SemanticStudioService.foldOnLive(loaded, drafted, null),
+        );
+    }
+
+    private async describeDraft(
+        user: SessionUser,
+        projectUuid: string,
+        draft: LoadedDraft,
+    ): Promise<SemanticLayerDraft> {
+        const settled =
+            await this.projectModelDocumentModel.findSettledDraftChanges(
                 projectUuid,
                 user.userUuid,
-            ),
-        ]);
+            );
         const others = SemanticStudioService.describeOtherDrafts(
             draft.live,
             await this.projectModelDocumentModel.findOtherDrafters(

@@ -319,6 +319,30 @@ export class SemanticStudioController extends BaseController {
     }
 
     /**
+     * One of your workspaces' changes replayed on what is live, without changes from before drafts had workspaces.
+     * @summary Get a Semantic Studio workspace's draft
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/workspaces/{workspaceUuid}/draft')
+    @OperationId('getSemanticStudioWorkspaceDraft')
+    async getWorkspaceDraft(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() workspaceUuid: UUID,
+    ): Promise<ApiSemanticLayerDraftResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().getWorkspaceDraft(
+                toSessionUser(req.account),
+                projectUuid,
+                workspaceUuid,
+            ),
+        };
+    }
+
+    /**
      * Ends one of your workspaces after its changes were discarded; it stays as history.
      * @summary Finish a Semantic Studio workspace
      */
