@@ -1057,6 +1057,8 @@ describe('ExternalConnectionService live source explores', () => {
         expect(fieldIds).not.toContain(
             'product_analytics_events_property_plan',
         );
+        // Its core fields too: a failed scan doesn't put every built-in field in use
+        expect(fieldIds).not.toContain('product_analytics_events_distinct_id');
     });
 
     it('keeps the current explores, and the edit, when a source that was never scanned cannot be scanned', async () => {
@@ -1843,8 +1845,29 @@ describe('ExternalConnectionService live source explores', () => {
             'old-conn',
         );
 
+        const fieldIds = savedFieldIds(projectModel);
+        expect(fieldIds).toContain('posthog_events_property_plan');
+        // Not the new source's core fields: the deleted source's charts may use the rest
+        expect(fieldIds).toContain('posthog_events_distinct_id');
+    });
+
+    it('keeps every built-in field in use when reattaching after a failed first scan', async () => {
+        respondToScan('fail');
+        const { service, projectModel } = buildService({
+            deletedSources: [deletedSource()],
+        });
+        await service.create(account, 'proj-1', postHogSource);
+        projectModel.replaceApiSourceExplores.mockClear();
+
+        await service.reattachLiveSource(
+            account,
+            'proj-1',
+            'conn-1',
+            'old-conn',
+        );
+
         expect(savedFieldIds(projectModel)).toContain(
-            'posthog_events_property_plan',
+            'posthog_events_distinct_id',
         );
     });
 

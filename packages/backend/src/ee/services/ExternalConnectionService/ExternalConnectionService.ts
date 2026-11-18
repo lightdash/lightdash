@@ -1420,35 +1420,40 @@ export class ExternalConnectionService extends BaseService {
             apiSource,
         );
         const scan = await getScan();
+        const { externalConnectionUuid, projectUuid } = connection;
+        const scannedFields = scan
+            ? toScannedLiveSourceFields(apiSource.connector, scan)
+            : [];
         if (scan) {
-            const { externalConnectionUuid, projectUuid } = connection;
-            const scannedFields = toScannedLiveSourceFields(
-                apiSource.connector,
-                scan,
-            );
             await this.externalConnectionModel.saveLiveSourceScan(
                 externalConnectionUuid,
                 { scannedAt: new Date().toISOString(), fields: scannedFields },
             );
-            const isExistingSource =
-                await this.projectModel.hasApiSourceExplores(
-                    projectUuid,
-                    externalConnectionUuid,
-                );
+        }
+        const isExistingSource = await this.projectModel.hasApiSourceExplores(
+            projectUuid,
+            externalConnectionUuid,
+        );
+        if (isExistingSource && scan) {
             await this.externalConnectionModel.initLiveSourceFieldEdits(
                 externalConnectionUuid,
-                isExistingSource
-                    ? getInitialLiveSourceFieldEdits({
-                          scannedFields,
-                          isExistingSource: true,
-                      })
-                    : getInitialLiveSourceFieldEdits({
-                          scannedFields,
-                          isExistingSource: false,
-                          base: getLiveWideDefinition(apiSource.connector),
-                          isOnByDefault: getLiveIntegration(apiSource.connector)
-                              .scan?.isOnByDefault,
-                      }),
+                getInitialLiveSourceFieldEdits({
+                    scannedFields,
+                    isExistingSource: true,
+                }),
+            );
+        }
+        // A new source starts with its core fields even when its first scan fails
+        if (!isExistingSource) {
+            await this.externalConnectionModel.initLiveSourceFieldEdits(
+                externalConnectionUuid,
+                getInitialLiveSourceFieldEdits({
+                    scannedFields,
+                    isExistingSource: false,
+                    base: getLiveWideDefinition(apiSource.connector),
+                    isOnByDefault: getLiveIntegration(apiSource.connector).scan
+                        ?.isOnByDefault,
+                }),
             );
         }
         await this.rebuildApiSourceExplores(
@@ -2092,14 +2097,14 @@ export class ExternalConnectionService extends BaseService {
                 projectUuid,
                 connectionUuid,
                 explorePrefix,
-                // Deleted before fields could be curated: every field stays in use
+                // Deleted before fields could be curated: every field stays
+                // in use, so its charts keep working instead of starting
+                // with a new source's core fields
                 deleted.fieldEdits ??
-                    (lastScan
-                        ? getInitialLiveSourceFieldEdits({
-                              scannedFields: lastScan.fields,
-                              isExistingSource: true,
-                          })
-                        : null),
+                    getInitialLiveSourceFieldEdits({
+                        scannedFields: lastScan?.fields ?? [],
+                        isExistingSource: true,
+                    }),
             );
         if (!isReattached) {
             throw new AlreadyExistsError(
