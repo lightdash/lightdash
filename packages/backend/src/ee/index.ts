@@ -290,6 +290,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                 userId,
                                 clientId,
                             }),
+                    onMobileAccessDenied: (grant) =>
+                        models
+                            .getMobilePushNotificationModel<MobilePushNotificationModel>()
+                            .deleteInstallationsOfGrant(grant),
                 }),
             linearAppService: ({ models, context, utils }) => {
                 const aiAgentReviewNotificationModel =

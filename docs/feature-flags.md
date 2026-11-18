@@ -492,7 +492,16 @@ With the flag off for an organisation, the server:
 - sends a browser sign-in for a mobile client back to the app with
   `error=access_denied`;
 - refuses QR code creation on the web with reason `mobile_app_disabled`;
-- sends no push notification and no live activity update for the organisation.
+- sends no push notification and no live activity update for the organisation;
+- refuses a new push installation, push-to-start token or live activity
+  registration with the 401 above, for any credential, and creates no start
+  attempts for a new prompt;
+- removes the push installations of a mobile grant when it denies that grant,
+  together with the installations the same person registered with a cookie
+  session;
+- removes the push installations a person registered with a cookie session
+  when it answers that person with the 401 above on the health check or on a
+  push registration route.
 
 OAuth responses carry `error_description = "mobile_org_disabled"` and
 `organization_uuid`. The organisation is always the one the presented
@@ -514,7 +523,12 @@ finishes.
 
 **Enable again.** The server keeps no revocation record. New sign-ins work at
 once, and an unexpired token works again. An app that received the denial has
-deleted its tokens, so the person signs in again.
+deleted its tokens, so the person signs in again. A device that the
+server answered with the denial has no push installation left, so it receives
+pushes again only after the app registers one, which needs a valid sign-in.
+This does not depend on a request from the app to remove the installation. A
+device that stayed offline for the whole time keeps its installation and its
+sign-in.
 
 **ENV.** `LIGHTDASH_DISABLE_FEATURE_FLAGS=mobile-app-access` turns mobile access
 off for the whole deployment. `LIGHTDASH_ENABLE_FEATURE_FLAGS=mobile-app-access`

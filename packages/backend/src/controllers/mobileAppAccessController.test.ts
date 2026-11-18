@@ -22,7 +22,10 @@ it('answers enabled with the organization of the sign-in and never caches', asyn
     });
     expect(controller.getHeaders()).toEqual({ 'Cache-Control': 'no-store' });
     expect(getAppAccess).toHaveBeenCalledWith(
-        expect.objectContaining({ organizationUuid }),
+        expect.objectContaining({
+            organizationUuid,
+            userUuid: account.user.userUuid,
+        }),
     );
 });
 

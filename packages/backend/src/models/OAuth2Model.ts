@@ -26,6 +26,7 @@ import {
 import {
     isMobileAppAccessEnabled,
     MobileOrgDisabledOAuthError,
+    type MobileGrant,
     type MobileOrgDisabledOAuthErrorName,
 } from '../auth/mobileAppAccess';
 import {
@@ -102,6 +103,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
         client: Pick<Client, 'redirectUris'>,
         organizationUuid: string,
         errorName: MobileOrgDisabledOAuthErrorName = 'access_denied',
+        grant: MobileGrant | null = null,
     ): Promise<void> {
         if (!isMobileOAuthClient(client.redirectUris)) return;
         if (
@@ -111,7 +113,11 @@ export class OAuth2Model implements AuthorizationCodeModel {
             )
         )
             return;
-        throw new MobileOrgDisabledOAuthError(organizationUuid, errorName);
+        throw new MobileOrgDisabledOAuthError(
+            organizationUuid,
+            errorName,
+            grant,
+        );
     }
 
     private getRotationGraceMs(): number {
@@ -511,7 +517,12 @@ export class OAuth2Model implements AuthorizationCodeModel {
         client: Client,
         user: UserWithOrganizationUuid,
     ): Promise<Token> {
-        await this.assertMobileAppAccess(client, user.organizationUuid);
+        await this.assertMobileAppAccess(
+            client,
+            user.organizationUuid,
+            'access_denied',
+            { userId: user.userId, clientId: client.id },
+        );
         const { parentRefreshToken = null, ...issued } = token;
         if (parentRefreshToken === null) {
             if (issued.agentConnectionGrantUuid != null)
@@ -783,6 +794,8 @@ export class OAuth2Model implements AuthorizationCodeModel {
         await this.assertMobileAppAccess(
             { redirectUris: result.redirect_uris },
             result.organization_uuid,
+            'access_denied',
+            { userId: result.user_id, clientId: result.client_id },
         );
 
         const sessionExpiresAt =
