@@ -422,6 +422,22 @@ export const createAnalyticsExplores = (): Explore[] => {
             table.dimensions.event_ts.description =
                 'Time of the successful authorized dashboard fetch. Capture begins after deployment; no historical loads are reconstructed.';
         }
+        if (name === 'query_events' || name === 'export_events') {
+            const { dimensions } = table;
+            dimensions.external_user_id.label = 'External viewer ID';
+            dimensions.external_user_id.description =
+                'Viewer ID supplied by the embed issuer. Separate from the registered User UUID.';
+            dimensions.embed_token_fingerprint.label =
+                'Embed token fingerprint';
+            dimensions.embed_token_fingerprint.description =
+                'Identifies one signed embed token when no external viewer ID was provided. A refreshed token may have a different fingerprint.';
+            dimensions.embed_tenant_attribute.label = 'Embed tenant attribute';
+            dimensions.embed_tenant_attribute.description =
+                'Name of the signed user attribute explicitly selected for reporting.';
+            dimensions.embed_tenant_id.label = 'Embed tenant ID';
+            dimensions.embed_tenant_id.description =
+                'Value of the selected tenant attribute; null when the embed issuer has not opted in.';
+        }
         if (name === 'query_events') {
             table.dimensions.semantic_field_references.hidden = true;
             metrics.unique_users.label = 'Querying users';

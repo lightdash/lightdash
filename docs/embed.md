@@ -169,6 +169,9 @@ This differs from ordinary signed-in user or direct service-account requests,
 which resolve stored user/group assignments. Changing an actor's assigned
 attributes therefore does not update the embedded viewer's attributes.
 
+For optional tenant attribution in Query Events and Export Events, see
+[embedded usage attribution](usage-analytics/embedded-attribution.md).
+
 ## Email identity
 
 The intrinsic `${lightdash.user.email}` attribute comes from JWT `user.email`.

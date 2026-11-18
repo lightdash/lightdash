@@ -236,6 +236,7 @@ import { omit } from 'es-toolkit/compat';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID } from 'node:crypto';
 import { Readable, Writable } from 'stream';
+import { getEmbeddedUsageAttribution } from '../../analytics/embeddedUsage';
 import {
     DownloadCsv,
     type OnboardingFlow,
@@ -4900,7 +4901,11 @@ export class AsyncQueryService extends ProjectService {
         let actorType = 'anonymous';
         if (account.isServiceAccount()) actorType = 'service_account';
         else if (account.isRegisteredUser()) actorType = 'registered_user';
+        const embeddedUsage = this.lightdashConfig.usageEvents.enabled
+            ? getEmbeddedUsageAttribution(account)
+            : undefined;
         const queryUsage: QueryUsageMetadata = {
+            ...(embeddedUsage ? { embeddedUsage } : {}),
             querySurface,
             startedAtMs: context.query_request?.startedAtMs ?? Date.now(),
             timingBasis: context.query_request ? 'request' : 'query_submission',

@@ -253,6 +253,10 @@ export const getEmbedThreadOwnerIdentifier = (
 export const EmbedJwtSchema = z
     .object({
         userAttributes: z.record(z.string(), z.unknown()).optional(),
+        usageAnalytics: z
+            .object({ tenantAttribute: z.string() })
+            .optional()
+            .catch(undefined),
         user: z
             .object({
                 externalId: z.string().nullish(),
@@ -436,6 +440,8 @@ export type CreateEmbedJwt = {
     actor?: EmbedActor;
     writeActions?: EmbedWriteActions;
     userAttributes?: { [key: string]: string };
+    /** Opt in to reporting one signed user attribute as a tenant identifier. */
+    usageAnalytics?: { tenantAttribute: string };
     user?: {
         email?: string;
         /** Must be unique per viewer within the organization: it owns the embedded AI agent threads that viewer starts, unless the token sets content.threadOwnershipIdentifier. */
