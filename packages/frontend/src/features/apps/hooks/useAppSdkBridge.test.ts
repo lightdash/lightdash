@@ -1225,6 +1225,110 @@ describe('url-state-change routing', () => {
     });
 });
 
+describe('app-event routing', () => {
+    const dispatchEmbedEvent = vi.fn();
+
+    beforeEach(() => {
+        vi.stubGlobal('fetch', vi.fn());
+        vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        mockUseEmbed.mockReturnValue({
+            embedToken: 'embed-jwt',
+            projectUuid: PROJECT_UUID,
+            dispatchEmbedEvent,
+        } as ReturnType<typeof mockUseEmbed>);
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.restoreAllMocks();
+        dispatchEmbedEvent.mockReset();
+        mockUseEmbed.mockReturnValue({
+            embedToken: undefined,
+            projectUuid: undefined,
+        });
+    });
+
+    function renderAppEventBridge() {
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge({
+                colorScheme: 'light',
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
+            }),
+        );
+    }
+
+    it('relays a valid event under the fixed appEvent type', () => {
+        renderAppEventBridge();
+
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:app-event',
+            name: 'import-confirmed',
+            payload: { planId: 'p1' },
+        });
+
+        expect(dispatchEmbedEvent).toHaveBeenCalledWith('appEvent', {
+            name: 'import-confirmed',
+            payload: { planId: 'p1' },
+        });
+    });
+
+    it('relays a missing payload as null', () => {
+        renderAppEventBridge();
+
+        dispatchFetchMessage({ type: 'lightdash:sdk:app-event', name: 'done' });
+
+        expect(dispatchEmbedEvent).toHaveBeenCalledWith('appEvent', {
+            name: 'done',
+            payload: null,
+        });
+    });
+
+    it('drops events with an invalid name', () => {
+        renderAppEventBridge();
+
+        for (const name of [undefined, 42, '', '   ', 'x'.repeat(101)]) {
+            dispatchFetchMessage({ type: 'lightdash:sdk:app-event', name });
+        }
+
+        expect(dispatchEmbedEvent).not.toHaveBeenCalled();
+    });
+
+    it('drops payloads over the serialized size cap', () => {
+        renderAppEventBridge();
+
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:app-event',
+            name: 'big',
+            payload: { blob: 'x'.repeat(64 * 1024) },
+        });
+
+        expect(dispatchEmbedEvent).not.toHaveBeenCalled();
+    });
+
+    it('does not relay outside an embed', () => {
+        mockUseEmbed.mockReturnValue({
+            embedToken: undefined,
+            projectUuid: undefined,
+            dispatchEmbedEvent,
+        } as ReturnType<typeof mockUseEmbed>);
+        renderAppEventBridge();
+
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:app-event',
+            name: 'import-confirmed',
+        });
+
+        expect(dispatchEmbedEvent).not.toHaveBeenCalled();
+    });
+});
+
 describe('chart-query routing', () => {
     beforeEach(() => {
         vi.stubGlobal('fetch', vi.fn());

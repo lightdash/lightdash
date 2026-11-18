@@ -47,6 +47,7 @@ import {
 } from '@lightdash/common';
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
 import { validate as isValidUuid } from 'uuid';
+import { LightdashEventType } from '../../../ee/features/embed/events/types';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import {
     getGdriveAccessToken,
@@ -428,6 +429,10 @@ export type ExternalRequestEvent = {
 // Caps what an app can push into the host page's URL / browser history.
 const MAX_URL_STATE_CHARS = 4096;
 
+// Keep in sync with the caps in packages/query-sdk/src/hostEvents.ts.
+const MAX_APP_EVENT_NAME_CHARS = 100;
+const MAX_APP_EVENT_PAYLOAD_CHARS = 64 * 1024;
+
 const UNAVAILABLE_INSIGHTS: DataAppInsightsPayload = {
     status: 'unavailable',
     analysisId: null,
@@ -704,7 +709,11 @@ export function useAppSdkBridge({
     //     endpoint so that existing data apps built before embedding existed
     //     don't break on `client.auth.getUser()`. The SDK protocol is
     //     unchanged — the rewrite happens entirely on the parent side.
-    const { embedToken, projectUuid: embedProjectUuid } = useEmbed();
+    const {
+        embedToken,
+        projectUuid: embedProjectUuid,
+        dispatchEmbedEvent,
+    } = useEmbed();
     const { health, user } = useApp();
 
     // Maps queryUuid → POST request id. The SDK transport assigns a fresh
@@ -1010,6 +1019,44 @@ export function useAppSdkBridge({
                     return;
                 }
                 onUrlStateChange(state as Record<string, unknown>);
+                return;
+            }
+
+            if (data?.type === 'lightdash:sdk:app-event') {
+                // Only an embed has a host page to tell.
+                if (!embedToken) return;
+                const reject = (reason: string) =>
+                    console.warn(`[lightdash] Ignoring app event: ${reason}`);
+                const name: unknown = data.name;
+                if (
+                    typeof name !== 'string' ||
+                    name.trim().length === 0 ||
+                    name.length > MAX_APP_EVENT_NAME_CHARS
+                ) {
+                    reject('invalid event name');
+                    return;
+                }
+                const payload: unknown = data.payload ?? null;
+                try {
+                    if (
+                        JSON.stringify(payload).length >
+                        MAX_APP_EVENT_PAYLOAD_CHARS
+                    ) {
+                        reject(
+                            `payload over ${MAX_APP_EVENT_PAYLOAD_CHARS} chars serialized`,
+                        );
+                        return;
+                    }
+                } catch {
+                    reject('payload not JSON-serializable');
+                    return;
+                }
+                // Fixed outer type: the app picks only the inner name, so it
+                // can't pose as one of Lightdash's own events.
+                dispatchEmbedEvent(LightdashEventType.AppEvent, {
+                    name,
+                    payload,
+                });
                 return;
             }
 
@@ -1822,6 +1869,7 @@ export function useAppSdkBridge({
             invalidateCache,
             embedToken,
             embedProjectUuid,
+            dispatchEmbedEvent,
             capabilities,
             onLineageAvailable,
             onLineageSelected,

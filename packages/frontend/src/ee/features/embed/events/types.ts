@@ -21,6 +21,7 @@ export enum LightdashEventType {
     Notification = 'notification',
     ContentHeightChanged = 'contentHeightChanged',
     ContentStateChanged = 'contentStateChanged',
+    AppEvent = 'appEvent',
 }
 
 /**
@@ -178,6 +179,16 @@ export type ContentStateChangedPayload =
     | ChartContentState
     | ExploreContentState;
 
+/**
+ * Payload for AppEvent events.
+ * Emitted by an embedded data app's own code; name and payload are app-defined.
+ */
+export type AppEventPayload = {
+    name: string;
+    // JSON value chosen by the app, null when it sent none
+    payload: unknown;
+};
+
 export type LightdashEventPayload =
     | FilterChangedPayload
     | ParameterChangedPayload
@@ -189,7 +200,8 @@ export type LightdashEventPayload =
     | DashboardSavedPayload
     | NotificationPayload
     | ContentHeightChangedPayload
-    | ContentStateChangedPayload;
+    | ContentStateChangedPayload
+    | AppEventPayload;
 
 /**
  * Generic event structure for all Lightdash events
@@ -215,6 +227,7 @@ type LightdashEventPayloads = {
     [LightdashEventType.Notification]: NotificationPayload;
     [LightdashEventType.ContentHeightChanged]: ContentHeightChangedPayload;
     [LightdashEventType.ContentStateChanged]: ContentStateChangedPayload;
+    [LightdashEventType.AppEvent]: AppEventPayload;
 };
 
 export type LightdashEventPayloadFor<K extends LightdashEventType> =
