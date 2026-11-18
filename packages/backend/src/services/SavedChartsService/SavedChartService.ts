@@ -1071,7 +1071,7 @@ export class SavedChartService
         if (
             auditedAbility.can(
                 'manage',
-                subject('CustomFields', projectContext),
+                subject('CustomFields', { ...projectContext }),
             )
         ) {
             return;
@@ -1121,7 +1121,7 @@ export class SavedChartService
             hasModifiedSqlCustomDimension &&
             auditedAbility.cannot(
                 'manage',
-                subject('CustomFields', projectContext),
+                subject('CustomFields', { ...projectContext }),
             )
         ) {
             throw new ForbiddenError(
@@ -1147,7 +1147,7 @@ export class SavedChartService
             hasModifiedSqlTableCalculation &&
             auditedAbility.cannot(
                 'manage',
-                subject('CustomSqlTableCalculations', projectContext),
+                subject('CustomSqlTableCalculations', { ...projectContext }),
             )
         ) {
             throw new ForbiddenError(
@@ -1161,7 +1161,7 @@ export class SavedChartService
             (!this.lightdashConfig.mergeQueryAuthoring.enabled ||
                 auditedAbility.cannot(
                     'manage',
-                    subject('MergeQuery', projectContext),
+                    subject('MergeQuery', { ...projectContext }),
                 ))
         ) {
             throw new ForbiddenError(

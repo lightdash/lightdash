@@ -189,6 +189,24 @@ describe('restoring a chart version', () => {
             null,
         );
     });
+    it('restores changed custom SQL for a user with the custom SQL scopes', async () => {
+        const admin: SessionUser = {
+            ...baseUser,
+            ability: new Ability<PossibleAbilities>([
+                { action: 'manage', subject: 'all' },
+            ]),
+        };
+        const restored = withQuery({
+            customDimensions: [sqlDimension],
+            tableCalculations: [sqlTableCalculation],
+            additionalMetrics: [handWrittenMetric],
+        });
+        const { chartService, savedChartModel } = setup(chart, restored);
+
+        await chartService.rollback(admin, chart.uuid, 'old-version');
+
+        expect(savedChartModel.createVersion).toHaveBeenCalled();
+    });
 });
 
 describe('restoring a dashboard', () => {

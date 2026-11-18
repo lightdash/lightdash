@@ -278,6 +278,28 @@ describe('Saving a chart with custom SQL', () => {
         ).toBe(200);
     });
 
+    it('saves a new version that changes a SQL table calculation for an editor with the custom SQL scopes', async () => {
+        const chartUuid = await authorAsAdmin(metricQuery({}));
+
+        expect(
+            (
+                await saveVersionAs(
+                    scopedEditor,
+                    chartUuid,
+                    metricQuery({
+                        tableCalculations: [
+                            {
+                                name: 'custom_sql',
+                                displayName: 'Custom SQL',
+                                sql: '2',
+                            },
+                        ],
+                    }),
+                )
+            ).status,
+        ).toBe(200);
+    });
+
     describe('custom metric SQL already saved on another chart', () => {
         it('saves a new chart with SQL saved on a chart the editor can view', async () => {
             const sql = uniqueSql();
