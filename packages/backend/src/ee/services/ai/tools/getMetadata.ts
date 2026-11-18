@@ -209,7 +209,7 @@ const renderExplore = (
     if (required) lines.push(`  ${required}`);
     if (parameters.length > 0) {
         lines.push(
-            '  ⚠ parameters — fields marked "requires parameters" return different results depending on these values; an unset parameter resolves to its default:',
+            '  parameters — fields marked "requires parameters" return different results depending on these values; an unset parameter resolves to its default:',
             ...parameters.map(renderParameter),
         );
     }
@@ -277,7 +277,7 @@ const renderField = (
     }
     if (field.parameterReferences && field.parameterReferences.length > 0) {
         lines.push(
-            `  ⚠ requires parameters: ${field.parameterReferences.join(
+            `  requires parameters: ${field.parameterReferences.join(
                 ', ',
             )} — what this field returns depends on their values; an unset parameter resolves to its default. See the explore metadata for the definitions.`,
         );

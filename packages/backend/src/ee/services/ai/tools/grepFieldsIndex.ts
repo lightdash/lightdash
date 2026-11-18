@@ -69,7 +69,7 @@ export const summarizeRequiredFilters = (
         return `${kind} ${fieldId} ${filter.operator}${values}`;
     });
     return {
-        line: `⚠ table filters: ${parts.join('; ')}`,
+        line: `table filters: ${parts.join('; ')}`,
         hasRequired: filters.some((filter) => filter.required !== false),
         hasSuggested: filters.some((filter) => filter.required === false),
     };
@@ -458,7 +458,7 @@ const fieldLine = (f: FieldEntry): string => {
         : '';
     const params =
         f.requiredParameters.length > 0
-            ? ` ⚠params: ${f.requiredParameters.join(',')}`
+            ? ` requires params: ${f.requiredParameters.join(',')}`
             : '';
     return `  ${f.path}  [${f.kind} ${f.type}]${verified}${params} ${f.label}${defaultTimeDimension}${desc}`;
 };
@@ -513,5 +513,5 @@ export const buildMetricAmbiguityNote = (hits: FieldEntry[]): string | null => {
     if (metricHits.some((h) => h.verifiedUsage > 0)) return null;
     const explores = new Set(metricHits.map((h) => h.exploreName));
     if (explores.size < 2) return null;
-    return `⚠ ${metricHits.length} metrics across ${explores.size} explores match — likely competing definitions of the same measure, and none is ✓verified. Prefer a verified metric if one exists; otherwise pick the most governed explore (e.g. a reporting "rpt_" model) and state in your answer which metric and explore you used.`;
+    return `${metricHits.length} metrics across ${explores.size} explores match — likely competing definitions of the same measure, and none is ✓verified. Prefer a verified metric if one exists; otherwise pick the most governed explore (e.g. a reporting "rpt_" model) and state in your answer which metric and explore you used.`;
 };

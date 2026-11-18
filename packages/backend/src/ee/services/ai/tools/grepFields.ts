@@ -320,7 +320,7 @@ const renderGroupedHits = (
                         : '';
                     const params =
                         field.requiredParameters.length > 0
-                            ? ` ⚠params: ${field.requiredParameters.join(',')}`
+                            ? ` requires params: ${field.requiredParameters.join(',')}`
                             : '';
                     return `  ${field.path}  [${field.kind} ${field.fieldType}]${verified}${params} ${field.label}${defaultTimeDimension}${annotation}`;
                 })
