@@ -1,3 +1,17 @@
+# [3.305.0](https://github.com/lightdash/lightdash/compare/3.304.1...3.305.0) (2026-11-18)
+
+
+### Bug Fixes
+
+* **ai-agent:** stack bars across y columns when there is no groupBy ([#32833](https://github.com/lightdash/lightdash/issues/32833)) ([7420716](https://github.com/lightdash/lightdash/commit/7420716ff7513c09b3fe6bb346c71654ab782f7d))
+* **ai:** refuse agent-initiated semantic-layer pull requests so dashboard edits are built now ([#32830](https://github.com/lightdash/lightdash/issues/32830)) ([ef72cd7](https://github.com/lightdash/lightdash/commit/ef72cd7f939fb658e6788ade842de7c0bc07e1af))
+* open Semantic Studio chat by default ([#32832](https://github.com/lightdash/lightdash/issues/32832)) ([1ae36a1](https://github.com/lightdash/lightdash/commit/1ae36a1e905384f37c7c121f2e0d4160ada1e87d))
+
+
+### Features
+
+* **pre-aggregates:** configure Parquet writer memory ([#32831](https://github.com/lightdash/lightdash/issues/32831)) ([97c3f23](https://github.com/lightdash/lightdash/commit/97c3f23ad5060c821ba86b8dfa23096ffa82765b))
+
 ## [3.304.1](https://github.com/lightdash/lightdash/compare/3.304.0...3.304.1) (2026-11-18)
 
 
