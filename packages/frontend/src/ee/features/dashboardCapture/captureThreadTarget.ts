@@ -1,4 +1,3 @@
-import { AI_THREAD_IMAGES_MAX_PER_THREAD } from '@lightdash/common';
 import { isLauncherAutoAgent } from '../aiCopilot/components/Launcher/launcherAgentSelection';
 import { type AiAgentLauncherState } from '../aiCopilot/store/aiAgentLauncherSlice';
 
@@ -22,11 +21,3 @@ export const captureThreadTarget = (
         agentUuid: panel.activeAgentUuid,
     };
 };
-
-/** Whether a recording's screenshots all fit in a conversation that already holds some. */
-export const screenshotsFitInThread = (
-    alreadyInThread: number,
-    screenshots: number,
-): boolean =>
-    screenshots === 0 ||
-    alreadyInThread + screenshots <= AI_THREAD_IMAGES_MAX_PER_THREAD;

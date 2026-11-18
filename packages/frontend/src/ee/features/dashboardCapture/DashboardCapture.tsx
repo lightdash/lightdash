@@ -61,10 +61,7 @@ import {
     imageToJpegBase64,
     tileTarget,
 } from './routeRequest';
-import {
-    FULL_CONVERSATION_NOTE,
-    useSendCaptureToAgent,
-} from './useSendCaptureToAgent';
+import { useSendCaptureToAgent } from './useSendCaptureToAgent';
 
 const UNTITLED = 'Untitled tile';
 const MAX_ROUTE_IMAGES = 5;
@@ -236,19 +233,13 @@ const DashboardCapture: FC = () => {
                     })),
                 ],
                 images,
-            })
-                .then(({ outcome }) => {
-                    if (outcome === 'new-because-full') {
-                        showToastInfo({ title: FULL_CONVERSATION_NOTE });
-                    }
-                })
-                .catch(() => {
-                    showToastError({
-                        title: 'Could not send your requests to the agent',
-                    });
+            }).catch(() => {
+                showToastError({
+                    title: 'Could not send your requests to the agent',
                 });
+            });
         },
-        [agentDispatch, agentUuid, sendToAgent, showToastError, showToastInfo],
+        [agentDispatch, agentUuid, sendToAgent, showToastError],
     );
 
     const handleCapture = useCallback(

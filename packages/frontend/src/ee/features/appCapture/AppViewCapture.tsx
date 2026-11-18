@@ -10,10 +10,7 @@ import {
     type CaptureSurface,
 } from '../capture';
 import { imageToJpegBase64 } from '../dashboardCapture/routeRequest';
-import {
-    FULL_CONVERSATION_NOTE,
-    useSendCaptureToAgent,
-} from '../dashboardCapture/useSendCaptureToAgent';
+import { useSendCaptureToAgent } from '../dashboardCapture/useSendCaptureToAgent';
 
 type Props = {
     projectUuid: string;
@@ -41,7 +38,7 @@ const AppViewCapture = forwardRef<CaptureHostHandle, Props>(
                     const images = await Promise.all(
                         result.images.map(imageToJpegBase64),
                     ).catch((): string[] => []);
-                    const { outcome } = await sendToAgent({
+                    await sendToAgent({
                         agentUuid,
                         buildPrompt: (hasImages) =>
                             buildAppCapturePrompt({
@@ -52,9 +49,6 @@ const AppViewCapture = forwardRef<CaptureHostHandle, Props>(
                         context: [],
                         images,
                     });
-                    if (outcome === 'new-because-full') {
-                        showToastInfo({ title: FULL_CONVERSATION_NOTE });
-                    }
                 } catch {
                     showToastError({
                         title: 'Could not send your questions to the agent',

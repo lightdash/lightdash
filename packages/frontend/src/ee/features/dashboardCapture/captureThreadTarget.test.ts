@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LAUNCHER_AUTO_AGENT } from '../aiCopilot/components/Launcher/launcherAgentSelection';
-import {
-    captureThreadTarget,
-    screenshotsFitInThread,
-} from './captureThreadTarget';
+import { captureThreadTarget } from './captureThreadTarget';
 
 const open = {
     mode: 'panel-open' as const,
@@ -44,21 +41,5 @@ describe('captureThreadTarget', () => {
         expect(
             captureThreadTarget({ ...open, activeAgentUuid: null }),
         ).toBeNull();
-    });
-});
-
-describe('screenshotsFitInThread', () => {
-    it('fits when the conversation has room for every screenshot', () => {
-        expect(screenshotsFitInThread(0, 5)).toBe(true);
-        expect(screenshotsFitInThread(5, 5)).toBe(true);
-    });
-
-    it('does not fit when any screenshot would go over the limit', () => {
-        expect(screenshotsFitInThread(8, 3)).toBe(false);
-        expect(screenshotsFitInThread(10, 1)).toBe(false);
-    });
-
-    it('always fits a recording with no screenshots', () => {
-        expect(screenshotsFitInThread(10, 0)).toBe(true);
     });
 });
