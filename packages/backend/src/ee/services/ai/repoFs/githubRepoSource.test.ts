@@ -103,8 +103,8 @@ describe('githubRepoSource secrets denylist', () => {
     ])('does not list or read the denied path %s', async (path) => {
         mockGetRepoTree.mockResolvedValue({
             files: [
-                { path, size: 10 },
-                { path: 'models/x.sql', size: 20 },
+                { path, size: 10, sha: '' },
+                { path: 'models/x.sql', size: 20, sha: '' },
             ],
             truncated: false,
             sha: 'tree-sha',
@@ -258,7 +258,7 @@ describe('githubRepoSource.readAll', () => {
     >;
     const listed = (size: number) =>
         mockGetRepoTree.mockResolvedValue({
-            files: [{ path: 'models/a.sql', size }],
+            files: [{ path: 'models/a.sql', size, sha: '' }],
             truncated: false,
             sha: 'tree-sha',
         });

@@ -61,6 +61,10 @@ describe('export usage events', () => {
                     event_ts: expect.any(String),
                     schema_version: 1,
                     project_id: 'project-1',
+                    external_user_id: null,
+                    embed_token_fingerprint: null,
+                    embed_tenant_attribute: null,
+                    embed_tenant_id: null,
                     query_id: null,
                     format: 'csv',
                     context: null,
@@ -82,9 +86,21 @@ describe('export usage events', () => {
         for (const format of ['csv', 'xlsx', 'gsheets']) {
             sink.handle({
                 event: 'download_results.completed',
-                userId: 'user-1',
+                ...(format === 'csv'
+                    ? { anonymousId: 'embed' }
+                    : { userId: 'user-1' }),
                 properties: {
                     ...properties,
+                    ...(format === 'csv'
+                        ? {
+                              embeddedUsage: {
+                                  externalUserId: 'viewer',
+                                  tenantId: 'brand-a',
+                                  tenantAttribute: 'brand',
+                                  tokenFingerprint: null,
+                              },
+                          }
+                        : {}),
                     queryId: 'query-1',
                     fileType: format,
                     jobId: 'job-1',
@@ -134,8 +150,10 @@ describe('export usage events', () => {
                 `SELECT ${metrics.total_events.compiledSql} AS events, ${metrics.unique_users.compiledSql} AS users FROM export_events`,
             );
             expect(result.getRowObjects()).toEqual([{ events: 3n, users: 1n }]);
+            const { compiledSql: tenantId } =
+                explore.tables.export_events.dimensions.embed_tenant_id;
             const rows = await db.runAndReadAll(
-                'SELECT query_id, format, job_id, table_id, num_rows FROM export_events ORDER BY format',
+                `SELECT query_id, format, job_id, table_id, num_rows, ${tenantId} AS tenant_id FROM export_events ORDER BY format`,
             );
             expect(rows.getRowObjects()).toEqual(
                 ['csv', 'gsheets', 'xlsx'].map((format) => ({
@@ -144,6 +162,7 @@ describe('export usage events', () => {
                     job_id: 'job-1',
                     table_id: 'table-1',
                     num_rows: 25n,
+                    tenant_id: format === 'csv' ? 'brand-a' : null,
                 })),
             );
         } finally {

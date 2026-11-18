@@ -38,9 +38,34 @@ export const LIVE_SOURCE_UPSTREAM_ERROR_CODES = [
 export type LiveSourceUpstreamErrorCode =
     (typeof LIVE_SOURCE_UPSTREAM_ERROR_CODES)[number];
 
+export const LIVE_SOURCE_INTERNAL_ERROR_CODES = [
+    'live_source.internal.invalid_request',
+    'live_source.internal.error',
+] as const;
+
+/** Lightdash failed: our own validation rejected the request, or something broke. */
+export type LiveSourceInternalErrorCode =
+    (typeof LIVE_SOURCE_INTERNAL_ERROR_CODES)[number];
+
 export type LiveSourceErrorCode =
     | LiveSourceRefusalCode
+    | LiveSourceInternalErrorCode
     | LiveSourceUpstreamErrorCode;
+
+/**
+ * Who a failed live data source query is on: Lightdash declined it
+ * (`refused`), Lightdash failed (`internal`), or the integration was called
+ * and failed (`integration`).
+ */
+export type LiveSourceErrorOrigin = 'refused' | 'internal' | 'integration';
+
+export const getLiveSourceErrorOrigin = (
+    code: LiveSourceErrorCode,
+): LiveSourceErrorOrigin => {
+    if (code.startsWith('live_source.refused.')) return 'refused';
+    if (code.startsWith('live_source.internal.')) return 'internal';
+    return 'integration';
+};
 
 /** What a live data source error carries in `LightdashError.data`. */
 export type LiveSourceErrorData = {

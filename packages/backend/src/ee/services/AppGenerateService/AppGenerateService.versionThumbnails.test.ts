@@ -354,6 +354,7 @@ function buildScenario({
         } as never,
         appModel: appModel as never,
         chartRegistryClient: {} as never,
+        contentDraftModel: {} as never,
         contentVerificationModel: {
             getByContent: async () => null,
             verify: async () => undefined,
@@ -386,6 +387,7 @@ function buildScenario({
         } as never,
         coderService: {} as never,
         documentService: {} as never,
+        composerChartService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,

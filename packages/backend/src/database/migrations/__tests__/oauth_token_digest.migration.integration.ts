@@ -91,8 +91,9 @@ const fixture = async (form: Form, mode: Mode = 'legacy', grace = 60) => {
         get: async ({ featureFlagId }) => ({
             id: featureFlagId,
             enabled:
-                featureFlagId === FeatureFlags.AgentIdentity &&
-                mode !== 'legacy',
+                featureFlagId === FeatureFlags.MobileAppAccess ||
+                (featureFlagId === FeatureFlags.AgentIdentity &&
+                    mode !== 'legacy'),
         }),
     });
     const service = new OAuthService({

@@ -201,6 +201,7 @@ function buildService(overrides: {
     appModel?: Record<string, unknown>;
     projectModel?: Record<string, unknown>;
     savedChartModel?: Record<string, unknown>;
+    composerChartService?: Record<string, unknown>;
     chartRegistryClient?: Record<string, unknown>;
     s3ClientOverride?: { client: never; bucket: string };
     ability?: { can: () => boolean; cannot: () => boolean };
@@ -211,6 +212,9 @@ function buildService(overrides: {
         appModel = {},
         projectModel = {},
         savedChartModel = {},
+        composerChartService = {
+            repinUsingDataAppViz: vi.fn().mockResolvedValue(0),
+        },
         chartRegistryClient = {},
         s3ClientOverride,
         ability = { can: () => true, cannot: () => false },
@@ -275,6 +279,7 @@ function buildService(overrides: {
         spacePermissionService: spacePermissionService as never,
         coderService: {} as never,
         documentService: {} as never,
+        composerChartService: composerChartService as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,
@@ -282,6 +287,7 @@ function buildService(overrides: {
         sandboxRegistryModel: {} as never,
         orgAiCopilotConfigResolver: {} as never,
         chartRegistryClient: fullChartRegistryClient as never,
+        contentDraftModel: {} as never,
         contentVerificationModel: {
             getByContent: async () => null,
             verify: async () => undefined,
@@ -1115,10 +1121,12 @@ describe('upgradeConsumingCharts sweep', () => {
     };
 
     it('repins consumers onto the appended version and reports the count', async () => {
-        const repinChartsUsingDataAppViz = vi.fn().mockResolvedValue(5);
+        const repinChartsUsingDataAppViz = vi.fn().mockResolvedValue(3);
+        const repinUsingDataAppViz = vi.fn().mockResolvedValue(2);
         const svc = buildService({
             appModel: upgradeAppModel(),
             savedChartModel: { repinChartsUsingDataAppViz },
+            composerChartService: { repinUsingDataAppViz },
             chartRegistryClient: await upgradeRegistryClient(),
             s3ClientOverride: makeFakeS3(),
         });
@@ -1134,6 +1142,13 @@ describe('upgradeConsumingCharts sweep', () => {
             PROJECT_UUID,
             'existing-app-uuid',
             3,
+        );
+        // Composer charts append a version authored by the upgrading admin.
+        expect(repinUsingDataAppViz).toHaveBeenCalledWith(
+            PROJECT_UUID,
+            'existing-app-uuid',
+            3,
+            fakeUser.userUuid,
         );
         expect(result).toMatchObject({
             action: 'upgraded',

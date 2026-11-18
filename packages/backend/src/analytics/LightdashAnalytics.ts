@@ -27,6 +27,8 @@ import {
     LightdashPage,
     LightdashRequestMethodHeader,
     LightdashUser,
+    LiveSourceErrorOrigin,
+    LiveSourceInternalErrorCode,
     LiveSourceRefusalCode,
     LiveSourceUpstreamErrorCode,
     MergeJoinType,
@@ -75,6 +77,7 @@ import {
     type DataAppTemplate,
     type DataAppViewContext,
     type DataAppViewOutcome,
+    type EmbeddedUsageAttribution,
     type FunnelChartDataInput,
     type MapChartLocation,
     type MapChartType,
@@ -102,7 +105,8 @@ import Logger from '../logging/logger';
 import type { ExecutionContextInfo } from '../logging/winston';
 import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
 import { type PersistentDownloadFileSource } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
-import type { ApiQueryOutcome } from '../services/QuerySourceService/api/apiQueryOutcome';
+import type { LiveQueryOutcome } from '../services/QuerySourceService/live/query/outcome';
+import type { LiveQueryShape } from '../services/QuerySourceService/live/query/queryShape';
 import { VERSION } from '../version';
 import {
     isAiUsageEvent,
@@ -110,6 +114,7 @@ import {
     type AiKeyManagement,
     type AiUsageEvent,
 } from './aiUsage';
+import { getEmbeddedUsageAttribution } from './embeddedUsage';
 import type { ContentViewMetadata } from './eventStream/contentViewsStream';
 import type { EventStreamSink } from './eventStream/EventStreamSink';
 import type {
@@ -814,6 +819,8 @@ export type QueryCompletedEvent = BaseTrack & {
         schedulerId?: string | null;
         /** Usage-store only; stripped before product analytics/event metrics. */
         semanticUsage?: SemanticQueryUsage;
+        /** Usage-store only; stripped before product analytics/event metrics. */
+        embeddedUsage?: EmbeddedUsageAttribution;
         /** Usage-store only; never sent to product analytics/event metrics. */
         errorMessage?: string | null;
         warehouseExecutionTimeMs: number | null;
@@ -823,10 +830,11 @@ export type QueryCompletedEvent = BaseTrack & {
         totalRowCount: number | null;
         columnsCount: number | null;
         // Set only when executionSource is 'live_source'.
-        apiConnector?: ApiConnectorType;
-        apiQueryOutcome?: ApiQueryOutcome;
+        integration?: ApiConnectorType;
+        apiQueryOutcome?: LiveQueryOutcome;
         /** Set only when a live_source query failed. */
-        liveSourceErrorCode?: LiveSourceUpstreamErrorCode;
+        errorCode?: LiveSourceInternalErrorCode | LiveSourceUpstreamErrorCode;
+        errorOrigin?: LiveSourceErrorOrigin;
         truncated?: boolean;
     };
 };
@@ -840,8 +848,11 @@ export type LiveSourceQueryRefusedEvent = BaseTrack & {
         externalConnectionUuid: string;
         integration: ApiConnectorType;
         exploreName: string;
-        code: LiveSourceRefusalCode;
+        errorOrigin: 'refused';
+        errorCode: LiveSourceRefusalCode;
         fieldId: string | null;
+        /** What the query asked for, with no filter values or custom SQL. */
+        queryShape: LiveQueryShape;
         querySurface: QuerySurface | null;
         context: QueryExecutionContext;
     };
@@ -2035,6 +2046,7 @@ export type DashboardView = BaseTrack & {
     userId: string;
     properties: {
         dashboardId: string;
+        dashboardSlug?: string;
         projectId: string;
         organizationId: string;
         parametersCount: number;
@@ -2594,6 +2606,7 @@ export type DataAppViewedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         appUuid: string;
+        appSlug?: string;
         viewContext?: DataAppViewContext | 'embed' | 'mcp';
         version?: number;
         navigationId?: string | null;
@@ -3137,6 +3150,8 @@ export type DownloadCsv = BaseTrack & {
         | 'download_results.error';
     userId: string;
     properties: {
+        /** Usage-store only; stripped before product analytics/event metrics. */
+        embeddedUsage?: EmbeddedUsageAttribution;
         jobId?: string;
         queryId?: string;
         organizationId?: string;
@@ -3276,6 +3291,14 @@ export type RoadmapProjectFollowRequestedEvent = BaseTrack & {
         organizationId: string;
         roadmapProjectId: string;
         noteLength: number;
+    };
+};
+
+export type BillingPortalLinkCreatedEvent = BaseTrack & {
+    event: 'billing_portal.link_created';
+    userId: string;
+    properties: {
+        organizationId: string;
     };
 };
 
@@ -5104,6 +5127,7 @@ type TypedEvent =
     | UserAttributesPageEvent
     | RoadmapViewedEvent
     | RoadmapProjectFollowRequestedEvent
+    | BillingPortalLinkCreatedEvent
     | UserAttributeCreateAndUpdateEvent
     | UserAttributeDeleteEvent
     | MetricFlowQueryEvent
@@ -5342,6 +5366,11 @@ export class LightdashAnalytics extends Analytics {
                 : payload,
         );
 
+        if (payload.properties && 'embeddedUsage' in payload.properties) {
+            const { embeddedUsage, ...properties } = payload.properties;
+            payload = { ...payload, properties } as typeof payload;
+        }
+
         if (
             payload.event === 'query.completed' &&
             payload.properties &&
@@ -5516,6 +5545,18 @@ export class LightdashAnalytics extends Analytics {
         // TODO: Could these be top-level fields rather than properties?
         payload.properties.organizationId =
             account.organization.organizationUuid;
+
+        if (
+            this.lightdashConfig.usageEvents.enabled &&
+            (payload.event === 'download_results.started' ||
+                payload.event === 'download_results.completed' ||
+                payload.event === 'download_results.error')
+        ) {
+            const embeddedUsage = getEmbeddedUsageAttribution(account);
+            if (embeddedUsage) {
+                payload.properties = { ...payload.properties, embeddedUsage };
+            }
+        }
 
         if (contentView) this.track(payload, contentView);
         else this.track(payload);

@@ -42,6 +42,7 @@ import {
     getDimensionMapFromTables,
     getEmbedExcludedParameterKeys,
     getEmbedParameterValues,
+    getEmbedThreadOwnerIdentifier,
     getEmbedWriteSpaceUuids,
     getExecutableFilterFieldIds,
     getFilterInteractivityValue,
@@ -58,6 +59,7 @@ import {
     isDashboardSqlChartTile,
     isEmbedReadOnlyAiAgentToken,
     isExploreError,
+    isExternalFetchComposerChartContext,
     isExternalFetchDocumentContext,
     isFilterInteractivityEnabled,
     isFilterLockedOnTab,
@@ -2251,6 +2253,7 @@ export class EmbedService extends BaseService {
                 dataAppViz.app_id,
             ),
             'embed',
+            dataAppViz.slug,
         );
     }
 
@@ -2295,8 +2298,11 @@ export class EmbedService extends BaseService {
         dataAppVizUuid: string,
         chartContext: ExternalFetchRequest['chartContext'],
     ): Promise<void> {
-        // Documents are not embeddable, so an embed can never render one.
-        if (isExternalFetchDocumentContext(chartContext)) {
+        // Documents and composer charts do not render in embeds.
+        if (
+            isExternalFetchDocumentContext(chartContext) ||
+            isExternalFetchComposerChartContext(chartContext)
+        ) {
             throw new ForbiddenError(
                 'Not authorized to access this visualization',
             );
@@ -2378,6 +2384,7 @@ export class EmbedService extends BaseService {
                 dataAppViz.app_id,
             ),
             'embed',
+            dataAppViz.slug,
         );
     }
 
@@ -3291,6 +3298,7 @@ export class EmbedService extends BaseService {
                 canExportPagePdf: false,
             },
             userAttributes: decodedToken.userAttributes,
+            usageAnalytics: decodedToken.usageAnalytics,
             user: decodedToken.user,
             iat: decodedToken.iat,
             exp: decodedToken.exp,
@@ -3371,7 +3379,8 @@ export class EmbedService extends BaseService {
             await this.projectModel.getSummary(projectUuid);
 
         if (isEmbedReadOnlyAiAgentToken(decodedToken)) {
-            const hasExternalUserId = !!decodedToken.user?.externalId;
+            const hasThreadOwner =
+                getEmbedThreadOwnerIdentifier(decodedToken) !== null;
             const aiAgentAccess = EmbedService.getEmbedAiAgentAccess({
                 auditedAbility: this.createAuditedAbility(embedWriteUser),
                 decodedToken,
@@ -3383,17 +3392,26 @@ export class EmbedService extends BaseService {
                 canUpdateSavedChart: false,
                 canCreateSavedChart: false,
                 writableSpaces: [],
-                ...(hasExternalUserId
+                ...(hasThreadOwner
                     ? aiAgentAccess
                     : {
                           canUseAiAgent: false,
                           aiAgentErrorMessage:
-                              'Embed tokens without write spaces must include user.externalId',
+                              'Embed tokens without write spaces must include user.externalId or content.threadOwnershipIdentifier',
                       }),
             };
         }
 
         const writeSpaceUuids = getEmbedWriteSpaceUuids(writeActions);
+        if (writeSpaceUuids.length === 0) {
+            return {
+                canUpdateDashboard: false,
+                canUpdateSavedChart: false,
+                canCreateSavedChart: false,
+                writableSpaces: [],
+                canUseAiAgent: false,
+            };
+        }
 
         try {
             const spaceAccessResults =
@@ -3634,7 +3652,7 @@ export class EmbedService extends BaseService {
         }
 
         if (
-            (!isApiAccess &&
+            (decodedToken.content.type === 'aiAgent' &&
                 writeActions &&
                 getEmbedWriteSpaceUuids(writeActions).length === 0 &&
                 !isEmbedReadOnlyAiAgentToken(decodedToken)) ||

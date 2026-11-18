@@ -228,8 +228,8 @@ export type CreateWebAppThread = {
     agentUuid: string | null;
     // Every write space of the embed token; the first one is used for attribution.
     embedSpaceUuids?: string[];
-    // The embed token's viewer; owns the thread when the token has no write spaces.
-    embedExternalUserId?: string | null;
+    // The embed token's thread owner: its threadOwnershipIdentifier, else its viewer.
+    embedOwnerIdentifier?: string | null;
     battleProfile?: AiAgentBattleProfile | null;
     binding?: AiThreadBinding | null;
     threadContext?: string | null;
@@ -291,6 +291,8 @@ export type AiWebAppPrompt = AiPrompt & {
     userUuid: string;
     /** Set when the thread belongs to an embedded agent chat. */
     threadEmbedSpaceUuid: string | null;
+    /** Thread owner from the embed token that started the thread. */
+    threadEmbedOwnerIdentifier: string | null;
     /** Viewer id from the embed token that sent this prompt. */
     externalUserId: string | null;
 };
@@ -320,6 +322,12 @@ export type AiPromptContextItemInput =
           dashboardUuid: string;
           dashboardSlug?: string | null;
           runtimeOverrides?: AiDashboardRuntimeOverrides;
+      }
+    | {
+          // A saved SQL chart; the server snapshots its name and latest version.
+          type: 'sql_chart';
+          sqlChartUuid: string;
+          sqlChartSlug: string | null;
       }
     | {
           type: 'thread';
@@ -488,6 +496,13 @@ export type AiPromptContextItem =
           pinnedVersionUuid: string | null;
           displayName: string | null;
           runtimeOverrides: AiDashboardRuntimeOverrides | null;
+      }
+    | {
+          type: 'sql_chart';
+          sqlChartUuid: string;
+          sqlChartSlug: string | null;
+          pinnedVersionUuid: string | null;
+          displayName: string | null;
       }
     | {
           type: 'thread';

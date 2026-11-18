@@ -65,6 +65,7 @@ const chartTypeApp: App = {
 type Design = { designUuid: string; organizationUuid: string };
 
 type Doc = { documentUuid: string; spaceUuid: string };
+type SqlChart = { savedSqlUuid: string; spaceUuid: string };
 type ThreadFile = {
     uuid: string;
     ownerUuid: string;
@@ -78,10 +79,12 @@ const buildService = (
         documents = [],
         documentsEnabled = true,
         threadFiles = [],
+        sqlCharts = [],
     }: {
         documents?: Doc[];
         documentsEnabled?: boolean;
         threadFiles?: ThreadFile[];
+        sqlCharts?: SqlChart[];
     } = {},
 ) => {
     // Mirrors the model predicate: own, unclaimed files in the org.
@@ -116,6 +119,24 @@ const buildService = (
                     if (!document)
                         throw new NotFoundError('Document not found');
                     return document;
+                },
+            ),
+    };
+    const savedSqlService = {
+        getSqlChart: vi
+            .fn()
+            .mockImplementation(
+                async (
+                    _user: SessionUser,
+                    _projectUuid: string,
+                    savedSqlUuid: string,
+                ) => {
+                    const chart = sqlCharts.find(
+                        (c) => c.savedSqlUuid === savedSqlUuid,
+                    );
+                    if (!chart)
+                        throw new NotFoundError('Saved SQL Chart not found');
+                    return { savedSqlUuid, space: { uuid: chart.spaceUuid } };
                 },
             ),
     };
@@ -156,6 +177,7 @@ const buildService = (
         appGenerateService,
         organizationDesignModel,
         documentService,
+        savedSqlService,
         featureFlagService,
         aiThreadFileModel,
         analytics: { track: vi.fn() },
@@ -182,6 +204,7 @@ const buildService = (
         appGenerateService,
         organizationDesignModel,
         documentService,
+        savedSqlService,
         aiThreadFileModel,
     };
 };
@@ -404,5 +427,44 @@ describe('validatePromptContextAccess for attached documents', () => {
                 ['space-1'],
             ),
         ).rejects.toThrow(ForbiddenError);
+    });
+});
+
+describe('validatePromptContextAccess for SQL charts', () => {
+    const sqlChart: SqlChart = {
+        savedSqlUuid: 'sql-uuid',
+        spaceUuid: 'space-1',
+    };
+    const item = {
+        type: 'sql_chart',
+        sqlChartUuid: 'sql-uuid',
+        sqlChartSlug: 'revenue-sql',
+    } as const;
+
+    it('accepts a SQL chart the user can view, checked in the agent project', async () => {
+        const { validate, savedSqlService } = buildService([], [], {
+            sqlCharts: [sqlChart],
+        });
+
+        await expect(validate([item])).resolves.toEqual([item]);
+        expect(savedSqlService.getSqlChart).toHaveBeenCalledWith(
+            user,
+            PROJECT_UUID,
+            'sql-uuid',
+        );
+    });
+
+    it('rejects a SQL chart the user cannot view', async () => {
+        const { validate } = buildService([], [], { sqlCharts: [] });
+
+        await expect(validate([item])).rejects.toThrow(NotFoundError);
+    });
+
+    it('rejects a SQL chart outside the embedded space', async () => {
+        const { validate } = buildService([], [], { sqlCharts: [sqlChart] });
+
+        await expect(validate([item], ['space-2'])).rejects.toThrow(
+            'Pinned SQL chart is outside the embedded space',
+        );
     });
 });

@@ -33,6 +33,7 @@ describe('ProjectModelDocumentModel', () => {
             {
                 projectUuid: 'project',
                 userUuid: 'user',
+                workspaceUuid: null,
                 source: { kind: 'undo', reverts: [] },
                 readVersions: new Map(),
                 documents: [{ name: 'orders', content: 'type: model' }],
@@ -58,4 +59,31 @@ describe('ProjectModelDocumentModel', () => {
             ),
         ).toBe(true);
     });
+
+    it.each([
+        ['an active workspace', 'workspace', ['workspace']],
+        ['no active workspace', null, []],
+    ])(
+        'reads the draft of %s with the changes from before workspaces',
+        async (_case, workspaceUuid, workspaceBindings) => {
+            tracker.on.select('project_model_draft_changes').response([]);
+            await model.findDraftChanges({
+                projectUuid: 'project',
+                userUuid: 'user',
+                workspaceUuid,
+            });
+            const [{ sql, bindings }] = tracker.history.select;
+            expect(sql).toContain(
+                workspaceUuid === null
+                    ? '"project_model_draft_changes"."workspace_uuid" is null'
+                    : '("project_model_draft_changes"."workspace_uuid" is null or "project_model_draft_changes"."workspace_uuid" = $1)',
+            );
+            expect(bindings).toEqual([
+                ...workspaceBindings,
+                'project',
+                'user',
+                'draft',
+            ]);
+        },
+    );
 });

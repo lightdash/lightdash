@@ -258,6 +258,7 @@ interface ServiceManifest {
     appStateService: unknown;
     projectContextService: unknown;
     roadmapService: unknown;
+    billingService: unknown;
     scimService: unknown;
     releaseHighlightsService: unknown;
     supportService: unknown;
@@ -553,6 +554,8 @@ export class ServiceRepository
                     organizationMemberProfileModel:
                         this.models.getOrganizationMemberProfileModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    getComposerChartService: () =>
+                        this.getComposerChartService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
                 }),
@@ -831,6 +834,7 @@ export class ServiceRepository
                     userModel: this.models.getUserModel(),
                     oauthModel: this.models.getOauthModel(),
                     getUserService: () => this.getUserService(),
+                    getProjectService: () => this.getProjectService(),
                     analytics: this.context.lightdashAnalytics,
                 }),
         );
@@ -1504,6 +1508,7 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     lightdashConfig: this.context.lightdashConfig,
                     projectModel: this.models.getProjectModel(),
+                    getProjectService: () => this.getProjectService(),
                     savedChartModel: this.models.getSavedChartModel(),
                     spaceModel: this.models.getSpaceModel(),
                     analyticsModel: this.models.getAnalyticsModel(),
@@ -1911,6 +1916,8 @@ export class ServiceRepository
                     directAccessService: this.getDirectAccessService(),
                     warehouseConnectionModel:
                         this.models.getWarehouseConnectionModel(),
+                    composerChartModel: this.models.getComposerChartModel(),
+                    composerChartService: this.getComposerChartService(),
                     // Lazy accessor: AppGenerateService depends on
                     // CoderService, so resolving it eagerly here would cycle.
                     // Core builds resolve undefined and data-app slug renames
@@ -2008,11 +2015,13 @@ export class ServiceRepository
             () =>
                 new ComposerChartService({
                     composerChartModel: this.models.getComposerChartModel(),
+                    appModel: this.models.getAppModel(),
                     dashboardModel: this.models.getDashboardModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     spacePermissionService: this.getSpacePermissionService(),
                     queryHistoryModel: this.models.getQueryHistoryModel(),
                     getQuerySourceService: () => this.getQuerySourceService(),
+                    getAsyncQueryService: () => this.getAsyncQueryService(),
                 }),
         );
     }
@@ -2194,6 +2203,10 @@ export class ServiceRepository
 
     public getRoadmapService<RoadmapServiceImplT>(): RoadmapServiceImplT {
         return this.getService('roadmapService');
+    }
+
+    public getBillingService<BillingServiceImplT>(): BillingServiceImplT {
+        return this.getService('billingService');
     }
 
     public getEmbedService<EmbedServiceImplT>(): EmbedServiceImplT {

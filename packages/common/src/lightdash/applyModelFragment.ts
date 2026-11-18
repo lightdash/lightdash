@@ -590,6 +590,6 @@ export const applyModelFragment = ({
     if (changes.length === 0) return { contents, changes, refusals };
 
     validateModelDocument(doc, filename);
-    // ponytail: whole-document toString reflows hand-written YAML; use node-range edits for files people format.
+    // Whole-document toString reflows hand-written YAML; use node-range edits for files people format.
     return { contents: doc.toString(), changes, refusals };
 };

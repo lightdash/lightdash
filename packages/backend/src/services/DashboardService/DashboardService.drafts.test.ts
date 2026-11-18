@@ -105,6 +105,10 @@ const buildService = (overrides: Overrides = {}) => {
             get: vi.fn().mockResolvedValue({ enabled: false }),
         },
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
+        getComposerChartService: () => ({
+            getParameterReferences: vi.fn(),
+            assertCanRestore: vi.fn(),
+        }),
         lightdashConfig: {
             ...lightdashConfigMock,
             softDelete: {

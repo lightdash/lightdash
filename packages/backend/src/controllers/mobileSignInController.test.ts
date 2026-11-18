@@ -56,6 +56,7 @@ describe('MobileSignInController', () => {
             expect.objectContaining({ userUuid: sessionUser.userUuid }),
             'session-0000-test',
             'show',
+            undefined,
         );
     });
 
@@ -129,3 +130,20 @@ describe('MobileSignInController', () => {
         ).rejects.toThrow('reason');
     });
 });
+
+it.each([null, '12345678-1234-4abc-8abc-123456789abc'])(
+    'passes the nullable source project to mint: %s',
+    async (sourceProjectUuid) => {
+        const { controller, service } = createController();
+        await controller.mint(browserRequest(), {
+            reason: 'show',
+            sourceProjectUuid,
+        });
+        expect(service.mint).toHaveBeenCalledWith(
+            expect.objectContaining({ userUuid: sessionUser.userUuid }),
+            'session-0000-test',
+            'show',
+            sourceProjectUuid,
+        );
+    },
+);

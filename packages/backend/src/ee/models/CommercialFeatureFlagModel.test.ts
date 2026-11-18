@@ -277,3 +277,42 @@ describe('CommercialFeatureFlagModel data apps', () => {
         ).resolves.toBe(true);
     });
 });
+
+describe('CommercialFeatureFlagModel mobile app access', () => {
+    let tracker: Tracker;
+    const organizationUuid = 'organization-uuid';
+    const userUuid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    const get = (organization = organizationUuid) =>
+        createModel({ previewFeatureFlags: { enabled: false } })
+            .get({
+                featureFlagId: FeatureFlags.MobileAppAccess,
+                user: { organizationUuid: organization, userUuid },
+            })
+            .then(({ enabled }) => enabled);
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+    afterEach(() => {
+        tracker.reset();
+    });
+
+    it('is on by default and off for an organization override, with no user override lookup', async () => {
+        tracker.on
+            .select('feature_flag_overrides')
+            .response(({ bindings }) =>
+                bindings[1] === organizationUuid
+                    ? { enabled: false }
+                    : undefined,
+            );
+        tracker.on.select('feature_flags').response({ default_enabled: null });
+
+        expect(await get()).toBe(false);
+        expect(await get('other-organization')).toBe(true);
+        expect(
+            tracker.history.select.filter(({ bindings }) =>
+                bindings.includes(userUuid),
+            ),
+        ).toHaveLength(0);
+    });
+});

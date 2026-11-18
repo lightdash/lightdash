@@ -485,6 +485,28 @@ export class ServiceAccountModel {
         };
     }
 
+    // Swaps in a caller-supplied token, keeping the service account and its
+    // backing user (unlike delete + save, which leaves the old user behind).
+    async replaceToken({
+        serviceAccountUuid,
+        token,
+        expiresAt,
+    }: {
+        serviceAccountUuid: string;
+        token: string;
+        expiresAt: Date | null;
+    }): Promise<void> {
+        const tokenHash = await hash(token);
+        const updated = await this.database(ServiceAccountsTableName)
+            .update({ token_hash: tokenHash, expires_at: expiresAt })
+            .where('service_account_uuid', serviceAccountUuid);
+        if (updated === 0) {
+            throw new NotFoundError(
+                `Service account ${serviceAccountUuid} not found`,
+            );
+        }
+    }
+
     async getSpaceShareCandidates(
         organizationUuid: string,
         userUuids?: string[],

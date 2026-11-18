@@ -19,8 +19,9 @@ import { useCallback, useEffect, useRef } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
+import { isDevelopmentViewOn } from './developmentView';
 
-const DRAFT_KEY = 'semantic-layer-draft';
+export const DRAFT_KEY = 'semantic-layer-draft';
 const DRAFT_STATE_KEY = 'semantic-layer-draft-state';
 const MODEL_KEY = 'semantic-layer-model';
 const PENDING_POLL_MS = 2000;
@@ -69,7 +70,7 @@ const useStatus = (projectUuid: string) =>
         ['semantic-layer-status', projectUuid],
         projectUuid,
         '/status',
-        true,
+        projectUuid !== '',
     ).data;
 
 /** Whether this person can change this project's models here. */
@@ -248,8 +249,13 @@ const useWrite = <TResult extends ApiResponse['results'], TInput>({
                     [DRAFT_KEY, projectUuid],
                     [DRAFT_STATE_KEY, projectUuid],
                     // Explores read the draft while the development view is on.
-                    ['tables'],
-                    ...(changesLive ? [[MODEL_KEY, projectUuid]] : []),
+                    ...(isDevelopmentViewOn() ? [['tables']] : []),
+                    ...(changesLive
+                        ? [
+                              [MODEL_KEY, projectUuid],
+                              ['preAggregateMaterializations', projectUuid],
+                          ]
+                        : []),
                 ].map((queryKey) =>
                     queryClient.invalidateQueries({ queryKey }),
                 ),

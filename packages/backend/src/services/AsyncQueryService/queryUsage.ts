@@ -76,5 +76,6 @@ export const queryUsageProperties = (
             usage?.chartKind ??
             (queryTags.chart_uuid ? ('classic_chart' as const) : null),
         semanticUsage: usage?.semanticUsage,
+        ...(usage?.embeddedUsage ? { embeddedUsage: usage.embeddedUsage } : {}),
     };
 };

@@ -1,0 +1,69 @@
+/* Growth: what happened to each person between the four weeks before and the last four weeks. Gains are green and
+   teal, the loss is orange, people who stayed are the activity blue, people who lapsed longer ago are grey, and people
+   never active are the same open outline the Recency colouring gives them. */
+:root {
+    --ad-flow-stayed: color-mix(in srgb, #1c7ed6 45%, transparent);
+    --ad-flow-new: #2f9e44;
+    --ad-flow-back: #0c8599;
+    --ad-flow-dropped: #e8590c;
+    --ad-flow-lapsed: color-mix(in srgb, #868e96 40%, transparent);
+}
+
+.dark {
+    --ad-flow-stayed: color-mix(in srgb, #4dabf7 45%, transparent);
+    --ad-flow-new: #51cf66;
+    --ad-flow-back: #3bc9db;
+    --ad-flow-dropped: #ff922b;
+    --ad-flow-lapsed: color-mix(in srgb, #adb5bd 35%, transparent);
+}
+
+.ad-mark[data-kind='growth-stayed'] { background-color: var(--ad-flow-stayed); }
+.ad-mark[data-kind='growth-new'] { background-color: var(--ad-flow-new); }
+.ad-mark[data-kind='growth-back'] { background-color: var(--ad-flow-back); }
+.ad-mark[data-kind='growth-dropped'] { background-color: var(--ad-flow-dropped); }
+.ad-mark[data-kind='growth-lapsed'] { background-color: var(--ad-flow-lapsed); }
+.ad-mark[data-kind='growth-never'] {
+    background-color: color-mix(in srgb, var(--ad-recent) 10%, transparent);
+    box-shadow: inset 0 0 0 1px var(--ad-recent-none);
+}
+
+.ad-dots circle[data-kind='growth-stayed'] { fill: var(--ad-flow-stayed); }
+.ad-dots circle[data-kind='growth-new'] { fill: var(--ad-flow-new); }
+.ad-dots circle[data-kind='growth-back'] { fill: var(--ad-flow-back); }
+.ad-dots circle[data-kind='growth-dropped'] { fill: var(--ad-flow-dropped); }
+.ad-dots circle[data-kind='growth-lapsed'] { fill: var(--ad-flow-lapsed); }
+.ad-dots circle[data-kind='growth-never'] {
+    fill: transparent;
+    stroke: var(--ad-recent-none);
+}
+
+/* A team's row: people lost grow left from the middle, people gained grow right */
+.ad-flow-bar {
+    display: grid;
+    grid-template-columns: 1fr 1px 1fr;
+    align-items: center;
+    height: 20px;
+}
+
+.ad-flow-bar > span {
+    display: flex;
+    height: 100%;
+}
+
+.ad-flow-bar > span:first-child {
+    justify-content: flex-end;
+}
+
+.ad-flow-axis {
+    background: var(--border);
+    height: 28px !important;
+}
+
+.ad-flow-bar i {
+    display: block;
+    height: 100%;
+    min-width: 2px;
+}
+
+.ad-flow-bar > span:first-child i { border-radius: 3px 0 0 3px; }
+.ad-flow-bar > span:last-child i:last-child { border-radius: 0 3px 3px 0; }

@@ -24,7 +24,7 @@ import {
 import { TypedEETaskList } from '../../scheduler/types';
 import { type JiraAppService } from '../../services/JiraAppService/JiraAppService';
 import { type LinearAppService } from '../../services/LinearAppService/LinearAppService';
-import { toFailedScan } from '../../services/QuerySourceService/api/posthog/postHogSchemaScan';
+import { toFailedScan } from '../../services/QuerySourceService/live/integrations/postHog/scan';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiAgentReviewNotificationModel } from '../models/AiAgentReviewNotificationModel';
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';

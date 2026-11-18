@@ -4,13 +4,19 @@ import {
     ForbiddenError,
     formatMobileSignInMatchNumber,
     LightdashMode,
+    MOBILE_ORG_DISABLED_CODE,
     MOBILE_PLATFORMS,
     MOBILE_SIGN_IN_PATH,
     MOBILE_SIGN_IN_REDEEM_INTERVAL_SECONDS,
+    MobileOrgDisabledError,
     MobileSignInCodeStatus,
     MobileSignInRefusal,
     NotFoundError,
+    ParameterError,
+    ProjectType,
     TooManyRequestsError,
+    type MobileAppAccess,
+    type MobileSignInCapabilities,
     type MobileSignInClaimResponse,
     type MobileSignInCode,
     type MobileSignInCodeState,
@@ -22,7 +28,10 @@ import {
 } from '@lightdash/common';
 import { createHmac } from 'crypto';
 import { type Request } from 'express';
+import { validate as isUuid } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { fromSession } from '../../auth/account/account';
+import { isMobileAppAccessEnabled } from '../../auth/mobileAppAccess';
 import { getFrontendBuildHash } from '../../buildHash';
 import { LightdashConfig } from '../../config/parseConfig';
 import {
@@ -49,6 +58,7 @@ import { UserModel } from '../../models/UserModel';
 import { getClientAddress } from '../../utils/clientAddress';
 import { VERSION } from '../../version';
 import { BaseService } from '../BaseService';
+import type { ProjectService } from '../ProjectService/ProjectService';
 import type { UserService } from '../UserService';
 import { MobileSignInOAuthError } from './MobileSignInOAuthError';
 
@@ -57,6 +67,8 @@ const VERIFIER_PATTERN = /^[A-Za-z0-9._~-]{43,128}$/;
 const MATCH_NUMBER_PATTERN = /^[0-9]{2}$/;
 export const QR_SIGN_IN_DISABLED_MESSAGE =
     'Sign in with a QR code is turned off for this organization';
+const MOBILE_APP_DISABLED_MESSAGE =
+    'The mobile app is turned off for this organization';
 
 type RedeemArgs = {
     code: string;
@@ -91,6 +103,7 @@ const SUPPORTED_MODES: LightdashMode[] = [
 const UNAVAILABLE_REFUSALS: MobileSignInRefusal[] = [
     MobileSignInRefusal.FEATURE_DISABLED,
     MobileSignInRefusal.QR_SIGN_IN_DISABLED,
+    MobileSignInRefusal.MOBILE_APP_DISABLED,
 ];
 
 const PHONE_REFUSAL_DESCRIPTIONS: Partial<Record<MobileSignInRefusal, string>> =
@@ -99,7 +112,13 @@ const PHONE_REFUSAL_DESCRIPTIONS: Partial<Record<MobileSignInRefusal, string>> =
             'managed_sign_in_required',
         [MobileSignInRefusal.QR_SIGN_IN_DISABLED]: 'qr_sign_in_disabled',
         [MobileSignInRefusal.FEATURE_DISABLED]: 'feature_disabled',
+        [MobileSignInRefusal.MOBILE_APP_DISABLED]: MOBILE_ORG_DISABLED_CODE,
     };
+
+const WEB_REFUSAL_MESSAGES: Partial<Record<MobileSignInRefusal, string>> = {
+    [MobileSignInRefusal.QR_SIGN_IN_DISABLED]: QR_SIGN_IN_DISABLED_MESSAGE,
+    [MobileSignInRefusal.MOBILE_APP_DISABLED]: MOBILE_APP_DISABLED_MESSAGE,
+};
 
 const UNCOUNTED_REDEEM_ERRORS: MobileSignInOAuthError['error'][] = [
     'authorization_pending',
@@ -175,6 +194,7 @@ export type MobileSignInRedemption = {
         codeUuid: string;
         clientId: string | null;
         reportedPlatform: string | null;
+        sourceProjectUuid: string | null;
     };
 };
 
@@ -193,6 +213,7 @@ type MobileSignInServiceArguments = {
     userModel: Pick<UserModel, 'findSessionUserAndOrgByUuid'>;
     oauthModel: Pick<OAuth2Model, 'getClient'>;
     getUserService: () => Pick<UserService, 'getManagedSignIn'>;
+    getProjectService: () => Pick<ProjectService, 'getProject'>;
     analytics: Pick<LightdashAnalytics, 'track'>;
 };
 
@@ -222,6 +243,8 @@ export class MobileSignInService extends BaseService {
 
     private readonly analytics: MobileSignInServiceArguments['analytics'];
 
+    private readonly getProjectService: MobileSignInServiceArguments['getProjectService'];
+
     constructor(args: MobileSignInServiceArguments) {
         super({ serviceName: 'MobileSignInService' });
         this.lightdashConfig = args.lightdashConfig;
@@ -233,6 +256,7 @@ export class MobileSignInService extends BaseService {
         this.oauthModel = args.oauthModel;
         this.getUserService = args.getUserService;
         this.analytics = args.analytics;
+        this.getProjectService = args.getProjectService;
     }
 
     private track(
@@ -299,19 +323,21 @@ export class MobileSignInService extends BaseService {
         return getClientAddress(req, this.lightdashConfig.trustProxy);
     }
 
-    private async isEnabled(organizationUuid: string): Promise<boolean> {
+    private async isEnabled(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<boolean> {
         const flag = await this.featureFlagModel.get({
-            user: { organizationUuid },
+            user,
             featureFlagId: FeatureFlags.MobileSettings,
         });
         return flag.enabled;
     }
 
     private async isQrSignInEnabled(
-        organizationUuid: string,
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
     ): Promise<boolean> {
         const flag = await this.featureFlagModel.get({
-            user: { organizationUuid },
+            user,
             featureFlagId: FeatureFlags.MobileQrSignIn,
         });
         return flag.enabled;
@@ -319,9 +345,7 @@ export class MobileSignInService extends BaseService {
 
     private static refusalError(refusal: MobileSignInRefusal): ForbiddenError {
         return new ForbiddenError(
-            refusal === MobileSignInRefusal.QR_SIGN_IN_DISABLED
-                ? QR_SIGN_IN_DISABLED_MESSAGE
-                : 'Sign-in codes are not available',
+            WEB_REFUSAL_MESSAGES[refusal] ?? 'Sign-in codes are not available',
             { reason: refusal },
         );
     }
@@ -331,32 +355,46 @@ export class MobileSignInService extends BaseService {
     }
 
     private async availability(
-        organizationUuid: string | undefined,
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
     ): Promise<MobileSignInRefusal | null> {
         if (!this.isSupportedMode())
             return MobileSignInRefusal.FEATURE_DISABLED;
-        if (!organizationUuid) return MobileSignInRefusal.ORGANIZATION_REQUIRED;
-        if (!(await this.isEnabled(organizationUuid))) {
+        if (!user.organizationUuid)
+            return MobileSignInRefusal.ORGANIZATION_REQUIRED;
+        if (
+            !(await isMobileAppAccessEnabled(
+                this.featureFlagModel,
+                user.organizationUuid,
+            ))
+        ) {
+            return MobileSignInRefusal.MOBILE_APP_DISABLED;
+        }
+        if (!(await this.isEnabled(user))) {
             return MobileSignInRefusal.FEATURE_DISABLED;
         }
-        if (!(await this.isQrSignInEnabled(organizationUuid))) {
+        if (!(await this.isQrSignInEnabled(user))) {
             return MobileSignInRefusal.QR_SIGN_IN_DISABLED;
         }
         return null;
     }
 
     private async assertAvailableFor(user: SessionUser): Promise<void> {
-        const refusal = await this.availability(user.organizationUuid);
+        const refusal = await this.availability(user);
         if (refusal) throw MobileSignInService.refusalError(refusal);
     }
 
     private static deniedForPhone(
         refusal: MobileSignInRefusal,
+        organizationUuid?: string,
     ): MobileSignInOAuthError {
         return new MobileSignInOAuthError('access_denied', {
             description:
                 PHONE_REFUSAL_DESCRIPTIONS[refusal] ?? 'user_not_allowed',
             statusCode: UNAVAILABLE_REFUSALS.includes(refusal) ? 403 : 400,
+            organizationUuid:
+                refusal === MobileSignInRefusal.MOBILE_APP_DISABLED
+                    ? organizationUuid
+                    : undefined,
         });
     }
 
@@ -370,8 +408,15 @@ export class MobileSignInService extends BaseService {
         }
         const owner = await this.mobileSignInCodeModel.findOwner(code);
         if (!owner) return null;
-        const refusal = await this.availability(owner.organization_uuid);
-        if (refusal) throw MobileSignInService.deniedForPhone(refusal);
+        const refusal = await this.availability({
+            userUuid: owner.user_uuid,
+            organizationUuid: owner.organization_uuid,
+        });
+        if (refusal)
+            throw MobileSignInService.deniedForPhone(
+                refusal,
+                owner.organization_uuid,
+            );
         return owner;
     }
 
@@ -406,7 +451,7 @@ export class MobileSignInService extends BaseService {
         user: SessionUser,
         platforms: readonly MobileSignInPlatform[],
     ): Promise<MobileSignInRefusal | null> {
-        const unavailable = await this.availability(user.organizationUuid);
+        const unavailable = await this.availability(user);
         if (unavailable) return unavailable;
         if (!user.isActive) {
             return MobileSignInRefusal.FEATURE_DISABLED;
@@ -420,13 +465,64 @@ export class MobileSignInService extends BaseService {
         return null;
     }
 
+    async getAppAccess(
+        user: Pick<SessionUser, 'organizationUuid'>,
+    ): Promise<MobileAppAccess> {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError('Join an organization first', {
+                reason: MobileSignInRefusal.ORGANIZATION_REQUIRED,
+            });
+        }
+        if (
+            !(await isMobileAppAccessEnabled(
+                this.featureFlagModel,
+                user.organizationUuid,
+            ))
+        ) {
+            throw new MobileOrgDisabledError(user.organizationUuid);
+        }
+        return { enabled: true, organizationUuid: user.organizationUuid };
+    }
+
+    async getCapabilities(): Promise<MobileSignInCapabilities> {
+        return {
+            schemaVersion: 1,
+            capabilities: { mobile_sign_in_source_project: 1 },
+        };
+    }
+
     async mint(
         user: SessionUser,
         sessionId: string,
         reason: MobileSignInMintReason,
+        sourceProjectUuid?: string | null,
     ): Promise<MobileSignInCode> {
         const refusal = await this.refusal(user, MOBILE_PLATFORMS);
         if (refusal) throw MobileSignInService.refusalError(refusal);
+        let validatedSourceProjectUuid: string | null = null;
+        if (sourceProjectUuid !== undefined && sourceProjectUuid !== null) {
+            if (
+                typeof sourceProjectUuid !== 'string' ||
+                !isUuid(sourceProjectUuid)
+            ) {
+                throw new ParameterError(
+                    'sourceProjectUuid must be a project UUID',
+                );
+            }
+            const project = await this.getProjectService().getProject(
+                sourceProjectUuid,
+                fromSession(user, sessionId),
+            );
+            if (
+                project.type !== ProjectType.DEFAULT ||
+                project.organizationUuid !== user.organizationUuid
+            ) {
+                throw new ParameterError(
+                    'sourceProjectUuid must be an accessible default project',
+                );
+            }
+            validatedSourceProjectUuid = project.projectUuid;
+        }
         const rate = await this.consumeRate(
             MOBILE_SIGN_IN_RATE_LIMITS.mintPerUser,
             user.userUuid,
@@ -442,6 +538,7 @@ export class MobileSignInService extends BaseService {
             userUuid: user.userUuid,
             organizationUuid: user.organizationUuid!,
             sessionId,
+            sourceProjectUuid: validatedSourceProjectUuid,
         });
         const expiresInSeconds = Math.max(
             0,
@@ -981,6 +1078,7 @@ export class MobileSignInService extends BaseService {
                 codeUuid: row.mobile_sign_in_code_uuid,
                 clientId: row.client_id,
                 reportedPlatform: row.reported_platform,
+                sourceProjectUuid: row.sign_in_source_project_uuid ?? null,
             },
         };
     }
@@ -1041,8 +1139,12 @@ export class MobileSignInService extends BaseService {
                 context,
                 refusal,
             );
-            throw refusal === MobileSignInRefusal.MANAGED_SIGN_IN_REQUIRED
-                ? MobileSignInService.deniedForPhone(refusal)
+            throw refusal === MobileSignInRefusal.MANAGED_SIGN_IN_REQUIRED ||
+                refusal === MobileSignInRefusal.MOBILE_APP_DISABLED
+                ? MobileSignInService.deniedForPhone(
+                      refusal,
+                      owner.organization_uuid,
+                  )
                 : new MobileSignInOAuthError('access_denied', {
                       description: 'user_not_allowed',
                   });

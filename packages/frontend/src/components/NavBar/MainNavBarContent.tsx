@@ -165,7 +165,10 @@ export const MainNavBarContent: FC<Props> = ({
                         </>
                     )}
 
-                    <MobileSignInMenu withLabel={compact} />
+                    <MobileSignInMenu
+                        withLabel={compact}
+                        sourceProjectUuid={activeProjectUuid ?? null}
+                    />
 
                     <HelpMenu withLabel={compact} />
 

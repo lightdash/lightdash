@@ -9,6 +9,7 @@ import {
 /* eslint-disable max-classes-per-file */
 import { type AnyType } from './any';
 import { type DbtLog } from './job';
+import { MOBILE_ORG_DISABLED_CODE } from './mobileSignIn';
 import type { SharedSignInExpiry } from './sharedSignIn';
 import type { WarehousePhaseTimings, WarehouseQueryPhase } from './warehouse';
 
@@ -177,6 +178,24 @@ export class DeactivatedAccountError extends LightdashError {
             statusCode: 403,
             data,
         });
+    }
+}
+
+export class MobileOrgDisabledError
+    extends LightdashError
+    implements ExpectedError
+{
+    constructor(organizationUuid: string) {
+        super({
+            message: "Mobile access isn't enabled for your organisation",
+            name: 'MobileOrgDisabledError',
+            statusCode: 401,
+            data: { code: MOBILE_ORG_DISABLED_CODE, organizationUuid },
+        });
+    }
+
+    get isExpected(): true {
+        return true;
     }
 }
 

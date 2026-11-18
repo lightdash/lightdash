@@ -5,7 +5,7 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
     type FilterOperator,
-    type SavedChartsInfoForDashboardAvailableFilters,
+    type DashboardAvailableFiltersTile,
 } from '@lightdash/common';
 import { isEqual } from 'es-toolkit/compat';
 import { v4 as uuidv4 } from 'uuid';
@@ -39,9 +39,7 @@ export const haveSdkFiltersChanged = (
  * and silently dropping the filter from any tile on a different explore.
  */
 export const shouldDeferSdkFilters = (
-    savedChartUuidsAndTileUuids:
-        | SavedChartsInfoForDashboardAvailableFilters
-        | undefined,
+    savedChartUuidsAndTileUuids: DashboardAvailableFiltersTile[] | undefined,
     filterableFieldsByTileUuid:
         | Record<string, DashboardFilterableField[] | undefined>
         | undefined,

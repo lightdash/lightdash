@@ -45,12 +45,6 @@ vi.mock('../../hooks/useFieldValues', () => ({
     })),
 }));
 
-vi.mock('../../hooks/health/useHealth', () => ({
-    default: vi.fn(() => ({
-        data: { hasCacheAutocompleResults: false },
-    })),
-}));
-
 describe('AddFilterButton in edit mode', () => {
     const setIsAddFilterDisabled = vi.fn();
 

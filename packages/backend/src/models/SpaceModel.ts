@@ -74,6 +74,7 @@ import {
 import { dataAppContentConfiguration } from './ContentModel/ContentConfigurations/DataAppContentConfiguration';
 import type { SummaryContentRow } from './ContentModel/ContentModelTypes';
 import type { GetDashboardDetailsQuery } from './DashboardModel/DashboardModel';
+import { leftJoinLatestDashboardVersion } from './DashboardModel/latestDashboardVersion';
 
 type SpaceModelArguments = {
     database: Knex;
@@ -1439,11 +1440,7 @@ export class SpaceModel {
                 `${DashboardsTableName}.space_id`,
                 `${SpaceTableName}.space_id`,
             )
-            .leftJoin(
-                DashboardVersionsTableName,
-                `${DashboardsTableName}.dashboard_id`,
-                `${DashboardVersionsTableName}.dashboard_id`,
-            )
+            .modify(leftJoinLatestDashboardVersion)
             .leftJoin(
                 UserTableName,
                 `${UserTableName}.user_uuid`,

@@ -2,7 +2,6 @@ import {
     DashboardTileTypes,
     DateGranularity,
     FilterInteractivityValues,
-    isSubDayGranularity,
     FilterOperator,
     type Dashboard,
     type DashboardAvailableFilters,
@@ -2871,11 +2870,13 @@ describe('edit state: date zoom settings', () => {
     it('offers every standard granularity except sub-day ones by default', () => {
         mocks.dashboard = makeDashboard();
         const { result } = renderDashboard();
-        expect(result.current.dateZoomGranularities).toEqual(
-            Object.values(DateGranularity).filter(
-                (g) => !isSubDayGranularity(g),
-            ),
-        );
+        expect(result.current.dateZoomGranularities).toEqual([
+            DateGranularity.DAY,
+            DateGranularity.WEEK,
+            DateGranularity.MONTH,
+            DateGranularity.QUARTER,
+            DateGranularity.YEAR,
+        ]);
         expect(result.current.defaultDateZoomGranularity).toBeUndefined();
     });
 

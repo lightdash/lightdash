@@ -1,23 +1,35 @@
 import {
     ConflictError,
+    FeatureFlags,
     ForbiddenError,
     LightdashMode,
     MOBILE_SIGN_IN_PATH,
     MobileSignInCodeStatus,
     MobileSignInRefusal,
     NotFoundError,
+    ParameterError,
+    ProjectType,
     TooManyRequestsError,
     type MobileSignInMintReason,
+    type Project,
     type SessionUser,
 } from '@lightdash/common';
 import { createHash, randomBytes } from 'crypto';
+import { type Knex } from 'knex';
 import type { MockInstance } from 'vitest';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import {
+    FeatureFlagOverridesTableName,
+    FeatureFlagsTableName,
+} from '../../database/entities/featureFlags';
 import Logger from '../../logging/logger';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { hashMobileAppLinkKey } from '../../models/MobileAppLinkModel';
 import {
     isMobileSignInCode,
     type MobileSignInCodeModel,
 } from '../../models/MobileSignInCodeModel';
+import { sessionUser as fullSessionUser } from '../UserService.mock';
 import { MobileSignInOAuthError } from './MobileSignInOAuthError';
 import { maskDisplayName, MobileSignInService } from './MobileSignInService';
 
@@ -28,6 +40,7 @@ const userUuid = 'user-0000-test';
 const organizationUuid = 'org-0000-test';
 
 const sessionUser = {
+    ...fullSessionUser,
     userUuid,
     organizationUuid,
     firstName: 'Test',
@@ -50,6 +63,8 @@ const codeRow = {
 const createService = ({
     flagEnabled = true,
     qrSignInEnabled = true,
+    mobileAppAccessEnabled = true,
+    getProject = vi.fn<(...args: unknown[]) => Promise<Project>>(),
     mode = LightdashMode.CLOUD_BETA,
     managed = false,
     smtp = true,
@@ -62,11 +77,15 @@ const createService = ({
     },
     now = () => new Date('2026-11-09T12:00:18.000Z'),
     lightdashSecret = 'test-lightdash-secret-0000',
+    featureFlagModel,
 }: {
+    featureFlagModel?: Pick<FeatureFlagModel, 'get'>;
     lightdashSecret?: string;
     now?: () => Date;
     flagEnabled?: boolean;
     qrSignInEnabled?: boolean;
+    mobileAppAccessEnabled?: boolean;
+    getProject?: (...args: unknown[]) => Promise<Project>;
     mode?: LightdashMode;
     managed?: boolean;
     smtp?: boolean;
@@ -111,6 +130,18 @@ const createService = ({
         rateAllowed ? (counts.get(counterKey(args)) ?? 0) : 1000,
     );
     const track = vi.fn();
+    const flagValues: Record<string, boolean> = {
+        'mobile-qr-sign-in': qrSignInEnabled,
+        'mobile-app-access': mobileAppAccessEnabled,
+    };
+    const effectiveFeatureFlagModel = featureFlagModel ?? {
+        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+            id: featureFlagId,
+            enabled: flagValues[featureFlagId] ?? flagEnabled,
+        })),
+    };
+    const findSessionUserAndOrgByUuid = vi.fn(async () => user);
+    const userModel = { findSessionUserAndOrgByUuid };
     const service = new MobileSignInService({
         analytics: { track },
         lightdashConfig: {
@@ -123,29 +154,21 @@ const createService = ({
         mobileSignInCodeModel,
         mobileAppLinkModel: { incrementRateCounter, getRateCount },
         now,
-        featureFlagModel: {
-            get: vi.fn(
-                async ({ featureFlagId }: { featureFlagId: string }) => ({
-                    id: featureFlagId,
-                    enabled:
-                        featureFlagId === 'mobile-qr-sign-in'
-                            ? qrSignInEnabled
-                            : flagEnabled,
-                }),
-            ),
-        },
-        userModel: {
-            findSessionUserAndOrgByUuid: vi.fn(async () => user),
-        },
+        featureFlagModel: effectiveFeatureFlagModel,
+        userModel,
         oauthModel: { getClient: vi.fn(async () => client as never) },
         getUserService: () => ({ getManagedSignIn }),
+        getProjectService: () => ({ getProject }),
     });
     return {
         service,
+        featureFlagModel: effectiveFeatureFlagModel,
+        findSessionUserAndOrgByUuid,
         mobileSignInCodeModel,
         incrementRateCounter,
         getManagedSignIn,
         track,
+        userModel,
     };
 };
 
@@ -204,6 +227,7 @@ describe('MobileSignInService.mint', () => {
             userUuid,
             organizationUuid,
             sessionId: 'session-0000',
+            sourceProjectUuid: null,
         });
     });
 
@@ -664,6 +688,7 @@ describe('MobileSignInService analytics', () => {
                     codeUuid: 'code-0000-test',
                     clientId: 'client-0000-test',
                     reportedPlatform: 'ios',
+                    sourceProjectUuid: null,
                 },
             },
             {},
@@ -1525,20 +1550,23 @@ describe('MobileSignInService mobile-qr-sign-in flag', () => {
         };
     };
 
-    it('refuses to create a code when the flag is off', async () => {
-        const { service, mobileSignInCodeModel } = offService();
-        const error = await service
-            .mint(sessionUser, 'session-0000', 'show')
-            .catch((caught: unknown) => caught);
-        expect(error).toBeInstanceOf(ForbiddenError);
-        expect((error as ForbiddenError).message).toBe(
-            'Sign in with a QR code is turned off for this organization',
-        );
-        expect((error as ForbiddenError).data).toEqual({
-            reason: MobileSignInRefusal.QR_SIGN_IN_DISABLED,
-        });
-        expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
-    });
+    it.each([undefined, '12345678-1234-4abc-8abc-123456789abc'])(
+        'refuses to create a code when the flag is off with source %s',
+        async (sourceProjectUuid) => {
+            const { service, mobileSignInCodeModel } = offService();
+            const error = await service
+                .mint(sessionUser, 'session-0000', 'show', sourceProjectUuid)
+                .catch((caught: unknown) => caught);
+            expect(error).toBeInstanceOf(ForbiddenError);
+            expect((error as ForbiddenError).message).toBe(
+                'Sign in with a QR code is turned off for this organization',
+            );
+            expect((error as ForbiddenError).data).toEqual({
+                reason: MobileSignInRefusal.QR_SIGN_IN_DISABLED,
+            });
+            expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
+        },
+    );
 
     it.each(['approved', 'declined'] as const)(
         'refuses to record %s when the flag is off',
@@ -1585,10 +1613,17 @@ describe('MobileSignInService mobile-qr-sign-in flag', () => {
             redeem: vi.fn(async () => ({ outcome: 'redeemed', row: codeRow })),
             decide: vi.fn(async () => ({ outcome: 'decided', row: codeRow })),
         };
-        const { service } = createService({ qrSignInEnabled: true, model });
+        const { service, featureFlagModel } = createService({
+            qrSignInEnabled: true,
+            model,
+        });
         await expect(
             service.mint(sessionUser, 'session-0000', 'show'),
         ).resolves.toMatchObject({ codeUuid: 'code-0000-test' });
+        expect(featureFlagModel.get).toHaveBeenCalledWith({
+            featureFlagId: 'mobile-qr-sign-in',
+            user: expect.objectContaining({ userUuid, organizationUuid }),
+        });
         await expect(service.claim(claimBody, {})).resolves.toMatchObject({
             interval: 2,
         });
@@ -1778,5 +1813,648 @@ describe('MobileSignInService availability on every endpoint', () => {
             description: 'user_not_allowed',
         });
         expect(claim).not.toHaveBeenCalled();
+    });
+});
+
+describe('MobileSignInService user-targeted rollout', () => {
+    const ownerUser = {
+        ...sessionUser,
+        userUuid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    };
+    const otherUser = {
+        ...ownerUser,
+        userUuid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    };
+    const claimBody = {
+        code,
+        client_id: 'client-0000-test',
+        code_challenge: challenge,
+        code_challenge_method: 'S256',
+        platform: 'ios',
+    };
+    const redeemArgs = {
+        code,
+        clientId: 'client-0000-test',
+        codeVerifier: verifier,
+        matchNumber: '07',
+        isScopeAllowed: async () => true,
+    };
+    const createTargetedService = () => {
+        const overrides = new Map<string, boolean>([
+            [FeatureFlags.MobileSettings, true],
+            [FeatureFlags.MobileQrSignIn, true],
+        ]);
+        const database = ((table: string) => {
+            const filters = new Map<string, unknown>();
+            const builder = {
+                where(column: string, value: unknown) {
+                    filters.set(column, value);
+                    return builder;
+                },
+                whereNull(column: string) {
+                    filters.set(column, null);
+                    return builder;
+                },
+                async first() {
+                    const flagId = filters.get('flag_id') as string;
+                    if (table === FeatureFlagsTableName) {
+                        return {
+                            flag_id: flagId,
+                            default_enabled:
+                                flagId === FeatureFlags.MobileAppAccess
+                                    ? null
+                                    : false,
+                        };
+                    }
+                    if (
+                        table === FeatureFlagOverridesTableName &&
+                        filters.get('user_uuid') === ownerUser.userUuid &&
+                        overrides.has(flagId)
+                    ) {
+                        return { enabled: overrides.get(flagId) };
+                    }
+                    return undefined;
+                },
+            };
+            return builder;
+        }) as unknown as Knex;
+        const featureFlagModel = new FeatureFlagModel({
+            database,
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                enabledFeatureFlags: new Set(),
+                disabledFeatureFlags: new Set(),
+                previewFeatureFlags: { enabled: false },
+            },
+        });
+        const row = { ...codeRow, user_uuid: ownerUser.userUuid };
+        const model = {
+            findOwner: vi.fn(async () => ({
+                user_uuid: ownerUser.userUuid,
+                organization_uuid: ownerUser.organizationUuid,
+                reported_platform: 'ios',
+            })),
+            claim: vi.fn(async () => ({ outcome: 'claimed', row })),
+            decide: vi.fn(async () => ({ outcome: 'decided', row })),
+            redeem: vi.fn(async () => ({ outcome: 'redeemed', row })),
+            probe: vi.fn(async () => ({ outcome: 'match_number_required' })),
+            cancelFromPhone: vi.fn(async () => ({
+                outcome: 'cancelled',
+                row,
+                isRepeat: false,
+            })),
+        };
+        return {
+            ...createService({ user: ownerUser, featureFlagModel, model }),
+            featureFlagModel,
+            model,
+            overrides,
+        };
+    };
+
+    it('permits mint, claim, approval and redemption with only user overrides', async () => {
+        const { service, featureFlagModel } = createTargetedService();
+        await Promise.all(
+            [FeatureFlags.MobileSettings, FeatureFlags.MobileQrSignIn].map(
+                async (featureFlagId) => {
+                    await expect(
+                        featureFlagModel.get({
+                            user: ownerUser,
+                            featureFlagId,
+                        }),
+                    ).resolves.toEqual({ id: featureFlagId, enabled: true });
+                    await expect(
+                        featureFlagModel.get({
+                            user: { organizationUuid },
+                            featureFlagId,
+                        }),
+                    ).resolves.toEqual({ id: featureFlagId, enabled: false });
+                },
+            ),
+        );
+        const minted = await service.mint(ownerUser, 'session-0000', 'show');
+        await expect(service.claim(claimBody, {})).resolves.toMatchObject({
+            interval: 2,
+        });
+        await expect(
+            service.decide(
+                ownerUser,
+                'session-0000',
+                minted.codeUuid,
+                minted.approvalNonce,
+                'approved',
+                {},
+            ),
+        ).resolves.toMatchObject({ status: MobileSignInCodeStatus.APPROVED });
+        await expectOAuthError(
+            service.redeem({ ...redeemArgs, matchNumber: undefined }, {}),
+            { error: 'match_number_required' },
+        );
+        await expect(service.redeem(redeemArgs, {})).resolves.toMatchObject({
+            user: ownerUser,
+        });
+    });
+
+    it('keeps the default off for another user in the same organization', async () => {
+        const { service, mobileSignInCodeModel } = createTargetedService();
+        await expectRefusal(
+            service.mint(otherUser, 'other-session', 'show'),
+            MobileSignInRefusal.FEATURE_DISABLED,
+        );
+        expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
+    });
+
+    it('keeps the default off in another organization', async () => {
+        const { service, mobileSignInCodeModel } = createTargetedService();
+        await expectRefusal(
+            service.mint(
+                { ...otherUser, organizationUuid: 'other-organization' },
+                'other-session',
+                'show',
+            ),
+            MobileSignInRefusal.FEATURE_DISABLED,
+        );
+        expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
+    });
+
+    it('requires both flags for the same user', async () => {
+        const { service, overrides, mobileSignInCodeModel } =
+            createTargetedService();
+        overrides.delete(FeatureFlags.MobileQrSignIn);
+        await expectRefusal(
+            service.mint(ownerUser, 'session-0000', 'show'),
+            MobileSignInRefusal.QR_SIGN_IN_DISABLED,
+        );
+        expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
+    });
+
+    it('denies a stored owner who no longer belongs to the code organization', async () => {
+        const { service, userModel, model } = createTargetedService();
+        userModel.findSessionUserAndOrgByUuid.mockRejectedValue(
+            new NotFoundError('not a member'),
+        );
+        await expectOAuthError(service.claim(claimBody, {}), {
+            error: 'access_denied',
+            description: 'user_not_allowed',
+        });
+        await expectOAuthError(service.redeem(redeemArgs, {}), {
+            error: 'access_denied',
+            description: 'user_not_allowed',
+        });
+        expect(userModel.findSessionUserAndOrgByUuid).toHaveBeenCalledWith(
+            ownerUser.userUuid,
+            ownerUser.organizationUuid,
+        );
+        expect(model.claim).not.toHaveBeenCalled();
+        expect(model.redeem).not.toHaveBeenCalled();
+    });
+
+    it.each([FeatureFlags.MobileSettings, FeatureFlags.MobileQrSignIn])(
+        'rechecks a revoked %s override before each hand-off stage',
+        async (featureFlagId) => {
+            const { service, overrides, model } = createTargetedService();
+            const minted = await service.mint(
+                ownerUser,
+                'session-0000',
+                'show',
+            );
+            overrides.set(featureFlagId, false);
+            const reason =
+                featureFlagId === FeatureFlags.MobileSettings
+                    ? MobileSignInRefusal.FEATURE_DISABLED
+                    : MobileSignInRefusal.QR_SIGN_IN_DISABLED;
+            await expectRefusal(
+                service.decide(
+                    ownerUser,
+                    'session-0000',
+                    minted.codeUuid,
+                    minted.approvalNonce,
+                    'approved',
+                    {},
+                ),
+                reason,
+            );
+            await Promise.all(
+                [
+                    () => service.claim(claimBody, {}),
+                    () => service.redeem(redeemArgs, {}),
+                    () =>
+                        service.redeem(
+                            { ...redeemArgs, matchNumber: undefined },
+                            {},
+                        ),
+                    () =>
+                        service.cancelFromPhone(
+                            {
+                                code,
+                                client_id: redeemArgs.clientId,
+                                code_verifier: verifier,
+                            },
+                            {},
+                        ),
+                ].map(async (request) => {
+                    await expectOAuthError(request(), {
+                        error: 'access_denied',
+                        description: reason,
+                        statusCode: 403,
+                    });
+                }),
+            );
+            expect(model.claim).not.toHaveBeenCalled();
+            expect(model.decide).not.toHaveBeenCalled();
+            expect(model.redeem).not.toHaveBeenCalled();
+            expect(model.probe).not.toHaveBeenCalled();
+            expect(model.cancelFromPhone).not.toHaveBeenCalled();
+            overrides.set(featureFlagId, true);
+            await expect(
+                service.mint(ownerUser, 'session-0000', 'show'),
+            ).resolves.toBeDefined();
+        },
+    );
+
+    it('ignores phone-supplied user and organization IDs when resolving the owner', async () => {
+        const { service, model } = createTargetedService();
+        model.findOwner.mockResolvedValue({
+            user_uuid: otherUser.userUuid,
+            organization_uuid: organizationUuid,
+            reported_platform: 'ios',
+        });
+        await expectOAuthError(
+            service.claim(
+                {
+                    ...claimBody,
+                    userUuid: ownerUser.userUuid,
+                    organizationUuid,
+                },
+                {},
+            ),
+            {
+                error: 'access_denied',
+                description: 'feature_disabled',
+                statusCode: 403,
+            },
+        );
+        expect(model.claim).not.toHaveBeenCalled();
+    });
+});
+
+describe('MobileSignInService source project contract', () => {
+    const sourceProjectUuid = '12345678-1234-4abc-8abc-123456789abc';
+    const project = {
+        projectUuid: sourceProjectUuid,
+        organizationUuid,
+        type: ProjectType.DEFAULT,
+    } as Project;
+
+    it.each([undefined, null])(
+        'keeps legacy minting for %s',
+        async (source) => {
+            const getProject = vi.fn();
+            const { service, mobileSignInCodeModel } = createService({
+                getProject,
+            });
+            await service.mint(sessionUser, 'session', 'show', source);
+            expect(getProject).not.toHaveBeenCalled();
+            expect(mobileSignInCodeModel.mint).toHaveBeenCalledWith({
+                userUuid,
+                organizationUuid,
+                sessionId: 'session',
+                sourceProjectUuid: null,
+            });
+        },
+    );
+
+    it('validates access and stores the canonical project with advertising off', async () => {
+        const getProject = vi.fn().mockResolvedValue(project);
+        const { service, mobileSignInCodeModel } = createService({
+            getProject,
+        });
+        await service.mint(
+            sessionUser,
+            'session',
+            'show',
+            sourceProjectUuid.toUpperCase(),
+        );
+        expect(getProject).toHaveBeenCalledWith(
+            sourceProjectUuid.toUpperCase(),
+            expect.objectContaining({
+                user: expect.objectContaining({ userUuid }),
+            }),
+        );
+        expect(mobileSignInCodeModel.mint).toHaveBeenCalledWith(
+            expect.objectContaining({ sourceProjectUuid }),
+        );
+    });
+
+    it.each(['invalid', '', '12345678'])(
+        'rejects malformed source %s',
+        async (source) => {
+            const getProject = vi.fn();
+            const { service, mobileSignInCodeModel } = createService({
+                getProject,
+            });
+            await expect(
+                service.mint(sessionUser, 'session', 'show', source),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(getProject).not.toHaveBeenCalled();
+            expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([new ForbiddenError(), new NotFoundError('Project not found')])(
+        'rejects an inaccessible or missing project',
+        async (error) => {
+            const getProject = vi.fn().mockRejectedValue(error);
+            const { service, mobileSignInCodeModel } = createService({
+                getProject,
+            });
+            await expect(
+                service.mint(sessionUser, 'session', 'show', sourceProjectUuid),
+            ).rejects.toBe(error);
+            expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([
+        { ...project, organizationUuid: 'other-org' },
+        { ...project, type: ProjectType.PREVIEW },
+        { ...project, type: ProjectType.TRAINING },
+    ])(
+        'rejects a source outside the organisation or DEFAULT type',
+        async (invalidProject) => {
+            const getProject = vi.fn().mockResolvedValue(invalidProject);
+            const { service, mobileSignInCodeModel } = createService({
+                getProject,
+            });
+            await expect(
+                service.mint(sessionUser, 'session', 'show', sourceProjectUuid),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([undefined, null, sourceProjectUuid])(
+        'carries only stored source metadata on redeem: %s',
+        async (source) => {
+            const { service } = createService({
+                model: {
+                    redeem: vi.fn().mockResolvedValue({
+                        outcome: 'redeemed',
+                        row: {
+                            ...codeRow,
+                            sign_in_source_project_uuid: source,
+                        },
+                    }),
+                },
+            });
+            const redemption = await service.redeem(
+                {
+                    code,
+                    clientId: 'client-0000-test',
+                    codeVerifier: verifier,
+                    matchNumber: '07',
+                    isScopeAllowed: async () => true,
+                },
+                {},
+            );
+            expect(redemption.metadata.sourceProjectUuid).toBe(source ?? null);
+        },
+    );
+
+    it.each([false, true])(
+        'advertises protocol support without resolving flags or users when QR enabled=%s',
+        async (enabled) => {
+            const getProject = vi.fn();
+            const {
+                service,
+                featureFlagModel,
+                findSessionUserAndOrgByUuid,
+                getManagedSignIn,
+                mobileSignInCodeModel,
+                track,
+            } = createService({
+                qrSignInEnabled: enabled,
+                flagEnabled: enabled,
+                getProject,
+            });
+            expect(await service.getCapabilities()).toEqual({
+                schemaVersion: 1,
+                capabilities: { mobile_sign_in_source_project: 1 },
+            });
+            expect(featureFlagModel.get).not.toHaveBeenCalled();
+            expect(findSessionUserAndOrgByUuid).not.toHaveBeenCalled();
+            expect(getProject).not.toHaveBeenCalled();
+            expect(getManagedSignIn).not.toHaveBeenCalled();
+            expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
+            expect(track).not.toHaveBeenCalled();
+        },
+    );
+});
+
+describe('MobileSignInService with mobile app access off for the organization', () => {
+    const claimBody = {
+        code,
+        client_id: 'client-0000-test',
+        code_challenge: challenge,
+        code_challenge_method: 'S256',
+        platform: 'ios',
+    };
+    const redeemArgs = {
+        code,
+        clientId: 'client-0000-test',
+        codeVerifier: verifier,
+        matchNumber: '07',
+        isScopeAllowed: async () => true,
+    };
+    const denied = {
+        error: 'access_denied',
+        description: 'mobile_org_disabled',
+        statusCode: 403,
+        organizationUuid,
+    };
+    const untouchedModel = () => ({
+        mint: vi.fn(),
+        findForSession: vi.fn(),
+        decide: vi.fn(),
+        deleteForSession: vi.fn(),
+        claim: vi.fn(),
+        redeem: vi.fn(),
+        probe: vi.fn(),
+        cancelFromPhone: vi.fn(),
+    });
+    const webCalls = {
+        mint: (service: MobileSignInService) =>
+            service.mint(sessionUser, 'session-0000', 'show'),
+        status: (service: MobileSignInService) =>
+            service.getState(sessionUser, 'session-0000', 'code-0000'),
+        approve: (service: MobileSignInService) =>
+            service.decide(
+                sessionUser,
+                'session-0000',
+                'code-0000',
+                'nonce',
+                'approved',
+                {},
+            ),
+        cancel: (service: MobileSignInService) =>
+            service.cancel(sessionUser, 'session-0000', 'code-0000'),
+    };
+    const phoneCalls = {
+        claim: (service: MobileSignInService) => service.claim(claimBody, {}),
+        redeem: (service: MobileSignInService) =>
+            service.redeem(redeemArgs, {}),
+        probe: (service: MobileSignInService) =>
+            service.redeem({ ...redeemArgs, matchNumber: undefined }, {}),
+        cancel: (service: MobileSignInService) =>
+            service.cancelFromPhone(
+                {
+                    code,
+                    client_id: 'client-0000-test',
+                    code_verifier: verifier,
+                },
+                {},
+            ),
+    };
+
+    it.each(Object.keys(webCalls) as (keyof typeof webCalls)[])(
+        'refuses the web %s with the mobile_app_disabled reason and leaves the code alone',
+        async (endpoint) => {
+            const model = untouchedModel();
+            const { service } = createService({
+                mobileAppAccessEnabled: false,
+                model,
+            });
+            const error = await webCalls[endpoint](service).catch(
+                (caught: unknown) => caught,
+            );
+            expect(error).toBeInstanceOf(ForbiddenError);
+            expect((error as ForbiddenError).statusCode).toBe(403);
+            expect((error as ForbiddenError).message).toBe(
+                'The mobile app is turned off for this organization',
+            );
+            expect((error as ForbiddenError).data).toEqual({
+                reason: MobileSignInRefusal.MOBILE_APP_DISABLED,
+            });
+            Object.values(model).forEach((fn) =>
+                expect(fn).not.toHaveBeenCalled(),
+            );
+        },
+    );
+
+    it.each(Object.keys(phoneCalls) as (keyof typeof phoneCalls)[])(
+        'refuses the phone %s with the code and the organization before it touches the sign-in code',
+        async (endpoint) => {
+            const model = untouchedModel();
+            const { service } = createService({
+                mobileAppAccessEnabled: false,
+                model,
+            });
+            const error = await phoneCalls[endpoint](service).catch(
+                (caught: unknown) => caught,
+            );
+            expect(error).toBeInstanceOf(MobileSignInOAuthError);
+            expect(error).toMatchObject(denied);
+            expect((error as MobileSignInOAuthError).toJSON()).toEqual({
+                error: 'access_denied',
+                error_description: 'mobile_org_disabled',
+                organization_uuid: organizationUuid,
+            });
+            Object.values(model).forEach((fn) =>
+                expect(fn).not.toHaveBeenCalled(),
+            );
+        },
+    );
+
+    it('wins over the other mobile flags, so the phone always gets the same code', async () => {
+        const { service } = createService({
+            mobileAppAccessEnabled: false,
+            flagEnabled: false,
+            qrSignInEnabled: false,
+        });
+        await expectOAuthError(service.claim(claimBody, {}), denied);
+    });
+
+    it('denies a redeem when the organization goes off after the claim', async () => {
+        let enabled = true;
+        const featureFlagModel = {
+            get: vi.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId === 'mobile-app-access' ? enabled : true,
+                }),
+            ),
+        };
+        const model = {
+            claim: vi.fn(async () => ({ outcome: 'claimed', row: codeRow })),
+            redeem: vi.fn(),
+        };
+        const { service } = createService({ featureFlagModel, model });
+
+        await expect(service.claim(claimBody, {})).resolves.toMatchObject({
+            interval: 2,
+        });
+        enabled = false;
+        await expectOAuthError(service.redeem(redeemArgs, {}), denied);
+        expect(model.redeem).not.toHaveBeenCalled();
+    });
+
+    it('keeps the organization out of other refusals', async () => {
+        const { service } = createService({ qrSignInEnabled: false });
+        const error = await service
+            .claim(claimBody, {})
+            .catch((caught: unknown) => caught);
+        expect((error as MobileSignInOAuthError).toJSON()).toEqual({
+            error: 'access_denied',
+            error_description: 'qr_sign_in_disabled',
+        });
+    });
+
+    it('resolves the flag for the organization only', async () => {
+        const { service, featureFlagModel } = createService();
+        await service.mint(sessionUser, 'session-0000', 'show');
+        expect(featureFlagModel.get).toHaveBeenCalledWith({
+            featureFlagId: 'mobile-app-access',
+            user: { organizationUuid },
+        });
+    });
+});
+
+describe('MobileSignInService.getAppAccess', () => {
+    it('answers enabled with the organization of the sign-in', async () => {
+        const { service } = createService();
+        await expect(service.getAppAccess(sessionUser)).resolves.toEqual({
+            enabled: true,
+            organizationUuid,
+        });
+    });
+
+    it('throws the disabled organization error with the code', async () => {
+        const { service } = createService({ mobileAppAccessEnabled: false });
+        await expect(service.getAppAccess(sessionUser)).rejects.toMatchObject({
+            name: 'MobileOrgDisabledError',
+            statusCode: 401,
+            data: { code: 'mobile_org_disabled', organizationUuid },
+        });
+    });
+
+    it('answers in every mode, also where QR sign-in is not offered', async () => {
+        const { service } = createService({
+            mode: LightdashMode.DEFAULT,
+            flagEnabled: false,
+            qrSignInEnabled: false,
+        });
+        await expect(service.getAppAccess(sessionUser)).resolves.toEqual({
+            enabled: true,
+            organizationUuid,
+        });
+    });
+
+    it('refuses a person with no organization', async () => {
+        const { service } = createService();
+        await expectRefusal(
+            service.getAppAccess({ organizationUuid: undefined }),
+            MobileSignInRefusal.ORGANIZATION_REQUIRED,
+        );
     });
 });

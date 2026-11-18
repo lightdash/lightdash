@@ -89,8 +89,7 @@ import {
 } from '../../../features/promotion/hooks/usePromoteDashboard';
 import { DashboardSchedulersModal } from '../../../features/scheduler';
 import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
-import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutation';
-import { useFavorites } from '../../../hooks/favorites/useFavorites';
+import { useFavoriteToggle } from '../../../hooks/favorites/useFavoriteToggle';
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
 import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
 import {
@@ -137,9 +136,10 @@ import DashboardPreAggRefreshModal from './DashboardPreAggRefreshModal';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
 import { EDIT_BAR_POSITION } from './editBarPosition';
 import { EDIT_SHORTCUTS, toHotkeyItems } from './editShortcuts';
+import { DashboardEditTour, EXAMPLE_PENDING_CHANGES } from './onboarding';
 import { PendingChangesButton } from './PendingChangesButton';
 import { PreAggregateAuditDrawer } from './PreAggregateAuditIndicator';
-import { ShortcutHint } from './ShortcutHint';
+import { ShortcutHint, TourFrame } from './ShortcutHint';
 import { TidyTilesButton } from './TidyTilesButton';
 import { TileLayoutHistoryButtons } from './TileLayoutHistoryButtons';
 import { useDashboardManageAccess } from './useDashboardManageAccess';
@@ -250,6 +250,7 @@ const DashboardHeader = memo(
                 : [],
         );
         const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+        const [showsExampleChanges, setShowsExampleChanges] = useState(false);
         const [isRefreshOptionsOpen, setIsRefreshOptionsOpen] = useState(false);
         const [isUpdating, setIsUpdating] = useState(false);
         const [isSlugRenameModalOpen, slugRenameModalHandlers] =
@@ -388,13 +389,10 @@ const DashboardHeader = memo(
             toggleDashboardPinning({ uuid: dashboardUuid });
         }, [dashboardUuid, toggleDashboardPinning]);
 
-        const { data: favorites } = useFavorites(projectUuid);
-        const { mutate: toggleFavorite } = useFavoriteMutation(projectUuid);
-        const isDashboardFavorited = useMemo(
-            () =>
-                favorites?.some((f) => f.data.uuid === dashboardUuid) ?? false,
-            [favorites, dashboardUuid],
-        );
+        const { isFavorite, toggle: toggleFavorite } =
+            useFavoriteToggle(projectUuid);
+        const isDashboardFavorited =
+            !!dashboardUuid && isFavorite(dashboardUuid);
 
         const { user, health } = useApp();
         const preAggregatesEnabled =
@@ -632,10 +630,10 @@ const DashboardHeader = memo(
                             size="md"
                             isFavorite={isDashboardFavorited}
                             onToggle={() => {
-                                toggleFavorite({
-                                    contentType: ContentType.DASHBOARD,
-                                    contentUuid: dashboardUuid,
-                                });
+                                toggleFavorite(
+                                    ContentType.DASHBOARD,
+                                    dashboardUuid,
+                                );
                             }}
                         />
                     )}
@@ -767,30 +765,50 @@ const DashboardHeader = memo(
                                 position={EDIT_BAR_POSITION}
                                 className={headerClasses.editBar}
                             >
+                                <TourFrame name="dashboard-edit-bar" />
                                 <TileLayoutHistoryButtons />
                                 <ActionBar.Divider />
-                                <ShortcutHint
-                                    shortcut={EDIT_SHORTCUTS.addTile}
-                                    position="top"
+                                <Group
+                                    gap="xs"
+                                    wrap="nowrap"
+                                    data-tour="dashboard-edit-tiles"
+                                    data-tour-hints
                                 >
-                                    <AddTileButton
-                                        onAddTiles={onAddTiles}
-                                        disabled={isSaving}
-                                        setAddingTab={setAddingTab}
-                                        activeTabUuid={activeTabUuid}
-                                        dashboardTabs={dashboardTabs}
-                                        onNewChart={onNewChart}
-                                        radius="md"
+                                    <ShortcutHint
                                         shortcut={EDIT_SHORTCUTS.addTile}
-                                    />
-                                </ShortcutHint>
-                                <TidyTilesButton />
+                                        position="top"
+                                    >
+                                        <AddTileButton
+                                            onAddTiles={onAddTiles}
+                                            disabled={isSaving}
+                                            setAddingTab={setAddingTab}
+                                            activeTabUuid={activeTabUuid}
+                                            dashboardTabs={dashboardTabs}
+                                            onNewChart={onNewChart}
+                                            radius="md"
+                                            shortcut={EDIT_SHORTCUTS.addTile}
+                                        />
+                                    </ShortcutHint>
+                                    <TidyTilesButton />
+                                </Group>
                                 <ActionBar.Divider />
-                                <CanvasZoomControls />
-                                <CanvasBackgroundControl />
+                                <Group
+                                    gap="xs"
+                                    wrap="nowrap"
+                                    data-tour="dashboard-edit-canvas"
+                                    data-tour-hints
+                                >
+                                    <CanvasZoomControls />
+                                    <CanvasBackgroundControl />
+                                </Group>
                                 <EditFiltersVisibilityControl
                                     value={editFiltersVisibility}
                                     onChange={onEditFiltersVisibilityChange}
+                                />
+                                <DashboardEditTour
+                                    onExampleChangesToggle={
+                                        setShowsExampleChanges
+                                    }
                                 />
                             </ActionBar>
                         )}
@@ -798,6 +816,11 @@ const DashboardHeader = memo(
                         {pendingSettingsChanges !== null && (
                             <PendingChangesButton
                                 settingsChanges={pendingSettingsChanges}
+                                exampleChanges={
+                                    showsExampleChanges
+                                        ? EXAMPLE_PENDING_CHANGES
+                                        : null
+                                }
                             />
                         )}
                         <ShortcutHint
@@ -1166,11 +1189,10 @@ const DashboardHeader = memo(
                                                 />
                                             }
                                             onClick={() =>
-                                                toggleFavorite({
-                                                    contentType:
-                                                        ContentType.DASHBOARD,
-                                                    contentUuid: dashboardUuid,
-                                                })
+                                                toggleFavorite(
+                                                    ContentType.DASHBOARD,
+                                                    dashboardUuid,
+                                                )
                                             }
                                         >
                                             {isDashboardFavorited

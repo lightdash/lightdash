@@ -24,6 +24,7 @@ import {
     selectHasTilesThatSupportFilters,
     selectSavedChartUuidsAndTileUuids,
     selectSavedChartUuidsAndTileUuidsKey,
+    selectTileQuerySources,
     selectTileUuidsKey,
 } from './dashboardEditSelectors';
 
@@ -245,6 +246,45 @@ describe('tile selectors', () => {
             { tileUuid: 'a', savedChartUuid: 'chart-a' },
             { tileUuid: 'b', savedChartUuid: 'chart-b' },
         ]);
+    });
+
+    it('lists composer chart tiles for the filter pickers outside embeds only', () => {
+        const composer = {
+            ...tile('c'),
+            type: DashboardTileTypes.COMPOSER_CHART,
+            properties: { composerChartUuid: 'composer-c', chartName: null },
+        } as Dashboard['tiles'][number];
+        const state = storeWith(
+            reducer(undefined, actions.setTiles([tile('a'), composer])),
+        );
+        const composerItem = {
+            tileType: DashboardTileTypes.COMPOSER_CHART,
+            tileUuid: 'c',
+            composerChartUuid: 'composer-c',
+        };
+        const embed = {
+            ...state,
+            source: { ...state.source, embedToken: 'token' },
+        };
+        expect(selectSavedChartUuidsAndTileUuids(state)).toEqual([
+            { tileUuid: 'a', savedChartUuid: 'chart-a' },
+            composerItem,
+        ]);
+        expect(selectHasTilesThatSupportFilters(state)).toBe(true);
+        expect(selectSavedChartUuidsAndTileUuids(embed)).toEqual([
+            { tileUuid: 'a', savedChartUuid: 'chart-a' },
+        ]);
+        // The parameter lookup lists them too; saved charts keep the untagged shape
+        const savedQuery = {
+            tileUuid: 'a',
+            savedChartUuid: 'chart-a',
+            savedSqlUuid: null,
+        };
+        expect(selectTileQuerySources(state)).toEqual([
+            savedQuery,
+            composerItem,
+        ]);
+        expect(selectTileQuerySources(embed)).toEqual([savedQuery]);
     });
 
     it('reports whether any tile supports filters', () => {
@@ -485,6 +525,40 @@ describe('tile layout undo and redo', () => {
 
         expect(ys(reducer(tidy, actions.undoTileLayout()))).toEqual([5, 20, 9]);
         expect(reducer(tidy, actions.tidyTiles())).toBe(tidy);
+    });
+
+    it('sets a tile width as one undo step and keeps the tile selected', () => {
+        const widths = (state: typeof initialDashboardEditState) =>
+            state.tiles?.map(({ w }) => w);
+        const start = reducer(
+            editing([tile('a'), { ...tile('b'), y: 12 }]),
+            actions.selectTile('a'),
+        );
+
+        const widened = reducer(
+            start,
+            actions.setTileWidth({ uuid: 'a', w: 36 }),
+        );
+        expect(widths(widened)).toEqual([36, widths(start)?.[1]]);
+        expect(widened.selectedTileUuid).toBe('a');
+        expect(widths(reducer(widened, actions.undoTileLayout()))).toEqual(
+            widths(start),
+        );
+    });
+
+    it('drops the selection when the selected tile is removed', () => {
+        const selected = reducer(
+            editing([tile('a'), tile('b', 6)]),
+            actions.selectTile('a'),
+        );
+        expect(
+            reducer(selected, actions.setTiles([tile('b', 6)]))
+                .selectedTileUuid,
+        ).toBeNull();
+        expect(
+            reducer(selected, actions.setTiles([tile('a'), tile('b', 6)]))
+                .selectedTileUuid,
+        ).toBe('a');
     });
 
     it('tidies gaps and row widths in one undo step', () => {

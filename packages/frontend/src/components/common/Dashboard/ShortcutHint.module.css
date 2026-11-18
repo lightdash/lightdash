@@ -28,13 +28,29 @@
 }
 
 /* Set on the body by useShortcutHints while the modifier is held */
-:global(body[data-shortcut-hints]) .hint {
+:global(body[data-shortcut-hints]) .hint,
+:global(body[data-shortcut-hints-pinned]) .hint {
     opacity: 1;
     transform: translate(-50%, 0);
 }
 
-:global(body[data-shortcut-hints]) .hint[data-position='corner'] {
+:global(body[data-shortcut-hints]) .hint[data-position='corner'],
+:global(body[data-shortcut-hints-pinned]) .hint[data-position='corner'] {
     transform: none;
+}
+
+/* Grows a tour target's box over its hints without moving anything, so the
+   spotlight takes them in */
+:global(body[data-shortcut-hints-pinned] [data-tour-hints]) {
+    --tour-hints-room: calc(var(--mantine-spacing-sm) + 1.5rem);
+    padding-top: var(--tour-hints-room);
+    margin-top: calc(var(--tour-hints-room) * -1);
+}
+
+.tourFrame {
+    position: absolute;
+    inset: calc((var(--mantine-spacing-sm) + 1.5rem) * -1) 0 0 0;
+    pointer-events: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

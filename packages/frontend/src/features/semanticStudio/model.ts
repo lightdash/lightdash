@@ -190,8 +190,16 @@ export const getSource = (project: Project, sourceId: string): Source => {
     return source;
 };
 
+// Rows look their explore up on every render, so each list of explores is indexed once.
+const exploresById = new WeakMap<Project['explores'], Map<string, Explore>>();
+
 export const getExplore = (project: Project, exploreId: string): Explore => {
-    const explore = project.explores.find(({ id }) => id === exploreId);
+    let byId = exploresById.get(project.explores);
+    if (!byId) {
+        byId = new Map(project.explores.map((entry) => [entry.id, entry]));
+        exploresById.set(project.explores, byId);
+    }
+    const explore = byId.get(exploreId);
     if (!explore) throw new Error(`Unknown explore ${exploreId}`);
     return explore;
 };

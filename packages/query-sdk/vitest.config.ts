@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
     test: {
+        clearMocks: false,
         // The external-fetch adapter runs in the iframe (browser). jsdom
         // gives us `window`, `MessageEvent`, and `crypto.randomUUID`.
         environment: 'jsdom',

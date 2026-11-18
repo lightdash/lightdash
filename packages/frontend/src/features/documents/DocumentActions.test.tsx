@@ -65,15 +65,11 @@ vi.mock('../../hooks/pinning/useDocumentPinningMutation', () => ({
         isLoading: mocks.pinLoading,
     }),
 }));
-vi.mock('../../hooks/favorites/useFavorites', () => ({
-    useFavorites: () => ({
-        data: mocks.isFavorite ? [{ data: { uuid: 'document' } }] : [],
-    }),
-}));
-vi.mock('../../hooks/favorites/useFavoriteMutation', () => ({
-    useFavoriteMutation: () => ({
-        mutate: mocks.toggleFavorite,
+vi.mock('../../hooks/favorites/useFavoriteToggle', () => ({
+    useFavoriteToggle: () => ({
+        isFavorite: () => mocks.isFavorite,
         isLoading: false,
+        toggle: mocks.toggleFavorite,
     }),
 }));
 vi.mock('./useExportDocumentPdf', () => ({
@@ -552,10 +548,10 @@ describe('Document actions', () => {
                 name: 'Add Weekly report to favorites',
             }),
         );
-        expect(mocks.toggleFavorite).toHaveBeenCalledWith({
-            contentType: 'document',
-            contentUuid: 'document',
-        });
+        expect(mocks.toggleFavorite).toHaveBeenCalledWith(
+            'document',
+            'document',
+        );
         mocks.isFavorite = true;
         view.rerender(
             <MantineProvider>

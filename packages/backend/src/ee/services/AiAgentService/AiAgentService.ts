@@ -123,6 +123,7 @@ import {
     getComposerSlackEchartsConfig,
     getComposerSlackRunQueryChart,
     getDataAppVizChartFromArtifact,
+    getEmbedThreadOwnerIdentifier,
     getEmbedWriteSpaceUuids,
     getErrorMessage,
     getFields,
@@ -380,12 +381,13 @@ import { GithubAppService } from '../../../services/GithubAppService/GithubAppSe
 import { PersistentDownloadFileService } from '../../../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import {
-    describeApiSourceTarget,
-    getApiSourceExploreNames,
+    describeLiveTarget,
     getLegacyLiveSourceName,
-} from '../../../services/QuerySourceService/api/apiSourceExplores';
+    getLiveExploreNames,
+} from '../../../services/QuerySourceService/live/explores/build';
 import { type QuerySourceService } from '../../../services/QuerySourceService/QuerySourceService';
 import { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
+import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { SearchService } from '../../../services/SearchService/SearchService';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
@@ -553,6 +555,7 @@ import {
 import { createGitlabRepoSource } from '../ai/repoFs/gitlabRepoSource';
 import {
     DBT_MOUNT,
+    hasDbtMount,
     MountingRepoFileSystem,
 } from '../ai/repoFs/mountingRepoFileSystem';
 import { RepoFs } from '../ai/repoFs/RepoFs';
@@ -985,6 +988,8 @@ type EmbedAiAgentRuntimeOptions = {
     writeSpaceUuids: string[];
     // The host application's id for the viewer, when its token carries one.
     externalUserId: string | null;
+    // Owns the threads this token starts: its threadOwnershipIdentifier, else the viewer.
+    threadOwnerIdentifier: string | null;
     threadScope: EmbedThreadScope;
     spaceAccess: string[];
     // Source spaces the agent may read but not write to.
@@ -1064,6 +1069,7 @@ type AiAgentServiceDependencies = {
     dashboardService: DashboardService;
     documentService: DocumentService;
     savedChartService: SavedChartService;
+    savedSqlService: SavedSqlService;
     contentService: ContentService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
     aiCreditService: Pick<AiCreditService, 'assertAiCreditsAvailable'>;
@@ -1433,6 +1439,8 @@ export class AiAgentService extends BaseService {
 
     private readonly documentService: DocumentService;
 
+    private readonly savedSqlService: SavedSqlService;
+
     private readonly savedChartService: SavedChartService;
 
     private readonly contentService: ContentService;
@@ -1690,6 +1698,9 @@ export class AiAgentService extends BaseService {
                 case 'document':
                     key = `document:${item.documentUuid}`;
                     break;
+                case 'sql_chart':
+                    key = `sql_chart:${item.sqlChartUuid}`;
+                    break;
                 case 'design':
                     key = designContextKey(item.designUuid);
                     break;
@@ -1934,6 +1945,24 @@ export class AiAgentService extends BaseService {
                     );
                 }
 
+                if (item.type === 'sql_chart') {
+                    // Checks project and space access for this user.
+                    const sqlChart = await this.savedSqlService.getSqlChart(
+                        user,
+                        agent.projectUuid,
+                        item.sqlChartUuid,
+                    );
+                    if (
+                        allowedSpaces &&
+                        !allowedSpaces.has(sqlChart.space.uuid)
+                    ) {
+                        throw new ForbiddenError(
+                            'Pinned SQL chart is outside the embedded space',
+                        );
+                    }
+                    return;
+                }
+
                 if (item.type === 'document') {
                     // Checks project and space access for this user.
                     const document = await this.documentService.get(
@@ -2136,6 +2165,7 @@ export class AiAgentService extends BaseService {
         this.coderService = dependencies.coderService;
         this.dashboardService = dependencies.dashboardService;
         this.documentService = dependencies.documentService;
+        this.savedSqlService = dependencies.savedSqlService;
         this.savedChartService = dependencies.savedChartService;
         this.contentService = dependencies.contentService;
         this.prometheusMetrics = dependencies.prometheusMetrics;
@@ -3572,6 +3602,9 @@ export class AiAgentService extends BaseService {
         const chartSpaceUuids = getEmbedActorChartSpaceUuids(account);
         const externalUserId =
             account.authentication.data.user?.externalId || null;
+        const threadOwnerIdentifier = getEmbedThreadOwnerIdentifier(
+            account.authentication.data,
+        );
         const isReadOnly = isEmbedReadOnlyAiAgentToken(
             account.authentication.data,
         );
@@ -3594,13 +3627,16 @@ export class AiAgentService extends BaseService {
             threadScope = {
                 type: 'writeSpaces',
                 writeSpaceUuids,
-                externalUserId,
+                ownerIdentifier: threadOwnerIdentifier,
             };
-        } else if (externalUserId !== null) {
-            threadScope = { type: 'externalUser', externalUserId };
+        } else if (threadOwnerIdentifier !== null) {
+            threadScope = {
+                type: 'owner',
+                ownerIdentifier: threadOwnerIdentifier,
+            };
         } else {
             throw new ForbiddenError(
-                'Embed tokens without write spaces must include user.externalId',
+                'Embed tokens without write spaces must include user.externalId or content.threadOwnershipIdentifier',
             );
         }
 
@@ -3610,6 +3646,7 @@ export class AiAgentService extends BaseService {
             runtimeOptions: {
                 writeSpaceUuids,
                 externalUserId,
+                threadOwnerIdentifier,
                 threadScope,
                 spaceAccess: chartSpaceUuids,
                 readOnlySpaceUuids: chartSpaceUuids.filter(
@@ -5876,7 +5913,7 @@ export class AiAgentService extends BaseService {
             createdFrom: body.createdFrom ?? createdFrom,
             agentUuid,
             embedSpaceUuids: runtimeOptions?.writeSpaceUuids,
-            embedExternalUserId: runtimeOptions?.externalUserId ?? null,
+            embedOwnerIdentifier: runtimeOptions?.threadOwnerIdentifier ?? null,
             battleProfile: body.battleProfile ?? null,
             binding,
             threadContext,
@@ -10415,6 +10452,9 @@ export class AiAgentService extends BaseService {
             }))
         )
             return 'agent_unavailable';
+        // Results an agent produced while Data Access was on stop being
+        // readable as that agent once Data Access is off.
+        if (!agent.enableDataAccess) return 'data_access_off';
         return 'allowed';
     }
 
@@ -10441,10 +10481,13 @@ export class AiAgentService extends BaseService {
             prompt.agentUuid !== agent.uuid ||
             prompt.projectUuid !== projectUuid ||
             prompt.organizationUuid !== user.organizationUuid ||
-            prompt.threadUuid !== artifact.threadUuid ||
-            !agent.enableDataAccess
+            prompt.threadUuid !== artifact.threadUuid
         )
             throw new ForbiddenError('Artifact results are unavailable');
+        // A metadata-only agent never runs data queries, so no agent produced
+        // these results. The owner runs and reads the chart as themselves,
+        // under their own access, like any other person opening it.
+        if (!agent.enableDataAccess) return { kind: 'person', authMethod };
         const surface =
             querySurfaceFromPrompt(prompt) === QuerySurface.SLACK
                 ? AgentActorSurface.SLACK_AGENT
@@ -12360,7 +12403,7 @@ export class AiAgentService extends BaseService {
                               connectionUuid: externalConnectionUuid,
                               name,
                               connector: apiSource.connector,
-                              exploreNames: getApiSourceExploreNames(
+                              exploreNames: getLiveExploreNames(
                                   apiSource.connector,
                                   liveSourceName ??
                                       getLegacyLiveSourceName(
@@ -12368,7 +12411,7 @@ export class AiAgentService extends BaseService {
                                           externalConnectionUuid,
                                       ),
                               ),
-                              target: describeApiSourceTarget(
+                              target: describeLiveTarget(
                                   apiSource,
                                   origin,
                                   targetLabel ?? null,
@@ -13195,6 +13238,11 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                     const slugText = item.appSlug ?? '(slug unavailable)';
                     return `- Data app "${name}" (dataAppSlug: ${slugText})`;
                 }
+                case 'sql_chart': {
+                    const name = item.displayName ?? '(name unavailable)';
+                    const slugText = item.sqlChartSlug ?? '(slug unavailable)';
+                    return `- SQL chart "${name}" (sqlChartSlug: ${slugText}) — the SQL chart the user asked about. When the user says "this" or asks for a change without naming content, they mean this chart. Read it with readContent (type sql_chart, slug) before answering or editing, and save changes with editContent (type sql_chart).`;
+                }
                 case 'document': {
                     const name = item.displayName ?? '(name unavailable)';
                     const slugText = item.documentSlug ?? '(slug unavailable)';
@@ -13903,6 +13951,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 const runArgs = {
                     ...(prompt.threadCreatedFrom === 'semantic_studio'
                         ? {
+                              continuesThreadPullRequest: true,
                               onDbtProject: async (
                                   project: ParsedDbtProject,
                               ) => {
@@ -13931,13 +13980,58 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 result = await wrapSentryTransaction(
                     'AiAgent.editDbtProject',
                     {},
-                    () =>
-                        writebackGuard
+                    async () => {
+                        if (payload.script) {
+                            const saved =
+                                await this.aiWritebackService.saveWithScript(
+                                    runArgs,
+                                    payload.script,
+                                    {
+                                        dryRun: false,
+                                        assertPublishAllowed,
+                                        checkDbt: (change) =>
+                                            this.semanticStudioService.checkDbtScriptChange(
+                                                user,
+                                                projectUuid,
+                                                change,
+                                                { checkQueries: false },
+                                            ),
+                                    },
+                                );
+                            if (saved?.status === 'saved') {
+                                changedModels = saved.changedModels;
+                                if (saved.explores !== null) {
+                                    await this.semanticStudioService
+                                        .saveDbtScriptTryOut(
+                                            user,
+                                            projectUuid,
+                                            prompt.threadUuid,
+                                            {
+                                                prUrl: saved.result.prUrl,
+                                                explores: saved.explores,
+                                            },
+                                        )
+                                        .catch((error: unknown) => {
+                                            Logger.warn(
+                                                `AiAgent.runEditDbtProjectPipeline: failed to keep the try-out of run ${aiWritebackRunUuid}: ${getErrorMessage(error)}`,
+                                            );
+                                        });
+                                }
+                                return saved.result;
+                            }
+                            if (saved?.status === 'script_failed') {
+                                throw new ParameterError(
+                                    `The script did not run, so nothing was saved: ${saved.error}`,
+                                );
+                            }
+                        }
+                        return writebackGuard
                             ? this.aiWritebackService.run(
                                   runArgs,
                                   writebackGuard.assert,
                               )
-                            : this.aiWritebackService.run(runArgs),
+                            : this.aiWritebackService.run(runArgs);
+                    },
                 );
             } catch (error) {
                 if (writebackGuard?.getFailure()) {
@@ -14046,29 +14140,6 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     });
             }
 
-            const isBitbucketPullRequest =
-                result.prUrl?.startsWith('https://bitbucket.org/') === true;
-            let previewUrl: string | null = null;
-            if (
-                result.prUrl &&
-                !isBitbucketPullRequest &&
-                !suppressWritebackPreview &&
-                !reviewRemediation
-            ) {
-                const preview =
-                    await this.writebackPreviewService.createPreviewForPullRequest(
-                        {
-                            user,
-                            projectUuid,
-                            prUrl: result.prUrl,
-                            ...(assertPublishAllowed
-                                ? { assertPublishAllowed }
-                                : {}),
-                        },
-                    );
-                previewUrl = preview?.previewUrl ?? null;
-            }
-
             const target = `Lightdash project "${result.projectName}" (repository ${result.repository})`;
             const prVerb = result.prAction === 'updated' ? 'Updated' : 'Opened';
             let base: string;
@@ -14080,29 +14151,67 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 base = `Ran against ${target} but made no file changes, so no pull request was opened.\n\nAgent summary:\n${result.output}`;
             }
 
-            let toolResult = base;
-            if (result.prUrl && previewUrl) {
-                toolResult += `\n\nA Lightdash preview environment was created from the pull request's branch: ${previewUrl} — include this link in your reply so the user can review the change in Lightdash before merging. Explores may take a minute to appear while the preview compiles.`;
-            }
+            const storeResult = (
+                previewUrl: string | null,
+                previewPendingSince: string | null,
+            ) =>
+                this.aiAgentModel.updateToolResult(promptUuid, toolCallId, {
+                    result: previewUrl
+                        ? `${base}\n\nA Lightdash preview environment was created from the pull request's branch: ${previewUrl} — include this link in your reply so the user can review the change in Lightdash before merging. Explores may take a minute to appear while the preview compiles.`
+                        : base,
+                    metadata: {
+                        status: 'success',
+                        prUrl: result.prUrl ?? null,
+                        prAction: result.prAction ?? null,
+                        commitSha: result.commitSha ?? null,
+                        additions: result.additions ?? null,
+                        deletions: result.deletions ?? null,
+                        previewUrl,
+                        previewPendingSince,
+                        steps: result.steps,
+                        changedModels,
+                        needsDbtSourceSelection:
+                            result.needsDbtSourceSelection ?? null,
+                        dbtSourceOptions: result.dbtSourceOptions ?? null,
+                    },
+                });
 
-            if (assertPublishAllowed) await assertPublishAllowed();
-            await this.aiAgentModel.updateToolResult(promptUuid, toolCallId, {
-                result: toolResult,
-                metadata: {
-                    status: 'success',
-                    prUrl: result.prUrl ?? null,
-                    prAction: result.prAction ?? null,
-                    commitSha: result.commitSha ?? null,
-                    additions: result.additions ?? null,
-                    deletions: result.deletions ?? null,
-                    previewUrl: previewUrl ?? null,
-                    steps: result.steps,
-                    changedModels,
-                    needsDbtSourceSelection:
-                        result.needsDbtSourceSelection ?? null,
-                    dbtSourceOptions: result.dbtSourceOptions ?? null,
-                },
-            });
+            const isBitbucketPullRequest =
+                result.prUrl?.startsWith('https://bitbucket.org/') === true;
+            let previewUrl: string | null = null;
+            try {
+                if (
+                    result.prUrl &&
+                    !isBitbucketPullRequest &&
+                    !suppressWritebackPreview &&
+                    !reviewRemediation
+                ) {
+                    // Studio shows the pull request now; building its preview can take a minute.
+                    if (prompt.threadCreatedFrom === 'semantic_studio') {
+                        if (assertPublishAllowed) await assertPublishAllowed();
+                        await storeResult(null, new Date().toISOString());
+                        toolResultWritten = true;
+                    }
+                    const preview =
+                        await this.writebackPreviewService.createPreviewForPullRequest(
+                            {
+                                user,
+                                projectUuid,
+                                prUrl: result.prUrl,
+                                ...(assertPublishAllowed
+                                    ? { assertPublishAllowed }
+                                    : {}),
+                            },
+                        );
+                    previewUrl = preview?.previewUrl ?? null;
+                }
+                if (assertPublishAllowed) await assertPublishAllowed();
+            } catch (error) {
+                // The pull request stays recorded; only waiting on its preview ends.
+                if (toolResultWritten) await storeResult(null, null);
+                throw error;
+            }
+            await storeResult(previewUrl, null);
             toolResultWritten = true;
 
             // Deliver the PR card to Slack now that the tool result is final — the
@@ -14997,6 +15106,37 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     'editDbtProject requires a tool call id (progressId)',
                 );
             }
+            let { script } = args;
+            if (script) {
+                // Run it once now so a broken script goes back to the model instead of failing in the background.
+                const checked = await this.aiWritebackService.saveWithScript(
+                    {
+                        agentPermissionsApply: true,
+                        user,
+                        projectUuid,
+                        prompt: writebackPrompt,
+                        dbtSourceUuid: options?.dbtSourceUuid,
+                        prUrl: args.prUrl,
+                        startNewPullRequest: args.startNewPullRequest ?? false,
+                        aiThreadUuid: prompt.threadUuid,
+                        source,
+                    },
+                    script,
+                    {
+                        dryRun: true,
+                        assertPublishAllowed: null,
+                        checkDbt: (change) =>
+                            this.semanticStudioService.checkDbtScriptChange(
+                                user,
+                                projectUuid,
+                                change,
+                                { checkQueries: true },
+                            ),
+                    },
+                );
+                if (checked?.status === 'script_failed') return checked;
+                if (checked === null) script = null;
+            }
             const { aiWritebackRunUuid } =
                 await this.aiWritebackService.createPendingRun({
                     user,
@@ -15030,9 +15170,14 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 prUrl: args.prUrl,
                 startNewPullRequest: args.startNewPullRequest ?? null,
                 suppressWritebackPreview: options?.suppressWritebackPreview,
+                script,
             });
 
-            return { aiWritebackRunUuid };
+            return {
+                status: 'started',
+                aiWritebackRunUuid,
+                inSandbox: !script,
+            };
         };
 
         // Read-only repo access for the exploreRepo tool, exposed as ONE virtual
@@ -15204,16 +15349,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         const getMountFs = () => {
             if (!mountFsPromise) {
                 mountFsPromise = (async () => {
-                    // /dbt is mountable when the project's dbt repo is on a
-                    // host the VFS can read read-only (GitHub or GitLab); other
-                    // connection types have no repo source.
                     const project = await this.projectModel.get(projectUuid);
-                    const hasDbtMount =
-                        project.dbtConnection.type === DbtProjectType.GITHUB ||
-                        project.dbtConnection.type === DbtProjectType.GITLAB;
                     return MountingRepoFileSystem.create({
                         listRepos: listAuthorizedRepos,
-                        hasDbtMount,
+                        hasDbtMount: hasDbtMount(project.dbtConnection),
                         buildDbtRepoFs,
                         buildRepoFs,
                         searchOwner: async (owner, query) => {
@@ -15357,7 +15496,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 user,
                 projectUuid,
                 models,
-                prompt.promptUuid,
+                {
+                    promptUuid: prompt.promptUuid,
+                    threadUuid: prompt.threadUuid,
+                },
             );
 
         const readSemanticModel: ReadSemanticModelFn = (name) =>
@@ -17503,6 +17645,22 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         }),
                     );
 
+                // The scopes the content services check before saving or running custom SQL.
+                const canManageCustomSql = (
+                    subjectName:
+                        | 'CustomSql'
+                        | 'CustomFields'
+                        | 'CustomSqlTableCalculations',
+                ) =>
+                    hasTrustedPromptUserIdentity &&
+                    this.createAuditedAbility(user).can(
+                        'manage',
+                        subject(subjectName, {
+                            organizationUuid: promptProject.organizationUuid,
+                            projectUuid: promptProject.projectUuid,
+                        }),
+                    );
+
                 // A project with only live sources has no warehouse to run SQL on
                 const warehouseCredentials = canRunSql
                     ? await this.projectModel
@@ -17639,6 +17797,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                           promptProject.projectUuid,
                       )
                     : null;
+                // Studio saves a dbt change with a script wherever Studio itself is on for the person.
+                const semanticStudioCodeMode =
+                    semanticStudioStatus?.appliesAs === 'dbt_pull_request' &&
+                    semanticStudioStatus.enabled;
                 const semanticStudioDrafts =
                     semanticStudioStatus !== null &&
                     semanticStudioStatus.enabled &&
@@ -17648,6 +17810,20 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     this.logger.info(
                         `Disabling editDbtProject for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
                     );
+                }
+                // Same manage:SourceCode check the writeback service enforces.
+                if (
+                    aiWritebackEnabled &&
+                    !this.createAuditedAbility(user).can(
+                        'manage',
+                        subject('SourceCode', {
+                            organizationUuid: promptProject.organizationUuid,
+                            projectUuid: promptProject.projectUuid,
+                            isProtectedBranch: false,
+                        }),
+                    )
+                ) {
+                    aiWritebackEnabled = false;
                 }
                 const writebackConnectionSupport =
                     getWritebackConnectionSupport(promptProject.dbtConnection);
@@ -17724,22 +17900,28 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                             prompt.threadUuid,
                         )
                     ).length > 0;
+                const pinnedThreadUuids =
+                    await this.aiAgentModel.findPinnedThreadContextUuids(
+                        prompt.threadUuid,
+                    );
 
-                const repoDiscoveryEnabled = hasTrustedPromptUserIdentity;
-                if (!repoDiscoveryEnabled) {
+                if (!hasTrustedPromptUserIdentity) {
                     this.logger.info(
                         `Disabling repo discovery for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
                     );
                 }
+                const repoDiscoveryEnabled =
+                    hasTrustedPromptUserIdentity &&
+                    (await this.aiWritebackService.canReadSourceCode({
+                        user,
+                        projectUuid: promptProject.projectUuid,
+                    }));
 
-                // The dbt project's root within the repo, so the prompt can point the
-                // exploreRepo agent at it (instead of hardcoding "dbt/"). Derived from
-                // the connection's project_sub_path: '.' = repo root, else a
-                // subdirectory. null when repo discovery is off or not git-backed.
+                // The /dbt mount's repository subdirectory, for the prompt; null without the mount.
                 let repoFsRoot: string | null = null;
                 if (
                     repoDiscoveryEnabled &&
-                    'project_sub_path' in promptProject.dbtConnection
+                    hasDbtMount(promptProject.dbtConnection)
                 ) {
                     const raw = (
                         promptProject.dbtConnection.project_sub_path ?? ''
@@ -18142,9 +18324,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     enableEditProjectContext: isReviewRemediationWorkThread,
                     isSemanticStudioThread,
                     semanticStudioDrafts,
+                    semanticStudioCodeMode,
                     writebackAttribution,
                     enableRepoDiscovery: repoDiscoveryEnabled,
                     enableReadAttachments: threadHasAttachments,
+                    enableReadPinnedThread: pinnedThreadUuids.length > 0,
                     enableAskUser,
                     enableFilterExpressions: filterExpressionsEnabled,
                     repoFsRoot,
@@ -18154,6 +18338,15 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     liveSources,
                     canCreateDashboards,
                     canCreateScheduledDeliveries,
+                    customSqlPermissions: {
+                        canSaveSqlCharts:
+                            canRunSql && canManageCustomSql('CustomSql'),
+                        canAuthorCustomSqlFields:
+                            canManageCustomSql('CustomFields'),
+                        canAuthorSqlTableCalculations: canManageCustomSql(
+                            'CustomSqlTableCalculations',
+                        ),
+                    },
                     autoApproveSql:
                         (options.autoApproveSql ?? false) ||
                         agentSettings.enableSqlAutoApproval,
@@ -18317,11 +18510,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     // Only conversations pinned as context on this thread are
                     // readable — the pin is the capability grant.
                     readPinnedThread: async ({ threadUuid }) => {
-                        const pinnedThreadUuids =
+                        const currentPinnedThreadUuids =
                             await this.aiAgentModel.findPinnedThreadContextUuids(
                                 prompt.threadUuid,
                             );
-                        if (!pinnedThreadUuids.includes(threadUuid)) {
+                        if (!currentPinnedThreadUuids.includes(threadUuid)) {
                             throw new ForbiddenError(
                                 'This conversation is not attached as context on this thread',
                             );

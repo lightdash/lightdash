@@ -10,6 +10,7 @@ import {
 type Props = {
     projectUuid: string | undefined;
     chartUuid?: string;
+    sqlChartUuid?: string;
     dashboardUuid?: string;
     dataAppUuid?: string;
     clickedFrom: AiAgentAskClickedSource;
@@ -29,6 +30,7 @@ type Props = {
 export const AskAiAgentMenuItem: FC<Props> = ({
     projectUuid,
     chartUuid,
+    sqlChartUuid,
     dashboardUuid,
     dataAppUuid,
     clickedFrom,
@@ -38,6 +40,7 @@ export const AskAiAgentMenuItem: FC<Props> = ({
     const { canAsk, handleClick } = useAskAiAgentAction({
         projectUuid,
         chartUuid,
+        sqlChartUuid,
         dashboardUuid,
         dataAppUuid,
         clickedFrom,

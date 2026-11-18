@@ -1,6 +1,6 @@
 {
     "name": "e2e",
-    "version": "3.261.1",
+    "version": "3.302.0",
     "private": true,
     "license": "MIT",
     "scripts": {
@@ -19,7 +19,7 @@
     },
     "dependencies": {
         "@lightdash/common": "workspace:*",
-        "@playwright/test": "1.63.0",
+        "@playwright/test": "1.65.1",
         "dayjs": "1.11.10",
         "js-yaml": "4.3.2"
     },

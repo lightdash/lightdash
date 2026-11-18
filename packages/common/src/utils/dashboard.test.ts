@@ -1,7 +1,9 @@
 import { type DashboardTile } from '../types/dashboard';
 import { ParameterError } from '../types/errors';
 import {
+    assertDashboardWithinLimits,
     expandSelectedTabs,
+    getDashboardLimitViolations,
     isTileInSelectedTabs,
     validateSelectedTabs,
 } from './dashboard';
@@ -118,5 +120,121 @@ describe('expandSelectedTabs', () => {
 
     it('returns an empty list for a dashboard without tiles', () => {
         expect(expandSelectedTabs(null, [])).toStrictEqual([]);
+    });
+});
+
+describe('assertDashboardWithinLimits', () => {
+    const limits = { maxTilesPerTab: 2, maxTabsPerDashboard: 2 };
+    const tabs = [
+        { uuid: 'tab2', name: 'Second', order: 1 },
+        { uuid: 'tab1', name: 'First', order: 0 },
+    ];
+
+    it('allows dashboards at the limits', () => {
+        expect(() =>
+            assertDashboardWithinLimits(
+                {
+                    tiles: [
+                        { tabUuid: 'tab1' },
+                        { tabUuid: 'tab1' },
+                        { tabUuid: 'tab2' },
+                        { tabUuid: 'tab2' },
+                    ],
+                    tabs,
+                },
+                limits,
+            ),
+        ).not.toThrow();
+    });
+
+    it('rejects too many tabs', () => {
+        expect(() =>
+            assertDashboardWithinLimits(
+                {
+                    tiles: [],
+                    tabs: [...tabs, { uuid: 'tab3', name: 'Third', order: 2 }],
+                },
+                limits,
+            ),
+        ).toThrow(
+            new ParameterError(
+                'Dashboard has 3 tabs, which is over the limit of 2 tabs per dashboard',
+            ),
+        );
+    });
+
+    it('rejects too many tiles on a dashboard without tabs', () => {
+        expect(() =>
+            assertDashboardWithinLimits(
+                { tiles: [{}, { tabUuid: null }, {}], tabs: [] },
+                limits,
+            ),
+        ).toThrow(
+            new ParameterError(
+                'Dashboard has 3 tiles, which is over the limit of 2 tiles per tab',
+            ),
+        );
+    });
+
+    it('counts tiles with unknown tabs on the first tab', () => {
+        expect(() =>
+            assertDashboardWithinLimits(
+                { tiles: [{ tabUuid: 'x' }, { tabUuid: 'y' }, {}], tabs: [] },
+                limits,
+            ),
+        ).toThrow(
+            new ParameterError(
+                'Dashboard has 3 tiles, which is over the limit of 2 tiles per tab',
+            ),
+        );
+        expect(() =>
+            assertDashboardWithinLimits(
+                {
+                    tiles: [{ tabUuid: 'tab1' }, { tabUuid: 'gone' }, {}],
+                    tabs,
+                },
+                limits,
+            ),
+        ).toThrow(
+            new ParameterError(
+                'Tab "First" has 3 tiles, which is over the limit of 2 tiles per tab',
+            ),
+        );
+    });
+
+    it('counts tiles without a tab on the first tab', () => {
+        expect(() =>
+            assertDashboardWithinLimits(
+                {
+                    tiles: [{ tabUuid: 'tab1' }, { tabUuid: 'tab1' }, {}],
+                    tabs,
+                },
+                limits,
+            ),
+        ).toThrow(
+            new ParameterError(
+                'Tab "First" has 3 tiles, which is over the limit of 2 tiles per tab',
+            ),
+        );
+    });
+});
+
+describe('getDashboardLimitViolations', () => {
+    it('reports every tab over the tile limit and the tab limit', () => {
+        expect(
+            getDashboardLimitViolations(
+                {
+                    tiles: [{ tabUuid: 'a' }, { tabUuid: 'a' }, {}],
+                    tabs: [
+                        { uuid: 'a', name: 'A', order: 0 },
+                        { uuid: 'b', name: 'B', order: 1 },
+                    ],
+                },
+                { maxTilesPerTab: 2, maxTabsPerDashboard: 1 },
+            ),
+        ).toEqual([
+            { type: 'tabs', count: 2, limit: 1 },
+            { type: 'tiles', tabUuid: 'a', tabName: 'A', count: 3, limit: 2 },
+        ]);
     });
 });

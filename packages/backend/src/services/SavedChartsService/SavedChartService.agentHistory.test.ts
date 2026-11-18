@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import { fromSession } from '../../auth/account';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { setupGrantAuthentication } from '../../controllers/authentication/agentConnectionGrants.mock';
 import { allowApiKeyAuthentication } from '../../controllers/authentication/middlewares';
 import {
@@ -82,6 +83,7 @@ const setup = (enabled: boolean, organizationEnabled = enabled) => {
         addVersion: vi.fn(),
     };
     const dependencies = {
+        lightdashConfig: lightdashConfigMock,
         featureFlagModel,
         savedChartModel,
         dashboardModel,
@@ -166,13 +168,17 @@ describe('version history agent identity', () => {
                 agentIdentityEnabled: true,
             });
             const restore = () =>
-                dashboardService.rollback(user, dashboard.uuid, 'old-version');
+                dashboardService.rollback(
+                    fromSession(user),
+                    dashboard.uuid,
+                    'old-version',
+                );
             if (agent) await agentExecutionContext.run(context, restore);
             else await restore();
             expect(dashboardModel.addVersion).toHaveBeenCalledWith(
                 dashboard.uuid,
                 expect.anything(),
-                user,
+                expect.objectContaining({ userUuid: user.userUuid }),
                 dashboard.projectUuid,
                 'transaction',
                 agent ? context.claim : null,
@@ -287,7 +293,11 @@ describe('version history agent identity', () => {
                 agentIdentityEnabled: true,
             });
             const restore = () =>
-                dashboardService.rollback(user, dashboard.uuid, 'old-version');
+                dashboardService.rollback(
+                    fromSession(user),
+                    dashboard.uuid,
+                    'old-version',
+                );
             if (agent) await agentExecutionContext.run(context, restore);
             else await restore();
             expect(
@@ -295,7 +305,7 @@ describe('version history agent identity', () => {
             ).toHaveBeenCalledWith(
                 chart.uuid,
                 dashboard.updatedAt,
-                user,
+                expect.objectContaining({ userUuid: user.userUuid }),
                 'transaction',
                 agent ? context.claim : null,
             );

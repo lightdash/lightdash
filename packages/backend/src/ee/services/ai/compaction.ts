@@ -238,14 +238,16 @@ export class Compaction {
                 }${item.status ? ` — ${item.status}` : ''}`;
             case 'data_app':
                 return `data app ${item.displayName ?? item.appUuid} (${item.appSlug ?? item.appUuid})`;
+            case 'sql_chart':
+                return `SQL chart ${item.displayName ?? item.sqlChartUuid} (${item.sqlChartSlug ?? item.sqlChartUuid}; read it with readContent type sql_chart)`;
             case 'document':
                 return `Document ${item.displayName ?? item.documentUuid} (${item.documentUuid}; read it with readContent)`;
             case 'data_app_element':
-                return `element reference ${elementReferenceToWireString(item)} in data app ${item.displayName ?? item.appUuid} (${item.appUuid}, version ${item.version}; copy it verbatim into the iterateDataApp brief)`;
+                return `element reference ${elementReferenceToWireString(item)} in data app ${item.displayName ?? item.appUuid} (${item.appSlug ?? item.appUuid}, version ${item.version}; copy it verbatim into the iterateDataApp brief)`;
             case 'composer_node':
                 return `pipeline node "${item.title}" (nodeId: ${item.nodeId}) of chart artifact ${item.artifactUuid}, version ${item.versionUuid}`;
             case 'data_app_restore':
-                return `data app ${item.displayName ?? item.appUuid} (${item.appUuid}) restored version ${item.restoredFromVersion} as version ${item.version}`;
+                return `data app ${item.displayName ?? item.appUuid} (${item.appSlug ?? item.appUuid}) restored version ${item.restoredFromVersion} as version ${item.version}`;
             case 'skill':
                 return `skill /${item.name}${item.arguments ? ` with arguments "${item.arguments}"` : ''}${item.versionNumber ? ` (v${item.versionNumber})` : ''}`;
             case 'design':

@@ -1,5 +1,5 @@
 import { CloseButton, Text } from '@mantine/core';
-import { IconColumns, IconTable } from '@tabler/icons-react';
+import { IconCode, IconColumns, IconTable } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { type StudioChatRef } from '../../../../../features/semanticStudio/studioChatRefs';
@@ -16,14 +16,23 @@ export const StudioChatRefChips: FC<{
             aria-label="Added to the next message"
         >
             {refs.map((ref) => {
-                const name = ref.fieldLabel ?? ref.modelLabel;
+                const name = ref.code
+                    ? `${ref.code.path.split('/').pop()} ${ref.code.from}-${ref.code.to}`
+                    : (ref.fieldLabel ?? ref.modelLabel);
                 return (
                     <span
-                        key={`${ref.modelName}:${ref.fieldName ?? ''}`}
+                        key={`${ref.modelName}:${ref.fieldName ?? ''}:${ref.code?.from ?? ''}-${ref.code?.to ?? ''}`}
+                        title={ref.code?.path}
                         className={classes.refChip}
                     >
                         <MantineIcon
-                            icon={ref.fieldName ? IconColumns : IconTable}
+                            icon={
+                                ref.code
+                                    ? IconCode
+                                    : ref.fieldName
+                                      ? IconColumns
+                                      : IconTable
+                            }
                             size={12}
                         />
                         {ref.fieldLabel ? (

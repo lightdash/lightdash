@@ -122,6 +122,8 @@ import {
     initOtelTracing,
     shutdownOtelTracing,
 } from './tracing/tracing';
+import { helmetForInternalHttpHost } from './utils/internalHttpHost';
+import { oauthPopupCoopMiddleware } from './utils/oauthPopupCoop';
 import { personaliseSharedSignInError } from './utils/sharedSignInExpiry';
 import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
@@ -194,6 +196,8 @@ const schedulerWorkerFactory = (context: {
             context.models.getAgentConnectionApprovalRequestModel(),
         aiUsageLedgerModel: context.models.getAiUsageLedgerModel(),
         learnSandboxService: context.serviceRepository.getLearnSandboxService(),
+        composerChartService:
+            context.serviceRepository.getComposerChartService(),
         resolveOrganizationName: createOrganizationNameResolver(
             context.models.getOrganizationModel(),
         ),
@@ -688,7 +692,15 @@ export default class App {
             },
         } as const;
 
-        expressApp.use(helmet(helmetConfig));
+        const helmetForRequest = (config: typeof helmetConfig) =>
+            helmetForInternalHttpHost(
+                config,
+                this.lightdashConfig.headlessBrowser.internalLightdashHost,
+            );
+
+        expressApp.use(helmetForRequest(helmetConfig));
+        // Popup-based OAuth clients need window.opener to survive sign-in
+        expressApp.use(oauthPopupCoopMiddleware);
 
         // Allow site icons to be embedded cross-origin so MCP hosts
         // (e.g. claude.ai) can display them in connector listings. Claude
@@ -717,7 +729,7 @@ export default class App {
                 embedFrameAncestors;
         });
 
-        expressApp.use('/embed/*', helmet(helmetConfigForEmbeds));
+        expressApp.use('/embed/*', helmetForRequest(helmetConfigForEmbeds));
 
         expressApp.use('/api/v1/file/*', (_req, res, next) => {
             res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
@@ -763,6 +775,7 @@ export default class App {
                                 organizationId: p.organizationUuid,
                                 projectId: p.projectUuid,
                                 appUuid: p.appUuid,
+                                appSlug: p.appSlug,
                                 viewContext: p.viewContext,
                                 version: p.version,
                                 navigationId,

@@ -176,7 +176,7 @@ When string dimension metadata has `caseSensitiveFilters`, `true` means string f
 
 
 ## Available explores
-No explores are available to this agent. Tell the user there is no data you can query and suggest they ask an administrator to set up explores or adjust the agent configuration.
+No explores are available to this agent. Tell the user there is no data you can query and suggest they ask an administrator to set up explores or adjust the agent configuration. Explores can be missing because the project's Tables configuration (Project settings), the agent's tags or the user's attributes hide every explore: name these as possible causes, with the Tables configuration first.
 
 
 

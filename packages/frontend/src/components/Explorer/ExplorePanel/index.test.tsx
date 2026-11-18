@@ -1,10 +1,14 @@
+// @vitest-environment jsdom
 import { ExploreType, type ApiExploreResults } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createExplorerStore } from '../../../features/explorer/store';
+import {
+    createExplorerStore,
+    explorerActions,
+} from '../../../features/explorer/store';
 import { useExplore } from '../../../hooks/useExplore';
 import { renderWithProviders } from '../../../testing/testUtils';
 import ExplorePanel from './index';
@@ -91,8 +95,12 @@ const exploreQuery = (overrides: Partial<ExploreQuery>): ExploreQuery =>
         ...overrides,
     }) as unknown as ExploreQuery;
 
-const renderPanel = (appMocks?: Parameters<typeof renderWithProviders>[1]) => {
+const renderPanel = (
+    appMocks?: Parameters<typeof renderWithProviders>[1],
+    { isEditMode = true }: { isEditMode?: boolean } = {},
+) => {
     const store = createExplorerStore();
+    store.dispatch(explorerActions.setIsEditMode(isEditMode));
 
     return renderWithProviders(
         <MemoryRouter>
@@ -103,6 +111,11 @@ const renderPanel = (appMocks?: Parameters<typeof renderWithProviders>[1]) => {
         appMocks,
     );
 };
+
+// The first-visit tour would cover the panel; these tests start past it
+beforeEach(() => {
+    localStorage.setItem('ld.explorer.tour.v1', '1');
+});
 
 describe('ExplorePanel loading state', () => {
     beforeEach(() => {
@@ -143,6 +156,35 @@ describe('ExplorePanel loading state', () => {
         renderPanel();
 
         expect(screen.queryByTestId('explore-tree')).not.toBeNull();
+    });
+});
+
+describe('ExplorePanel first-visit tour', () => {
+    const originalPath = window.location.pathname;
+    beforeEach(() => {
+        mockUseExplore.mockReset();
+        mockUseExplore.mockReturnValue(exploreQuery({ data: mockExplore }));
+        testState.merge = undefined;
+        localStorage.removeItem('ld.explorer.tour.v1');
+        window.history.pushState({}, '', '/projects/p/saved/chart-uuid');
+    });
+    afterEach(() => {
+        window.history.pushState({}, '', originalPath);
+    });
+
+    it('welcomes a first visit while building or editing', () => {
+        renderPanel(undefined, { isEditMode: true });
+
+        expect(screen.getByText('Meet the new Explorer')).toBeInTheDocument();
+    });
+
+    // A saved chart mounts this panel hidden in view mode
+    it('stays out of a saved chart that is only being viewed', () => {
+        renderPanel(undefined, { isEditMode: false });
+
+        expect(
+            screen.queryByText('Meet the new Explorer'),
+        ).not.toBeInTheDocument();
     });
 });
 
@@ -205,13 +247,15 @@ describe('ExplorePanel virtual view actions', () => {
         expect(
             screen.getByRole('menuitem', { name: /Merge another query/ }),
         ).toBeInTheDocument();
-        expect(screen.getAllByRole('menuitem')).toHaveLength(1);
+        // Merge, plus the tour replay that every menu carries
+        expect(screen.getAllByRole('menuitem')).toHaveLength(2);
     });
 
     it.each([
         { isMerging: true, readOnly: false },
         { isMerging: false, readOnly: true },
-    ])('hides merge when unavailable: %o', (state) => {
+    ])('hides merge when unavailable: %o', async (state) => {
+        const user = userEvent.setup();
         mockUseExplore.mockReturnValue(
             exploreQuery({
                 data: { ...mockExplore, type: ExploreType.VIRTUAL },
@@ -224,8 +268,13 @@ describe('ExplorePanel virtual view actions', () => {
         };
 
         renderPanel({ user: { abilityRules: [] } });
+        // A guided merge replaces the panel, so there may be no menu at all
+        const trigger = screen.queryByRole('button', {
+            name: 'Virtual view actions',
+        });
+        if (trigger) await user.click(trigger);
         expect(
-            screen.queryByRole('button', { name: 'Virtual view actions' }),
+            screen.queryByRole('menuitem', { name: /Merge another query/ }),
         ).not.toBeInTheDocument();
     });
 
@@ -275,12 +324,15 @@ describe('ExplorePanel query options', () => {
         testState.merge = undefined;
     });
 
-    it('hides query options when merge is unavailable', () => {
+    it('offers only the tour when merge is unavailable', async () => {
+        const user = userEvent.setup();
         renderPanel();
 
+        await user.click(screen.getByRole('button', { name: 'Query options' }));
+        expect(screen.getAllByRole('menuitem')).toHaveLength(1);
         expect(
-            screen.queryByRole('button', { name: 'Query options' }),
-        ).not.toBeInTheDocument();
+            screen.getByRole('menuitem', { name: 'Take the tour' }),
+        ).toBeInTheDocument();
     });
 
     it('offers merge, marked beta, with no feature flag enabled', async () => {
@@ -326,12 +378,16 @@ describe('ExplorePanel clear cache', () => {
         );
     };
 
-    it('hides the action without permission', () => {
+    it('hides the action without permission', async () => {
+        const user = userEvent.setup();
         testState.canClearCache = false;
         renderPanel();
 
+        await user.click(screen.getByRole('button', { name: 'Query options' }));
         expect(
-            screen.queryByRole('button', { name: 'Query options' }),
+            screen.queryByRole('menuitem', {
+                name: 'Clear cache for everyone',
+            }),
         ).not.toBeInTheDocument();
     });
 

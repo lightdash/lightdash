@@ -6646,6 +6646,55 @@
                     }
                 ]
             },
+            "DashboardTileTypes.COMPOSER_CHART": {
+                "enum": ["composer_chart"],
+                "type": "string"
+            },
+            "Pick_DashboardComposerChartTileProperties-at-properties.title-or-hideTitle_": {
+                "properties": {
+                    "title": {
+                        "type": "string"
+                    },
+                    "hideTitle": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "DashboardComposerChartTileAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileAsCodeBase"
+                    },
+                    {
+                        "properties": {
+                            "properties": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Pick_DashboardComposerChartTileProperties-at-properties.title-or-hideTitle_"
+                                    },
+                                    {
+                                        "properties": {
+                                            "chartSlug": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": ["chartSlug"],
+                                        "type": "object"
+                                    }
+                                ]
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/DashboardTileTypes.COMPOSER_CHART"
+                            }
+                        },
+                        "required": ["properties", "type"],
+                        "type": "object"
+                    }
+                ],
+                "description": "Names a composer chart the dashboard owns; the slug is looked up among composer charts only."
+            },
             "DashboardTileTypes.MARKDOWN": {
                 "enum": ["markdown"],
                 "type": "string"
@@ -6815,6 +6864,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/DashboardSqlChartTileAsCode"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardComposerChartTileAsCode"
                     },
                     {
                         "$ref": "#/components/schemas/DashboardMarkdownTileAsCode"
@@ -7152,22 +7204,22 @@
                 ],
                 "type": "object"
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string__-or-_type-DashboardTileTypes.COMPOSER_CHART--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string__-or-_type-DashboardTileTypes.COMPOSER_CHART--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string__-or-_type-DashboardTileTypes.COMPOSER_CHART--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string__-or-_type-DashboardTileTypes.COMPOSER_CHART--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -7933,6 +7985,807 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "ContentAsCodeType.COMPOSER_CHART": {
+                "enum": ["composer_chart"],
+                "type": "string"
+            },
+            "QuerySourceType.SEMANTIC_LAYER": {
+                "enum": ["semanticLayer"],
+                "type": "string"
+            },
+            "QueryNodeId": {
+                "type": "string",
+                "description": "A name identifying one query within a multi-query submission. Other queries\nreference this query's results by this name, and by default the results are\nexposed to referencing DuckDB SQL as a table of the same name — so node ids\nshare the table-name grammar.",
+                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
+            },
+            "PivotIndexColum": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/VizIndexType"
+                    },
+                    "reference": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "reference"],
+                "type": "object"
+            },
+            "ValuesColumn": {
+                "properties": {
+                    "aggregation": {
+                        "$ref": "#/components/schemas/VizAggregationOptions"
+                    },
+                    "reference": {
+                        "type": "string"
+                    }
+                },
+                "required": ["aggregation", "reference"],
+                "type": "object"
+            },
+            "GroupByColumn": {
+                "properties": {
+                    "reference": {
+                        "type": "string"
+                    }
+                },
+                "required": ["reference"],
+                "type": "object"
+            },
+            "SortBy": {
+                "items": {
+                    "$ref": "#/components/schemas/VizSortBy"
+                },
+                "type": "array"
+            },
+            "PivotConfiguration": {
+                "properties": {
+                    "foldOverflowGroups": {
+                        "type": "boolean",
+                        "description": "When true, groups past the pivot column limit are not dropped. Their\nvalues are added up per row into one extra \"Other\" pivot column\n(`OTHER_PIVOT_KEY`), so anything summed across the groups, such as a\nstacked bar total, still covers the whole result. Only set for stacked\ncartesian charts whose values are all numeric."
+                    },
+                    "pivotColumnsOrder": {
+                        "items": {
+                            "$ref": "#/components/schemas/GroupByColumn"
+                        },
+                        "type": "array",
+                        "description": "Declared order of the pivot-column dimensions (visible `groupByColumns`\nplus hidden `sortOnlyDimensions`) as they appear in the chart's\n`pivotConfig.columns`. `column_ranking` orders columns by this sequence so\na hidden sort-only dim sorts at its DECLARED position — hiding a dim then\nleaves column order identical to when it was visible, instead of hoisting\nthe hidden dim to the front of the ORDER BY. Passthrough (hidden, non-sort)\ndims are excluded since they don't drive sort. When omitted, ordering falls\nback to hoisting sort-only sort targets to the front (legacy behavior)."
+                    },
+                    "passthroughDimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/GroupByColumn"
+                        },
+                        "type": "array",
+                        "description": "Hidden pivot-column dimensions that are NOT sort targets but still need\ntheir values carried through the SQL pipeline so that other fields'\n`richText` / `image:` templates can reference them via\n`row.<table>.<field>.raw`. They participate in `group_by_query` SELECT\nand GROUP BY (same as sortOnlyDimensions) but do NOT affect\n`column_ranking` ORDER BY (they don't drive sort). Without this bucket\nthe dim would be dropped entirely from the query and `row.*.raw`\nreferences would silently resolve to undefined."
+                    },
+                    "sortOnlyDimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/GroupByColumn"
+                        },
+                        "type": "array",
+                        "description": "Dimensions referenced by ORDER BY but NOT spread into pivot columns.\nUsed when a user hides a dim that's part of `pivotConfig.columns` and has\na sort entry on it: the dim still ranks column order via the GROUP BY /\nORDER BY pipeline, but it doesn't become a pivot column header level.\nMirrors `sortOnlyColumns` (which serves the same purpose for metrics)."
+                    },
+                    "sortOnlyColumns": {
+                        "items": {
+                            "$ref": "#/components/schemas/ValuesColumn"
+                        },
+                        "type": "array",
+                        "description": "Metrics/table calculations needed for sort anchor CTEs but not for display.\nThese are merged into valuesColumns for SQL generation in PivotQueryBuilder,\nbut excluded from pivotDetails so they don't appear as chart series."
+                    },
+                    "metricsAsRows": {
+                        "type": "boolean",
+                        "description": "When true, metrics are displayed as rows instead of columns.\nThis affects column limit calculation - when metrics are rows,\nwe don't need to divide the column limit by the number of metrics.\nDefaults to false for backward compatibility (SQL runner behavior)."
+                    },
+                    "sortBy": {
+                        "$ref": "#/components/schemas/SortBy"
+                    },
+                    "groupByColumns": {
+                        "items": {
+                            "$ref": "#/components/schemas/GroupByColumn"
+                        },
+                        "type": "array"
+                    },
+                    "valuesColumns": {
+                        "items": {
+                            "$ref": "#/components/schemas/ValuesColumn"
+                        },
+                        "type": "array"
+                    },
+                    "indexColumn": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/PivotIndexColum"
+                            },
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/PivotIndexColum"
+                                },
+                                "type": "array"
+                            }
+                        ]
+                    }
+                },
+                "required": ["valuesColumns"],
+                "type": "object"
+            },
+            "SemanticLayerSourceQuery": {
+                "properties": {
+                    "pivotConfiguration": {
+                        "$ref": "#/components/schemas/PivotConfiguration",
+                        "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer, sql and duckdb nodes; external nodes refuse it."
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap",
+                        "description": "Parameter values for this query, layered over the submission's parameters."
+                    },
+                    "timezone": {
+                        "type": "string",
+                        "description": "IANA timezone for time dimension bucketing, e.g. \"America/New_York\"."
+                    },
+                    "dimensionOverrides": {
+                        "$ref": "#/components/schemas/DimensionOverrides",
+                        "description": "Formatting overrides for dimensions in this query, keyed by field id."
+                    },
+                    "metricOverrides": {
+                        "$ref": "#/components/schemas/MetricOverrides",
+                        "description": "Formatting overrides for metrics in this query, keyed by field id."
+                    },
+                    "customDimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/CustomDimension"
+                        },
+                        "type": "array",
+                        "description": "Ad-hoc dimensions not defined in the explore."
+                    },
+                    "additionalMetrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/AdditionalMetric"
+                        },
+                        "type": "array",
+                        "description": "Ad-hoc metrics not defined in the explore."
+                    },
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/TableCalculation"
+                        },
+                        "type": "array",
+                        "description": "Table calculations appended to the results. Defaults to none."
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Max rows to return. Defaults to the standard query row limit."
+                    },
+                    "sorts": {
+                        "items": {
+                            "$ref": "#/components/schemas/SortField"
+                        },
+                        "type": "array",
+                        "description": "Sorts to apply, e.g. [{\"fieldId\": \"orders_order_date\", \"descending\": true}]. Defaults to none."
+                    },
+                    "filters": {
+                        "properties": {
+                            "tableCalculations": {
+                                "$ref": "#/components/schemas/AnyType"
+                            },
+                            "metrics": {
+                                "$ref": "#/components/schemas/AnyType"
+                            },
+                            "dimensions": {
+                                "$ref": "#/components/schemas/AnyType"
+                            }
+                        },
+                        "type": "object",
+                        "description": "Filters to apply, in the metric query filters shape: an optional filter\ngroup per field kind, e.g. {\"dimensions\": {\"id\": \"...\", \"and\": [{\"id\":\n\"...\", \"target\": {\"fieldId\": \"orders_status\"}, \"operator\": \"equals\",\n\"values\": [\"completed\"]}]}}. Defaults to no filters."
+                    },
+                    "metrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldId"
+                        },
+                        "type": "array",
+                        "description": "Metric field ids to compute, from the explore's schema."
+                    },
+                    "dimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldId"
+                        },
+                        "type": "array",
+                        "description": "Dimension field ids to group by, from the explore's schema."
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "One-line note on what this query does, shown under the title."
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
+                    },
+                    "nodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId",
+                        "description": "Names this query so other queries in the same submission can reference its results."
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType.SEMANTIC_LAYER"
+                    }
+                },
+                "required": [
+                    "metrics",
+                    "dimensions",
+                    "exploreName",
+                    "sourceType"
+                ],
+                "type": "object",
+                "description": "A semantic layer (metric) query as a source query. Only exploreName,\ndimensions and metrics are required; everything else defaults to empty\n(no filters, no sorts, no table calculations) and a default row limit.\n\nResult columns are named by field id — exactly the dimensions and metrics\nrequested (e.g. requesting metric \"payments_total_revenue\" yields a column\n\"payments_total_revenue\"), so referencing DuckDB SQL selects those names."
+            },
+            "StoredNode_SemanticLayerSourceQuery_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerSourceQuery"
+                    },
+                    {
+                        "properties": {
+                            "title": {
+                                "type": "string"
+                            },
+                            "nodeId": {
+                                "type": "string",
+                                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
+                            }
+                        },
+                        "required": ["title", "nodeId"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "QuerySourceType.SQL": {
+                "enum": ["sql"],
+                "type": "string"
+            },
+            "SqlSourceQuery": {
+                "properties": {
+                    "pivotConfiguration": {
+                        "$ref": "#/components/schemas/PivotConfiguration",
+                        "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer, sql and duckdb nodes; external nodes refuse it."
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "One-line note on what this query does, shown under the title."
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
+                    },
+                    "nodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId",
+                        "description": "Names this query so other queries in the same submission can reference its results."
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType.SQL"
+                    }
+                },
+                "required": ["sql", "sourceType"],
+                "type": "object",
+                "description": "A raw warehouse SQL query as a source query."
+            },
+            "StoredNode_SqlSourceQuery_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SqlSourceQuery"
+                    },
+                    {
+                        "properties": {
+                            "title": {
+                                "type": "string"
+                            },
+                            "nodeId": {
+                                "type": "string",
+                                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
+                            }
+                        },
+                        "required": ["title", "nodeId"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "QuerySourceType.DUCKDB": {
+                "enum": ["duckdb"],
+                "type": "string"
+            },
+            "Record_QuerySourceTableName.QueryResultReference_": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "DuckdbSourceQuery": {
+                "properties": {
+                    "pivotConfiguration": {
+                        "$ref": "#/components/schemas/PivotConfiguration",
+                        "description": "Pivots this node's result over the columns its SQL returns; checked at\nsubmission. Results carry pivotDetails. Omit for an unpivoted result."
+                    },
+                    "references": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/QueryNodeId"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Record_QuerySourceTableName.QueryResultReference_"
+                            }
+                        ],
+                        "description": "Which query results the SQL reads, in one of two forms. Shorthand\narray: node ids of queries in the same submission, each exposed as a\ntable named by its node id — [\"orders\", \"revenue\"] lets the SQL run\nSELECT * FROM orders JOIN revenue. Map form for aliasing or existing\nresults: {tableName: nodeIdOrQueryUuid}, e.g. {\"o\": \"orders\", \"prev\":\n\"<queryUuid>\"}. Required at execution: the query runs on a session\nthat can reach only these results, so one that references nothing is\nrefused."
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "One-line note on what this query does, shown under the title."
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
+                    },
+                    "nodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId",
+                        "description": "Names this query so other queries in the same submission can reference its results."
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType.DUCKDB"
+                    }
+                },
+                "required": ["sql", "sourceType"],
+                "type": "object",
+                "description": "A DuckDB compose query as a source query. References expose other queries'\nresults as named tables the SQL can select from; a referenced result's\ncolumn names are those of the upstream query's result (field ids for\nsemanticLayer queries, SELECT output names for sql queries).\n\nReferences that name queries still running are waited on: this query\nexecutes once every referenced result is ready, and fails if any\nreferenced query fails."
+            },
+            "StoredNode_DuckdbSourceQuery_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DuckdbSourceQuery"
+                    },
+                    {
+                        "properties": {
+                            "title": {
+                                "type": "string"
+                            },
+                            "nodeId": {
+                                "type": "string",
+                                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
+                            }
+                        },
+                        "required": ["title", "nodeId"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "QuerySourceType.PYTHON": {
+                "enum": ["python"],
+                "type": "string"
+            },
+            "Pick_PythonSourceQuery.Exclude_keyofPythonSourceQuery.pivotConfiguration__": {
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Maximum rows kept from the returned DataFrame."
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "One-line note on what this query does, shown under the title."
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType.PYTHON"
+                    },
+                    "nodeId": {
+                        "type": "string",
+                        "description": "Names this query so other queries in the same submission can reference its results."
+                    },
+                    "code": {
+                        "type": "string"
+                    },
+                    "references": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Record_string.string_"
+                            }
+                        ],
+                        "description": "Which query results the code reads, in the same two forms as duckdb\nreferences. Shorthand array: node ids of queries in the same\nsubmission, each exposed as inputs[nodeId]. Map form for aliasing or\nexisting results: {inputName: nodeIdOrQueryUuid}. At least one is\nrequired."
+                    }
+                },
+                "required": ["sourceType", "code", "references"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_PythonSourceQuery.pivotConfiguration_": {
+                "$ref": "#/components/schemas/Pick_PythonSourceQuery.Exclude_keyofPythonSourceQuery.pivotConfiguration__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "StoredNode_Omit_PythonSourceQuery.pivotConfiguration__": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_PythonSourceQuery.pivotConfiguration_"
+                    },
+                    {
+                        "properties": {
+                            "title": {
+                                "type": "string"
+                            },
+                            "nodeId": {
+                                "type": "string",
+                                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
+                            }
+                        },
+                        "required": ["title", "nodeId"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "QuerySourceType.MERGE": {
+                "enum": ["merge"],
+                "type": "string"
+            },
+            "MergeSourceQueryInput": {
+                "properties": {
+                    "repeatValues": {
+                        "type": "boolean",
+                        "description": "See MergeQueryMetricSource.repeatValues."
+                    },
+                    "nodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId"
+                    }
+                },
+                "required": ["nodeId"],
+                "type": "object",
+                "description": "One input of a merge node: a semanticLayer node of the same submission."
+            },
+            "Pick_MergeSourceQuery.Exclude_keyofMergeSourceQuery.pivotConfiguration__": {
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "One-line note on what this query does, shown under the title."
+                    },
+                    "sorts": {
+                        "items": {
+                            "$ref": "#/components/schemas/SortField"
+                        },
+                        "type": "array",
+                        "description": "Sort of the merged result, by merged column id. Defaults to join-key order."
+                    },
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeTableCalculation"
+                        },
+                        "type": "array",
+                        "description": "Calculations over the merged row. Defaults to none."
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType.MERGE"
+                    },
+                    "nodeId": {
+                        "type": "string",
+                        "description": "Names this query so other queries in the same submission can reference its results."
+                    },
+                    "sources": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeSourceQueryInput"
+                        },
+                        "type": "array",
+                        "description": "At least two semanticLayer nodes, in order; a left join keeps the first one's rows."
+                    },
+                    "joinKey": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeJoinKeyPart"
+                        },
+                        "type": "array",
+                        "description": "Join key parts, each naming one field per source by node id."
+                    },
+                    "joinType": {
+                        "$ref": "#/components/schemas/MergeJoinType"
+                    }
+                },
+                "required": ["sourceType", "sources", "joinKey", "joinType"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_MergeSourceQuery.pivotConfiguration_": {
+                "$ref": "#/components/schemas/Pick_MergeSourceQuery.Exclude_keyofMergeSourceQuery.pivotConfiguration__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "StoredNode_Omit_MergeSourceQuery.pivotConfiguration__": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_MergeSourceQuery.pivotConfiguration_"
+                    },
+                    {
+                        "properties": {
+                            "title": {
+                                "type": "string"
+                            },
+                            "nodeId": {
+                                "type": "string",
+                                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
+                            }
+                        },
+                        "required": ["title", "nodeId"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ComposerChartPipelineNode": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/StoredNode_SemanticLayerSourceQuery_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/StoredNode_SqlSourceQuery_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/StoredNode_DuckdbSourceQuery_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/StoredNode_Omit_PythonSourceQuery.pivotConfiguration__"
+                    },
+                    {
+                        "$ref": "#/components/schemas/StoredNode_Omit_MergeSourceQuery.pivotConfiguration__"
+                    }
+                ],
+                "description": "A node of a stored composer chart pipeline; kinds a dashboard viewer can run."
+            },
+            "ComposerChartPipeline": {
+                "properties": {
+                    "nodes": {
+                        "items": {
+                            "$ref": "#/components/schemas/ComposerChartPipelineNode"
+                        },
+                        "type": "array"
+                    },
+                    "terminalNodeId": {
+                        "type": "string"
+                    },
+                    "schemaVersion": {
+                        "type": "number",
+                        "enum": [1],
+                        "nullable": false
+                    }
+                },
+                "required": ["nodes", "terminalNodeId", "schemaVersion"],
+                "type": "object"
+            },
+            "FieldType.DIMENSION": {
+                "enum": ["dimension"],
+                "type": "string"
+            },
+            "FieldType.METRIC": {
+                "enum": ["metric"],
+                "type": "string"
+            },
+            "ComposerChartColumn": {
+                "properties": {
+                    "fieldType": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FieldType.DIMENSION"
+                            },
+                            {
+                                "$ref": "#/components/schemas/FieldType.METRIC"
+                            }
+                        ]
+                    },
+                    "reference": {
+                        "type": "string"
+                    }
+                },
+                "required": ["fieldType", "reference"],
+                "type": "object"
+            },
+            "Pick_ComposerStoredChart.Exclude_keyofComposerStoredChart.chartConfig__": {
+                "properties": {
+                    "pivotConfig": {
+                        "properties": {
+                            "columns": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columns"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "tableConfig": {
+                        "properties": {
+                            "columnOrder": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columnOrder"],
+                        "type": "object"
+                    },
+                    "schemaVersion": {
+                        "type": "number",
+                        "enum": [1],
+                        "nullable": false
+                    },
+                    "columns": {
+                        "items": {
+                            "$ref": "#/components/schemas/ComposerChartColumn"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "pivotConfig",
+                    "tableConfig",
+                    "schemaVersion",
+                    "columns"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_ComposerStoredChart.chartConfig_": {
+                "$ref": "#/components/schemas/Pick_ComposerStoredChart.Exclude_keyofComposerStoredChart.chartConfig__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "ComposerStoredChartAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_ComposerStoredChart.chartConfig_"
+                    },
+                    {
+                        "properties": {
+                            "chartConfig": {
+                                "$ref": "#/components/schemas/ChartAsCodeConfig"
+                            }
+                        },
+                        "required": ["chartConfig"],
+                        "type": "object"
+                    }
+                ],
+                "description": "The stored chart, with a custom chart type named by its portable slug."
+            },
+            "ComposerChartAsCode": {
+                "properties": {
+                    "downloadedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "chart": {
+                        "$ref": "#/components/schemas/ComposerStoredChartAsCode"
+                    },
+                    "pipeline": {
+                        "$ref": "#/components/schemas/ComposerChartPipeline"
+                    },
+                    "spaceSlug": {
+                        "type": "string",
+                        "description": "Only used to create a placeholder dashboard when dashboardSlug names none."
+                    },
+                    "dashboardSlug": {
+                        "type": "string",
+                        "description": "The owning dashboard. Ignored on upload when the chart already exists."
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentAsCodeType.COMPOSER_CHART"
+                    }
+                },
+                "required": [
+                    "chart",
+                    "pipeline",
+                    "spaceSlug",
+                    "dashboardSlug",
+                    "description",
+                    "name",
+                    "slug",
+                    "version",
+                    "contentType"
+                ],
+                "type": "object",
+                "description": "A composer chart file: the stored pipeline and chart, verbatim."
+            },
+            "ApiComposerChartAsCodeListResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "offset": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "total": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "missingIds": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "composerCharts": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ComposerChartAsCode"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "offset",
+                            "total",
+                            "missingIds",
+                            "composerCharts"
+                        ],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "UUID": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Stringified UUIDv4.\nSee [RFC 4112](https://tools.ietf.org/html/rfc4122)",
+                "pattern": "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}"
             },
             "ContentAsCodeType.VIRTUAL_VIEW": {
                 "enum": ["virtual_view"],
@@ -10287,14 +11140,14 @@
                     }
                 ]
             },
-            "DashboardTileTypes.COMPOSER_CHART": {
-                "enum": ["composer_chart"],
-                "type": "string"
-            },
             "DashboardComposerChartTileProperties": {
                 "properties": {
                     "properties": {
                         "properties": {
+                            "chartSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
                             "chartName": {
                                 "type": "string",
                                 "nullable": true
@@ -11497,6 +12350,29 @@
             "Omit_SqlChartAsCode.config-or-description_": {
                 "$ref": "#/components/schemas/Pick_SqlChartAsCode.Exclude_keyofSqlChartAsCode.config-or-description__",
                 "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "ApiComposerChartAsCodeUpsertResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "composerChartUuid": {
+                                "type": "string"
+                            },
+                            "action": {
+                                "$ref": "#/components/schemas/PromotionAction"
+                            }
+                        },
+                        "required": ["composerChartUuid", "action"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
             },
             "DashboardAsCodeUpsertResult": {
                 "allOf": [
@@ -13668,12 +14544,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "UUID": {
-                "type": "string",
-                "format": "uuid",
-                "description": "Stringified UUIDv4.\nSee [RFC 4112](https://tools.ietf.org/html/rfc4122)",
-                "pattern": "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}"
-            },
             "ReleaseHighlight": {
                 "properties": {
                     "requestedByYourOrganization": {
@@ -15566,7 +16436,10 @@
                     "meta_ads",
                     "google_ads",
                     "youtube_analytics",
-                    "linkedin_ads"
+                    "linkedin_ads",
+                    "github",
+                    "pylon",
+                    "attio"
                 ],
                 "type": "string"
             },
@@ -15736,6 +16609,58 @@
                 "required": ["adAccountId", "connector"],
                 "type": "object"
             },
+            "ApiConnectorType.GITHUB": {
+                "enum": ["github"],
+                "type": "string"
+            },
+            "GithubApiSource": {
+                "properties": {
+                    "repo": {
+                        "type": "string",
+                        "description": "The repository name, without the owner, e.g. lightdash."
+                    },
+                    "owner": {
+                        "type": "string",
+                        "description": "The user or organization that owns the repository, e.g. lightdash."
+                    },
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.GITHUB"
+                    }
+                },
+                "required": ["repo", "owner", "connector"],
+                "type": "object"
+            },
+            "ApiConnectorType.PYLON": {
+                "enum": ["pylon"],
+                "type": "string"
+            },
+            "PylonApiSource": {
+                "properties": {
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.PYLON"
+                    }
+                },
+                "required": ["connector"],
+                "type": "object",
+                "description": "A Pylon workspace; the API token decides which one."
+            },
+            "ApiConnectorType.ATTIO": {
+                "enum": ["attio"],
+                "type": "string"
+            },
+            "AttioApiSource": {
+                "properties": {
+                    "object": {
+                        "type": "string",
+                        "description": "The slug of the Attio object the source reads, e.g. companies or deals."
+                    },
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.ATTIO"
+                    }
+                },
+                "required": ["object", "connector"],
+                "type": "object"
+            },
             "ExternalConnectionApiSource": {
                 "anyOf": [
                     {
@@ -15758,6 +16683,15 @@
                     },
                     {
                         "$ref": "#/components/schemas/LinkedInAdsApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/GithubApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PylonApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/AttioApiSource"
                     }
                 ],
                 "description": "Connector settings of a live source; the server fixes its access rules."
@@ -15782,6 +16716,18 @@
                     },
                     "hasSecret": {
                         "type": "boolean"
+                    },
+                    "cachePurgedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "description": "Live sources: results fetched before this are never reused."
+                    },
+                    "cacheTtlSeconds": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Live sources: the admin's freshness window; null uses the integration's default."
                     },
                     "targetLabel": {
                         "type": "string",
@@ -16488,6 +17434,11 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "cacheHits": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Queries a stored result answered without calling the integration."
+                    },
                     "apiCalls": {
                         "type": "number",
                         "format": "double"
@@ -16499,6 +17450,7 @@
                 "required": [
                     "medianDurationMs",
                     "responseBytes",
+                    "cacheHits",
                     "apiCalls",
                     "externalConnectionUuid"
                 ],
@@ -16846,6 +17798,18 @@
                     }
                 ]
             },
+            "ApiUpdateLiveSourceCacheRequest": {
+                "properties": {
+                    "ttlSeconds": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    }
+                },
+                "required": ["ttlSeconds"],
+                "type": "object",
+                "description": "Null puts the source back on its integration's default."
+            },
             "LiveSourceFieldEditor": {
                 "properties": {
                     "at": {
@@ -17095,6 +18059,10 @@
             },
             "ExternalFetchSavedChartContext": {
                 "properties": {
+                    "includeUnpublishedDraft": {
+                        "type": "boolean",
+                        "description": "Authorize against the requester's own unpublished draft of the chart."
+                    },
                     "chartVersionUuid": {
                         "$ref": "#/components/schemas/UUID"
                     },
@@ -17122,6 +18090,16 @@
                 "type": "object",
                 "description": "A chart of a specific Document version rendering a chart type."
             },
+            "ExternalFetchComposerChartContext": {
+                "properties": {
+                    "composerChartUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    }
+                },
+                "required": ["composerChartUuid"],
+                "type": "object",
+                "description": "A composer chart rendering a chart type; it pins one version."
+            },
             "ExternalFetchRequest": {
                 "properties": {
                     "chartContext": {
@@ -17131,6 +18109,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/ExternalFetchDocumentContext"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExternalFetchComposerChartContext"
                             }
                         ],
                         "description": "Host-supplied identity of what is rendering a custom chart type."
@@ -17152,10 +18133,64 @@
                 "required": ["path", "connectionAlias"],
                 "type": "object"
             },
+            "LiveSourceTestFact": {
+                "properties": {
+                    "value": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    }
+                },
+                "required": ["value", "label"],
+                "type": "object",
+                "description": "One thing a live data source test found, as in \"Pull requests: 1,204\"."
+            },
+            "LiveSourceTestCheck": {
+                "properties": {
+                    "facts": {
+                        "items": {
+                            "$ref": "#/components/schemas/LiveSourceTestFact"
+                        },
+                        "type": "array"
+                    },
+                    "detail": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "On failure, why and what to change; null on success."
+                    },
+                    "summary": {
+                        "type": "string",
+                        "description": "One line, as in \"Connected to lightdash/lightdash\"."
+                    },
+                    "ok": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["facts", "detail", "summary", "ok"],
+                "type": "object",
+                "description": "A live data source test result in words an admin reads, not raw JSON."
+            },
+            "ExternalConnectionTestResponse": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ExternalFetchResponse"
+                    },
+                    {
+                        "properties": {
+                            "liveCheck": {
+                                "$ref": "#/components/schemas/LiveSourceTestCheck",
+                                "description": "Set when the tested config is a live data source."
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
             "ApiTestExternalConnectionResponse": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/ExternalFetchResponse"
+                        "$ref": "#/components/schemas/ExternalConnectionTestResponse"
                     },
                     "status": {
                         "type": "string",
@@ -17979,6 +19014,10 @@
             },
             "EmbedJwtContentAiAgent": {
                 "properties": {
+                    "threadOwnershipIdentifier": {
+                        "type": "string",
+                        "description": "Owns the threads started with this token instead of user.externalId. Tokens that share it share those threads."
+                    },
                     "canViewDebugInfo": {
                         "type": "boolean",
                         "description": "Shows agent debug information. Ignored in roles mode, where view:EmbedAiAgentDebug decides."
@@ -18069,6 +19108,9 @@
                 },
                 "type": "object"
             },
+            "EmbedActor": {
+                "$ref": "#/components/schemas/EmbedWriteActions"
+            },
             "CreateEmbedJwt": {
                 "properties": {
                     "exp": {
@@ -18086,13 +19128,23 @@
                         "properties": {
                             "externalId": {
                                 "type": "string",
-                                "description": "Must be unique per viewer within the organization: it owns the embedded AI agent threads that viewer starts."
+                                "description": "Must be unique per viewer within the organization: it owns the embedded AI agent threads that viewer starts, unless the token sets content.threadOwnershipIdentifier."
                             },
                             "email": {
                                 "type": "string"
                             }
                         },
                         "type": "object"
+                    },
+                    "usageAnalytics": {
+                        "properties": {
+                            "tenantAttribute": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["tenantAttribute"],
+                        "type": "object",
+                        "description": "Opt in to reporting one signed user attribute as a tenant identifier."
                     },
                     "userAttributes": {
                         "properties": {},
@@ -18103,6 +19155,9 @@
                     },
                     "writeActions": {
                         "$ref": "#/components/schemas/EmbedWriteActions"
+                    },
+                    "actor": {
+                        "$ref": "#/components/schemas/EmbedActor"
                     },
                     "content": {
                         "anyOf": [
@@ -18569,10 +19624,6 @@
                 "enum": [0, 1, 2, 3, 4, 5, 6],
                 "type": "number"
             },
-            "FieldType.DIMENSION": {
-                "enum": ["dimension"],
-                "type": "string"
-            },
             "TimestampDomain": {
                 "type": "string",
                 "enum": ["aware", "naive"],
@@ -18904,10 +19955,6 @@
                 "type": "object",
                 "additionalProperties": true
             },
-            "FieldType.METRIC": {
-                "enum": ["metric"],
-                "type": "string"
-            },
             "DefaultTimeDimension": {
                 "properties": {
                     "interval": {
@@ -19190,6 +20237,9 @@
                         },
                         "tileUuid": {
                             "type": "string"
+                        },
+                        "tileType": {
+                            "$ref": "#/components/schemas/DashboardTileTypes.SAVED_CHART"
                         }
                     },
                     "required": ["savedChartUuid", "tileUuid"],
@@ -20611,6 +21661,12 @@
             },
             "ApiSourceIncompatibility": {
                 "properties": {
+                    "selectedOnly": {
+                        "type": "boolean",
+                        "enum": [true],
+                        "nullable": false,
+                        "description": "Only selected fields clash; filtering on them is fine. For APIs that\nfilter on a field they can't group by, like a search total by author."
+                    },
                     "reason": {
                         "type": "string"
                     },
@@ -24591,19 +25647,46 @@
             "ApiDataAppVizUpgradeImpactResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_DataAppVizUpgradeImpact_"
             },
-            "ApiSuccess__questions-string-Array__": {
+            "AppClarifyQuestion": {
+                "properties": {
+                    "options": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Short likely answers, most likely first; empty when only free text fits."
+                    },
+                    "question": {
+                        "type": "string"
+                    }
+                },
+                "required": ["options", "question"],
+                "type": "object",
+                "description": "A pre-build question with the answers the user is most likely to give."
+            },
+            "AppClarifyResult": {
+                "properties": {
+                    "items": {
+                        "items": {
+                            "$ref": "#/components/schemas/AppClarifyQuestion"
+                        },
+                        "type": "array"
+                    },
+                    "questions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "deprecated": true
+                    }
+                },
+                "required": ["items", "questions"],
+                "type": "object"
+            },
+            "ApiSuccess_AppClarifyResult_": {
                 "properties": {
                     "results": {
-                        "properties": {
-                            "questions": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["questions"],
-                        "type": "object"
+                        "$ref": "#/components/schemas/AppClarifyResult"
                     },
                     "status": {
                         "type": "string",
@@ -24615,7 +25698,7 @@
                 "type": "object"
             },
             "ApiClarifyAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__questions-string-Array__"
+                "$ref": "#/components/schemas/ApiSuccess_AppClarifyResult_"
             },
             "ApiClarifyAppRequest": {
                 "properties": {
@@ -27778,6 +28861,24 @@
                     },
                     {
                         "properties": {
+                            "sqlChartSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "sqlChartUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["sql_chart"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["sqlChartSlug", "sqlChartUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
                             "promptUuid": {
                                 "type": "string",
                                 "nullable": true
@@ -30341,115 +31442,6 @@
                 "$ref": "#/components/schemas/Pick_MetricQueryRequest.Exclude_keyofMetricQueryRequest.csvLimit__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
-            "PivotIndexColum": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/VizIndexType"
-                    },
-                    "reference": {
-                        "type": "string"
-                    }
-                },
-                "required": ["type", "reference"],
-                "type": "object"
-            },
-            "ValuesColumn": {
-                "properties": {
-                    "aggregation": {
-                        "$ref": "#/components/schemas/VizAggregationOptions"
-                    },
-                    "reference": {
-                        "type": "string"
-                    }
-                },
-                "required": ["aggregation", "reference"],
-                "type": "object"
-            },
-            "GroupByColumn": {
-                "properties": {
-                    "reference": {
-                        "type": "string"
-                    }
-                },
-                "required": ["reference"],
-                "type": "object"
-            },
-            "SortBy": {
-                "items": {
-                    "$ref": "#/components/schemas/VizSortBy"
-                },
-                "type": "array"
-            },
-            "PivotConfiguration": {
-                "properties": {
-                    "foldOverflowGroups": {
-                        "type": "boolean",
-                        "description": "When true, groups past the pivot column limit are not dropped. Their\nvalues are added up per row into one extra \"Other\" pivot column\n(`OTHER_PIVOT_KEY`), so anything summed across the groups, such as a\nstacked bar total, still covers the whole result. Only set for stacked\ncartesian charts whose values are all numeric."
-                    },
-                    "pivotColumnsOrder": {
-                        "items": {
-                            "$ref": "#/components/schemas/GroupByColumn"
-                        },
-                        "type": "array",
-                        "description": "Declared order of the pivot-column dimensions (visible `groupByColumns`\nplus hidden `sortOnlyDimensions`) as they appear in the chart's\n`pivotConfig.columns`. `column_ranking` orders columns by this sequence so\na hidden sort-only dim sorts at its DECLARED position — hiding a dim then\nleaves column order identical to when it was visible, instead of hoisting\nthe hidden dim to the front of the ORDER BY. Passthrough (hidden, non-sort)\ndims are excluded since they don't drive sort. When omitted, ordering falls\nback to hoisting sort-only sort targets to the front (legacy behavior)."
-                    },
-                    "passthroughDimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/GroupByColumn"
-                        },
-                        "type": "array",
-                        "description": "Hidden pivot-column dimensions that are NOT sort targets but still need\ntheir values carried through the SQL pipeline so that other fields'\n`richText` / `image:` templates can reference them via\n`row.<table>.<field>.raw`. They participate in `group_by_query` SELECT\nand GROUP BY (same as sortOnlyDimensions) but do NOT affect\n`column_ranking` ORDER BY (they don't drive sort). Without this bucket\nthe dim would be dropped entirely from the query and `row.*.raw`\nreferences would silently resolve to undefined."
-                    },
-                    "sortOnlyDimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/GroupByColumn"
-                        },
-                        "type": "array",
-                        "description": "Dimensions referenced by ORDER BY but NOT spread into pivot columns.\nUsed when a user hides a dim that's part of `pivotConfig.columns` and has\na sort entry on it: the dim still ranks column order via the GROUP BY /\nORDER BY pipeline, but it doesn't become a pivot column header level.\nMirrors `sortOnlyColumns` (which serves the same purpose for metrics)."
-                    },
-                    "sortOnlyColumns": {
-                        "items": {
-                            "$ref": "#/components/schemas/ValuesColumn"
-                        },
-                        "type": "array",
-                        "description": "Metrics/table calculations needed for sort anchor CTEs but not for display.\nThese are merged into valuesColumns for SQL generation in PivotQueryBuilder,\nbut excluded from pivotDetails so they don't appear as chart series."
-                    },
-                    "metricsAsRows": {
-                        "type": "boolean",
-                        "description": "When true, metrics are displayed as rows instead of columns.\nThis affects column limit calculation - when metrics are rows,\nwe don't need to divide the column limit by the number of metrics.\nDefaults to false for backward compatibility (SQL runner behavior)."
-                    },
-                    "sortBy": {
-                        "$ref": "#/components/schemas/SortBy"
-                    },
-                    "groupByColumns": {
-                        "items": {
-                            "$ref": "#/components/schemas/GroupByColumn"
-                        },
-                        "type": "array"
-                    },
-                    "valuesColumns": {
-                        "items": {
-                            "$ref": "#/components/schemas/ValuesColumn"
-                        },
-                        "type": "array"
-                    },
-                    "indexColumn": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/PivotIndexColum"
-                            },
-                            {
-                                "items": {
-                                    "$ref": "#/components/schemas/PivotIndexColum"
-                                },
-                                "type": "array"
-                            }
-                        ]
-                    }
-                },
-                "required": ["valuesColumns"],
-                "type": "object"
-            },
             "ExecuteAsyncMetricQueryRequestParams": {
                 "allOf": [
                     {
@@ -30790,6 +31782,9 @@
                     },
                     {
                         "properties": {
+                            "includeUnpublishedDraft": {
+                                "type": "boolean"
+                            },
                             "dashboardFilters": {
                                 "$ref": "#/components/schemas/DashboardFilters"
                             },
@@ -35712,6 +36707,38 @@
                                 "type": "string",
                                 "nullable": true
                             },
+                            "pinnedVersionUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "sqlChartSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "sqlChartUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["sql_chart"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "displayName",
+                            "pinnedVersionUuid",
+                            "sqlChartSlug",
+                            "sqlChartUuid",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "displayName": {
+                                "type": "string",
+                                "nullable": true
+                            },
                             "promptUuid": {
                                 "type": "string",
                                 "nullable": true
@@ -38072,6 +39099,10 @@
                                                                 "type": "array",
                                                                 "nullable": true
                                                             },
+                                                            "previewPendingSince": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
                                                             "previewUrl": {
                                                                 "type": "string",
                                                                 "nullable": true
@@ -40105,11 +41136,6 @@
                 "type": "string",
                 "enum": ["web_app", "evals"]
             },
-            "QueryNodeId": {
-                "type": "string",
-                "description": "A name identifying one query within a multi-query submission. Other queries\nreference this query's results by this name, and by default the results are\nexposed to referencing DuckDB SQL as a table of the same name — so node ids\nshare the table-name grammar.",
-                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
-            },
             "AiAgentThreadComposerNode": {
                 "properties": {
                     "title": {
@@ -40139,218 +41165,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "QuerySourceType.SEMANTIC_LAYER": {
-                "enum": ["semanticLayer"],
-                "type": "string"
-            },
-            "SemanticLayerSourceQuery": {
-                "properties": {
-                    "pivotConfiguration": {
-                        "$ref": "#/components/schemas/PivotConfiguration",
-                        "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer, sql and duckdb nodes; external nodes refuse it."
-                    },
-                    "parameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap",
-                        "description": "Parameter values for this query, layered over the submission's parameters."
-                    },
-                    "timezone": {
-                        "type": "string",
-                        "description": "IANA timezone for time dimension bucketing, e.g. \"America/New_York\"."
-                    },
-                    "dimensionOverrides": {
-                        "$ref": "#/components/schemas/DimensionOverrides",
-                        "description": "Formatting overrides for dimensions in this query, keyed by field id."
-                    },
-                    "metricOverrides": {
-                        "$ref": "#/components/schemas/MetricOverrides",
-                        "description": "Formatting overrides for metrics in this query, keyed by field id."
-                    },
-                    "customDimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/CustomDimension"
-                        },
-                        "type": "array",
-                        "description": "Ad-hoc dimensions not defined in the explore."
-                    },
-                    "additionalMetrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/AdditionalMetric"
-                        },
-                        "type": "array",
-                        "description": "Ad-hoc metrics not defined in the explore."
-                    },
-                    "tableCalculations": {
-                        "items": {
-                            "$ref": "#/components/schemas/TableCalculation"
-                        },
-                        "type": "array",
-                        "description": "Table calculations appended to the results. Defaults to none."
-                    },
-                    "limit": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Max rows to return. Defaults to the standard query row limit."
-                    },
-                    "sorts": {
-                        "items": {
-                            "$ref": "#/components/schemas/SortField"
-                        },
-                        "type": "array",
-                        "description": "Sorts to apply, e.g. [{\"fieldId\": \"orders_order_date\", \"descending\": true}]. Defaults to none."
-                    },
-                    "filters": {
-                        "properties": {
-                            "tableCalculations": {
-                                "$ref": "#/components/schemas/AnyType"
-                            },
-                            "metrics": {
-                                "$ref": "#/components/schemas/AnyType"
-                            },
-                            "dimensions": {
-                                "$ref": "#/components/schemas/AnyType"
-                            }
-                        },
-                        "type": "object",
-                        "description": "Filters to apply, in the metric query filters shape: an optional filter\ngroup per field kind, e.g. {\"dimensions\": {\"id\": \"...\", \"and\": [{\"id\":\n\"...\", \"target\": {\"fieldId\": \"orders_status\"}, \"operator\": \"equals\",\n\"values\": [\"completed\"]}]}}. Defaults to no filters."
-                    },
-                    "metrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/FieldId"
-                        },
-                        "type": "array",
-                        "description": "Metric field ids to compute, from the explore's schema."
-                    },
-                    "dimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/FieldId"
-                        },
-                        "type": "array",
-                        "description": "Dimension field ids to group by, from the explore's schema."
-                    },
-                    "exploreName": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string",
-                        "description": "One-line note on what this query does, shown under the title."
-                    },
-                    "title": {
-                        "type": "string",
-                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
-                    },
-                    "nodeId": {
-                        "$ref": "#/components/schemas/QueryNodeId",
-                        "description": "Names this query so other queries in the same submission can reference its results."
-                    },
-                    "sourceType": {
-                        "$ref": "#/components/schemas/QuerySourceType.SEMANTIC_LAYER"
-                    }
-                },
-                "required": [
-                    "metrics",
-                    "dimensions",
-                    "exploreName",
-                    "sourceType"
-                ],
-                "type": "object",
-                "description": "A semantic layer (metric) query as a source query. Only exploreName,\ndimensions and metrics are required; everything else defaults to empty\n(no filters, no sorts, no table calculations) and a default row limit.\n\nResult columns are named by field id — exactly the dimensions and metrics\nrequested (e.g. requesting metric \"payments_total_revenue\" yields a column\n\"payments_total_revenue\"), so referencing DuckDB SQL selects those names."
-            },
-            "QuerySourceType.SQL": {
-                "enum": ["sql"],
-                "type": "string"
-            },
-            "SqlSourceQuery": {
-                "properties": {
-                    "pivotConfiguration": {
-                        "$ref": "#/components/schemas/PivotConfiguration",
-                        "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer, sql and duckdb nodes; external nodes refuse it."
-                    },
-                    "limit": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "sql": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string",
-                        "description": "One-line note on what this query does, shown under the title."
-                    },
-                    "title": {
-                        "type": "string",
-                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
-                    },
-                    "nodeId": {
-                        "$ref": "#/components/schemas/QueryNodeId",
-                        "description": "Names this query so other queries in the same submission can reference its results."
-                    },
-                    "sourceType": {
-                        "$ref": "#/components/schemas/QuerySourceType.SQL"
-                    }
-                },
-                "required": ["sql", "sourceType"],
-                "type": "object",
-                "description": "A raw warehouse SQL query as a source query."
-            },
-            "QuerySourceType.DUCKDB": {
-                "enum": ["duckdb"],
-                "type": "string"
-            },
-            "Record_QuerySourceTableName.QueryResultReference_": {
-                "properties": {},
-                "additionalProperties": {
-                    "type": "string"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "DuckdbSourceQuery": {
-                "properties": {
-                    "pivotConfiguration": {
-                        "$ref": "#/components/schemas/PivotConfiguration",
-                        "description": "Pivots this node's result over the columns its SQL returns; checked at\nsubmission. Results carry pivotDetails. Omit for an unpivoted result."
-                    },
-                    "references": {
-                        "anyOf": [
-                            {
-                                "items": {
-                                    "$ref": "#/components/schemas/QueryNodeId"
-                                },
-                                "type": "array"
-                            },
-                            {
-                                "$ref": "#/components/schemas/Record_QuerySourceTableName.QueryResultReference_"
-                            }
-                        ],
-                        "description": "Which query results the SQL reads, in one of two forms. Shorthand\narray: node ids of queries in the same submission, each exposed as a\ntable named by its node id — [\"orders\", \"revenue\"] lets the SQL run\nSELECT * FROM orders JOIN revenue. Map form for aliasing or existing\nresults: {tableName: nodeIdOrQueryUuid}, e.g. {\"o\": \"orders\", \"prev\":\n\"<queryUuid>\"}. Required at execution: the query runs on a session\nthat can reach only these results, so one that references nothing is\nrefused."
-                    },
-                    "limit": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "sql": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string",
-                        "description": "One-line note on what this query does, shown under the title."
-                    },
-                    "title": {
-                        "type": "string",
-                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
-                    },
-                    "nodeId": {
-                        "$ref": "#/components/schemas/QueryNodeId",
-                        "description": "Names this query so other queries in the same submission can reference its results."
-                    },
-                    "sourceType": {
-                        "$ref": "#/components/schemas/QuerySourceType.DUCKDB"
-                    }
-                },
-                "required": ["sql", "sourceType"],
-                "type": "object",
-                "description": "A DuckDB compose query as a source query. References expose other queries'\nresults as named tables the SQL can select from; a referenced result's\ncolumn names are those of the upstream query's result (field ids for\nsemanticLayer queries, SELECT output names for sql queries).\n\nReferences that name queries still running are waited on: this query\nexecutes once every referenced result is ready, and fails if any\nreferenced query fails."
             },
             "QuerySourceType.EXTERNAL": {
                 "enum": ["external"],
@@ -40414,10 +41228,6 @@
                 "required": ["tables", "sql", "sourceType"],
                 "type": "object",
                 "description": "DuckDB SQL over named durable external tables."
-            },
-            "QuerySourceType.PYTHON": {
-                "enum": ["python"],
-                "type": "string"
             },
             "PythonSourceQuery": {
                 "properties": {
@@ -40508,24 +41318,6 @@
                 "required": ["payload", "connectionUuid", "sourceType"],
                 "type": "object",
                 "description": "A query sent live to an external API at question time. Nothing is ingested:\nthe connector runs the payload and its rows become this node's result."
-            },
-            "QuerySourceType.MERGE": {
-                "enum": ["merge"],
-                "type": "string"
-            },
-            "MergeSourceQueryInput": {
-                "properties": {
-                    "repeatValues": {
-                        "type": "boolean",
-                        "description": "See MergeQueryMetricSource.repeatValues."
-                    },
-                    "nodeId": {
-                        "$ref": "#/components/schemas/QueryNodeId"
-                    }
-                },
-                "required": ["nodeId"],
-                "type": "object",
-                "description": "One input of a merge node: a semanticLayer node of the same submission."
             },
             "MergeSourceQuery": {
                 "properties": {
@@ -42005,6 +42797,176 @@
                 "required": ["name", "threadUuid"],
                 "type": "object"
             },
+            "SemanticStudioSources": {
+                "properties": {
+                    "files": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Paths relative to the dbt project, YAML and SQL only."
+                    },
+                    "prUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "branch": {
+                        "type": "string"
+                    }
+                },
+                "required": ["files", "prUrl", "branch"],
+                "type": "object",
+                "description": "A project's model files in its repository, at a change's pull request or the branch it deploys from."
+            },
+            "ApiSuccess_SemanticStudioSources_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticStudioSources"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticStudioSourcesResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticStudioSources_"
+            },
+            "SemanticStudioSourceFile": {
+                "properties": {
+                    "content": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "path": {
+                        "type": "string"
+                    },
+                    "revision": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["content", "path", "revision"],
+                "type": "object"
+            },
+            "ApiSuccess_SemanticStudioSourceFile_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticStudioSourceFile"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticStudioSourceFileResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticStudioSourceFile_"
+            },
+            "SemanticStudioSourceSave": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "revision": {
+                                "type": "string",
+                                "description": "The revision of the file as saved, for the next save to be based on."
+                            },
+                            "checked": {
+                                "type": "boolean"
+                            },
+                            "commitSha": {
+                                "type": "string"
+                            },
+                            "prAction": {
+                                "type": "string",
+                                "enum": ["opened", "updated"]
+                            },
+                            "prUrl": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["saved"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "revision",
+                            "checked",
+                            "commitSha",
+                            "prAction",
+                            "prUrl",
+                            "status"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "error": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["failed"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["error", "status"],
+                        "type": "object"
+                    }
+                ],
+                "description": "`failed` carries why the edit was not saved; `checked` is false when only dbt can check it, such as SQL."
+            },
+            "ApiSuccess_SemanticStudioSourceSave_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticStudioSourceSave"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticStudioSourceSaveResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticStudioSourceSave_"
+            },
+            "SaveSemanticStudioSourceRequest": {
+                "properties": {
+                    "threadUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The Studio conversation the change belongs to, so Try it sees the edit."
+                    },
+                    "prUrl": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The change's open pull request to add the commit to, or null to open one."
+                    },
+                    "content": {
+                        "type": "string"
+                    },
+                    "path": {
+                        "type": "string"
+                    },
+                    "revision": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The revision the edit was based on, null for a new file; older clients omit it and skip the check."
+                    }
+                },
+                "required": ["threadUuid", "prUrl", "content", "path"],
+                "type": "object"
+            },
             "SemanticStudioWorkspaceRenameBody": {
                 "properties": {
                     "name": {
@@ -42378,6 +43340,9 @@
                 "properties": {
                     "publishedSince": {
                         "properties": {
+                            "isYours": {
+                                "type": "boolean"
+                            },
                             "at": {
                                 "type": "string",
                                 "format": "date-time"
@@ -42387,10 +43352,10 @@
                                 "nullable": true
                             }
                         },
-                        "required": ["at", "by"],
+                        "required": ["isYours", "at", "by"],
                         "type": "object",
                         "nullable": true,
-                        "description": "The latest change someone else published to this model since this draft first touched it; null when none."
+                        "description": "The latest change published to this model since this draft first touched it, from another person or another of yours; null when none."
                     },
                     "alsoChanging": {
                         "items": {
@@ -44926,6 +45891,29 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "BillingPortalLinkResults": {
+                "properties": {
+                    "url": {
+                        "type": "string"
+                    }
+                },
+                "required": ["url"],
+                "type": "object"
+            },
+            "ApiBillingPortalLinkResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/BillingPortalLinkResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "SkippableHomepageRecommendedActionKey": {
                 "type": "string",
                 "enum": [
@@ -46126,10 +47114,29 @@
                 "type": "object",
                 "description": "Outcome of a pull request merge."
             },
-            "ApiMergePullRequestResponse": {
+            "WritebackMergeResult": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/MergePullRequestResult"
+                    },
+                    {
+                        "properties": {
+                            "compileJobUuid": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Null when none was started, as for a project not deployed from git."
+                            }
+                        },
+                        "required": ["compileJobUuid"],
+                        "type": "object"
+                    }
+                ],
+                "description": "A write-back merge, and the project compile it started so the change goes live."
+            },
+            "ApiWritebackMergeResponse": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/MergePullRequestResult"
+                        "$ref": "#/components/schemas/WritebackMergeResult"
                     },
                     "status": {
                         "type": "string",
@@ -52801,6 +53808,9 @@
                     "requireAgentSession": {
                         "type": "boolean"
                     },
+                    "allowUserCredentials": {
+                        "type": "boolean"
+                    },
                     "requireUserCredentials": {
                         "type": "boolean"
                     },
@@ -53717,6 +54727,9 @@
                     "requireUserCredentials": {
                         "type": "boolean"
                     },
+                    "allowUserCredentials": {
+                        "type": "boolean"
+                    },
                     "requireAgentSession": {
                         "type": "boolean"
                     },
@@ -54014,6 +55027,9 @@
                     "requireUserCredentials": {
                         "type": "boolean"
                     },
+                    "allowUserCredentials": {
+                        "type": "boolean"
+                    },
                     "authenticationType": {
                         "$ref": "#/components/schemas/BigqueryAuthenticationType"
                     },
@@ -54051,9 +55067,6 @@
                     },
                     "workloadIdentityAudience": {
                         "type": "string"
-                    },
-                    "allowUserCredentials": {
-                        "type": "boolean"
                     },
                     "retries": {
                         "type": "number",
@@ -55340,6 +56353,9 @@
                     "requireUserCredentials": {
                         "type": "boolean"
                     },
+                    "allowUserCredentials": {
+                        "type": "boolean"
+                    },
                     "requireAgentSession": {
                         "type": "boolean"
                     },
@@ -56349,9 +57365,12 @@
                 "properties": {
                     "memoryTour": {
                         "type": "boolean"
+                    },
+                    "dashboardEditTour": {
+                        "type": "boolean"
                     }
                 },
-                "required": ["memoryTour"],
+                "required": ["memoryTour", "dashboardEditTour"],
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
@@ -56380,8 +57399,7 @@
             },
             "UserOnboardingTour": {
                 "type": "string",
-                "enum": ["memoryTour"],
-                "nullable": false
+                "enum": ["memoryTour", "dashboardEditTour"]
             },
             "ApiCompleteUserOnboardingTourRequest": {
                 "properties": {
@@ -60088,6 +61106,37 @@
                 ],
                 "type": "object"
             },
+            "PartialFailureType.DASHBOARD_COMPOSER_CHART": {
+                "enum": ["dashboard_composer_chart"],
+                "type": "string"
+            },
+            "DashboardComposerChartPartialFailure": {
+                "properties": {
+                    "error": {
+                        "type": "string"
+                    },
+                    "tileUuid": {
+                        "type": "string"
+                    },
+                    "chartName": {
+                        "type": "string"
+                    },
+                    "composerChartUuid": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/PartialFailureType.DASHBOARD_COMPOSER_CHART"
+                    }
+                },
+                "required": [
+                    "error",
+                    "tileUuid",
+                    "chartName",
+                    "composerChartUuid",
+                    "type"
+                ],
+                "type": "object"
+            },
             "PartialFailureType.MISSING_TARGETS": {
                 "enum": ["missing_targets"],
                 "type": "string"
@@ -60186,6 +61235,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/DashboardSqlChartPartialFailure"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardComposerChartPartialFailure"
                     },
                     {
                         "$ref": "#/components/schemas/MissingTargetsPartialFailure"
@@ -68285,11 +69337,22 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "MobileSignInMintReason": {
+                "type": "string",
+                "enum": ["show", "auto_refresh"]
+            },
             "MintMobileSignInCodeRequest": {
                 "properties": {
+                    "sourceProjectUuid": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/UUID"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "reason": {
-                        "type": "string",
-                        "enum": ["show", "auto_refresh"]
+                        "$ref": "#/components/schemas/MobileSignInMintReason"
                     }
                 },
                 "required": ["reason"],
@@ -68441,6 +69504,27 @@
                 "required": ["nonce"],
                 "type": "object"
             },
+            "MobileSignInCapabilities": {
+                "properties": {
+                    "capabilities": {
+                        "properties": {
+                            "mobile_sign_in_source_project": {
+                                "type": "number",
+                                "enum": [1],
+                                "nullable": false
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "schemaVersion": {
+                        "type": "number",
+                        "enum": [1],
+                        "nullable": false
+                    }
+                },
+                "required": ["capabilities", "schemaVersion"],
+                "type": "object"
+            },
             "MobileAppLink": {
                 "properties": {
                     "expiresInSeconds": {
@@ -68517,6 +69601,34 @@
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/MobileAppLinkStatus"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "MobileAppAccess": {
+                "properties": {
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "enabled": {
+                        "type": "boolean",
+                        "enum": [true],
+                        "nullable": false
+                    }
+                },
+                "required": ["organizationUuid", "enabled"],
+                "type": "object"
+            },
+            "ApiMobileAppAccessResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/MobileAppAccess"
                     },
                     "status": {
                         "type": "string",
@@ -75308,7 +76420,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "DashboardTileParameterReferencesTile": {
+            "SavedQueryTileParameterReferencesTile": {
                 "properties": {
                     "savedSqlUuid": {
                         "type": "string",
@@ -75320,10 +76432,46 @@
                     },
                     "tileUuid": {
                         "type": "string"
+                    },
+                    "tileType": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DashboardTileTypes.SAVED_CHART"
+                            },
+                            {
+                                "$ref": "#/components/schemas/DashboardTileTypes.SQL_CHART"
+                            }
+                        ]
                     }
                 },
                 "required": ["savedSqlUuid", "savedChartUuid", "tileUuid"],
                 "type": "object"
+            },
+            "ComposerChartTileRequest": {
+                "properties": {
+                    "composerChartUuid": {
+                        "type": "string"
+                    },
+                    "tileUuid": {
+                        "type": "string"
+                    },
+                    "tileType": {
+                        "$ref": "#/components/schemas/DashboardTileTypes.COMPOSER_CHART"
+                    }
+                },
+                "required": ["composerChartUuid", "tileUuid", "tileType"],
+                "type": "object",
+                "description": "A composer chart tile in a dashboard lookup request; embeds never send one."
+            },
+            "DashboardTileParameterReferencesTile": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/SavedQueryTileParameterReferencesTile"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ComposerChartTileRequest"
+                    }
+                ]
             },
             "DashboardTileParameterReferencesRequest": {
                 "properties": {
@@ -77634,274 +78782,6 @@
                 "required": ["item"],
                 "type": "object"
             },
-            "StoredNode_SemanticLayerSourceQuery_": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/SemanticLayerSourceQuery"
-                    },
-                    {
-                        "properties": {
-                            "title": {
-                                "type": "string"
-                            },
-                            "nodeId": {
-                                "type": "string",
-                                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
-                            }
-                        },
-                        "required": ["title", "nodeId"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "StoredNode_SqlSourceQuery_": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/SqlSourceQuery"
-                    },
-                    {
-                        "properties": {
-                            "title": {
-                                "type": "string"
-                            },
-                            "nodeId": {
-                                "type": "string",
-                                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
-                            }
-                        },
-                        "required": ["title", "nodeId"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "StoredNode_DuckdbSourceQuery_": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/DuckdbSourceQuery"
-                    },
-                    {
-                        "properties": {
-                            "title": {
-                                "type": "string"
-                            },
-                            "nodeId": {
-                                "type": "string",
-                                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
-                            }
-                        },
-                        "required": ["title", "nodeId"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "Pick_PythonSourceQuery.Exclude_keyofPythonSourceQuery.pivotConfiguration__": {
-                "properties": {
-                    "title": {
-                        "type": "string",
-                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
-                    },
-                    "limit": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Maximum rows kept from the returned DataFrame."
-                    },
-                    "description": {
-                        "type": "string",
-                        "description": "One-line note on what this query does, shown under the title."
-                    },
-                    "code": {
-                        "type": "string"
-                    },
-                    "sourceType": {
-                        "$ref": "#/components/schemas/QuerySourceType.PYTHON"
-                    },
-                    "nodeId": {
-                        "type": "string",
-                        "description": "Names this query so other queries in the same submission can reference its results."
-                    },
-                    "references": {
-                        "anyOf": [
-                            {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            {
-                                "$ref": "#/components/schemas/Record_string.string_"
-                            }
-                        ],
-                        "description": "Which query results the code reads, in the same two forms as duckdb\nreferences. Shorthand array: node ids of queries in the same\nsubmission, each exposed as inputs[nodeId]. Map form for aliasing or\nexisting results: {inputName: nodeIdOrQueryUuid}. At least one is\nrequired."
-                    }
-                },
-                "required": ["code", "sourceType", "references"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_PythonSourceQuery.pivotConfiguration_": {
-                "$ref": "#/components/schemas/Pick_PythonSourceQuery.Exclude_keyofPythonSourceQuery.pivotConfiguration__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "StoredNode_Omit_PythonSourceQuery.pivotConfiguration__": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Omit_PythonSourceQuery.pivotConfiguration_"
-                    },
-                    {
-                        "properties": {
-                            "title": {
-                                "type": "string"
-                            },
-                            "nodeId": {
-                                "type": "string",
-                                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
-                            }
-                        },
-                        "required": ["title", "nodeId"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "Pick_MergeSourceQuery.Exclude_keyofMergeSourceQuery.pivotConfiguration__": {
-                "properties": {
-                    "title": {
-                        "type": "string",
-                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
-                    },
-                    "limit": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "description": {
-                        "type": "string",
-                        "description": "One-line note on what this query does, shown under the title."
-                    },
-                    "sorts": {
-                        "items": {
-                            "$ref": "#/components/schemas/SortField"
-                        },
-                        "type": "array",
-                        "description": "Sort of the merged result, by merged column id. Defaults to join-key order."
-                    },
-                    "tableCalculations": {
-                        "items": {
-                            "$ref": "#/components/schemas/MergeTableCalculation"
-                        },
-                        "type": "array",
-                        "description": "Calculations over the merged row. Defaults to none."
-                    },
-                    "sourceType": {
-                        "$ref": "#/components/schemas/QuerySourceType.MERGE"
-                    },
-                    "nodeId": {
-                        "type": "string",
-                        "description": "Names this query so other queries in the same submission can reference its results."
-                    },
-                    "sources": {
-                        "items": {
-                            "$ref": "#/components/schemas/MergeSourceQueryInput"
-                        },
-                        "type": "array",
-                        "description": "At least two semanticLayer nodes, in order; a left join keeps the first one's rows."
-                    },
-                    "joinKey": {
-                        "items": {
-                            "$ref": "#/components/schemas/MergeJoinKeyPart"
-                        },
-                        "type": "array",
-                        "description": "Join key parts, each naming one field per source by node id."
-                    },
-                    "joinType": {
-                        "$ref": "#/components/schemas/MergeJoinType"
-                    }
-                },
-                "required": ["sourceType", "sources", "joinKey", "joinType"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_MergeSourceQuery.pivotConfiguration_": {
-                "$ref": "#/components/schemas/Pick_MergeSourceQuery.Exclude_keyofMergeSourceQuery.pivotConfiguration__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "StoredNode_Omit_MergeSourceQuery.pivotConfiguration__": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Omit_MergeSourceQuery.pivotConfiguration_"
-                    },
-                    {
-                        "properties": {
-                            "title": {
-                                "type": "string"
-                            },
-                            "nodeId": {
-                                "type": "string",
-                                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
-                            }
-                        },
-                        "required": ["title", "nodeId"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "ComposerChartPipelineNode": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/StoredNode_SemanticLayerSourceQuery_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/StoredNode_SqlSourceQuery_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/StoredNode_DuckdbSourceQuery_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/StoredNode_Omit_PythonSourceQuery.pivotConfiguration__"
-                    },
-                    {
-                        "$ref": "#/components/schemas/StoredNode_Omit_MergeSourceQuery.pivotConfiguration__"
-                    }
-                ],
-                "description": "A node of a stored composer chart pipeline; kinds a dashboard viewer can run."
-            },
-            "ComposerChartPipeline": {
-                "properties": {
-                    "nodes": {
-                        "items": {
-                            "$ref": "#/components/schemas/ComposerChartPipelineNode"
-                        },
-                        "type": "array"
-                    },
-                    "terminalNodeId": {
-                        "type": "string"
-                    },
-                    "schemaVersion": {
-                        "type": "number",
-                        "enum": [1],
-                        "nullable": false
-                    }
-                },
-                "required": ["nodes", "terminalNodeId", "schemaVersion"],
-                "type": "object"
-            },
-            "ComposerChartColumn": {
-                "properties": {
-                    "fieldType": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/FieldType.DIMENSION"
-                            },
-                            {
-                                "$ref": "#/components/schemas/FieldType.METRIC"
-                            }
-                        ]
-                    },
-                    "reference": {
-                        "type": "string"
-                    }
-                },
-                "required": ["fieldType", "reference"],
-                "type": "object"
-            },
             "ComposerStoredChart": {
                 "properties": {
                     "tableConfig": {
@@ -78054,8 +78934,42 @@
                 "required": ["chart", "pipeline", "name", "dashboardUuid"],
                 "type": "object"
             },
+            "Record_string.ParametersValuesMap_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/ParametersValuesMap"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "ComposerChartRunResults": {
                 "properties": {
+                    "usedParameterValuesByNodeId": {
+                        "$ref": "#/components/schemas/Record_string.ParametersValuesMap_",
+                        "description": "The parameter values each node query ran with, keyed by node; nodes can run different values."
+                    },
+                    "sqlColumns": {
+                        "items": {
+                            "$ref": "#/components/schemas/ResultColumn"
+                        },
+                        "type": "array",
+                        "description": "The SQL nodes' columns, one per name, that a filter can target on this tile."
+                    },
+                    "parameterReferences": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "The parameters the tile reports to its dashboard: its non-Python nodes' references."
+                    },
+                    "appliedDashboardFiltersByNodeId": {
+                        "$ref": "#/components/schemas/Record_string.DashboardFilters_",
+                        "description": "The same rules, keyed by the semantic-layer node they were pushed into."
+                    },
+                    "appliedDashboardFilters": {
+                        "$ref": "#/components/schemas/DashboardFilters",
+                        "description": "Dashboard filter rules that reached at least one node."
+                    },
                     "chartStageQueryUuid": {
                         "type": "string",
                         "nullable": true,
@@ -78084,7 +78998,16 @@
                         "type": "array"
                     }
                 },
-                "required": ["chartStageQueryUuid", "fields", "queries"],
+                "required": [
+                    "usedParameterValuesByNodeId",
+                    "sqlColumns",
+                    "parameterReferences",
+                    "appliedDashboardFiltersByNodeId",
+                    "appliedDashboardFilters",
+                    "chartStageQueryUuid",
+                    "fields",
+                    "queries"
+                ],
                 "type": "object"
             },
             "ApiComposerChartRunResponse": {
@@ -79264,7 +80187,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.261.1",
+        "version": "3.302.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -80452,6 +81375,67 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/code/composerCharts": {
+            "get": {
+                "operationId": "getCodeComposerCharts",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiComposerChartAsCodeListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Gets composer charts in code representation. Works with the composer-charts flag off.",
+                "summary": "Get composer charts as code",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "ids",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "offset",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/code/virtualViews": {
             "get": {
                 "operationId": "getCodeVirtualViews",
@@ -81500,6 +82484,83 @@
                                             }
                                         },
                                         "required": ["config"],
+                                        "type": "object"
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/code/composerCharts/{slug}": {
+            "post": {
+                "operationId": "upsertCodeComposerChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiComposerChartAsCodeUpsertResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Upserts a composer chart from code representation. An unchanged file writes nothing.",
+                "summary": "Upsert composer chart as code",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "slug",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ComposerChartAsCode"
+                                    },
+                                    {
+                                        "properties": {
+                                            "spaceNames": {
+                                                "$ref": "#/components/schemas/Record_string.string_"
+                                            },
+                                            "publicSpaceCreate": {
+                                                "type": "boolean"
+                                            },
+                                            "skipSpaceCreate": {
+                                                "type": "boolean"
+                                            }
+                                        },
                                         "type": "object"
                                     }
                                 ]
@@ -93539,6 +94600,161 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/sources": {
+            "get": {
+                "operationId": "listSemanticStudioSources",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticStudioSourcesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "The project's YAML and SQL files, at a change's open pull request or the branch it deploys from.",
+                "summary": "List Semantic Studio source files",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "prUrl",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/sources/file": {
+            "get": {
+                "operationId": "readSemanticStudioSource",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticStudioSourceFileResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "One source file's contents.",
+                "summary": "Read a Semantic Studio source file",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "prUrl",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "saveSemanticStudioSource",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticStudioSourceSaveResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Saves an edit to one source file as a commit on a change's pull request, or opens one.",
+                "summary": "Save a Semantic Studio source file",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveSemanticStudioSourceRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/semantic-studio/workspaces/{workspaceUuid}": {
@@ -113174,6 +114390,26 @@
                 }
             }
         },
+        "/api/v1/mobile/sign-in-capabilities": {
+            "get": {
+                "operationId": "GetMobileSignInCapabilities",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MobileSignInCapabilities"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Mobile"],
+                "security": [],
+                "parameters": []
+            }
+        },
         "/api/v1/user/mobile/app-links": {
             "post": {
                 "operationId": "CreateMobileAppLink",
@@ -113246,6 +114482,38 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/mobile/access": {
+            "get": {
+                "operationId": "getMobileAppAccess",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiMobileAppAccessResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Tells a mobile app whether the organization of the current sign-in can\nuse the mobile apps. A disabled organization gets a 401 with the code\nmobile_org_disabled",
+                "summary": "Get mobile app access",
+                "tags": ["Mobile"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/projects/{projectUuid}/metricsExplorer/{explore}/{metric}/runMetricTotal": {

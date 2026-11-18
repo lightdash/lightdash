@@ -136,10 +136,14 @@ const buildService = () => {
             findReviewRemediationByWorkThread: vi.fn().mockResolvedValue(null),
         },
         aiAgentModel: {
+            findPinnedThreadContextUuids: vi.fn().mockResolvedValue([]),
             findThreadPromptSetup: vi.fn().mockResolvedValue({
                 threadBinding: null,
                 threadContext: null,
             }),
+        },
+        aiWritebackService: {
+            canReadSourceCode: vi.fn().mockResolvedValue(false),
         },
         aiAgentToolsService: {
             canGenerateDataApp: vi.fn().mockResolvedValue(false),

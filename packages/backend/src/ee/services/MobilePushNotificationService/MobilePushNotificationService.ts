@@ -223,6 +223,7 @@ type MobilePushNotificationServiceDependencies = {
     };
     analytics: Pick<LightdashAnalytics, 'track'>;
     apnsClient: MobilePushStartApnsClient;
+    isMobileAppAccessEnabled: (organizationUuid: string) => Promise<boolean>;
     now?: () => Date;
 };
 
@@ -284,6 +285,8 @@ export class MobilePushNotificationService {
 
     private readonly apnsClient: MobilePushStartApnsClient;
 
+    private readonly isMobileAppAccessEnabled: MobilePushNotificationServiceDependencies['isMobileAppAccessEnabled'];
+
     private readonly now: () => Date;
 
     constructor(dependencies: MobilePushNotificationServiceDependencies) {
@@ -296,6 +299,7 @@ export class MobilePushNotificationService {
         this.reconciler = dependencies.reconciler;
         this.analytics = dependencies.analytics;
         this.apnsClient = dependencies.apnsClient;
+        this.isMobileAppAccessEnabled = dependencies.isMobileAppAccessEnabled;
         this.now = dependencies.now ?? (() => new Date());
     }
 
@@ -670,6 +674,18 @@ export class MobilePushNotificationService {
                 {
                     installationUuid: attempt.installationUuid,
                     userUuid: attempt.userUuid,
+                },
+            );
+            return;
+        }
+
+        if (!(await this.isMobileAppAccessEnabled(attempt.organizationUuid))) {
+            await this.mobilePushNotificationStore.markLiveActivityStartAttempt(
+                {
+                    liveActivityStartAttemptUuid,
+                    status: 'failed',
+                    pushTokenFingerprint: attempt.pushToStartTokenFingerprint,
+                    completedAt: attemptedAt,
                 },
             );
             return;

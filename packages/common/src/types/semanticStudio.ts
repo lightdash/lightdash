@@ -62,6 +62,53 @@ export type SemanticLayerStoredModels = { models: string[] };
 export type ApiSemanticLayerStoredModelsResponse =
     ApiSuccess<SemanticLayerStoredModels>;
 
+/** A project's model files in its repository, at a change's pull request or the branch it deploys from. */
+export type SemanticStudioSources = {
+    branch: string;
+    prUrl: string | null;
+    /** Paths relative to the dbt project, YAML and SQL only. */
+    files: string[];
+};
+
+export type ApiSemanticStudioSourcesResponse =
+    ApiSuccess<SemanticStudioSources>;
+
+export type SemanticStudioSourceFile = {
+    revision: string | null;
+    path: string;
+    content: string | null;
+};
+
+export type ApiSemanticStudioSourceFileResponse =
+    ApiSuccess<SemanticStudioSourceFile>;
+
+export type SaveSemanticStudioSourceRequest = {
+    /** The revision the edit was based on, null for a new file; older clients omit it and skip the check. */
+    revision?: string | null;
+    path: string;
+    content: string;
+    /** The change's open pull request to add the commit to, or null to open one. */
+    prUrl: string | null;
+    /** The Studio conversation the change belongs to, so Try it sees the edit. */
+    threadUuid: string | null;
+};
+
+/** `failed` carries why the edit was not saved; `checked` is false when only dbt can check it, such as SQL. */
+export type SemanticStudioSourceSave =
+    | {
+          status: 'saved';
+          prUrl: string;
+          prAction: 'opened' | 'updated';
+          commitSha: string;
+          checked: boolean;
+          /** The revision of the file as saved, for the next save to be based on. */
+          revision: string;
+      }
+    | { status: 'failed'; error: string };
+
+export type ApiSemanticStudioSourceSaveResponse =
+    ApiSuccess<SemanticStudioSourceSave>;
+
 /** How one model's part of a change fared when it was checked on top of a draft. */
 export type SemanticLayerDraftItemResult = {
     model: string;
@@ -144,8 +191,8 @@ export type SemanticLayerDraftModel = {
     reconciliation: SemanticLayerDraftReconciliation | null;
     /** Other people with unpublished changes to this model, and the parts each is changing; never the content. */
     alsoChanging: SemanticLayerDrafter[];
-    /** The latest change someone else published to this model since this draft first touched it; null when none. */
-    publishedSince: { by: string | null; at: Date } | null;
+    /** The latest change published to this model since this draft first touched it, from another person or another of yours; null when none. */
+    publishedSince: { by: string | null; at: Date; isYours: boolean } | null;
 };
 
 /** What became of a change that left the draft. */

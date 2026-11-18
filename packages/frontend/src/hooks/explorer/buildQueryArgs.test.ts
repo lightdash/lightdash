@@ -154,4 +154,47 @@ describe('buildQueryArgs', () => {
             ).toBe(true);
         });
     });
+
+    describe('includeUnpublishedDraft', () => {
+        const build = (
+            overrides: Partial<Parameters<typeof buildQueryArgs>[0]>,
+        ) =>
+            buildQueryArgs({
+                activeFields: new Set(['orders_created_date']),
+                tableName: 'orders',
+                projectUuid: 'project-uuid',
+                explore,
+                computedMetricQuery: metricQuery,
+                parameters: undefined,
+                isEditMode: false,
+                viewModeQueryArgs: {
+                    chartUuid: 'chart-uuid',
+                    includeUnpublishedDraft: true,
+                },
+                minimal: false,
+                savedChart,
+                ...overrides,
+            });
+
+        it('carries the flag on the view-mode saved chart query', () => {
+            expect(build({})).toEqual(
+                expect.objectContaining({
+                    chartUuid: 'chart-uuid',
+                    includeUnpublishedDraft: true,
+                }),
+            );
+        });
+
+        it('leaves it off when the chart has no unpublished changes', () => {
+            expect(
+                build({ viewModeQueryArgs: { chartUuid: 'chart-uuid' } }),
+            ).not.toHaveProperty('includeUnpublishedDraft');
+        });
+
+        it('leaves it off the edit-mode metric query', () => {
+            expect(build({ isEditMode: true })).not.toHaveProperty(
+                'includeUnpublishedDraft',
+            );
+        });
+    });
 });

@@ -601,6 +601,12 @@ export const REST_OPERATION_CAPABILITIES = {
     'AppGenerateController.getDataAppVizUpgradeImpact': [
         AgentCapability.ReadDiscover,
     ],
+    'AppGenerateController.getComposerChartDataAppVizPreviewToken': [
+        AgentCapability.ReadDiscover,
+    ],
+    'AppGenerateController.getComposerChartDataAppVizRenderMetadata': [
+        AgentCapability.ReadDiscover,
+    ],
     'AppGenerateController.getDocumentDataAppVizPreviewToken': [
         AgentCapability.ReadDiscover,
     ],
@@ -922,6 +928,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ExternalConnectionController.proposeExternalConnectionConfig': [
         AgentCapability.Administration,
     ],
+    'ExternalConnectionController.purgeLiveSourceCache': [
+        AgentCapability.Administration,
+    ],
     'ExternalConnectionController.reattachLiveSource': [
         AgentCapability.Administration,
     ],
@@ -944,6 +953,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.Administration,
     ],
     'ExternalConnectionController.updateExternalConnection': [
+        AgentCapability.Administration,
+    ],
+    'ExternalConnectionController.updateLiveSourceCache': [
         AgentCapability.Administration,
     ],
     'ExternalConnectionController.updateLiveSourceFields': [
@@ -1065,6 +1077,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'SemanticStudioController.getFieldUsage': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getModel': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getStoredModels': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.listSources': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.readSource': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.saveSource': [AgentCapability.DbtWriteback],
     'SemanticStudioController.listWorkspaces': [AgentCapability.ReadDiscover],
     'SemanticStudioController.startWorkspace': [AgentCapability.DbtWriteback],
     'SemanticStudioController.leaveWorkspace': [AgentCapability.DbtWriteback],
@@ -1094,6 +1109,9 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'MetricsExplorerController.runMetricSeries': [AgentCapability.Query],
     'MetricsExplorerController.runMetricTotal': [AgentCapability.Query],
+    'MobileAppAccessController.getMobileAppAccess': [
+        AgentCapability.ReadDiscover,
+    ],
     'MobilePushNotificationController.getMobilePushNotificationStatus': [
         AgentCapability.ReadDiscover,
     ],
@@ -1445,6 +1463,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.ReadDiscover,
     ],
     'ProjectCoderController.getSpacesAsCode': [AgentCapability.ReadDiscover],
+    'ProjectCoderController.getComposerChartsAsCode': [
+        AgentCapability.ReadDiscover,
+    ],
     'ProjectCoderController.getSqlChartsAsCode': [AgentCapability.ReadDiscover],
     'ProjectCoderController.getVirtualViewsAsCode': [
         AgentCapability.ReadDiscover,
@@ -1556,6 +1577,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.Publish,
     ],
     'ProjectCoderController.upsertSpaceAsCode': [AgentCapability.ContentWrite],
+    'ProjectCoderController.upsertComposerChartAsCode': [
+        AgentCapability.ContentWrite,
+    ],
     'ProjectCoderController.upsertSqlChartAsCode': [
         AgentCapability.RawSql,
         AgentCapability.ContentWrite,

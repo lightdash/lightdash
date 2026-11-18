@@ -15,10 +15,12 @@ import {
     Title,
 } from '@mantine/core';
 import {
+    IconClockHour4,
     IconDots,
     IconPencil,
     IconPlus,
     IconRefresh,
+    IconRefreshDot,
     IconReload,
     IconTrash,
 } from '@tabler/icons-react';
@@ -34,6 +36,7 @@ import { formatChartCount } from '../../externalConnections/liveSources/liveSour
 import { LiveSourceIcon } from '../../externalConnections/liveSources/LiveSourceIcon';
 import { useLiveSourceActions } from './liveSourceActions';
 import {
+    getLiveSourceFreshness,
     toLiveSourceRow,
     toLiveSourceRows,
     type LiveSourceConnection,
@@ -93,6 +96,19 @@ const LiveSourceMenu: FC<{
                         Sign in again
                     </Menu.Item>
                 ) : null}
+                <Menu.Divider />
+                <Menu.Item
+                    leftSection={<MantineIcon icon={IconClockHour4} />}
+                    onClick={() => actions.cacheSettings(connection)}
+                >
+                    Cache settings
+                </Menu.Item>
+                <Menu.Item
+                    leftSection={<MantineIcon icon={IconRefreshDot} />}
+                    onClick={() => actions.purgeCache(connection)}
+                >
+                    Purge cache
+                </Menu.Item>
                 <Menu.Divider />
                 <Menu.Item
                     color="red"
@@ -192,6 +208,9 @@ export const LiveSourcesTable: FC<{
                     API calls
                 </span>
                 <span role="columnheader" className={classes.number}>
+                    Cache hits
+                </span>
+                <span role="columnheader" className={classes.number}>
                     Median latency
                 </span>
                 <span />
@@ -227,6 +246,9 @@ export const LiveSourcesTable: FC<{
                     </span>
                     <span role="cell" className={classes.number}>
                         {used.apiCalls}
+                    </span>
+                    <span role="cell" className={classes.number}>
+                        {used.cacheHits}
                     </span>
                     <Text
                         span
@@ -266,7 +288,9 @@ const Stat: FC<{ label: string; value: string; title?: string }> = ({
 export const LiveSourceSummary: FC<{
     projectUuid: string;
     connection: LiveSourceConnection;
-}> = ({ projectUuid, connection }) => {
+    /** The labels of the source's explores, when it has several. */
+    exploreLabels?: string[];
+}> = ({ projectUuid, connection, exploreLabels = [] }) => {
     const { data: usage } = useExternalConnectionApiUsage(projectUuid);
     const { data: fields } = useLiveSourceFields({
         projectUuid,
@@ -277,7 +301,11 @@ export const LiveSourceSummary: FC<{
     return (
         <Box className={classes.summary} aria-label="Live data source">
             <Stat label="Integration" value={row.integration} />
-            <Stat label="Explore" value={fields?.exploreName ?? '—'} />
+            {exploreLabels.length > 1 ? (
+                <Stat label="Explores" value={exploreLabels.join(', ')} />
+            ) : (
+                <Stat label="Explore" value={fields?.exploreName ?? '—'} />
+            )}
             <Stat
                 label="Access"
                 value={
@@ -292,6 +320,12 @@ export const LiveSourceSummary: FC<{
             />
             <Stat label="Data read" value={row.usage.dataRead} />
             <Stat label="API calls" value={row.usage.apiCalls} />
+            <Stat label="Cache hits" value={row.usage.cacheHits} />
+            <Stat
+                label="Freshness"
+                value={getLiveSourceFreshness(connection).label}
+                title="How long a result answers the same query for everyone"
+            />
             <Stat
                 label="Median latency"
                 value={row.usage.medianLatency ?? '—'}

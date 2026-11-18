@@ -3,8 +3,6 @@ import {
     diffModelDocuments,
     getItemId,
     readModelPart,
-    type ApiError,
-    type ApiQueryResults,
     type Metric,
     type SemanticLayerDraft,
     type SemanticLayerDraftConflict,
@@ -37,19 +35,18 @@ import {
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react';
-import { useQuery } from '@tanstack/react-query';
 import { upperFirst } from 'es-toolkit/compat';
-import { useState, type FC, type ReactNode } from 'react';
+import { useMemo, useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
-import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import {
     DEVELOPMENT_PREVIEW_HEADER,
     DEVELOPMENT_VIEW_HEADER,
 } from './developmentView';
 import classes from './DraftInsights.module.css';
+import { describePublisher } from './draftState';
 import { describeShift, pickComparedMetrics } from './metricComparison';
 import {
     CHANGE_KIND_LABELS,
@@ -57,6 +54,7 @@ import {
     getChangeKind,
     summarizeModelChanges,
 } from './modelCode';
+import { LIVE_HEADERS, useTotals } from './useMetricTotals';
 import {
     useDiscardDraftChange,
     useKeepDraftModel,
@@ -92,17 +90,15 @@ const KeepTheirsButton: FC<{
     projectUuid: string;
     model: string;
     path: string;
-    publisher: string | null;
-}> = ({ projectUuid, model, path, publisher }) => {
+    label: string;
+}> = ({ projectUuid, model, path, label }) => {
     const takeLive = useTakeLiveDraftPart(projectUuid);
     return (
         <Button
             size="compact-xs"
             variant="default"
             flex="none"
-            aria-label={
-                publisher ? `Keep ${publisher}'s version` : 'Keep their version'
-            }
+            aria-label={label}
             loading={takeLive.isLoading}
             onClick={() => takeLive.mutate({ model, path })}
         >
@@ -148,7 +144,7 @@ const ChangedWords: FC<{ value: string; base: string | null }> = ({
     base,
 }) => {
     if (base === null) return value;
-    // ponytail: words compared as a set, so a moved or repeated word is not marked; use a real diff if that misleads.
+    // Words compared as a set, so a moved or repeated word is not marked; use a real diff if that misleads.
     const known = new Set(base.split(/\s+/).map(toBareWord));
     return value.split(/(\s+)/).map((word, index) =>
         toBareWord(word) === '' || known.has(toBareWord(word)) ? (
@@ -235,13 +231,13 @@ const ConflictSides: FC<{
     /** False when it is the only contested part: the notice names it, and keeping the draft is offered right here. */
     isOneOfSeveral: boolean;
 }> = ({ projectUuid, model, conflict, publishedAgo, isOneOfSeveral }) => {
-    const publisher = model.publishedSince?.by ?? null;
+    const publisher = describePublisher(model.publishedSince);
     return (
         <Stack gap="xs" className={classes.conflict}>
             {isOneOfSeveral ? <PartName path={conflict.path} /> : null}
             <Box className={classes.options}>
                 <ConflictOption
-                    title={publisher ?? 'Someone else'}
+                    title={publisher.option}
                     state={`live ${publishedAgo}`}
                     tone="live"
                     value={conflict.live}
@@ -256,7 +252,7 @@ const ConflictSides: FC<{
                             projectUuid={projectUuid}
                             model={model.model}
                             path={conflict.path}
-                            publisher={publisher}
+                            label={publisher.keepLabel}
                         />
                     }
                 />
@@ -325,7 +321,7 @@ export const ModelNotices: FC<{
     const publishedAgo = useTimeAgo(model.publishedSince?.at ?? new Date());
     const conflicts = model.reconciliation?.conflicts ?? [];
     const merged = model.reconciliation?.merged ?? [];
-    const publisher = model.publishedSince?.by ?? 'Someone';
+    const publisher = describePublisher(model.publishedSince);
     // Kept over what was published: the draft is based on live again.
     const publishedUnder =
         model.reconciliation?.state === 'current' ? null : model.publishedSince;
@@ -348,15 +344,15 @@ export const ModelNotices: FC<{
                         >
                             <Text fz="xs" w="fit-content">
                                 <Text span fw={600}>
-                                    {publisher}
+                                    {publisher.subject}
                                 </Text>{' '}
                                 published a change to{' '}
                                 {conflicts.length === 1 ? (
                                     <ContestedPart path={conflicts[0].path} />
                                 ) : (
                                     `${conflicts.length} parts of this model`
-                                )}{' '}
-                                that your draft also edits.
+                                )}
+                                {publisher.where} that this draft also edits.
                             </Text>
                         </Tooltip>
                     </NoticeRow>
@@ -386,10 +382,10 @@ export const ModelNotices: FC<{
                 <NoticeRow icon={IconGitMerge} color="dimmed">
                     <Text fz="xs" c="dimmed">
                         <Text span fw={600}>
-                            {publisher}
+                            {publisher.subject}
                         </Text>{' '}
-                        published a change to this model {publishedAgo}, after
-                        you started
+                        published a change to this model{publisher.where}{' '}
+                        {publishedAgo}, after you started
                         {merged.length > 0
                             ? `, in ${listNames(merged.map(describePath))}, which you did not touch`
                             : ''}
@@ -628,8 +624,6 @@ export const FieldUsage: FC<{
     );
 };
 
-type Totals = Record<string, { raw: unknown; formatted: string }>;
-
 const findComparedMetrics = (
     draft: SemanticLayerDraft,
     model: SemanticLayerDraftModel,
@@ -654,68 +648,13 @@ const findComparedMetrics = (
     );
 };
 
-const useTotals = (
-    projectUuid: string,
-    exploreName: string,
-    metricIds: string[],
-    headers: Record<string, string>,
-    enabled: boolean,
-    /** What the changes hold, so totals are read again when they change. */
-    cacheKey: string,
-) => {
-    const lightdashApi = useLightdashApi();
-    return useQuery<Totals, ApiError>({
-        queryKey: [
-            'semantic-layer-draft-totals',
-            projectUuid,
-            exploreName,
-            headers,
-            metricIds,
-            cacheKey,
-        ],
-        queryFn: async () => {
-            const results = await lightdashApi<ApiQueryResults>({
-                url: `/projects/${projectUuid}/explores/${exploreName}/runQuery`,
-                method: 'POST',
-                // Each side says which models it reads, whatever the app is switched to.
-                headers,
-                body: JSON.stringify({
-                    exploreName,
-                    dimensions: [],
-                    metrics: metricIds,
-                    filters: {},
-                    sorts: [],
-                    limit: 1,
-                    tableCalculations: [],
-                    additionalMetrics: [],
-                }),
-            });
-            const [row] = results.rows;
-            return Object.fromEntries(
-                metricIds.map((id) => [
-                    id,
-                    row?.[id]?.value ?? { raw: null, formatted: '∅' },
-                ]),
-            );
-        },
-        enabled,
-        retry: false,
-        staleTime: 60_000,
-    });
-};
-
-const LIVE_HEADERS = {
-    [DEVELOPMENT_VIEW_HEADER]: 'false',
-    [DEVELOPMENT_PREVIEW_HEADER]: '',
-};
-
 const DRAFT_HEADERS = {
     [DEVELOPMENT_VIEW_HEADER]: 'true',
     [DEVELOPMENT_PREVIEW_HEADER]: '',
 };
 
 /** A model's metrics as totals, live against in development, run only when asked for since each side is a warehouse query. */
-export const CompareTotals: FC<{
+const CompareTotals: FC<{
     projectUuid: string;
     exploreName: string;
     metrics: Metric[];
@@ -849,24 +788,32 @@ export const MetricComparison: FC<{
     draft: SemanticLayerDraft;
     model: SemanticLayerDraftModel;
 }> = ({ projectUuid, draft, model }) => {
-    const metrics = findComparedMetrics(draft, model);
-    // A metric the draft adds does not exist live.
-    const added = diffModelDocuments(model.contentBefore, model.contentAfter)
-        .filter(({ kind }) => kind === 'added')
-        .map(({ path }) => path);
-    const liveMetricIds = metrics
-        .filter(
-            ({ name }) =>
-                !added.some(
-                    (path) =>
-                        path.endsWith(`metrics.${name}`) ||
-                        readModelPart(
-                            model.contentAfter,
-                            `${path}.metrics.${name}`,
-                        ) !== null,
-                ),
+    const metrics = useMemo(
+        () => findComparedMetrics(draft, model),
+        [draft, model],
+    );
+    const liveMetricIds = useMemo(() => {
+        // A metric the draft adds does not exist live.
+        const added = diffModelDocuments(
+            model.contentBefore,
+            model.contentAfter,
         )
-        .map((metric) => getItemId(metric));
+            .filter(({ kind }) => kind === 'added')
+            .map(({ path }) => path);
+        return metrics
+            .filter(
+                ({ name }) =>
+                    !added.some(
+                        (path) =>
+                            path.endsWith(`metrics.${name}`) ||
+                            readModelPart(
+                                model.contentAfter,
+                                `${path}.metrics.${name}`,
+                            ) !== null,
+                    ),
+            )
+            .map((metric) => getItemId(metric));
+    }, [metrics, model]);
     return (
         <CompareTotals
             projectUuid={projectUuid}

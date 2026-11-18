@@ -195,7 +195,6 @@ export const lightdashConfigMock: LightdashConfig = {
     results: {
         cacheStateTimeSeconds: 0,
         cacheEnabled: null,
-        autocompleteEnabled: false,
         s3: {
             endpoint: 'mock_endpoint',
             bucket: 'mock_bucket',

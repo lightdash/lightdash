@@ -5,6 +5,7 @@ import {
     computeContentDraftStaleness,
     ConflictError,
     ContentAsCodeType,
+    DashboardTileTypes,
     DbtProjectType,
     DEFAULT_CONTENT_AS_CODE_PATH,
     describeContentDraftStaleness,
@@ -22,6 +23,7 @@ import {
     PullRequestSource,
     resolveContentAsCodeRepoPath,
     type ChartAsCode,
+    type ComposerChartAsCode,
     type ContentAsCodeFileClassification,
     type ContentAsCodePullSummary,
     type ContentAsCodeReleasableType,
@@ -36,6 +38,7 @@ import {
     type SessionUser,
     type SqlChartAsCode,
 } from '@lightdash/common';
+import { omit } from 'es-toolkit/compat';
 import * as yaml from 'js-yaml';
 import pLimit from 'p-limit';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -124,10 +127,13 @@ const commitAuthorFromUser = (user: {
 // Matches the CLI's writeContent (packages/cli/src/handlers/download.ts):
 // updatedAt/downloadedAt are transport metadata and verification is runtime
 // instance state — none of them land in the repo.
-const dumpContentAsCode = (content: ChartAsCode | DashboardAsCode): string => {
-    const { updatedAt, downloadedAt, verification, ...cleanContent } = content;
-    return yaml.dump(cleanContent, { quotingType: '"', sortKeys: true });
-};
+const dumpContentAsCode = (
+    content: ChartAsCode | DashboardAsCode | ComposerChartAsCode,
+): string =>
+    yaml.dump(omit(content, ['updatedAt', 'downloadedAt', 'verification']), {
+        quotingType: '"',
+        sortKeys: true,
+    });
 
 const parsePullRequestNumber = (prUrl: string): number | null => {
     const match = prUrl.match(/\/(?:pull|merge_requests)\/(\d+)/);
@@ -802,7 +808,9 @@ export class ContentAsCodeWritebackService extends BaseService {
             }
         }
         for (const { file, document } of dashboards) {
+            // Composer tiles name composer charts, never classic ones
             const blockedBy = document.tiles.flatMap((tile) =>
+                tile.type !== DashboardTileTypes.COMPOSER_CHART &&
                 'chartSlug' in tile.properties &&
                 typeof tile.properties.chartSlug === 'string' &&
                 failedChartSlugs.has(tile.properties.chartSlug)
@@ -1653,6 +1661,14 @@ export class ContentAsCodeWritebackService extends BaseService {
                 notes,
             );
             files.push(...ownedChartFiles);
+            files.push(
+                ...(await this.collectDashboardComposerCharts(
+                    projectUuid,
+                    dashboardAsCode,
+                    repo.path,
+                    contentDir,
+                )),
+            );
         }
 
         let committed = 0;
@@ -1802,6 +1818,7 @@ export class ContentAsCodeWritebackService extends BaseService {
         const chartSlugs = Array.from(
             new Set(
                 dashboardAsCode.tiles.flatMap((tile) =>
+                    tile.type !== DashboardTileTypes.COMPOSER_CHART &&
                     'chartSlug' in tile.properties &&
                     typeof tile.properties.chartSlug === 'string'
                         ? [tile.properties.chartSlug]
@@ -1870,6 +1887,41 @@ export class ContentAsCodeWritebackService extends BaseService {
         return files.filter(
             (file): file is { path: string; content: string } => file !== null,
         );
+    }
+
+    // Composer charts always belong to a dashboard; one owned by another
+    // dashboard stays out, as in collectDashboardOwnedCharts
+    private async collectDashboardComposerCharts(
+        projectUuid: string,
+        dashboardAsCode: DashboardAsCode,
+        repoPath: string,
+        contentPath: string,
+    ): Promise<{ path: string; content: string }[]> {
+        const slugs = Array.from(
+            new Set(
+                dashboardAsCode.tiles.flatMap((tile) =>
+                    tile.type === DashboardTileTypes.COMPOSER_CHART
+                        ? [tile.properties.chartSlug]
+                        : [],
+                ),
+            ),
+        );
+        if (slugs.length === 0) return [];
+        const charts = await this.coderService.getPortableComposerChartsAsCode(
+            projectUuid,
+            slugs,
+        );
+        return charts
+            .filter((chart) => chart.dashboardSlug === dashboardAsCode.slug)
+            .map((chart) => ({
+                path: joinContentAsCodePath(
+                    repoPath,
+                    contentPath,
+                    'charts',
+                    `${chart.slug}.composer.yml`,
+                ),
+                content: dumpContentAsCode(chart),
+            }));
     }
 
     // Returns true when a commit landed (false when the branch already has

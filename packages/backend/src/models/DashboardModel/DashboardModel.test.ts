@@ -481,6 +481,13 @@ describe('DashboardModel', () => {
 
         expect(dashboard).toEqual(expectedAllDashboards);
         expect(tracker.history.select).toHaveLength(2);
+        const dashboardsQuery = tracker.history.select[0].sql;
+        expect(dashboardsQuery.replace(/\s+/g, ' ')).toContain(
+            `LEFT JOIN LATERAL ( SELECT * FROM "${DashboardVersionsTableName}" AS latest_version WHERE latest_version.dashboard_id = "${DashboardsTableName}"."dashboard_id" ORDER BY latest_version.created_at DESC, latest_version.dashboard_version_id DESC LIMIT 1 ) AS "${DashboardVersionsTableName}" ON TRUE`,
+        );
+        expect(dashboardsQuery).not.toContain(
+            `join "${DashboardVersionsTableName}"`,
+        );
     });
 
     test('should get dashboard parameters using the dashboard project uuid', async () => {

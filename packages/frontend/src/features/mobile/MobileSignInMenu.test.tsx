@@ -13,6 +13,7 @@ import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import { MobileSignInMenu } from './MobileSignInMenu';
 import { MOBILE_SIGN_IN_STRINGS } from './mobileStrings';
+import upsellClasses from './upsell/MobileUpsell.module.css';
 import { UPSELL_STRINGS } from './upsell/upsellStrings';
 
 vi.mock('../../api');
@@ -195,7 +196,7 @@ describe('MobileSignInMenu', () => {
         },
     );
 
-    it('keeps the sign-in QR as the only action and closes on Escape', async () => {
+    it('keeps the sign-in QR and Not interested as the only actions and closes on Escape', async () => {
         window.history.replaceState({}, '', '/?mobileUpsell=1');
         const user = userEvent.setup();
         const server = mockServer();
@@ -207,7 +208,11 @@ describe('MobileSignInMenu', () => {
         });
         await within(popover).findByRole('img', { name: 'Sign-in QR code' });
         expect(within(popover).queryByRole('link')).not.toBeInTheDocument();
-        expect(within(popover).queryByRole('button')).not.toBeInTheDocument();
+        expect(
+            within(popover)
+                .getAllByRole('button')
+                .map((button) => button.textContent),
+        ).toEqual(['Not interested']);
 
         await user.keyboard('{Escape}');
 
@@ -240,6 +245,49 @@ describe('MobileSignInMenu', () => {
             'aria-live',
             'polite',
         );
+    });
+
+    it.each([LightdashMode.DEFAULT, LightdashMode.CLOUD_BETA])(
+        'shows the install then scan again hint under the code in %s mode',
+        async (mode) => {
+            health.mode = mode;
+            const user = userEvent.setup();
+            const server = mockServer();
+            renderMenu(<MobileSignInMenu />);
+            await user.click(openButton());
+            const qr = await screen.findByRole('img', {
+                name: 'Sign-in QR code',
+            });
+            const hint = screen.getByText(MOBILE_SIGN_IN_STRINGS.rescanHint);
+            expect(hint).toBeVisible();
+            expect(hint.closest('[aria-hidden="true"]')).toBeNull();
+            expect(upsellClasses.rescanHint).toBeTruthy();
+            expect(hint).toHaveClass(upsellClasses.rescanHint);
+            expect(hint.parentElement).toContainElement(qr);
+            expect(document.querySelector('[data-idle]')).not.toContainElement(
+                hint,
+            );
+
+            await user.click(openButton());
+            await waitFor(() =>
+                expect(server.deletes()).toEqual([
+                    '/user/mobile/sign-in-codes/code-1',
+                ]),
+            );
+            expect(server.mints()).toHaveLength(1);
+        },
+    );
+
+    it('removes the hint once a phone scans the code', async () => {
+        mockServer({ isClaimed: true });
+        renderMenu(<MobileSignInMenu />);
+        await userEvent.click(openButton());
+        await screen.findByRole('group', {
+            name: 'A phone wants to sign in as you',
+        });
+        expect(
+            screen.queryByText(MOBILE_SIGN_IN_STRINGS.rescanHint),
+        ).not.toBeInTheDocument();
     });
 
     it('swaps the pitch for an inline confirm on scan, with no dialog', async () => {

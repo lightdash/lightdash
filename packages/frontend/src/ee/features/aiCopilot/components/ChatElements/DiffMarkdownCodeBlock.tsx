@@ -14,6 +14,7 @@ import { AiMarkdownErrorBoundary } from '../../../../../components/common/AiMark
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import classes from './DiffMarkdownCodeBlock.module.css';
+import { recountHunks } from './ToolCalls/splitPatch';
 
 const PlainDiff: FC<{ code: string }> = ({ code }) => (
     <Box component="pre" className={classes.plain}>
@@ -62,9 +63,9 @@ export const DiffMarkdownCodeBlock: FC<CustomRendererProps> = ({
 }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     // With git's a/ and b/ prefixes the header reads as a rename of the file onto itself.
-    const patch = code
-        .replace(/^--- a\//gm, '--- ')
-        .replace(/^\+\+\+ b\//gm, '+++ ');
+    const patch = recountHunks(
+        code.replace(/^--- a\//gm, '--- ').replace(/^\+\+\+ b\//gm, '+++ '),
+    );
     // Anything fenced as a diff comes here from every agent; only a real patch is drawn as one.
     const isPatch = /^@@ /m.test(patch) && /^\+\+\+ /m.test(patch);
     const path = /^\+\+\+ (.+)$/m.exec(patch)?.[1].trim() ?? null;

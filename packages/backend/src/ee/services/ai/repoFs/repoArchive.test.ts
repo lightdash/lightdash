@@ -86,7 +86,7 @@ describe('readRepoArchive', () => {
 describe('an archive kept across agent runs', () => {
     const run = async (sha: string, maxBytes = 1024) => {
         vi.mocked(getRepoTree).mockResolvedValue({
-            files: [{ path: 'models/a.sql', size: 8 }],
+            files: [{ path: 'models/a.sql', size: 8, sha: '' }],
             truncated: false,
             sha,
         });

@@ -1,6 +1,11 @@
 import { ParameterError } from '../types/errors';
+import { FieldType, MetricType } from '../types/field';
+import { QuerySourceType } from '../types/querySources';
 import { ChartType } from '../types/savedCharts';
 import {
+    getComposerChartDisplayedQueryUuid,
+    getComposerChartExportLabels,
+    parseComposerChartInput,
     parseComposerChartRunRequest,
     parseComposerPipeline,
     parseComposerStoredChart,
@@ -281,18 +286,66 @@ describe('parseComposerStoredChart', () => {
         );
     });
 
-    test('refuses a custom chart type, naming it', () => {
-        expect(
-            refusal(() =>
-                parseComposerStoredChart({
-                    ...chart,
-                    chartConfig: {
-                        type: ChartType.DATA_APP_VIZ,
-                        config: { dataAppVizUuid: 'viz', fieldMapping: {} },
+    describe('custom chart type', () => {
+        const customChart = {
+            ...chart,
+            columns: [
+                ...chart.columns,
+                { reference: 'region', fieldType: 'dimension' },
+            ],
+            chartConfig: {
+                type: ChartType.DATA_APP_VIZ,
+                config: {
+                    dataAppVizUuid: 'viz',
+                    dataAppVizVersion: 2,
+                    fieldMapping: {
+                        category: 'month',
+                        value: 'revenue',
+                        series: ['region'],
                     },
-                }),
-            ),
-        ).toContain('custom chart types');
+                    optionValues: { showLegend: false },
+                },
+            },
+            pivotConfig: { columns: ['region'] },
+        };
+        const unpinned = {
+            ...customChart,
+            chartConfig: {
+                type: ChartType.DATA_APP_VIZ,
+                config: {
+                    dataAppVizUuid: 'viz',
+                    fieldMapping: { category: 'month' },
+                },
+            },
+        };
+
+        test('accepts a pinned type whose slots name columns', () => {
+            expect(parseComposerStoredChart(customChart)).toEqual(customChart);
+        });
+
+        test('refuses a slot naming something that is not a column', () => {
+            expect(
+                refusal(() =>
+                    parseComposerStoredChart({
+                        ...customChart,
+                        chartConfig: {
+                            type: ChartType.DATA_APP_VIZ,
+                            config: {
+                                ...customChart.chartConfig.config,
+                                fieldMapping: { series: ['profit'] },
+                            },
+                        },
+                    }),
+                ),
+            ).toContain('"profit"');
+        });
+
+        test('refuses a stored chart without a pin; create input may omit it', () => {
+            expect(refusal(() => parseComposerStoredChart(unpinned))).toContain(
+                'dataAppVizVersion',
+            );
+            expect(parseComposerChartInput(unpinned)).toEqual(unpinned);
+        });
     });
 
     test.each([
@@ -373,5 +426,66 @@ describe('parseComposerChartRunRequest', () => {
         expect(() =>
             parseComposerChartRunRequest({ ...request, ...extra }),
         ).toThrow(key);
+    });
+});
+
+describe('getComposerChartDisplayedQueryUuid', () => {
+    const queries = [
+        {
+            nodeId: 'orders',
+            sourceType: QuerySourceType.SEMANTIC_LAYER,
+            queryUuid: 'q-orders',
+        },
+        {
+            nodeId: 'monthly',
+            sourceType: QuerySourceType.DUCKDB,
+            queryUuid: 'q-monthly',
+        },
+    ];
+
+    it('is the chart stage when the run has one', () => {
+        expect(
+            getComposerChartDisplayedQueryUuid(
+                { queries, chartStageQueryUuid: 'q-stage' },
+                'monthly',
+            ),
+        ).toBe('q-stage');
+    });
+
+    it('is the terminal node without a chart stage', () => {
+        expect(
+            getComposerChartDisplayedQueryUuid(
+                { queries, chartStageQueryUuid: null },
+                'monthly',
+            ),
+        ).toBe('q-monthly');
+    });
+
+    it('is null when the terminal node did not run', () => {
+        expect(
+            getComposerChartDisplayedQueryUuid(
+                { queries: [], chartStageQueryUuid: null },
+                'monthly',
+            ),
+        ).toBeNull();
+    });
+});
+
+describe('getComposerChartExportLabels', () => {
+    it('labels each column with its governed label, without the table', () => {
+        expect(
+            getComposerChartExportLabels({
+                orders_total_order_amount: {
+                    fieldType: FieldType.METRIC,
+                    type: MetricType.SUM,
+                    name: 'total_order_amount',
+                    label: 'Total order amount',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    sql: '',
+                    hidden: false,
+                },
+            }),
+        ).toEqual({ orders_total_order_amount: 'Total order amount' });
     });
 });

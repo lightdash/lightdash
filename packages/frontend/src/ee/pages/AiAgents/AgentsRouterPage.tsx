@@ -78,13 +78,14 @@ const AgentsRouterPage = () => {
         projectUuid,
     });
 
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
     const [isMemoriesModalOpen, setIsMemoriesModalOpen] = useState(false);
     const memoryEnabled = useAiAgentMemoryEnabled();
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     const canStartDeepResearch = useDeepResearchAccess(projectUuid);
     const chartUuid = searchParams.get('chartUuid');
+    const sqlChartUuid = searchParams.get('sqlChartUuid');
     const dashboardUuid = searchParams.get('dashboardUuid');
     const dataAppUuid = searchParams.get('dataAppUuid');
     const documentUuid = searchParams.get('documentUuid');
@@ -100,6 +101,7 @@ const AgentsRouterPage = () => {
         dashboardUuidOrSlug: dashboardUuid,
         dataAppUuidOrSlug: dataAppUuid,
         documentUuid,
+        sqlChartUuid,
     });
 
     const {
@@ -340,17 +342,9 @@ const AgentsRouterPage = () => {
             isAgentSidebarCollapsed={isSidebarCollapsed}
             setIsAgentSidebarCollapsed={setIsSidebarCollapsed}
             SidebarHeader={
-                <NewThreadButton
-                    to={`/projects/${projectUuid}/ai-agents`}
-                    isCollapsed={isSidebarCollapsed}
-                />
+                <NewThreadButton to={`/projects/${projectUuid}/ai-agents`} />
             }
-            Sidebar={
-                <AutoModeSidebar
-                    projectUuid={projectUuid!}
-                    isAgentSidebarCollapsed={isSidebarCollapsed}
-                />
-            }
+            Sidebar={<AutoModeSidebar projectUuid={projectUuid!} />}
         >
             <Box className={classes.routerView}>
                 <Group gap={4} className={classes.routerActions}>

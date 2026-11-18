@@ -172,6 +172,39 @@ export const AiAgentPageLayout: React.FC<Props> = ({
         }
     }, [Sidebar, isMobile, isAgentSidebarCollapsed, previewPaneId]);
 
+    // Collapsed sidebar takes no width; its toggle moves into the chat header
+    const sidebarOpener = !Sidebar ? null : isMobile ? (
+        <SidebarButton
+            aria-label="Open Ask AI sidebar"
+            size="sm"
+            leftSection={
+                <MantineIcon
+                    size="md"
+                    icon={IconLayoutSidebarLeftExpand}
+                    stroke={1.8}
+                    color="ldGray.7"
+                />
+            }
+            onClick={toggleMobileSidebar}
+        />
+    ) : isAgentSidebarCollapsed ? (
+        <Tooltip label="Expand sidebar" position="bottom">
+            <SidebarButton
+                aria-label="Expand Ask AI sidebar"
+                size="xs"
+                leftSection={
+                    <MantineIcon
+                        size="md"
+                        icon={IconLayoutSidebarLeftExpand}
+                        stroke={1.8}
+                        color="ldGray.7"
+                    />
+                }
+                onClick={toggleSidebar}
+            />
+        </Tooltip>
+    ) : null;
+
     return (
         <div
             className={clsx(
@@ -208,63 +241,43 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                             isAgentSidebarCollapsed ? 'true' : undefined
                         }
                     >
-                        <ErrorBoundary>
-                            <Group
-                                align="center"
-                                justify="space-between"
-                                gap={0}
-                                wrap="nowrap"
-                                className={styles.sidebarHeader}
-                                data-collapsed={
-                                    isAgentSidebarCollapsed ? true : undefined
-                                }
-                            >
-                                {SidebarHeader && (
-                                    <Box
-                                        flex={
-                                            isAgentSidebarCollapsed
-                                                ? undefined
-                                                : 1
-                                        }
-                                        miw={0}
-                                    >
+                        {!isAgentSidebarCollapsed && (
+                            <ErrorBoundary>
+                                <Group
+                                    align="center"
+                                    justify="space-between"
+                                    gap={0}
+                                    wrap="nowrap"
+                                    className={styles.sidebarHeader}
+                                >
+                                    <Box flex={1} miw={0}>
                                         {SidebarHeader}
                                     </Box>
-                                )}
-                                <Tooltip
-                                    label={
-                                        isAgentSidebarCollapsed
-                                            ? 'Expand sidebar'
-                                            : 'Collapse sidebar'
-                                    }
-                                    position="right"
-                                >
-                                    <SidebarButton
-                                        aria-label={
-                                            isAgentSidebarCollapsed
-                                                ? 'Expand Ask AI sidebar'
-                                                : 'Collapse Ask AI sidebar'
-                                        }
-                                        size="xs"
-                                        leftSection={
-                                            <MantineIcon
-                                                size="md"
-                                                icon={
-                                                    isAgentSidebarCollapsed
-                                                        ? IconLayoutSidebarLeftExpand
-                                                        : IconLayoutSidebarLeftCollapse
-                                                }
-                                                stroke={1.8}
-                                                color="ldGray.7"
-                                            />
-                                        }
-                                        onClick={toggleSidebar}
-                                    />
-                                </Tooltip>
-                            </Group>
+                                    <Tooltip
+                                        label="Collapse sidebar"
+                                        position="right"
+                                    >
+                                        <SidebarButton
+                                            aria-label="Collapse Ask AI sidebar"
+                                            size="xs"
+                                            leftSection={
+                                                <MantineIcon
+                                                    size="md"
+                                                    icon={
+                                                        IconLayoutSidebarLeftCollapse
+                                                    }
+                                                    stroke={1.8}
+                                                    color="ldGray.7"
+                                                />
+                                            }
+                                            onClick={toggleSidebar}
+                                        />
+                                    </Tooltip>
+                                </Group>
 
-                            {Sidebar}
-                        </ErrorBoundary>
+                                {Sidebar}
+                            </ErrorBoundary>
+                        )}
                     </ResizableSplitter.Pane>
                 )}
 
@@ -279,29 +292,13 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                     min={25}
                 >
                     <ErrorBoundary>
-                        {(Header || (isMobile && Sidebar)) && (
+                        {Header || (isMobile && sidebarOpener) ? (
                             <Box
                                 className={styles.chatHeader}
                                 data-compact={isMobile}
                             >
                                 <Group gap="xs" wrap="nowrap" align="center">
-                                    {isMobile && Sidebar && (
-                                        <SidebarButton
-                                            aria-label="Open Ask AI sidebar"
-                                            size="sm"
-                                            leftSection={
-                                                <MantineIcon
-                                                    size="md"
-                                                    icon={
-                                                        IconLayoutSidebarLeftExpand
-                                                    }
-                                                    stroke={1.8}
-                                                    color="ldGray.7"
-                                                />
-                                            }
-                                            onClick={toggleMobileSidebar}
-                                        />
-                                    )}
+                                    {sidebarOpener}
                                     {Header && (
                                         <Box flex={1} miw={0}>
                                             {Header}
@@ -309,6 +306,12 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                                     )}
                                 </Group>
                             </Box>
+                        ) : (
+                            sidebarOpener && (
+                                <Box className={styles.floatingSidebarOpener}>
+                                    {sidebarOpener}
+                                </Box>
+                            )
                         )}
 
                         <Box className={styles.chatContent}>{children}</Box>

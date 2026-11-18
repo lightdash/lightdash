@@ -1,6 +1,7 @@
 import { Ability, subject } from '@casl/ability';
 import {
     AlreadyExistsError,
+    assertDashboardWithinLimits,
     ChartSummary,
     ChartType,
     ConflictError,
@@ -1559,12 +1560,35 @@ export class PromoteService extends BaseService {
         }));
     }
 
+    private async getUpstreamProjectForPromotion(
+        projectUuid: string,
+        organizationUuid: string | undefined,
+    ) {
+        const source = await this.projectModel.getSummary(projectUuid);
+        if (source.organizationUuid !== organizationUuid) {
+            throw new ForbiddenError();
+        }
+        if (!source.upstreamProjectUuid) return undefined;
+
+        const upstream = await this.projectModel.getSummary(
+            source.upstreamProjectUuid,
+        );
+        if (upstream.organizationUuid !== source.organizationUuid) {
+            throw new ForbiddenError();
+        }
+        return upstream;
+    }
+
     async promoteChart(user: SessionUser, chartUuid: string) {
         const { projectUuid } =
             await this.savedChartModel.getSummary(chartUuid);
 
-        const { upstreamProjectUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const upstreamProjectUuid = (
+            await this.getUpstreamProjectForPromotion(
+                projectUuid,
+                user.organizationUuid,
+            )
+        )?.projectUuid;
         if (!upstreamProjectUuid) {
             throw new NotFoundError(
                 'This chart does not have an upstream project',
@@ -1636,8 +1660,12 @@ export class PromoteService extends BaseService {
         const { projectUuid } =
             await this.savedChartModel.getSummary(chartUuid);
 
-        const { upstreamProjectUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const upstreamProjectUuid = (
+            await this.getUpstreamProjectForPromotion(
+                projectUuid,
+                user.organizationUuid,
+            )
+        )?.projectUuid;
         if (!upstreamProjectUuid) {
             throw new NotFoundError(
                 'This chart does not have an upstream project',
@@ -1685,9 +1713,12 @@ export class PromoteService extends BaseService {
             projectUuid,
         });
 
-        const { upstreamProjectUuid } = await this.projectModel.getSummary(
-            savedSqlChart.project.projectUuid,
-        );
+        const upstreamProjectUuid = (
+            await this.getUpstreamProjectForPromotion(
+                savedSqlChart.project.projectUuid,
+                user.organizationUuid,
+            )
+        )?.projectUuid;
         if (!upstreamProjectUuid) {
             throw new NotFoundError(
                 'This chart does not have an upstream project',
@@ -1735,9 +1766,12 @@ export class PromoteService extends BaseService {
             projectUuid,
         });
 
-        const { upstreamProjectUuid } = await this.projectModel.getSummary(
-            savedSqlChart.project.projectUuid,
-        );
+        const upstreamProjectUuid = (
+            await this.getUpstreamProjectForPromotion(
+                savedSqlChart.project.projectUuid,
+                user.organizationUuid,
+            )
+        )?.projectUuid;
         if (!upstreamProjectUuid) {
             throw new NotFoundError(
                 'This chart does not have an upstream project',
@@ -1846,9 +1880,12 @@ export class PromoteService extends BaseService {
             options?.projectUuid,
         );
 
-        const { upstreamProjectUuid } = await this.projectModel.getSummary(
-            dashboard.projectUuid,
-        );
+        const upstreamProjectUuid = (
+            await this.getUpstreamProjectForPromotion(
+                dashboard.projectUuid,
+                user.organizationUuid,
+            )
+        )?.projectUuid;
         if (!upstreamProjectUuid)
             throw new NotFoundError(
                 "This dashboard's project does not have an upstream project",
@@ -2910,7 +2947,10 @@ export class PromoteService extends BaseService {
             space: upstreamSpace,
             spaceAccessContext: upstreamCtx,
         };
-        assertDashboardIsPromotable(dashboard);
+        // Content-as-code upload reuses this path within one project
+        if (dashboard.projectUuid !== upstreamProjectUuid) {
+            assertDashboardIsPromotable(dashboard);
+        }
 
         return { promotedDashboard, upstreamDashboard };
     }
@@ -2926,9 +2966,12 @@ export class PromoteService extends BaseService {
             options?.projectUuid,
         );
 
-        const { upstreamProjectUuid } = await this.projectModel.getSummary(
-            dashboard.projectUuid,
-        );
+        const upstreamProjectUuid = (
+            await this.getUpstreamProjectForPromotion(
+                dashboard.projectUuid,
+                user.organizationUuid,
+            )
+        )?.projectUuid;
         if (!upstreamProjectUuid)
             throw new NotFoundError(
                 "This dashboard's project does not have an upstream project",
@@ -2957,6 +3000,10 @@ export class PromoteService extends BaseService {
                 user.organizationUuid!,
                 promotedDashboard,
                 upstreamDashboard,
+            );
+            assertDashboardWithinLimits(
+                dashboard,
+                this.lightdashConfig.dashboard,
             );
 
             // Check permissions for all chart tiles
@@ -3284,16 +3331,17 @@ export class PromoteService extends BaseService {
             );
         }
         const source = { ...document, spaceUuid };
-        const { upstreamProjectUuid } =
-            await this.projectModel.getSummary(projectUuid);
-        if (!upstreamProjectUuid) {
+        const upstreamProject = await this.getUpstreamProjectForPromotion(
+            projectUuid,
+            account.organization.organizationUuid,
+        );
+        if (!upstreamProject) {
             throw new NotFoundError(
                 'This Document does not have an upstream project',
             );
         }
+        const { projectUuid: upstreamProjectUuid } = upstreamProject;
         const ability = this.createAuditedAbility(account);
-        const upstreamProject =
-            await this.projectModel.getSummary(upstreamProjectUuid);
         if (ability.cannot('view', subject('Project', upstreamProject))) {
             throw new NotFoundError('Upstream project not found');
         }

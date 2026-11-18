@@ -53,6 +53,7 @@ export class SnowflakeAiServiceAccountCredentialResolver implements CredentialRe
             ...credentials,
             authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
             requireUserCredentials: false,
+            allowUserCredentials: false,
         };
     }
 

@@ -117,6 +117,7 @@ import {
     softDeleteDashboardComposerCharts,
     toComposerChartTile,
 } from './composerChartTiles';
+import { leftJoinLatestDashboardVersion } from './latestDashboardVersion';
 import Transaction = Knex.Transaction;
 import { dismissOpenContentDrafts } from '../ContentDraftModel';
 import { cancelPendingContentReviewRequests } from '../ContentReviewRequestModel';
@@ -603,11 +604,7 @@ export class DashboardModel {
             .with(cteTableName, (queryBuilder) => {
                 void queryBuilder
                     .table(DashboardsTableName)
-                    .leftJoin(
-                        DashboardVersionsTableName,
-                        `${DashboardsTableName}.dashboard_id`,
-                        `${DashboardVersionsTableName}.dashboard_id`,
-                    )
+                    .modify(leftJoinLatestDashboardVersion)
                     .leftJoin(
                         SpaceTableName,
                         `${DashboardsTableName}.space_id`,
@@ -1390,7 +1387,8 @@ export class DashboardModel {
                 database.raw(
                     ` COALESCE(
                         ${SavedChartsTableName}.slug,
-                        ${SavedSqlTableName}.slug
+                        ${SavedSqlTableName}.slug,
+                        ${ComposerChartsTableName}.slug
                     ) AS chart_slug`,
                 ),
                 `${SavedChartsTableName}.last_version_chart_kind`,
@@ -1708,6 +1706,7 @@ export class DashboardModel {
                                 hide_title,
                                 composer_chart_uuid,
                                 name,
+                                chart_slug,
                             });
                         default: {
                             return assertUnreachable(
@@ -2970,7 +2969,8 @@ export class DashboardModel {
                 this.database.raw(
                     ` COALESCE(
                         ${SavedChartsTableName}.slug,
-                        ${SavedSqlTableName}.slug
+                        ${SavedSqlTableName}.slug,
+                        ${ComposerChartsTableName}.slug
                     ) AS chart_slug`,
                 ),
                 `${SavedChartsTableName}.last_version_chart_kind`,
@@ -3269,6 +3269,7 @@ export class DashboardModel {
                                 hide_title,
                                 composer_chart_uuid,
                                 name,
+                                chart_slug,
                             });
                         default: {
                             return assertUnreachable(

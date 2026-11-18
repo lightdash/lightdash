@@ -35,6 +35,7 @@ export const MOBILE_SIGN_IN_STRINGS = {
     qrLabel: 'Sign-in QR code',
     installHint:
         'If you do not have the app, scan to open the store. Install the app, then scan again.',
+    rescanHint: 'Scan to install the app, then scan again to sign in.',
     refreshed: 'New code',
     typeOnPhone: 'Type this number on your phone',
     cancel: 'Cancel',
@@ -68,6 +69,8 @@ export const MOBILE_SIGN_IN_STRINGS = {
         [MobileSignInRefusal.RATE_LIMITED]: 'Too many codes. Try again later.',
         [MobileSignInRefusal.QR_SIGN_IN_DISABLED]:
             'Sign-in with a QR code is turned off.',
+        [MobileSignInRefusal.MOBILE_APP_DISABLED]:
+            'The mobile app is turned off for your organization.',
         [MobileSignInRefusal.APPROVAL_SESSION_MISMATCH]:
             'Reload the page and try again.',
         [MobileSignInRefusal.INVALID_STATE]: 'Reload the page and try again.',

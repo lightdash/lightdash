@@ -34,6 +34,7 @@ export const OAUTH_OPERATIONS: Partial<
     AiAgentThreadContext: ['view'],
     AiDeepResearch: ['create'],
     Analytics: ['view'],
+    Billing: OAUTH_ACTIONS,
     ChangeCsvResults: OAUTH_ACTIONS,
     CompileProject: OAUTH_ACTIONS,
     CompiledSql: ['view'],

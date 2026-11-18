@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     AbilityAction,
+    assertDashboardWithinLimits,
     assertRegisteredAccount,
     buildMergeQueryFromMergeDefinition,
     BulkActionable,
@@ -30,12 +31,14 @@ import {
     getErrorMessage,
     getExploreParameterDefinitions,
     getItemId,
+    getNewHandWrittenAdditionalMetrics,
     getParameterMirror,
     getParameterReferences,
     getQueryParameterReferences,
     getReferencedParameterDefinitions,
     getSchedulerResourceTypeAndId,
     hasChartsInDashboard,
+    isComposerChartTileRequest,
     isDashboardChartTileType,
     isDashboardComposerChartTile,
     isDashboardControlOrder,
@@ -73,6 +76,7 @@ import {
     type Account,
     type AnonymousAccount,
     type ChartFieldUpdates,
+    type ChartParameterReferencesResult,
     type ChartVersionDifference,
     type ChartVersionSummary,
     type ContentDraftStaleness,
@@ -108,6 +112,7 @@ import {
     SchedulerDashboardUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
 import {
+    fromSession,
     getAccountWriteContext,
     getEmbedActorChartSpaceUuids,
     toSessionUser,
@@ -150,6 +155,8 @@ import { runWithConcurrency } from '../../utils/runWithConcurrency';
 import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
 import { logAgentContentWrite } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
+import type { ComposerChartService } from '../ComposerChartService/ComposerChartService';
+import { getCustomMetricSqlPermissionMessage } from '../ProjectService/customMetricSqlPermission';
 import { assertCanSaveInDevelopmentView } from '../ProjectService/developmentView';
 import { convertDashboardParametersToValuesMap } from '../ProjectService/parameters';
 import type { ProjectService } from '../ProjectService/ProjectService';
@@ -170,6 +177,7 @@ import {
 } from '../verifiedContentGuards';
 import { withVersionAgentIdentity } from '../VersionAgentIdentity';
 import {
+    assertCanRollbackComposerCharts,
     duplicateComposerChartTiles,
     rollbackComposerCharts,
 } from './composerChartTiles';
@@ -203,7 +211,14 @@ type DashboardServiceArguments = {
     contentVerificationModel: ContentVerificationModel;
     projectService: Pick<
         ProjectService,
-        'findExplores' | 'projectParametersModel' | 'getQueryTimezoneForProject'
+        | 'findExplores'
+        | 'projectParametersModel'
+        | 'getQueryTimezoneForProject'
+        | 'getCustomMetricsNeedingPermission'
+    >;
+    getComposerChartService: () => Pick<
+        ComposerChartService,
+        'getParameterReferences' | 'assertCanRestore'
     >;
 };
 
@@ -227,15 +242,7 @@ type DashboardDraftOverlay = Partial<
 const TILE_LOAD_CONCURRENCY = 5;
 const MAX_PARAMETER_REFERENCE_TILES = 200;
 
-type ParameterReferencesResult =
-    | {
-          parameterReferences: string[];
-          parameterDefinitions: ParameterDefinitions;
-          chartSavedValues: ParametersValuesMap;
-          virtualViewSavedValues: ParametersValuesMap;
-          error: null;
-      }
-    | { parameterReferences: null; error: string };
+type ParameterReferencesResult = ChartParameterReferencesResult;
 
 const parameterReferencesFailure = (e: unknown): ParameterReferencesResult => ({
     parameterReferences: null,
@@ -376,6 +383,8 @@ export class DashboardService
     contentVerificationModel: ContentVerificationModel;
 
     private readonly projectService: DashboardServiceArguments['projectService'];
+
+    private readonly getComposerChartService: DashboardServiceArguments['getComposerChartService'];
 
     async scheduleExportContent(
         account: Account,
@@ -536,6 +545,7 @@ export class DashboardService
         spacePermissionService,
         contentVerificationModel,
         projectService,
+        getComposerChartService,
     }: DashboardServiceArguments) {
         super();
         this.featureFlagModel = featureFlagModel;
@@ -566,6 +576,7 @@ export class DashboardService
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
         this.projectService = projectService;
+        this.getComposerChartService = getComposerChartService;
     }
 
     async verifyDashboard(
@@ -1332,12 +1343,22 @@ export class DashboardService
         sources: (DashboardTileParameterReferencesTile | null)[],
         projectDefinitions: ParameterDefinitions,
     ): Promise<DashboardTileParameterReferences[]> {
-        // One kind failing outright keeps the other kind's results
-        const [chartResults, sqlResults] = await Promise.all([
+        const savedSources = sources.flatMap((tile) =>
+            tile && !isComposerChartTileRequest(tile) ? [tile] : [],
+        );
+        const composerUuids = uniq(
+            sources.flatMap((tile) =>
+                tile && isComposerChartTileRequest(tile)
+                    ? [tile.composerChartUuid]
+                    : [],
+            ),
+        );
+        // One kind failing outright keeps the other kinds' results
+        const [chartResults, sqlResults, composerResults] = await Promise.all([
             this.getSavedChartParameterReferences(
                 account,
                 projectUuid,
-                uniq(sources.flatMap((tile) => tile?.savedChartUuid ?? [])),
+                uniq(savedSources.flatMap((tile) => tile.savedChartUuid ?? [])),
                 projectDefinitions,
             )
                 .then(toLookup)
@@ -1345,8 +1366,19 @@ export class DashboardService
             this.getSavedSqlParameterReferences(
                 account,
                 projectUuid,
-                uniq(sources.flatMap((tile) => tile?.savedSqlUuid ?? [])),
+                uniq(savedSources.flatMap((tile) => tile.savedSqlUuid ?? [])),
                 projectDefinitions,
+            )
+                .then(toLookup)
+                .catch(getFailedResults),
+            (composerUuids.length === 0
+                ? Promise.resolve(new Map<string, ParameterReferencesResult>())
+                : this.getComposerChartService().getParameterReferences(
+                      account,
+                      projectUuid,
+                      composerUuids,
+                      projectDefinitions,
+                  )
             )
                 .then(toLookup)
                 .catch(getFailedResults),
@@ -1361,12 +1393,16 @@ export class DashboardService
                     ),
                 };
             }
-            const result =
-                (source.savedChartUuid &&
-                    chartResults(source.savedChartUuid)) ||
-                (source.savedSqlUuid && sqlResults(source.savedSqlUuid)) ||
-                parameterReferencesFailure('Tile has no saved chart');
-            return { tileUuid, ...result };
+            const result = isComposerChartTileRequest(source)
+                ? composerResults(source.composerChartUuid)
+                : (source.savedChartUuid &&
+                      chartResults(source.savedChartUuid)) ||
+                  (source.savedSqlUuid && sqlResults(source.savedSqlUuid));
+            return {
+                tileUuid,
+                ...(result ||
+                    parameterReferencesFailure('Tile has no saved chart')),
+            };
         });
     }
 
@@ -1768,6 +1804,7 @@ export class DashboardService
                 userId: user.userUuid,
                 properties: {
                     dashboardId: dashboard.uuid,
+                    dashboardSlug: dashboard.slug,
                     organizationId: dashboard.organizationUuid,
                     projectId: dashboard.projectUuid,
                     parametersCount: Object.keys(dashboard.parameters || {})
@@ -2399,6 +2436,10 @@ export class DashboardService
         DashboardService.assertControlOrder(
             createDashboard.config?.controlOrder,
         );
+        assertDashboardWithinLimits(
+            { tiles: createDashboard.tiles, tabs: createDashboard.tabs ?? [] },
+            this.lightdashConfig.dashboard,
+        );
         const newDashboard = await this.dashboardModel.create(
             space.uuid,
             createDashboard,
@@ -2624,6 +2665,7 @@ export class DashboardService
                 "You don't have access to the space this dashboard belongs to",
             );
         }
+        assertDashboardWithinLimits(dashboard, this.lightdashConfig.dashboard);
 
         const newTabsMap = dashboard.tabs.map((tab) => ({
             uuid: tab.uuid,
@@ -3218,6 +3260,16 @@ export class DashboardService
             organizationUuid: existingDashboardDao.organizationUuid,
         });
 
+        if (isDashboardVersionedFields(incomingFields)) {
+            assertDashboardWithinLimits(
+                {
+                    tiles: incomingFields.tiles,
+                    tabs: incomingFields.tabs ?? [],
+                },
+                this.lightdashConfig.dashboard,
+            );
+        }
+
         if (
             isDashboardVersionedFields(incomingFields) &&
             incomingFields.config
@@ -3691,6 +3743,48 @@ export class DashboardService
         const affected = await Promise.all(
             affectedCharts.map((chart) => this.savedChartModel.get(chart.uuid)),
         );
+
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('CustomFields', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                }),
+            )
+        ) {
+            const account = fromSession(user);
+            const savedMetric = registry[existingIndex];
+            // A metric no chart uses has no explore: changed SQL needs the permission
+            const needsPermission =
+                affected.length > 0
+                    ? (
+                          await Promise.all(
+                              affected.map((chart) =>
+                                  this.projectService.getCustomMetricsNeedingPermission(
+                                      {
+                                          account,
+                                          projectUuid: chart.projectUuid,
+                                          exploreName:
+                                              chart.metricQuery.exploreName,
+                                          additionalMetrics: [metric],
+                                          savedAdditionalMetrics: [savedMetric],
+                                      },
+                                  ),
+                              ),
+                          )
+                      ).some((metrics) => metrics.length > 0)
+                    : getNewHandWrittenAdditionalMetrics(
+                          [metric],
+                          [savedMetric],
+                          {},
+                      ).length > 0;
+            if (needsPermission) {
+                throw new ForbiddenError(
+                    getCustomMetricSqlPermissionMessage([metric]),
+                );
+            }
+        }
 
         const updatedRegistry = [
             ...registry.slice(0, existingIndex),
@@ -4890,10 +4984,11 @@ export class DashboardService
     }
 
     async rollback(
-        user: SessionUser,
+        account: RegisteredAccount,
         dashboardUuidOrSlug: UuidOrSlug,
         versionUuid: UUID,
     ): Promise<void> {
+        const user = toSessionUser(account);
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
 
@@ -4911,7 +5006,7 @@ export class DashboardService
                 dashboardUuid: dashboardDao.uuid,
                 spaceUuid: dashboardDao.spaceUuid,
             });
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'manage',
@@ -4939,7 +5034,10 @@ export class DashboardService
         if (!targetVersion) {
             throw new NotFoundError('Dashboard version not found');
         }
-
+        assertDashboardWithinLimits(
+            targetVersion,
+            this.lightdashConfig.dashboard,
+        );
         const agentIdentity = getContentWriteAgentIdentity({
             userUuid: user.userUuid,
             organizationUuid: dashboardDao.organizationUuid,
@@ -4947,6 +5045,17 @@ export class DashboardService
 
         // Rollback dashboard and all owned charts in a single transaction
         await this.savedChartModel.transaction(async (tx) => {
+            await assertCanRollbackComposerCharts(
+                this.composerChartModel,
+                this.getComposerChartService,
+                account,
+                {
+                    organizationUuid: dashboardDao.organizationUuid,
+                    projectUuid: dashboardDao.projectUuid,
+                },
+                targetVersion,
+                tx,
+            );
             // Rollback dashboard version
             await this.dashboardModel.addVersion(
                 dashboardDao.uuid,
@@ -5113,6 +5222,10 @@ export class DashboardService
                 'Dashboard tile positions must cover every chart within the 36-column grid without overlap.',
             );
         }
+        assertDashboardWithinLimits(
+            { tiles: data.charts.map(() => ({})), tabs: [] },
+            this.lightdashConfig.dashboard,
+        );
         // 1. Create empty dashboard
         const emptyDashboard: CreateDashboard = {
             name: data.name,

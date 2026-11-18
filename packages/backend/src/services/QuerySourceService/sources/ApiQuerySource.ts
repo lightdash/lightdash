@@ -11,7 +11,7 @@ import {
     type SourceQuery,
 } from '@lightdash/common';
 import type { AsyncQueryService } from '../../AsyncQueryService/AsyncQueryService';
-import type { MeteredApiConnector } from '../api/ApiConnector';
+import type { MeteredLiveSource } from '../live/calls';
 import type {
     QuerySourceClient,
     ScanSchemaArgs,
@@ -19,12 +19,12 @@ import type {
     SubmitSourceQueryArgs,
 } from '../types';
 
-/** Looks up the connection's connector, refusing callers who may not use the connection. */
-export type ApiConnectorResolver = (
+/** Looks up the connection's live source, refusing callers who may not use the connection. */
+export type LiveSourceResolver = (
     account: RegisteredAccount,
     projectUuid: string,
     connectionUuid: string,
-) => Promise<MeteredApiConnector>;
+) => Promise<MeteredLiveSource>;
 
 /** Schema tables of the connections the caller may query, from their last scans. */
 export type ApiSchemaTablesResolver = (
@@ -34,7 +34,7 @@ export type ApiSchemaTablesResolver = (
 
 type ApiQuerySourceArguments = {
     asyncQueryService: Pick<AsyncQueryService, 'executeAsyncApiQuery'>;
-    getApiConnector: ApiConnectorResolver;
+    getLiveSource: LiveSourceResolver;
     listSchemaTables: ApiSchemaTablesResolver;
 };
 
@@ -56,13 +56,13 @@ export class ApiQuerySource implements QuerySourceClient {
 
     private readonly asyncQueryService: ApiQuerySourceArguments['asyncQueryService'];
 
-    private readonly getApiConnector: ApiConnectorResolver;
+    private readonly getLiveSource: LiveSourceResolver;
 
     private readonly listSchemaTables: ApiSchemaTablesResolver;
 
     constructor(args: ApiQuerySourceArguments) {
         this.asyncQueryService = args.asyncQueryService;
-        this.getApiConnector = args.getApiConnector;
+        this.getLiveSource = args.getLiveSource;
         this.listSchemaTables = args.listSchemaTables;
     }
 
@@ -103,7 +103,7 @@ export class ApiQuerySource implements QuerySourceClient {
     }: SubmitSourceQueryArgs): Promise<SourceQuerySubmissionResult> {
         const sourceQuery = ApiQuerySource.assertSourceQuery(query);
         assertRegisteredAccount(account);
-        const connector = await this.getApiConnector(
+        const source = await this.getLiveSource(
             account,
             projectUuid,
             sourceQuery.connectionUuid,
@@ -113,7 +113,7 @@ export class ApiQuerySource implements QuerySourceClient {
                 account,
                 projectUuid,
                 connectionUuid: sourceQuery.connectionUuid,
-                connector,
+                source,
                 payload: sourceQuery.payload,
                 limit: sourceQuery.limit,
                 parameters,

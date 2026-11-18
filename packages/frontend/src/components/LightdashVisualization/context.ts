@@ -36,6 +36,7 @@ export type VisualizationServices = {
         e: EchartsSeriesClickEvent,
         series: EChartsSeries[],
     ) => void;
+    onAxisSort?: (fieldId: string) => void;
     setChartType: (value: ChartType) => void;
     setPivotDimensions: (value: string[] | undefined) => void;
     setPivotRows: (value: string[] | undefined) => void;
@@ -54,6 +55,8 @@ export type VisualizationLayout = {
 // Inputs: results, fields, colours and flags. Stable while a chart is edited.
 export type VisualizationState = VisualizationInputs & {
     savedChartReference?: SavedChartReference;
+    // The saved chart on screen includes the viewer's own unpublished draft
+    hasUnpublishedChanges?: boolean;
     embeddedDashboardInteractivity?: EmbeddedDashboardInteractivity;
 };
 

@@ -14,3 +14,12 @@
 .nodeIcon {
     flex-shrink: 0;
 }
+
+/* A draggable row's label must not start a text selection: a selection gets
+   dragged instead of the field, and a firm press opens the system Look Up */
+.root[draggable='true'] {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-user-drag: element;
+    -webkit-touch-callout: none;
+}

@@ -21,8 +21,13 @@ type DataAppVizRenderTarget = {
     // Set only while previewing an older chart version; the backend authorizes
     // against that version's config instead of the latest.
     chartVersionUuid?: string | undefined;
+    // Set when the saved chart is rendered from the viewer's own unpublished
+    // draft; the backend then authorizes against that draft's config.
+    hasUnpublishedChanges?: boolean | undefined;
     // Set when rendering a saved Document cell, which authorizes through the Document.
     document?: DocumentQueryReference | undefined;
+    // Set on a composer chart tile, which authorizes through the composer chart.
+    composerChartUuid?: string | undefined;
 };
 
 // Rendering a saved chart authorizes against that chart; the chart-less route is
@@ -30,8 +35,16 @@ type DataAppVizRenderTarget = {
 const getRenderBaseUrl = (
     projectUuid: string,
     dataAppVizUuid: string,
-    { isEmbedded, savedChartUuid, document }: DataAppVizRenderTarget,
+    {
+        isEmbedded,
+        savedChartUuid,
+        document,
+        composerChartUuid,
+    }: DataAppVizRenderTarget,
 ): string => {
+    if (!isEmbedded && composerChartUuid) {
+        return `/ee/projects/${projectUuid}/apps/visualizations/${dataAppVizUuid}/composer-charts/${composerChartUuid}`;
+    }
     if (!isEmbedded && document) {
         return `/ee/projects/${projectUuid}/apps/visualizations/${dataAppVizUuid}/documents/${document.documentUuid}/charts/${encodeURIComponent(document.chartId)}`;
     }
@@ -49,13 +62,21 @@ const getChartVersionQuery = ({
     isEmbedded,
     savedChartUuid,
     chartVersionUuid,
+    hasUnpublishedChanges,
     document,
+    composerChartUuid,
 }: DataAppVizRenderTarget): string => {
     if (!isEmbedded && document) {
         return `?documentVersionUuid=${document.versionUuid}`;
     }
-    return !isEmbedded && savedChartUuid && chartVersionUuid
-        ? `?chartVersionUuid=${chartVersionUuid}`
+    if (!isEmbedded && savedChartUuid && chartVersionUuid) {
+        return `?chartVersionUuid=${chartVersionUuid}`;
+    }
+    return !isEmbedded &&
+        savedChartUuid &&
+        !composerChartUuid &&
+        hasUnpublishedChanges
+        ? '?includeUnpublishedDraft=true'
         : '';
 };
 
@@ -67,7 +88,9 @@ const getRenderMetadataQuery = (
     const chartVersionQuery = getChartVersionQuery(target);
     if (chartVersionQuery) return chartVersionQuery;
 
-    return !target.savedChartUuid && pinnedVersion !== undefined
+    return !target.savedChartUuid &&
+        !target.composerChartUuid &&
+        pinnedVersion !== undefined
         ? `?version=${pinnedVersion}`
         : '';
 };
@@ -101,7 +124,9 @@ const getRenderMetadataQueryKey = (
     target.savedChartUuid,
     target.chartVersionUuid,
     target.document,
+    target.composerChartUuid,
     pinnedVersion,
+    target.hasUnpublishedChanges,
 ];
 
 export const useDataAppVizRenderMetadata = (
@@ -158,6 +183,8 @@ export const useDataAppVizPreviewToken = (
             target.savedChartUuid,
             target.chartVersionUuid,
             target.document,
+            target.composerChartUuid,
+            target.hasUnpublishedChanges,
         ],
         queryFn: async () => {
             const { token } = await lightdashApi<
@@ -185,7 +212,9 @@ export const useDataAppVizPreviewToken = (
             // Refresh its metadata once; unchanged versions retain the error.
             if (
                 error.error.statusCode === 403 &&
-                (target.savedChartUuid || target.document)
+                (target.savedChartUuid ||
+                    target.document ||
+                    target.composerChartUuid)
             ) {
                 void queryClient.invalidateQueries(
                     {

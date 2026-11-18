@@ -8,6 +8,16 @@ import {
 } from './contentReferenceUtils';
 
 describe('contentReferenceUtils', () => {
+    it('leaves a typed word alone when it is the name of an attached model', () => {
+        const result = buildContentReferenceSegments('add viewed orders then', [
+            { type: 'semantic_model', modelName: 'orders', fieldName: null },
+        ]);
+        expect(result.segments).toEqual([
+            { type: 'text', text: 'add viewed orders then' },
+        ]);
+        expect(result.matchedKeys.size).toBe(0);
+    });
+
     it('turns mentioned content labels into ordered reference segments', () => {
         const result = buildContentReferenceSegments(
             'Table Calculations Tests Dashboard & [Fanout] Inflated vs Safe [Fanout] One-to-One Addresses use these as inspo',

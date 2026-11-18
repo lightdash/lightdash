@@ -1,14 +1,17 @@
 import { Ability } from '@casl/ability';
 import {
     ConflictError,
+    ContentAsCodeType,
     DbtProjectType,
     ForbiddenError,
     NotFoundError,
     ParameterError,
     PossibleAbilities,
     PullRequestSource,
+    type ComposerChartAsCode,
     type SessionUser,
 } from '@lightdash/common';
+import * as yaml from 'js-yaml';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import {
@@ -16,6 +19,7 @@ import {
     getPullRequest,
     getRepoTree,
 } from '../../clients/github/Github';
+import { isComposerChartAsCodeUnchanged } from '../CoderService/composerChartsAsCode';
 import { ContentAsCodeWritebackService } from './ContentAsCodeWritebackService';
 
 vi.mock('../../clients/github/Github', () => ({
@@ -116,6 +120,7 @@ const buildService = (overrides: Overrides = {}) => {
         getCurrentContentVersionBySlug: vi
             .fn()
             .mockResolvedValue({ contentUuid: 'chart-uuid' }),
+        getPortableComposerChartsAsCode: vi.fn().mockResolvedValue([]),
         getDashboardAsCodeWithOverlay: vi.fn().mockResolvedValue({
             name: 'Weekly KPIs draft',
             slug: 'weekly-kpis',
@@ -938,6 +943,86 @@ describe('ContentAsCodeWritebackService', () => {
         expect(coderService.getCurrentChartAsCode).not.toHaveBeenCalled();
     });
 
+    it('writes the composer charts its composer tiles name', async () => {
+        const composerChart: ComposerChartAsCode = {
+            contentType: ContentAsCodeType.COMPOSER_CHART,
+            version: 1,
+            slug: 'orders-by-status',
+            name: 'Orders by status',
+            description: null,
+            dashboardSlug: 'weekly-kpis',
+            spaceSlug: 'jaffle',
+            pipeline: {
+                schemaVersion: 1,
+                terminalNodeId: 'orders',
+                nodes: [
+                    {
+                        sourceType: 'sql',
+                        nodeId: 'orders',
+                        title: 'Orders',
+                        sql: 'select status, count(*) as n from orders group by 1',
+                    },
+                ],
+            } as unknown as ComposerChartAsCode['pipeline'],
+            chart: {
+                schemaVersion: 1,
+                columns: [
+                    { reference: 'status', fieldType: 'dimension' },
+                    { reference: 'n', fieldType: 'metric' },
+                ],
+                chartConfig: {
+                    type: 'cartesian',
+                    config: {
+                        layout: { xField: 'status', yField: ['n'] },
+                    },
+                },
+            } as unknown as ComposerChartAsCode['chart'],
+            updatedAt: new Date('2026-11-10T10:00:00Z'),
+            downloadedAt: new Date('2026-11-17T10:00:00Z'),
+        };
+        const { service, gitIntegrationService, coderService } = buildService();
+        coderService.getCurrentDashboardAsCode.mockResolvedValue({
+            name: 'Weekly KPIs',
+            slug: 'weekly-kpis',
+            tiles: [
+                {
+                    type: 'composer_chart',
+                    properties: { chartSlug: 'orders-by-status' },
+                },
+                {
+                    type: 'composer_chart',
+                    properties: { chartSlug: 'other-dashboards-chart' },
+                },
+            ],
+        });
+        coderService.getPortableComposerChartsAsCode.mockResolvedValue([
+            composerChart,
+            {
+                ...composerChart,
+                slug: 'other-dashboards-chart',
+                dashboardSlug: 'another-dashboard',
+            },
+        ]);
+
+        await service.propose(user, 'project-uuid', 'dashboard', 'weekly-kpis');
+
+        const writtenPaths = gitIntegrationService.saveFile.mock.calls.map(
+            (call) => call[3],
+        );
+        expect(writtenPaths).toEqual([
+            'lightdash/dashboards/weekly-kpis.yml',
+            'lightdash/charts/orders-by-status.composer.yml',
+        ]);
+        const written = yaml.load(
+            gitIntegrationService.saveFile.mock.calls[1][4],
+        ) as ComposerChartAsCode;
+        expect(written).not.toHaveProperty('updatedAt');
+        expect(written).not.toHaveProperty('downloadedAt');
+        expect(isComposerChartAsCodeUnchanged(written, composerChart)).toBe(
+            true,
+        );
+    });
+
     it('every commit names the acting user and instance', async () => {
         const { service, gitIntegrationService } = buildService();
         await service.propose(user, 'project-uuid', 'chart', 'monthly-revenue');
@@ -1664,7 +1749,11 @@ describe('ContentAsCodeWritebackService', () => {
 
         const stubRepo = (files: Record<string, string>) => {
             vi.mocked(getRepoTree).mockResolvedValue({
-                files: Object.keys(files).map((path) => ({ path, size: 1 })),
+                files: Object.keys(files).map((path) => ({
+                    path,
+                    size: 1,
+                    sha: '',
+                })),
                 truncated: false,
                 sha: 'tree-sha',
             });

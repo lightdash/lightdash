@@ -39,6 +39,7 @@ import {
     type RequestAuthority,
 } from '../AsyncQueryService/types';
 import { BaseService } from '../BaseService';
+import type { ComposerChartRunContext } from '../ComposerChartService/ComposerChartService';
 import type { ComposerRunBinding } from '../ComposerChartService/ComposerRunBinding';
 import type { QuerySourceRegistry } from './QuerySourceRegistry';
 import type {
@@ -479,11 +480,13 @@ export class QuerySourceService extends BaseService {
         account,
         projectUuid,
         binding,
+        context,
         invalidateCache,
     }: {
         account: Account;
         projectUuid: string;
         binding: ComposerRunBinding;
+        context: ComposerChartRunContext;
         invalidateCache: boolean;
     }): Promise<{ queries: InternalSourceQuerySubmission[] }> {
         binding.assertExecution(account, projectUuid);
@@ -491,8 +494,8 @@ export class QuerySourceService extends BaseService {
             account,
             projectUuid,
             queries: binding.nodes,
-            context: QueryExecutionContext.DASHBOARD,
-            parameters: {},
+            context,
+            parameters: binding.parameters,
             userAttributeOverrides: {},
             invalidateCache,
             plans: {},

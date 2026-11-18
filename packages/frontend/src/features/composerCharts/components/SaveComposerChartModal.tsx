@@ -22,6 +22,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconChartBar } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useState, type FC } from 'react';
 import { v4 as uuid4 } from 'uuid';
 import { getDestinationDashboardTab } from '../../../components/common/Dashboard/destinationDashboardTab';
@@ -40,6 +41,7 @@ import {
 } from '../../../hooks/dashboard/useDashboard';
 import { useDashboards } from '../../../hooks/dashboard/useDashboards';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
+import { useSavedToDashboardToast } from '../../../hooks/dashboard/useSavedToDashboardToast';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
     useCreateMutation as useCreateSpaceMutation,
@@ -81,9 +83,10 @@ export const SaveComposerChartModal: FC<Props> = ({
     onSaved,
 }) => {
     const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
     const { user } = useApp();
-    const { showToastSuccess, showToastApiError, showToastError } =
-        useToaster();
+    const { showToastApiError, showToastError } = useToaster();
+    const showSavedToast = useSavedToDashboardToast();
     const { getDashboardActiveTabUuid } = useDashboardStorage();
     const [isSelectingDashboard, setIsSelectingDashboard] = useState(false);
     const [isCreatingNewDashboard, setIsCreatingNewDashboard] = useState(false);
@@ -210,8 +213,9 @@ export const SaveComposerChartModal: FC<Props> = ({
                 selectedTabUuid: values.tabUuid,
                 lastActiveTabUuid: getDashboardActiveTabUuid(dashboard.uuid),
             })?.uuid;
+            const tileUuid = uuid4();
             const tile: CreateDashboardComposerChartTile = {
-                uuid: uuid4(),
+                uuid: tileUuid,
                 type: DashboardTileTypes.COMPOSER_CHART,
                 tabUuid,
                 properties: {
@@ -222,7 +226,7 @@ export const SaveComposerChartModal: FC<Props> = ({
                 },
                 ...getDefaultChartTileSize(chart.chartConfig.type),
             };
-            await updateDashboardApi(
+            const updatedDashboard = await updateDashboardApi(
                 lightdashApi,
                 dashboard.uuid,
                 {
@@ -235,7 +239,18 @@ export const SaveComposerChartModal: FC<Props> = ({
                 },
                 projectUuid,
             );
-            showToastSuccess({ title: `Saved to "${dashboard.name}"` });
+            // Reset marks the pre-save copy stale at once; the refetch needn't block closing
+            void Promise.all(
+                [dashboard.uuid, updatedDashboard.slug].map((key) =>
+                    queryClient.resetQueries(['saved_dashboard_query', key]),
+                ),
+            );
+            showSavedToast({
+                projectUrlIdentifier: projectUuid,
+                dashboard: updatedDashboard,
+                tileUuid,
+                tabUuid: tabUuid ?? null,
+            });
             await onSaved({
                 composerChartUuid: composerChart.uuid,
                 dashboardUuid: dashboard.uuid,

@@ -152,6 +152,7 @@ const buildService = ({
         } as never,
         coderService: {} as never,
         documentService: {} as never,
+        composerChartService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,
@@ -162,6 +163,7 @@ const buildService = ({
         appRuntimeS3: null,
         appThumbnailClient,
         chartRegistryClient: {} as never,
+        contentDraftModel: {} as never,
         contentVerificationModel: {} as never,
     });
 

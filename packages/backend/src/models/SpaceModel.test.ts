@@ -6,6 +6,10 @@ import {
 } from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
+import {
+    DashboardsTableName,
+    DashboardVersionsTableName,
+} from '../database/entities/dashboards';
 import { EmailTableName } from '../database/entities/emails';
 import {
     FeatureFlagOverridesTableName,
@@ -1203,6 +1207,32 @@ describe('SpaceModel space access as code', () => {
         );
         expect(actorUserLocks).toHaveLength(1);
         expect(actorUserLocks[0].bindings).toContain('actor-user-uuid');
+    });
+});
+
+describe('SpaceModel getSpaceDashboards', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new SpaceModel({ database });
+    let tracker: Tracker;
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+    afterEach(() => {
+        tracker.reset();
+    });
+
+    it('joins only the latest version of each dashboard', async () => {
+        tracker.on.select(DashboardsTableName).response([]);
+
+        await model.getSpaceDashboards(['space-uuid'], {
+            recentlyUpdated: true,
+        });
+
+        const [query] = tracker.history.select;
+        expect(query.sql.replace(/\s+/g, ' ')).toContain(
+            `LEFT JOIN LATERAL ( SELECT * FROM "${DashboardVersionsTableName}" AS latest_version WHERE latest_version.dashboard_id = "${DashboardsTableName}"."dashboard_id" ORDER BY latest_version.created_at DESC, latest_version.dashboard_version_id DESC LIMIT 1 ) AS "${DashboardVersionsTableName}" ON TRUE`,
+        );
+        expect(query.sql).not.toContain(`join "${DashboardVersionsTableName}"`);
     });
 });
 

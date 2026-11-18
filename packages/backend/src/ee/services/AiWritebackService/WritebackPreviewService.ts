@@ -1,8 +1,11 @@
 import { subject } from '@casl/ability';
 import {
     DbtProjectType,
+    extractPreviewProjectUuidFromUrl,
+    extractPreviewUrlFromComments,
     ForbiddenError,
     getErrorMessage,
+    ProjectType,
     RequestMethod,
     type SessionUser,
 } from '@lightdash/common';
@@ -19,7 +22,10 @@ import { WritebackAgentAccessError } from './errors';
 /** The slice of the GitHub client this service needs, injected for testability. */
 export type WritebackPreviewGithubClient = Pick<
     typeof GithubClient,
-    'getInstallationToken' | 'getPullRequest' | 'createPullRequestComment'
+    | 'getInstallationToken'
+    | 'getPullRequest'
+    | 'getPullRequestComments'
+    | 'createPullRequestComment'
 >;
 
 type WritebackPreviewServiceDeps = {
@@ -110,11 +116,14 @@ export class WritebackPreviewService extends BaseService {
         projectUuid,
         prUrl,
         assertPublishAllowed = null,
+        reuseOnly = false,
     }: {
         user: SessionUser;
         projectUuid: string;
         prUrl: string;
         assertPublishAllowed?: (() => Promise<void>) | null;
+        /** Compile the preview this pull request already has again, and build none when it has none. */
+        reuseOnly?: boolean;
     }): Promise<WritebackPreviewResult | null> {
         const project = await this.projectModel.get(projectUuid);
         if (
@@ -187,7 +196,23 @@ export class WritebackPreviewService extends BaseService {
                 return null;
             }
 
+            const comments = await this.githubClient
+                .getPullRequestComments({
+                    owner: parsed.owner,
+                    repo: parsed.repo,
+                    pullNumber: parsed.pullNumber,
+                    token,
+                })
+                .catch(() => []);
             if (assertPublishAllowed) await assertPublishAllowed();
+            const existing = await this.refreshExistingPreview({
+                user,
+                projectUuid,
+                headRef: pullRequest.headRef,
+                comments,
+            });
+            if (existing || reuseOnly) return existing;
+
             const preview = await this.projectService.createPreview(
                 user,
                 projectUuid,
@@ -226,6 +251,53 @@ export class WritebackPreviewService extends BaseService {
                 `Failed to create writeback preview for ${prUrl}: ${getErrorMessage(
                     error,
                 )}`,
+            );
+            return null;
+        }
+    }
+
+    /** The preview an earlier round built for this branch, compiled again; null when there is none left to reuse. */
+    private async refreshExistingPreview({
+        user,
+        projectUuid,
+        headRef,
+        comments,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        headRef: string;
+        comments: string[];
+    }): Promise<WritebackPreviewResult | null> {
+        const { siteUrl } = this.lightdashConfig;
+        const previewUrl = extractPreviewUrlFromComments(comments, siteUrl);
+        const previewProjectUuid = previewUrl
+            ? extractPreviewProjectUuidFromUrl(previewUrl, siteUrl)
+            : null;
+        if (!previewUrl || !previewProjectUuid) return null;
+        try {
+            const preview = await this.projectModel.get(previewProjectUuid);
+            // A comment is anyone's to write, so the project must be this branch's preview of this project.
+            if (
+                preview.type !== ProjectType.PREVIEW ||
+                preview.upstreamProjectUuid !== projectUuid ||
+                preview.dbtConnection.type !== DbtProjectType.GITHUB ||
+                preview.dbtConnection.branch !== headRef
+            ) {
+                return null;
+            }
+            const { jobUuid } =
+                await this.projectService.scheduleCompileProject(
+                    user,
+                    previewProjectUuid,
+                    RequestMethod.BACKEND,
+                    false,
+                    true,
+                );
+            return { previewProjectUuid, previewUrl, compileJobUuid: jobUuid };
+        } catch (error) {
+            // An expired preview is gone, and a new one takes its place.
+            this.logger.warn(
+                `Could not reuse writeback preview ${previewProjectUuid}: ${getErrorMessage(error)}`,
             );
             return null;
         }
