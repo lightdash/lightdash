@@ -230,7 +230,7 @@ For period comparisons, read `period-over-period-reference` in addition to the c
 - `sankey-chart-reference` - Flow diagrams
 - `custom-viz-reference` - Vega-Lite
 - `period-over-period-reference` - PoP comparisons
-- `sql-chart-reference` - Charts saved from raw warehouse SQL: when to save one, the approval step, and dashboards built from them
+- `sql-chart-reference` - Charts saved from raw warehouse SQL, their approval step, and dashboards built from them
 - `field-formatting-reference` - Chart-level field formatting overrides for metrics and dimensions
 
 ### Dashboards
