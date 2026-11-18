@@ -48,10 +48,7 @@ const FlowScene: FC = () => (
     </Box>
 );
 
-const STOPS = {
-    server: ['Ask', 'Review', 'Publish'],
-    repo: ['Ask', 'Review', 'Merge'],
-};
+const STOPS = ['Ask', 'Review', 'Publish'];
 
 /** What the chat shows before a conversation starts. */
 export const StudioChatEmptyState: FC<{
@@ -66,13 +63,13 @@ export const StudioChatEmptyState: FC<{
             <Text fz="xs" c="dimmed" ta="center">
                 {keepsDraft
                     ? 'Only you see a draft until you publish it.'
-                    : 'Nothing goes live until the pull request merges.'}
+                    : 'Nothing is published until you publish the draft.'}
             </Text>
         </Stack>
         <Box className={classes.flow}>
             <FlowScene />
             <Box className={classes.captions}>
-                {STOPS[keepsDraft ? 'server' : 'repo'].map((title, index) => (
+                {STOPS.map((title, index) => (
                     <Box key={title} className={classes.stop}>
                         <Box className={classes.node}>{index + 1}</Box>
                         <Text fz="xs" c="dimmed">

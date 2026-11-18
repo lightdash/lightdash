@@ -48,15 +48,15 @@ const getBlockedReason = (ciChecks: CiChecks | null): string => {
         case CiMergeState.READY:
         case CiMergeState.UNSTABLE:
         case CiMergeState.UNKNOWN:
-            return 'Checking whether the pull request can be merged.';
+            return 'Checking whether the draft can be published.';
         case CiMergeState.BLOCKED:
             return 'A required check failed or a review is missing.';
         case CiMergeState.CONFLICTS:
-            return 'The pull request has conflicts to resolve first.';
+            return 'The draft has conflicts to resolve first.';
         case CiMergeState.BEHIND:
             return 'The branch is behind its base and needs updating first.';
         case CiMergeState.DRAFT:
-            return 'The pull request is still a draft.';
+            return 'Mark the pull request ready for review first.';
         default:
             return assertUnreachable(mergeState, 'Unknown merge state');
     }
@@ -277,7 +277,7 @@ export const StudioSavingBar: FC<{
                     look="primary"
                 />
             ) : null}
-            <Tooltip label="Usually takes 2 to 3 minutes. The pull request shows up here when it is ready.">
+            <Tooltip label="Usually takes 2 to 3 minutes. The draft shows up here once it is saved.">
                 <Text fz="xs" c="dimmed" ff="monospace">
                     {elapsed}
                 </Text>

@@ -28,9 +28,7 @@ export const StudioChanges: FC<{
                         Proposed
                     </Badge>
                     <Text fz="xs" c="dimmed">
-                        {pullRequest
-                            ? 'Not saved yet. Save it to the pull request from the chat.'
-                            : 'Not saved yet. Open the pull request from the chat to save it.'}
+                        Not saved. Saving needs write access to the repository.
                     </Text>
                 </Group>
                 {proposal.map((code) => (
