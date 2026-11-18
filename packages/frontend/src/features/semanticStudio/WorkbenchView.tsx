@@ -142,6 +142,7 @@ import {
 import { type SourcesTarget } from './SourcesView';
 import {
     AddToStudioChatContext,
+    useAddToStudioChat,
     sameStudioChatRef,
     startStudioChatRefDrag,
     type StudioChatRef,
@@ -258,6 +259,7 @@ const Tree: FC<{
     onToggle: (key: string) => void;
     onSelect: (node: TreeNode) => void;
 }> = ({ view, expanded, drafted, onToggle, onSelect }) => {
+    const canDrag = useAddToStudioChat() !== null;
     const parentRef = useRef<HTMLDivElement>(null);
     const rows = useMemo(
         () => flattenTree(view.tree.nodes, expanded),
@@ -322,7 +324,7 @@ const Tree: FC<{
                             data-selected={node.key === selectedTreeKey}
                             top={item.start}
                             pl={depth * 14 + 4}
-                            draggable={node.ref.type === 'explore'}
+                            draggable={canDrag && node.ref.type === 'explore'}
                             onDragStart={(event) => {
                                 if (node.ref.type !== 'explore') return;
                                 startStudioChatRefDrag(event.dataTransfer, {
@@ -633,6 +635,7 @@ const MainPane: FC<{
     onOpenNode: (node: TreeNode) => void;
     onBuildModel: (() => void) | null;
 }> = ({ view, onOpen, onOpenNode, onBuildModel }) => {
+    const canDrag = useAddToStudioChat() !== null;
     const selected = view.selected;
     const ref = selected ? containerOf(selected) : null;
     const node = ref ? findNode(view.tree.nodes, nodeKey(ref)) : undefined;
@@ -727,7 +730,7 @@ const MainPane: FC<{
                             order={3}
                             className={classes.title}
                             title={title}
-                            draggable={ref?.type === 'explore'}
+                            draggable={canDrag && ref?.type === 'explore'}
                             onDragStart={(event) => {
                                 if (ref?.type !== 'explore') return;
                                 startStudioChatRefDrag(event.dataTransfer, {
@@ -744,9 +747,6 @@ const MainPane: FC<{
                         {isLiveSourcesPage ? <LiveSourceBetaBadge /> : null}
                     </Group>
                     <Group gap={4} wrap="nowrap" flex="none">
-                        {ref?.type === 'kind' ? (
-                            <AddSourceButton view={view} kind={ref.kind} />
-                        ) : null}
                         {liveConnection ? (
                             <LiveSourceHeaderActions
                                 projectUuid={view.project.id}
@@ -2112,6 +2112,12 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                                     Review changes
                                                 </Button>
                                             ) : null}
+                                            {showsDraftActions ? (
+                                                <>
+                                                    {changeLinks}
+                                                    {changeActions}
+                                                </>
+                                            ) : null}
                                             {agentAvailable && !isChatOpen ? (
                                                 <Button
                                                     size="xs"
@@ -2141,12 +2147,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                                 >
                                                     Create an agent
                                                 </Button>
-                                            ) : null}
-                                            {showsDraftActions ? (
-                                                <>
-                                                    {changeLinks}
-                                                    {changeActions}
-                                                </>
                                             ) : null}
                                         </Group>
                                     </Group>
@@ -2190,13 +2190,19 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                         />
                                     </Suspense>
                                 ) : isEmpty || isReviewPane ? null : (
-                                    <Rail
-                                        view={view}
-                                        expanded={expanded}
-                                        drafted={drafted}
-                                        onToggle={toggle}
-                                        onOpen={open}
-                                    />
+                                    <AddToStudioChatContext.Provider
+                                        value={
+                                            agentAvailable ? attachToChat : null
+                                        }
+                                    >
+                                        <Rail
+                                            view={view}
+                                            expanded={expanded}
+                                            drafted={drafted}
+                                            onToggle={toggle}
+                                            onOpen={open}
+                                        />
+                                    </AddToStudioChatContext.Provider>
                                 )}
                                 {pane === 'browse' ? (
                                     renderPaneWithChat()
