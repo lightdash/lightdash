@@ -12,9 +12,18 @@ const teammates = workspaceOf('C', {
     isMine: false,
     owner: { userUuid: 'them', name: 'Sam' },
 });
+const published = workspaceOf('D', {
+    finishedAt: new Date(),
+    publishedLive: true,
+});
+const discarded = workspaceOf('E', { finishedAt: new Date() });
 vi.mock('./useStudioWorkspaces', () => ({
     useStudioWorkspaces: () => ({
-        data: { mine: [current, mine], others: [teammates], recent: [] },
+        data: {
+            mine: [current, mine],
+            others: [teammates],
+            recent: [published, discarded],
+        },
         isInitialLoading: false,
         error: null,
     }),
@@ -60,5 +69,13 @@ describe('StudioWorkspacesList', () => {
         await user.click(screen.getByRole('button', { name: /Change C/ }));
         expect(onOpen).toHaveBeenCalledWith(teammates);
         expect(onCheckOut).not.toHaveBeenCalled();
+    });
+
+    it('lists a draft published without a pull request, not a discarded one', () => {
+        renderList();
+        expect(
+            screen.getByRole('button', { name: /Change D.*Published/ }),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('Change E')).not.toBeInTheDocument();
     });
 });

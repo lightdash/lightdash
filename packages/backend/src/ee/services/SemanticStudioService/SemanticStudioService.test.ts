@@ -381,6 +381,7 @@ const setup = ({
             createdAt: new Date(),
             updatedAt: new Date(),
             finishedAt: null,
+            publishedLive: false,
         };
     const workspaces: SemanticStudioWorkspace[] = [];
     const getPullRequestState = vi.fn(
@@ -445,6 +446,7 @@ const setup = ({
                           createdAt: new Date(),
                           updatedAt: new Date(),
                           finishedAt: null,
+                          publishedLive: false,
                       }
                     : null,
             start: startWorkspace,
@@ -3226,6 +3228,7 @@ describe('workspace pull request reconciliation', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         finishedAt: null,
+        publishedLive: false,
     });
 
     it.each(['merged', 'closed'] as const)(

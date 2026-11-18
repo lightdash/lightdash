@@ -238,7 +238,7 @@ const ConflictSides: FC<{
             <Box className={classes.options}>
                 <ConflictOption
                     title={publisher.option}
-                    state={`live ${publishedAgo}`}
+                    state={`published ${publishedAgo}`}
                     tone="live"
                     value={conflict.live}
                     base={conflict.base}
@@ -403,7 +403,7 @@ export const ModelNotices: FC<{
                         {paths.length > 0
                             ? listNames(paths.map(describePath))
                             : 'this model'}
-                        , in development.
+                        , in a draft.
                     </Text>
                 </NoticeRow>
             ))}
@@ -455,7 +455,7 @@ const ChangeRow: FC<{
                                 .then(() =>
                                     onAskAgent(
                                         [
-                                            'A change in development stopped applying, so I discarded it.',
+                                            'A change in the draft stopped applying, so I discarded it.',
                                             change.question
                                                 ? `It was asked for with: "${change.question}"`
                                                 : null,
@@ -710,7 +710,7 @@ const CompareTotals: FC<{
                     >
                         {isNewModel
                             ? 'Run the totals'
-                            : 'Compare totals with live'}
+                            : 'Compare totals with Published'}
                     </Button>
                 </Tooltip>
             </Group>
@@ -774,7 +774,7 @@ const CompareTotals: FC<{
             ) : null}
             {development.isError ? (
                 <Text fz="xs" c="dimmed">
-                    Could not run these in development:{' '}
+                    Could not run these on the draft:{' '}
                     {development.error.error.message}
                 </Text>
             ) : null}
@@ -903,7 +903,7 @@ export const PublishChecklist: FC<{
             ? [
                   {
                       state: 'attention' as const,
-                      text: `${listNames(conflicted.map(labelOf))} changed live in parts you changed too. Choose which to keep in the review`,
+                      text: `${listNames(conflicted.map(labelOf))} changed in Published in parts you changed too. Choose which to keep in the review`,
                   },
               ]
             : []),
@@ -919,8 +919,8 @@ export const PublishChecklist: FC<{
                       text: movedUnder.every(
                           (entry) => entry.reconciliation?.state === 'merged',
                       )
-                          ? `${listNames(movedUnder.map(labelOf))} changed live after you started, outside what you changed. Yours goes on top`
-                          : `${listNames(movedUnder.map(labelOf))} changed live after you started, and it could not be set against yours. Look at it in the review first`,
+                          ? `${listNames(movedUnder.map(labelOf))} changed in Published after you started, outside what you changed. Yours goes on top`
+                          : `${listNames(movedUnder.map(labelOf))} changed in Published after you started, and it could not be set against yours. Look at it in the review first`,
                   },
               ]
             : []),
@@ -999,7 +999,7 @@ export const PublishSummary: FC<{
     const read = (usage?.fields ?? []).filter((field) => inScope(field.model));
     return (
         <>
-            <Section title="Going live">
+            <Section title="Publishing">
                 {models.map((entry) => (
                     <Group
                         key={entry.model}

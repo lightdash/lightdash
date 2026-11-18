@@ -213,10 +213,10 @@ export const ApplyModal: FC<{
             }
             subtitle={
                 mode === 'pull_request'
-                    ? `${models} ${scoped.length === 1 ? 'goes' : 'go'} to your repository. Nothing is live until it merges.`
+                    ? `${models} ${scoped.length === 1 ? 'goes' : 'go'} to your repository. Nothing is published until it merges.`
                     : mode === 'merge'
                       ? `${models} ${scoped.length === 1 ? 'merges' : 'merge'} into your repository. Everyone sees ${scoped.length === 1 ? 'it' : 'them'} once the project refreshes.`
-                      : `${models} ${scoped.length === 1 ? 'goes' : 'go'} live for everyone on this project.`
+                      : `${models} ${scoped.length === 1 ? 'is' : 'are'} published for everyone on this project.`
             }
             confirmLabel={isRisky ? `${confirmLabel} anyway` : confirmLabel}
             confirmLoading={apply.isLoading}
@@ -577,7 +577,7 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                         opened
                         variant="delete"
                         title="Discard draft"
-                        description={`${count(draft.changes.length, 'change')} in development will be removed. Nothing live changes, and this cannot be undone.`}
+                        description={`${count(draft.changes.length, 'change')} in this draft will be removed. Published stays as it is, and this cannot be undone.`}
                         confirmLabel="Discard"
                         confirmLoading={discard.isLoading}
                         onClose={() => setDiscarding(false)}

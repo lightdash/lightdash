@@ -137,9 +137,12 @@ const MineRow: FC<{
     </Box>
 );
 
-const whereItStands = ({ pullRequest }: SemanticStudioWorkspace): string => {
+const whereItStands = ({
+    pullRequest,
+    publishedLive,
+}: SemanticStudioWorkspace): string => {
     const number = pullRequestNumberOf(pullRequest?.url);
-    if (!pullRequest) return 'Not saved yet';
+    if (!pullRequest) return publishedLive ? 'Published' : 'Not saved yet';
     switch (pullRequest.state) {
         case 'merged':
             return number ? `Merged as #${number}` : 'Merged';
@@ -170,9 +173,10 @@ export const StudioWorkspacesList: FC<{
         );
     }
     const { others } = data;
-    // Only merged work went live; discarded work is not listed.
+    // Discarded work is not listed.
     const recent = data.recent.filter(
-        ({ pullRequest }) => pullRequest?.state === 'merged',
+        ({ pullRequest, publishedLive }) =>
+            publishedLive || pullRequest?.state === 'merged',
     );
     const waiting = rows.filter(({ run }) => needsYou(run));
     const going = rows.filter(({ run }) => !needsYou(run));

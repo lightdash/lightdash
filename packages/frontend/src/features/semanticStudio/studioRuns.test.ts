@@ -23,6 +23,7 @@ const workspace = (
     createdAt: new Date(),
     updatedAt: new Date(),
     finishedAt: null,
+    publishedLive: false,
     ...overrides,
 });
 

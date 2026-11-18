@@ -458,7 +458,7 @@ export const useTakeLiveDraftPart = (projectUuid: string) =>
             method: 'POST',
             body: JSON.stringify({ path }),
         }),
-        errorTitle: 'Could not take the live version',
+        errorTitle: 'Could not take the published version',
         changesLive: false,
     });
 

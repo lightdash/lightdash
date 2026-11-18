@@ -242,7 +242,7 @@ const DraftMarker: FC<{ model: string; isMine: boolean }> = ({
     if (!isMine && others.length === 0) return null;
     const whose = [...(isMine ? ['you'] : []), ...others].join(', ');
     return (
-        <Tooltip label={`Draft by ${whose}. Not live yet.`}>
+        <Tooltip label={`Draft by ${whose}. Not published yet.`}>
             <Box
                 className={classes.draftDot}
                 data-others={!isMine || undefined}
@@ -560,7 +560,7 @@ const ExploreBody: FC<{
                                 : null,
                             ...othersHere.map(
                                 ({ name, paths }) =>
-                                    `${name} is changing ${paths.length > 0 ? paths.join(', ') : 'this model'}, in development.`,
+                                    `${name} is changing ${paths.length > 0 ? paths.join(', ') : 'this model'}, in a draft.`,
                             ),
                         ]
                             .filter(Boolean)
@@ -1356,7 +1356,10 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 ),
             };
         }
-        // Finished without a merge: it was discarded.
+        if (shownWorkspace?.publishedLive) {
+            return { step: 'live', update: 'done' };
+        }
+        // Finished without a merge or a publish: it was discarded.
         if (shownWorkspace?.finishedAt) {
             return { step: 'closed', pullRequestNumber: null };
         }

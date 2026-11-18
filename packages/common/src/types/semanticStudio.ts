@@ -343,6 +343,8 @@ export type SemanticStudioWorkspace = {
     createdAt: Date;
     updatedAt: Date;
     finishedAt: Date | null;
+    /** Whether any of its draft went live here, without a pull request. */
+    publishedLive: boolean;
 };
 
 export type SemanticStudioWorkspaces = {

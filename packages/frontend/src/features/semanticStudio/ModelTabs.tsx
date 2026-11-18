@@ -178,7 +178,7 @@ const HistoryPane: FC<{
                 <Paper variant="dotted" p="sm" mb="sm">
                     <Group gap="sm" justify="space-between" wrap="nowrap">
                         <Box miw={0}>
-                            <Text fz="sm">Your changes in development</Text>
+                            <Text fz="sm">In your draft</Text>
                             <Text fz="xs" c="dimmed">
                                 Not live. Only you see them until you publish;
                                 everything below is live.
