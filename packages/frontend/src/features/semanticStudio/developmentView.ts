@@ -1,5 +1,9 @@
 import { useLocalStorage } from '@mantine/hooks';
-import { useQueryClient } from '@tanstack/react-query';
+import {
+    hashQueryKey,
+    useQueryClient,
+    type QueryKey,
+} from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 
@@ -77,6 +81,16 @@ export const getDevelopmentViewHeaders = (): Record<string, string> => {
     } catch {
         return {};
     }
+};
+
+/** Caches each view apart, since one key reads the draft on one page and what is published on another. */
+export const hashQueryKeyByView = (queryKey: QueryKey): string => {
+    const hash = hashQueryKey(queryKey);
+    if (SAME_IN_EITHER_VIEW.has(String(queryKey[0]))) return hash;
+    const headers = getDevelopmentViewHeaders();
+    return Object.keys(headers).length > 0
+        ? `${hash}${JSON.stringify(headers)}`
+        : hash;
 };
 
 /** Open Try it sessions; each keeps the view it started on, so nothing moves it under them. */
