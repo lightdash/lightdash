@@ -1,3 +1,15 @@
+# [3.321.0](https://github.com/lightdash/lightdash/compare/3.320.0...3.321.0) (2026-11-18)
+
+
+### Bug Fixes
+
+* **semantic-studio:** keep the centre still while the agent works ([#32897](https://github.com/lightdash/lightdash/issues/32897)) ([e51e33b](https://github.com/lightdash/lightdash/commit/e51e33b57950fe21f43245d63e29b4bfd9b2ff00))
+
+
+### Features
+
+* **semantic-studio:** show the chat's work as tasks and fold the rest ([#32898](https://github.com/lightdash/lightdash/issues/32898)) ([278287a](https://github.com/lightdash/lightdash/commit/278287a45f6b7174165fa6a2e3f8765ba4919c97))
+
 # [3.320.0](https://github.com/lightdash/lightdash/compare/3.319.0...3.320.0) (2026-11-18)
 
 
