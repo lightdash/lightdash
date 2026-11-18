@@ -5,6 +5,7 @@ import {
 import {
     ActionIcon,
     Box,
+    Button,
     Group,
     Paper,
     Text,
@@ -29,8 +30,14 @@ import { Link } from 'react-router';
 import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
 import MantineIcon from '../../components/common/MantineIcon';
 import { ChangeDiff } from './ChangeDiff';
-import { describeModelChange, summarizeModelChanges } from './modelCode';
+import {
+    describeModelChange,
+    DRAFT_PARAM,
+    DRAFT_REVIEW,
+    summarizeModelChanges,
+} from './modelCode';
 import classes from './SemanticLayerProposalCard.module.css';
+import { Task } from './TaskRow';
 import { getSemanticStudioUrl } from './urls';
 import {
     useDiscardDraftChange,
@@ -298,6 +305,28 @@ export const SemanticLayerProposalCard: FC<{
                     issue={issue}
                 />
             ))}
+            {inDraft ? (
+                <Group
+                    className={`${classes.section} ${classes.progress}`}
+                    gap="sm"
+                    justify="space-between"
+                    wrap="wrap"
+                >
+                    <Group gap="sm" wrap="wrap">
+                        <Task state="done" label="In your draft" />
+                        <Task state="todo" label="Review" />
+                        <Task state="todo" label="Publish" />
+                    </Group>
+                    <Button
+                        size="compact-xs"
+                        variant="default"
+                        component={Link}
+                        to={`${getSemanticStudioUrl(projectUuid, { ref: null })}?${DRAFT_PARAM}=${DRAFT_REVIEW}`}
+                    >
+                        View changes
+                    </Button>
+                </Group>
+            ) : null}
         </Paper>
     );
 };

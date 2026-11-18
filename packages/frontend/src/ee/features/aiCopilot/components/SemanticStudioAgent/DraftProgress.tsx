@@ -2,35 +2,15 @@ import {
     assertUnreachable,
     type SemanticStudioBranchCompile,
 } from '@lightdash/common';
-import { Group, Loader, Text } from '@mantine/core';
+import { Group } from '@mantine/core';
+import { type FC } from 'react';
 import {
-    IconAlertTriangle,
-    IconCircle,
-    IconCircleCheck,
-} from '@tabler/icons-react';
-import { type FC, type ReactNode } from 'react';
-import MantineIcon from '../../../../../components/common/MantineIcon';
+    Task,
+    type TaskState,
+} from '../../../../../features/semanticStudio/TaskRow';
 import { useDraftCheckout } from '../../../../../features/semanticStudio/useSemanticLayerModel';
 import { useStudioWorkspaces } from '../../../../../features/semanticStudio/useStudioWorkspaces';
 import { useStudioPullRequest } from './useStudioPullRequest';
-
-type TaskState = 'done' | 'running' | 'failed' | 'todo';
-
-const ICONS = {
-    done: <MantineIcon icon={IconCircleCheck} size={14} color="green" />,
-    running: <Loader size={12} color="gray" />,
-    failed: <MantineIcon icon={IconAlertTriangle} size={14} color="yellow" />,
-    todo: <MantineIcon icon={IconCircle} size={14} color="ldGray.4" />,
-} satisfies Record<TaskState, ReactNode>;
-
-const Task: FC<{ state: TaskState; label: string }> = ({ state, label }) => (
-    <Group gap={4} wrap="nowrap" flex="none">
-        {ICONS[state]}
-        <Text fz="xs" c={state === 'todo' ? 'dimmed' : undefined}>
-            {label}
-        </Text>
-    </Group>
-);
 
 const compileTask = (
     compile: SemanticStudioBranchCompile | null,
