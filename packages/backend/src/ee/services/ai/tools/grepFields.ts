@@ -281,21 +281,24 @@ const renderFieldAnnotation = (
     state: RenderState,
 ): string => {
     const key = annotationKey(field.fieldId, field.description, field.hint);
-    const full = state.upgradedAnnotations.has(key);
-    const desc = field.description
-        ? ` — ${renderAnnotation(field.description, { full })}`
-        : '';
-    const hint = field.hint
-        ? ` (hint: ${renderAnnotation(field.hint, { full })})`
-        : '';
-    const annotation = `${desc}${hint}`;
+    const render = (full: boolean): string => {
+        const desc = field.description
+            ? ` — ${renderAnnotation(field.description, { full })}`
+            : '';
+        const hint = field.hint
+            ? ` (hint: ${renderAnnotation(field.hint, { full })})`
+            : '';
+        return `${desc}${hint}`;
+    };
     const firstPath = state.renderedAnnotations.get(key);
     if (firstPath === undefined) {
         state.renderedAnnotations.set(key, field.path);
-        return annotation;
+        return render(state.upgradedAnnotations.has(key));
     }
+    // Full text is budgeted once; later copies get a pointer or a preview.
     const reference = ` — same as ${firstPath} above`;
-    return reference.length < annotation.length ? reference : annotation;
+    const preview = render(false);
+    return reference.length < preview.length ? reference : preview;
 };
 
 // Render the human-readable block from the already-grouped results, so the text

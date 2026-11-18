@@ -265,6 +265,35 @@ describe('grepFields joined fields', () => {
                 expect(line).toContain(`— same as ${firstPath} above`),
             );
     });
+
+    it('prints full text once even when a pointer would be longer than it', async () => {
+        const description = `Browser the user signed up with. ${'x'.repeat(150)}`;
+        const users = makeExplore({
+            name: 'users',
+            fields: [{ name: 'browser', label: 'Browser', description }],
+        });
+        const longName = (name: string) => `${name}_${'long_name_'.repeat(20)}`;
+        const tool = getGrepFields({
+            availableExplores: ['orders', 'deliveries', 'tickets'].map((name) =>
+                withJoinedTable(
+                    makeExplore({
+                        name: longName(name),
+                        fields: [{ name: 'status' }],
+                    }),
+                    users,
+                ),
+            ),
+            findExplores: noFtsResults,
+            verifiedFieldUsage: new Map(),
+        });
+
+        const { result } = await execute(tool, {
+            patterns: ['browser'],
+            exploreName: null,
+        });
+
+        expect(result.split(description).length - 1).toBe(1);
+    });
 });
 
 describe('grepFields default time dimensions', () => {
