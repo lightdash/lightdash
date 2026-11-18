@@ -17,7 +17,6 @@ import {
 } from '@mantine/core';
 import {
     IconAlertTriangle,
-    IconBrandGithub,
     IconCheck,
     IconChevronDown,
     IconDots,
@@ -29,16 +28,8 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import confetti from 'canvas-confetti';
-import {
-    useContext,
-    useEffect,
-    useRef,
-    useState,
-    type FC,
-    type ReactNode,
-} from 'react';
+import { useContext, useEffect, useRef, useState, type FC } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { useGithubUserCredential } from '../../../../../../components/common/GithubIntegration/hooks/useGithubIntegration';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useClosePullRequest } from '../../../hooks/useClosePullRequest';
 import { useMergePullRequest } from '../../../hooks/useMergePullRequest';
@@ -49,8 +40,6 @@ import {
 import { usePullRequestCiChecks } from '../../../hooks/usePullRequestCiChecks';
 import { POST_MERGE_MIGRATION_PROMPT } from '../../../postMergeMigrationPrompt';
 import { DraftProgress } from '../../SemanticStudioAgent/DraftProgress';
-import { PullRequestCardTryIt } from '../../SemanticStudioAgent/TryItButton';
-import { useFinishDiscardedWork } from '../../SemanticStudioAgent/useSemanticStudioChat';
 import styles from './AiEditDbtProjectToolCall.module.css';
 import { isMergeable } from './pullRequestActions';
 import {
@@ -109,9 +98,7 @@ export const PullRequestViewMenu: FC<{
     prUrl: string;
     previewUrl: string | null;
     commitSha: string | null;
-    /** Further menu items, shown under a divider. */
-    children?: ReactNode;
-}> = ({ projectUuid, prUrl, previewUrl, commitSha, children }) => {
+}> = ({ projectUuid, prUrl, previewUrl, commitSha }) => {
     const [diffOpened, setDiffOpened] = useState(false);
     const quiet = useContext(QuietCardsContext);
 
@@ -173,12 +160,6 @@ export const PullRequestViewMenu: FC<{
                             Diff
                         </Menu.Item>
                     )}
-                    {children ? (
-                        <>
-                            <Menu.Divider />
-                            {children}
-                        </>
-                    ) : null}
                 </Menu.Dropdown>
             </Menu>
             <WritebackDiffModal
@@ -346,49 +327,6 @@ export const PullRequestActionButtons: FC<{
                 {mergeArmed ? 'Confirm' : mergeLabel}
             </Button>
         </Button.Group>
-    );
-};
-
-const resolvedHostIsGithub = (prUrl: string): boolean =>
-    prUrl.startsWith('https://github.com/');
-
-/** What the quiet card keeps in its menu for an open pull request: closing it, and authoring as the person. */
-const OpenPullRequestMenuItems: FC<{
-    projectUuid: string;
-    isGithub: boolean;
-    onClose: (onClosed: () => void) => void;
-}> = ({ projectUuid, isGithub, onClose }) => {
-    const [armed, setArmed] = useState(false);
-    // Discarded work leaves the list and stays as history, as it does from the bar.
-    const finishDiscardedWork = useFinishDiscardedWork(projectUuid);
-    const { data: credential } = useGithubUserCredential();
-    return (
-        <>
-            <Menu.Item
-                closeMenuOnClick={armed}
-                leftSection={
-                    <MantineIcon icon={IconGitPullRequestClosed} size={14} />
-                }
-                onClick={() =>
-                    armed ? onClose(finishDiscardedWork) : setArmed(true)
-                }
-            >
-                {armed
-                    ? 'Click again to close the pull request'
-                    : 'Discard changes'}
-            </Menu.Item>
-            {isGithub && credential === null ? (
-                <Menu.Item
-                    component={Link}
-                    to="/generalSettings/profile"
-                    leftSection={
-                        <MantineIcon icon={IconBrandGithub} size={14} />
-                    }
-                >
-                    Open pull requests as you
-                </Menu.Item>
-            ) : null}
-        </>
     );
 };
 
@@ -756,49 +694,29 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                             stack. View = preview / PR / diff; the preview URL is
                             generated server-side during the run — a setup PR never
                             previews itself. */}
-                        <PullRequestViewMenu
-                            projectUuid={projectUuid}
-                            prUrl={metadata.prUrl}
-                            previewUrl={
-                                isBitbucket
-                                    ? null
-                                    : (metadata.previewUrl ?? null)
-                            }
-                            commitSha={metadata.commitSha ?? null}
-                        >
-                            {quiet && isOpen && !isBitbucket ? (
-                                <OpenPullRequestMenuItems
-                                    projectUuid={projectUuid}
-                                    isGithub={resolvedHostIsGithub(
-                                        resolvedPrUrl,
-                                    )}
-                                    onClose={(onClosed) =>
-                                        close(
-                                            { prUrl: resolvedPrUrl },
-                                            { onSuccess: onClosed },
-                                        )
-                                    }
-                                />
-                            ) : null}
-                        </PullRequestViewMenu>
-                        {/* In Studio the workspace holds the changes and the bar merges them; the card points there. */}
+                        {/* In Studio the toolbar tries, publishes and discards the draft; the card points at the changes. */}
                         {quiet && isOpen ? (
-                            <>
-                                <PullRequestCardTryIt
-                                    projectUuid={projectUuid}
-                                    prUrl={metadata.prUrl}
-                                />
-                                <Button
-                                    size="compact-xs"
-                                    variant="default"
-                                    onClick={() =>
-                                        setSearchParams({ view: 'changes' })
-                                    }
-                                >
-                                    View changes
-                                </Button>
-                            </>
-                        ) : null}
+                            <Button
+                                size="compact-xs"
+                                variant="default"
+                                onClick={() =>
+                                    setSearchParams({ view: 'changes' })
+                                }
+                            >
+                                View changes
+                            </Button>
+                        ) : (
+                            <PullRequestViewMenu
+                                projectUuid={projectUuid}
+                                prUrl={metadata.prUrl}
+                                previewUrl={
+                                    isBitbucket
+                                        ? null
+                                        : (metadata.previewUrl ?? null)
+                                }
+                                commitSha={metadata.commitSha ?? null}
+                            />
+                        )}
                         {!isBitbucket && !(quiet && isOpen) && (
                             <PullRequestActionButtons
                                 ciChecks={ciChecks ?? null}

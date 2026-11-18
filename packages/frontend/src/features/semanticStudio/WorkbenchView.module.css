@@ -150,19 +150,6 @@
     }
 }
 
-/* The open change: its name, where it stands, and what you can do with it. */
-.changeBar {
-    flex: none;
-    min-height: 46px;
-    padding: 6px var(--mantine-spacing-xs);
-    border-bottom: 1px solid var(--mantine-color-default-border);
-    background: color-mix(
-        in srgb,
-        var(--mantine-color-text) 2.5%,
-        var(--mantine-color-body)
-    );
-}
-
 .changeHeader {
     display: flex;
     flex-direction: column;
@@ -222,21 +209,6 @@
 
 .changeLink:hover {
     color: var(--mantine-color-text);
-}
-
-.changeName {
-    max-width: 360px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: var(--mantine-font-size-sm);
-    font-weight: 600;
-}
-
-.stageLine {
-    flex: 0 1 auto;
-    min-width: 0;
-    overflow: hidden;
 }
 
 .workspaceBody {

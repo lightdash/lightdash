@@ -29,9 +29,6 @@ vi.mock('./WritebackDiffModal', () => ({ WritebackDiffModal: () => null }));
 vi.mock('../../SemanticStudioAgent/DraftProgress', () => ({
     DraftProgress: () => null,
 }));
-vi.mock('../../SemanticStudioAgent/TryItButton', () => ({
-    PullRequestCardTryIt: () => null,
-}));
 
 describe('Bitbucket dbt writeback card', () => {
     afterEach(() => vi.clearAllMocks());
@@ -104,7 +101,7 @@ describe('the quiet pull request card of a side panel', () => {
         vi.clearAllMocks();
     });
 
-    it('points to the workspace for its changes and keeps closing and GitHub linking in its menu', async () => {
+    it('points to the workspace for its changes and leaves the rest to the toolbar', () => {
         held.ciChecks = {
             merged: false,
             state: 'open',
@@ -136,15 +133,9 @@ describe('the quiet pull request card of a side panel', () => {
         expect(
             screen.queryByRole('button', { name: 'View' }),
         ).not.toBeInTheDocument();
-        fireEvent.click(screen.getByRole('button', { name: 'More' }));
-        await waitFor(() =>
-            expect(
-                screen.getByRole('menuitem', { name: 'Discard changes' }),
-            ).toBeVisible(),
-        );
         expect(
-            screen.getByRole('menuitem', { name: 'Open pull requests as you' }),
-        ).toHaveAttribute('href', '/generalSettings/profile');
+            screen.queryByRole('button', { name: 'More' }),
+        ).not.toBeInTheDocument();
     });
     it.each([
         { merged: true, state: 'closed' as const, word: 'Merged' },

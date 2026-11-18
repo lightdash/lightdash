@@ -20,6 +20,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type FC } from 'react';
 import { Link } from 'react-router';
+import { useGithubUserCredential } from '../../../../../components/common/GithubIntegration/hooks/useGithubIntegration';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { DevelopmentBar } from '../../../../../features/semanticStudio/DevelopmentBar';
@@ -120,16 +121,16 @@ export const StudioDevelopmentBar: FC<{
             projectUuid,
         );
     const compile = checkout?.branchCompile ?? null;
+    const { data: credential } = useGithubUserCredential();
     const isCompileFailed = compile?.status === 'failed';
     // Publishing merges straight into the branch, so it waits on the right to write there and on a passing compile.
-    const publishBlocker = !canWriteBranch
-        ? `Only people who can write to ${branch ?? "the project's branch"} can publish. Open ${name} for review.`
-        : compile?.status !== 'ready'
-          ? ((compile && describeBranchCompile(compile)) ??
-            'Publish once the latest edit compiles.')
-          : isMergeable(ciChecks)
-            ? null
-            : getBlockedReason(ciChecks);
+    const publishBlocker =
+        compile?.status !== 'ready'
+            ? ((compile && describeBranchCompile(compile)) ??
+              'Publish once the latest edit compiles.')
+            : isMergeable(ciChecks)
+              ? null
+              : getBlockedReason(ciChecks);
     return (
         <DevelopmentBar summary={null}>
             <TryItButton
@@ -137,7 +138,24 @@ export const StudioDevelopmentBar: FC<{
                 pullRequest={pullRequest}
                 look="primary"
             />
-            {isMine ? (
+            {isMine && !canWriteBranch ? (
+                <Tooltip
+                    multiline
+                    w={240}
+                    label={`Only people who can write to ${branch ?? "the project's branch"} can publish.`}
+                >
+                    <Button
+                        size="xs"
+                        variant="default"
+                        component="a"
+                        href={prUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        Open pull request
+                    </Button>
+                </Tooltip>
+            ) : isMine ? (
                 <Tooltip
                     multiline
                     w={240}
@@ -212,6 +230,16 @@ export const StudioDevelopmentBar: FC<{
                     >
                         Open {name}
                     </Menu.Item>
+                    {isMine &&
+                    prUrl.startsWith('https://github.com/') &&
+                    credential === null ? (
+                        <Menu.Item
+                            component={Link}
+                            to="/generalSettings/profile"
+                        >
+                            Open pull requests as you
+                        </Menu.Item>
+                    ) : null}
                     {isMine ? (
                         <>
                             <Menu.Divider />

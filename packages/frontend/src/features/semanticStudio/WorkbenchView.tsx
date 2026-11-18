@@ -9,7 +9,6 @@ import {
     type PreAggregateMaterializationSummary,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Anchor,
     Avatar,
     Box,
@@ -1107,6 +1106,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         startNewThread,
         agent: studioAgent,
         isEnabled: hasChat,
+        isLoadingAgents,
     } = useStudioAgent(view.project.id);
     const [isChatOpen, setIsChatOpen] = useChatOpen(view.project.id);
     const [askedPrompt, setAskedPrompt] = useState<string | null>(null);
@@ -1212,7 +1212,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         : null;
     useEffect(() => () => switchOff.current?.(), []);
     const isCode =
-        agentAvailable && keepsDraft && searchParams.get(VIEW_PARAM) === 'code';
+        hasChat && keepsDraft && searchParams.get(VIEW_PARAM) === 'code';
     const [isOnLive, setIsOnLive] = useState(false);
     // Opening a change's page, from anywhere, puts you on that change.
     useEffect(() => {
@@ -1229,7 +1229,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     // Every change is read in one place, Sources, starting on its overview; only your open one is edited there.
     const opensInSources =
         !isOnLive &&
-        agentAvailable &&
+        hasChat &&
         !keepsDraft &&
         !!changeOnPage &&
         (!!routeWorkspace ||
@@ -1237,9 +1237,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             homeShowsChanges);
     const isSources =
         opensInSources ||
-        (agentAvailable &&
-            !keepsDraft &&
-            searchParams.get(VIEW_PARAM) === 'sources');
+        (hasChat && !keepsDraft && searchParams.get(VIEW_PARAM) === 'sources');
     const proposal = useStudioProposal(view.project.id);
     const hasProposal = !keepsDraft && proposal.length > 0;
     // A dbt project's changes are its conversation's: what it proposes, and what its pull request holds.
@@ -1405,7 +1403,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 }
               : null;
     // Only models with YAML here have a file: a deployed model's YAML lives where it was deployed from.
-    const { data: stored } = useSemanticLayerStoredModels(
+    const { data: stored, error: storedError } = useSemanticLayerStoredModels(
         view.project.id,
         isCode,
     );
@@ -1658,6 +1656,14 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     };
     // Like a git branch: which change you are on, or live, and the way to the others.
     const isChangeInSources = pane === 'sources' && !!sourcesPrUrl;
+    // A checked-out draft keeps its actions on every tab; a draft's own page carries them in its header.
+    const showsDraftActions = keepsDraft
+        ? pane !== 'changeSummary' && pane !== 'workspaces'
+        : isChangeInSources ||
+          (pane !== 'changes' &&
+              pane !== 'workspaces' &&
+              isOnMyChange &&
+              (!!development || !!saving));
     const { checkOut, isBusy: isCheckingOut } = useCheckOut(view.project.id);
     const { data: draftCheckout } = useDraftCheckout(view.project.id);
     const compileAgain = useCompileCheckout(view.project.id);
@@ -1944,6 +1950,10 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         modelName={file}
                         fieldName={searchParams.get(FIELD_PARAM)}
                     />
+                ) : storedError ? (
+                    <Text fz="sm" c="dimmed" ta="center" p="xl">
+                        {storedError.error.message}
+                    </Text>
                 ) : !stored ? null : (
                     <Text fz="sm" c="dimmed" ta="center" py="xl">
                         {modelled.length > 0
@@ -2055,7 +2065,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     <Box
                         className={classes.shell}
                         data-no-chat={
-                            !hasChat || (!!studioAgent && !isChatOpen)
+                            !hasChat ||
+                            (!isLoadingAgents && (!studioAgent || !isChatOpen))
                         }
                     >
                         {hasChat && (
@@ -2079,7 +2090,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                             />
                         )}
                         <Box className={classes.workspace}>
-                            {!agentAvailable ? null : (
+                            {!hasChat ? null : (
                                 <>
                                     <Group
                                         className={classes.toolbar}
@@ -2125,10 +2136,14 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                             >
                                                 {changePicker}
                                                 {/* The bar says how an open draft is doing, so the pill shows only once it ends. */}
-                                                {isChangeInSources &&
-                                                stage &&
-                                                stage.step !== 'in_review' &&
-                                                stage.step !== 'saving' ? (
+                                                {stage &&
+                                                (keepsDraft
+                                                    ? stage.step !== 'proposed'
+                                                    : isChangeInSources &&
+                                                      stage.step !==
+                                                          'in_review' &&
+                                                      stage.step !==
+                                                          'saving') ? (
                                                     <StudioStageLine
                                                         stage={stage}
                                                         href={changeUrl}
@@ -2142,137 +2157,59 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                             miw={0}
                                             ml="auto"
                                         >
-                                            {keepsDraft ? (
+                                            {keepsDraft &&
+                                            hasDraft &&
+                                            pane !== 'review' &&
+                                            pane !== 'changeSummary' ? (
+                                                <Button
+                                                    size="xs"
+                                                    variant="default"
+                                                    flex="none"
+                                                    onClick={() =>
+                                                        switchView('changes')
+                                                    }
+                                                >
+                                                    Review changes
+                                                </Button>
+                                            ) : null}
+                                            {agentAvailable && !isChatOpen ? (
+                                                <Button
+                                                    size="xs"
+                                                    variant="default"
+                                                    flex="none"
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconMessage}
+                                                            size={14}
+                                                        />
+                                                    }
+                                                    onClick={() =>
+                                                        setIsChatOpen(true)
+                                                    }
+                                                >
+                                                    Chat
+                                                </Button>
+                                            ) : null}
+                                            {!studioAgent &&
+                                            !isLoadingAgents ? (
+                                                <Button
+                                                    size="xs"
+                                                    variant="default"
+                                                    flex="none"
+                                                    component={Link}
+                                                    to={`/projects/${view.project.id}/ai-agents/new`}
+                                                >
+                                                    Create an agent
+                                                </Button>
+                                            ) : null}
+                                            {showsDraftActions ? (
                                                 <>
-                                                    {hasDraft &&
-                                                    pane !== 'review' &&
-                                                    pane !== 'changeSummary' ? (
-                                                        <Button
-                                                            size="xs"
-                                                            variant="default"
-                                                            flex="none"
-                                                            onClick={() =>
-                                                                switchView(
-                                                                    'changes',
-                                                                )
-                                                            }
-                                                        >
-                                                            Review changes
-                                                        </Button>
-                                                    ) : null}
-                                                    {!isChatOpen ? (
-                                                        <Button
-                                                            size="xs"
-                                                            variant="default"
-                                                            flex="none"
-                                                            onClick={() =>
-                                                                setIsChatOpen(
-                                                                    true,
-                                                                )
-                                                            }
-                                                        >
-                                                            Build
-                                                        </Button>
-                                                    ) : null}
+                                                    {changeLinks}
+                                                    {changeActions}
                                                 </>
-                                            ) : (
-                                                <>
-                                                    {hasChat && !isChatOpen ? (
-                                                        <Button
-                                                            size="xs"
-                                                            variant="default"
-                                                            flex="none"
-                                                            leftSection={
-                                                                <MantineIcon
-                                                                    icon={
-                                                                        IconMessage
-                                                                    }
-                                                                    size={14}
-                                                                />
-                                                            }
-                                                            onClick={() =>
-                                                                setIsChatOpen(
-                                                                    true,
-                                                                )
-                                                            }
-                                                        >
-                                                            Chat
-                                                        </Button>
-                                                    ) : null}
-                                                    {isChangeInSources ? (
-                                                        <>
-                                                            {changeLinks}
-                                                            {changeActions}
-                                                        </>
-                                                    ) : null}
-                                                </>
-                                            )}
+                                            ) : null}
                                         </Group>
                                     </Group>
-                                    {isChangeOpen && pane === 'review' ? (
-                                        <Group
-                                            className={classes.changeBar}
-                                            wrap="nowrap"
-                                            gap="sm"
-                                        >
-                                            <Tooltip
-                                                label={
-                                                    hasWorkspaces
-                                                        ? 'All drafts'
-                                                        : 'Back to Published'
-                                                }
-                                            >
-                                                <ActionIcon
-                                                    variant="subtle"
-                                                    color="gray"
-                                                    size="md"
-                                                    aria-label={
-                                                        hasWorkspaces
-                                                            ? 'All drafts'
-                                                            : 'Back to Published'
-                                                    }
-                                                    onClick={
-                                                        hasWorkspaces
-                                                            ? showChanges
-                                                            : showLive
-                                                    }
-                                                >
-                                                    <MantineIcon
-                                                        icon={IconArrowLeft}
-                                                    />
-                                                </ActionIcon>
-                                            </Tooltip>
-                                            <Tooltip
-                                                label={
-                                                    workspace?.hint ??
-                                                    'What this draft does'
-                                                }
-                                            >
-                                                <Text
-                                                    className={
-                                                        classes.changeName
-                                                    }
-                                                >
-                                                    {shownWorkspace?.name ??
-                                                        workspace?.name}
-                                                </Text>
-                                            </Tooltip>
-                                            {stage ? (
-                                                <Box
-                                                    className={
-                                                        classes.stageLine
-                                                    }
-                                                >
-                                                    <StudioStageLine
-                                                        stage={stage}
-                                                        href={changeUrl}
-                                                    />
-                                                </Box>
-                                            ) : null}
-                                            {changeLinks}
-                                            {changeActions}
-                                        </Group>
-                                    ) : null}
                                 </>
                             )}
                             <Box
