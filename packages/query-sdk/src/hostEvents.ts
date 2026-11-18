@@ -17,7 +17,7 @@ export const APP_EVENT_MESSAGE = 'lightdash:sdk:app-event';
 
 /** Keep in sync with the parent-side caps in useAppSdkBridge (packages/frontend). */
 export const MAX_APP_EVENT_NAME_CHARS = 100;
-export const MAX_APP_EVENT_PAYLOAD_CHARS = 64 * 1024;
+export const MAX_APP_EVENT_PAYLOAD_BYTES = 64 * 1024;
 
 /**
  * Notify the page embedding this app that something happened:
@@ -37,15 +37,20 @@ export function emitEvent(name: string, payload?: unknown): void {
         );
     }
 
-    let serialized: string;
+    let serialized: string | undefined;
     try {
         serialized = JSON.stringify(payload ?? null);
     } catch {
+        serialized = undefined;
+    }
+    // undefined: a cycle, a BigInt, or a bare function/symbol.
+    if (serialized === undefined) {
         throw new Error('emitEvent payload must be JSON-serializable');
     }
-    if (serialized.length > MAX_APP_EVENT_PAYLOAD_CHARS) {
+    const bytes = new TextEncoder().encode(serialized).length;
+    if (bytes > MAX_APP_EVENT_PAYLOAD_BYTES) {
         throw new Error(
-            `emitEvent payload is ${serialized.length} characters serialized, over the ${MAX_APP_EVENT_PAYLOAD_CHARS} limit. Send bulk data through an external connection (client.externalFetch) and emit only a reference to it.`,
+            `emitEvent payload is ${bytes} bytes serialized, over the ${MAX_APP_EVENT_PAYLOAD_BYTES} limit. Send bulk data through an external connection (client.externalFetch) and emit only a reference to it.`,
         );
     }
 

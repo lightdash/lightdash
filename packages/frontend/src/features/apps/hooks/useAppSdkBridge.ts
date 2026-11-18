@@ -431,7 +431,7 @@ const MAX_URL_STATE_CHARS = 4096;
 
 // Keep in sync with the caps in packages/query-sdk/src/hostEvents.ts.
 const MAX_APP_EVENT_NAME_CHARS = 100;
-const MAX_APP_EVENT_PAYLOAD_CHARS = 64 * 1024;
+const MAX_APP_EVENT_PAYLOAD_BYTES = 64 * 1024;
 
 const UNAVAILABLE_INSIGHTS: DataAppInsightsPayload = {
     status: 'unavailable',
@@ -1036,21 +1036,28 @@ export function useAppSdkBridge({
                     reject('invalid event name');
                     return;
                 }
-                const payload: unknown = data.payload ?? null;
+                let serialized: string | undefined;
                 try {
-                    if (
-                        JSON.stringify(payload).length >
-                        MAX_APP_EVENT_PAYLOAD_CHARS
-                    ) {
-                        reject(
-                            `payload over ${MAX_APP_EVENT_PAYLOAD_CHARS} chars serialized`,
-                        );
-                        return;
-                    }
+                    serialized = JSON.stringify(data.payload ?? null);
                 } catch {
+                    serialized = undefined;
+                }
+                if (serialized === undefined) {
                     reject('payload not JSON-serializable');
                     return;
                 }
+                if (
+                    new TextEncoder().encode(serialized).length >
+                    MAX_APP_EVENT_PAYLOAD_BYTES
+                ) {
+                    reject(
+                        `payload over ${MAX_APP_EVENT_PAYLOAD_BYTES} bytes serialized`,
+                    );
+                    return;
+                }
+                // Relay what was measured: a structured clone can carry
+                // binary data that JSON.stringify counts as `{}`.
+                const payload: unknown = JSON.parse(serialized);
                 // Fixed outer type: the app picks only the inner name, so it
                 // can't pose as one of Lightdash's own events.
                 dispatchEmbedEvent(LightdashEventType.AppEvent, {

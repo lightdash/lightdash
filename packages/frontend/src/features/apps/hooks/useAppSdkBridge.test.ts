@@ -1312,6 +1312,33 @@ describe('app-event routing', () => {
         expect(dispatchEmbedEvent).not.toHaveBeenCalled();
     });
 
+    it('counts the cap in UTF-8 bytes, not characters', () => {
+        renderAppEventBridge();
+
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:app-event',
+            name: 'unicode',
+            payload: '界'.repeat(30000),
+        });
+
+        expect(dispatchEmbedEvent).not.toHaveBeenCalled();
+    });
+
+    it('relays the JSON form, dropping binary data the size check cannot see', () => {
+        renderAppEventBridge();
+
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:app-event',
+            name: 'binary',
+            payload: { blob: new ArrayBuffer(1024 * 1024), keep: 1 },
+        });
+
+        expect(dispatchEmbedEvent).toHaveBeenCalledWith('appEvent', {
+            name: 'binary',
+            payload: { blob: {}, keep: 1 },
+        });
+    });
+
     it('does not relay outside an embed', () => {
         mockUseEmbed.mockReturnValue({
             embedToken: undefined,

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
     emitEvent,
     MAX_APP_EVENT_NAME_CHARS,
-    MAX_APP_EVENT_PAYLOAD_CHARS,
+    MAX_APP_EVENT_PAYLOAD_BYTES,
 } from './hostEvents';
 
 const stubParent = () => {
@@ -61,8 +61,27 @@ describe('emitEvent', () => {
         const postMessage = stubParent();
 
         expect(() =>
-            emitEvent('big', { blob: 'x'.repeat(MAX_APP_EVENT_PAYLOAD_CHARS) }),
+            emitEvent('big', { blob: 'x'.repeat(MAX_APP_EVENT_PAYLOAD_BYTES) }),
         ).toThrow(/external connection/);
+        expect(postMessage).not.toHaveBeenCalled();
+    });
+
+    it('counts the cap in UTF-8 bytes, not characters', () => {
+        const postMessage = stubParent();
+
+        // 30,000 characters, 90,002 bytes serialized.
+        expect(() => emitEvent('unicode', '界'.repeat(30000))).toThrow(
+            /90002 bytes/,
+        );
+        expect(postMessage).not.toHaveBeenCalled();
+    });
+
+    it('rejects a bare function payload', () => {
+        const postMessage = stubParent();
+
+        expect(() => emitEvent('fn', () => undefined)).toThrow(
+            /JSON-serializable/,
+        );
         expect(postMessage).not.toHaveBeenCalled();
     });
 
