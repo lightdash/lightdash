@@ -50,9 +50,13 @@ export type CaptureLayoutOp =
 /** A question to hand to the AI agent, with the tiles it is about. */
 export type CaptureQuestion = { text: string; tileUuids: string[] };
 
+/** A change to the dashboard that an agent carries out (a filter, a new chart, a rename). */
+export type CaptureEdit = { text: string; tileUuids: string[] };
+
 export type CaptureRoute = {
     layout: CaptureLayoutOp[];
     questions: CaptureQuestion[];
+    edits: CaptureEdit[];
 };
 
 export type ApiCaptureRouteResponse = ApiSuccess<CaptureRoute>;

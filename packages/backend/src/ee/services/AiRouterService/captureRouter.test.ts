@@ -133,6 +133,13 @@ describe('sanitizeCaptureRoute', () => {
                             tileUuids: ['ord'],
                         },
                     ],
+                    edits: [
+                        {
+                            text: 'Add a filter for order status',
+                            tileUuids: ['ghost', 'ord'],
+                        },
+                        { text: ' ', tileUuids: [] },
+                    ],
                 },
                 request,
             ),
@@ -147,6 +154,9 @@ describe('sanitizeCaptureRoute', () => {
                     text: 'Why did cancelled orders jump in March?',
                     tileUuids: ['ord'],
                 },
+            ],
+            edits: [
+                { text: 'Add a filter for order status', tileUuids: ['ord'] },
             ],
         });
     });
@@ -194,6 +204,7 @@ describe('sanitizeCaptureRoute', () => {
                         },
                     ],
                     questions: [],
+                    edits: [],
                 },
                 request,
             ).layout,
@@ -225,6 +236,7 @@ describe('sanitizeCaptureRoute', () => {
                         },
                     ],
                     questions: [],
+                    edits: [],
                 },
                 request,
             ).layout,
@@ -243,6 +255,7 @@ describe('sanitizeCaptureRoute', () => {
                         { text: '   ', tileUuids: ['ord'] },
                         { text: 'What is this?', tileUuids: ['ghost', 'tbl'] },
                     ],
+                    edits: [],
                 },
                 request,
             ).questions,

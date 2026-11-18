@@ -113,6 +113,9 @@ const DashboardCapture: FC = () => {
     const [isRecording, setIsRecording] = useState(false);
     const [isSorting, setIsSorting] = useState(false);
     // Tiles as they were before unsaved layout changes, for Discard.
+    // Agent changes held back until the layout preview is resolved.
+    const heldEditsRef = useRef<CaptureQuestion[]>([]);
+    const [heldEditCount, setHeldEditCount] = useState(0);
     const [tilesBeforePreview, setTilesBeforePreview] = useState<
         DashboardTile[] | null
     >(null);
@@ -252,11 +255,31 @@ const DashboardCapture: FC = () => {
                     sendQuestions(route.questions, tiles, dashboard.uuid);
                 }
 
-                if (layout.applied === 0 && route.questions.length === 0) {
+                // The agent saves its changes and the page reloads the
+                // dashboard, which would wipe an unsaved layout. So agent
+                // changes wait until the layout is saved or discarded.
+                const edits = route.edits.map((edit) => ({
+                    ...edit,
+                    text: `Please make this change to the dashboard "${dashboard.name}": ${edit.text}`,
+                }));
+                const layoutPending =
+                    layout.applied > 0 || heldEditsRef.current.length > 0;
+                if (edits.length > 0 && layoutPending) {
+                    heldEditsRef.current = [...heldEditsRef.current, ...edits];
+                    setHeldEditCount(heldEditsRef.current.length);
+                } else if (edits.length > 0) {
+                    sendQuestions(edits, tiles, dashboard.uuid);
+                }
+
+                if (
+                    layout.applied === 0 &&
+                    route.questions.length === 0 &&
+                    edits.length === 0
+                ) {
                     showToastWarning({
                         title: 'Nothing to do',
                         subtitle:
-                            'No layout change or question was found in that capture.',
+                            'No layout change, dashboard change or question was found in that capture.',
                     });
                     return;
                 }
@@ -266,6 +289,13 @@ const DashboardCapture: FC = () => {
                         : null,
                     route.questions.length > 0
                         ? `${plural(route.questions.length, 'question')} sent to the agent`
+                        : null,
+                    edits.length > 0
+                        ? `${plural(edits.length, 'change')} ${
+                              layoutPending
+                                  ? 'for the agent once the layout is settled'
+                                  : 'sent to the agent'
+                          }`
                         : null,
                 ].filter((part) => part !== null);
                 showToastInfo({ title: parts.join(', ') });
@@ -319,14 +349,26 @@ const DashboardCapture: FC = () => {
 
     if (!surface || !dashboard) return null;
 
+    const releaseHeldEdits = () => {
+        const edits = heldEditsRef.current;
+        heldEditsRef.current = [];
+        setHeldEditCount(0);
+        if (edits.length > 0) {
+            sendQuestions(edits, tilesRef.current, dashboard.uuid);
+        }
+    };
     const handleSave = () => {
         saveDashboard(buildLayoutSaveBody(dashboard, tilesRef.current), {
-            onSuccess: () => setTilesBeforePreview(null),
+            onSuccess: () => {
+                setTilesBeforePreview(null);
+                releaseHeldEdits();
+            },
         });
     };
     const handleDiscard = () => {
         if (tilesBeforePreview) setDashboardTiles(tilesBeforePreview);
         setTilesBeforePreview(null);
+        releaseHeldEdits();
     };
 
     return (
@@ -341,6 +383,8 @@ const DashboardCapture: FC = () => {
                     <div className={classes.bar}>
                         <Text size="sm" c="white">
                             Layout changed, not saved
+                            {heldEditCount > 0 &&
+                                `. ${plural(heldEditCount, 'change')} waiting for the agent`}
                         </Text>
                         <Button
                             size="compact-sm"

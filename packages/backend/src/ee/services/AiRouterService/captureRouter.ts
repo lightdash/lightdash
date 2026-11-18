@@ -1,5 +1,6 @@
 import {
     type ApiCaptureRouteRequest,
+    type CaptureEdit,
     type CaptureLayoutOp,
     type CaptureQuestion,
     type CaptureRoute,
@@ -41,11 +42,25 @@ const RawCaptureRouteSchema = z.object({
             }),
         )
         .describe('Questions about the data, for the analyst agent'),
+    edits: z
+        .array(
+            z.object({
+                text: z
+                    .string()
+                    .describe(
+                        'The change as a complete instruction, naming the dashboard and charts involved',
+                    ),
+                tileUuids: z
+                    .array(z.string())
+                    .describe('Tiles the change is about'),
+            }),
+        )
+        .describe('Other changes to the dashboard, for the agent to carry out'),
 });
 
 type RawCaptureRoute = z.infer<typeof RawCaptureRouteSchema>;
 
-const SYSTEM_PROMPT = `You sort a point-and-talk capture made on a dashboard into two piles.
+const SYSTEM_PROMPT = `You sort a point-and-talk capture made on a dashboard into three piles.
 
 The user drew numbered marks on dashboard tiles while talking. Each mark comes with the words said while it was drawn.
 
@@ -61,7 +76,9 @@ Pile 2, "questions": anything asking about the data, a number, a trend or why so
 
 When screenshots are attached, look at them: the red ink shows exactly what the user marked. A mark may be on one part of a chart (a single bar, a point on a line, one number, a legend entry, a table row) rather than the whole tile. In a question, name that specific thing, with its label and value as read from the screenshot, so the agent knows which data point is meant. A layout request is always about whole tiles.
 
-Ignore filler and anything that is neither. Either pile may be empty. Speech is machine-transcribed and may mishear words.`;
+Pile 3, "edits": requests to change the dashboard that are not a move, swap or resize of existing tiles. Examples: add or change a filter, add or remove a chart, rename something, change a chart's type or what it shows. An agent carries these out, so write each as one complete instruction that names the dashboard and the charts involved and includes every detail the user gave (which field, which values). List the tiles it is about.
+
+Ignore filler and anything that fits no pile. Any pile may be empty. Speech is machine-transcribed and may mishear words.`;
 
 const describePlace = (place: CaptureRoutePlace): string => {
     if (place.tileUuid) return `tile ${place.tileUuid}`;
@@ -173,7 +190,18 @@ export const sanitizeCaptureRoute = (
         ];
     });
 
-    return { layout, questions };
+    const edits = raw.edits.flatMap((edit): CaptureEdit[] => {
+        const text = edit.text.trim();
+        if (!text) return [];
+        return [
+            {
+                text,
+                tileUuids: edit.tileUuids.filter((uuid) => tiles.has(uuid)),
+            },
+        ];
+    });
+
+    return { layout, questions, edits };
 };
 
 export const routeCaptureWithModel = async ({
