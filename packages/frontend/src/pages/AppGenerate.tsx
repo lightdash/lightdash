@@ -1249,6 +1249,11 @@ const AppGenerate: FC = () => {
         [captureAvailable, projectUuid, voiceTranscriptionAvailable],
     );
     const captureRef = useRef<CaptureHostHandle>(null);
+    // The preview is a sealed iframe, so the app forwards the capture hotkey.
+    const handleCaptureHotkey = useCallback(
+        () => captureRef.current?.toggle(),
+        [],
+    );
     const [isCaptureRecording, setIsCaptureRecording] = useState(false);
     const handleInsightsInUse = useCallback(
         () => setAnalysisInUseScope(previewScope),
@@ -3763,6 +3768,11 @@ const AppGenerate: FC = () => {
                                             analysisController.handleAction
                                         }
                                         onInsightsInUse={handleInsightsInUse}
+                                        onCaptureHotkey={
+                                            captureSurface
+                                                ? handleCaptureHotkey
+                                                : undefined
+                                        }
                                         onInsightInstructionsChange={
                                             setInsightInstructions
                                         }

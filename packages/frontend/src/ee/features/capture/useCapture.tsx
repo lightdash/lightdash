@@ -69,7 +69,12 @@ const isEditable = (target: EventTarget | null): boolean =>
 
 export const useCapture = (
     surface: CaptureSurface | null,
-): { start: () => void; isRecording: boolean; element: ReactNode } => {
+): {
+    start: () => void;
+    toggle: () => void;
+    isRecording: boolean;
+    element: ReactNode;
+} => {
     // Read through a ref so the callbacks below keep a stable identity.
     const toaster = useToaster();
     const toasterRef = useRef(toaster);
@@ -453,17 +458,20 @@ export const useCapture = (
 
     const isRecording = state.status === 'recording';
 
+    // What the hotkey does: start a recording, or stop the one running.
+    const toggle = useCallback(() => {
+        if (stateRef.current.status === 'recording') finish();
+        else start();
+    }, [finish, start]);
+
     // No surface, no hotkey: the page keeps the key combination.
-    useHotkeys(
-        surface
-            ? [['mod+shift+X', () => (isRecording ? finish() : start())]]
-            : [],
-        [],
-        true,
-    );
+    useHotkeys(surface ? [['mod+shift+X', toggle]] : [], [], true);
 
     useEffect(() => {
         if (!isRecording) return undefined;
+        // Started from inside an app frame, focus is still in that frame and
+        // Shift would never reach this page, so take it back first.
+        if (document.activeElement?.tagName === 'IFRAME') window.focus();
         pillRef.current?.focus({ preventScroll: true });
 
         const onKeyDown = (event: KeyboardEvent) => {
@@ -542,5 +550,5 @@ export const useCapture = (
               )
             : null;
 
-    return { start, isRecording, element };
+    return { start, toggle, isRecording, element };
 };
