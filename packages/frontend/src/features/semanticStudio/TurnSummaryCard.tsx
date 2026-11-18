@@ -13,12 +13,10 @@ import {
     IconGitPullRequest,
     IconTrash,
 } from '@tabler/icons-react';
-import { useEffect, useState, type FC } from 'react';
+import { useEffect, type FC } from 'react';
 import { Link } from 'react-router';
 import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
 import MantineIcon from '../../components/common/MantineIcon';
-import { TryIt } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/TryItButton';
-import { cannotApply } from './draftState';
 import {
     describeModelChange,
     DRAFT_PARAM,
@@ -29,14 +27,12 @@ import {
     type FieldChange,
 } from './modelCode';
 import { listProposalIssues } from './proposalIssues';
-import { ApplyModal } from './SemanticLayerDraft';
-import { Task, TaskIcon } from './TaskRow';
-import { draftActions, draftSteps, type Trial } from './turnActions';
+import { TaskIcon } from './TaskRow';
+import { draftActions } from './turnActions';
 import { TurnCard, type Safety } from './TurnCard';
 import { getSemanticStudioUrl } from './urls';
 import {
     useDiscardDraftChange,
-    usePublishMode,
     useRefreshSemanticLayerDraft,
     useSemanticLayerDraft,
     useSemanticLayerDraftImpact,
@@ -207,9 +203,6 @@ export const TurnSummaryCard: FC<{
     const { data: impact } = useSemanticLayerDraftImpact(projectUuid, null);
     const refresh = useRefreshSemanticLayerDraft(projectUuid);
     const discard = useDiscardDraftChange(projectUuid);
-    const publishMode = usePublishMode(projectUuid);
-    const [trial, setTrial] = useState<Trial>('idle');
-    const [publishing, setPublishing] = useState(false);
     const uuids = proposals.flatMap(({ draftChangeUuid }) =>
         draftChangeUuid ? [draftChangeUuid] : [],
     );
@@ -249,31 +242,13 @@ export const TurnSummaryCard: FC<{
 
     const isDraft = phase.kind === 'draft';
     const safety = isDraft ? getSafety(phase.error, impact) : null;
-    const tryModels = draft
-        ? draft.models
-              .filter((entry) => getChangeKind(entry) !== 'removed')
-              .map(({ model }) => model)
-        : [];
-    const publishLabel =
-        publishMode === 'pull_request' ? 'Open pull request' : 'Publish';
-    const blocked = !!draft && cannotApply(draft, null);
-
     const actions = (() => {
         switch (phase.kind) {
             case 'draft':
                 return draftActions({
                     error: phase.error,
-                    isBusy:
-                        safety?.state === 'running' ||
-                        safety?.state === 'failed',
-                    trial,
-                    canTry: tryModels.length > 0,
-                    canPublish: !blocked,
-                    publishLabel,
                     reviewTo: reviewUrl,
                     onAsk,
-                    onTry: () => setTrial('trying'),
-                    onPublish: () => setPublishing(true),
                 });
             case 'published':
                 return phase.model
@@ -303,37 +278,6 @@ export const TurnSummaryCard: FC<{
                     >
                         View pull request
                     </Button>,
-                ];
-            case 'gone':
-            case 'loading':
-            case 'none':
-                return [];
-            default:
-                return assertUnreachable(phase, 'Unknown turn phase');
-        }
-    })();
-
-    const steps = (() => {
-        switch (phase.kind) {
-            case 'draft':
-                return draftSteps({
-                    failed: phase.error !== null,
-                    trial,
-                    publishLabel,
-                });
-            case 'published':
-                return [
-                    <Task key="draft" state="done" label="In your draft" />,
-                    <Task key="publish" state="done" label="Published" />,
-                ];
-            case 'pull_request':
-                return [
-                    <Task key="draft" state="done" label="In your draft" />,
-                    <Task
-                        key="publish"
-                        state="done"
-                        label="Pull request opened"
-                    />,
                 ];
             case 'gone':
             case 'loading':
@@ -440,7 +384,6 @@ export const TurnSummaryCard: FC<{
                 issues: issues.filter((issue) => issue.model === model),
             }))}
             safety={safety}
-            steps={steps}
             actions={actions}
             isSettled={
                 phase.kind === 'published' ||
@@ -448,24 +391,6 @@ export const TurnSummaryCard: FC<{
                 phase.kind === 'gone'
             }
             isGone={phase.kind === 'gone'}
-        >
-            {trial === 'trying' ? (
-                <TryIt
-                    projectUuid={projectUuid}
-                    models={tryModels}
-                    previewProjectUuid={null}
-                    prUrl={null}
-                    onClose={() => setTrial('tried')}
-                />
-            ) : null}
-            {publishing && draft ? (
-                <ApplyModal
-                    projectUuid={projectUuid}
-                    draft={draft}
-                    model={null}
-                    onClose={() => setPublishing(false)}
-                />
-            ) : null}
-        </TurnCard>
+        />
     );
 };

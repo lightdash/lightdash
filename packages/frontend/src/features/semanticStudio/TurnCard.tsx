@@ -79,11 +79,10 @@ export const TurnCard: FC<{
     headerAction: ReactNode;
     groups: TurnGroup[];
     safety: Safety | null;
-    steps: ReactNode[];
     actions: ReactNode[];
     isSettled: boolean;
     isGone: boolean;
-    children: ReactNode;
+    children?: ReactNode;
 }> = ({
     icon,
     status,
@@ -91,7 +90,6 @@ export const TurnCard: FC<{
     headerAction,
     groups,
     safety,
-    steps,
     actions,
     isSettled,
     isGone,
@@ -182,19 +180,14 @@ export const TurnCard: FC<{
                 </Text>
             </Group>
         ) : null}
-        {steps.length > 0 || actions.length > 0 ? (
+        {actions.some(Boolean) ? (
             <Group
                 className={classes.section}
-                gap="xs"
-                justify="space-between"
-                wrap="wrap"
+                gap={4}
+                justify="flex-end"
+                wrap="nowrap"
             >
-                <Group gap="sm" wrap="wrap" aria-live="polite">
-                    {steps}
-                </Group>
-                <Group gap={4} wrap="nowrap" ml="auto">
-                    {actions}
-                </Group>
+                {actions}
             </Group>
         ) : null}
         {children}

@@ -14,6 +14,7 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { Link } from 'react-router';
+import { useGithubUserCredential } from '../../../../../components/common/GithubIntegration/hooks/useGithubIntegration';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { DevelopmentBar } from '../../../../../features/semanticStudio/DevelopmentBar';
@@ -48,6 +49,7 @@ export const StudioDevelopmentBar: FC<{
     const { name, destination, compile, canWriteBranch, branch, step } =
         useStudioPublish(projectUuid, prUrl, ciChecks);
     const compileAgain = useCompileCheckout(projectUuid);
+    const { data: credential } = useGithubUserCredential();
     const { mutate: close, isLoading: isClosing } =
         useClosePullRequest(projectUuid);
     const [publishing, setPublishing] = useState(false);
@@ -153,6 +155,16 @@ export const StudioDevelopmentBar: FC<{
                     >
                         Open {name}
                     </Menu.Item>
+                    {isMine &&
+                    prUrl.startsWith('https://github.com/') &&
+                    credential === null ? (
+                        <Menu.Item
+                            component={Link}
+                            to="/generalSettings/profile"
+                        >
+                            Open pull requests as you
+                        </Menu.Item>
+                    ) : null}
                     {isMine ? (
                         <>
                             <Menu.Divider />

@@ -1,18 +1,13 @@
 import { ActionIcon, Button, Menu } from '@mantine/core';
 import {
-    IconBrandGithub,
     IconChevronDown,
     IconDots,
     IconEye,
     IconFileDiff,
     IconGitPullRequest,
-    IconGitPullRequestClosed,
 } from '@tabler/icons-react';
-import { useContext, useState, type FC, type ReactNode } from 'react';
-import { Link } from 'react-router';
-import { useGithubUserCredential } from '../../../../../../components/common/GithubIntegration/hooks/useGithubIntegration';
+import { useContext, useState, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
-import { useFinishDiscardedWork } from '../../SemanticStudioAgent/useSemanticStudioChat';
 import { isBitbucketPullRequest } from './pullRequestCardUtils';
 import { QuietCardsContext } from './quietCards';
 import { WritebackDiffModal } from './WritebackDiffModal';
@@ -28,9 +23,7 @@ export const PullRequestViewMenu: FC<{
     prUrl: string;
     previewUrl: string | null;
     commitSha: string | null;
-    /** Further menu items, shown under a divider. */
-    children?: ReactNode;
-}> = ({ projectUuid, prUrl, previewUrl, commitSha, children }) => {
+}> = ({ projectUuid, prUrl, previewUrl, commitSha }) => {
     const [diffOpened, setDiffOpened] = useState(false);
     const quiet = useContext(QuietCardsContext);
 
@@ -92,12 +85,6 @@ export const PullRequestViewMenu: FC<{
                             Diff
                         </Menu.Item>
                     )}
-                    {children ? (
-                        <>
-                            <Menu.Divider />
-                            {children}
-                        </>
-                    ) : null}
                 </Menu.Dropdown>
             </Menu>
             <WritebackDiffModal
@@ -107,46 +94,6 @@ export const PullRequestViewMenu: FC<{
                 opened={diffOpened}
                 onClose={() => setDiffOpened(false)}
             />
-        </>
-    );
-};
-
-/** What the quiet card keeps in its menu for an open pull request: closing it, and authoring as the person. */
-export const OpenPullRequestMenuItems: FC<{
-    projectUuid: string;
-    isGithub: boolean;
-    onClose: (onClosed: () => void) => void;
-}> = ({ projectUuid, isGithub, onClose }) => {
-    const [armed, setArmed] = useState(false);
-    // Discarded work leaves the list and stays as history, as it does from the bar.
-    const finishDiscardedWork = useFinishDiscardedWork(projectUuid);
-    const { data: credential } = useGithubUserCredential();
-    return (
-        <>
-            <Menu.Item
-                closeMenuOnClick={armed}
-                leftSection={
-                    <MantineIcon icon={IconGitPullRequestClosed} size={14} />
-                }
-                onClick={() =>
-                    armed ? onClose(finishDiscardedWork) : setArmed(true)
-                }
-            >
-                {armed
-                    ? 'Click again to close the pull request'
-                    : 'Discard changes'}
-            </Menu.Item>
-            {isGithub && credential === null ? (
-                <Menu.Item
-                    component={Link}
-                    to="/generalSettings/profile"
-                    leftSection={
-                        <MantineIcon icon={IconBrandGithub} size={14} />
-                    }
-                >
-                    Open pull requests as you
-                </Menu.Item>
-            ) : null}
         </>
     );
 };

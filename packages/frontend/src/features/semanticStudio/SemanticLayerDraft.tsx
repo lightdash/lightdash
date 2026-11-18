@@ -184,7 +184,7 @@ const DraftImpact: FC<{ projectUuid: string; model: string | null }> = ({
     );
 };
 
-export const ApplyModal: FC<{
+const ApplyModal: FC<{
     projectUuid: string;
     draft: SemanticLayerDraft;
     model: string | null;

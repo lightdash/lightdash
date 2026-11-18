@@ -10,22 +10,15 @@ import {
     IconGitBranch,
     IconGitPullRequest,
 } from '@tabler/icons-react';
-import { useContext, useState, type FC } from 'react';
+import { useContext, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import {
     type ChangeKind,
     VIEW_PARAM,
 } from '../../../../../../features/semanticStudio/modelCode';
-import {
-    Task,
-    TaskIcon,
-} from '../../../../../../features/semanticStudio/TaskRow';
-import {
-    draftActions,
-    draftSteps,
-    type Trial,
-} from '../../../../../../features/semanticStudio/turnActions';
+import { TaskIcon } from '../../../../../../features/semanticStudio/TaskRow';
+import { draftActions } from '../../../../../../features/semanticStudio/turnActions';
 import {
     TurnCard,
     type Safety,
@@ -35,19 +28,13 @@ import classes from '../../../../../../features/semanticStudio/TurnSummaryCard.m
 import { getSemanticStudioUrl } from '../../../../../../features/semanticStudio/urls';
 import { useDraftCheckout } from '../../../../../../features/semanticStudio/useSemanticLayerModel';
 import { useStudioWorkspaces } from '../../../../../../features/semanticStudio/useStudioWorkspaces';
-import { useClosePullRequest } from '../../../hooks/useClosePullRequest';
 import { usePullRequestDiff } from '../../../hooks/usePullRequestDiff';
-import { PublishDraftModal } from '../../SemanticStudioAgent/PublishDraftModal';
 import { resolveStudioPullRequestState } from '../../SemanticStudioAgent/studioPullRequestState';
-import { TryIt } from '../../SemanticStudioAgent/TryItButton';
 import { useStudioPublish } from '../../SemanticStudioAgent/useStudioPublish';
 import { useStudioPullRequest } from '../../SemanticStudioAgent/useStudioPullRequest';
 import { isBitbucketPullRequest } from './pullRequestCardUtils';
 import { PullRequestCiChecks } from './PullRequestCiChecks';
-import {
-    OpenPullRequestMenuItems,
-    PullRequestViewMenu,
-} from './PullRequestViewMenu';
+import { PullRequestViewMenu } from './PullRequestViewMenu';
 import { StudioAskContext } from './quietCards';
 import {
     getModelOfFile,
@@ -118,14 +105,7 @@ export const DbtTurnSummaryCard: FC<{
         commitSha,
         !isBitbucket,
     );
-    const { destination, compile, blocker } = useStudioPublish(
-        projectUuid,
-        prUrl,
-        ciChecks,
-    );
-    const { mutate: close } = useClosePullRequest(projectUuid);
-    const [trial, setTrial] = useState<Trial>('idle');
-    const [publishing, setPublishing] = useState(false);
+    const { compile } = useStudioPublish(projectUuid, prUrl, ciChecks);
 
     const draft = [
         ...(workspaces?.mine ?? []),
@@ -203,29 +183,10 @@ export const DbtTurnSummaryCard: FC<{
                   ],
               }));
 
-    const tryModels = current?.changedModels ?? [];
-    // Without its preview, a teammate's change would be tried as your own changes, or as live.
-    const canTry =
-        !!current &&
-        tryModels.length > 0 &&
-        (current.isMine || !!current.previewProjectUuid) &&
-        latestCompile?.status !== 'compiling';
-
     const actions = (() => {
         switch (state) {
             case 'open':
-                return draftActions({
-                    error,
-                    isBusy: latestCompile?.status === 'compiling',
-                    trial,
-                    canTry,
-                    canPublish: isLatest && !!current?.isMine && !blocker,
-                    publishLabel: 'Publish',
-                    reviewTo: changesUrl,
-                    onAsk,
-                    onTry: () => setTrial('trying'),
-                    onPublish: () => setPublishing(true),
-                });
+                return draftActions({ error, reviewTo: changesUrl, onAsk });
             case 'merged':
                 return [
                     <Button
@@ -252,26 +213,6 @@ export const DbtTurnSummaryCard: FC<{
                             Open model
                         </Button>
                     ) : null,
-                ];
-            case 'closed':
-                return [];
-            default:
-                return assertUnreachable(state, 'Unknown pull request state');
-        }
-    })();
-
-    const steps = (() => {
-        switch (state) {
-            case 'open':
-                return draftSteps({
-                    failed: error !== null,
-                    trial,
-                    publishLabel: 'Publish',
-                });
-            case 'merged':
-                return [
-                    <Task key="draft" state="done" label="In your draft" />,
-                    <Task key="publish" state="done" label="Merged" />,
                 ];
             case 'closed':
                 return [];
@@ -325,26 +266,18 @@ export const DbtTurnSummaryCard: FC<{
             status={header.status}
             name={draft?.name ?? null}
             headerAction={
-                <PullRequestViewMenu
-                    projectUuid={projectUuid}
-                    prUrl={prUrl}
-                    previewUrl={previewUrl}
-                    commitSha={commitSha}
-                >
-                    {state === 'open' && !isBitbucket ? (
-                        <OpenPullRequestMenuItems
-                            projectUuid={projectUuid}
-                            isGithub={prUrl.startsWith('https://github.com/')}
-                            onClose={(onClosed) =>
-                                close({ prUrl }, { onSuccess: onClosed })
-                            }
-                        />
-                    ) : null}
-                </PullRequestViewMenu>
+                // An open draft's links and discard are in the toolbar.
+                state === 'open' ? null : (
+                    <PullRequestViewMenu
+                        projectUuid={projectUuid}
+                        prUrl={prUrl}
+                        previewUrl={previewUrl}
+                        commitSha={commitSha}
+                    />
+                )
             }
             groups={groups}
             safety={state === 'open' ? getSafety(latestCompile) : null}
-            steps={steps}
             actions={actions}
             isSettled={state !== 'open'}
             isGone={state === 'closed'}
@@ -357,23 +290,6 @@ export const DbtTurnSummaryCard: FC<{
                         hasMergeAction
                     />
                 </Box>
-            ) : null}
-            {trial === 'trying' && current ? (
-                <TryIt
-                    projectUuid={projectUuid}
-                    models={tryModels}
-                    previewProjectUuid={current.previewProjectUuid}
-                    prUrl={prUrl}
-                    onClose={() => setTrial('tried')}
-                />
-            ) : null}
-            {publishing ? (
-                <PublishDraftModal
-                    projectUuid={projectUuid}
-                    prUrl={prUrl}
-                    destination={destination}
-                    onClose={() => setPublishing(false)}
-                />
             ) : null}
         </TurnCard>
     );
