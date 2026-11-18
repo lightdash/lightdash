@@ -1,4 +1,5 @@
 import {
+    FilterOperator,
     ProjectType,
     QueryHistoryStatus,
     getFilterRules,
@@ -310,6 +311,92 @@ describe('Analytics settings overview', () => {
         // A tab with no dashboard still draws its own charts
         await userEvent.click(screen.getByRole('tab', { name: 'Users' }));
         expect(screen.getByText('Last 30 days')).toBeVisible();
+    });
+
+    it('hands the chosen date range and project to a dashboard that has those filters', async () => {
+        vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-07-23') });
+        mockQueries();
+        const otherRequests = mockedLightdashApi.getMockImplementation()!;
+        mockedLightdashApi.mockImplementation(
+            async (request: LightdashApiProps) =>
+                request.url.includes('/dashboards/')
+                    ? {
+                          tabs: [],
+                          filters: {
+                              dimensions: [
+                                  {
+                                      id: 'date',
+                                      label: 'Date',
+                                      target: {
+                                          fieldId: 'query_events_event_ts_day',
+                                          tableName: 'query_events',
+                                      },
+                                      operator: FilterOperator.IN_THE_PAST,
+                                      values: [30],
+                                      tileTargets: {},
+                                  },
+                                  {
+                                      id: 'project',
+                                      label: 'Project',
+                                      target: {
+                                          fieldId: 'query_events_project_id',
+                                          tableName: 'query_events',
+                                      },
+                                      operator: FilterOperator.EQUALS,
+                                      values: [],
+                                      disabled: true,
+                                      tileTargets: {},
+                                  },
+                              ],
+                          },
+                      }
+                    : otherRequests(request),
+        );
+        renderOverview([
+            {
+                slug: 'lightdash-analytics-query-activity',
+                name: 'Queries',
+                verification: {},
+            } as DashboardBasicDetails,
+        ]);
+        await userEvent.click(screen.getByRole('tab', { name: 'Queries' }));
+        const sent = async () =>
+            JSON.parse(
+                new URL(
+                    (
+                        await screen.findByTitle('Queries dashboard')
+                    ).getAttribute('src')!,
+                    'http://lightdash',
+                ).searchParams.get('filters')!,
+            ).dimensions;
+        expect(await sent()).toEqual([
+            expect.objectContaining({
+                id: 'date',
+                operator: FilterOperator.IN_BETWEEN,
+                values: ['2026-07-16', '2026-07-22'],
+            }),
+        ]);
+        await userEvent.click(screen.getByText('Last 30 days'));
+        await userEvent.click(
+            screen.getByRole('combobox', { name: 'Project' }),
+        );
+        await userEvent.click(
+            await screen.findByRole('option', { name: 'Sales' }),
+        );
+        await waitFor(async () =>
+            expect(await sent()).toEqual([
+                expect.objectContaining({
+                    id: 'date',
+                    values: ['2026-06-23', '2026-07-22'],
+                }),
+                expect.objectContaining({
+                    id: 'project',
+                    values: ['reported-project'],
+                    disabled: false,
+                }),
+            ]),
+        );
+        vi.useRealTimers();
     });
 
     it('falls back to the Adoption charts and filters where the app cannot be opened', async () => {

@@ -1,6 +1,11 @@
-import { DASHBOARD_GRID_CLASS } from '@lightdash/common';
-import { Box, Center, Loader, SegmentedControl } from '@mantine/core';
-import { useEffect, useMemo, useState } from 'react';
+import {
+    DASHBOARD_GRID_CLASS,
+    FilterOperator,
+    type DashboardFilterRule,
+    type DashboardFilterRuleOverride,
+} from '@lightdash/common';
+import { Box, Center, Group, Loader, SegmentedControl } from '@mantine/core';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import classes from './AnalyticsOverview.module.css';
 
@@ -55,16 +60,35 @@ const useDashboardFrame = () => {
     return { ref: setFrame, frame, height };
 };
 
+// The managed dashboards name these two filters; a dashboard without one has no control for it here
+const DATE_FILTER_LABEL = 'Date';
+const PROJECT_FILTER_LABEL = 'Project';
+
+const asOverride = ({
+    tileTargets,
+    lockedTabUuids,
+    required,
+    requiredGroupId,
+    sectionId,
+    ...rule
+}: DashboardFilterRule): DashboardFilterRuleOverride => rule;
+
 const AnalyticsDashboardEmbed = ({
     projectUuid,
     projectUrlIdentifier,
     slug,
     name,
+    range,
+    chosenProject,
+    controls,
 }: {
     projectUuid: string;
     projectUrlIdentifier: string;
     slug: string;
     name: string;
+    range: { start: string; lastDay: string };
+    chosenProject: string | null;
+    controls: { dateNote: ReactNode; date: ReactNode; project: ReactNode };
 }) => {
     const fit = useDashboardFrame();
     const isLoading = fit.height === null;
@@ -77,9 +101,51 @@ const AnalyticsDashboardEmbed = ({
         [dashboard.data?.tabs],
     );
     const [chosenTab, setChosenTab] = useState<string | null>(null);
+    const savedFilters = dashboard.data?.filters.dimensions;
+    const dateFilter = savedFilters?.find(
+        ({ label }) => label === DATE_FILTER_LABEL,
+    );
+    const projectFilter = savedFilters?.find(
+        ({ label }) => label === PROJECT_FILTER_LABEL,
+    );
+    // The choices made on this page replace the values of the dashboard's own filters
+    const overrides: DashboardFilterRuleOverride[] = [
+        ...(dateFilter
+            ? [
+                  {
+                      ...asOverride(dateFilter),
+                      operator: FilterOperator.IN_BETWEEN,
+                      values: [range.start, range.lastDay],
+                      settings: undefined,
+                  },
+              ]
+            : []),
+        ...(projectFilter && chosenProject
+            ? [
+                  {
+                      ...asOverride(projectFilter),
+                      operator: FilterOperator.EQUALS,
+                      values: [chosenProject],
+                      disabled: false,
+                  },
+              ]
+            : []),
+    ];
     const path = `/minimal/projects/${projectUrlIdentifier}/dashboards/${slug}`;
     // The tabs are offered here, in the style of this page, so the dashboard is asked to leave its own out
-    const query = '?hideTabs=true';
+    const query = `?hideTabs=true${
+        overrides.length
+            ? `&filters=${encodeURIComponent(JSON.stringify({ dimensions: overrides, metrics: [], tableCalculations: [] }))}`
+            : ''
+    }`;
+    // The dashboard reads its filters once, as it opens, so a new choice opens it again on the tab it was on
+    const [opened, setOpened] = useState<{ query: string; src: string }>();
+    const isReady = !dashboard.isLoading;
+    if (isReady && opened?.query !== query)
+        setOpened({
+            query,
+            src: `${path}${chosenTab ? `/view/tabs/${chosenTab}` : ''}${query}`,
+        });
     const openTab = (tabUuid: string) => {
         setChosenTab(tabUuid);
         // The dashboard moves to the tab where it is, with no reload: its address changes and it is told to look
@@ -96,26 +162,42 @@ const AnalyticsDashboardEmbed = ({
     };
     return (
         <Box>
-            {tabs.length > 1 && (
-                <Box className={classes.dashboardTabs}>
-                    <SegmentedControl
-                        size="xs"
-                        withItemsBorders={false}
-                        classNames={{
-                            label: classes.dateOption,
-                            root: classes.dateControl,
-                            indicator: classes.dateIndicator,
-                        }}
-                        aria-label={`${name} sections`}
-                        value={chosenTab ?? tabs[0].uuid}
-                        onChange={openTab}
-                        data={tabs.map((tab) => ({
-                            value: tab.uuid,
-                            label: tab.name,
-                        }))}
-                    />
-                </Box>
-            )}
+            <Group
+                gap="md"
+                justify="space-between"
+                align="center"
+                className={classes.dashboardBar}
+            >
+                {tabs.length > 1 ? (
+                    <Box className={classes.dashboardTabs}>
+                        <SegmentedControl
+                            size="xs"
+                            withItemsBorders={false}
+                            classNames={{
+                                label: classes.dateOption,
+                                root: classes.dateControl,
+                                indicator: classes.dateIndicator,
+                            }}
+                            aria-label={`${name} sections`}
+                            value={chosenTab ?? tabs[0].uuid}
+                            onChange={openTab}
+                            data={tabs.map((tab) => ({
+                                value: tab.uuid,
+                                label: tab.name,
+                            }))}
+                        />
+                    </Box>
+                ) : (
+                    <span />
+                )}
+                {(dateFilter || projectFilter) && (
+                    <Group gap="md" className={classes.filterControls}>
+                        {dateFilter && controls.dateNote}
+                        {projectFilter && controls.project}
+                        {dateFilter && controls.date}
+                    </Group>
+                )}
+            </Group>
             <Box pos="relative" className={classes.dashboardFrameBox}>
                 {isLoading && (
                     <Center
@@ -126,15 +208,17 @@ const AnalyticsDashboardEmbed = ({
                         <Loader size="sm" />
                     </Center>
                 )}
-                <iframe
-                    ref={fit.ref}
-                    src={`${path}${query}`}
-                    title={`${name} dashboard`}
-                    height={fit.height ?? LOADING_HEIGHT}
-                    scrolling="no"
-                    className={classes.dashboardFrame}
-                    data-loading={isLoading || undefined}
-                />
+                {opened && (
+                    <iframe
+                        ref={fit.ref}
+                        src={opened.src}
+                        title={`${name} dashboard`}
+                        height={fit.height ?? LOADING_HEIGHT}
+                        scrolling="no"
+                        className={classes.dashboardFrame}
+                        data-loading={isLoading || undefined}
+                    />
+                )}
             </Box>
         </Box>
     );

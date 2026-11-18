@@ -292,6 +292,59 @@ const AnalyticsOverview = ({
     lastDay.setUTCDate(lastDay.getUTCDate() - 1);
     const dateLabel = `${new Date(`${filters.start}T00:00:00Z`).toLocaleDateString(undefined, { dateStyle: 'medium', timeZone: 'UTC' })} – ${lastDay.toLocaleDateString(undefined, { dateStyle: 'medium', timeZone: 'UTC' })} (UTC)`;
 
+    const dateNote = (
+        <Tooltip label="Excludes today so every day in the range is complete.">
+            <Text fz="xs" c="dimmed" ta="right" tabIndex={0}>
+                {dateLabel}
+            </Text>
+        </Tooltip>
+    );
+    const projectControl = (
+        <Tooltip
+            label={selectedProject ? projectNames[selectedProject] : ''}
+            disabled={!selectedProject}
+            multiline
+            maw={360}
+            events={{
+                hover: true,
+                focus: true,
+                touch: true,
+            }}
+        >
+            <Select
+                aria-label="Project"
+                placeholder="All projects"
+                clearable
+                searchable
+                data={projectOptions}
+                value={selectedProject}
+                onChange={setSelectedProject}
+                disabled={projects.isLoading || projects.isError}
+                className={classes.projectFilter}
+                classNames={{
+                    input: classes.projectInput,
+                }}
+            />
+        </Tooltip>
+    );
+    const dateControl = (
+        <SegmentedControl
+            size="xs"
+            withItemsBorders={false}
+            classNames={{
+                label: classes.dateOption,
+                root: classes.dateControl,
+                indicator: classes.dateIndicator,
+            }}
+            aria-label="Date range"
+            value={days}
+            onChange={setDays}
+            data={analyticsDateRangeDays.map((range) => ({
+                value: String(range),
+                label: `Last ${range} days`,
+            }))}
+        />
+    );
     return (
         <Stack gap="md" className={classes.overview}>
             <Group justify="space-between" align="center" gap="md">
@@ -485,6 +538,16 @@ const AnalyticsOverview = ({
                                 projectUrlIdentifier={projectUrlIdentifier}
                                 slug={slug}
                                 name={opened.name}
+                                range={{
+                                    start: filters.start,
+                                    lastDay: lastDay.toISOString().slice(0, 10),
+                                }}
+                                chosenProject={selectedProject}
+                                controls={{
+                                    dateNote,
+                                    date: dateControl,
+                                    project: projectControl,
+                                }}
                             />
                         </Box>
                     );
@@ -514,71 +577,13 @@ const AnalyticsOverview = ({
                     ) : (
                         <Stack gap="md">
                             <Group gap="md" justify="flex-end" align="center">
-                                <Tooltip label="Excludes today so every day in the range is complete.">
-                                    <Text
-                                        fz="xs"
-                                        c="dimmed"
-                                        ta="right"
-                                        tabIndex={0}
-                                    >
-                                        {dateLabel}
-                                    </Text>
-                                </Tooltip>
+                                {dateNote}
                                 <Group
                                     gap="md"
                                     className={classes.filterControls}
                                 >
-                                    <Tooltip
-                                        label={
-                                            selectedProject
-                                                ? projectNames[selectedProject]
-                                                : ''
-                                        }
-                                        disabled={!selectedProject}
-                                        multiline
-                                        maw={360}
-                                        events={{
-                                            hover: true,
-                                            focus: true,
-                                            touch: true,
-                                        }}
-                                    >
-                                        <Select
-                                            aria-label="Project"
-                                            placeholder="All projects"
-                                            clearable
-                                            searchable
-                                            data={projectOptions}
-                                            value={selectedProject}
-                                            onChange={setSelectedProject}
-                                            disabled={
-                                                projects.isLoading ||
-                                                projects.isError
-                                            }
-                                            className={classes.projectFilter}
-                                            classNames={{
-                                                input: classes.projectInput,
-                                            }}
-                                        />
-                                    </Tooltip>
-                                    <SegmentedControl
-                                        size="xs"
-                                        withItemsBorders={false}
-                                        classNames={{
-                                            label: classes.dateOption,
-                                            root: classes.dateControl,
-                                            indicator: classes.dateIndicator,
-                                        }}
-                                        aria-label="Date range"
-                                        value={days}
-                                        onChange={setDays}
-                                        data={analyticsDateRangeDays.map(
-                                            (range) => ({
-                                                value: String(range),
-                                                label: `Last ${range} days`,
-                                            }),
-                                        )}
-                                    />
+                                    {projectControl}
+                                    {dateControl}
                                 </Group>
                             </Group>
                             {showHeadlines && (

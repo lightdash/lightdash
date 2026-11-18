@@ -142,9 +142,13 @@
     margin-inline: -10px;
 }
 
+.dashboardBar {
+    margin-bottom: var(--mantine-spacing-xs);
+}
+
 .dashboardTabs {
     overflow-x: auto;
-    margin-bottom: var(--mantine-spacing-xs);
+    max-width: 100%;
 }
 
 .dashboardFrame {
