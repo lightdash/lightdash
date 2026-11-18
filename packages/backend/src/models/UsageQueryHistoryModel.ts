@@ -6,7 +6,10 @@ import {
 } from '../analytics/eventStream/queryError';
 import { queryEventsCompactedColumns } from '../analytics/eventStream/queryEventsStream';
 import { QUERY_HISTORY_BACKFILL_EVENT } from '../analytics/eventStream/queryHistoryBackfill';
-import { queryHistoryRequestColumnSql } from '../database/entities/queryHistory';
+import {
+    queryHistoryExploreNameSql,
+    queryHistoryRequestColumnSql,
+} from '../database/entities/queryHistory';
 import { isStatementTimeout } from '../database/errors';
 
 const HISTORY_WINDOW_MS = 60 * 60 * 1000;
@@ -92,7 +95,7 @@ export class UsageQueryHistoryModel {
                     )
                     .select(
                         this.database.raw(
-                            "q.metric_query->>'exploreName' as explore_name",
+                            `${queryHistoryExploreNameSql('q')} as explore_name`,
                         ),
                     )
                     .select(
