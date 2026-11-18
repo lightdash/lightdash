@@ -18,7 +18,8 @@ match within the same table, one of:
 
 1. a modelled field of the explore as that user sees it, or a reference to one;
 2. SQL the chart being edited already saved (for a dashboard's shared metric,
-   the SQL the shared metric already had);
+   the SQL each chart using it already has, or the SQL the shared metric
+   already had when no chart uses it);
 3. SQL already saved on a chart the user can view, in the same project and
    explore. Only registered users get this clause, as at run time.
 

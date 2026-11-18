@@ -3801,6 +3801,8 @@ export class DashboardService
         ];
         if (!dryRun) {
             await this.savedChartModel.transaction(async (tx) => {
+                // Waits for a rollback of this dashboard rather than locking its charts in another order
+                await this.dashboardModel.lockForVersioning(dashboard.uuid, tx);
                 await this.dashboardModel.updateLatestVersionConfig(
                     dashboard.uuid,
                     {
