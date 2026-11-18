@@ -16,10 +16,10 @@ One card, segments split by hairlines, in this order:
    Gaps first, as the schema orders them; no rows when there are none.
 4. **Diff:** one linear list in schema order, without lens groups.
    Each row is a mark, the name in mono with extras muted beside it, the lens muted and right-aligned on the name line, and the note below.
-   - Marks: `+` added on a green tint, `−` deleted on a red tint with the name struck through; modified rows have no mark and no tint.
+   - Marks: `+` added on a green tint, `−` deleted on a red tint; modified rows have no mark and no tint.
    - Impact: breaking adds a red `breaking` word after the name; notable is plain; minor mutes the name and note.
 
-No counts, badges, pills, borders on rows, tables, collapsing or footer.
+No counts, badges, pills, borders on rows, tables, collapsing or footer, and no underlined or struck-through text; links keep the text colour.
 
 ## Theme
 
