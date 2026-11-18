@@ -181,6 +181,8 @@ type Props = {
     onInsightInstructionsChange?: (instructions: string | null) => void;
     onInsightAnalyseOnLoadChange?: (analyseOnLoad: boolean | null) => void;
     onMountedQueriesChange?: (queryUuids: string[]) => void;
+    /** The capture hotkey was pressed inside the app. Absent = no capture. */
+    onCaptureHotkey?: () => void;
 };
 
 /**
@@ -255,6 +257,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onInsightInstructionsChange,
             onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
+            onCaptureHotkey,
         },
         ref,
     ) => {
@@ -413,6 +416,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onInsightInstructionsChange,
             onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
+            onCaptureHotkey,
         });
         const { captureScreenshot } = useIframeScreenshot(iframeRef);
         const { exportPdf } = useIframePdfExport(iframeRef);
