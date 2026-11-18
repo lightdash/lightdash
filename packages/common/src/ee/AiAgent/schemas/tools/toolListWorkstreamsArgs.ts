@@ -6,7 +6,7 @@ import {
 
 export const TOOL_LIST_WORKSTREAMS_DESCRIPTION = [
     'List the pull requests this conversation opened with the repository edit tools, each with its URL and a short summary, the changes in this conversation whose pull request is still being opened, and the pull requests other conversations opened on this project.',
-    'Call it before an edit when you are unsure whether the change belongs to a pull request that is already open; a change listed as still being opened is not missing, it has not finished yet.',
+    'Call it before an edit when you are unsure whether the change belongs to a pull request that is already open.',
 ].join(' ');
 
 export const toolListWorkstreamsArgsSchema = z.object({
