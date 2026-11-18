@@ -38,7 +38,8 @@ export const ReattachLiveSourceModal: FC<Props> = ({
     const reattach = useReattachLiveSource({ projectUuid, connectionUuid });
     const [picked, setPicked] = useState<string | null>(null);
 
-    // A same-target source with charts is the likely reconnect, so it starts selected
+    // A same-target source with charts is the likely reconnect, so it starts
+    // selected; any other reattach is a deliberate pick
     const selected =
         deletedSources.find(
             ({ externalConnectionUuid }) => externalConnectionUuid === picked,
@@ -46,10 +47,9 @@ export const ReattachLiveSourceModal: FC<Props> = ({
         deletedSources.find(
             ({ isSameTarget, usedByChartCount }) =>
                 isSameTarget && usedByChartCount > 0,
-        ) ??
-        deletedSources[0];
+        );
 
-    if (!selected) return null;
+    if (deletedSources.length === 0) return null;
     return (
         <MantineModal
             opened
@@ -60,25 +60,28 @@ export const ReattachLiveSourceModal: FC<Props> = ({
             cancelDisabled={reattach.isLoading}
             confirmLabel="Reattach"
             confirmLoading={reattach.isLoading}
-            onConfirm={() =>
+            confirmDisabled={!selected}
+            onConfirm={() => {
+                if (!selected) return;
                 reattach.mutate(selected.externalConnectionUuid, {
                     onSuccess: onClose,
-                })
-            }
+                });
+            }}
         >
             <Stack gap="sm">
                 <Select
                     allowDeselect={false}
                     label="Deleted source"
                     description="This source takes its explore prefix, so its charts work again and its field edits come back."
-                    value={selected.externalConnectionUuid}
+                    placeholder="Choose a deleted source"
+                    value={selected?.externalConnectionUuid ?? null}
                     onChange={setPicked}
                     data={deletedSources.map((source) => ({
                         value: source.externalConnectionUuid,
                         label: toOptionLabel(source),
                     }))}
                 />
-                {!selected.isSameTarget && (
+                {selected && !selected.isSameTarget && (
                     <Alert
                         color="yellow"
                         icon={<IconAlertTriangle size={16} />}
