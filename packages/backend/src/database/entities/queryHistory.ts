@@ -143,7 +143,7 @@ export type QueryHistoryRequestColumn =
     | 'request_saved_sql_uuid'
     | 'request_dashboard_uuid';
 
-const requestColumnJsonFallback = (
+export const queryHistoryRequestColumnJsonSql = (
     table: string,
     column: QueryHistoryRequestColumn,
 ): string => {
@@ -164,4 +164,17 @@ export const queryHistoryRequestColumnSql = (
     table: string,
     column: QueryHistoryRequestColumn,
 ): string =>
-    `COALESCE(${table}.${column}, CASE WHEN ${table}.metric_query_explore_name IS NULL THEN ${requestColumnJsonFallback(table, column)} END)`;
+    `COALESCE(${table}.${column}, CASE WHEN ${table}.metric_query_explore_name IS NULL THEN ${queryHistoryRequestColumnJsonSql(table, column)} END)`;
+
+// Typed as uuid so joins use the content table's unique index; slugs become NULL instead of failing the cast.
+export const queryHistoryRequestUuidSql = (
+    table: string,
+    column: QueryHistoryRequestColumn,
+): string => {
+    const value = queryHistoryRequestColumnSql(table, column);
+    return `CASE WHEN ${value} ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN (${value})::uuid END`;
+};
+
+// Reads metric_query only for rows written before the column existed.
+export const queryHistoryExploreNameSql = (table: string): string =>
+    `COALESCE(${table}.metric_query_explore_name, ${table}.metric_query->>'exploreName')`;
