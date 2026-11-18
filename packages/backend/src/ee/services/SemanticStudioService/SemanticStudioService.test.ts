@@ -2003,6 +2003,7 @@ describe('SemanticStudioService', () => {
                 exploreCount: null,
                 failures: [],
                 pullRequestUrl: null,
+                merge: null,
             });
             expect(context.commitCalls).toEqual([]);
             expect(context.settled).toEqual(['applied']);
@@ -2717,7 +2718,9 @@ describe('SemanticStudioService', () => {
                 exploreCount: null,
                 failures: [],
                 pullRequestUrl: PULL_REQUEST_URL,
+                merge: null,
             });
+            expect(context.mergePullRequest).not.toHaveBeenCalled();
             const [{ writes, title }] = context.openPullRequest.mock.calls[0];
             expect(writes.get('orders')).toContain('revenue');
             expect(title).toBe('Update semantic layer: orders');
@@ -2725,6 +2728,58 @@ describe('SemanticStudioService', () => {
             expect(context.commitCalls).toHaveLength(0);
             expect(context.setExplores).not.toHaveBeenCalled();
             expect(context.drafts).toHaveLength(0);
+        });
+
+        it('merges the pull request when publishing asks to', async () => {
+            const context = repo();
+            await context.service.proposeDraftChange(
+                repoWriter,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+                null,
+            );
+            const outcome = await context.service.applyDraft(
+                repoWriter,
+                PROJECT_UUID,
+                null,
+                true,
+            );
+            expect(outcome.merge).toEqual({ merged: true });
+            expect(context.mergePullRequest).toHaveBeenCalledWith({
+                user: repoWriter,
+                projectUuid: PROJECT_UUID,
+                prUrl: PULL_REQUEST_URL,
+            });
+        });
+
+        it('leaves the pull request open and says why when the repository refuses the merge', async () => {
+            const context = repo();
+            context.mergePullRequest.mockRejectedValueOnce(
+                new Error('Required status check "ci" is expected.'),
+            );
+            await context.service.proposeDraftChange(
+                repoWriter,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+                null,
+            );
+            const outcome = await context.service.applyDraft(
+                repoWriter,
+                PROJECT_UUID,
+                null,
+                true,
+            );
+            expect(outcome).toMatchObject({
+                failures: [],
+                pullRequestUrl: PULL_REQUEST_URL,
+                merge: {
+                    merged: false,
+                    reason: 'Required status check "ci" is expected.',
+                },
+            });
+            expect(context.recordedPullRequests).toEqual([PULL_REQUEST_URL]);
         });
 
         it('opens one pull request when the same draft is applied twice', async () => {

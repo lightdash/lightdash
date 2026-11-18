@@ -2076,11 +2076,12 @@ export class SemanticStudioService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         model: string | null,
+        merge: boolean = false,
     ): Promise<SemanticLayerDraftApplyResult> {
         await this.assertCanEditModels(user, projectUuid);
         // Requests that arrive together on this server share one publish; one that lands elsewhere waits on the lock, then finds nothing left to publish.
         const owner = await this.findDraftOwner(projectUuid, user.userUuid);
-        const key = `${projectUuid}:${user.userUuid}:${owner.workspaceUuid}:${model ?? ''}`;
+        const key = `${projectUuid}:${user.userUuid}:${owner.workspaceUuid}:${model ?? ''}:${merge}`;
         const running = this.publishing.get(key);
         if (running) return running;
         const publish = (async () => {
@@ -2093,10 +2094,44 @@ export class SemanticStudioService extends BaseService {
             }
             // What is left of the draft now sits on different live models.
             await this.queueDraftImpactCheckAfterChange(user, owner);
-            return result;
+            return merge && result.pullRequestUrl
+                ? {
+                      ...result,
+                      merge: await this.mergeDraftPullRequest(
+                          user,
+                          projectUuid,
+                          result.pullRequestUrl,
+                      ),
+                  }
+                : result;
         })().finally(() => this.publishing.delete(key));
         this.publishing.set(key, publish);
         return publish;
+    }
+
+    /** Merges the pull request a draft was just sent as; a refusal leaves it open for review and says why. */
+    private async mergeDraftPullRequest(
+        user: SessionUser,
+        projectUuid: string,
+        prUrl: string,
+    ): Promise<NonNullable<SemanticLayerDraftApplyResult['merge']>> {
+        try {
+            const { merged } = await this.aiWritebackService.mergePullRequest({
+                user,
+                projectUuid,
+                prUrl,
+            });
+            if (!merged) {
+                return {
+                    merged: false,
+                    reason: 'The repository did not merge it.',
+                };
+            }
+            await this.recordPullRequestState(projectUuid, prUrl, 'merged');
+            return { merged: true };
+        } catch (error) {
+            return { merged: false, reason: getErrorMessage(error) };
+        }
     }
 
     private applyDraftOnce(
@@ -2121,6 +2156,7 @@ export class SemanticStudioService extends BaseService {
                     exploreCount: null,
                     failures: unmergeable,
                     pullRequestUrl: null,
+                    merge: null,
                 };
             }
             // Publishing would put this person's version in place of one they have not looked at.
@@ -2141,6 +2177,7 @@ export class SemanticStudioService extends BaseService {
                     exploreCount: null,
                     failures: contested,
                     pullRequestUrl: null,
+                    merge: null,
                 };
             }
             const check = await this.checker.check(
@@ -2157,6 +2194,7 @@ export class SemanticStudioService extends BaseService {
                         error,
                     })),
                     pullRequestUrl: null,
+                    merge: null,
                 };
             }
             const drafts = {
@@ -2177,6 +2215,7 @@ export class SemanticStudioService extends BaseService {
                     exploreCount: null,
                     failures: [],
                     pullRequestUrl: null,
+                    merge: null,
                 };
             }
             if (draft.repo) {
@@ -2209,6 +2248,7 @@ export class SemanticStudioService extends BaseService {
                     exploreCount: null,
                     failures: [],
                     pullRequestUrl: url,
+                    merge: null,
                 };
             }
             const exploreCount = await this.commitDocuments(user, owner, {
@@ -2224,7 +2264,12 @@ export class SemanticStudioService extends BaseService {
                     drafts,
                 },
             });
-            return { exploreCount, failures: [], pullRequestUrl: null };
+            return {
+                exploreCount,
+                failures: [],
+                pullRequestUrl: null,
+                merge: null,
+            };
         });
     }
 

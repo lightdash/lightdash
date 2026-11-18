@@ -21,8 +21,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import useApp from '../../providers/App/useApp';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { isDevelopmentViewOn, useCheckedOutView } from './developmentView';
+import { canWriteProjectBranch } from './permissions';
 
 export const DRAFT_KEY = 'semantic-layer-draft';
 const DRAFT_STATE_KEY = 'semantic-layer-draft-state';
@@ -162,6 +164,23 @@ export const useKeepsSemanticLayerDraft = (projectUuid: string): boolean =>
 /** Whether applying a draft opens a pull request on the project's repository instead of going live. */
 export const useAppliesAsPullRequest = (projectUuid: string): boolean =>
     useSemanticLayerStatus(projectUuid)?.appliesAs === 'pull_request';
+
+/** How publishing lands: live here, merged into the repository, or as a pull request for someone who can merge it. */
+export type PublishMode = 'live' | 'merge' | 'pull_request';
+
+export const usePublishMode = (projectUuid: string): PublishMode => {
+    const asPullRequest = useAppliesAsPullRequest(projectUuid);
+    const { user } = useApp();
+    if (!asPullRequest) return 'live';
+    return user.data?.organizationUuid &&
+        canWriteProjectBranch(
+            user.data.ability,
+            user.data.organizationUuid,
+            projectUuid,
+        )
+        ? 'merge'
+        : 'pull_request';
+};
 
 /** The models whose YAML the project keeps; empty for someone who cannot change the project. */
 export const useSemanticLayerStoredModels = (
@@ -365,10 +384,13 @@ const useWrite = <TResult extends ApiResponse['results'], TInput>({
 
 /** Takes the draft live, or one model of it. */
 export const useApplySemanticLayerDraft = (projectUuid: string) =>
-    useWrite<SemanticLayerDraftApplyResult, string | null>({
+    useWrite<
+        SemanticLayerDraftApplyResult,
+        { model: string | null; merge: boolean }
+    >({
         projectUuid,
-        request: (model) => ({
-            path: `${toDraftPath(model)}/apply`,
+        request: ({ model, merge }) => ({
+            path: `${toDraftPath(model)}/apply${merge ? '?merge=true' : ''}`,
             method: 'POST',
             body: undefined,
         }),
