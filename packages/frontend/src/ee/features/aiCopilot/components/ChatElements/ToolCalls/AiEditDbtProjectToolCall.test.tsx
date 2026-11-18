@@ -5,9 +5,23 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
 import { usePullRequestCiChecks } from '../../../hooks/usePullRequestCiChecks';
 import { AiEditDbtProjectToolCall } from './AiEditDbtProjectToolCall';
-import { QuietCardsContext } from './quietCards';
+import { QuietCardsContext, StudioAskContext } from './quietCards';
 
-const held = vi.hoisted((): { ciChecks: unknown } => ({ ciChecks: null }));
+const held = vi.hoisted(
+    (): {
+        ciChecks: unknown;
+        diff: string;
+        compile: unknown;
+        pullRequest: unknown;
+        workspaces: unknown[];
+    } => ({
+        ciChecks: null,
+        diff: '',
+        compile: null,
+        pullRequest: null,
+        workspaces: [],
+    }),
+);
 vi.mock('../../../hooks/usePullRequestCiChecks', () => ({
     usePullRequestCiChecks: vi.fn(() => ({ data: held.ciChecks })),
 }));
@@ -26,11 +40,45 @@ vi.mock('../../../hooks/useProjectAiAgents', () => ({
     useCreateAgentThreadMessageMutation: () => ({ mutate: vi.fn() }),
 }));
 vi.mock('./WritebackDiffModal', () => ({ WritebackDiffModal: () => null }));
-vi.mock('../../SemanticStudioAgent/DraftProgress', () => ({
-    DraftProgress: () => null,
-}));
 vi.mock('../../SemanticStudioAgent/TryItButton', () => ({
-    PullRequestCardTryIt: () => null,
+    TryIt: () => null,
+}));
+vi.mock('../../SemanticStudioAgent/PublishDraftModal', () => ({
+    PublishDraftModal: () => null,
+}));
+vi.mock('../../SemanticStudioAgent/useSemanticStudioChat', () => ({
+    useFinishDiscardedWork: () => vi.fn(),
+}));
+vi.mock('../../SemanticStudioAgent/useStudioPublish', () => ({
+    useStudioPublish: () => ({
+        destination: 'pull request #7',
+        compile: held.compile,
+        blocker: null,
+    }),
+}));
+vi.mock('../../SemanticStudioAgent/useStudioPullRequest', () => ({
+    useStudioPullRequest: () => held.pullRequest,
+}));
+vi.mock(
+    '../../../../../../features/semanticStudio/useStudioWorkspaces',
+    () => ({
+        useStudioWorkspaces: () => ({
+            data: { mine: held.workspaces, others: [], recent: [] },
+        }),
+    }),
+);
+vi.mock(
+    '../../../../../../features/semanticStudio/useSemanticLayerModel',
+    () => ({
+        useDraftCheckout: () => ({
+            data: held.compile
+                ? { workspaceUuid: 'ws', branchCompile: held.compile }
+                : null,
+        }),
+    }),
+);
+vi.mock('../../../hooks/usePullRequestDiff', () => ({
+    usePullRequestDiff: () => ({ data: { diff: held.diff } }),
 }));
 
 describe('Bitbucket dbt writeback card', () => {
@@ -101,6 +149,10 @@ describe('Bitbucket dbt writeback card', () => {
 describe('the quiet pull request card of a side panel', () => {
     afterEach(() => {
         held.ciChecks = null;
+        held.diff = '';
+        held.compile = null;
+        held.pullRequest = null;
+        held.workspaces = [];
         vi.clearAllMocks();
     });
 
@@ -125,7 +177,7 @@ describe('the quiet pull request card of a side panel', () => {
             </MemoryRouter>,
         );
         expect(
-            screen.getByRole('button', { name: 'View changes' }),
+            screen.getByRole('link', { name: 'View changes' }),
         ).toBeVisible();
         expect(
             screen.queryByRole('button', { name: 'Merge' }),
@@ -148,7 +200,7 @@ describe('the quiet pull request card of a side panel', () => {
     });
     it.each([
         { merged: true, state: 'closed' as const, word: 'Merged' },
-        { merged: false, state: 'closed' as const, word: 'Closed' },
+        { merged: false, state: 'closed' as const, word: 'Discarded' },
     ])(
         'reads $word once settled, with nothing left to merge',
         ({ merged, state, word }) => {
@@ -171,10 +223,74 @@ describe('the quiet pull request card of a side panel', () => {
                     </QuietCardsContext.Provider>
                 </MemoryRouter>,
             );
-            expect(screen.getByText(word)).toBeVisible();
+            expect(screen.getAllByText(word)[0]).toBeVisible();
             expect(
                 screen.queryByRole('button', { name: 'Merge' }),
             ).not.toBeInTheDocument();
         },
     );
+    it('lists the files the turn changed by model, and asks the agent to fix a failed compile', () => {
+        const prUrl = 'https://github.com/acme/analytics/pull/7';
+        held.diff = [
+            'diff --git a/models/orders.yml b/models/orders.yml',
+            '--- a/models/orders.yml',
+            '+++ b/models/orders.yml',
+            '@@ -1,2 +1,3 @@',
+            ' models:',
+            '+  - name: orders',
+            'diff --git a/models/refunds.sql b/models/refunds.sql',
+            'new file mode 100644',
+            '--- /dev/null',
+            '+++ b/models/refunds.sql',
+            '@@ -0,0 +1 @@',
+            '+select 1',
+        ].join('\n');
+        held.compile = {
+            status: 'failed',
+            error: 'refunds is not defined',
+        };
+        held.pullRequest = {
+            prUrl,
+            commitSha: 'abc',
+            state: 'open',
+            changedModels: ['orders', 'refunds'],
+            isMine: true,
+            previewProjectUuid: null,
+        };
+        held.workspaces = [
+            {
+                workspaceUuid: 'ws',
+                name: 'Refunds',
+                pullRequest: { url: prUrl, state: 'open' },
+            },
+        ];
+        const ask = vi.fn();
+        renderWithProviders(
+            <MemoryRouter>
+                <QuietCardsContext.Provider value>
+                    <StudioAskContext.Provider value={ask}>
+                        <AiEditDbtProjectToolCall
+                            projectUuid="project"
+                            metadata={{
+                                status: 'success',
+                                prUrl,
+                                commitSha: 'abc',
+                            }}
+                        />
+                    </StudioAskContext.Provider>
+                </QuietCardsContext.Provider>
+            </MemoryRouter>,
+        );
+        expect(screen.getByText("Draft doesn't compile")).toBeVisible();
+        expect(
+            screen.getByRole('link', { name: /orders\.yml/ }),
+        ).toHaveTextContent('Changed YAMLorders.yml+1 −0');
+        expect(
+            screen.getByRole('link', { name: /refunds\.sql/ }),
+        ).toHaveTextContent('Added SQLrefunds.sql+1 −0');
+        fireEvent.click(screen.getByRole('button', { name: 'Fix with agent' }));
+        expect(ask).toHaveBeenCalledWith(
+            "The draft doesn't compile: refunds is not defined. Fix it.",
+        );
+    });
 });

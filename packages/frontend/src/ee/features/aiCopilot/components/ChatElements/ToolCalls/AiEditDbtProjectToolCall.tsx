@@ -3,13 +3,11 @@ import {
     type ToolEditDbtProjectOutput,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Anchor,
     Box,
     Button,
     getDefaultZIndex,
     Group,
-    Menu,
     Paper,
     Stack,
     Text,
@@ -17,28 +15,15 @@ import {
 } from '@mantine/core';
 import {
     IconAlertTriangle,
-    IconBrandGithub,
     IconCheck,
-    IconChevronDown,
-    IconDots,
-    IconEye,
-    IconFileDiff,
     IconGitMerge,
     IconGitPullRequest,
     IconGitPullRequestClosed,
     IconSettings,
 } from '@tabler/icons-react';
 import confetti from 'canvas-confetti';
-import {
-    useContext,
-    useEffect,
-    useRef,
-    useState,
-    type FC,
-    type ReactNode,
-} from 'react';
-import { Link, useSearchParams } from 'react-router';
-import { useGithubUserCredential } from '../../../../../../components/common/GithubIntegration/hooks/useGithubIntegration';
+import { useContext, useEffect, useRef, useState, type FC } from 'react';
+import { Link } from 'react-router';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useClosePullRequest } from '../../../hooks/useClosePullRequest';
 import { useMergePullRequest } from '../../../hooks/useMergePullRequest';
@@ -48,10 +33,8 @@ import {
 } from '../../../hooks/useProjectAiAgents';
 import { usePullRequestCiChecks } from '../../../hooks/usePullRequestCiChecks';
 import { POST_MERGE_MIGRATION_PROMPT } from '../../../postMergeMigrationPrompt';
-import { DraftProgress } from '../../SemanticStudioAgent/DraftProgress';
-import { PullRequestCardTryIt } from '../../SemanticStudioAgent/TryItButton';
-import { useFinishDiscardedWork } from '../../SemanticStudioAgent/useSemanticStudioChat';
 import styles from './AiEditDbtProjectToolCall.module.css';
+import { DbtTurnSummaryCard } from './DbtTurnSummaryCard';
 import { isMergeable } from './pullRequestActions';
 import {
     INSTALL_ACTIONS,
@@ -59,8 +42,8 @@ import {
     isBitbucketPullRequest,
 } from './pullRequestCardUtils';
 import { PullRequestCiChecks } from './PullRequestCiChecks';
+import { PullRequestViewMenu } from './PullRequestViewMenu';
 import { QuietCardsContext } from './quietCards';
-import { WritebackDiffModal } from './WritebackDiffModal';
 import { WritebackProgressCard } from './WritebackProgressCard';
 
 type Props = {
@@ -96,101 +79,6 @@ export const InstallAppButton: FC<{
         </Button>
     </Group>
 );
-
-/**
- * The "View" half of the card's action group: a single dropdown that opens the
- * Lightdash preview, the pull request on its host, or the diff viewer. The
- * preview entry is omitted when there's no preview (non-GitHub run, failed
- * preview, or a setup PR). Owns the diff modal it launches.
- */
-// ts-unused-exports:disable-next-line
-export const PullRequestViewMenu: FC<{
-    projectUuid: string;
-    prUrl: string;
-    previewUrl: string | null;
-    commitSha: string | null;
-    /** Further menu items, shown under a divider. */
-    children?: ReactNode;
-}> = ({ projectUuid, prUrl, previewUrl, commitSha, children }) => {
-    const [diffOpened, setDiffOpened] = useState(false);
-    const quiet = useContext(QuietCardsContext);
-
-    return (
-        <>
-            <Menu position={quiet ? 'bottom-end' : 'bottom-start'}>
-                <Menu.Target>
-                    {quiet ? (
-                        <ActionIcon size="sm" aria-label="More">
-                            <MantineIcon icon={IconDots} />
-                        </ActionIcon>
-                    ) : (
-                        <Button
-                            variant="default"
-                            size="compact-xs"
-                            leftSection={
-                                <MantineIcon icon={IconEye} size={14} />
-                            }
-                            rightSection={
-                                <MantineIcon icon={IconChevronDown} size={14} />
-                            }
-                        >
-                            View
-                        </Button>
-                    )}
-                </Menu.Target>
-                <Menu.Dropdown>
-                    {previewUrl && (
-                        <Menu.Item
-                            component="a"
-                            href={previewUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            leftSection={
-                                <MantineIcon icon={IconEye} size={14} />
-                            }
-                        >
-                            Preview
-                        </Menu.Item>
-                    )}
-                    <Menu.Item
-                        component="a"
-                        href={prUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        leftSection={
-                            <MantineIcon icon={IconGitPullRequest} size={14} />
-                        }
-                    >
-                        Pull request
-                    </Menu.Item>
-                    {!isBitbucketPullRequest(prUrl) && (
-                        <Menu.Item
-                            leftSection={
-                                <MantineIcon icon={IconFileDiff} size={14} />
-                            }
-                            onClick={() => setDiffOpened(true)}
-                        >
-                            Diff
-                        </Menu.Item>
-                    )}
-                    {children ? (
-                        <>
-                            <Menu.Divider />
-                            {children}
-                        </>
-                    ) : null}
-                </Menu.Dropdown>
-            </Menu>
-            <WritebackDiffModal
-                projectUuid={projectUuid}
-                prUrl={prUrl}
-                commitSha={commitSha}
-                opened={diffOpened}
-                onClose={() => setDiffOpened(false)}
-            />
-        </>
-    );
-};
 
 // ts-unused-exports:disable-next-line
 export const PullRequestActionButtons: FC<{
@@ -349,49 +237,6 @@ export const PullRequestActionButtons: FC<{
     );
 };
 
-const resolvedHostIsGithub = (prUrl: string): boolean =>
-    prUrl.startsWith('https://github.com/');
-
-/** What the quiet card keeps in its menu for an open pull request: closing it, and authoring as the person. */
-const OpenPullRequestMenuItems: FC<{
-    projectUuid: string;
-    isGithub: boolean;
-    onClose: (onClosed: () => void) => void;
-}> = ({ projectUuid, isGithub, onClose }) => {
-    const [armed, setArmed] = useState(false);
-    // Discarded work leaves the list and stays as history, as it does from the bar.
-    const finishDiscardedWork = useFinishDiscardedWork(projectUuid);
-    const { data: credential } = useGithubUserCredential();
-    return (
-        <>
-            <Menu.Item
-                closeMenuOnClick={armed}
-                leftSection={
-                    <MantineIcon icon={IconGitPullRequestClosed} size={14} />
-                }
-                onClick={() =>
-                    armed ? onClose(finishDiscardedWork) : setArmed(true)
-                }
-            >
-                {armed
-                    ? 'Click again to close the pull request'
-                    : 'Discard changes'}
-            </Menu.Item>
-            {isGithub && credential === null ? (
-                <Menu.Item
-                    component={Link}
-                    to="/generalSettings/profile"
-                    leftSection={
-                        <MantineIcon icon={IconBrandGithub} size={14} />
-                    }
-                >
-                    Open pull requests as you
-                </Menu.Item>
-            ) : null}
-        </>
-    );
-};
-
 /**
  * Inline card rendered after a `editDbtProject` tool call lands. The
  * agent's textual reply intentionally omits the URL (the editDbtProject
@@ -407,7 +252,6 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     startedAt,
 }) => {
     const quiet = useContext(QuietCardsContext);
-    const [, setSearchParams] = useSearchParams();
     // Hooks must run before the early returns below; the query is disabled until
     // there's a PR URL, so the error/no-PR branches don't fetch anything.
     const prUrl = metadata.status === 'success' ? metadata.prUrl : null;
@@ -640,6 +484,20 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
         );
     }
 
+    // In Studio the turn ends with its summary: what changed, whether it compiles, and what to do next.
+    if (quiet) {
+        return (
+            <DbtTurnSummaryCard
+                projectUuid={projectUuid}
+                prUrl={metadata.prUrl}
+                commitSha={metadata.commitSha ?? null}
+                previewUrl={isBitbucket ? null : (metadata.previewUrl ?? null)}
+                changedModels={metadata.changedModels ?? []}
+                ciChecks={ciChecks ?? null}
+            />
+        );
+    }
+
     const summary = summarisePrUrl(metadata.prUrl);
     // The commit this card is pinned to — shown so the user can see each turn's
     // card tracks its own commit (and its CI), not just the PR's live head.
@@ -651,7 +509,6 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     const deletions = metadata.deletions ?? null;
     const hasDiffStat = additions !== null || deletions !== null;
     const title = 'Edited semantic layer';
-    const isOpen = !ciChecks?.merged && ciChecks?.state !== 'closed';
     const resolvedPrUrl = metadata.prUrl;
 
     return (
@@ -765,41 +622,8 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                     : (metadata.previewUrl ?? null)
                             }
                             commitSha={metadata.commitSha ?? null}
-                        >
-                            {quiet && isOpen && !isBitbucket ? (
-                                <OpenPullRequestMenuItems
-                                    projectUuid={projectUuid}
-                                    isGithub={resolvedHostIsGithub(
-                                        resolvedPrUrl,
-                                    )}
-                                    onClose={(onClosed) =>
-                                        close(
-                                            { prUrl: resolvedPrUrl },
-                                            { onSuccess: onClosed },
-                                        )
-                                    }
-                                />
-                            ) : null}
-                        </PullRequestViewMenu>
-                        {/* In Studio the workspace holds the changes and the bar merges them; the card points there. */}
-                        {quiet && isOpen ? (
-                            <>
-                                <PullRequestCardTryIt
-                                    projectUuid={projectUuid}
-                                    prUrl={metadata.prUrl}
-                                />
-                                <Button
-                                    size="compact-xs"
-                                    variant="default"
-                                    onClick={() =>
-                                        setSearchParams({ view: 'changes' })
-                                    }
-                                >
-                                    View changes
-                                </Button>
-                            </>
-                        ) : null}
-                        {!isBitbucket && !(quiet && isOpen) && (
+                        />
+                        {!isBitbucket && (
                             <PullRequestActionButtons
                                 ciChecks={ciChecks ?? null}
                                 isMerging={isMerging}
@@ -833,13 +657,6 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                         )}
                     </Box>
                 </Box>
-                {quiet && isOpen ? (
-                    <DraftProgress
-                        projectUuid={projectUuid}
-                        prUrl={metadata.prUrl}
-                        commitSha={metadata.commitSha ?? null}
-                    />
-                ) : null}
                 {!isBitbucket && (
                     <PullRequestCiChecks
                         prUrl={metadata.prUrl}
