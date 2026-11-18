@@ -1,3 +1,18 @@
+# [3.316.0](https://github.com/lightdash/lightdash/compare/3.315.0...3.316.0) (2026-11-18)
+
+
+### Bug Fixes
+
+* **semantic-studio:** keep Explore from showing the published model under a draft ([#32876](https://github.com/lightdash/lightdash/issues/32876)) ([b240d22](https://github.com/lightdash/lightdash/commit/b240d2276832d275e51821e35154a8a7285b5cf6))
+* **writeback:** merging a pull request needs write access to the project's branch ([#32883](https://github.com/lightdash/lightdash/issues/32883)) ([061daed](https://github.com/lightdash/lightdash/commit/061daedc6289ad2d4a2347633d8ad67536aa4ff9))
+
+
+### Features
+
+* **semantic-studio:** publish the checked-out dbt draft ([#32884](https://github.com/lightdash/lightdash/issues/32884)) ([d8fdceb](https://github.com/lightdash/lightdash/commit/d8fdceb5fc0aca37128a27fe70141110a1bd628e))
+* **semantic-studio:** publish the checked-out dbt draft from Studio ([#32885](https://github.com/lightdash/lightdash/issues/32885)) ([0021a8d](https://github.com/lightdash/lightdash/commit/0021a8dd3c83cc6cd10eca64466dc1e558039d08))
+* **semantic-studio:** show a dbt draft's compile in the Studio picker ([#32877](https://github.com/lightdash/lightdash/issues/32877)) ([552d903](https://github.com/lightdash/lightdash/commit/552d9039e14dfe893d395a16add6a35e31f7045d))
+
 # [3.315.0](https://github.com/lightdash/lightdash/compare/3.314.0...3.315.0) (2026-11-18)
 
 

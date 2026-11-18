@@ -42910,6 +42910,64 @@
                 "$ref": "#/components/schemas/ApiSuccess_SemanticStudioCheckout-or-null_",
                 "description": "Null when the person is on what is published."
             },
+            "MergePullRequestResult": {
+                "properties": {
+                    "sha": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The resulting merge commit SHA, when the provider returns one."
+                    },
+                    "merged": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["sha", "merged"],
+                "type": "object",
+                "description": "Outcome of a pull request merge."
+            },
+            "WritebackMergeResult": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/MergePullRequestResult"
+                    },
+                    {
+                        "properties": {
+                            "compileJobUuid": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Null when none was started, as for a project not deployed from git."
+                            }
+                        },
+                        "required": ["compileJobUuid"],
+                        "type": "object"
+                    }
+                ],
+                "description": "A write-back merge, and the project compile it started so the change goes live."
+            },
+            "ApiWritebackMergeResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/WritebackMergeResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "SemanticStudioPublishBody": {
+                "properties": {
+                    "prUrl": {
+                        "type": "string"
+                    }
+                },
+                "required": ["prUrl"],
+                "type": "object",
+                "description": "The pull request of the checked-out draft, so a stale page cannot publish another one."
+            },
             "SemanticStudioSources": {
                 "properties": {
                     "files": {
@@ -47211,54 +47269,6 @@
                 "required": ["results", "status"],
                 "type": "object",
                 "description": "The raw unified diff of a write-back pull request (or a single pinned commit\nwithin it), for the chat card's diff viewer. Null when it can't be resolved\n(unsupported source control, no app installation, PR not found, diff too\nlarge for the provider to return)."
-            },
-            "MergePullRequestResult": {
-                "properties": {
-                    "sha": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "The resulting merge commit SHA, when the provider returns one."
-                    },
-                    "merged": {
-                        "type": "boolean"
-                    }
-                },
-                "required": ["sha", "merged"],
-                "type": "object",
-                "description": "Outcome of a pull request merge."
-            },
-            "WritebackMergeResult": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/MergePullRequestResult"
-                    },
-                    {
-                        "properties": {
-                            "compileJobUuid": {
-                                "type": "string",
-                                "nullable": true,
-                                "description": "Null when none was started, as for a project not deployed from git."
-                            }
-                        },
-                        "required": ["compileJobUuid"],
-                        "type": "object"
-                    }
-                ],
-                "description": "A write-back merge, and the project compile it started so the change goes live."
-            },
-            "ApiWritebackMergeResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/WritebackMergeResult"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
             },
             "MergePullRequestRequestBody": {
                 "properties": {
@@ -80301,7 +80311,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.315.0",
+        "version": "3.316.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -94796,6 +94806,57 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/checkout/publish": {
+            "post": {
+                "operationId": "publishSemanticStudioCheckout",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiWritebackMergeResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Publishes your checked-out dbt draft: merges its pull request once its branch compiled.",
+                "summary": "Publish my Semantic Studio checkout",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SemanticStudioPublishBody"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/semantic-studio/sources": {
