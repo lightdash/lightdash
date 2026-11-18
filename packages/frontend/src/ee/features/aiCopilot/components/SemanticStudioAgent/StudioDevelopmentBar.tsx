@@ -54,26 +54,50 @@ import {
     type StudioPullRequest,
 } from './useStudioPullRequest';
 
-/** Why an open pull request cannot be merged yet. */
-const getBlockedReason = (ciChecks: CiChecks | null): string => {
+/** Why an open pull request cannot be merged yet: a word for the button, and the sentence behind it. */
+const getBlockedReason = (
+    ciChecks: CiChecks | null,
+): { label: string; reason: string } => {
     const mergeState = ciChecks?.mergeState;
     switch (mergeState) {
         case undefined:
         case CiMergeState.READY:
         case CiMergeState.UNSTABLE:
         case CiMergeState.UNKNOWN:
-            return 'Checking whether the draft can be published.';
+            return {
+                label: 'Checking',
+                reason: 'Checking whether the draft can be published.',
+            };
         case CiMergeState.BLOCKED:
-            return 'A required check failed or a review is missing.';
+            return {
+                label: 'Blocked',
+                reason: 'A required check failed or a review is missing.',
+            };
         case CiMergeState.CONFLICTS:
-            return 'The draft has conflicts to resolve first.';
+            return {
+                label: 'Has conflicts',
+                reason: 'The draft has conflicts to resolve first.',
+            };
         case CiMergeState.BEHIND:
-            return 'The branch is behind its base and needs updating first.';
+            return {
+                label: 'Behind base',
+                reason: 'The branch is behind its base and needs updating first.',
+            };
         case CiMergeState.DRAFT:
-            return 'Mark the pull request ready for review first.';
+            return {
+                label: 'Not ready for review',
+                reason: 'Mark the pull request ready for review first.',
+            };
         default:
             return assertUnreachable(mergeState, 'Unknown merge state');
     }
+};
+
+type PublishStep = {
+    label: string;
+    hint: string;
+    /** What a click does; null while there is nothing to do but wait or fix it elsewhere. */
+    action: 'compile' | 'publish' | null;
 };
 
 /** What a dbt project's Studio conversation has saved so far: its pull request, a look at the result, and publishing it. */
@@ -122,17 +146,43 @@ export const StudioDevelopmentBar: FC<{
         );
     const compile = checkout?.branchCompile ?? null;
     const { data: credential } = useGithubUserCredential();
-    const isCompileFailed = compile?.status === 'failed';
-    // Publishing merges straight into the branch, so it waits on the right to write there and on a passing compile.
-    const publishBlocker =
-        compile?.status !== 'ready'
-            ? ((compile && describeBranchCompile(compile)) ??
-              'Publish once the latest edit compiles.')
-            : isMergeable(ciChecks)
-              ? null
-              : getBlockedReason(ciChecks);
+    // Publishing merges straight into the branch, so the button names the step the draft is on: compile, then checks, then publish.
+    const step = ((): PublishStep => {
+        if (!compile) {
+            return {
+                label: 'Compile',
+                hint: 'This draft has not been compiled yet. Compile it to publish it.',
+                action: 'compile',
+            };
+        }
+        if (compile.status === 'compiling') {
+            return {
+                label: 'Compiling',
+                hint:
+                    describeBranchCompile(compile) ??
+                    'Publish once the latest edit compiles.',
+                action: null,
+            };
+        }
+        if (compile.status === 'failed') {
+            return {
+                label: 'Compile failed',
+                hint: `${compile.error ?? 'The latest compile failed.'} Click to compile again.`,
+                action: 'compile',
+            };
+        }
+        if (!isMergeable(ciChecks)) {
+            const { label, reason } = getBlockedReason(ciChecks);
+            return { label, hint: reason, action: null };
+        }
+        return {
+            label: 'Publish',
+            hint: `Merges ${destination}.`,
+            action: 'publish',
+        };
+    })();
     // One filled button: trying it until it can be published, then publishing.
-    const canPublish = isMine && canWriteBranch && publishBlocker === null;
+    const canPublish = isMine && canWriteBranch && step.action === 'publish';
     return (
         <DevelopmentBar summary={null}>
             <TryItButton
@@ -158,23 +208,14 @@ export const StudioDevelopmentBar: FC<{
                     </Button>
                 </Tooltip>
             ) : isMine ? (
-                <Tooltip
-                    multiline
-                    w={240}
-                    label={
-                        isCompileFailed
-                            ? `${compile?.error ?? 'The latest compile failed.'} Click to compile again.`
-                            : (publishBlocker ?? `Merges ${destination}.`)
-                    }
-                >
-                    {/* Publish waits on the draft's compile, so the button says where that stands. */}
+                <Tooltip multiline w={240} label={step.hint}>
                     <Button
                         size="xs"
                         variant={canPublish ? 'filled' : 'default'}
                         leftSection={
                             compile?.status === 'compiling' ? (
                                 <Loader size={12} color="gray" />
-                            ) : isCompileFailed ? (
+                            ) : compile?.status === 'failed' ? (
                                 <MantineIcon
                                     icon={IconAlertTriangle}
                                     size={14}
@@ -183,20 +224,16 @@ export const StudioDevelopmentBar: FC<{
                             ) : null
                         }
                         loading={compileAgain.isLoading}
-                        data-disabled={
-                            (!isCompileFailed && !!publishBlocker) || undefined
-                        }
-                        aria-disabled={!isCompileFailed && !!publishBlocker}
+                        data-disabled={step.action === null || undefined}
+                        aria-disabled={step.action === null}
                         onClick={() => {
-                            if (isCompileFailed) compileAgain.mutate();
-                            else if (!publishBlocker) setPublishing(true);
+                            if (step.action === 'compile')
+                                compileAgain.mutate();
+                            else if (step.action === 'publish')
+                                setPublishing(true);
                         }}
                     >
-                        {compile?.status === 'compiling'
-                            ? 'Compiling'
-                            : isCompileFailed
-                              ? 'Compile failed'
-                              : 'Publish'}
+                        {step.label}
                     </Button>
                 </Tooltip>
             ) : null}
