@@ -132,7 +132,7 @@ export const getCreateContent = ({
     chartsEnabled = true,
     artifacts,
 }: Dependencies) => {
-    // A composer chart create carries its SQL in the call, so approval reads it from there.
+    // A composer chart create carries any SQL in the call itself.
     const sqlChartGate = createSqlChartGate(
         sqlChartSaving,
         'createContent',
@@ -142,9 +142,8 @@ export const getCreateContent = ({
 
     const getCreateArgs = async (
         args: { type: string; content: unknown },
-        approveSql: ApproveSqlFn,
-        // Null without SQL mode, so composer JSON with warehouse SQL is refused.
-        composerApproveSql: ApproveSqlFn | null,
+        // Null when the thread does not gate the call.
+        approveSql: ApproveSqlFn | null,
     ): Promise<Parameters<CreateContentFn>[0]> => {
         switch (args.type) {
             case 'document':
@@ -161,13 +160,13 @@ export const getCreateContent = ({
                     content: toolSqlChartAsCodeSchema.parse(
                         args.content,
                     ) as SqlChartAsCode,
-                    approveSql,
+                    approveSql: approveSql ?? approveClientSql,
                 };
             case 'composer_chart':
                 return {
                     type: 'composer_chart',
                     content: z
-                        .union([
+                        .discriminatedUnion('from', [
                             toolComposerChartFromNodeSchema,
                             toolComposerChartAsCodeContentSchema,
                         ])
@@ -175,7 +174,7 @@ export const getCreateContent = ({
                     approveSql:
                         sqlChartSaving.mode === 'client_approved'
                             ? approveClientSql
-                            : composerApproveSql,
+                            : approveSql,
                 };
             default:
                 return args as Parameters<CreateContentFn>[0];
@@ -197,11 +196,7 @@ export const getCreateContent = ({
                 try {
                     variant.schema.parse(args);
                     const result = await createContent(
-                        await getCreateArgs(
-                            args,
-                            approveSql ?? approveClientSql,
-                            approveSql,
-                        ),
+                        await getCreateArgs(args, approveSql),
                     );
                     const created = toCreatedContent(
                         result,

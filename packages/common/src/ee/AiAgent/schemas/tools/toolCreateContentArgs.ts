@@ -9,7 +9,7 @@ export const SQL_CHART_CREATE_GUIDANCE =
     'A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them.';
 
 export const COMPOSER_CHART_CREATE_GUIDANCE =
-    'A composer chart (type composer_chart) belongs to an existing dashboard and gets a tile at the bottom of its first tab. Create it from a query node (nodeId, with the vizConfig the user saw), or from full pipeline and chart JSON; the composer-chart-reference skill resource has both. Warehouse SQL written in the JSON needs the same approval as a SQL chart; a node\'s SQL was approved when query ran it.';
+    'A composer chart (type composer_chart) is saved onto an existing dashboard, from a query node (from: "node") or from full pipeline and chart JSON (from: "json"); the composer-chart-reference skill resource has both shapes and when each needs SQL approval.';
 
 export const TOOL_CREATE_CONTENT_DESCRIPTION = ({
     runtime,
@@ -105,54 +105,38 @@ const composerChartOwnerShape = {
     dashboardSlug: z
         .string()
         .min(1)
-        .describe(
-            'The existing dashboard the chart belongs to; it gets a tile at the bottom of its first tab.',
-        ),
+        .describe('The existing dashboard the chart belongs to.'),
     name: z.string().min(1),
     description: z.string().nullable(),
 };
 
 export const toolComposerChartFromNodeSchema = z
-    .object({
+    .strictObject({
+        from: z.literal('node'),
         ...composerChartOwnerShape,
-        nodeId: z
-            .string()
-            .describe(
-                'A node from a successful query call; the chart saves it and every node it reads.',
-            ),
+        nodeId: z.string().describe('A node from a successful query call.'),
         sessionId: z
             .string()
             .nullable()
-            .describe(
-                'The query sessionId holding the node. Null in an agent conversation, which keeps its own nodes.',
-            ),
+            .describe('The query result\'s sessionId; null in an agent conversation.'),
         vizConfig: composerChartVizConfigSchema,
     })
-    .describe(
-        'Composer chart from a query node: its pipeline and chart are built from the node.',
-    );
+    .describe('Composer chart built from a query node.');
 
 export type ToolComposerChartFromNode = z.infer<
     typeof toolComposerChartFromNodeSchema
 >;
 
-/** A node shortcut, not full JSON: the server builds its pipeline and chart. */
-export const isComposerChartFromNode = (
-    content: ToolComposerChartFromNode | ToolComposerChartAsCodeContent,
-): content is ToolComposerChartFromNode =>
-    typeof content.nodeId === 'string' && !('pipeline' in content);
-
 export const toolComposerChartAsCodeContentSchema = z
     .object({
+        from: z.literal('json'),
         ...composerChartOwnerShape,
         pipeline: z.record(z.string(), z.unknown()),
         chart: z.record(z.string(), z.unknown()),
     })
     // Accepts a readContent composer_chart result as it is; its slug is not kept.
     .passthrough()
-    .describe(
-        'Full composer chart JSON (pipeline and chart), as readContent returns it.',
-    );
+    .describe('Composer chart from full pipeline and chart JSON.');
 
 export type ToolComposerChartAsCodeContent = z.infer<
     typeof toolComposerChartAsCodeContentSchema

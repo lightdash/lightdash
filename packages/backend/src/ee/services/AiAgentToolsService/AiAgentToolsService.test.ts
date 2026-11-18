@@ -4990,6 +4990,7 @@ describe('AiAgentToolsService createContent composer_chart', () => {
         limit: 500,
     };
     const fromNode = {
+        from: 'node' as const,
         dashboardSlug: 'sales',
         name: 'Amount by status',
         description: null,
@@ -5007,6 +5008,7 @@ describe('AiAgentToolsService createContent composer_chart', () => {
         },
     };
     const fromJson = {
+        from: 'json' as const,
         dashboardSlug: 'sales',
         name: 'Amount by status',
         description: null,
@@ -5016,10 +5018,12 @@ describe('AiAgentToolsService createContent composer_chart', () => {
 
     const makeCreateService = ({
         threadBinding = null,
+        boundDashboardSlug = 'ops',
         source = 'ai_agent',
         sessionOwned = true,
     }: {
         threadBinding?: AiAgentToolsRuntimeContext['threadBinding'];
+        boundDashboardSlug?: string;
         source?: 'ai_agent' | 'mcp';
         sessionOwned?: boolean;
     } = {}) => {
@@ -5032,6 +5036,11 @@ describe('AiAgentToolsService createContent composer_chart', () => {
         const listComposerQueryNodes = vi
             .fn()
             .mockResolvedValue([rawNode, shapedNode]);
+        // Columns stored when query ran the node, so saving runs nothing.
+        const findComposerQueryNodeColumns = vi.fn().mockResolvedValue([
+            { reference: 'status', type: 'string' },
+            { reference: 'amount', type: 'number' },
+        ]);
         const service = makeService({
             dashboardService: {
                 getByIdOrSlug: vi.fn().mockResolvedValue(salesDashboard),
@@ -5040,7 +5049,7 @@ describe('AiAgentToolsService createContent composer_chart', () => {
             dashboardModel: {
                 getByIdOrSlug: vi.fn().mockResolvedValue({
                     uuid: 'bound-uuid',
-                    slug: 'ops',
+                    slug: boundDashboardSlug,
                 }),
             },
             coderService: {
@@ -5062,28 +5071,9 @@ describe('AiAgentToolsService createContent composer_chart', () => {
             },
             aiAgentModel: {
                 listComposerQueryNodes,
+                findComposerQueryNodeColumns,
                 useComposerSession: vi.fn().mockResolvedValue(sessionOwned),
             },
-        });
-        const run = vi.spyOn(
-            service as unknown as {
-                runComposerQueries: (...args: unknown[]) => Promise<unknown>;
-            },
-            'runComposerQueries',
-        );
-        run.mockResolvedValue({
-            status: 'success',
-            submissions: [],
-            terminal: {
-                queryUuid: 'query-uuid',
-                columns: {
-                    status: { reference: 'status', type: 'string' },
-                    amount: { reference: 'amount', type: 'number' },
-                },
-                rows: [],
-                rowCount: 0,
-            },
-            nodeStatuses: [],
         });
         const runtime =
             source === 'mcp'
@@ -5096,11 +5086,11 @@ describe('AiAgentToolsService createContent composer_chart', () => {
                           threadUuid: 'thread-uuid',
                       }),
                   );
-        return { runtime, create, update, run, listComposerQueryNodes };
+        return { runtime, create, update, listComposerQueryNodes };
     };
 
     it('saves a query node with the nodes it reads, then adds its tile below the first tab, asking no approval', async () => {
-        const { runtime, create, update, run } = makeCreateService();
+        const { runtime, create, update } = makeCreateService();
         const approveSql = vi.fn();
 
         const created = await runtime.createContent({
@@ -5109,13 +5099,6 @@ describe('AiAgentToolsService createContent composer_chart', () => {
             approveSql,
         });
 
-        expect(run).toHaveBeenCalledWith(
-            expect.anything(),
-            expect.objectContaining({
-                queries: [rawNode, shapedNode],
-                terminalNodeId: 'shaped',
-            }),
-        );
         const [, , saved] = create.mock.calls[0];
         expect(saved).toMatchObject({
             dashboardUuid: 'sales-uuid',
@@ -5191,6 +5174,21 @@ describe('AiAgentToolsService createContent composer_chart', () => {
         ).rejects.toThrow(ParameterError);
         expect(create).not.toHaveBeenCalled();
         expect(update).not.toHaveBeenCalled();
+    });
+
+    it('saves to the bound dashboard when it is named by uuid', async () => {
+        const { runtime, create } = makeCreateService({
+            threadBinding: { type: 'dashboard', dashboardUuid: 'bound-uuid' },
+            boundDashboardSlug: 'sales',
+        });
+
+        await runtime.createContent({
+            type: 'composer_chart',
+            content: { ...fromNode, dashboardSlug: 'sales-uuid' },
+            approveSql: vi.fn(),
+        });
+
+        expect(create).toHaveBeenCalled();
     });
 
     it('reads MCP nodes only from a query session the caller owns', async () => {

@@ -7,12 +7,15 @@ import {
     AppVizBuildContext,
     assertRegisteredAccount,
     assertUnreachable,
+    buildComposerArtifactPipeline,
     CatalogFilter,
     CatalogType,
+    ChartType,
     COMPOSER_NODE_SAMPLE_ROW_LIMIT,
     COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
     ConflictError,
     ContentType,
+    DashboardTileTypes,
     DATA_APP_VIZ_TEMPLATE,
     dataAppVizSchema,
     DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
@@ -28,29 +31,18 @@ import {
     findFieldByIdInExplore,
     ForbiddenError,
     getAppDisplayName,
-    buildComposerArtifactPipeline,
-    ChartType,
-    DashboardTileTypes,
     getComposerChartPatchSql,
     getComposerChartSaveDraft,
-    getDefaultChartTileSize,
-    getSqlApprovalSql,
-    toComposerChartArtifactVersion,
-    type ComposerChartSaveCustomChartType,
-    type ComposerStoredChart,
-    type ComposerStoredChartAsCode,
-    type ComposerStoredChartVizConfig,
-    type CreateDashboardComposerChartTile,
-    isComposerChartFromNode,
-    type ToolComposerChartFromNode,
     getConnectionDefaults,
     getContentAsCodePathFromLtreePath,
     getDateZoomXAxisFieldId,
+    getDefaultChartTileSize,
     getDocumentSummaryMarkdown,
     getDocumentUrl,
     getErrorMessage,
     getItemMap,
     getLtreePathFromContentAsCodePath,
+    getSqlApprovalSql,
     getTileControl,
     getValidAiQueryLimit,
     isDashboardChartTileType,
@@ -67,6 +59,7 @@ import {
     normalizeDateZoomConfig,
     NotFoundError,
     ParameterError,
+    parseComposerPipeline,
     parseDocumentBlocks,
     parseDocumentContent,
     QueryExecutionContext,
@@ -79,6 +72,7 @@ import {
     shouldUseStaticFilterAutocomplete,
     SourceQuerySubmission,
     TimeoutError,
+    toComposerChartArtifactVersion,
     toMcpCustomChartTypeVizSchema,
     UnexpectedServerError,
     UserAttributeValueMap,
@@ -94,6 +88,10 @@ import {
     type ChartAsCode,
     type ComposerChartAsCode,
     type ComposerChartPipeline,
+    type ComposerStoredChart,
+    type ComposerStoredChartAsCode,
+    type ComposerStoredChartVizConfig,
+    type CreateDashboardComposerChartTile,
     type CustomChartType,
     type Dashboard,
     type DashboardAsCode,
@@ -106,10 +104,15 @@ import {
     type McpListCustomChartTypesOutput,
     type ParameterDefinitions,
     type PersistedDataAppDataReferences,
+    type RegisteredAccount,
+    type ResultColumn,
     type SavedChartDAO,
     type SchedulerAiAugmentation,
+    type SourceQuery,
     type SqlChart,
     type SqlChartAsCode,
+    type ToolComposerChartAsCodeContent,
+    type ToolComposerChartFromNode,
 } from '@lightdash/common';
 import * as JsonPatch from 'fast-json-patch';
 import { mcpAgentPermissionsApply } from '../../../auth/agentPermissions/caller';
@@ -594,6 +597,7 @@ type AiAgentToolsServiceDependencies = {
         | 'findToolResultsByToolCallIds'
         | 'findThreadDashboardRuntimeOverrides'
         | 'listComposerQueryNodes'
+        | 'findComposerQueryNodeColumns'
         | 'useComposerSession'
     >;
     featureFlagService: FeatureFlagService;
@@ -4242,33 +4246,69 @@ export class AiAgentToolsService extends BaseService {
         };
     }
 
-    /** The query node store this conversation reads: an agent thread, or an MCP query session. */
+    /** The query node store this conversation reads: an agent thread, or an MCP query session the caller owns. */
     private async getComposerNodeScope(
         context: AiAgentToolsRuntimeContext,
         sessionId: string | null,
-    ): Promise<ComposerQueryNodeScope> {
+    ): Promise<{ scope: ComposerQueryNodeScope; scopeName: string }> {
         if (context.source === 'mcp') {
-            if (
-                sessionId === null ||
-                !(await this.aiAgentModel.useComposerSession({
-                    sessionUuid: sessionId,
-                    userUuid: context.user.userUuid,
-                    organizationUuid: context.organizationUuid,
-                    projectUuid: context.projectUuid,
-                }))
-            ) {
+            if (sessionId === null) {
                 throw new ParameterError(
-                    `sessionId ${sessionId === null ? 'is required' : `"${sessionId}" is unknown or belongs to another user or project`}: pass the sessionId the query result returned for this node.`,
+                    'sessionId is required: pass the sessionId the query result returned for this node.',
                 );
             }
-            return composerSessionScope(sessionId);
+            const owned = await this.aiAgentModel.useComposerSession({
+                sessionUuid: sessionId,
+                userUuid: context.user.userUuid,
+                organizationUuid: context.organizationUuid,
+                projectUuid: context.projectUuid,
+            });
+            if (!owned) {
+                throw new ParameterError(
+                    `sessionId "${sessionId}" is unknown or belongs to another user or project: pass the sessionId the query result returned for this node.`,
+                );
+            }
+            return { scope: composerSessionScope(sessionId), scopeName: 'session' };
         }
         if (!context.threadUuid) {
             throw new ParameterError(
                 'Composer charts can only be saved from a query node inside a conversation.',
             );
         }
-        return threadComposerQueryScope(context.threadUuid);
+        return {
+            scope: threadComposerQueryScope(context.threadUuid),
+            scopeName: 'conversation',
+        };
+    }
+
+    /** The node's result columns as stored when query ran it; runs the node only for nodes stored without them. */
+    private async getComposerNodeResultColumns(
+        context: AiAgentToolsRuntimeContext,
+        scope: ComposerQueryNodeScope,
+        queries: SourceQuery[],
+        nodeId: string,
+    ): Promise<ResultColumn[]> {
+        const stored = await this.aiAgentModel.findComposerQueryNodeColumns({
+            scope,
+            nodeId,
+        });
+        if (stored) return stored;
+        const run = await this.runComposerQueries(context, {
+            queries,
+            terminalNodeId: nodeId,
+            otherUnreadNodeIds: [],
+            sampleNodeIds: [],
+            deadlineMs: Date.now() + 5 * 60 * 1000,
+            timeoutMessage: 'Composer query timed out after 5 minutes.',
+        });
+        if (run.status !== 'success') {
+            throw new ParameterError(
+                `Node "${nodeId}" did not run, so nothing was saved: ${
+                    run.status === 'failure' ? run.error : 'it timed out'
+                }`,
+            );
+        }
+        return Object.values(run.terminal.columns);
     }
 
     /** Builds the pipeline and chart from a query node as the UI's Save does; the node's SQL was approved when query ran it. */
@@ -4277,7 +4317,7 @@ export class AiAgentToolsService extends BaseService {
         content: ToolComposerChartFromNode,
     ): Promise<{ pipeline: ComposerChartPipeline; chart: ComposerStoredChart }> {
         const { nodeId, vizConfig, name, description } = content;
-        const scope = await this.getComposerNodeScope(
+        const { scope, scopeName } = await this.getComposerNodeScope(
             context,
             content.sessionId,
         );
@@ -4285,7 +4325,7 @@ export class AiAgentToolsService extends BaseService {
         const node = nodes.find((n) => n.nodeId === nodeId);
         if (!node) {
             throw new ParameterError(
-                `Node "${nodeId}" is not a node of this ${context.source === 'mcp' ? 'session' : 'conversation'}; run it with query first.`,
+                `Node "${nodeId}" is not a node of this ${scopeName}; run it with query first.`,
             );
         }
         const queries = buildComposerArtifactPipeline({
@@ -4313,24 +4353,6 @@ export class AiAgentToolsService extends BaseService {
                 `Custom chart type "${vizConfig.customChartTypeSlug}" was not found in this project.`,
             );
         }
-        const customChartType: ComposerChartSaveCustomChartType | null =
-            resolved && { status: 'ready', slots: resolved.schema.fields };
-        // The chart's columns come from the node's result, as the UI reads them; usually a cache hit.
-        const run = await this.runComposerQueries(context, {
-            queries,
-            terminalNodeId: nodeId,
-            otherUnreadNodeIds: [],
-            sampleNodeIds: [],
-            deadlineMs: Date.now() + 5 * 60 * 1000,
-            timeoutMessage: 'Composer query timed out after 5 minutes.',
-        });
-        if (run.status !== 'success') {
-            throw new ParameterError(
-                `Node "${nodeId}" did not run, so nothing was saved: ${
-                    run.status === 'failure' ? run.error : 'it timed out'
-                }`,
-            );
-        }
         const draft = getComposerChartSaveDraft({
             config: toComposerChartArtifactVersion({
                 title: name,
@@ -4339,9 +4361,17 @@ export class AiAgentToolsService extends BaseService {
                 terminalNodeId: nodeId,
                 vizConfig: storedVizConfig,
             }).vizConfig,
-            columns: Object.values(run.terminal.columns),
+            columns: await this.getComposerNodeResultColumns(
+                context,
+                scope,
+                queries,
+                nodeId,
+            ),
             metadata: { title: name, description: description ?? '' },
-            customChartType,
+            customChartType: resolved && {
+                status: 'ready',
+                slots: resolved.schema.fields,
+            },
         });
         if (draft.status === 'unavailable') {
             throw new ParameterError(
@@ -4349,6 +4379,47 @@ export class AiAgentToolsService extends BaseService {
             );
         }
         return { pipeline: draft.pipeline, chart: draft.chart };
+    }
+
+    /** Full JSON: its warehouse SQL waits on approval after every other check. */
+    private async buildComposerChartFromJson(
+        context: AiAgentToolsRuntimeContext,
+        account: RegisteredAccount,
+        content: ToolComposerChartAsCodeContent,
+        approveSql: ApproveSqlFn | null,
+    ): Promise<{ pipeline: ComposerChartPipeline; chart: ComposerStoredChart }> {
+        const pipeline = parseComposerPipeline(content.pipeline);
+        const chart = await this.coderService.toStoredComposerChart(
+            context.projectUuid,
+            content.chart as ComposerStoredChartAsCode,
+        );
+        // The same SQL text the approval check read from the call.
+        const approvalSql = getSqlApprovalSql({
+            type: 'composer_chart',
+            content,
+        });
+        if (approvalSql === null) return { pipeline, chart };
+        if (!approveSql) {
+            throw new ForbiddenError(COMPOSER_CHART_SQL_DISABLED_MESSAGE);
+        }
+        await this.assertToolEffectAllowed(
+            context,
+            'createContent.composer_chart_sql',
+        );
+        await this.composerChartService.preflightPipeline(
+            account,
+            {
+                organizationUuid: context.organizationUuid,
+                projectUuid: context.projectUuid,
+            },
+            pipeline,
+        );
+        await approveSql({
+            sql: approvalSql,
+            chartName: content.name,
+            sqlChanged: true,
+        });
+        return { pipeline, chart };
     }
 
     /** Saves as the UI's Save does: the chart, then its tile at the bottom of the dashboard's first tab. */
@@ -4365,10 +4436,15 @@ export class AiAgentToolsService extends BaseService {
             context,
             'Composer charts are not enabled for this organization',
         );
+        const dashboard = await this.dashboardService.getByIdOrSlug(
+            context.user,
+            dashboardSlug,
+            { projectUuid: context.projectUuid },
+        );
         const bound = await this.getBoundResource(context);
         if (
             bound !== null &&
-            (bound.type !== 'dashboard' || bound.slug !== dashboardSlug)
+            (bound.type !== 'dashboard' || bound.slug !== dashboard.slug)
         ) {
             await this.refuseOutsideThreadBinding(context, {
                 objectType: 'composer_chart',
@@ -4379,60 +4455,20 @@ export class AiAgentToolsService extends BaseService {
         }
         await this.assertDashboardSpaceInScope(
             context,
-            dashboardSlug,
+            dashboard.uuid,
             `Dashboard "${dashboardSlug}" was not found`,
             'update',
         );
 
-        let pipeline: ComposerChartPipeline;
-        let chart: ComposerStoredChart;
-        if (isComposerChartFromNode(content)) {
-            ({ pipeline, chart } = await this.buildComposerChartFromNode(
-                context,
-                content,
-            ));
-        } else {
-            pipeline = content.pipeline as ComposerChartPipeline;
-            chart = await this.coderService.toStoredComposerChart(
-                context.projectUuid,
-                content.chart as ComposerStoredChartAsCode,
-            );
-            // Same SQL text the approval check read from the call.
-            const approvalSql = getSqlApprovalSql({
-                type: 'composer_chart',
-                content,
-            });
-            if (approvalSql !== null) {
-                if (!approveSql) {
-                    throw new ForbiddenError(
-                        COMPOSER_CHART_SQL_DISABLED_MESSAGE,
-                    );
-                }
-                await this.assertToolEffectAllowed(
-                    context,
-                    'createContent.composer_chart_sql',
-                );
-                await this.composerChartService.preflightPipeline(
-                    account,
-                    {
-                        organizationUuid: context.organizationUuid,
-                        projectUuid: context.projectUuid,
-                    },
-                    pipeline,
-                );
-                await approveSql({
-                    sql: approvalSql,
-                    chartName: name,
-                    sqlChanged: true,
-                });
-            }
-        }
-
-        const dashboard = await this.dashboardService.getByIdOrSlug(
-            context.user,
-            dashboardSlug,
-            { projectUuid: context.projectUuid },
-        );
+        const { pipeline, chart } =
+            content.from === 'node'
+                ? await this.buildComposerChartFromNode(context, content)
+                : await this.buildComposerChartFromJson(
+                      context,
+                      account,
+                      content,
+                      approveSql,
+                  );
         const composerChart = await this.composerChartService.create(
             account,
             context.projectUuid,

@@ -3662,10 +3662,6 @@ export class CoderService extends BaseService {
         };
     }
 
-    /**
-     * An unchanged file writes nothing and needs only create:ContentAsCode. A
-     * new or changed one runs every composer chart write check.
-     */
     /** A composer chart file's chart as stored: its custom chart type bound by uuid and version. */
     async toStoredComposerChart(
         projectUuid: string,
@@ -3680,6 +3676,10 @@ export class CoderService extends BaseService {
         };
     }
 
+    /**
+     * An unchanged file writes nothing and needs only create:ContentAsCode. A
+     * new or changed one runs every composer chart write check.
+     */
     async upsertComposerChart(
         user: SessionUser,
         account: RegisteredAccount,

@@ -148,6 +148,7 @@ describe('composer chart creates', () => {
     const fromJson = {
         type: 'composer_chart',
         content: {
+            from: 'json',
             dashboardSlug: 'sales',
             name: 'Revenue',
             description: null,
@@ -171,6 +172,7 @@ describe('composer chart creates', () => {
         const fromNode = {
             type: 'composer_chart',
             content: {
+                from: 'node',
                 dashboardSlug: 'sales',
                 name: 'Revenue',
                 description: null,

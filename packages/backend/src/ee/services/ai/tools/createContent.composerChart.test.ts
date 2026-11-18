@@ -1,8 +1,8 @@
 import type { CreateContentFn } from '../types/aiAgentDependencies';
 import { getCreateContent } from './createContent';
-import { approveClientSql } from './sqlApprovals';
 
 const fromNode = {
+    from: 'node' as const,
     dashboardSlug: 'sales',
     name: 'Amount by status',
     description: null,
@@ -20,52 +20,85 @@ const fromNode = {
     },
 };
 
-const createWith = async (
+const fromJson = {
+    from: 'json' as const,
+    dashboardSlug: 'sales',
+    name: 'Amount by status',
+    description: null,
+    pipeline: {
+        terminalNodeId: 'raw',
+        nodes: [{ nodeId: 'raw', sourceType: 'sql', sql: 'select 1' }],
+    },
+    chart: {},
+};
+
+// Asks for approval when given a step, as the content service does, then saves.
+const makeTool = (
     sqlChartSaving: Parameters<typeof getCreateContent>[0]['sqlChartSaving'],
 ) => {
-    const createContent = vi.fn<CreateContentFn>(async () => ({
-        type: 'composer_chart',
-        uuid: 'composer-chart-uuid',
-        href: '/projects/p/dashboards/sales-uuid/view#dashboard-link',
-        content: {
-            slug: 'amount-by-status',
-            name: 'Amount by status',
-        } as never,
-    }));
+    const save = vi.fn();
+    const createContent = vi.fn<CreateContentFn>(async (args) => {
+        if (args.type === 'composer_chart' && args.approveSql) {
+            await args.approveSql({
+                sql: 'select 1',
+                chartName: args.content.name,
+                sqlChanged: true,
+            });
+        }
+        save(args);
+        return {
+            type: 'composer_chart',
+            uuid: 'composer-chart-uuid',
+            href: '/projects/p/dashboards/sales-uuid/view#dashboard-link',
+            content: {
+                slug: 'amount-by-status',
+                name: 'Amount by status',
+            } as never,
+        };
+    });
     const tool = getCreateContent({
         createContent,
         siteUrl: 'https://example.lightdash.com',
         sqlChartSaving,
     });
-    const output = await tool.execute!(
-        { type: 'composer_chart', content: fromNode },
-        { messages: [], toolCallId: 'call', context: {} },
-    );
-    return { output, args: createContent.mock.calls[0]?.[0] };
+    const create = (content: unknown) =>
+        tool.execute!(
+            { type: 'composer_chart', content } as never,
+            { messages: [], toolCallId: 'call', context: {} },
+        ) as unknown as Promise<{ metadata: { status: string; slug?: string } }>;
+    return { create, save };
 };
 
 describe('createContent composer_chart', () => {
-    it('passes a query node through and links the saved chart', async () => {
-        const { output, args } = await createWith({ mode: 'disabled' });
+    it('saves a query node and links the saved chart', async () => {
+        const { create, save } = makeTool({ mode: 'disabled' });
 
-        expect(args).toMatchObject({
-            type: 'composer_chart',
-            content: fromNode,
-        });
-        expect(output).toMatchObject({
-            metadata: { status: 'success', slug: 'amount-by-status' },
+        const output = await create(fromNode);
+
+        expect(save).toHaveBeenCalledWith(
+            expect.objectContaining({ content: fromNode }),
+        );
+        expect(output.metadata).toMatchObject({
+            status: 'success',
+            slug: 'amount-by-status',
         });
     });
 
-    it('hands no approval step without SQL mode, so SQL in JSON is refused', async () => {
-        const { args } = await createWith({ mode: 'disabled' });
+    it('saves JSON with warehouse SQL once an MCP client approves its own call', async () => {
+        const { create, save } = makeTool({ mode: 'client_approved' });
 
-        expect(args).toMatchObject({ approveSql: null });
+        const output = await create(fromJson);
+
+        expect(save).toHaveBeenCalled();
+        expect(output.metadata.status).toBe('success');
     });
 
-    it('lets an MCP client approve its own call', async () => {
-        const { args } = await createWith({ mode: 'client_approved' });
+    it('refuses content that mixes a node with a pipeline, saving nothing', async () => {
+        const { create, save } = makeTool({ mode: 'client_approved' });
 
-        expect(args).toMatchObject({ approveSql: approveClientSql });
+        const output = await create({ ...fromNode, pipeline: fromJson.pipeline });
+
+        expect(output.metadata.status).toBe('error');
+        expect(save).not.toHaveBeenCalled();
     });
 });

@@ -149,10 +149,11 @@ const getComposerApprovalSql = (queries: unknown[]): string | null => {
     return sqlNodes.length > 0 ? sqlNodes.join('\n\n') : null;
 };
 
-/** Warehouse SQL a composer chart create writes as JSON; a node shortcut writes none. */
+/** Warehouse SQL a composer chart create writes as JSON; one from a query node writes none. */
 const getComposerCreateApprovalSql = (toolArgs: unknown): string | null =>
     isRecord(toolArgs) &&
     isRecord(toolArgs.content) &&
+    toolArgs.content.from === 'json' &&
     isRecord(toolArgs.content.pipeline) &&
     Array.isArray(toolArgs.content.pipeline.nodes)
         ? getComposerApprovalSql(toolArgs.content.pipeline.nodes)
@@ -214,9 +215,9 @@ export const getSqlApprovalSql = (toolArgs: unknown): string | null => {
         return toolArgs.content.sql;
     }
     if (isComposerChartContentArgs(toolArgs)) {
-        return 'patch' in toolArgs
-            ? getComposerChartApprovalSql(toolArgs.patch)
-            : getComposerCreateApprovalSql(toolArgs);
+        return isRecord(toolArgs.content)
+            ? getComposerCreateApprovalSql(toolArgs)
+            : getComposerChartApprovalSql(toolArgs.patch);
     }
     return getPatchedSql(toolArgs.patch);
 };

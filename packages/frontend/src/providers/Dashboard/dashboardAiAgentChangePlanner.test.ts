@@ -262,6 +262,7 @@ describe('planDashboardAiAgentChanges', () => {
                 toolArgs: {
                     type: 'composer_chart',
                     content: {
+                        from: 'node',
                         dashboardSlug,
                         name: 'Amount by status',
                         description: null,

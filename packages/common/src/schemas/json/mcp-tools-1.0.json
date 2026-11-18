@@ -9,7 +9,7 @@
                 "readOnlyHint": false,
                 "title": "Create content"
             },
-            "description": "Create a dashboard, chart, SQL chart or composer chart from its JSON; the developing-in-lightdash skill has the shapes. Save into a space whose canEdit is true in find_content or list_content results; a write to any other space is refused. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them. A composer chart (type composer_chart) belongs to an existing dashboard and gets a tile at the bottom of its first tab. Create it from a query node (nodeId, with the vizConfig the user saw), or from full pipeline and chart JSON; the composer-chart-reference skill resource has both. Warehouse SQL written in the JSON needs the same approval as a SQL chart; a node's SQL was approved when query ran it.",
+            "description": "Create a dashboard, chart, SQL chart or composer chart from its JSON; the developing-in-lightdash skill has the shapes. Save into a space whose canEdit is true in find_content or list_content results; a write to any other space is refused. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them. A composer chart (type composer_chart) is saved onto an existing dashboard, from a query node (from: \"node\") or from full pipeline and chart JSON (from: \"json\"); the composer-chart-reference skill resource has both shapes and when each needs SQL approval.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -237,14 +237,19 @@
                                 "type": "object"
                             },
                             {
-                                "description": "Composer chart from a query node: its pipeline and chart are built from the node.",
+                                "additionalProperties": false,
+                                "description": "Composer chart built from a query node.",
                                 "properties": {
                                     "dashboardSlug": {
-                                        "description": "The existing dashboard the chart belongs to; it gets a tile at the bottom of its first tab.",
+                                        "description": "The existing dashboard the chart belongs to.",
                                         "minLength": 1,
                                         "type": "string"
                                     },
                                     "description": {
+                                        "type": "string"
+                                    },
+                                    "from": {
+                                        "const": "node",
                                         "type": "string"
                                     },
                                     "name": {
@@ -252,11 +257,11 @@
                                         "type": "string"
                                     },
                                     "nodeId": {
-                                        "description": "A node from a successful query call; the chart saves it and every node it reads.",
+                                        "description": "A node from a successful query call.",
                                         "type": "string"
                                     },
                                     "sessionId": {
-                                        "description": "The query sessionId holding the node. Null in an agent conversation, which keeps its own nodes.",
+                                        "description": "The query result's sessionId; null in an agent conversation.",
                                         "type": "string"
                                     },
                                     "vizConfig": {
@@ -503,6 +508,7 @@
                                     }
                                 },
                                 "required": [
+                                    "from",
                                     "dashboardSlug",
                                     "name",
                                     "nodeId",
@@ -521,11 +527,15 @@
                                         "type": "object"
                                     },
                                     "dashboardSlug": {
-                                        "description": "The existing dashboard the chart belongs to; it gets a tile at the bottom of its first tab.",
+                                        "description": "The existing dashboard the chart belongs to.",
                                         "minLength": 1,
                                         "type": "string"
                                     },
                                     "description": {
+                                        "type": "string"
+                                    },
+                                    "from": {
+                                        "const": "json",
                                         "type": "string"
                                     },
                                     "name": {
@@ -541,6 +551,7 @@
                                     }
                                 },
                                 "required": [
+                                    "from",
                                     "dashboardSlug",
                                     "name",
                                     "pipeline",
