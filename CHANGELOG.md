@@ -1,3 +1,10 @@
+## [3.316.1](https://github.com/lightdash/lightdash/compare/3.316.0...3.316.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** tile cards always read "Filtered by" ([#32881](https://github.com/lightdash/lightdash/issues/32881)) ([dbf613c](https://github.com/lightdash/lightdash/commit/dbf613cdd290f32d9e052d51e63c16114d962d86))
+
 # [3.316.0](https://github.com/lightdash/lightdash/compare/3.315.0...3.316.0) (2026-11-18)
 
 
