@@ -108,6 +108,11 @@ export type LiveLimits = {
     timeoutMs: number;
     /** Most rows one query can return; named in the too-many-rows error. */
     maxRows: number;
+    /**
+     * Most records a query grouped here may read, when lower than
+     * `maxRows`: grouping needs every record, and some APIs return large ones.
+     */
+    maxGroupedRows?: number;
 };
 
 /**

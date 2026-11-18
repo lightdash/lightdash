@@ -211,7 +211,7 @@ describe('the shared check on pull requests', () => {
             ({ code }) => code,
         );
 
-    it('refuses Count split by a dimension', () => {
+    it('allows Count split by a dimension', () => {
         expect(
             issues(
                 query('github_pull_requests', {
@@ -219,7 +219,7 @@ describe('the shared check on pull requests', () => {
                     metrics: [pr('count')],
                 }),
             ),
-        ).toEqual(['live_source.refused.field_combination']);
+        ).toEqual([]);
     });
 
     it('allows Count filtered by a dimension', () => {

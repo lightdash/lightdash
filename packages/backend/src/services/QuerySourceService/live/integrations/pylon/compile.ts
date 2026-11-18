@@ -11,13 +11,20 @@ import {
     getApiName,
     getLiveDefinitionName,
     getLiveExplore,
+    getLiveLocalAggregates,
     type LiveCompiledRequest,
+    type LiveExploreDefinition,
 } from '../../explores/definition';
 import {
     getLiveDateRange,
     splitDateRangeFilter,
     toAbsoluteDateRange,
 } from '../../query/dateRange';
+import {
+    PYLON_ACCOUNTS_EXPLORE,
+    PYLON_CONTACTS_EXPLORE,
+    PYLON_ISSUES_EXPLORE,
+} from './explores';
 import {
     type PylonFilter,
     type PylonFilterLeaf,
@@ -28,6 +35,19 @@ import {
 const PYLON_EARLIEST_DATE = '2021-01-01';
 
 type PylonKind = PylonRequest['kind'];
+
+const PYLON_EXPLORES: Record<PylonKind, LiveExploreDefinition> = {
+    issues: PYLON_ISSUES_EXPLORE,
+    accounts: PYLON_ACCOUNTS_EXPLORE,
+    contacts: PYLON_CONTACTS_EXPLORE,
+};
+
+/** A cheap column to read when a count is split by nothing. */
+const ID_COLUMNS: Record<PylonKind, string> = {
+    issues: 'number',
+    accounts: 'id',
+    contacts: 'id',
+};
 
 /** Each field's name in Pylon's search filters, where it differs. */
 const FILTER_FIELDS: Record<PylonKind, Record<string, string>> = {
@@ -265,6 +285,21 @@ export const compilePylonQuery = ({
             toPylonFilter(kind, apiName(rule.target.fieldId), rule, today),
         ),
     ];
+    const localAggregates = getLiveLocalAggregates(
+        PYLON_EXPLORES[kind],
+        explore,
+        metricQuery,
+    );
+    if (metricQuery.metrics.length > 0) {
+        // Every record is read and grouped here, so the API's order is moot
+        const columns = metricQuery.dimensions.map(apiName);
+        const request: PylonRequest = {
+            kind,
+            filters,
+            columns: columns.length > 0 ? columns : [ID_COLUMNS[kind]],
+        };
+        return { query: JSON.stringify(request), localAggregates };
+    }
     const { localSorts, ...sort } = toSort(kind, metricQuery.sorts, apiName);
     const request: PylonRequest = {
         kind,

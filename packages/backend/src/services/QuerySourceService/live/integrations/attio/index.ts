@@ -23,6 +23,7 @@ import {
 import { compileAttioQuery } from './compile';
 import { toAttioError } from './errors';
 import {
+    ATTIO_MAX_GROUPED_RECORDS,
     ATTIO_MAX_PAGES,
     ATTIO_MAX_RECORDS,
     ATTIO_RECORDS_EXPLORE,
@@ -58,6 +59,7 @@ export const attioIntegration = defineLiveIntegration({
         callsPerQuery: ATTIO_MAX_PAGES,
         timeoutMs: 30_000,
         maxRows: ATTIO_MAX_RECORDS,
+        maxGroupedRows: ATTIO_MAX_GROUPED_RECORDS,
     },
     // Attio's filter takes any mix of $and, $or and $not. Dates are UTC days.
     capabilities: {

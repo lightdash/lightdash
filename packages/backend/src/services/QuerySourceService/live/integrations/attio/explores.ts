@@ -1,8 +1,9 @@
-import { DimensionType, FilterOperator } from '@lightdash/common';
+import { DimensionType, FilterOperator, MetricType } from '@lightdash/common';
 import { z } from 'zod';
 import type {
     LiveDimensionDefinition,
     LiveExploreDefinition,
+    LiveMetricDefinition,
 } from '../../explores/definition';
 import {
     ATTIO_ATTRIBUTE_RULES,
@@ -14,6 +15,23 @@ import {
 export const ATTIO_PAGE_SIZE = 500;
 export const ATTIO_MAX_PAGES = 20;
 export const ATTIO_MAX_RECORDS = ATTIO_PAGE_SIZE * ATTIO_MAX_PAGES - 1;
+
+/**
+ * Records a grouped query reads: one page, one fewer than its 500 to detect
+ * more. Records are large, and grouping reads every one.
+ */
+export const ATTIO_MAX_GROUPED_RECORDS = ATTIO_PAGE_SIZE - 1;
+
+const COUNT: LiveMetricDefinition = {
+    name: 'count',
+    apiName: 'count',
+    label: 'Count',
+    description: `How many records match the filters, counted from the records read. A query that matches more than ${ATTIO_MAX_GROUPED_RECORDS} records is refused.`,
+    type: MetricType.NUMBER,
+    filterOperators: [],
+    aggregation: { aggregation: 'additive' },
+    computed: { type: 'count' },
+};
 
 /** Attributes the built-in fields already read. */
 const BUILT_IN_SLUGS = new Set(['record_id', 'created_at']);
@@ -54,9 +72,9 @@ export const ATTIO_RECORDS_EXPLORE: LiveExploreDefinition = {
     label: 'Records',
     description: `Records of one Attio object, read live from Attio, one row per record, at most ${ATTIO_MAX_RECORDS.toLocaleString(
         'en-US',
-    )} per query.`,
+    )} per query. With Count selected, rows are grouped by the selected dimensions, over at most ${ATTIO_MAX_GROUPED_RECORDS} records.`,
     dimensions: BUILT_IN_DIMENSIONS,
-    metrics: [],
+    metrics: [COUNT],
     maxDimensions: null,
     maxMetrics: null,
     dateRange: null,
@@ -64,8 +82,8 @@ export const ATTIO_RECORDS_EXPLORE: LiveExploreDefinition = {
 };
 
 /**
- * Names attribute fields can't take: built-in fields, and fields of earlier
- * versions (created_at grains, count, total_*) that saved charts may still
+ * Names attribute fields can't take: built-in fields, Count, and fields of
+ * earlier versions (created_at grains, total_*) that saved charts may still
  * name.
  */
 const RESERVED_NAMES = new Set([

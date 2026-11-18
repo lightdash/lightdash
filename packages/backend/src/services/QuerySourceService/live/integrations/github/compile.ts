@@ -11,9 +11,14 @@ import {
     getApiName,
     getLiveDefinitionName,
     getLiveExplore,
+    getLiveLocalAggregates,
     type LiveCompiledRequest,
 } from '../../explores/definition';
 import { getLiveDateRange, toAbsoluteDateRange } from '../../query/dateRange';
+import {
+    GITHUB_ISSUES_EXPLORE,
+    GITHUB_PULL_REQUESTS_EXPLORE,
+} from './explores';
 import { type GithubRequest } from './run';
 
 /** The first day GitHub can have anything on, for open-ended date filters. */
@@ -174,8 +179,9 @@ const compileSearch = ({
             toQualifier(apiName(rule.target.fieldId), rule, { type, today }),
         )
         .join(' ');
-    // Count with a dimension is refused by the shared check
-    if (metricQuery.metrics.length > 0) {
+    // Count alone is the search total; split by a dimension, it's counted
+    // from the results read
+    if (metricQuery.metrics.length > 0 && metricQuery.dimensions.length === 0) {
         const request: GithubRequest = {
             kind: 'search',
             type,
@@ -184,15 +190,25 @@ const compileSearch = ({
         };
         return { query: JSON.stringify(request), localSorts: [] };
     }
+    const localAggregates = getLiveLocalAggregates(
+        type === 'pr' ? GITHUB_PULL_REQUESTS_EXPLORE : GITHUB_ISSUES_EXPLORE,
+        explore,
+        metricQuery,
+    );
+    const columns = metricQuery.dimensions.map(apiName) as Extract<
+        GithubRequest,
+        { kind: 'search' }
+    >['columns'];
+    if (metricQuery.metrics.length > 0) {
+        const request: GithubRequest = { kind: 'search', type, q, columns };
+        return { query: JSON.stringify(request), localAggregates };
+    }
     const { localSorts, ...sort } = toSearchSort(metricQuery.sorts, apiName);
     const request: GithubRequest = {
         kind: 'search',
         type,
         q,
-        columns: metricQuery.dimensions.map(apiName) as Extract<
-            GithubRequest,
-            { kind: 'search' }
-        >['columns'],
+        columns,
         ...sort,
     };
     return { query: JSON.stringify(request), localSorts };

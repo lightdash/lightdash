@@ -67,8 +67,9 @@ export const githubIntegration = defineLiveIntegration({
         timeoutMs: 30_000,
         maxRows: GITHUB_MAX_QUERY_ROWS,
     },
-    // Search ANDs one flat list of qualifiers, one value each; counts come
-    // from the search total and can't be grouped. Dates are UTC days.
+    // Search ANDs one flat list of qualifiers, one value each; Count alone
+    // is the search total, and split by a dimension is counted from the
+    // results read. Dates are UTC days.
     capabilities: {
         filters: {
             operators: {

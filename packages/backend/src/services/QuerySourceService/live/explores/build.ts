@@ -9,6 +9,7 @@ import {
     UnexpectedServerError,
     type Explore,
     type ExternalConnectionApiSource,
+    type FieldId,
     type ItemsMap,
     type MetricQuery,
     type ResultColumns,
@@ -26,6 +27,7 @@ import {
     getLiveRequestLimit,
     type CompiledLiveQuery,
     type LiveExploreDefinition,
+    type LiveLocalAggregate,
     type LivePeriodFormat,
 } from './definition';
 import {
@@ -326,13 +328,28 @@ export const compileLiveMetricQuery = ({
     );
     const {
         query,
-        localSorts = [],
+        localSorts: compiledLocalSorts = [],
         fieldIdsByColumn = Object.fromEntries(
             [...metricQuery.dimensions, ...metricQuery.metrics].map(
                 (fieldId) => [getApiName(apiSource, fieldId), fieldId],
             ),
         ),
+        localAggregates = {},
     } = compile({ explore, metricQuery, timezone, now });
+    const [firstAggregate] = Object.keys(localAggregates);
+    const grouping = firstAggregate
+        ? {
+              aggregates: localAggregates,
+              maxRows: limits.maxGroupedRows ?? limits.maxRows,
+          }
+        : undefined;
+    // Grouped rows have no API order, so every sort is ours: the query's,
+    // or the first metric's largest first
+    const localSorts = grouping
+        ? (metricQuery.sorts.length > 0 && metricQuery.sorts) || [
+              { fieldId: firstAggregate, descending: true },
+          ]
+        : compiledLocalSorts;
     const getPeriodColumns = (formats: typeof periodFormats & object) => {
         const columnByFieldId = new Map(
             Object.entries(fieldIdsByColumn).map(([column, fieldId]) => [
@@ -355,14 +372,13 @@ export const compileLiveMetricQuery = ({
     };
     return {
         query,
-        requestLimit: getLiveRequestLimit(
-            metricQuery.limit,
-            localSorts,
-            limits.maxRows,
-        ),
+        requestLimit:
+            grouping?.maxRows ??
+            getLiveRequestLimit(metricQuery.limit, localSorts, limits.maxRows),
         limit: metricQuery.limit,
         fieldIdsByColumn,
         localSorts,
+        ...(grouping ? { grouping } : {}),
         ...(periodFormats
             ? { periodColumns: getPeriodColumns(periodFormats) }
             : {}),
@@ -443,9 +459,9 @@ export const toPeriodStart = (
 };
 
 /**
- * Refuses a result sorted on our side when the API kept rows back: the sort
- * would rank only the rows read, so the top rows shown could be the wrong
- * ones. A result in the API's own order only loses rows past its limit.
+ * Refuses a result sorted or grouped on our side when the API kept rows
+ * back: the sort would rank only the rows read, and groups would count only
+ * them. A result in the API's own order only loses rows past its limit.
  */
 export const assertLiveResultComplete = ({
     compiled,
@@ -453,14 +469,75 @@ export const assertLiveResultComplete = ({
     label,
     maxRows,
 }: {
-    compiled: Pick<CompiledLiveQuery, 'localSorts'>;
+    compiled: Pick<CompiledLiveQuery, 'localSorts' | 'grouping'>;
     hasMoreRows: boolean;
     label: string;
     maxRows: number;
 }): void => {
-    if (hasMoreRows && compiled.localSorts.length > 0) {
-        throw tooManyRowsError({ label, maxRows });
+    if (
+        hasMoreRows &&
+        (compiled.localSorts.length > 0 || compiled.grouping !== undefined)
+    ) {
+        throw tooManyRowsError({
+            label,
+            maxRows: compiled.grouping?.maxRows ?? maxRows,
+        });
     }
+};
+
+const aggregate = (
+    { type }: LiveLocalAggregate,
+    records: Record<string, unknown>[],
+): unknown => {
+    switch (type) {
+        case 'count':
+            return records.length;
+        default:
+            return assertUnreachable(type, 'Unknown local aggregate');
+    }
+};
+
+/**
+ * Groups records keyed by field id on every column but the aggregates, and
+ * works out each aggregate per group. With no dimension, every record is
+ * one group, so a count of nothing read is 0.
+ */
+export const groupLiveRows = (
+    rows: Record<string, unknown>[],
+    {
+        dimensions,
+        aggregates,
+    }: {
+        dimensions: FieldId[];
+        aggregates: Record<FieldId, LiveLocalAggregate>;
+    },
+): Record<string, unknown>[] => {
+    const groups = new Map<string, Record<string, unknown>[]>(
+        dimensions.length === 0 ? [['', rows]] : [],
+    );
+    (dimensions.length === 0 ? [] : rows).forEach((row) => {
+        const key = JSON.stringify(dimensions.map((fieldId) => row[fieldId]));
+        const group = groups.get(key);
+        if (group) {
+            group.push(row);
+        } else {
+            groups.set(key, [row]);
+        }
+    });
+    return [...groups.values()].map((records) => ({
+        ...Object.fromEntries(
+            dimensions.map((fieldId) => [
+                fieldId,
+                records[0]?.[fieldId] ?? null,
+            ]),
+        ),
+        ...Object.fromEntries(
+            Object.entries(aggregates).map(([fieldId, definition]) => [
+                fieldId,
+                aggregate(definition, records),
+            ]),
+        ),
+    }));
 };
 
 /** The connector's rows as result rows keyed by field id, sorted and limited. */
@@ -473,9 +550,13 @@ export const toLiveResult = ({
     rows: Record<string, unknown>[];
     fields: ItemsMap;
 }): { rows: Record<string, unknown>[]; columns: ResultColumns } => {
-    const columnEntries = Object.entries(compiled.fieldIdsByColumn);
+    const aggregates = compiled.grouping?.aggregates ?? {};
+    // Aggregated fields aren't columns of the records read
+    const columnEntries = Object.entries(compiled.fieldIdsByColumn).filter(
+        ([, fieldId]) => !Object.hasOwn(aggregates, fieldId),
+    );
     const periodColumns = compiled.periodColumns ?? {};
-    const resultRows = rows.map((row) =>
+    const readRows = rows.map((row) =>
         Object.fromEntries(
             columnEntries.map(([column, fieldId]) => {
                 const value = row[column] ?? null;
@@ -489,8 +570,17 @@ export const toLiveResult = ({
             }),
         ),
     );
+    const resultRows = compiled.grouping
+        ? groupLiveRows(readRows, {
+              dimensions: columnEntries.map(([, fieldId]) => fieldId),
+              aggregates,
+          })
+        : readRows;
     const columns: ResultColumns = Object.fromEntries(
-        columnEntries.map(([, fieldId]) => {
+        [
+            ...columnEntries.map(([, fieldId]) => fieldId),
+            ...Object.keys(aggregates),
+        ].map((fieldId) => {
             const field = fields[fieldId];
             return [
                 fieldId,

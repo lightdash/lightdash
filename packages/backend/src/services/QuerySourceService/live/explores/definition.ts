@@ -58,7 +58,16 @@ export type LiveMetricDefinition = ApiSourceFieldDefinition & {
      * evidence. Absent (scanned metrics) means `non_additive`.
      */
     aggregation?: ApiSourceMetricAggregation;
+    /**
+     * Worked out here from the records the API returns, one row each, when
+     * the API has no aggregate of its own. Rows are grouped by the selected
+     * dimensions first; see `getLiveLocalAggregates`.
+     */
+    computed?: LiveLocalAggregate;
 };
+
+/** How a metric is worked out from records read one row each. */
+export type LiveLocalAggregate = { type: 'count' };
 
 /** One explore of an integration's semantic layer, written by hand or found by a scan. */
 export type LiveExploreDefinition = {
@@ -261,6 +270,12 @@ export type LiveCompiledRequest = {
     localSorts?: SortField[];
     /** The field each response column answers; defaults to the fields' API names. */
     fieldIdsByColumn?: Record<string, FieldId>;
+    /**
+     * Set when the request reads records, one row each, for metrics worked
+     * out here: rows are grouped by the selected dimensions and each metric
+     * aggregated. Only a complete read is grouped.
+     */
+    localAggregates?: Record<FieldId, LiveLocalAggregate>;
 };
 
 /** A metric query compiled into one integration request, plus what to do with its rows. */
@@ -279,6 +294,14 @@ export type CompiledLiveQuery = {
      * YYYY), turned into the period's first day so they read as dates.
      */
     periodColumns?: Record<string, LivePeriodFormat>;
+    /**
+     * Set when rows are records grouped here. Every record must be read, at
+     * most `maxRows` of them, or the query is refused.
+     */
+    grouping?: {
+        aggregates: Record<FieldId, LiveLocalAggregate>;
+        maxRows: number;
+    };
 };
 
 /** Rows a query reads: all it may, when its rows are sorted here. */
@@ -289,6 +312,27 @@ export const getLiveRequestLimit = (
 ) => (localSorts.length > 0 ? maxRows : limit);
 
 export type LivePeriodFormat = 'iso_week' | 'year_month' | 'year';
+
+/**
+ * The selected metrics worked out from records, by field id. Empty when
+ * every selected metric comes from the API.
+ */
+export const getLiveLocalAggregates = (
+    definition: LiveExploreDefinition,
+    explore: Explore,
+    metricQuery: Pick<MetricQuery, 'metrics'>,
+): Record<FieldId, LiveLocalAggregate> => {
+    const itemsMap = getItemMap(explore);
+    return Object.fromEntries(
+        metricQuery.metrics.flatMap((fieldId) => {
+            const name = itemsMap[fieldId]?.name;
+            const computed = definition.metrics.find(
+                (metric) => metric.name === name,
+            )?.computed;
+            return computed ? [[fieldId, computed]] : [];
+        }),
+    );
+};
 
 /** The explore's live data source rules; fails for any other explore. */
 export const getLiveExplore = (explore: Explore): ApiSourceExplore => {
