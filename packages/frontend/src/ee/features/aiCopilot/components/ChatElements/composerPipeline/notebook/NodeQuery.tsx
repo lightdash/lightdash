@@ -257,7 +257,18 @@ type CellQueryProps = {
     reads: SourceQuery[];
     projectUuid: string;
     canViewSql: boolean;
+    /** Outside a thread the SQL compiles from the saved step, not the run, so it says so. */
+    labelsSavedSql: boolean;
     openPanels: ReadonlySet<QueryPanel>;
+};
+
+const SavedSqlNote: FC = () => {
+    const getUiString = useUiStrings();
+    return (
+        <Text fz="xs" c="dimmed" px="sm" pt="xs">
+            {getUiString('tile.composerChart.lineageSavedSql')}
+        </Text>
+    );
 };
 
 // Labels fall back to field ids, so a failed explore load stays silent.
@@ -361,7 +372,7 @@ const SemanticPanels: FC<
     Omit<CellQueryProps, 'query' | 'reads'> & {
         query: SemanticLayerSourceQuery;
     }
-> = ({ query, projectUuid, canViewSql, openPanels }) => {
+> = ({ query, projectUuid, canViewSql, labelsSavedSql, openPanels }) => {
     const explore = useNodeExplore(query, projectUuid);
     const fieldsMap = useMemo(
         () =>
@@ -392,6 +403,7 @@ const SemanticPanels: FC<
             </Collapse>
             {canViewSql && openPanels.has('sql') && (
                 <Box className={styles.codePanel}>
+                    {labelsSavedSql && <SavedSqlNote />}
                     <CompiledSql query={query} projectUuid={projectUuid} />
                 </Box>
             )}
@@ -412,6 +424,7 @@ export const CellQueryPanels: FC<CellQueryProps> = ({
             props.canViewSql &&
             props.openPanels.has('sql') && (
                 <Box className={styles.codePanel}>
+                    {props.labelsSavedSql && <SavedSqlNote />}
                     <MergeCompiledSql
                         query={query}
                         reads={reads}

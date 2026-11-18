@@ -328,6 +328,7 @@ const NotebookCell: FC<CellProps> = ({
                         reads={referenceQueries}
                         projectUuid={projectUuid}
                         canViewSql={canViewSql}
+                        labelsSavedSql={!threadActions}
                         openPanels={openPanels}
                     />
                     {hasError && (

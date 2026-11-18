@@ -701,4 +701,26 @@ describe('AiComposerLineage merge nodes', () => {
             ).toHaveTextContent(/from\s+tickets.*merge_source_0/is),
         );
     });
+
+    it("says a semantic or merge step's SQL is the saved query when shown outside a thread", async () => {
+        const savedQuery =
+            "Saved query, without this dashboard's filters and parameters";
+        renderPanel({ queries: mergeQueries, threadActions: null });
+        for (const nodeId of ['orders', 'activity']) {
+            fireEvent.click(
+                await cell(nodeId).findByRole('button', { name: 'SQL query' }),
+            );
+            expect(cell(nodeId).getByText(savedQuery)).toBeInTheDocument();
+        }
+    });
+
+    it("leaves a step's SQL unlabelled in a thread", async () => {
+        renderPanel({ queries: mergeQueries });
+        fireEvent.click(
+            await cell('activity').findByRole('button', { name: 'SQL query' }),
+        );
+        expect(
+            cell('activity').queryByText(/without this dashboard/),
+        ).toBeNull();
+    });
 });
