@@ -78,6 +78,10 @@ export const libraryChartFields: Record<
         ],
         required: ['value'],
     },
+    'word-cloud': {
+        fields: ['word', 'size', 'colorBy'],
+        required: ['word', 'size'],
+    },
 };
 
 // Swaps a chart to its library type only when the installed version meets its binding and the binding is valid.

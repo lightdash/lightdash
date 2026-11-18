@@ -561,6 +561,48 @@ describe('legacyLibraryChartBindings', () => {
         });
     });
 
+    it('binds the Queries Overview charts under their final slugs', () => {
+        const prefix = 'lightdash-analytics-query-activity-';
+        const queryBinding = (key: string) =>
+            analyticsLibraryChartBindings.get(`${prefix}${key}`);
+        expect(queryBinding('queries')).toMatchObject({
+            slug: 'big-number-with-sparkline-trend',
+            minVersion: '0.7.0',
+            optionValues: {
+                valueAggregation: 'sum',
+                colorSparklineByTrend: false,
+            },
+        });
+        ['query-users', 'avg-execution-time', 'p90-execution-time'].forEach(
+            (key) => {
+                expect(queryBinding(key)).toMatchObject({
+                    slug: 'big-number-with-sparkline-trend',
+                    minVersion: '0.6.0',
+                    optionValues: {},
+                    query: null,
+                });
+            },
+        );
+        expect(queryBinding('queries-by-day')).toMatchObject({
+            slug: 'customizable-cartesian-chart',
+            minVersion: '0.17.0',
+            fieldMapping: {
+                x: 'query_events_event_ts_day',
+                m1: 'query_events_total_queries',
+                splitBy: 'query_events_context',
+            },
+        });
+        [
+            'active-users-by-day',
+            'query-cache',
+            'queries-by-context',
+            'query-latency-by-day',
+            'query-calendar',
+        ].forEach((key) => {
+            expect(queryBinding(key)).toBeUndefined();
+        });
+    });
+
     it('runs the day query on the real AI calls chart only when its type is usable', () => {
         const slug = 'lightdash-analytics-overview-ai-calls';
         const real = allCharts.find((c) => c.slug === slug)!;
@@ -661,6 +703,16 @@ describe('legacyLibraryChartBindings', () => {
         ].forEach((slug) => {
             expect(queryDescription(slug)).toBe(chartDescription(slug));
         });
+        expect(
+            queryDescription('lightdash-analytics-query-activity-queries'),
+        ).toBe(chartDescription('lightdash-analytics-query-activity-queries'));
+        expect(
+            queryDescription(
+                'lightdash-analytics-query-activity-queries-by-day',
+            ),
+        ).toBe(
+            `Queries per day, split by the context that ran them. ${chartDescription('lightdash-analytics-query-activity-queries-by-day')}`,
+        );
         const agentChart = (key: string) =>
             [...analyticsLibraryChartBindings.keys()].find((slug) =>
                 slug.endsWith(`-${key}`),
