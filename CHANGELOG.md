@@ -1,3 +1,11 @@
+## [3.302.1](https://github.com/lightdash/lightdash/compare/3.302.0...3.302.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **dbt:** float dbt-core patch releases in the dbt 1.12 venv ([#32818](https://github.com/lightdash/lightdash/issues/32818)) ([b972368](https://github.com/lightdash/lightdash/commit/b9723684c498024fbd06b422d7a50b2cb0c13276))
+* **explorer:** keep the last results column's menu clear of the add-column button ([#32823](https://github.com/lightdash/lightdash/issues/32823)) ([d791503](https://github.com/lightdash/lightdash/commit/d7915031ee70238cc5cc307e7e6d56a04e00158b))
+
 # [3.302.0](https://github.com/lightdash/lightdash/compare/3.301.2...3.302.0) (2026-11-18)
 
 
