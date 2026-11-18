@@ -28,3 +28,5 @@ export const Task: FC<{ state: TaskState; label: string }> = ({
         </Text>
     </Group>
 );
+
+export const TaskIcon: FC<{ state: TaskState }> = ({ state }) => ICONS[state];

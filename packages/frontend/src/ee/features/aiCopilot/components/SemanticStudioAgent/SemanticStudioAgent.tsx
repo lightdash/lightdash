@@ -50,7 +50,10 @@ import { store } from '../../store';
 import { AiAgentThreadStreamAbortControllerContextProvider } from '../../streaming/AiAgentThreadStreamAbortControllerContextProvider';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../ChatElements/AgentChatInput';
-import { QuietCardsContext } from '../ChatElements/ToolCalls/quietCards';
+import {
+    QuietCardsContext,
+    StudioAskContext,
+} from '../ChatElements/ToolCalls/quietCards';
 import classes from './SemanticStudioAgent.module.css';
 import { StudioChatEmptyState } from './StudioChatEmptyState';
 import { StudioChatRefChips } from './StudioChatRefChips';
@@ -299,34 +302,38 @@ const ExistingThread: FC<
     }
     const isBusy = isSending || isStreaming || isThreadPending;
     return (
-        <AgentChatDisplay
-            thread={thread}
-            agentName={agent.name}
-            enableAutoScroll
-            projectUuid={projectUuid}
-            agentUuid={agent.uuid}
-            renderArtifactsInline
+        <StudioAskContext.Provider
+            value={isBusy ? null : (message) => send({ message })}
         >
-            {thread.messages.length === 0 && !isBusy ? (
-                <Text fz="xs" c="dimmed" ta="center" px="md" pb="xs">
-                    You edited this change by hand. Ask for more here, or
-                    publish it when it is ready.
-                </Text>
-            ) : null}
-            <StudioChatRefChips refs={attached} onRemove={onDetach} />
-            <AgentChatInput
-                allowAttachments={false}
-                accessCalloutVariant="inline"
-                loading={isBusy}
-                onSubmit={send}
-                placeholder="What should I build or change?"
-                messageCount={thread.messages.length}
+            <AgentChatDisplay
+                thread={thread}
+                agentName={agent.name}
+                enableAutoScroll
                 projectUuid={projectUuid}
                 agentUuid={agent.uuid}
-                threadUuid={threadUuid}
-                fullWidth
-            />
-        </AgentChatDisplay>
+                renderArtifactsInline
+            >
+                {thread.messages.length === 0 && !isBusy ? (
+                    <Text fz="xs" c="dimmed" ta="center" px="md" pb="xs">
+                        You edited this change by hand. Ask for more here, or
+                        publish it when it is ready.
+                    </Text>
+                ) : null}
+                <StudioChatRefChips refs={attached} onRemove={onDetach} />
+                <AgentChatInput
+                    allowAttachments={false}
+                    accessCalloutVariant="inline"
+                    loading={isBusy}
+                    onSubmit={send}
+                    placeholder="What should I build or change?"
+                    messageCount={thread.messages.length}
+                    projectUuid={projectUuid}
+                    agentUuid={agent.uuid}
+                    threadUuid={threadUuid}
+                    fullWidth
+                />
+            </AgentChatDisplay>
+        </StudioAskContext.Provider>
     );
 };
 

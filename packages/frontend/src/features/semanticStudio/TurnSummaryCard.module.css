@@ -1,0 +1,82 @@
+.card {
+    overflow: hidden;
+}
+
+.section {
+    padding: 6px var(--mantine-spacing-xs);
+}
+
+.card > * + * {
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.card[data-settled='true'] .model {
+    opacity: 0.6;
+}
+
+.card[data-gone='true'] .label {
+    text-decoration: line-through;
+}
+
+.model {
+    padding-bottom: 4px;
+}
+
+.modelName {
+    padding: 6px var(--mantine-spacing-xs) 2px;
+}
+
+.row {
+    display: grid;
+    grid-template-columns: 12px auto minmax(0, 1fr);
+    column-gap: 6px;
+    align-items: baseline;
+    width: 100%;
+    padding: 3px var(--mantine-spacing-xs);
+}
+
+.row:hover,
+.row:focus-visible {
+    background: var(--mantine-color-default-hover);
+}
+
+.glyph {
+    font-family: var(--mantine-font-family-monospace);
+    font-weight: 600;
+    text-align: center;
+}
+
+.row[data-change='new'] .glyph {
+    color: var(--mantine-color-green-text);
+}
+
+.row[data-change='changed'] .glyph {
+    color: var(--mantine-color-orange-text);
+}
+
+.row[data-change='removed'] .glyph {
+    color: var(--mantine-color-red-text);
+}
+
+.label {
+    min-width: 0;
+}
+
+.sub {
+    grid-column: 2 / 4;
+    min-width: 0;
+}
+
+.issue {
+    padding: 3px var(--mantine-spacing-xs);
+}
+
+.icon {
+    display: flex;
+    flex: none;
+    margin-top: 1px;
+}
+
+.wrap {
+    overflow-wrap: anywhere;
+}

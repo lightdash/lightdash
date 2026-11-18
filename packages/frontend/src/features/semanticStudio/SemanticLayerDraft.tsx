@@ -49,7 +49,7 @@ import {
     PublishChecklist,
     PublishSummary,
 } from './DraftInsights';
-import { describePublisher } from './draftState';
+import { cannotApply, describePublisher } from './draftState';
 import {
     CHANGE_KIND_LABELS,
     count,
@@ -81,22 +81,6 @@ const summarizeDraftModels = ({ models }: SemanticLayerDraft) => {
     return KIND_NOUNS.flatMap(([kind, noun]) =>
         totals[kind] ? [count(totals[kind], noun)] : [],
     ).join(', ');
-};
-
-/** Whether the draft, or one model of it, fails its checks. */
-const cannotApply = (
-    { changes, errors }: SemanticLayerDraft,
-    model: string | null,
-) => {
-    const inScope = (name: string) => model === null || name === model;
-    return (
-        errors.some((error) => inScope(error.model)) ||
-        changes.some((change) =>
-            change.models.some(
-                (entry) => inScope(entry.model) && entry.error !== null,
-            ),
-        )
-    );
 };
 
 /** How many models of the draft, or the one named, still have a part to choose between. */
@@ -200,7 +184,7 @@ const DraftImpact: FC<{ projectUuid: string; model: string | null }> = ({
     );
 };
 
-const ApplyModal: FC<{
+export const ApplyModal: FC<{
     projectUuid: string;
     draft: SemanticLayerDraft;
     model: string | null;
