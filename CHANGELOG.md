@@ -1,3 +1,10 @@
+## [3.305.1](https://github.com/lightdash/lightdash/compare/3.305.0...3.305.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **dashboards:** read only the latest version for pinned and favourites ([#32771](https://github.com/lightdash/lightdash/issues/32771)) ([63481ef](https://github.com/lightdash/lightdash/commit/63481ef95b2a471ababf8a0a9f436e96c6220371))
+
 # [3.305.0](https://github.com/lightdash/lightdash/compare/3.304.1...3.305.0) (2026-11-18)
 
 
