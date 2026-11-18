@@ -5655,6 +5655,7 @@ describe('AsyncQueryService', () => {
                     parquetEnabled: false,
                     materializationMaxRows: null,
                     duckdbQueryMemoryLimit: null,
+                    duckdbWriteMemoryLimit: '256MB',
                 },
             });
             (service as AnyType).preAggregateStrategy = mockStrategy;

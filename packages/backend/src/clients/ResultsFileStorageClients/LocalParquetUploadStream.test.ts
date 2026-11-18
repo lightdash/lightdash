@@ -24,6 +24,7 @@ const createStream = () =>
         s3Config: {} as Parameters<
             typeof createLocalParquetUploadStream
         >[0]['s3Config'],
+        memoryLimit: '1GB',
         logger: Logger,
     });
 
@@ -48,6 +49,25 @@ const writeWideRows = async (
 describe('createLocalParquetUploadStream', () => {
     afterEach(() => {
         vi.mocked(DuckdbWarehouseClient).mockReset();
+    });
+
+    test('applies the configured memory limit to the single-threaded writer', async () => {
+        vi.mocked(DuckdbWarehouseClient).mockImplementation(
+            class {
+                runSqlWithMetrics = vi.fn().mockResolvedValue({ totalMs: 1 });
+            } as unknown as typeof DuckdbWarehouseClient,
+        );
+        const stream = createStream();
+        await writeWideRows(stream);
+
+        await stream.close();
+
+        expect(DuckdbWarehouseClient).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                resourceLimits: { memoryLimit: '1GB', threads: 1 },
+            }),
+        );
     });
 
     test('reports the result size when DuckDB runs out of memory', async () => {
