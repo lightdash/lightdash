@@ -1,3 +1,10 @@
+# [3.315.0](https://github.com/lightdash/lightdash/compare/3.314.0...3.315.0) (2026-11-18)
+
+
+### Features
+
+* **exports:** show the cell limit in the download dialog before exporting ([#32781](https://github.com/lightdash/lightdash/issues/32781)) ([d64d512](https://github.com/lightdash/lightdash/commit/d64d5121f96fd0729216adb9a0ca5a2edf13a925)), closes [#29986](https://github.com/lightdash/lightdash/issues/29986)
+
 # [3.314.0](https://github.com/lightdash/lightdash/compare/3.313.0...3.314.0) (2026-11-18)
 
 
