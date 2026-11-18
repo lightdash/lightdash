@@ -109,7 +109,7 @@ describe('getProposeSemanticLayerChange', () => {
             'label: Orders',
         );
         expect(output.result).toContain(
-            'Started change "Order totals" and checked it out.',
+            'Started draft "Order totals" and checked it out.',
         );
         expect(output.metadata).toMatchObject({
             startedChange: { workspaceUuid: 'w-1', name: 'Order totals' },

@@ -16,7 +16,7 @@ import { useStudioWorkspaces } from './useStudioWorkspaces';
 
 dayjs.extend(relativeTime);
 
-const STAGES = ['Proposed', 'Saved', 'In review', 'Live'] as const;
+const STAGES = ['Proposed', 'Saved', 'In review', 'Published'] as const;
 
 /** How many stages are behind the run, and the one it is on. */
 const stageOf = (run: StudioRun): number => {
@@ -195,7 +195,7 @@ export const StudioWorkspacesList: FC<{
     return (
         <Box className={classes.page}>
             <header className={classes.hero}>
-                <Text className={classes.title}>Changes</Text>
+                <Text className={classes.title}>Drafts</Text>
                 <Text className={classes.lede}>
                     {rows.length === 0
                         ? 'Nothing in flight yet. Ask for a change to get started.'
@@ -208,7 +208,7 @@ export const StudioWorkspacesList: FC<{
                         Nothing in flight
                     </Text>
                     <Text fz="xs" c="dimmed">
-                        Start one with New change, or ask for a change in the
+                        Start one with New draft, or ask for a change in the
                         chat.
                     </Text>
                 </div>
@@ -266,7 +266,7 @@ export const StudioWorkspacesList: FC<{
                 </Section>
             ) : null}
             {recent.length > 0 ? (
-                <Section label="Live lately" count={recent.length}>
+                <Section label="Published lately" count={recent.length}>
                     <ol className={classes.timeline}>
                         {recent.map((workspace) => (
                             <li key={workspace.workspaceUuid}>

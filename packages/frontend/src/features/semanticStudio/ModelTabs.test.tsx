@@ -50,7 +50,7 @@ const codeOf = (state: StudioCheckoutState, modelName: string) => (
 );
 
 describe('ModelCodeView', () => {
-    it('shows the code of whatever is checked out, from A to B to Live', () => {
+    it('shows the code of whatever is checked out, from A to B to Published', () => {
         const { rerender } = renderWithProviders(
             codeOf(
                 on('A', [draftModel('orders', 'live orders', 'orders in A')]),

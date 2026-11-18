@@ -1470,7 +1470,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         pane === 'review' ||
         pane === 'workspaces' ||
         pane === 'changeSummary';
-    // Live is what is published; Changes is everything in flight, and an open change gets its own bar.
+    // Published is the default state; Drafts is everything in flight, and an open draft gets its own bar.
     const isChangesView = isReviewPane;
     const isChangeOpen =
         (pane === 'changes' || pane === 'review') &&
@@ -1698,10 +1698,13 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     }
                 >
                     <Text span inherit truncate>
-                        {sourcesTarget.changeName ??
-                            (isOnMyChange
-                                ? (changeName ?? 'New change')
-                                : 'Live')}
+                        {sourcesTarget.changeName
+                            ? `Draft: ${sourcesTarget.changeName}`
+                            : isOnMyChange
+                              ? changeName
+                                  ? `Draft: ${changeName}`
+                                  : 'New draft'
+                              : 'Published'}
                     </Text>
                 </Button>
             </Menu.Target>
@@ -1715,10 +1718,10 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     }
                     onClick={pickLive}
                 >
-                    Live
+                    Published
                 </Menu.Item>
                 {myOpenChanges.length > 0 ? (
-                    <Menu.Label>Your changes</Menu.Label>
+                    <Menu.Label>Your drafts</Menu.Label>
                 ) : null}
                 {myOpenChanges.map((target) => (
                     <Menu.Item
@@ -1742,13 +1745,13 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 ))}
                 <Menu.Divider />
                 {hasChangesTab ? (
-                    <Menu.Item onClick={showChanges}>All changes</Menu.Item>
+                    <Menu.Item onClick={showChanges}>All drafts</Menu.Item>
                 ) : null}
                 <Menu.Item
                     leftSection={<MantineIcon icon={IconPlus} size={14} />}
                     onClick={startNewChange}
                 >
-                    New change
+                    New draft
                 </Menu.Item>
             </Menu.Dropdown>
         </Menu>
@@ -1780,7 +1783,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         <header className={classes.changeHeader}>
             <UnstyledButton className={classes.back} onClick={goBack}>
                 <MantineIcon icon={IconArrowLeft} size={14} />
-                {hasWorkspaces ? 'All changes' : 'Back to live'}
+                {hasWorkspaces ? 'All drafts' : 'Back to Published'}
             </UnstyledButton>
             <div className={classes.changeTitleRow}>
                 <Tooltip
@@ -2177,8 +2180,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                             <Tooltip
                                                 label={
                                                     hasWorkspaces
-                                                        ? 'All changes'
-                                                        : 'Back to live'
+                                                        ? 'All drafts'
+                                                        : 'Back to Published'
                                                 }
                                             >
                                                 <ActionIcon
@@ -2187,8 +2190,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                                     size="md"
                                                     aria-label={
                                                         hasWorkspaces
-                                                            ? 'All changes'
-                                                            : 'Back to live'
+                                                            ? 'All drafts'
+                                                            : 'Back to Published'
                                                     }
                                                     onClick={
                                                         hasWorkspaces

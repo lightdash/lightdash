@@ -729,7 +729,7 @@ export const SourcePane: FC<{
             ? { label: 'Added', color: 'green' }
             : { label: 'Modified', color: 'yellow' };
     // Like a pull request's compare: what the diff starts from, and what it shows.
-    const comparison = `${!target.canEdit ? 'Before' : isChangedFile || !target.prUrl ? 'Live' : 'This change'} → ${
+    const comparison = `${!target.canEdit ? 'Before' : isChangedFile || !target.prUrl ? 'Published' : 'This draft'} → ${
         proposedFrom !== null ? 'Proposal' : isDirty ? 'Unsaved' : 'This change'
     }`;
     const check = (isOn: boolean) =>

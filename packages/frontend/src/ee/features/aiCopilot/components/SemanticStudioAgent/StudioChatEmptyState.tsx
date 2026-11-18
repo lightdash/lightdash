@@ -36,7 +36,7 @@ const FlowScene: FC = () => (
                 </Box>
                 <Box className={classes.title}>
                     model
-                    <Box className={classes.tag}>Live</Box>
+                    <Box className={classes.tag}>Published</Box>
                 </Box>
                 <Box className={classes.field}>dimension</Box>
                 <Box className={classes.field}>metric</Box>

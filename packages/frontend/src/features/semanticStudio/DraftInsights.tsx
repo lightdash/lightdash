@@ -723,7 +723,7 @@ const CompareTotals: FC<{
                     <Table.Tr>
                         <Table.Th>Metric</Table.Th>
                         {isNewModel ? null : (
-                            <Table.Th ta="right">Live</Table.Th>
+                            <Table.Th ta="right">Published</Table.Th>
                         )}
                         <Table.Th ta="right">My changes</Table.Th>
                         {isNewModel ? null : <Table.Th ta="right" />}

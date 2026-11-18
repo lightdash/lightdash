@@ -24,7 +24,7 @@ import {
 import { useStudioWorkspaces } from './useStudioWorkspaces';
 import classes from './WorkbenchView.module.css';
 
-/** Which of your changes Models and Code show, or Live. */
+/** Which of your drafts Models and Code show, or Published. */
 export const StudioCheckoutPicker: FC<{
     projectUuid: string;
     onShowChanges: (() => void) | null;
@@ -34,7 +34,7 @@ export const StudioCheckoutPicker: FC<{
     const { checkOut, createChange, isBusy, isError } =
         useCheckOut(projectUuid);
     const current = shown?.workspace ?? null;
-    const label = current?.name ?? 'Live';
+    const label = current ? `Draft: ${current.name}` : 'Published';
     const mine = (workspaces?.mine ?? []).filter(isOpenWorkspace);
     const announcement = isBusy
         ? 'Checking out'
@@ -77,7 +77,7 @@ export const StudioCheckoutPicker: FC<{
                                         icon={IconAlertTriangle}
                                         size={14}
                                         color="yellow"
-                                        aria-label="This change could not be loaded"
+                                        aria-label="This draft could not be loaded"
                                     />
                                 ) : null}
                                 <MantineIcon icon={IconChevronDown} size={12} />
@@ -103,10 +103,10 @@ export const StudioCheckoutPicker: FC<{
                         disabled={isBusy}
                         onClick={() => checkOut(null)}
                     >
-                        Live
+                        Published
                     </Menu.Item>
                     {mine.length > 0 ? (
-                        <Menu.Label>Your changes</Menu.Label>
+                        <Menu.Label>Your drafts</Menu.Label>
                     ) : null}
                     {mine.map((target) => {
                         const isCurrent =
@@ -142,7 +142,7 @@ export const StudioCheckoutPicker: FC<{
                     <Menu.Divider />
                     {onShowChanges ? (
                         <Menu.Item onClick={onShowChanges}>
-                            All changes
+                            All drafts
                         </Menu.Item>
                     ) : null}
                     <Menu.Item
@@ -150,7 +150,7 @@ export const StudioCheckoutPicker: FC<{
                         disabled={isBusy}
                         onClick={createChange}
                     >
-                        New change
+                        New draft
                     </Menu.Item>
                 </Menu.Dropdown>
             </Menu>

@@ -723,7 +723,7 @@ describe('SemanticStudioService', () => {
             expect(context.upsert).not.toHaveBeenCalled();
         });
 
-        it('names the change an edit on Live starts, and only that one', async () => {
+        it('names the draft an edit on Published starts, and only that one', async () => {
             const context = setup();
             const first = await context.service.proposeDraftChange(
                 deployer,
@@ -746,7 +746,7 @@ describe('SemanticStudioService', () => {
             expect(second.startedChange).toBeNull();
         });
 
-        it('calls a change started without a name Untitled change', async () => {
+        it('calls a draft started without a name Untitled', async () => {
             const { startedChange } = await setup().service.proposeDraftChange(
                 deployer,
                 PROJECT_UUID,
@@ -754,7 +754,7 @@ describe('SemanticStudioService', () => {
                 null,
                 ' ',
             );
-            expect(startedChange?.name).toBe('Untitled change');
+            expect(startedChange?.name).toBe('Untitled');
         });
 
         it('builds on what is already in the draft', async () => {

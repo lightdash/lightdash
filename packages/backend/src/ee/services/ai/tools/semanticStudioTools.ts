@@ -74,7 +74,7 @@ export const getProposeSemanticLayerChange = ({
                         }),
                         ...(startedChange
                             ? [
-                                  `Started change "${startedChange.name}" and checked it out.`,
+                                  `Started draft "${startedChange.name}" and checked it out.`,
                               ]
                             : []),
                         draftChangeUuid

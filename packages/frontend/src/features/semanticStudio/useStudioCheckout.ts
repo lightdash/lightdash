@@ -23,11 +23,11 @@ import {
     useStudioWorkspaces,
 } from './useStudioWorkspaces';
 
-/** What Models and Code show: Live, or one of your changes folded on live. */
+/** What Models and Code show: Published, or one of your drafts folded on it. */
 export type StudioCheckout = {
-    /** Null on Live. */
+    /** Null on Published. */
     workspace: SemanticStudioWorkspace | null;
-    /** Null on Live, and on projects whose changes live in a repository. */
+    /** Null on Published, and on projects whose changes live in a repository. */
     draft: SemanticLayerDraft | null;
 };
 
@@ -74,9 +74,9 @@ export const useStudioCheckoutState = (
         previousActive.current = next;
         const picked = isPicking.current;
         isPicking.current = false;
-        // Leaving Live without the person picking means an agent edit started the change.
+        // Leaving Published without the person picking means an agent edit started the draft.
         if (keepsDraft && previous === null && active && !picked) {
-            showToastInfo({ title: `Now on ${active.name}` });
+            showToastInfo({ title: `Now on draft: ${active.name}` });
         }
     }, [workspaces.data, active, keepsDraft, showToastInfo]);
     const shown = useRef<StudioCheckout | null>(null);
@@ -173,7 +173,7 @@ export const isOpenWorkspace = ({
     pullRequest?.state !== 'merged' &&
     pullRequest?.state !== 'closed';
 
-/** Checks out one of your changes, or Live; the page keeps showing the current one until the next has loaded. */
+/** Checks out one of your drafts, or Published; the page keeps showing the current one until the next has loaded. */
 export const useCheckOut = (projectUuid: string) => {
     const action = useStudioWorkspaceAction(projectUuid);
     const { shown, isSwitching, isPicking } = useStudioCheckout();
@@ -198,7 +198,7 @@ export const useCheckOut = (projectUuid: string) => {
                 : { kind: 'leave' },
             {
                 onError: onError(
-                    `Could not check out ${target?.name ?? 'Live'}`,
+                    `Could not switch to ${target?.name ?? 'Published'}`,
                 ),
             },
         );
@@ -209,9 +209,9 @@ export const useCheckOut = (projectUuid: string) => {
         action.mutate(
             {
                 kind: 'start',
-                body: { threadUuid: null, name: 'Untitled change' },
+                body: { threadUuid: null, name: 'Untitled' },
             },
-            { onError: onError('Could not start a change') },
+            { onError: onError('Could not start a draft') },
         );
     };
     return { checkOut, createChange, isBusy, isError: action.isError };
