@@ -1,3 +1,10 @@
+# [3.307.0](https://github.com/lightdash/lightdash/compare/3.306.3...3.307.0) (2026-11-18)
+
+
+### Features
+
+* **analytics:** add embedded dashboard view events ([#32841](https://github.com/lightdash/lightdash/issues/32841)) ([12b968c](https://github.com/lightdash/lightdash/commit/12b968c199a72d105aeaac5389ad4eb690909625))
+
 ## [3.306.3](https://github.com/lightdash/lightdash/compare/3.306.2...3.306.3) (2026-11-18)
 
 
