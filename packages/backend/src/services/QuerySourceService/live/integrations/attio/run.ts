@@ -260,7 +260,12 @@ const readRecords = async ({
             const offset = cursor ? Number(cursor) : 0;
             const data = await fetchRecords({ limit, offset });
             const hasNextPage = data.length === limit;
-            if (request.readsAllRecords && offset === 0 && hasNextPage) {
+            if (
+                request.readsAllRecords &&
+                requestedRows >= ATTIO_MAX_RECORDS &&
+                offset === 0 &&
+                hasNextPage
+            ) {
                 const pastTheCap = await fetchRecords({
                     limit: 1,
                     offset: ATTIO_MAX_RECORDS,

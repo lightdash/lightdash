@@ -2196,7 +2196,8 @@ export class ExternalConnectionService extends BaseService {
                     );
                 }
                 // The query text stays out of analytics; it can hold filter values.
-                const errorCode = getLiveSourceQueryErrorCode(call.outcome);
+                const errorCode =
+                    call.errorCode ?? getLiveSourceQueryErrorCode(call.outcome);
                 this.analytics.trackAccount(account, {
                     event: 'live_source.query_finished',
                     properties: {
@@ -2432,10 +2433,10 @@ export class ExternalConnectionService extends BaseService {
                 limits,
                 () => sendOnce(request),
             );
-            if (isPerQuery) {
+            // A failed call keeps the API's own error
+            if (isPerQuery && response.status >= 200 && response.status < 300) {
                 assertLiveResponseBudget({
                     label,
-                    limits,
                     responseBytes: usage.responseBytes,
                 });
             }

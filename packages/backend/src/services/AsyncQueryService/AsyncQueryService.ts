@@ -186,8 +186,7 @@ import {
     type FieldValueSearchResult,
     type Filters,
     type InvalidateExploresResultsCache,
-    type LiveSourceInternalErrorCode,
-    type LiveSourceUpstreamErrorCode,
+    type LiveSourceErrorCode,
     type MergeQueryChart,
     type MergeQueryExecutionMode,
     type Organization,
@@ -408,7 +407,7 @@ import {
 import { toLiveQueryError } from '../QuerySourceService/live/explores/definition';
 import {
     getLiveQueryOutcome,
-    getLiveSourceQueryErrorCode,
+    getLiveSourceErrorCode,
     isLiveSourceErrorReportable,
     type LiveQueryOutcome,
 } from '../QuerySourceService/live/query/outcome';
@@ -13342,6 +13341,7 @@ export class AsyncQueryService extends ProjectService {
                     call: Pick<
                         LiveQueryCall,
                         | 'outcome'
+                        | 'errorCode'
                         | 'errorMessage'
                         | 'rowCount'
                         | 'columnCount'
@@ -13474,7 +13474,7 @@ export class AsyncQueryService extends ProjectService {
                 } catch (e) {
                     const message = getErrorMessage(e);
                     const outcome = getLiveQueryOutcome(e);
-                    const errorCode = getLiveSourceQueryErrorCode(outcome);
+                    const errorCode = getLiveSourceErrorCode(e, outcome);
                     span.setAttributes({
                         'lightdash.error': message,
                         ...(errorCode
@@ -13559,6 +13559,7 @@ export class AsyncQueryService extends ProjectService {
                     });
                     logCall({
                         outcome,
+                        errorCode,
                         errorMessage: message,
                         rowCount: null,
                         columnCount: null,
@@ -13647,10 +13648,7 @@ export class AsyncQueryService extends ProjectService {
         connector: ApiConnectorType;
         queryCreatedAt: Date;
         outcome: LiveQueryOutcome;
-        errorCode?:
-            | LiveSourceInternalErrorCode
-            | LiveSourceUpstreamErrorCode
-            | null;
+        errorCode?: LiveSourceErrorCode | null;
         errorMessage: string | null;
         totalRowCount: number | null;
         columnsCount: number | null;

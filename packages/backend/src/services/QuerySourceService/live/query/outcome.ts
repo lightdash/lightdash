@@ -1,13 +1,17 @@
 import {
     assertUnreachable,
     getLiveSourceErrorOrigin,
+    LightdashError,
+    LIVE_SOURCE_REFUSAL_CODES,
     ParameterError,
     TimeoutError,
     TooManyRequestsError,
     UnexpectedServerError,
     WarehouseConnectionError,
     WarehouseQueryError,
+    type LiveSourceErrorCode,
     type LiveSourceInternalErrorCode,
+    type LiveSourceRefusalCode,
     type LiveSourceUpstreamErrorCode,
 } from '@lightdash/common';
 
@@ -63,14 +67,32 @@ export const getLiveSourceQueryErrorCode = (
     }
 };
 
+const isRefusalCode = (code: unknown): code is LiveSourceRefusalCode =>
+    (LIVE_SOURCE_REFUSAL_CODES as readonly unknown[]).includes(code);
+
+/**
+ * The stable code of a failed api query: the refusal its error carries when
+ * Lightdash refused it mid-run (too many bytes read), else its outcome's.
+ */
+export const getLiveSourceErrorCode = (
+    error: unknown,
+    outcome: LiveQueryOutcome,
+): LiveSourceErrorCode | null => {
+    const carried =
+        error instanceof LightdashError
+            ? error.data?.liveSourceErrorCode
+            : undefined;
+    return isRefusalCode(carried)
+        ? carried
+        : getLiveSourceQueryErrorCode(outcome);
+};
+
 /**
  * Codes worth a Sentry issue: every failure of ours, and the API rejecting a
  * request our compiler built or failing in a way we don't understand. Auth,
  * rate limits and timeouts are the source's state.
  */
-export const isLiveSourceErrorReportable = (
-    code: LiveSourceInternalErrorCode | LiveSourceUpstreamErrorCode,
-) =>
+export const isLiveSourceErrorReportable = (code: LiveSourceErrorCode) =>
     getLiveSourceErrorOrigin(code) === 'internal' ||
     code === 'live_source.upstream.invalid_request' ||
     code === 'live_source.upstream.unknown';

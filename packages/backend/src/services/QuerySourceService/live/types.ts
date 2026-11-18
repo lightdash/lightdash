@@ -108,12 +108,6 @@ export type LiveLimits = {
     timeoutMs: number;
     /** Most rows one query can return; named in the too-many-rows error. */
     maxRows: number;
-    /**
-     * Bytes one query may read from the API across its calls; defaults to
-     * `LIVE_QUERY_MAX_RESPONSE_BYTES`. Set it lower for APIs whose records
-     * are large.
-     */
-    responseBytesPerQuery?: number;
 };
 
 /**
