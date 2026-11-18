@@ -2,6 +2,7 @@ import { useLocalStorage } from '@mantine/hooks';
 import {
     hashQueryKey,
     useQueryClient,
+    type QueryClient,
     type QueryKey,
 } from '@tanstack/react-query';
 import { useCallback } from 'react';
@@ -93,6 +94,30 @@ export const hashQueryKeyByView = (queryKey: QueryKey): string => {
         : hash;
 };
 
+const readsTheView = (queryKey: QueryKey) =>
+    !SAME_IN_EITHER_VIEW.has(String(queryKey[0]));
+
+/** Switches the view and refetches what it reads, keeping each query's data meanwhile so no page drops back to its loader. */
+const switchView = (queryClient: QueryClient, write: () => void) => {
+    const shown = queryClient
+        .getQueryCache()
+        .getAll()
+        .flatMap(({ queryKey, state }) =>
+            readsTheView(queryKey) && state.data !== undefined
+                ? [{ queryKey, data: state.data }]
+                : [],
+        );
+    write();
+    shown.forEach(({ queryKey, data }) => {
+        if (queryClient.getQueryData(queryKey) === undefined) {
+            queryClient.setQueryData(queryKey, data);
+        }
+    });
+    void queryClient.invalidateQueries({
+        predicate: ({ queryKey }) => readsTheView(queryKey),
+    });
+};
+
 /** Open Try it sessions; each keeps the view it started on, so nothing moves it under them. */
 let pins = 0;
 export const pinDevelopmentView = (): (() => void) => {
@@ -138,30 +163,28 @@ export const useDevelopmentView = (): [
             ) {
                 return;
             }
-            try {
-                if (next && here && previewProjectUuid) {
-                    localStorage.setItem(
-                        PREVIEW_STORAGE_KEY,
-                        previewProjectUuid,
-                    );
-                } else {
-                    localStorage.removeItem(PREVIEW_STORAGE_KEY);
+            switchView(queryClient, () => {
+                try {
+                    if (next && here && previewProjectUuid) {
+                        localStorage.setItem(
+                            PREVIEW_STORAGE_KEY,
+                            previewProjectUuid,
+                        );
+                    } else {
+                        localStorage.removeItem(PREVIEW_STORAGE_KEY);
+                    }
+                } catch {
+                    // Without storage the view cannot be switched on at all.
                 }
-            } catch {
-                // Without storage the view cannot be switched on at all.
-            }
-            setProject(
-                next && here
-                    ? [
-                          here,
-                          projectRoute?.projectUuid,
-                          projectRoute?.projectUrlIdentifier,
-                      ].join(' ')
-                    : null,
-            );
-            void queryClient.invalidateQueries({
-                predicate: ({ queryKey }) =>
-                    !SAME_IN_EITHER_VIEW.has(String(queryKey[0])),
+                setProject(
+                    next && here
+                        ? [
+                              here,
+                              projectRoute?.projectUuid,
+                              projectRoute?.projectUrlIdentifier,
+                          ].join(' ')
+                        : null,
+                );
             });
         },
         [pathname, queryClient, setProject, projectRoute],
@@ -184,28 +207,34 @@ export const useCheckedOutView = () => {
             let stored: string | null;
             try {
                 stored = localStorage.getItem(CHECKOUT_STORAGE_KEY);
-                if (projectIdentifiers === null) {
-                    localStorage.removeItem(CHECKOUT_STORAGE_KEY);
-                } else {
-                    localStorage.setItem(
-                        CHECKOUT_STORAGE_KEY,
-                        projectIdentifiers,
-                    );
-                }
             } catch {
                 // Without storage the app reads what is published.
                 return;
             }
+            const write = () => {
+                try {
+                    if (projectIdentifiers === null) {
+                        localStorage.removeItem(CHECKOUT_STORAGE_KEY);
+                    } else {
+                        localStorage.setItem(
+                            CHECKOUT_STORAGE_KEY,
+                            projectIdentifiers,
+                        );
+                    }
+                } catch {
+                    // Without storage the app reads what is published.
+                }
+            };
             const isFirst = shownCheckout === null;
             const changed =
                 stored !== projectIdentifiers || shownCheckout !== shown;
             shownCheckout = shown;
             // A page that loaded with the right project stored already read the latest compile.
-            if (!changed || (isFirst && stored === projectIdentifiers)) return;
-            void queryClient.invalidateQueries({
-                predicate: ({ queryKey }) =>
-                    !SAME_IN_EITHER_VIEW.has(String(queryKey[0])),
-            });
+            if (!changed || (isFirst && stored === projectIdentifiers)) {
+                write();
+                return;
+            }
+            switchView(queryClient, write);
         },
         [queryClient],
     );
