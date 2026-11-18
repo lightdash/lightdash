@@ -63,8 +63,8 @@ for (const required of [
 const openGates =
     workflow.match(/needs\.changes\.outputs\.open == 'true'/g) ?? [];
 assert.ok(
-    openGates.length >= 3,
-    `expected openapi-specs, preview and retract to be gated on the PR being open; found ${openGates.length} gate(s)`,
+    openGates.length >= 2,
+    `expected preview and retract to be gated on the PR being open; found ${openGates.length} gate(s)`,
 );
 
 const mergedChecks = workflow.match(/pr\.merged/g) ?? [];
@@ -86,7 +86,7 @@ assert.ok(
 // Nothing writes that stamp today (SPK-1017), so this guards the future fix.
 const pendingBlock = workflow.slice(
     workflow.indexOf('<!-- release-safety-pending -->'),
-    workflow.indexOf('  openapi-specs:'),
+    workflow.indexOf('\n  preview:'),
 );
 assert.ok(
     !pendingBlock.includes('release-safety-describes head:'),
