@@ -1,7 +1,8 @@
 import { forwardRef, useCallback, useMemo, useRef } from 'react';
 import { buildAppCapturePrompt } from '../../../features/apps/utils/appViewCapture';
-import { transcribeCapture } from '../../../features/apps/utils/transcribeCapture';
+import { captureTranscriber } from '../../../features/apps/utils/transcribeCapture';
 import useToaster from '../../../hooks/toaster/useToaster';
+import useApp from '../../../providers/App/useApp';
 import { useLauncherDock } from '../aiCopilot/components/Launcher/useLauncherDock';
 import { useCreateAgentThreadMutation } from '../aiCopilot/hooks/useProjectAiAgents';
 import { store as aiAgentStore } from '../aiCopilot/store';
@@ -87,15 +88,21 @@ const AppViewCapture = forwardRef<CaptureHostHandle, Props>(
         const getRegionRef = useRef(getRegion);
         getRegionRef.current = getRegion;
 
+        const { health } = useApp();
+        const voiceTranscriptionAvailable =
+            health.data?.ai.voiceTranscriptionAvailable;
         const surface = useMemo<CaptureSurface>(
             () => ({
                 getRegion: () => getRegionRef.current(),
                 captureImages: true,
                 resolveTarget: null,
-                transcribe: (audio) => transcribeCapture(projectUuid, audio),
+                transcribe: captureTranscriber(
+                    projectUuid,
+                    voiceTranscriptionAvailable,
+                ),
                 onCapture: (result) => void handleCaptureRef.current(result),
             }),
-            [projectUuid],
+            [projectUuid, voiceTranscriptionAvailable],
         );
 
         return (

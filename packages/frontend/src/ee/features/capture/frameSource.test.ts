@@ -6,35 +6,35 @@ import {
 } from './frameSource';
 
 describe('resolveFrameSource', () => {
-    it('uses tab capture when nothing is set', () => {
-        expect(resolveFrameSource({ search: '', stored: null })).toBe('tab');
+    it('draws the page itself when nothing is set', () => {
+        expect(resolveFrameSource({ search: '', stored: null })).toBe('dom');
     });
 
-    it('uses the DOM when the URL asks for it', () => {
+    it('shares the tab when the URL asks for it', () => {
         expect(
             resolveFrameSource({
-                search: '?foo=1&inlineCapture=dom',
+                search: '?foo=1&inlineCapture=tab',
                 stored: null,
             }),
-        ).toBe('dom');
+        ).toBe('tab');
     });
 
-    it('uses the DOM when localStorage asks for it', () => {
-        expect(resolveFrameSource({ search: '?foo=1', stored: 'dom' })).toBe(
-            'dom',
+    it('shares the tab when localStorage asks for it', () => {
+        expect(resolveFrameSource({ search: '?foo=1', stored: 'tab' })).toBe(
+            'tab',
         );
     });
 
-    it('lets the URL turn the stored choice off', () => {
+    it('lets the URL override the stored choice', () => {
         expect(
-            resolveFrameSource({ search: '?inlineCapture=tab', stored: 'dom' }),
-        ).toBe('tab');
+            resolveFrameSource({ search: '?inlineCapture=dom', stored: 'tab' }),
+        ).toBe('dom');
     });
 
-    it('treats unknown values as tab capture', () => {
+    it('treats unknown values as drawing the page', () => {
         expect(
-            resolveFrameSource({ search: '?inlineCapture=DOM', stored: 'x' }),
-        ).toBe('tab');
+            resolveFrameSource({ search: '?inlineCapture=TAB', stored: 'x' }),
+        ).toBe('dom');
     });
 });
 
@@ -74,13 +74,11 @@ describe('pageRectForRegion', () => {
 describe('frameLogLine', () => {
     it('names the method, time and size', () => {
         expect(frameLogLine('dom', 412.6, { width: 2880, height: 1620 })).toBe(
-            '[inline-capture] method=dom ms=413 size=2880x1620',
+            'method=dom ms=413 size=2880x1620',
         );
     });
 
     it('says when the frame failed', () => {
-        expect(frameLogLine('tab', 80, null)).toBe(
-            '[inline-capture] method=tab ms=80 failed',
-        );
+        expect(frameLogLine('tab', 80, null)).toBe('method=tab ms=80 failed');
     });
 });

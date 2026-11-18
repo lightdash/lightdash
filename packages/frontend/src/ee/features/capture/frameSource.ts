@@ -5,15 +5,15 @@ import { type CaptureFrameSource } from './types';
 const FRAME_SOURCE_KEY = 'inlineCapture';
 /** Elements carrying this attribute are left out of a DOM-rendered frame. */
 export const CAPTURE_IGNORE_ATTRIBUTE = 'data-inline-capture-ignore';
-const LOG_PREFIX = '[inline-capture]';
 
-// The URL wins over localStorage; anything but "dom" means tab capture.
+// The page draws itself unless "tab" asks for the shared tab instead.
+// The URL wins over localStorage.
 export const resolveFrameSource = (input: {
     search: string;
     stored: string | null;
 }): CaptureFrameSource => {
     const fromUrl = new URLSearchParams(input.search).get(FRAME_SOURCE_KEY);
-    return (fromUrl ?? input.stored) === 'dom' ? 'dom' : 'tab';
+    return (fromUrl ?? input.stored) === 'tab' ? 'tab' : 'dom';
 };
 
 export const readFrameSource = (): CaptureFrameSource => {
@@ -45,10 +45,10 @@ export const pageRectForRegion = (
 };
 
 export const frameLogLine = (
-    method: CaptureFrameSource,
+    method: CaptureFrameSource | 'app',
     ms: number,
     size: Size | null,
 ): string =>
-    `${LOG_PREFIX} method=${method} ms=${Math.round(ms)} ${
+    `method=${method} ms=${Math.round(ms)} ${
         size ? `size=${size.width}x${size.height}` : 'failed'
     }`;

@@ -41,7 +41,7 @@ describe('canCaptureOnAppView', () => {
 
 describe('buildAppCapturePrompt', () => {
     const summary = [
-        '[Point-and-talk capture, 0:12. The 2 attached images show the app with numbered red marks, in order.]',
+        '[Inline capture, 0:12. The 2 attached images show the app with numbered red marks, in order.]',
         'Image 1:',
         '- ① (0:02) circled, top left: "why is this so low"',
         '- (0:05) "and overall"',

@@ -8,6 +8,12 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
+import {
+    currentFrameSourceMode,
+    grabAppFrame,
+    logInlineCapture,
+    resolveFrameSource,
+} from './appFrame';
 import { buildSummary } from './buildSummary';
 import {
     captureReducer,
@@ -33,6 +39,8 @@ import {
 import { useTabFrame, type TabFrame, type TabFrameError } from './useTabFrame';
 import { useVoiceRecorder } from './useVoiceRecorder';
 import { wordsToPhrases } from './wordsToPhrases';
+
+type FrameMethod = 'tab' | 'dom' | 'app';
 
 const FADE_MS = 600;
 const TRAIL_SAMPLES = 24;
@@ -120,6 +128,8 @@ export const useCapture = (
     const finishRef = useRef<() => void>(() => {});
     const finishingRef = useRef(false);
     const voiceOnRef = useRef(false);
+    // Where this recording's pictures come from; decided when it starts.
+    const frameSourceRef = useRef<FrameMethod>('tab');
     const [finishing, setFinishing] = useState(false);
     const absoluteNow = useCallback(() => performance.now(), []);
 
@@ -154,8 +164,30 @@ export const useCapture = (
         startingRef.current = true;
         void (async () => {
             try {
-                // A DOM frame needs no shared tab, so there is no prompt.
-                if (current.captureImages && current.frameSource !== 'dom') {
+                // Dashboards draw their own page; data apps send their own
+                // picture. Only when neither works is the tab shared, which
+                // is the one case that shows the browser's share prompt.
+                let method: FrameMethod = 'tab';
+                if (current.captureImages && current.frameSource === 'dom') {
+                    method = 'dom';
+                } else if (current.captureImages) {
+                    const choice = await resolveFrameSource({
+                        mode: currentFrameSourceMode(),
+                        probe: current.grabAppImage ?? null,
+                    });
+                    method = choice.source;
+                    if (choice.source === 'app') {
+                        logInlineCapture(
+                            `method=app ms=${choice.ms} (first ask)`,
+                        );
+                    } else if (choice.reason !== 'switch-off') {
+                        logInlineCapture(
+                            `method=tab, the app gave no picture (${choice.reason})`,
+                        );
+                    }
+                }
+                frameSourceRef.current = method;
+                if (current.captureImages && method === 'tab') {
                     const stream = await ensureStream();
                     if (!stream.ok) {
                         showToastError(STREAM_ERROR_TITLES[stream.error]);
@@ -307,12 +339,16 @@ export const useCapture = (
         setInkVisible(false);
         setRect(region);
         setHolding(true);
-        // A DOM frame leaves the pill and ink out itself, so nothing is hidden.
-        const method = current.frameSource ?? 'tab';
-        const fromTab = current.captureImages && method === 'tab';
+        const method = current.captureImages ? frameSourceRef.current : null;
+        const grabAppImage = current.grabAppImage ?? null;
+        // Only a shared tab sees the pill and ink, so only then are they hidden.
+        const fromTab = method === 'tab';
         if (hidePill && fromTab) setPillHidden(true);
 
-        const timed = async (take: () => Promise<TabFrame>) => {
+        const timed = async (
+            used: FrameMethod,
+            take: () => Promise<TabFrame>,
+        ) => {
             const startedMs = performance.now();
             let size: { width: number; height: number } | null = null;
             try {
@@ -320,10 +356,8 @@ export const useCapture = (
                 size = taken.bitmap;
                 return taken;
             } finally {
-                // Spike: lets the two methods be compared in the console.
-                // eslint-disable-next-line no-console
-                console.info(
-                    frameLogLine(method, performance.now() - startedMs, size),
+                logInlineCapture(
+                    frameLogLine(used, performance.now() - startedMs, size),
                 );
             }
         };
@@ -332,14 +366,16 @@ export const useCapture = (
             frame = (async () => {
                 await nextPaint();
                 try {
-                    return await timed(() => grab(region));
+                    return await timed('tab', () => grab(region));
                 } finally {
                     setPillHidden(false);
                     setInkVisible(true);
                 }
             })();
-        } else if (current.captureImages) {
-            frame = timed(() => grabDomFrame(region));
+        } else if (method === 'app' && grabAppImage) {
+            frame = timed('app', () => grabAppFrame(grabAppImage, region));
+        } else if (method === 'dom') {
+            frame = timed('dom', () => grabDomFrame(region));
         }
         if (!fromTab) setInkVisible(true);
         // Failures are reported when the hold ends.

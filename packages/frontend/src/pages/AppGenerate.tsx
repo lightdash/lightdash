@@ -1238,6 +1238,7 @@ const AppGenerate: FC = () => {
                           previewContentRef.current?.getBoundingClientRect() ??
                           new DOMRect(),
                       captureImages: true,
+                      grabAppImage: capturePreviewScreenshot,
                       resolveTarget: null,
                       transcribe: captureTranscriber(
                           projectUuid,
@@ -1246,7 +1247,12 @@ const AppGenerate: FC = () => {
                       onCapture: (result) => captureHandlerRef.current(result),
                   }
                 : null,
-        [captureAvailable, projectUuid, voiceTranscriptionAvailable],
+        [
+            captureAvailable,
+            capturePreviewScreenshot,
+            projectUuid,
+            voiceTranscriptionAvailable,
+        ],
     );
     const captureRef = useRef<CaptureHostHandle>(null);
     // The preview is a sealed iframe, so the app forwards the capture hotkey.
