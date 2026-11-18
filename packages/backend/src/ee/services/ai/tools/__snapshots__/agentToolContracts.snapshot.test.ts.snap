@@ -25714,6 +25714,7 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "editDbtProject",
   "editProjectContext",
   "proposeSemanticLayerChange",
+  "listChanges",
   "readSemanticModel",
   "syncDbtProject",
   "exploreRepo",
