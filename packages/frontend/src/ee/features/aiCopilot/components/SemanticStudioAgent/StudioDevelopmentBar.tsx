@@ -3,8 +3,20 @@ import {
     CiMergeState,
     type CiChecks,
 } from '@lightdash/common';
-import { ActionIcon, Button, Group, Menu, Text, Tooltip } from '@mantine/core';
-import { IconDots, IconExternalLink } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Button,
+    Group,
+    Loader,
+    Menu,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import {
+    IconAlertTriangle,
+    IconDots,
+    IconExternalLink,
+} from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type FC } from 'react';
 import { Link } from 'react-router';
@@ -20,6 +32,7 @@ import { canWriteProjectBranch } from '../../../../../features/semanticStudio/pe
 import { rememberGoingLive } from '../../../../../features/semanticStudio/useGoingLive';
 import {
     describeBranchCompile,
+    useCompileCheckout,
     useDraftCheckout,
 } from '../../../../../features/semanticStudio/useSemanticLayerModel';
 import { usePublishCheckout } from '../../../../../features/semanticStudio/useStudioWorkspaces';
@@ -74,6 +87,7 @@ export const StudioDevelopmentBar: FC<{
     const { data: checkout } = useDraftCheckout(projectUuid);
     const { mutate: publish, isLoading: isPublishing } =
         usePublishCheckout(projectUuid);
+    const compileAgain = useCompileCheckout(projectUuid);
     const { mutate: close, isLoading: isClosing } =
         useClosePullRequest(projectUuid);
     const [publishing, setPublishing] = useState(false);
@@ -106,6 +120,7 @@ export const StudioDevelopmentBar: FC<{
             projectUuid,
         );
     const compile = checkout?.branchCompile ?? null;
+    const isCompileFailed = compile?.status === 'failed';
     // Publishing merges straight into the branch, so it waits on the right to write there and on a passing compile.
     const publishBlocker = !canWriteBranch
         ? `Only people who can write to ${branch ?? "the project's branch"} can publish. Open ${name} for review.`
@@ -126,18 +141,42 @@ export const StudioDevelopmentBar: FC<{
                 <Tooltip
                     multiline
                     w={240}
-                    label={publishBlocker ?? `Merges ${destination}.`}
+                    label={
+                        isCompileFailed
+                            ? `${compile?.error ?? 'The latest compile failed.'} Click to compile again.`
+                            : (publishBlocker ?? `Merges ${destination}.`)
+                    }
                 >
+                    {/* Publish waits on the draft's compile, so the button says where that stands. */}
                     <Button
                         size="xs"
                         variant="default"
-                        data-disabled={!!publishBlocker || undefined}
-                        aria-disabled={!!publishBlocker}
+                        leftSection={
+                            compile?.status === 'compiling' ? (
+                                <Loader size={12} color="gray" />
+                            ) : isCompileFailed ? (
+                                <MantineIcon
+                                    icon={IconAlertTriangle}
+                                    size={14}
+                                    color="yellow"
+                                />
+                            ) : null
+                        }
+                        loading={compileAgain.isLoading}
+                        data-disabled={
+                            (!isCompileFailed && !!publishBlocker) || undefined
+                        }
+                        aria-disabled={!isCompileFailed && !!publishBlocker}
                         onClick={() => {
-                            if (!publishBlocker) setPublishing(true);
+                            if (isCompileFailed) compileAgain.mutate();
+                            else if (!publishBlocker) setPublishing(true);
                         }}
                     >
-                        Publish
+                        {compile?.status === 'compiling'
+                            ? 'Compiling'
+                            : isCompileFailed
+                              ? 'Compile failed'
+                              : 'Publish'}
                     </Button>
                 </Tooltip>
             ) : null}

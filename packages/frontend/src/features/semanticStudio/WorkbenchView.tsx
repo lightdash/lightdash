@@ -27,7 +27,6 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import {
-    IconAlertTriangle,
     IconArrowLeft,
     IconArrowUpRight,
     IconBolt,
@@ -1707,23 +1706,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     maw={420}
                     className={classes.pickerTitle}
                     leftSection={<MantineIcon icon={IconGitBranch} size={14} />}
-                    aria-busy={branchCompile?.status === 'compiling'}
                     rightSection={
                         <Group gap={6} wrap="nowrap">
-                            {branchCompile?.status === 'compiling' ? (
-                                <Loader
-                                    size={12}
-                                    color="gray"
-                                    aria-label={compileDescription ?? undefined}
-                                />
-                            ) : branchCompile?.status === 'failed' ? (
-                                <MantineIcon
-                                    icon={IconAlertTriangle}
-                                    size={14}
-                                    color="yellow"
-                                    aria-label={compileDescription ?? undefined}
-                                />
-                            ) : null}
                             {changesBadge}
                             <MantineIcon icon={IconChevronDown} size={12} />
                         </Group>
@@ -2153,7 +2137,10 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                                 }
                                             >
                                                 {changePicker}
-                                                {isChangeInSources && stage ? (
+                                                {/* An open draft's state is on Publish, so the pill shows only once it ends. */}
+                                                {isChangeInSources &&
+                                                stage &&
+                                                stage.step !== 'in_review' ? (
                                                     <StudioStageLine
                                                         stage={stage}
                                                         href={changeUrl}
