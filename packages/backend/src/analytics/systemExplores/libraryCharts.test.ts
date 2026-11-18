@@ -529,20 +529,89 @@ describe('legacyLibraryChartBindings', () => {
     it('runs the day query on the real AI calls chart only when its type is usable', () => {
         const slug = 'lightdash-analytics-overview-ai-calls';
         const real = allCharts.find((c) => c.slug === slug)!;
-        const [swapped] = withLibraryCharts(
+        const bigNumberSchema: DataAppVizSchema = {
+            fields: ['value', 'sparklineMetric', 'time'].map((name) => ({
+                name,
+                label: name,
+                type: 'column',
+                required: false,
+            })),
+            configOptions: [
+                {
+                    type: 'text',
+                    name: 'valueAggregation',
+                    label: 'Aggregation',
+                    default: 'last',
+                },
+                {
+                    type: 'boolean',
+                    name: 'colorSparklineByTrend',
+                    label: 'Colour by trend',
+                    default: true,
+                },
+            ],
+            colorPalette: null,
+        };
+        const {
+            charts: [swapped],
+            rejected,
+        } = withLibraryCharts(
             [real],
             analyticsLibraryChartBindings,
-            new Map([['big-number-with-sparkline-trend', 'big-number-1']]),
+            new Map([
+                [
+                    'big-number-with-sparkline-trend',
+                    { appSlug: 'big-number-1', vizSchema: bigNumberSchema },
+                ],
+            ]),
         );
+        expect(rejected).toEqual([]);
         expect(swapped.chartConfig.type).toBe(ChartType.DATA_APP_VIZ);
         expect(swapped.metricQuery.dimensions).toEqual([
             'ai_usage_event_ts_day',
         ]);
-        const [plain] = withLibraryCharts(
-            [real],
-            analyticsLibraryChartBindings,
-            new Map(),
-        );
+        expect(swapped.description).toBe(real.description);
+        const {
+            charts: [plain],
+        } = withLibraryCharts([real], analyticsLibraryChartBindings, new Map());
         expect(plain).toBe(real);
+    });
+
+    it('describes each library rendering that runs its own query', () => {
+        const queryDescription = (slug: string) =>
+            analyticsLibraryChartBindings.get(slug)?.query?.description;
+        const chartDescription = (slug: string) =>
+            allCharts.find((c) => c.slug === slug)?.description;
+        [
+            'lightdash-analytics-overview-ai-calls',
+            'lightdash-analytics-overview-tokens',
+            'lightdash-analytics-overview-output-tokens',
+            'lightdash-analytics-overview-ai-calls-by-day',
+            'lightdash-analytics-overview-tokens-by-day',
+        ].forEach((slug) => {
+            expect(queryDescription(slug)).toBe(chartDescription(slug));
+        });
+        const agentChart = (key: string) =>
+            [...analyticsLibraryChartBindings.keys()].find((slug) =>
+                slug.endsWith(`-${key}`),
+            )!;
+        expect(queryDescription(agentChart('agent-adoption-by-week'))).toBe(
+            'Requests per person and agent over the selected period. People without a display name are grouped as Unknown user. This is not an eligible-user adoption rate.',
+        );
+        expect(
+            queryDescription(
+                agentChart('ai-consumption-by-person-feature-and-model'),
+            ),
+        ).toBe(
+            'Top 40 person and model pairs by tokens over the selected period, so a person near the cut-off can be missing smaller models. People without a display name are grouped as Unknown user. Tokens are not monetary cost.',
+        );
+        [
+            'agent-requests-trend',
+            'agent-retries-latency-and-consumption',
+        ].forEach((key) => {
+            expect(queryDescription(agentChart(key))).toBe(
+                chartDescription(agentChart(key)),
+            );
+        });
     });
 });

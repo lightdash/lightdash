@@ -24,6 +24,9 @@ type SampleChart = Omit<
     libraryChart?: LibraryChartBinding;
 };
 
+const defaultChartDescription =
+    'Based on all available usage events for this organization.';
+
 const chart = (
     key: string,
     name: string,
@@ -51,9 +54,7 @@ const chart = (
         key,
         libraryChart: options.libraryChart,
         name,
-        description:
-            options.description ??
-            'Based on all available usage events for this organization.',
+        description: options.description ?? defaultChartDescription,
         tableName,
         metricQuery: {
             exploreName: tableName,
@@ -170,6 +171,7 @@ const aiUsageContent = {
                         { fieldId: 'ai_usage_event_ts_day', descending: false },
                     ],
                     limit: 500,
+                    description: defaultChartDescription,
                 },
             },
         }),
@@ -202,6 +204,7 @@ const aiUsageContent = {
                             },
                         ],
                         limit: 500,
+                        description: defaultChartDescription,
                     },
                 },
             },
@@ -251,6 +254,7 @@ const aiUsageContent = {
                             },
                         ],
                         limit: 500,
+                        description: defaultChartDescription,
                     },
                 },
             },
@@ -289,6 +293,7 @@ const aiUsageContent = {
                             },
                         ],
                         limit: 5000,
+                        description: defaultChartDescription,
                     },
                 },
             },
@@ -327,6 +332,7 @@ const aiUsageContent = {
                             },
                         ],
                         limit: 5000,
+                        description: defaultChartDescription,
                     },
                 },
             },

@@ -411,6 +411,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
                     },
                 ],
                 limit: 500,
+                description:
+                    'All retained captured history. Recent capture is not a full historical census.',
             },
         },
     },
@@ -544,6 +546,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
                     },
                 ],
                 limit: 500,
+                description:
+                    'Requests per person and agent over the selected period. People without a display name are grouped as Unknown user. This is not an eligible-user adoption rate.',
             },
         },
     },
@@ -679,7 +683,22 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 xAxisType: 'category',
                 showSymbols: true,
             },
-            query: null,
+            query: {
+                dimensions: ['agent_requests_retry_count'],
+                metrics: [
+                    'agent_requests_total_requests',
+                    'agent_requests_average_request_latency_ms',
+                ],
+                sorts: [
+                    {
+                        fieldId: 'agent_requests_retry_count',
+                        descending: false,
+                    },
+                ],
+                limit: 30,
+                description:
+                    'Captured retry count and overhead; incomplete token attribution is possible. Agent steps are not equivalent to retries.',
+            },
         },
     },
     {
@@ -727,6 +746,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
                     },
                 ],
                 limit: 40,
+                description:
+                    'Top 40 person and model pairs by tokens over the selected period, so a person near the cut-off can be missing smaller models. People without a display name are grouped as Unknown user. Tokens are not monetary cost.',
             },
         },
     },
