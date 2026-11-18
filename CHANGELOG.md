@@ -1,3 +1,10 @@
+# [3.310.0](https://github.com/lightdash/lightdash/compare/3.309.0...3.310.0) (2026-11-18)
+
+
+### Features
+
+* **semantic-studio:** name the change the agent starts and say so ([#32843](https://github.com/lightdash/lightdash/issues/32843)) ([e16772f](https://github.com/lightdash/lightdash/commit/e16772f8327207668d5c32ec168608358d984470))
+
 # [3.309.0](https://github.com/lightdash/lightdash/compare/3.308.1...3.309.0) (2026-11-18)
 
 
