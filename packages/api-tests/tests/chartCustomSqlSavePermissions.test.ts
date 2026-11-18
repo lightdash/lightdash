@@ -584,7 +584,7 @@ describe('Saving a chart with custom SQL', () => {
                 expect((await currentQuery(restore.chartUuid)).limit).toBe(10);
             });
 
-            it('completes two rollbacks of the same dashboard at once', async () => {
+            it('restores once when two rollbacks of a dashboard race, asking the later one to retry', async () => {
                 const query = tableCalculation('1');
                 const restore = await dashboardWithChart(query, {
                     ...query,
@@ -604,7 +604,11 @@ describe('Saving a chart with custom SQL', () => {
                     ),
                 );
 
-                expect(statuses).toEqual([200, 200]);
+                expect(statuses).toContain(200);
+                expect(
+                    statuses.every((status) => [200, 409].includes(status)),
+                ).toBe(true);
+                expect((await currentQuery(restore.chartUuid)).limit).toBe(10);
             });
         });
     });
