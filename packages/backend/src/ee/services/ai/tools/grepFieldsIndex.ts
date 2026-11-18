@@ -80,10 +80,10 @@ export const describeTableFilterKinds = (
 ): string | null => {
     const sentences = [
         summaries.some((summary) => summary.hasRequired)
-            ? 'Required table filters apply to every query on their explore, but their values are replaceable defaults, not fixed data limits: when the requested scope differs, filter the same field or a derived time dimension of it with that scope (e.g. ten months instead of a required 4 weeks).'
+            ? 'Required filters apply to every query on their explore, but their values are replaceable defaults, not fixed data limits: when the requested scope differs, filter the same field or a derived time dimension of it with that scope (e.g. ten months instead of a required 4 weeks).'
             : null,
         summaries.some((summary) => summary.hasSuggested)
-            ? 'Suggested table filters are soft defaults: apply them unless the user asks for a different scope.'
+            ? 'Suggested filters are soft defaults: apply them unless the user asks for a different scope.'
             : null,
     ].filter((sentence): sentence is string => sentence !== null);
     return sentences.length > 0 ? sentences.join(' ') : null;
