@@ -30,7 +30,7 @@ type RequiredMetricQueryKeys = keyof Omit<
 >;
 
 const TOOL_CHART_AS_CODE_METRIC_QUERY_DESCRIPTION =
-    'Chart-as-code metricQuery object. Required fields: exploreName, dimensions, metrics, filters, sorts, limit, tableCalculations. Optional passthrough fields: additionalMetrics, customDimensions, metricOverrides, dimensionOverrides, timezone, pivotDimensions, metadata. filters is {} when there are none, not null or an array. Each filter on a custom metric (an item of additionalMetrics[].filters) has the shape { "id": "<unique string>", "target": { "fieldRef": "<table>.<dimension name>" }, "operator": "equals", "values": ["completed"] }: fieldRef is dotted, e.g. "orders.status", while metricQuery.filters rules target { "fieldId": "orders_status" }. Every dimension in dimensions must appear in exactly one of: layout.xField, layout.yField, or pivotConfig.columns.';
+    'Chart-as-code metricQuery object. Required fields: exploreName, dimensions, metrics, filters, sorts, limit, tableCalculations. Optional passthrough fields: additionalMetrics, customDimensions, metricOverrides, dimensionOverrides, timezone, pivotDimensions, metadata. filters is {} when there are none, not null or an array. A custom metric filter is an item of additionalMetrics[].filters, e.g. for equals: { "id": "<unique string>", "target": { "fieldRef": "<table>.<dimension name>" }, "operator": "equals", "values": ["completed"] }. Its fieldRef is dotted, e.g. "orders.status", while metricQuery.filters rules target { "fieldId": "orders_status" }. Every dimension in dimensions must appear in exactly one of: layout.xField, layout.yField, or pivotConfig.columns.';
 
 const chartAsCodeMetricQueryShape = {
     exploreName: z.unknown().optional(),
