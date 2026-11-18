@@ -17,6 +17,7 @@ import {
     NotFoundError,
     RegisteredAccount,
     SessionUser,
+    type ChartAsCode,
     type DataAppCode,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
@@ -708,14 +709,40 @@ export class AnalyticsProjectService extends BaseService {
                             { projectUuid: project.projectUuid, ...rejected },
                         );
                     });
-                    for (const chart of libraryCharts.charts) {
-                        await this.dependencies.coderService.upsertChart(
-                            user,
-                            project.projectUuid,
-                            chart.slug,
-                            { ...chart, spaceSlug },
-                            options,
-                        );
+                    for (const [
+                        index,
+                        chart,
+                    ] of libraryCharts.charts.entries()) {
+                        const upload = (content: ChartAsCode) =>
+                            this.dependencies.coderService.upsertChart(
+                                user,
+                                project.projectUuid,
+                                content.slug,
+                                { ...content, spaceSlug },
+                                options,
+                            );
+                        const fallback = charts[index];
+                        if (chart === fallback) {
+                            await upload(chart);
+                        } else {
+                            try {
+                                await upload(chart);
+                            } catch (error) {
+                                // The chart type can be deleted after it was ensured.
+                                if (!(error instanceof NotFoundError)) {
+                                    throw error;
+                                }
+                                this.logger.warn(
+                                    'Analytics chart type unavailable at upload, using the plain chart',
+                                    {
+                                        projectUuid: project.projectUuid,
+                                        chartSlug: chart.slug,
+                                        error: getErrorMessage(error),
+                                    },
+                                );
+                                await upload(fallback);
+                            }
+                        }
                     }
                     await this.dependencies.coderService.upsertDashboard(
                         user,

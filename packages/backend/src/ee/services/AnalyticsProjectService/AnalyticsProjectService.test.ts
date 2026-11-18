@@ -1225,6 +1225,53 @@ describe('AnalyticsProjectService', () => {
             expect(saveSnapshot).toHaveBeenCalled();
         });
 
+        it('uploads the fallback chart when the chart type disappears before upload', async () => {
+            ensureRegistryChartTypes.mockResolvedValue(
+                new Map([['heatmap', heatmapType]]),
+            );
+            upsertChart.mockImplementation(
+                async (_user, _project, chartSlug, chartAsCode) => {
+                    if (
+                        chartSlug === slug &&
+                        chartAsCode.chartConfig.type === ChartType.DATA_APP_VIZ
+                    ) {
+                        throw new NotFoundError(
+                            'Custom chart type "heatmap" was not found in this project.',
+                        );
+                    }
+                    return undefined;
+                },
+            );
+            const warn = vi.spyOn(
+                (service as unknown as { logger: { warn: () => void } }).logger,
+                'warn',
+            );
+            await expect(
+                service.installSampleContent(user),
+            ).resolves.toBeUndefined();
+            const uploads = upsertChart.mock.calls.filter(
+                ([, , chartSlug]) => chartSlug === slug,
+            );
+            expect(uploads).toHaveLength(2);
+            expect(uploads[1][3]).toEqual({
+                ...original,
+                spaceSlug: expect.any(String),
+            });
+            expect(warn).toHaveBeenCalledWith(
+                'Analytics chart type unavailable at upload, using the plain chart',
+                expect.objectContaining({ chartSlug: slug }),
+            );
+            expect(saveSnapshot).toHaveBeenCalled();
+        });
+
+        it('still fails sync when uploading a plain chart throws', async () => {
+            upsertChart.mockRejectedValue(new NotFoundError('missing space'));
+            await expect(service.installSampleContent(user)).rejects.toThrow(
+                'missing space',
+            );
+            expect(saveSnapshot).not.toHaveBeenCalled();
+        });
+
         it('ensures types before uploading any chart', async () => {
             await service.installSampleContent(user);
             expect(

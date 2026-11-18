@@ -10864,7 +10864,6 @@ export class AppGenerateService extends BaseService {
         type InstalledApp = Awaited<
             ReturnType<AppModel['listRegistryInstalledApps']>
         >[number];
-        const usable = new Map<string, InstalledApp>();
         if (requirements.length === 0) return new Map();
 
         const isCurrent = (
@@ -10879,25 +10878,29 @@ export class AppGenerateService extends BaseService {
             }
         };
 
-        const installed =
-            await this.appModel.listRegistryInstalledApps(projectUuid);
-        const pending: typeof requirements = [];
-        for (const requirement of requirements) {
-            const app = installed.find(
-                (a) => a.registry_slug === requirement.slug,
-            );
-            if (
-                app &&
-                isCurrent(
-                    app.latest_ready_registry_version,
-                    requirement.minVersion,
-                )
-            ) {
-                usable.set(requirement.slug, app);
-            } else {
-                pending.push(requirement);
-            }
-        }
+        const usableIn = (installed: InstalledApp[]) => {
+            const found = new Map<string, InstalledApp>();
+            requirements.forEach((requirement) => {
+                const app = installed.find(
+                    (a) => a.registry_slug === requirement.slug,
+                );
+                if (
+                    app &&
+                    isCurrent(
+                        app.latest_ready_registry_version,
+                        requirement.minVersion,
+                    )
+                ) {
+                    found.set(requirement.slug, app);
+                }
+            });
+            return found;
+        };
+
+        const usable = usableIn(
+            await this.appModel.listRegistryInstalledApps(projectUuid),
+        );
+        const pending = requirements.filter(({ slug }) => !usable.has(slug));
         if (pending.length === 0 || !this.chartRegistryClient.isEnabled()) {
             return this.withRenderableSchemas(projectUuid, usable);
         }
@@ -10926,7 +10929,8 @@ export class AppGenerateService extends BaseService {
             return this.withRenderableSchemas(projectUuid, usable);
         }
 
-        const ready = new Set<string>();
+        let attempted = false;
+        const reportedInstalled = new Set<string>();
         // Sequential: each install downloads and copies a bundle
         for (const requirement of pending) {
             const entry = index.charts.find((c) => c.slug === requirement.slug);
@@ -10935,6 +10939,7 @@ export class AppGenerateService extends BaseService {
                 !AppGenerateService.isRegistryEntryIncompatible(entry) &&
                 isCurrent(entry.version, requirement.minVersion)
             ) {
+                attempted = true;
                 try {
                     // eslint-disable-next-line no-await-in-loop
                     await this.installRegistryEntry(
@@ -10944,7 +10949,7 @@ export class AppGenerateService extends BaseService {
                         entry,
                         {},
                     );
-                    ready.add(requirement.slug);
+                    reportedInstalled.add(requirement.slug);
                 } catch (e) {
                     this.logger.warn(
                         `Chart type "${requirement.slug}" failed to install in project ${projectUuid}: ${getErrorMessage(e)}`,
@@ -10952,15 +10957,20 @@ export class AppGenerateService extends BaseService {
                 }
             }
         }
-        if (ready.size > 0) {
-            // The install result carries the registry slug; the app slug can differ.
-            const after =
-                await this.appModel.listRegistryInstalledApps(projectUuid);
-            after
-                .filter((a) => ready.has(a.registry_slug))
-                .forEach((a) => usable.set(a.registry_slug, a));
-        }
-        return this.withRenderableSchemas(projectUuid, usable);
+        if (!attempted) return this.withRenderableSchemas(projectUuid, usable);
+
+        // Re-read so a concurrent install counts and a reported success is checked.
+        const after = usableIn(
+            await this.appModel.listRegistryInstalledApps(projectUuid),
+        );
+        reportedInstalled.forEach((slug) => {
+            if (!after.has(slug)) {
+                this.logger.warn(
+                    `Chart type "${slug}" installed in project ${projectUuid} but is not usable after re-reading the project's chart types`,
+                );
+            }
+        });
+        return this.withRenderableSchemas(projectUuid, after);
     }
 
     // Keeps the types that have a renderable version, with that version's schema.
