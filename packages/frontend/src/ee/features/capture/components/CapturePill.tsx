@@ -10,6 +10,8 @@ type Props = {
     liveText: string;
     /** Set when voice started but the browser cannot transcribe. */
     voiceProblem: string | null;
+    /** Why voice is off, as reported by the browser. */
+    voiceOffReason: string | null;
     atImageLimit: boolean;
     /** Hidden for a moment while the screen is photographed. */
     hidden: boolean;
@@ -19,6 +21,14 @@ type Props = {
 
 const LIVE_TEXT_LENGTH = 80;
 
+const voiceOffCaption = (reason: string | null): string => {
+    if (reason === 'waiting') return 'Waiting for microphone permission';
+    if (reason === 'not-allowed' || reason === 'service-not-allowed')
+        return 'Voice is off: microphone is blocked for this site or browser';
+    if (reason === 'audio-capture') return 'Voice is off: no microphone found';
+    return reason ? `Voice is off (${reason})` : 'Voice is off';
+};
+
 const CapturePill = forwardRef<HTMLDivElement, Props>(
     (
         {
@@ -26,6 +36,7 @@ const CapturePill = forwardRef<HTMLDivElement, Props>(
             voice,
             liveText,
             voiceProblem,
+            voiceOffReason,
             atImageLimit,
             hidden,
             onStop,
@@ -43,7 +54,7 @@ const CapturePill = forwardRef<HTMLDivElement, Props>(
         }, [startedAt]);
 
         let caption = liveText.slice(-LIVE_TEXT_LENGTH);
-        if (voice === 'off') caption = 'Voice is off';
+        if (voice === 'off') caption = voiceOffCaption(voiceOffReason);
         if (voiceProblem)
             caption = `Voice is not working in this browser (${voiceProblem})`;
         if (atImageLimit) caption = 'Image limit reached';

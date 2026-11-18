@@ -173,4 +173,37 @@ describe('useSpeechTranscript', () => {
         act(() => last().onerror?.({ error: 'no-speech' }));
         expect(result.current.problem).toBeNull();
     });
+
+    it('turns on late when the mic prompt is answered after the wait', async () => {
+        vi.useFakeTimers();
+        FakeRecognition.startBehaviour = 'silent';
+        const { result } = renderHook(() =>
+            useSpeechTranscript({ now: () => 0 }),
+        );
+        const started = result.current.start();
+        act(() => {
+            vi.advanceTimersByTime(4000);
+        });
+        await expect(started).resolves.toBe('off');
+        expect(result.current.listening).toBe(false);
+        expect(result.current.offReason).toBe('waiting');
+
+        act(() => last().onstart?.());
+        expect(result.current.listening).toBe(true);
+        expect(result.current.offReason).toBeNull();
+        act(() => last().emit([{ transcript: 'hello', isFinal: true }]));
+        expect(result.current.stop()).toEqual([{ atMs: 0, text: 'hello' }]);
+    });
+
+    it('says why voice is off when the mic is blocked', async () => {
+        FakeRecognition.startBehaviour = 'silent';
+        const { result } = renderHook(() =>
+            useSpeechTranscript({ now: () => 0 }),
+        );
+        const started = result.current.start();
+        act(() => last().onerror?.({ error: 'not-allowed' }));
+        await started;
+        expect(result.current.listening).toBe(false);
+        expect(result.current.offReason).toBe('not-allowed');
+    });
 });

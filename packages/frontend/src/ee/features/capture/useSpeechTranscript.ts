@@ -44,6 +44,8 @@ export const useSpeechTranscript = ({ now }: { now: () => number }) => {
     const interimRef = useRef<TranscriptPhrase | null>(null);
     const [liveText, setLiveText] = useState('');
     const [problem, setProblem] = useState<string | null>(null);
+    const [listening, setListening] = useState(false);
+    const [offReason, setOffReason] = useState<string | null>(null);
     const nowRef = useRef(now);
     nowRef.current = now;
 
@@ -61,7 +63,10 @@ export const useSpeechTranscript = ({ now }: { now: () => number }) => {
                 interimRef.current = null;
                 setLiveText('');
                 setProblem(null);
+                setListening(false);
+                setOffReason(null);
                 if (!Ctor) {
+                    setOffReason('unsupported');
                     resolve('off');
                     return;
                 }
@@ -72,11 +77,15 @@ export const useSpeechTranscript = ({ now }: { now: () => number }) => {
                     if (settled) return;
                     settled = true;
                     window.clearTimeout(timer);
-                    if (voice === 'off') runningRef.current = false;
                     resolve(voice);
                 };
                 const timer = window.setTimeout(
-                    () => settle('off'),
+                    // Still waiting, usually on the mic prompt: start without
+                    // voice and switch it on if recognition starts later.
+                    () => {
+                        setOffReason('waiting');
+                        settle('off');
+                    },
                     START_TIMEOUT_MS,
                 );
 
@@ -85,6 +94,8 @@ export const useSpeechTranscript = ({ now }: { now: () => number }) => {
                 recognition.lang = navigator.language;
                 recognition.onstart = () => {
                     started = true;
+                    setListening(true);
+                    setOffReason(null);
                     settle('on');
                 };
                 recognition.onresult = (event) => {
@@ -120,8 +131,10 @@ export const useSpeechTranscript = ({ now }: { now: () => number }) => {
                 };
                 recognition.onerror = (event) => {
                     if (!started || BLOCKED_ERRORS.includes(event.error)) {
-                        settle('off');
                         runningRef.current = false;
+                        setListening(false);
+                        setOffReason(event.error);
+                        settle('off');
                         return;
                     }
                     // Started but cannot transcribe: say so, stop retrying.
@@ -133,6 +146,10 @@ export const useSpeechTranscript = ({ now }: { now: () => number }) => {
                 // Chrome ends recognition after a pause; keep it going.
                 recognition.onend = () => {
                     if (!started) {
+                        runningRef.current = false;
+                        setOffReason((reason) =>
+                            reason && reason !== 'waiting' ? reason : 'ended',
+                        );
                         settle('off');
                         return;
                     }
@@ -148,6 +165,8 @@ export const useSpeechTranscript = ({ now }: { now: () => number }) => {
                 try {
                     recognition.start();
                 } catch {
+                    runningRef.current = false;
+                    setOffReason('failed');
                     settle('off');
                 }
             }),
@@ -171,5 +190,5 @@ export const useSpeechTranscript = ({ now }: { now: () => number }) => {
         return phrases;
     }, []);
 
-    return { start, stop, liveText, problem };
+    return { start, stop, liveText, problem, listening, offReason };
 };
