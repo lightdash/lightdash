@@ -1,5 +1,6 @@
 import { type CSSProperties, type FC, type MouseEvent } from 'react';
 import { INK_COLOR } from '../composeImage';
+import { CAPTURE_IGNORE_ATTRIBUTE } from '../frameSource';
 import { type Box, type Point, type Stroke } from '../types';
 import classes from './InkOverlay.module.css';
 
@@ -55,6 +56,7 @@ const InkOverlay: FC<Props> = ({
         <>
             <div
                 className={classes.outline}
+                {...{ [CAPTURE_IGNORE_ATTRIBUTE]: '' }}
                 style={
                     {
                         '--region-left': `${rect.left}px`,
@@ -66,6 +68,7 @@ const InkOverlay: FC<Props> = ({
             />
             <div
                 className={classes.layer}
+                {...{ [CAPTURE_IGNORE_ATTRIBUTE]: '' }}
                 data-holding={holding}
                 style={
                     {

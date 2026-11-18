@@ -19,7 +19,9 @@ import { classifyMark } from './classifyStroke';
 import CapturePill from './components/CapturePill';
 import InkOverlay, { type FadingMark } from './components/InkOverlay';
 import { composeImage } from './composeImage';
+import { grabDomFrame } from './domFrame';
 import { sameScreen } from './frameGeometry';
+import { frameLogLine } from './frameSource';
 import { coveredTargets } from './markCoverage';
 import {
     type CaptureSurface,
@@ -152,7 +154,8 @@ export const useCapture = (
         startingRef.current = true;
         void (async () => {
             try {
-                if (current.captureImages) {
+                // A DOM frame needs no shared tab, so there is no prompt.
+                if (current.captureImages && current.frameSource !== 'dom') {
                     const stream = await ensureStream();
                     if (!stream.ok) {
                         showToastError(STREAM_ERROR_TITLES[stream.error]);
@@ -304,20 +307,41 @@ export const useCapture = (
         setInkVisible(false);
         setRect(region);
         setHolding(true);
-        if (hidePill && current.captureImages) setPillHidden(true);
+        // A DOM frame leaves the pill and ink out itself, so nothing is hidden.
+        const method = current.frameSource ?? 'tab';
+        const fromTab = current.captureImages && method === 'tab';
+        if (hidePill && fromTab) setPillHidden(true);
 
-        const frame = current.captureImages
-            ? (async () => {
-                  await nextPaint();
-                  try {
-                      return await grab(region);
-                  } finally {
-                      setPillHidden(false);
-                      setInkVisible(true);
-                  }
-              })()
-            : Promise.resolve(null);
-        if (!current.captureImages) setInkVisible(true);
+        const timed = async (take: () => Promise<TabFrame>) => {
+            const startedMs = performance.now();
+            let size: { width: number; height: number } | null = null;
+            try {
+                const taken = await take();
+                size = taken.bitmap;
+                return taken;
+            } finally {
+                // Spike: lets the two methods be compared in the console.
+                // eslint-disable-next-line no-console
+                console.info(
+                    frameLogLine(method, performance.now() - startedMs, size),
+                );
+            }
+        };
+        let frame: Promise<TabFrame | null> = Promise.resolve(null);
+        if (fromTab) {
+            frame = (async () => {
+                await nextPaint();
+                try {
+                    return await timed(() => grab(region));
+                } finally {
+                    setPillHidden(false);
+                    setInkVisible(true);
+                }
+            })();
+        } else if (current.captureImages) {
+            frame = timed(() => grabDomFrame(region));
+        }
+        if (!fromTab) setInkVisible(true);
         // Failures are reported when the hold ends.
         frame.catch(() => {});
         holdRef.current = {

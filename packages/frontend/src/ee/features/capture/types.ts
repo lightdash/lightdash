@@ -41,8 +41,13 @@ export type CaptureResult = {
     durationMs: number;
 };
 
+/** Where the pixels come from: browser tab capture, or the page's own DOM. */
+export type CaptureFrameSource = 'tab' | 'dom';
+
 export type CaptureSurface = {
     getRegion: () => DOMRect;
+    /** Defaults to tab capture. "dom" needs no share prompt. */
+    frameSource?: CaptureFrameSource;
     /** False when the surface only needs marks and words, not pictures. */
     captureImages: boolean;
     /** What is at a viewport point (a tile, a data point). */

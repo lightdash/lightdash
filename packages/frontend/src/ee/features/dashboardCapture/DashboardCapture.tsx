@@ -49,6 +49,7 @@ import {
 import { useAiAgentStoreDispatch } from '../aiCopilot/store/hooks';
 import {
     CaptureHost,
+    readFrameSource,
     type CaptureHostHandle,
     type CaptureResult,
     type CaptureSurface,
@@ -382,6 +383,8 @@ const DashboardCapture: FC = () => {
                           ),
                       // Pictures let the sorter see what was marked inside a chart.
                       captureImages: true,
+                      // Spike: ?inlineCapture=dom draws the page from the DOM.
+                      frameSource: readFrameSource(),
                       resolveTarget: (point) =>
                           targetAtPoint(point, tilesRef.current),
                       transcribe: captureTranscriber(
