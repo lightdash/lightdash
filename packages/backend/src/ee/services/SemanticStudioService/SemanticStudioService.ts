@@ -25,6 +25,7 @@ import {
     type LightdashError,
     type Project,
     type SaveSemanticStudioSourceRequest,
+    type SemanticLayerBlocker,
     type SemanticLayerDraft,
     type SemanticLayerDraftApplyResult,
     type SemanticLayerDraftedModels,
@@ -311,6 +312,8 @@ const MAX_PULL_REQUEST_REFRESHES = 5;
 const PULL_REQUEST_REFRESH_MS = 55_000;
 const RECENT_WORKSPACE_MS = 14 * 24 * 60 * 60 * 1000;
 
+type Blocker = { reason: SemanticLayerBlocker; error: LightdashError };
+
 export class SemanticStudioService extends BaseService {
     private readonly featureFlagModel: SemanticStudioServiceArguments['featureFlagModel'];
 
@@ -371,7 +374,7 @@ export class SemanticStudioService extends BaseService {
     private async findAccessBlocker(
         user: SessionUser,
         project: ModelProject,
-    ): Promise<LightdashError | null> {
+    ): Promise<Blocker | null> {
         if (
             this.createAuditedAbility(user).cannot(
                 'manage',
@@ -388,9 +391,12 @@ export class SemanticStudioService extends BaseService {
                 }),
             )
         ) {
-            return new ForbiddenError(
-                'User does not have permission to deploy to this project',
-            );
+            return {
+                reason: 'no_access',
+                error: new ForbiddenError(
+                    'User does not have permission to deploy to this project',
+                ),
+            };
         }
         const { enabled } = await this.featureFlagModel.get({
             user: {
@@ -401,14 +407,17 @@ export class SemanticStudioService extends BaseService {
         });
         return enabled
             ? null
-            : new ForbiddenError('This feature is not enabled');
+            : {
+                  reason: 'no_access',
+                  error: new ForbiddenError('This feature is not enabled'),
+              };
     }
 
     /** A write to the project's repository needs what any write to it needs. */
     private findSourceBlocker(
         user: SessionUser,
         project: ModelProject,
-    ): LightdashError | null {
+    ): Blocker | null {
         return this.createAuditedAbility(user).cannot(
             'manage',
             subject('SourceCode', {
@@ -417,9 +426,12 @@ export class SemanticStudioService extends BaseService {
                 isProtectedBranch: false,
             }),
         )
-            ? new ForbiddenError(
-                  "User does not have permission to change this project's repository",
-              )
+            ? {
+                  reason: 'no_repository_access',
+                  error: new ForbiddenError(
+                      "User does not have permission to change this project's repository",
+                  ),
+              }
             : null;
     }
 
@@ -427,7 +439,7 @@ export class SemanticStudioService extends BaseService {
     private async findBlocker(
         user: SessionUser,
         project: ModelProject,
-    ): Promise<LightdashError | null> {
+    ): Promise<Blocker | null> {
         const blocker = await this.findAccessBlocker(user, project);
         if (blocker) return blocker;
         if (project.dbtConnection.type === DbtProjectType.NONE) return null;
@@ -435,22 +447,47 @@ export class SemanticStudioService extends BaseService {
             keepsModelsInGithub(project.dbtConnection) &&
             !resolveRepoConnection(project.dbtConnection)
         ) {
-            return new ParameterError(
-                'Models in a repository can only be changed here when the connection uses the GitHub App on github.com',
-            );
+            return {
+                reason: 'unsupported_connection',
+                error: new ParameterError(
+                    'Models in a repository can only be changed here when the connection uses the GitHub App on github.com',
+                ),
+            };
         }
         if (!resolveRepoConnection(project.dbtConnection)) {
-            return new ParameterError(
-                'A draft is kept for a project without a dbt connection, or one that keeps its models in GitHub',
-            );
+            return {
+                reason: 'unsupported_connection',
+                error: new ParameterError(
+                    'A draft is kept for a project without a dbt connection, or one that keeps its models in GitHub',
+                ),
+            };
         }
         const sourceBlocker = this.findSourceBlocker(user, project);
         if (sourceBlocker) return sourceBlocker;
         return (await this.repoModels.isInstalled(project.organizationUuid))
             ? null
-            : new ParameterError(
-                  'The GitHub App must be installed to change models that live in a repository',
-              );
+            : {
+                  reason: 'github_app_missing',
+                  error: new ParameterError(
+                      'The GitHub App must be installed to change models that live in a repository',
+                  ),
+              };
+    }
+
+    /** Why this person cannot have the agent edit this dbt project's repository, or null when they can. */
+    private async findDbtProjectBlocker(
+        user: SessionUser,
+        project: ModelProject,
+    ): Promise<SemanticLayerBlocker | null> {
+        const access = await this.findAccessBlocker(user, project);
+        if (access) return access.reason;
+        // A preview is a look at a pull request's branch, not a place to start another.
+        if (project.type === ProjectType.PREVIEW) return 'preview_project';
+        if (
+            !getWritebackConnectionSupport(project.dbtConnection).editDbtProject
+        )
+            return 'unsupported_connection';
+        return this.findSourceBlocker(user, project)?.reason ?? null;
     }
 
     /** Whether this person can change this project's models here, and what applying a draft would do. */
@@ -465,19 +502,17 @@ export class SemanticStudioService extends BaseService {
             !keepsModelsInGithub(dbtConnection)
         ) {
             // A dbt project keeps no draft: the agent edits the repository in a pull request.
+            const reason = await this.findDbtProjectBlocker(user, project);
             return {
-                enabled:
-                    // A preview is a look at a pull request's branch, not a place to start another.
-                    project.type !== ProjectType.PREVIEW &&
-                    getWritebackConnectionSupport(dbtConnection)
-                        .editDbtProject &&
-                    (await this.findAccessBlocker(user, project)) === null &&
-                    this.findSourceBlocker(user, project) === null,
+                enabled: reason === null,
+                blocker: reason,
                 appliesAs: 'dbt_pull_request',
             };
         }
+        const blocker = await this.findBlocker(user, project);
         return {
-            enabled: (await this.findBlocker(user, project)) === null,
+            enabled: blocker === null,
+            blocker: blocker?.reason ?? null,
             appliesAs: keepsModelsInGithub(dbtConnection)
                 ? 'pull_request'
                 : 'live',
@@ -522,7 +557,7 @@ export class SemanticStudioService extends BaseService {
             user,
             await this.projectModel.get(projectUuid),
         );
-        if (blocker) throw blocker;
+        if (blocker) throw blocker.error;
     }
 
     async canEditModels(
@@ -1882,7 +1917,7 @@ export class SemanticStudioService extends BaseService {
     ): Promise<void> {
         const project = await this.projectModel.get(projectUuid);
         const blocker = await this.findBlocker(user, project);
-        if (blocker) throw blocker;
+        if (blocker) throw blocker.error;
         if (!this.canValidate(user, project)) {
             throw new ForbiddenError(
                 'User does not have permission to validate this project',

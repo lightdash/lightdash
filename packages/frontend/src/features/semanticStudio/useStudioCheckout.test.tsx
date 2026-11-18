@@ -46,7 +46,11 @@ const setup = (initial: string | null) => {
     const waiting = new Map<string, (draft: SemanticLayerDraft) => void>();
     api.mockImplementation(({ url }: { url: string }) => {
         if (url.endsWith('/status')) {
-            return Promise.resolve({ enabled: true, appliesAs: 'live' });
+            return Promise.resolve({
+                enabled: true,
+                blocker: null,
+                appliesAs: 'live',
+            });
         }
         const activated = /\/workspaces\/(\w+)\/activate$/.exec(url)?.[1];
         if (activated) {

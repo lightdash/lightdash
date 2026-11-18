@@ -53,6 +53,7 @@ import {
     describeModelChange,
     getChangeKind,
     summarizeModelChanges,
+    count,
 } from './modelCode';
 import { LIVE_HEADERS, useTotals } from './useMetricTotals';
 import {
@@ -481,10 +482,10 @@ const ChangeRow: FC<{
             ) : null}
             {count > 1 ? (
                 <Group gap={0} wrap="nowrap" flex="none">
-                    <Tooltip label="Apply earlier">
+                    <Tooltip label="Move earlier">
                         <ActionIcon
                             size="sm"
-                            aria-label="Apply earlier"
+                            aria-label="Move earlier"
                             disabled={index === 0 || move.isLoading}
                             onClick={() =>
                                 move.mutate({
@@ -496,10 +497,10 @@ const ChangeRow: FC<{
                             <MantineIcon icon={IconArrowUp} />
                         </ActionIcon>
                     </Tooltip>
-                    <Tooltip label="Apply later">
+                    <Tooltip label="Move later">
                         <ActionIcon
                             size="sm"
-                            aria-label="Apply later"
+                            aria-label="Move later"
                             disabled={index === count - 1 || move.isLoading}
                             onClick={() =>
                                 move.mutate({
@@ -543,9 +544,18 @@ export const ChangeQueue: FC<{
         ]),
     );
     return (
-        <Paper className={classes.section}>
-            <Text fz="sm" fw={500} className={classes.sectionTitle}>
-                Changes in order
+        <Paper
+            component="details"
+            className={classes.section}
+            open={hasFailure || undefined}
+        >
+            <Text
+                component="summary"
+                fz="sm"
+                fw={500}
+                className={classes.sectionTitle}
+            >
+                {count(draft.changes.length, 'change')}, in the order they apply
             </Text>
             {draft.changes.map((change, index) => (
                 <ChangeRow

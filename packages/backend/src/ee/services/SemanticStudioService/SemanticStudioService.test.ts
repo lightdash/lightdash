@@ -2812,7 +2812,11 @@ describe('SemanticStudioService', () => {
                         authorization_method: 'personal_access_token',
                     },
                 }).service.getStatus(repoWriter, PROJECT_UUID),
-            ).toEqual({ enabled: false, appliesAs: 'pull_request' });
+            ).toEqual({
+                enabled: false,
+                blocker: 'unsupported_connection',
+                appliesAs: 'pull_request',
+            });
         });
 
         it('opens no pull request for a draft that stopped passing', async () => {
@@ -2837,10 +2841,14 @@ describe('SemanticStudioService', () => {
         it('says how a draft applies', async () => {
             expect(
                 await repo().service.getStatus(repoWriter, PROJECT_UUID),
-            ).toEqual({ enabled: true, appliesAs: 'pull_request' });
+            ).toEqual({
+                enabled: true,
+                blocker: null,
+                appliesAs: 'pull_request',
+            });
             expect(
                 await setup().service.getStatus(deployer, PROJECT_UUID),
-            ).toEqual({ enabled: true, appliesAs: 'live' });
+            ).toEqual({ enabled: true, blocker: null, appliesAs: 'live' });
         });
 
         it('shows changes only to those who can make them', async () => {
@@ -2863,16 +2871,28 @@ describe('SemanticStudioService', () => {
             const dbt = () => setup({ dbtConnection: DBT_IN_GITHUB });
             expect(
                 await dbt().service.getStatus(repoWriter, PROJECT_UUID),
-            ).toEqual({ enabled: true, appliesAs: 'dbt_pull_request' });
+            ).toEqual({
+                enabled: true,
+                blocker: null,
+                appliesAs: 'dbt_pull_request',
+            });
             expect(
                 await dbt().service.getStatus(deployer, PROJECT_UUID),
-            ).toEqual({ enabled: false, appliesAs: 'dbt_pull_request' });
+            ).toEqual({
+                enabled: false,
+                blocker: 'no_repository_access',
+                appliesAs: 'dbt_pull_request',
+            });
             expect(
                 await setup({
                     dbtConnection: DBT_IN_GITHUB,
                     enabled: false,
                 }).service.getStatus(repoWriter, PROJECT_UUID),
-            ).toEqual({ enabled: false, appliesAs: 'dbt_pull_request' });
+            ).toEqual({
+                enabled: false,
+                blocker: 'no_access',
+                appliesAs: 'dbt_pull_request',
+            });
             expect(
                 await dbt().service.canEditModels(repoWriter, PROJECT_UUID),
             ).toBe(false);

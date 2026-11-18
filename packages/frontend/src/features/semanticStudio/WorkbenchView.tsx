@@ -7,6 +7,7 @@
 import {
     assertUnreachable,
     type PreAggregateMaterializationSummary,
+    type SemanticLayerBlocker,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -50,6 +51,7 @@ import {
     useRef,
     useState,
     type FC,
+    type ReactNode,
     type KeyboardEvent,
 } from 'react';
 import {
@@ -166,6 +168,7 @@ import {
     useCompileCheckout,
     useDraftCheckout,
     useKeepsSemanticLayerDraft,
+    useSemanticLayerStatus,
     useDraftFreshness,
     useSemanticLayerDraft,
     useSemanticLayerModel,
@@ -250,6 +253,45 @@ const DraftMarker: FC<{ model: string; isMine: boolean }> = ({
 /** A model's name as this person's draft leaves it, so the list and the review say the same thing. */
 const ModelLabel: FC<{ model: string; label: string }> = ({ model, label }) =>
     useContext(DraftMarksContext).labels.get(model) ?? label;
+
+/** Why the models cannot be changed here, for someone who would otherwise expect to. */
+const BlockedNotice: FC<{ blocker: SemanticLayerBlocker }> = ({ blocker }) => {
+    const text = ((): ReactNode => {
+        switch (blocker) {
+            // Someone without the right to deploy has nothing to be told.
+            case 'no_access':
+                return null;
+            case 'unsupported_connection':
+                return "Models can't be changed here: this project's dbt connection is not one that can be written to.";
+            case 'no_repository_access':
+                return "You can browse models. Changing them needs write access to this project's repository.";
+            case 'github_app_missing':
+                return (
+                    <>
+                        Changing models here needs the GitHub App.{' '}
+                        <Anchor
+                            component={Link}
+                            to="/generalSettings/integrations"
+                            inherit
+                        >
+                            Install it
+                        </Anchor>
+                    </>
+                );
+            case 'preview_project':
+                return 'This is a preview of a pull request. Change models from the project it previews.';
+            default:
+                return assertUnreachable(blocker, 'Unknown blocker');
+        }
+    })();
+    return text ? (
+        <Group className={classes.toolbar} px="sm" role="note">
+            <Text fz="xs" c="dimmed">
+                {text}
+            </Text>
+        </Group>
+    ) : null;
+};
 
 const Tree: FC<{
     view: ViewModel;
@@ -759,7 +801,7 @@ const MainPane: FC<{
                                 source={externalSource}
                             />
                         ) : null}
-                        {source ? (
+                        {source && ref?.type !== 'explore' ? (
                             <SettingsLink
                                 view={view}
                                 source={source}
@@ -1095,6 +1137,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     // A dbt project has no draft and no model code here: its files are in its repository.
     const keepsDraft = useKeepsSemanticLayerDraft(view.project.id);
     const canEditModels = useCanEditSemanticLayer(view.project.id);
+    const status = useSemanticLayerStatus(view.project.id);
     const checkout = useStudioCheckout().shown;
     const checkedOutDraft = keepsDraft ? (checkout?.draft ?? null) : null;
 
@@ -2030,7 +2073,11 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                             />
                         )}
                         <Box className={classes.workspace}>
-                            {!hasChat ? null : (
+                            {!hasChat ? (
+                                status?.blocker ? (
+                                    <BlockedNotice blocker={status.blocker} />
+                                ) : null
+                            ) : (
                                 <>
                                     <Group
                                         className={classes.toolbar}

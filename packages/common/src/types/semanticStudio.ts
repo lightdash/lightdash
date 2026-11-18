@@ -11,9 +11,19 @@ export type SemanticLayerApplyMode =
     | 'pull_request'
     | 'dbt_pull_request';
 
+/** Why a person cannot change a project's models here. */
+export type SemanticLayerBlocker =
+    | 'no_access'
+    | 'unsupported_connection'
+    | 'no_repository_access'
+    | 'github_app_missing'
+    | 'preview_project';
+
 export type SemanticLayerStatus = {
     /** Whether this person can change this project's models from Semantic Studio. */
     enabled: boolean;
+    /** What stands in the way when they cannot; null when they can. */
+    blocker: SemanticLayerBlocker | null;
     /** How a change lands: `live` applies a draft here, `pull_request` sends a draft to the project's repository, and `dbt_pull_request` has the agent edit the dbt project in a pull request, with no draft. */
     appliesAs: SemanticLayerApplyMode;
 };
