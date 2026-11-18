@@ -33,6 +33,7 @@ import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconArrowLeft,
     IconCamera,
+    IconMicrophone,
     IconChartBar,
     IconCheck,
     IconDatabase,
@@ -123,6 +124,23 @@ export const ScreenshotButton: FC<{
             aria-label="Attach screenshot"
         >
             <MantineIcon icon={IconCamera} size={16} />
+        </ActionIcon>
+    </Tooltip>
+);
+
+/** Starts a point-and-talk capture: draw on the preview while talking. */
+export const CaptureButton: FC<{
+    onClick: () => void;
+    disabled: boolean;
+}> = ({ onClick, disabled }) => (
+    <Tooltip label="Point and talk" position="bottom">
+        <ActionIcon
+            size="md"
+            onClick={onClick}
+            disabled={disabled}
+            aria-label="Point and talk"
+        >
+            <MantineIcon icon={IconMicrophone} size={16} />
         </ActionIcon>
     </Tooltip>
 );

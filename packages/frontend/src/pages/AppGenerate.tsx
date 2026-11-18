@@ -69,6 +69,7 @@ import { getAiAgentThreadPath } from '../ee/features/aiCopilot/hooks/aiAgentRout
 import {
     CaptureHost,
     type CaptureHostHandle,
+    type CaptureResult,
     type CaptureSurface,
 } from '../ee/features/capture';
 import AddAnalysisOffer from '../features/apps/analysis/AddAnalysisOffer';
@@ -81,6 +82,7 @@ import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import {
     AttachButton,
     ModelPicker,
+    CaptureButton,
     ScreenshotButton,
     SelectedAttachmentSection,
     SelectedDashboardSection,
@@ -102,7 +104,6 @@ import AppVersionNarration from '../features/apps/components/AppVersionNarration
 import BuildFailedCard from '../features/apps/components/BuildFailedCard';
 import BuildProgressCard from '../features/apps/components/BuildProgressCard';
 import { formatElapsed } from '../features/apps/components/buildStepUtils';
-import CaptureButton from '../features/apps/components/CaptureButton';
 import ClarificationStepper from '../features/apps/components/ClarificationStepper';
 import ClearAgentContextAction from '../features/apps/components/ClearAgentContextAction';
 import ConnectionChip from '../features/apps/components/ConnectionChip';
@@ -171,10 +172,6 @@ import {
     imagesThatFit,
     summaryToContent,
 } from '../features/apps/utils/captureAttachments';
-import {
-    takeCaptureForBuilder,
-    type CaptureForBuilder,
-} from '../features/apps/utils/captureHandoff';
 import {
     emptyChatMessage,
     mergeChatMessages,
@@ -334,14 +331,6 @@ const AppGenerate: FC = () => {
     // reads on submit via `getText()` and tracks emptiness via the
     // `onEmptyChange` callback for the submit button's disabled state.
     const promptEditorRef = useRef<PromptComposerHandle | null>(null);
-    const [isPromptEditorReady, setIsPromptEditorReady] = useState(false);
-    const setPromptEditor = useCallback(
-        (handle: PromptComposerHandle | null) => {
-            promptEditorRef.current = handle;
-            setIsPromptEditorReady(Boolean(handle?.editor));
-        },
-        [],
-    );
     // History slides over exactly the chat column, leaving the preview clear.
     const { ref: chatPanelRef, width: chatPanelWidth } = useElementSize();
     const [isPromptEmpty, setIsPromptEmpty] = useState(true);
@@ -1232,15 +1221,7 @@ const AppGenerate: FC = () => {
 
     // Point-and-talk capture: the preview area is the drawable surface.
     const previewContentRef = useRef<HTMLDivElement>(null);
-    const captureHandlerRef = useRef<(capture: CaptureForBuilder) => void>(
-        () => {},
-    );
-    // A capture made on the app page lands in the prompt box, unsent.
-    useEffect(() => {
-        if (!isPromptEditorReady || !urlAppUuid) return;
-        const handedOver = takeCaptureForBuilder(urlAppUuid);
-        if (handedOver) captureHandlerRef.current(handedOver);
-    }, [isPromptEditorReady, urlAppUuid]);
+    const captureHandlerRef = useRef<(result: CaptureResult) => void>(() => {});
     const captureAvailable = Boolean(
         projectUuid &&
         previewApp &&
@@ -1795,9 +1776,9 @@ const AppGenerate: FC = () => {
         });
     };
 
-    captureHandlerRef.current = (capture) => {
+    captureHandlerRef.current = (result) => {
         const { fit, dropped } = imagesThatFit(
-            capture.images,
+            result.images,
             fileAttachments.length,
             MAX_APP_FILES_PER_VERSION,
         );
@@ -1809,7 +1790,7 @@ const AppGenerate: FC = () => {
             });
         }
         promptEditorRef.current?.insertContent(
-            summaryToContent(capture.summary),
+            summaryToContent(result.summary),
         );
         promptEditorRef.current?.focus();
     };
@@ -2973,7 +2954,7 @@ const AppGenerate: FC = () => {
                                     data-tour-suggest="A one-page pulse of orders, revenue and top customers, with a filter on order status"
                                 >
                                     <PromptComposer
-                                        ref={setPromptEditor}
+                                        ref={promptEditorRef}
                                         size={
                                             compact || activeAppUuid
                                                 ? 'sm'
@@ -3540,7 +3521,6 @@ const AppGenerate: FC = () => {
                                                             )}
                                                         {captureSurface && (
                                                             <CaptureButton
-                                                                label="Point and talk"
                                                                 onClick={() =>
                                                                     captureRef.current?.start()
                                                                 }

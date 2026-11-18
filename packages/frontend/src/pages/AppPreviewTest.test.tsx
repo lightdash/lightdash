@@ -25,6 +25,10 @@ const mocks = vi.hoisted(() => ({
     recordView: vi.fn(),
     canEdit: false,
     captureFlagEnabled: true,
+    canUseAgents: true,
+    captureHost: vi.fn(
+        (_props: { appName: string; agentUuid: string }) => null,
+    ),
 }));
 
 vi.mock('react-router', () => ({
@@ -110,6 +114,24 @@ vi.mock('../features/apps/hooks/useCanEditDataApp', () => ({
     useCanEditVerifiedDataApp: () => mocks.canEdit,
 }));
 
+vi.mock('../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility', () => ({
+    useProjectAiAgentButtonVisibility: () => mocks.canUseAgents,
+}));
+
+vi.mock(
+    '../ee/features/aiCopilot/components/Launcher/useDefaultAiAgent',
+    () => ({
+        useDefaultAiAgent: () => ({
+            agent: { uuid: 'agent-uuid' },
+            agents: [{ uuid: 'agent-uuid' }],
+        }),
+    }),
+);
+
+vi.mock('../ee/features/appCapture/AppViewCapture', () => ({
+    default: mocks.captureHost,
+}));
+
 vi.mock('../features/apps/hooks/useAppBuildPoller', () => ({
     useAppBuildPoller: () => {},
 }));
@@ -190,24 +212,38 @@ describe('AppPreviewTest', () => {
         mocks.recordView.mockClear();
         mocks.canEdit = false;
         mocks.captureFlagEnabled = true;
+        mocks.canUseAgents = true;
+        mocks.captureHost.mockClear();
     });
 
-    it('offers a capture to an editor when the capture flag is on', () => {
+    it('offers a capture to a viewer who can use the agents', () => {
+        renderWithProviders(<AppPreviewTest />);
+        expect(latestHeaderActionsProps().previewTools).toBeTruthy();
+        expect(mocks.captureHost.mock.calls.at(-1)?.[0]).toMatchObject({
+            appName: 'Sales app',
+            agentUuid: 'agent-uuid',
+        });
+    });
+
+    it('offers a capture to an editor who can use the agents', () => {
         mocks.canEdit = true;
         renderWithProviders(<AppPreviewTest />);
         expect(latestHeaderActionsProps().previewTools).toBeTruthy();
     });
 
-    it('offers no capture to a viewer', () => {
+    it('offers no capture to an editor who cannot use the agents', () => {
+        mocks.canEdit = true;
+        mocks.canUseAgents = false;
         renderWithProviders(<AppPreviewTest />);
         expect(latestHeaderActionsProps().previewTools).toBeFalsy();
+        expect(mocks.captureHost).not.toHaveBeenCalled();
     });
 
     it('offers no capture when the capture flag is off', () => {
-        mocks.canEdit = true;
         mocks.captureFlagEnabled = false;
         renderWithProviders(<AppPreviewTest />);
         expect(latestHeaderActionsProps().previewTools).toBeFalsy();
+        expect(mocks.captureHost).not.toHaveBeenCalled();
     });
 
     it('records the resolved app UUID after a space app loads, but not personal apps', () => {

@@ -3,22 +3,21 @@ import { IconMicrophone } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 
-/** Starts a capture: draw on the running app while talking. */
-const CaptureButton: FC<{
-    label: string;
+/** Starts an Inline recording: draw on the running app while talking. */
+const InlineButton: FC<{
     onClick: () => void;
     disabled: boolean;
-}> = ({ label, onClick, disabled }) => (
-    <Tooltip label={label} position="bottom">
+}> = ({ onClick, disabled }) => (
+    <Tooltip label="Inline" position="bottom">
         <ActionIcon
             size="md"
             onClick={onClick}
             disabled={disabled}
-            aria-label={label}
+            aria-label="Inline"
         >
             <MantineIcon icon={IconMicrophone} size={16} />
         </ActionIcon>
     </Tooltip>
 );
 
-export default CaptureButton;
+export default InlineButton;
