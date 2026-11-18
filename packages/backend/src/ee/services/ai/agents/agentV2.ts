@@ -3139,7 +3139,11 @@ const runGenerateAgentResponse = async ({
                     toolCall.toolCallId,
                     toolCall.toolName,
                 );
-                toolCallEvents.start(toolCall.toolCallId, toolCall.toolName);
+                toolCallEvents.start(
+                    toolCall.toolCallId,
+                    toolCall.toolName,
+                    toolCall.input,
+                );
             },
             onToolExecutionEnd: (event) => {
                 notifyAiAccessRefusal(dependencies, event);
@@ -3181,6 +3185,11 @@ const runGenerateAgentResponse = async ({
                         part.invalid === true &&
                         !toolCallEvents.isTracked(part.toolCallId)
                     ) {
+                        toolCallEvents.start(
+                            part.toolCallId,
+                            part.toolName,
+                            part.input,
+                        );
                         toolCallEvents.track({
                             toolCallId: part.toolCallId,
                             toolName: part.toolName,
@@ -3623,6 +3632,7 @@ const runStreamAgentResponse = async ({
                         toolCallEvents.start(
                             event.chunk.toolCallId,
                             event.chunk.toolName,
+                            event.chunk.input,
                         );
                         logger(
                             'Chunk Tool Call',

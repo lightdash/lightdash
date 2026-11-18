@@ -1,3 +1,4 @@
+import { NO_COMPOSER_QUERY_SHAPE } from '../../ee/services/ai/analytics/composerQueryShape';
 import { aiAgentToolCallCompletedPropertiesSchema } from '../../ee/services/ai/analytics/toolCallEvent';
 import type {
     AiAgentStepCompletedEvent,
@@ -74,6 +75,7 @@ const toolCallEvent: AiAgentToolCallCompletedEvent = {
         queryReuseHit: true,
         status: 'success',
         attempt: 1,
+        ...NO_COMPOSER_QUERY_SHAPE,
     }),
 };
 

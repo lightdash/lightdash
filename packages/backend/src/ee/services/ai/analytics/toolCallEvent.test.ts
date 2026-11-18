@@ -1,12 +1,13 @@
 import { WarehouseQueryError } from '@lightdash/common';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
+import { NO_COMPOSER_QUERY_SHAPE } from './composerQueryShape';
 import type { IsMetadataOnly } from './metadataOnly';
 import {
     aiAgentToolCallCompletedPropertiesSchema,
     createToolCallEventTracker,
     type AiAgentToolCallCompletedProperties,
-    type ToolCallEventInput,
+    type TrackedToolCall,
 } from './toolCallEvent';
 
 const CANARY = 'CANARY_7f3a';
@@ -21,9 +22,7 @@ const context = {
     serverVersion: '3.195.1',
 };
 
-const call = (
-    overrides: Partial<Omit<ToolCallEventInput, 'attempt'>>,
-): Omit<ToolCallEventInput, 'attempt'> => ({
+const call = (overrides: Partial<TrackedToolCall>): TrackedToolCall => ({
     toolCallId: 'toolu_01',
     toolName: 'runComposerQueries',
     result: {
@@ -88,6 +87,33 @@ describe('tool call event privacy', () => {
         ]);
     });
 
+    it('counts the nodes of a composer query call without naming its explores or fields', () => {
+        const emitted: AiAgentToolCallCompletedProperties[] = [];
+        const tracker = createToolCallEventTracker(context, (properties) =>
+            emitted.push(properties),
+        );
+        const slice = (nodeId: string) => ({
+            sourceType: 'semanticLayer',
+            nodeId,
+            exploreName: CANARY,
+            dimensions: [`${CANARY}_day`],
+        });
+
+        tracker.start('call_query', 'query', {
+            queries: [slice('card'), slice('cash')],
+        });
+        tracker.track(call({ toolCallId: 'call_query', toolName: 'query' }));
+        tracker.start('call_grep', 'grepFields', { pattern: CANARY });
+        tracker.track(
+            call({ toolCallId: 'call_grep', toolName: 'grepFields' }),
+        );
+
+        expect(JSON.stringify(emitted)).not.toContain(CANARY);
+        expect(
+            emitted.map((event) => event.composerMaxSameGrainNodeCount),
+        ).toEqual([2, null]);
+    });
+
     it('rejects any field outside the metadata allowlist', () => {
         const valid = aiAgentToolCallCompletedPropertiesSchema.parse({
             ...context,
@@ -100,6 +126,7 @@ describe('tool call event privacy', () => {
             queryReuseHit: null,
             status: 'success',
             attempt: 1,
+            ...NO_COMPOSER_QUERY_SHAPE,
         });
         const accepts = (overrides: Record<string, unknown>) =>
             aiAgentToolCallCompletedPropertiesSchema.safeParse({
@@ -130,8 +157,8 @@ describe('createToolCallEventTracker', () => {
         const tracker = createToolCallEventTracker(context, (properties) =>
             emitted.push(properties),
         );
-        tracker.start('a', 'runComposerQueries');
-        tracker.start('b', 'runComposerQueries');
+        tracker.start('a', 'runComposerQueries', {});
+        tracker.start('b', 'runComposerQueries', {});
         tracker.track(call({ toolCallId: 'b' }));
         tracker.track(call({ toolCallId: 'g', toolName: 'grepFields' }));
         tracker.track(call({ toolCallId: 'a' }));
@@ -141,6 +168,28 @@ describe('createToolCallEventTracker', () => {
             ['b', 2],
             ['g', 1],
             ['a', 1],
+        ]);
+    });
+
+    it('still tracks a call whose input cannot be read, without counts', () => {
+        const emitted: AiAgentToolCallCompletedProperties[] = [];
+        const tracker = createToolCallEventTracker(context, (properties) =>
+            emitted.push(properties),
+        );
+        const unreadable = {
+            get queries(): never {
+                throw new Error(CANARY);
+            },
+        };
+
+        expect(() => tracker.start('a', 'query', unreadable)).not.toThrow();
+        tracker.track(call({ toolCallId: 'a', toolName: 'query' }));
+
+        expect(emitted).toEqual([
+            expect.objectContaining({
+                toolCallId: 'a',
+                ...NO_COMPOSER_QUERY_SHAPE,
+            }),
         ]);
     });
 

@@ -3,6 +3,12 @@ import Logger from '../../../../logging/logger';
 import type { ToolStage } from '../agents/turnTiming';
 import { isErrorToolResult } from '../utils/toolSummaries';
 import {
+    composerQueryShapeSchema,
+    getComposerQueryShape,
+    NO_COMPOSER_QUERY_SHAPE,
+    type ComposerQueryShape,
+} from './composerQueryShape';
+import {
     opaqueIdField,
     uuidField,
     versionField,
@@ -28,6 +34,7 @@ export const aiAgentToolCallCompletedPropertiesSchema = z
         queryReuseHit: z.boolean().nullable(),
         status: z.enum(['success', 'error']),
         attempt: z.number().int().positive(),
+        ...composerQueryShapeSchema.shape,
     })
     .strict();
 
@@ -62,16 +69,24 @@ export type ToolCallEventInput = {
     queryCacheHit: boolean | null;
     queryReuseHit: boolean | null;
     attempt: number;
+    composerQueryShape: ComposerQueryShape;
 };
+
+/** What a call site knows when a call ends; the tracker adds the rest. */
+export type TrackedToolCall = Omit<
+    ToolCallEventInput,
+    'attempt' | 'composerQueryShape'
+>;
 
 /** Null when the payload fails the metadata-only schema; the event is dropped rather than leak. */
 export const buildToolCallCompletedProperties = (
     context: ToolCallEventContext,
-    { result, ...call }: ToolCallEventInput,
+    { result, composerQueryShape, ...call }: ToolCallEventInput,
 ): AiAgentToolCallCompletedProperties | null => {
     const parsed = aiAgentToolCallCompletedPropertiesSchema.safeParse({
         ...context,
         ...call,
+        ...composerQueryShape,
         status:
             result.type === 'tool-error' || isErrorToolResult(result.output)
                 ? 'error'
@@ -93,6 +108,7 @@ export const createToolCallEventTracker = (
     const attemptsByTool = new Map<string, number>();
     const attemptsByCall = new Map<string, number>();
     const tracked = new Set<string>();
+    const shapesByCall = new Map<string, ComposerQueryShape>();
     // Numbered when the call starts, so concurrent calls finishing out of order keep their order
     const assignAttempt = (toolCallId: string, toolName: string): number => {
         const assigned = attemptsByCall.get(toolCallId);
@@ -103,15 +119,26 @@ export const createToolCallEventTracker = (
         return attempt;
     };
     return {
-        start: (toolCallId: string, toolName: string) => {
+        start: (toolCallId: string, toolName: string, input: unknown) => {
             assignAttempt(toolCallId, toolName);
+            try {
+                shapesByCall.set(
+                    toolCallId,
+                    getComposerQueryShape(toolName, input),
+                );
+            } catch {
+                // Reading the input must never break the agent loop this runs in
+            }
         },
-        track: (call: Omit<ToolCallEventInput, 'attempt'>) => {
+        track: (call: TrackedToolCall) => {
             if (tracked.has(call.toolCallId)) return;
             tracked.add(call.toolCallId);
             const properties = buildToolCallCompletedProperties(context, {
                 ...call,
                 attempt: assignAttempt(call.toolCallId, call.toolName),
+                composerQueryShape:
+                    shapesByCall.get(call.toolCallId) ??
+                    NO_COMPOSER_QUERY_SHAPE,
             });
             if (properties !== null) emit(properties);
         },
