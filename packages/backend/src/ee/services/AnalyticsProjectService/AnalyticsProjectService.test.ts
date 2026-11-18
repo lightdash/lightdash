@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    ChartType,
     ConflictError,
     ContentType,
     ForbiddenError,
@@ -8,6 +9,7 @@ import {
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { UsageHistoryBackfill } from '../../../analytics/eventStream/UsageHistoryBackfill';
+import { type LibraryChartBinding } from '../../../analytics/systemExplores/libraryCharts';
 import {
     analyticsContentAsCode,
     analyticsDefaultSpace,
@@ -25,6 +27,16 @@ import { getAnalyticsContentHash } from './analyticsContentHash';
 import { analyticsHomepage } from './analyticsHomepage';
 import { AnalyticsProjectService } from './AnalyticsProjectService';
 import { managedAdoptionAppSlug } from './managedAdoptionApp';
+
+const { mockedBindings } = vi.hoisted(() => ({
+    mockedBindings: new Map<string, LibraryChartBinding>(),
+}));
+vi.mock('../../../analytics/systemExplores/usageDashboards', async (orig) => ({
+    ...(await orig<
+        typeof import('../../../analytics/systemExplores/usageDashboards')
+    >()),
+    analyticsLibraryChartBindings: mockedBindings,
+}));
 
 describe('AnalyticsProjectService', () => {
     const user = {
@@ -70,6 +82,7 @@ describe('AnalyticsProjectService', () => {
     const upsertDashboard = vi.fn();
     const getOrCreateSpace = vi.fn();
     const dataAppsEnabledFor = vi.fn();
+    const ensureRegistryChartTypes = vi.fn();
     const importAppCode = vi.fn<AppGenerateService['importAppCode']>();
     const restoreApp = vi.fn();
     const getAppIncludingDeleted = vi.fn();
@@ -112,6 +125,7 @@ describe('AnalyticsProjectService', () => {
         },
         getAppGenerateService: () => ({
             dataAppsEnabledFor,
+            ensureRegistryChartTypes,
             importAppCode,
             restoreApp,
         }),
@@ -170,6 +184,8 @@ describe('AnalyticsProjectService', () => {
         getProjectSummary.mockResolvedValue(analyticsProject);
         getIsCopilotEnabled.mockResolvedValue(false);
         dataAppsEnabledFor.mockResolvedValue(false);
+        ensureRegistryChartTypes.mockResolvedValue(new Map());
+        mockedBindings.clear();
         findAllAgents.mockResolvedValue([]);
         getSnapshot.mockResolvedValue({ snapshotHash: hash });
         isAnalyticsProjectEnabled.mockReturnValue(true);
@@ -1111,6 +1127,69 @@ describe('AnalyticsProjectService', () => {
                 options,
             );
         }
+    });
+
+    describe('library chart types', () => {
+        const { slug } = analyticsContentAsCode[0].charts[0];
+        const original = analyticsContentAsCode[0].charts[0];
+        const upsertedFor = () =>
+            upsertChart.mock.calls.find(
+                ([, , chartSlug]) => chartSlug === slug,
+            );
+
+        beforeEach(() => {
+            mockedBindings.set(slug, {
+                slug: 'heatmap',
+                minVersion: '1.0.0',
+                fieldMapping: {},
+                optionValues: {},
+            });
+        });
+
+        it('uploads a bound chart as a library chart when its type is usable', async () => {
+            ensureRegistryChartTypes.mockResolvedValue(
+                new Map([['heatmap', 'heatmap']]),
+            );
+            await service.installSampleContent(user);
+            expect(ensureRegistryChartTypes).toHaveBeenCalledExactlyOnceWith(
+                user,
+                'analytics-project',
+                [{ slug: 'heatmap', minVersion: '1.0.0' }],
+            );
+            expect(upsertedFor()?.[3].chartConfig.type).toBe(
+                ChartType.DATA_APP_VIZ,
+            );
+        });
+
+        it('uploads the fallback chart when the type is not usable', async () => {
+            await service.installSampleContent(user);
+            expect(upsertedFor()?.[3]).toEqual({
+                ...original,
+                spaceSlug: expect.any(String),
+            });
+        });
+
+        it('uploads fallback charts and completes when ensuring types throws', async () => {
+            ensureRegistryChartTypes.mockRejectedValue(new Error('boom'));
+            await expect(
+                service.installSampleContent(user),
+            ).resolves.toBeUndefined();
+            expect(upsertedFor()?.[3]).toEqual({
+                ...original,
+                spaceSlug: expect.any(String),
+            });
+            expect(upsertChart).toHaveBeenCalledTimes(
+                analyticsContentAsCode.flatMap(({ charts }) => charts).length,
+            );
+            expect(saveSnapshot).toHaveBeenCalled();
+        });
+
+        it('ensures types before uploading any chart', async () => {
+            await service.installSampleContent(user);
+            expect(
+                ensureRegistryChartTypes.mock.invocationCallOrder[0],
+            ).toBeLessThan(upsertChart.mock.invocationCallOrder[0]);
+        });
     });
 
     it('keeps existing dashboards and their charts in their current space on sync', async () => {
