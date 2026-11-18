@@ -68,7 +68,7 @@ type Entry =
     | { kind: 'speech'; atMs: number; text: string };
 
 /** Attaches each phrase to the mark it was said with; the rest stay loose. */
-const assignSpeech = (
+export const assignSpeech = (
     marks: CaptureMark[],
     transcript: TranscriptPhrase[],
 ): { speechByMark: Map<number, string[]>; loose: TranscriptPhrase[] } => {

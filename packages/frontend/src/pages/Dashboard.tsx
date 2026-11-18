@@ -50,6 +50,7 @@ import Page from '../components/common/Page/Page';
 import DashboardChartEditorModal from '../components/DashboardTiles/DashboardChartEditorModal';
 import { CREATE_SAVED_CHART_VERSION_SEARCH_PARAM } from '../components/DashboardTiles/useDashboardChartEditorUrlSync';
 import PageSpinner from '../components/PageSpinner';
+import DashboardCapture from '../ee/features/dashboardCapture/DashboardCapture';
 import { useDashboardCommentsCheck } from '../features/comments';
 import DismissedDraftAlert from '../features/contentAsCode/components/DismissedDraftAlert';
 import DraftOverlayFailureAlert from '../features/contentAsCode/components/DraftOverlayFailureAlert';
@@ -1913,6 +1914,9 @@ const DashboardPage: FC = () => {
         >
             <SentryErrorBoundary fallback={() => <></>}>
                 <DashboardAiAgentContextBridge />
+            </SentryErrorBoundary>
+            <SentryErrorBoundary fallback={() => <></>}>
+                <DashboardCapture />
             </SentryErrorBoundary>
             <SentryErrorBoundary fallback={() => <></>}>
                 <DashboardAnalysisAdapterBridge />

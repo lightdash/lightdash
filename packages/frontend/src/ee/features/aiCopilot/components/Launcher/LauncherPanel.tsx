@@ -48,7 +48,10 @@ import {
 } from '../../hooks/useProjectAiAgents';
 import { useRefreshDocumentOnAgentSave } from '../../hooks/useRefreshDocumentOnAgentSave';
 import { useThreadModel } from '../../hooks/useThreadModel';
-import { openPanel } from '../../store/aiAgentLauncherSlice';
+import {
+    clearPendingPrompt,
+    openPanel,
+} from '../../store/aiAgentLauncherSlice';
 import {
     selectThreadSqlMode,
     setThreadSqlMode,
@@ -329,6 +332,16 @@ const NewThreadPanel: FC<{
         previewItems: previewItemsWithPageContext,
         projectUuid,
     });
+    // A prompt handed over by another surface is sent once, when ready.
+    const pendingPrompt = useAiAgentStoreSelector(
+        (state) => state.aiAgentLauncher.pendingPrompt,
+    );
+    useEffect(() => {
+        if (!pendingPrompt || !isPinnedContextReady || isLocked) return;
+        dispatch(clearPendingPrompt());
+        void handleSubmit({ message: pendingPrompt, toolHints: [] });
+    }, [dispatch, handleSubmit, isLocked, isPinnedContextReady, pendingPrompt]);
+
     const displayName = isAuto ? 'Auto' : agent.name;
     const description = isAuto
         ? 'Routes each new question to the best-fit agent'
