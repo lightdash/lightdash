@@ -35,6 +35,7 @@ import {
     type ContentDraftStalenessDetails,
     type DashboardAsCode,
     type LightdashProjectConfig,
+    type RegisteredAccount,
     type SessionUser,
     type SqlChartAsCode,
 } from '@lightdash/common';
@@ -594,6 +595,7 @@ export class ContentAsCodeWritebackService extends BaseService {
     // settings, then applies the content files the CLI would
     async pullFromGit(
         user: SessionUser,
+        account: RegisteredAccount,
         projectUuid: string,
     ): Promise<ContentAsCodePullSummary> {
         await this.assertCanManageContentAsCode(user, projectUuid);
@@ -635,7 +637,13 @@ export class ContentAsCodeWritebackService extends BaseService {
             creds,
             joinContentAsCodePath(prefix, contentPath),
         );
-        return this.applyContentFiles(user, projectUuid, files, prefix);
+        return this.applyContentFiles(
+            user,
+            account,
+            projectUuid,
+            files,
+            prefix,
+        );
     }
 
     private static async readRepoProjectConfig(
@@ -733,6 +741,7 @@ export class ContentAsCodeWritebackService extends BaseService {
     // dashboards that use it, as `lightdash upload` does
     private async applyContentFiles(
         user: SessionUser,
+        account: RegisteredAccount,
         projectUuid: string,
         files: RepoContentFile[],
         projectPrefix: string,
@@ -749,7 +758,7 @@ export class ContentAsCodeWritebackService extends BaseService {
         };
         const charts: {
             file: string;
-            document: ChartAsCode | SqlChartAsCode;
+            document: ChartAsCode | SqlChartAsCode | ComposerChartAsCode;
         }[] = [];
         const dashboards: { file: string; document: DashboardAsCode }[] = [];
         for (const file of files) {
@@ -773,10 +782,21 @@ export class ContentAsCodeWritebackService extends BaseService {
         }
 
         const failedChartSlugs = new Set<string>();
+        const failedComposerChartSlugs = new Set<string>();
         /* eslint-disable no-await-in-loop */
         for (const { file, document } of charts) {
+            const isComposerChart =
+                document.contentType === ContentAsCodeType.COMPOSER_CHART;
             try {
-                if (isSqlChartContent(document)) {
+                if (isComposerChart) {
+                    await this.coderService.upsertComposerChart(
+                        user,
+                        account,
+                        projectUuid,
+                        document.slug,
+                        document as ComposerChartAsCode,
+                    );
+                } else if (isSqlChartContent(document)) {
                     await this.coderService.upsertSqlChart(
                         user,
                         projectUuid,
@@ -794,7 +814,10 @@ export class ContentAsCodeWritebackService extends BaseService {
                 }
                 summary.charts += 1;
             } catch (error) {
-                failedChartSlugs.add(document.slug);
+                (isComposerChart
+                    ? failedComposerChartSlugs
+                    : failedChartSlugs
+                ).add(document.slug);
                 await this.trackConnectionBindingUploadRefusal(
                     user,
                     projectUuid,
@@ -809,14 +832,20 @@ export class ContentAsCodeWritebackService extends BaseService {
         }
         for (const { file, document } of dashboards) {
             // Composer tiles name composer charts, never classic ones
-            const blockedBy = document.tiles.flatMap((tile) =>
-                tile.type !== DashboardTileTypes.COMPOSER_CHART &&
-                'chartSlug' in tile.properties &&
-                typeof tile.properties.chartSlug === 'string' &&
-                failedChartSlugs.has(tile.properties.chartSlug)
+            const blockedBy = document.tiles.flatMap((tile) => {
+                if (tile.type === DashboardTileTypes.COMPOSER_CHART) {
+                    return failedComposerChartSlugs.has(
+                        tile.properties.chartSlug,
+                    )
+                        ? [tile.properties.chartSlug]
+                        : [];
+                }
+                return 'chartSlug' in tile.properties &&
+                    typeof tile.properties.chartSlug === 'string' &&
+                    failedChartSlugs.has(tile.properties.chartSlug)
                     ? [tile.properties.chartSlug]
-                    : [],
-            );
+                    : [];
+            });
             if (blockedBy.length > 0) {
                 summary.failures.push({
                     file,
@@ -863,10 +892,11 @@ export class ContentAsCodeWritebackService extends BaseService {
     // Same trust as `lightdash upload`: a file under charts/ or dashboards/
     // is that type; any other YAML counts only when it declares a
     // contentType, so dbt model files and the like are skipped, not failed
-    private static sortContentFile(
-        file: RepoContentFile,
-    ):
-        | { kind: 'chart'; document: ChartAsCode | SqlChartAsCode }
+    private static sortContentFile(file: RepoContentFile):
+        | {
+              kind: 'chart';
+              document: ChartAsCode | SqlChartAsCode | ComposerChartAsCode;
+          }
         | { kind: 'dashboard'; document: DashboardAsCode }
         | null {
         let parsed: unknown;
@@ -890,7 +920,10 @@ export class ContentAsCodeWritebackService extends BaseService {
             case 'chart':
                 return {
                     kind,
-                    document: document as ChartAsCode | SqlChartAsCode,
+                    document: document as
+                        | ChartAsCode
+                        | SqlChartAsCode
+                        | ComposerChartAsCode,
                 };
             case 'dashboard':
                 return { kind, document: document as DashboardAsCode };
@@ -906,7 +939,8 @@ export class ContentAsCodeWritebackService extends BaseService {
             'contentType' in parsed ? parsed.contentType : undefined;
         if (
             contentType === ContentAsCodeType.CHART ||
-            contentType === ContentAsCodeType.SQL_CHART
+            contentType === ContentAsCodeType.SQL_CHART ||
+            contentType === ContentAsCodeType.COMPOSER_CHART
         ) {
             return 'chart';
         }

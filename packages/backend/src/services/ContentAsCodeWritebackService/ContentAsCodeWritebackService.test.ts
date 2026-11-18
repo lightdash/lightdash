@@ -9,6 +9,7 @@ import {
     PossibleAbilities,
     PullRequestSource,
     type ComposerChartAsCode,
+    type RegisteredAccount,
     type SessionUser,
 } from '@lightdash/common';
 import * as yaml from 'js-yaml';
@@ -37,6 +38,10 @@ const user = {
         { action: 'manage', subject: 'ContentAsCode' },
     ]),
 } as unknown as SessionUser;
+
+const account = {
+    user: { id: 'user-uuid', type: 'registered' },
+} as unknown as RegisteredAccount;
 
 const chartAsCode = {
     name: 'Monthly revenue',
@@ -128,6 +133,7 @@ const buildService = (overrides: Overrides = {}) => {
         }),
         upsertChart: vi.fn().mockResolvedValue({ action: 'update' }),
         upsertSqlChart: vi.fn().mockResolvedValue({ action: 'update' }),
+        upsertComposerChart: vi.fn().mockResolvedValue({ action: 'update' }),
         upsertDashboard: vi.fn().mockResolvedValue({ action: 'update' }),
         stampContentAsCodeSettings: vi.fn().mockResolvedValue(undefined),
     };
@@ -1793,7 +1799,11 @@ describe('ContentAsCodeWritebackService', () => {
                 'lightdash/charts/elsewhere.yml': chart('elsewhere'),
             });
 
-            const summary = await service.pullFromGit(user, 'project-uuid');
+            const summary = await service.pullFromGit(
+                user,
+                account,
+                'project-uuid',
+            );
 
             expect(summary).toEqual({ charts: 3, dashboards: 2, failures: [] });
             expect(
@@ -1846,7 +1856,11 @@ describe('ContentAsCodeWritebackService', () => {
                 ]),
             });
 
-            const summary = await service.pullFromGit(user, 'project-uuid');
+            const summary = await service.pullFromGit(
+                user,
+                account,
+                'project-uuid',
+            );
 
             expect(summary.charts).toBe(1);
             expect(summary.dashboards).toBe(1);
@@ -1866,6 +1880,83 @@ describe('ContentAsCodeWritebackService', () => {
             ).toEqual(['uses-fine']);
         });
 
+        it('applies composer chart files through the composer upload and holds back dashboards naming a failed one', async () => {
+            const { service, coderService } = buildService();
+            coderService.upsertComposerChart.mockImplementation(
+                async (_user, _account, _project, slug) => {
+                    if (slug === 'broken-composer') {
+                        throw new Error('pipeline is invalid');
+                    }
+                    return { action: 'create' };
+                },
+            );
+            const composerChart = (slug: string) =>
+                `contentType: composer_chart\nslug: ${slug}\nname: ${slug}\ndashboardSlug: ops\n`;
+            const composerDashboard = (slug: string, chartSlug: string) =>
+                `slug: ${slug}\nname: ${slug}\ntiles:\n  - type: composer_chart\n    properties:\n      chartSlug: ${chartSlug}\n`;
+            stubRepo({
+                'lightdash.config.yml': 'content_as_code:\n  sync: true\n',
+                'lightdash/charts/orders.composer.yml': composerChart('orders'),
+                'lightdash/charts/broken-composer.composer.yml':
+                    composerChart('broken-composer'),
+                'lightdash/dashboards/ops.yml': composerDashboard(
+                    'ops',
+                    'orders',
+                ),
+                'lightdash/dashboards/uses-broken.yml': composerDashboard(
+                    'uses-broken',
+                    'broken-composer',
+                ),
+            });
+
+            const summary = await service.pullFromGit(
+                user,
+                account,
+                'project-uuid',
+            );
+
+            expect(coderService.upsertChart).not.toHaveBeenCalled();
+            expect(
+                coderService.upsertComposerChart.mock.calls.map((call) => [
+                    call[1],
+                    call[3],
+                ]),
+            ).toEqual(
+                expect.arrayContaining([
+                    [account, 'orders'],
+                    [account, 'broken-composer'],
+                ]),
+            );
+            expect(summary).toEqual({
+                charts: 1,
+                dashboards: 1,
+                failures: [
+                    {
+                        file: 'lightdash/charts/broken-composer.composer.yml',
+                        message: 'pipeline is invalid',
+                    },
+                    {
+                        file: 'lightdash/dashboards/uses-broken.yml',
+                        message:
+                            'Skipped: depends on charts that failed to apply (broken-composer)',
+                    },
+                ],
+            });
+            expect(
+                coderService.upsertDashboard.mock.calls.map((call) => call[2]),
+            ).toEqual(['ops']);
+            expect(
+                Math.max(
+                    ...coderService.upsertComposerChart.mock
+                        .invocationCallOrder,
+                ),
+            ).toBeLessThan(
+                Math.min(
+                    ...coderService.upsertDashboard.mock.invocationCallOrder,
+                ),
+            );
+        });
+
         it('tracks a connection binding upload refusal without sending the connection name', async () => {
             const { service, coderService, warehouseConnectionModel } =
                 buildService();
@@ -1880,7 +1971,11 @@ describe('ContentAsCodeWritebackService', () => {
                 'lightdash/charts/revenue.yml': chart('revenue'),
             });
 
-            const summary = await service.pullFromGit(user, 'project-uuid');
+            const summary = await service.pullFromGit(
+                user,
+                account,
+                'project-uuid',
+            );
 
             expect(summary.failures).toHaveLength(1);
             expect(warehouseConnectionModel.list).toHaveBeenCalledOnce();
@@ -1920,7 +2015,11 @@ describe('ContentAsCodeWritebackService', () => {
                 'lightdash/charts/root.yml': chart('root'),
             });
 
-            const summary = await service.pullFromGit(user, 'project-uuid');
+            const summary = await service.pullFromGit(
+                user,
+                account,
+                'project-uuid',
+            );
 
             expect(summary.charts).toBe(1);
             expect(
@@ -1940,7 +2039,7 @@ describe('ContentAsCodeWritebackService', () => {
             });
 
             await expect(
-                service.pullFromGit(user, 'project-uuid'),
+                service.pullFromGit(user, account, 'project-uuid'),
             ).rejects.toThrow('content_as_code.sync');
 
             expect(
@@ -1955,7 +2054,7 @@ describe('ContentAsCodeWritebackService', () => {
             stubRepo({ 'lightdash/charts/a.yml': chart('a') });
 
             await expect(
-                service.pullFromGit(user, 'project-uuid'),
+                service.pullFromGit(user, account, 'project-uuid'),
             ).rejects.toThrow('lightdash.config.yml not found');
         });
 
@@ -1971,7 +2070,7 @@ describe('ContentAsCodeWritebackService', () => {
             });
 
             await expect(
-                service.pullFromGit(user, 'project-uuid'),
+                service.pullFromGit(user, account, 'project-uuid'),
             ).rejects.toThrow('too large');
             expect(coderService.upsertChart).not.toHaveBeenCalled();
         });

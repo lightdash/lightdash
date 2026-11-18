@@ -174,7 +174,7 @@ import {
     LightdashAnalytics,
     parseAnalyticsLimit,
 } from '../analytics/LightdashAnalytics';
-import { toSessionUser } from '../auth/account';
+import { fromSession, toSessionUser } from '../auth/account';
 import { type AgentConnectionGrantService } from '../auth/agentConnectionGrants/AgentConnectionGrantService';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../clients/FileStorage/FileStorageClient';
@@ -3422,6 +3422,7 @@ export default class SchedulerTask {
     ): Promise<void> {
         const summary = await this.contentAsCodeWritebackService.pullFromGit(
             user,
+            fromSession(user),
             projectUuid,
         );
         if (summary.failures.length > 0) {

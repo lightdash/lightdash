@@ -335,7 +335,11 @@ export class ProjectCoderController extends BaseController {
         return codeSuccess(
             await this.services
                 .getContentAsCodeWritebackService()
-                .pullFromGit(toSessionUser(req.account), projectUuid),
+                .pullFromGit(
+                    toSessionUser(req.account),
+                    req.account,
+                    projectUuid,
+                ),
         );
     }
 
