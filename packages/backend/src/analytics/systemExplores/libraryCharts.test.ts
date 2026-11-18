@@ -504,4 +504,45 @@ describe('legacyLibraryChartBindings', () => {
             expect(slugs).toContain(slug);
         });
     });
+
+    it('binds the Overview charts under their final slugs', () => {
+        const prefix = 'lightdash-analytics-overview-';
+        [
+            'ai-calls',
+            'tokens',
+            'output-tokens',
+            'ai-users',
+            'ai-calls-by-day',
+            'tokens-by-day',
+        ].forEach((key) => {
+            expect(analyticsLibraryChartBindings.has(`${prefix}${key}`)).toBe(
+                true,
+            );
+        });
+        ['tokens-by-model', 'calls-by-model'].forEach((key) => {
+            expect(analyticsLibraryChartBindings.has(`${prefix}${key}`)).toBe(
+                false,
+            );
+        });
+    });
+
+    it('runs the day query on the real AI calls chart only when its type is usable', () => {
+        const slug = 'lightdash-analytics-overview-ai-calls';
+        const real = allCharts.find((c) => c.slug === slug)!;
+        const [swapped] = withLibraryCharts(
+            [real],
+            analyticsLibraryChartBindings,
+            new Map([['big-number-with-sparkline-trend', 'big-number-1']]),
+        );
+        expect(swapped.chartConfig.type).toBe(ChartType.DATA_APP_VIZ);
+        expect(swapped.metricQuery.dimensions).toEqual([
+            'ai_usage_event_ts_day',
+        ]);
+        const [plain] = withLibraryCharts(
+            [real],
+            analyticsLibraryChartBindings,
+            new Map(),
+        );
+        expect(plain).toBe(real);
+    });
 });
