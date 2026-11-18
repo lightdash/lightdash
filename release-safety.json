@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "3.308.1",
-  "previousVersion": "3.308.0",
-  "releaseDate": "2026-11-18T14:19:47.135Z",
+  "version": "3.309.0",
+  "previousVersion": "3.308.1",
+  "releaseDate": "2026-11-18T14:25:49.392Z",
   "migrations": {
-    "present": false,
-    "count": 0,
+    "present": true,
+    "count": 1,
     "coreCount": 0,
-    "eeCount": 0,
-    "files": []
+    "eeCount": 1,
+    "files": [
+      {
+        "name": "20261118180000_allow_threadless_studio_changes.ts",
+        "edition": "ee",
+        "tables": [
+          "semantic_studio_workspaces"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -17,11 +30,21 @@
   "api": {
     "rest": {
       "checked": true,
-      "breaking": false,
-      "changes": [],
-      "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "breaking": true,
+      "changes": [
+        "GET /api/v1/projects/{projectUuid}/semantic-studio/workspaces — the response property `results/mine/items/threadUuid` became nullable for the status `200`",
+        "GET /api/v1/projects/{projectUuid}/semantic-studio/workspaces — the response property `results/others/items/threadUuid` became nullable for the status `200`",
+        "GET /api/v1/projects/{projectUuid}/semantic-studio/workspaces — the response property `results/recent/items/threadUuid` became nullable for the status `200`",
+        "POST /api/v1/projects/{projectUuid}/semantic-studio/workspaces — the response property `results/threadUuid` became nullable for the status `200`",
+        "GET /api/v1/projects/{projectUuid}/semantic-studio/workspaces/{workspaceUuid} — the response property `results/threadUuid` became nullable for the status `200`",
+        "PATCH /api/v1/projects/{projectUuid}/semantic-studio/workspaces/{workspaceUuid} — the response property `results/threadUuid` became nullable for the status `200`",
+        "POST /api/v1/projects/{projectUuid}/semantic-studio/workspaces/{workspaceUuid}/activate — the response property `results/threadUuid` became nullable for the status `200`"
+      ],
+      "breakingCount": 7,
+      "advisories": [
+        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid} — added the new `listChanges` enum value to the `results/allOf[subschema #2]/messages/items/anyOf[#/components/schemas/AiAgentMessageAssistant]/toolResults/items/allOf[subschema #2]/anyOf[subschema #1]/toolName` response property for the response status `200`"
+      ],
+      "advisoryCount": 1
     },
     "mcp": {
       "checked": true,
@@ -42,5 +65,25 @@
     "requiredStops": []
   },
   "declaredBreaks": [],
-  "declaredAdvisories": []
+  "declaredAdvisories": [
+    {
+      "id": "semantic-studio-threadless-changes",
+      "reason": "A Semantic Studio change can now exist without a chat thread, so threadUuid in the Studio workspace responses becomes nullable. These routes serve only Semantic Studio editing, which is behind the semantic-studio-editing feature flag; the flag is off by default on Cloud and on self-hosted, and the web app's Studio page is the only caller. During a rolling update an old Studio tab may not open a chat for a change created without one until refresh; nothing is written or lost.",
+      "requiredStop": false,
+      "impact": {
+        "kind": "no-external-callers",
+        "featureFlag": "semantic-studio-editing",
+        "covers": {
+          "rest": [
+            "GET /api/v1/projects/{projectUuid}/semantic-studio/workspaces",
+            "POST /api/v1/projects/{projectUuid}/semantic-studio/workspaces",
+            "GET /api/v1/projects/{projectUuid}/semantic-studio/workspaces/{workspaceUuid}",
+            "PATCH /api/v1/projects/{projectUuid}/semantic-studio/workspaces/{workspaceUuid}",
+            "POST /api/v1/projects/{projectUuid}/semantic-studio/workspaces/{workspaceUuid}/activate"
+          ],
+          "mcp": []
+        }
+      }
+    }
+  ]
 }

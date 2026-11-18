@@ -1,3 +1,10 @@
+# [3.309.0](https://github.com/lightdash/lightdash/compare/3.308.1...3.309.0) (2026-11-18)
+
+
+### Features
+
+* **semantic-studio:** let a change exist without a chat thread ([#32838](https://github.com/lightdash/lightdash/issues/32838)) ([f3d4507](https://github.com/lightdash/lightdash/commit/f3d4507308a4419c48e613c618aa521591af27da))
+
 ## [3.308.1](https://github.com/lightdash/lightdash/compare/3.308.0...3.308.1) (2026-11-18)
 
 

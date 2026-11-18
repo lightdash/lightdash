@@ -35800,6 +35800,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['getPullRequestDiff'] },
                 { dataType: 'enum', enums: ['grepFields'] },
                 { dataType: 'enum', enums: ['iterateDataApp'] },
+                { dataType: 'enum', enums: ['listChanges'] },
                 { dataType: 'enum', enums: ['listContent'] },
                 { dataType: 'enum', enums: ['listDataAppConnections'] },
                 { dataType: 'enum', enums: ['listDataAppThemes'] },
@@ -47870,7 +47871,14 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                threadUuid: { dataType: 'string', required: true },
+                threadUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 name: { dataType: 'string', required: true },
                 projectUuid: { dataType: 'string', required: true },
                 workspaceUuid: { dataType: 'string', required: true },
@@ -47953,7 +47961,14 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 name: { dataType: 'string', required: true },
-                threadUuid: { dataType: 'string', required: true },
+                threadUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
             },
             validators: {},
         },
