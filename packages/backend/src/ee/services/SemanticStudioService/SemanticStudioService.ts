@@ -315,6 +315,8 @@ const assertSourcePath = (path: string) => {
 
 const MAX_PULL_REQUEST_REFRESHES = 5;
 const PULL_REQUEST_REFRESH_MS = 55_000;
+const MERGE_RETRIES = 3;
+const MERGE_RETRY_MS = 2_000;
 const RECENT_WORKSPACE_MS = 14 * 24 * 60 * 60 * 1000;
 
 type Blocker = { reason: SemanticLayerBlocker; error: LightdashError };
@@ -2189,13 +2191,31 @@ export class SemanticStudioService extends BaseService {
         projectUuid: string,
         prUrl: string,
     ): Promise<NonNullable<SemanticLayerDraftApplyResult['merge']>> {
+        const merge = async (triesLeft: number): Promise<boolean> => {
+            try {
+                return (
+                    await this.aiWritebackService.mergePullRequest({
+                        user,
+                        projectUuid,
+                        prUrl,
+                    })
+                ).merged;
+            } catch (error) {
+                // Right after a commit the repository has not worked out yet whether the pull request can merge.
+                if (
+                    triesLeft === 0 ||
+                    !/not mergeable/i.test(getErrorMessage(error))
+                ) {
+                    throw error;
+                }
+                await new Promise((resolve) => {
+                    setTimeout(resolve, MERGE_RETRY_MS);
+                });
+                return merge(triesLeft - 1);
+            }
+        };
         try {
-            const { merged } = await this.aiWritebackService.mergePullRequest({
-                user,
-                projectUuid,
-                prUrl,
-            });
-            if (!merged) {
+            if (!(await merge(MERGE_RETRIES))) {
                 return {
                     merged: false,
                     reason: 'The repository did not merge it.',

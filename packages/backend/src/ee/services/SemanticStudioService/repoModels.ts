@@ -422,20 +422,33 @@ export class RepoModelSource {
             pullNumber,
             token: access.token,
         });
-        files
-            .filter(({ path }) => !sent.has(path))
-            .forEach(({ path }) => {
-                const content = onBranch.get(path);
-                if (content === undefined) deletions.push({ path });
-                else {
-                    additions.push({
-                        path,
-                        contents: Buffer.from(content, 'utf-8').toString(
-                            'base64',
-                        ),
-                    });
-                }
-            });
+        const stale = files.filter(({ path }) => !sent.has(path));
+        // Sent again with nothing new, such as a publish right after a send: the pull request already holds it.
+        const held = new Map(files.map((file) => [file.path, file]));
+        const isUpToDate =
+            stale.length === 0 &&
+            held.size === sent.size &&
+            additions.every(({ path, contents }) => {
+                const file = held.get(path);
+                return (
+                    file !== undefined &&
+                    file.status !== 'removed' &&
+                    Buffer.from(file.after, 'utf-8').toString('base64') ===
+                        contents
+                );
+            }) &&
+            deletions.every(({ path }) => held.get(path)?.status === 'removed');
+        if (isUpToDate) return { url: prUrl };
+        stale.forEach(({ path }) => {
+            const content = onBranch.get(path);
+            if (content === undefined) deletions.push({ path });
+            else {
+                additions.push({
+                    path,
+                    contents: Buffer.from(content, 'utf-8').toString('base64'),
+                });
+            }
+        });
         await createSignedCommitOnBranch({
             ...connection,
             ...access,

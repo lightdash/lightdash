@@ -193,9 +193,9 @@ describe('updatePullRequest', () => {
         } as Awaited<ReturnType<typeof getPullRequest>>);
         vi.mocked(getPullRequestDiffFiles).mockResolvedValueOnce({
             files: [
-                { path: 'models/orders.yml' },
-                { path: 'models/refunds.yml' },
-                { path: 'models/customers.yml' },
+                { path: 'models/orders.yml', status: 'modified', after: 'x' },
+                { path: 'models/refunds.yml', status: 'added', after: 'x' },
+                { path: 'models/customers.yml', status: 'added', after: 'x' },
             ],
         } as Awaited<ReturnType<typeof getPullRequestDiffFiles>>);
         const url = 'https://github.com/acme/analytics/pull/7';
@@ -228,6 +228,36 @@ describe('updatePullRequest', () => {
                 },
             }),
         );
+    });
+
+    it('adds no commit when the pull request already holds the draft', async () => {
+        vi.mocked(createSignedCommitOnBranch).mockClear();
+        vi.mocked(getPullRequest).mockResolvedValueOnce({
+            merged: false,
+            state: 'open',
+            headRef: 'lightdash-semantic-studio/abc',
+            headSha: 'head',
+        } as Awaited<ReturnType<typeof getPullRequest>>);
+        vi.mocked(getPullRequestDiffFiles).mockResolvedValueOnce({
+            files: [
+                {
+                    path: 'models/customers.yml',
+                    status: 'added',
+                    after: 'customers drafted',
+                },
+            ],
+        } as Awaited<ReturnType<typeof getPullRequestDiffFiles>>);
+        const url = 'https://github.com/acme/analytics/pull/7';
+        expect(
+            await source().updatePullRequest({
+                organizationUuid: 'org',
+                models,
+                writes: new Map([['customers', 'customers drafted']]),
+                title: 'Update',
+                prUrl: url,
+            }),
+        ).toEqual({ url });
+        expect(createSignedCommitOnBranch).not.toHaveBeenCalled();
     });
 
     it('is nothing for a pull request that closed, merged, or belongs to another repository', async () => {
