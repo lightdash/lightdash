@@ -5548,7 +5548,9 @@ export class LightdashAnalytics extends Analytics {
 
         if (
             this.lightdashConfig.usageEvents.enabled &&
-            (payload.event === 'download_results.started' ||
+            ((payload.event === 'embed_dashboard.viewed' &&
+                contentView?.context === 'embed') ||
+                payload.event === 'download_results.started' ||
                 payload.event === 'download_results.completed' ||
                 payload.event === 'download_results.error')
         ) {
