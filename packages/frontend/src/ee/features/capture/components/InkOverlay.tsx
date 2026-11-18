@@ -1,4 +1,4 @@
-import { type CSSProperties, type FC, type PointerEvent } from 'react';
+import { type CSSProperties, type FC, type MouseEvent } from 'react';
 import { INK_COLOR } from '../composeImage';
 import { type Box, type Point, type Stroke } from '../types';
 import classes from './InkOverlay.module.css';
@@ -13,7 +13,6 @@ type Props = {
     inkVisible: boolean;
     strokes: Stroke[];
     fading: FadingMark | null;
-    onStrokeStart: (point: Point) => void;
     onStrokePoint: (point: Point) => void;
     onStrokeEnd: () => void;
 };
@@ -29,11 +28,10 @@ const InkOverlay: FC<Props> = ({
     inkVisible,
     strokes,
     fading,
-    onStrokeStart,
     onStrokePoint,
     onStrokeEnd,
 }) => {
-    const toPoint = (event: PointerEvent<HTMLDivElement>): Point => ({
+    const toPoint = (event: MouseEvent<HTMLDivElement>): Point => ({
         x: Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)),
         y: Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height)),
     });
@@ -77,18 +75,12 @@ const InkOverlay: FC<Props> = ({
                         '--region-height': `${rect.height}px`,
                     } as CSSProperties
                 }
-                onPointerDown={(event) => {
-                    if (!holding) return;
-                    event.preventDefault();
-                    event.currentTarget.setPointerCapture(event.pointerId);
-                    onStrokeStart(toPoint(event));
+                // Moving the mouse draws; a click must not reach the app.
+                onMouseDown={(event) => event.preventDefault()}
+                onMouseMove={(event) => {
+                    if (holding) onStrokePoint(toPoint(event));
                 }}
-                onPointerMove={(event) => {
-                    if (!holding || event.buttons === 0) return;
-                    onStrokePoint(toPoint(event));
-                }}
-                onPointerUp={onStrokeEnd}
-                onPointerCancel={onStrokeEnd}
+                onMouseLeave={onStrokeEnd}
             >
                 <svg
                     className={classes.ink}

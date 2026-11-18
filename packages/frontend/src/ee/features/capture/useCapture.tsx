@@ -272,20 +272,16 @@ export const useCapture = (
         setInk(hold.current ? [...hold.strokes, hold.current] : hold.strokes);
     }, []);
 
-    const onStrokeStart = useCallback(
-        (point: Point) => {
-            const hold = holdRef.current;
-            if (!hold) return;
-            hold.current = { points: [point] };
-            refreshInk();
-        },
-        [refreshInk],
-    );
+    // The first movement of a hold starts the line; no click is needed.
     const onStrokePoint = useCallback(
         (point: Point) => {
             const hold = holdRef.current;
-            if (!hold?.current) return;
-            hold.current = { points: [...hold.current.points, point] };
+            if (!hold) return;
+            hold.current = {
+                points: hold.current
+                    ? [...hold.current.points, point]
+                    : [point],
+            };
             refreshInk();
         },
         [refreshInk],
@@ -442,7 +438,6 @@ export const useCapture = (
                           inkVisible={inkVisible}
                           strokes={ink}
                           fading={fading}
-                          onStrokeStart={onStrokeStart}
                           onStrokePoint={onStrokePoint}
                           onStrokeEnd={onStrokeEnd}
                       />
