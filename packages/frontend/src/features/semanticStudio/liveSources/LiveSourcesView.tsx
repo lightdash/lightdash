@@ -26,6 +26,7 @@ import {
 } from '@tabler/icons-react';
 import { type FC, type KeyboardEvent, type MouseEvent } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useResultsCacheStatus } from '../../../hooks/useProjectResultsCacheSettings';
 import { useExternalConnectionApiUsage } from '../../externalConnections/hooks/useExternalConnectionApiUsage';
 import { useExternalConnections } from '../../externalConnections/hooks/useExternalConnections';
 import {
@@ -296,6 +297,8 @@ export const LiveSourceSummary: FC<{
         projectUuid,
         connectionUuid: connection.externalConnectionUuid,
     });
+    const { data: projectCache } = useResultsCacheStatus(projectUuid);
+    const isProjectCacheOff = projectCache?.enabled === false;
     const row = toLiveSourceRow(connection, usage);
     const inUse = fields?.fields.filter((field) => field.inUse).length;
     return (
@@ -323,8 +326,16 @@ export const LiveSourceSummary: FC<{
             <Stat label="Cache hits" value={row.usage.cacheHits} />
             <Stat
                 label="Freshness"
-                value={getLiveSourceFreshness(connection).label}
-                title="How long a result answers the same query for everyone"
+                value={
+                    isProjectCacheOff
+                        ? 'Not cached'
+                        : getLiveSourceFreshness(connection).label
+                }
+                title={
+                    isProjectCacheOff
+                        ? 'Results caching is off for this project'
+                        : 'How long a result answers the same query for everyone'
+                }
             />
             <Stat
                 label="Median latency"

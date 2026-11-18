@@ -11,6 +11,7 @@ import {
     usePurgeLiveSourceCache,
     useUpdateLiveSourceCache,
 } from '../../externalConnections/hooks/useLiveSourceCache';
+import { ProjectCacheOffAlert } from '../../externalConnections/liveSources/ProjectCacheOffAlert';
 import {
     formatFreshness,
     getLiveSourceFreshness,
@@ -67,6 +68,7 @@ export const LiveSourceCacheSettingsModal: FC<{
             }
         >
             <Stack gap="sm">
+                <ProjectCacheOffAlert projectUuid={projectUuid} />
                 <Text fz="sm" c="dimmed">
                     A result from "{connection.name}" answers the same query for
                     everyone until it is this old. Longer windows make fewer

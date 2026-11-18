@@ -13004,9 +13004,18 @@ export class AsyncQueryService extends ProjectService {
                     ? source.cache.scope.userUuid
                     : null,
         });
-        const reusable = invalidateCache
-            ? null
-            : await this.findReusableApiResult(projectUuid, cacheKey, source);
+        // Live results follow the project's result caching, like warehouse
+        // results: with it off, every query calls the integration.
+        const { cacheEnabled } =
+            await this.projectModel.getResultsCacheSettings(projectUuid);
+        const reusable =
+            invalidateCache || !cacheEnabled
+                ? null
+                : await this.findReusableApiResult(
+                      projectUuid,
+                      cacheKey,
+                      source,
+                  );
 
         const queryCreatedAt = new Date();
         const { queryUuid } = await this.createQueryHistory(

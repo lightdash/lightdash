@@ -1,11 +1,19 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { EventName } from '../../../types/Events';
 import { AddLiveSourceModal } from './AddLiveSourceModal';
 
-const { track } = vi.hoisted(() => ({ track: vi.fn() }));
+const { track, resultsCacheStatus } = vi.hoisted(() => ({
+    track: vi.fn(),
+    resultsCacheStatus: vi.fn(),
+}));
+
+vi.mock('../../../hooks/useProjectResultsCacheSettings', () => ({
+    useResultsCacheStatus: resultsCacheStatus,
+}));
 
 vi.mock('../../../providers/Tracking/useTracking', () => ({
     default: () => ({ track }),
@@ -22,14 +30,16 @@ const onPick = vi.fn();
 
 const renderModal = ({ canUseLinkedInAds = true } = {}) =>
     renderWithProviders(
-        <AddLiveSourceModal
-            opened
-            onClose={vi.fn()}
-            projectUuid="project-1"
-            canUseGoogle
-            canUseLinkedInAds={canUseLinkedInAds}
-            onPick={onPick}
-        />,
+        <MemoryRouter>
+            <AddLiveSourceModal
+                opened
+                onClose={vi.fn()}
+                projectUuid="project-1"
+                canUseGoogle
+                canUseLinkedInAds={canUseLinkedInAds}
+                onPick={onPick}
+            />
+        </MemoryRouter>,
     );
 
 const customCard = () => {
@@ -51,6 +61,35 @@ describe('AddLiveSourceModal', () => {
     beforeEach(() => {
         track.mockClear();
         onPick.mockClear();
+        resultsCacheStatus.mockReturnValue({ data: { enabled: true } });
+    });
+
+    it('warns about rate limits while the project caches no results', () => {
+        resultsCacheStatus.mockReturnValue({ data: { enabled: false } });
+        renderModal();
+
+        expect(
+            screen.getByText('Results caching is off for this project'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'Turn on results caching' }),
+        ).toHaveAttribute(
+            'href',
+            '/generalSettings/projectManagement/project-1/caching',
+        );
+    });
+
+    it('shows no warning while the project caches results or is loading', () => {
+        renderModal();
+        expect(
+            screen.queryByText('Results caching is off for this project'),
+        ).not.toBeInTheDocument();
+
+        resultsCacheStatus.mockReturnValue({ data: undefined });
+        renderModal();
+        expect(
+            screen.queryByText('Results caching is off for this project'),
+        ).not.toBeInTheDocument();
     });
 
     it('shows LinkedIn Ads as requestable without a LinkedIn client', async () => {
