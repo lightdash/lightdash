@@ -745,9 +745,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
                         descending: true,
                     },
                 ],
-                limit: 40,
+                limit: 24,
                 description:
-                    'Top 40 person and model pairs by tokens over the selected period, so a person near the cut-off can be missing smaller models. People without a display name are grouped as Unknown user. Tokens are not monetary cost.',
+                    'Top 24 person and model pairs by tokens over the selected period, so a person near the cut-off can be missing smaller models. People without a display name are grouped as Unknown user. Tokens are not monetary cost.',
             },
         },
     },
