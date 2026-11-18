@@ -9,6 +9,7 @@ import {
     ApiConnectorType,
     assertUnreachable,
     AthenaAuthenticationType,
+    attachNativeMaterializationDocument,
     BigqueryAuthenticationType,
     BigqueryTokenError,
     CatalogType,
@@ -964,6 +965,43 @@ type RefreshForTest = <T>(
 describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
     const service = getMockedProjectService(lightdashConfigWithGoogleOAuthMock);
+
+    it.each(['multi', 'single'] as const)(
+        'rejects a materialization before source-scoped %s deploys rename explores',
+        async (route) => {
+            const configured = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
+            const connection = vi
+                .spyOn(configured.projectModel, 'getConnectionRoute')
+                .mockResolvedValue(route);
+            const allocation = vi
+                .spyOn(configured.projectModel, 'hasExploreNameAllocations')
+                .mockResolvedValue(true);
+            const explore = { ...validExplore };
+            attachNativeMaterializationDocument(explore, {
+                name: 'orders',
+                content: '{}',
+            });
+            try {
+                await expect(
+                    configured.saveDeployExplores({
+                        projectUuid,
+                        userUuid: user.userUuid,
+                        explores: [explore],
+                        complete: true,
+                        compilationSource: 'cli_deploy',
+                        cliDeploy: { sourceUuid: null, target: null },
+                    }),
+                ).rejects.toThrow(
+                    'Model orders cannot be materialized in a source-scoped deploy.',
+                );
+            } finally {
+                connection.mockRestore();
+                allocation.mockRestore();
+            }
+        },
+    );
 
     describe.each(['legacy', 'autocomplete'] as const)(
         '%s result identity cache',

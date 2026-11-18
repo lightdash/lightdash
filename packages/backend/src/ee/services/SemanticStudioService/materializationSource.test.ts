@@ -65,6 +65,7 @@ describe('materialization source eligibility', () => {
         { ...model, sql_filter: '${TABLE}.id = ${ld.attributes.region}' },
         { ...model, required_attributes: { region: ['all'] } },
         { ...model, pre_aggregates: [] },
+        { ...model, sql_filter: 'date_trunc(now()) > current_date' },
         { ...model, sql_filter: '${another_model.id} > 0' },
     ])('rejects model dependencies or incompatible access rules', (input) => {
         expect(materializationModelError(input)).not.toBeNull();

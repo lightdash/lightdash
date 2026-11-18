@@ -53,6 +53,7 @@ import { MigrationModel } from './MigrationModel/MigrationModel';
 import { MobileAppLinkModel } from './MobileAppLinkModel';
 import { MobileSignInCodeModel } from './MobileSignInCodeModel';
 import { ModelMaterializationModel } from './ModelMaterializationModel';
+import { ModelMaterializationStatusModel } from './ModelMaterializationStatusModel';
 import { NotificationsModel } from './NotificationsModel/NotificationsModel';
 import { OAuth2Model } from './OAuth2Model';
 import { OnboardingModel } from './OnboardingModel/OnboardingModel';
@@ -234,6 +235,7 @@ export type ModelManifest = {
     agentConnectionGrantModel: AgentConnectionGrantModel;
     agentConnectionApprovalReadModel: AgentConnectionApprovalReadModel;
     agentConnectionApprovalRequestModel: AgentConnectionApprovalRequestModel;
+    modelMaterializationStatusModel: ModelMaterializationStatusModel;
     modelMaterializationModel: ModelMaterializationModel;
     preAggregateModel: PreAggregateModel;
     preAggregateDailyStatsModel: PreAggregateDailyStatsModel;
@@ -1464,6 +1466,13 @@ export class ModelRepository
                 new PreAggregateDailyStatsModel({
                     database: this.database,
                 }),
+        );
+    }
+
+    public getModelMaterializationStatusModel() {
+        return this.getModel(
+            'modelMaterializationStatusModel',
+            () => new ModelMaterializationStatusModel(this.database),
         );
     }
 

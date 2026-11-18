@@ -1,12 +1,14 @@
 import {
-    DbtProjectType,
     FeatureFlags,
+    ParameterError,
     parseModelDocument,
+    WarehouseQueryError,
     WarehouseTypes,
 } from '@lightdash/common';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { toModelPath } from '../../ee/services/SemanticStudioService/draftFold';
 import {
+    isNativeModelProject,
     materializationCatalogCheck,
     materializationModelError,
     materializationSourceSql,
@@ -60,7 +62,7 @@ export async function runModelMaterialization(
         });
         if (
             !enabled ||
-            project.dbtConnection.type !== DbtProjectType.NONE ||
+            !isNativeModelProject(project.dbtConnection) ||
             project.connectionRoute === 'multi' ||
             project.warehouseConnection?.type !== WarehouseTypes.POSTGRES ||
             project.warehouseConnection.requireUserCredentials
@@ -121,8 +123,20 @@ export async function runModelMaterialization(
         );
         if (!(await model.promote(attempt, verified)))
             throw new Error('Build lease expired');
-    } catch {
-        await model.fail(attempt, 'build_failed');
+    } catch (error) {
+        let reason: 'build_failed' | 'row_limit' | 'unsupported_type' =
+            'build_failed';
+        if (
+            error instanceof WarehouseQueryError &&
+            error.data?.code === 'materialization_row_limit'
+        )
+            reason = 'row_limit';
+        if (
+            error instanceof ParameterError &&
+            error.data?.code === 'materialization_unsupported_type'
+        )
+            reason = 'unsupported_type';
+        await model.fail(attempt, reason);
         throw new Error('Model materialization build failed.');
     }
 }

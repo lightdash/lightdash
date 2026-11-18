@@ -338,3 +338,125 @@ it.each([404, 403])(
         );
     },
 );
+
+const healthRequest = request('GET', '/api/v1/health?skipMigrationCheck=true');
+const modelDocument = {
+    name: 'orders',
+    content: '{"name":"orders","materialize":{"max_rows":5}}',
+};
+
+it.each([true, false])(
+    'keeps the model document outside the explore in batched=%s deploys',
+    async (batchedDeploy) => {
+        const { deploy, options } = await prepare();
+        const {
+            compileLightdashModels,
+            DEFAULT_SPOTLIGHT_CONFIG,
+            parseModelDocument,
+            WarehouseTypes,
+            WeekDay,
+        } = await import('@lightdash/common');
+        const { warehouseSqlBuilderFromType } =
+            await import('@lightdash/warehouses');
+        const nativeModel = {
+            type: 'model',
+            name: 'orders',
+            sql_from: 'raw.orders',
+            dimensions: [],
+            materialize: { max_rows: 5 },
+        };
+        const liveModel = {
+            type: 'model',
+            name: 'inventory',
+            sql_from: 'raw.inventory',
+            dimensions: [],
+        };
+        const [orders, second] = await compileLightdashModels({
+            models: [nativeModel, liveModel].map((model) =>
+                parseModelDocument(
+                    JSON.stringify(model),
+                    `models/${model.name}.yml`,
+                ),
+            ),
+            warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                WarehouseTypes.POSTGRES,
+                WeekDay.SUNDAY,
+            ),
+            lightdashProjectConfig: { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        });
+        const deployedDocument = {
+            name: 'orders',
+            content: JSON.stringify(nativeModel),
+        };
+        const liveDocument = { name: 'inventory', content: null };
+        const batchPath = '/api/v2/projects/project-uuid/deploy/S/batch';
+        const writes = batchedDeploy
+            ? [
+                  { ...start, results: { deploySessionUuid: 'S' } },
+                  ...[orders, second].map((explore, index) => ({
+                      ...request(
+                          'POST',
+                          batchPath,
+                          JSON.stringify({
+                              explores: [explore],
+                              nativeModelDocuments: [
+                                  index === 0 ? deployedDocument : liveDocument,
+                              ],
+                              batchNumber: index,
+                              complete: false,
+                          }),
+                      ),
+                      results: { batchNumber: index, exploreCount: 1 },
+                  })),
+                  { ...finalize, results: { exploreCount: 2 } },
+              ]
+            : [
+                  {
+                      ...request(
+                          'PUT',
+                          start.path,
+                          JSON.stringify({
+                              explores: [orders, second],
+                              nativeModelDocuments: [
+                                  deployedDocument,
+                                  liveDocument,
+                              ],
+                              complete: false,
+                          }),
+                      ),
+                      results: { exploreCount: 2 },
+                  },
+              ];
+        server.replies.push(
+            {
+                ...healthRequest,
+                results: { supportsNativeMaterializationDeploy: true },
+            },
+            ...writes,
+            ...configWrites.map((entry) => ({ ...entry, results: null })),
+        );
+        await deploy([orders, second], {
+            ...options,
+            batchedDeploy,
+            batchSize: '1',
+        });
+        server.expectComplete();
+        expect(JSON.stringify(orders)).not.toContain('max_rows');
+    },
+);
+
+it.each([true, false])(
+    'rejects an opt-in before upload on an older server with batched=%s',
+    async (batchedDeploy) => {
+        const { deploy, options } = await prepare();
+        const { attachNativeMaterializationDocument } =
+            await import('@lightdash/common');
+        const orders = { ...compiledExplore };
+        attachNativeMaterializationDocument(orders, modelDocument);
+        server.replies.push({ ...healthRequest, results: {} });
+        await expect(
+            deploy([orders], { ...options, batchedDeploy }),
+        ).rejects.toThrow('Upgrade the server');
+        expect(server.requests).toEqual([healthRequest]);
+    },
+);

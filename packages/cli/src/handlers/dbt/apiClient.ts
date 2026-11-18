@@ -693,7 +693,9 @@ export const checkProjectCreationPermission = async (
     }
 };
 
-export const checkLightdashVersion = async (): Promise<void> => {
+export const checkLightdashVersion = async (): Promise<
+    ApiHealthResults | undefined
+> => {
     try {
         const health = await lightdashApi<ApiHealthResults>({
             method: 'GET',
@@ -718,7 +720,7 @@ export const checkLightdashVersion = async (): Promise<void> => {
                 console.error(
                     'The CLI and server use different major versions. Use a CLI version that matches your server.',
                 );
-                return;
+                return health;
             }
             const config = await (getAgentConnectionSelection() === null
                 ? getConfig()
@@ -735,8 +737,10 @@ export const checkLightdashVersion = async (): Promise<void> => {
                 )}`,
             );
         }
+        return health;
     } catch (err) {
         if (getAgentConnectionSelection() !== null) throw err;
         GlobalState.debug(`> Health check failed: ${err}`);
+        return undefined;
     }
 };

@@ -25,6 +25,10 @@ import {
     up as addGenerations,
     down as dropGenerations,
 } from '../20261118120100_create_model_materialization_generations';
+import {
+    up as createManualRequests,
+    down as dropManualRequests,
+} from '../20261118120200_model_materialization_manual_requests';
 
 describe('Project model documents on PostgreSQL', () => {
     let migrated: MigratedDatabase;
@@ -131,6 +135,7 @@ describe('Project model documents on PostgreSQL', () => {
 
     test('down and up remove and restore the tables', async () => {
         const { database } = migrated;
+        await database.transaction(dropManualRequests);
         await database.transaction(dropGenerations);
         await database.transaction(dropConfigs);
         await database.transaction(dropWorkspace);
@@ -148,6 +153,7 @@ describe('Project model documents on PostgreSQL', () => {
         await database.transaction(addWorkspace);
         await database.transaction(addConfigs);
         await database.transaction(addGenerations);
+        await database.transaction(createManualRequests);
         expect(await database.schema.hasTable('project_model_revisions')).toBe(
             true,
         );

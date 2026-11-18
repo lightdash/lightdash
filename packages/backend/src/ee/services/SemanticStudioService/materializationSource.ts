@@ -1,7 +1,20 @@
-import { type LightdashModel } from '@lightdash/common';
+import {
+    DbtProjectType,
+    type LightdashModel,
+    type Project,
+} from '@lightdash/common';
 import { stringToArray } from 'cron-converter';
 import { astVisitor, parse } from 'pgsql-ast-parser';
+import { getMaterializedFieldError } from '../../../services/ModelMaterializationService/materializedFieldError';
 import { isDerivedSqlFrom } from './derivedModel';
+
+export const isNativeModelProject = (
+    connection: Project['dbtConnection'],
+): boolean =>
+    connection.type === DbtProjectType.NONE ||
+    ((connection.type === DbtProjectType.GITHUB ||
+        connection.type === DbtProjectType.BITBUCKET) &&
+        connection.semanticLayer === 'lightdash');
 
 const safeIdentifier = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 const windowFunctions = new Set(['row_number', 'rank', 'dense_rank']);
@@ -144,5 +157,5 @@ export const materializationModelError = (
         if (name !== model.name && name !== 'TABLE')
             return 'A materialized model cannot reference fields from another model.';
     }
-    return null;
+    return getMaterializedFieldError(model);
 };

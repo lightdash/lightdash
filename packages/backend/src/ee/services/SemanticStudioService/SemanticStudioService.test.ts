@@ -407,6 +407,12 @@ const setup = ({
         },
     );
     const studioEditing = { enabled };
+    const materializations = {
+        get: vi.fn(),
+        list: vi.fn(),
+        refresh: vi.fn(),
+        sample: vi.fn(),
+    };
     const args: SemanticStudioServiceArguments = {
         aiWritebackService: {
             openStudioCheckout: unused,
@@ -436,6 +442,7 @@ const setup = ({
             attachThreadPullRequest: async () => undefined,
             recordPullRequestState,
         },
+        materializations,
         featureFlagModel: {
             get: async ({ featureFlagId }) => ({
                 id: featureFlagId,
@@ -647,6 +654,7 @@ const setup = ({
     const service = new SemanticStudioService(args);
     return {
         studioEditing,
+        materializations,
         service,
         workspaces,
         getPullRequestState,
@@ -1746,6 +1754,128 @@ describe('SemanticStudioService', () => {
             const context = await drafted(setup());
             context.drafts[0].baseVersions = null;
             expect(await reconciliationOf(context)).toBeNull();
+        });
+    });
+
+    describe('model materialization actions', () => {
+        it.each([
+            'getMaterialization',
+            'sampleMaterialization',
+            'refreshMaterialization',
+            'draftMaterialization',
+        ] as const)('requires Studio editing for %s', async (action) => {
+            const context = setup({ enabled: false });
+            await expect(
+                context.service[action](deployer, PROJECT_UUID, 'orders'),
+            ).rejects.toThrow('This feature is not enabled');
+            expect(context.materializations.refresh).not.toHaveBeenCalled();
+            expect(context.materializations.sample).not.toHaveBeenCalled();
+            expect(context.materializations.get).not.toHaveBeenCalled();
+            expect(context.drafts).toHaveLength(0);
+        });
+        it('requires source row access to sample', async () => {
+            const context = setup();
+            await expect(
+                context.service.sampleMaterialization(
+                    deployer,
+                    PROJECT_UUID,
+                    'orders',
+                ),
+            ).rejects.toThrow('permission to sample');
+            expect(context.materializations.sample).not.toHaveBeenCalled();
+        });
+        it('passes the authenticated actor through to the durable refresh', async () => {
+            const context = setup();
+            await context.service.refreshMaterialization(
+                deployer,
+                PROJECT_UUID,
+                'orders',
+            );
+            expect(context.materializations.refresh).toHaveBeenCalledWith(
+                PROJECT_UUID,
+                'orders',
+                USER_UUID,
+            );
+        });
+        it('puts the default copy policy in the existing draft and publishes it once', async () => {
+            const context = setup();
+            await context.service.draftMaterialization(
+                deployer,
+                PROJECT_UUID,
+                'orders',
+            );
+            await context.service.draftMaterialization(
+                deployer,
+                PROJECT_UUID,
+                'orders',
+            );
+            expect(context.drafts).toHaveLength(1);
+            expect(context.commitCalls).toHaveLength(0);
+            const drafted = await context.service.readDraftedModel(
+                deployer,
+                PROJECT_UUID,
+                'orders',
+            );
+            expect(drafted.content).toContain('1000000');
+            const applied = await context.service.applyDraft(
+                deployer,
+                PROJECT_UUID,
+                null,
+            );
+            expect(applied.failures).toEqual([]);
+            expect(context.commitCalls).toHaveLength(1);
+        });
+        it('replaces the model pre-aggregates so the copy can publish', async () => {
+            const context = setup({
+                stored: [
+                    {
+                        name: 'orders',
+                        content: `${orders}pre_aggregates:
+  - name: by_customer
+    dimensions: [customer_id]
+    metrics: []
+`,
+                    },
+                ],
+            });
+            await context.service.draftMaterialization(
+                deployer,
+                PROJECT_UUID,
+                'orders',
+            );
+            const drafted = await context.service.readDraftedModel(
+                deployer,
+                PROJECT_UUID,
+                'orders',
+            );
+            expect(drafted.content).toContain('materialize:');
+            expect(drafted.content).not.toContain('pre_aggregates');
+            const applied = await context.service.applyDraft(
+                deployer,
+                PROJECT_UUID,
+                null,
+            );
+            expect(applied.failures).toEqual([]);
+        });
+        it('proposes a repository copy through the project pull request', async () => {
+            const context = setup({ dbtConnection: MODELS_IN_GITHUB });
+            await context.service.draftMaterialization(
+                repoWriter,
+                PROJECT_UUID,
+                'orders',
+            );
+            const applied = await context.service.applyDraft(
+                repoWriter,
+                PROJECT_UUID,
+                null,
+            );
+            expect(applied.failures).toEqual([]);
+            expect(applied.pullRequestUrl).toBe(PULL_REQUEST_URL);
+            expect(
+                context.openPullRequest.mock.calls[0][0].writes.get('orders'),
+            ).toContain('materialize:');
+            expect(context.setExplores).not.toHaveBeenCalled();
+            expect(context.commitCalls).toHaveLength(0);
         });
     });
 

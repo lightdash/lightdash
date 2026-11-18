@@ -291,6 +291,14 @@ const findPartPath = (model: LightdashModel, path: string): YamlPath | null => {
         );
         return nested === undefined && index !== -1 ? ['joins', index] : null;
     }
+    if (head === 'pre_aggregates') {
+        const index = (model.pre_aggregates ?? []).findIndex(
+            (preAggregate) => preAggregate.name === name,
+        );
+        return nested === undefined && index !== -1
+            ? ['pre_aggregates', index]
+            : null;
+    }
     if (head !== 'dimensions') return null;
     const index = model.dimensions.findIndex((item) => item.name === name);
     if (index === -1) return null;

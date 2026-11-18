@@ -16,6 +16,7 @@ import { DeployService } from '../services/DeployService';
 import { InstanceConfigurationService } from '../services/InstanceConfigurationService/InstanceConfigurationService';
 import { JiraAppService } from '../services/JiraAppService/JiraAppService';
 import { LinearAppService } from '../services/LinearAppService/LinearAppService';
+import { readMaterializationSample } from '../services/ModelMaterializationService/readMaterializationSample';
 import { OAuthService } from '../services/OAuthService/OAuthService';
 import { OrganizationService } from '../services/OrganizationService/OrganizationService';
 import { isAnalyticsProjectAvailable } from '../services/ProjectService/analyticsProject/analyticsProjectAvailability';
@@ -435,8 +436,35 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     spacePermissionService:
                         repository.getSpacePermissionService(),
                 }),
-            semanticStudioService: ({ models, repository, clients }) =>
+            semanticStudioService: ({ models, repository, clients, context }) =>
                 new SemanticStudioService({
+                    materializations: {
+                        get: (project, model) =>
+                            models
+                                .getModelMaterializationStatusModel()
+                                .get(project, model),
+                        list: (project) =>
+                            models
+                                .getModelMaterializationStatusModel()
+                                .list(project),
+                        refresh: (project, model, user) =>
+                            models
+                                .getModelMaterializationModel()
+                                .manualRefresh(project, model, user),
+                        sample: async (project, model) => {
+                            const copy = await models
+                                .getModelMaterializationModel()
+                                .getServingCopy(project, model);
+                            if (copy?.status !== 'ready')
+                                throw new Error('No model copy is ready.');
+                            return readMaterializationSample(
+                                repository.getComposeEngineClient(),
+                                context.lightdashConfig.preAggregates.s3
+                                    ?.bucket ?? null,
+                                copy.objectKey,
+                            );
+                        },
+                    },
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     featureFlagModel: models.getFeatureFlagModel(),

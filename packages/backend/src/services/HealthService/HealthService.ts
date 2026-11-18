@@ -164,6 +164,7 @@ export class HealthService extends BaseService {
             mode: this.lightdashConfig.mode,
             version: VERSION,
             mobile: this.lightdashConfig.mobile,
+            supportsNativeMaterializationDeploy: true,
             localDbtEnabled,
             defaultProject: undefined,
             isAuthenticated,

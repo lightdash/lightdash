@@ -1,7 +1,10 @@
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
-import { compileLightdashModels } from '../compiler/compileLightdashModels';
+import {
+    compileLightdashModels,
+    getNativeMaterializationDocument,
+} from '../compiler/compileLightdashModels';
 import { warehouseClientMock } from '../compiler/exploreCompiler.mock';
 import { isExploreError } from '../types/explore';
 import { DEFAULT_SPOTLIGHT_CONFIG } from '../types/lightdashProjectConfig';
@@ -51,6 +54,24 @@ describe('native model loading and compilation', () => {
             expect(explore.tables.orders.dimensions.id).toBeDefined();
         },
     );
+
+    it('carries deployment metadata separately from the serialized explore', async () => {
+        await writeModel(
+            'models/items.yml',
+            `${modelYaml}materialize: {max_rows: 100}\n`,
+        );
+        const models = await loadLightdashModels(projectDir);
+        const [explore] = await compileLightdashModels({
+            models,
+            warehouseSqlBuilder: warehouseClientMock,
+            lightdashProjectConfig: { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        });
+        const document = getNativeMaterializationDocument(explore);
+        expect(document?.name).toBe(models[0].name);
+        expect(document?.content).toContain('"max_rows":100');
+        expect(document?.content).not.toContain('sourcePath');
+        expect(JSON.stringify(explore)).not.toContain('max_rows');
+    });
 
     it('prefers models/ over the legacy directory and ignores content YAML', async () => {
         await writeModel('models/orders.yml');

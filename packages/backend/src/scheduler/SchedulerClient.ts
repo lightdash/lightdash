@@ -1427,7 +1427,9 @@ export class SchedulerClient {
             [
                 SCHEDULER_TASKS.MATERIALIZE_MODEL,
                 JSON.stringify(payload),
-                `model-materialization:${payload.configUuid}:${payload.revisionUuid}:${payload.policyEpoch}`,
+                payload.manualRequestUuid
+                    ? `model-materialization:manual:${payload.manualRequestUuid}`
+                    : `model-materialization:${payload.configUuid}:${payload.revisionUuid}:${payload.policyEpoch}`,
                 JobPriority.MEDIUM,
             ],
         );

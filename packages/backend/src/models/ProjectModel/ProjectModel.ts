@@ -212,6 +212,11 @@ import {
     lockCompilePublication,
     markCompilePublished,
 } from '../../scheduler/compileShutdown';
+import {
+    captureNativeModel,
+    finalizeNativePublication,
+    validateNativePublication,
+} from '../../services/ModelMaterializationService/nativeModelPublication';
 import { type StoredPreAggregateRefresh } from '../../services/ProjectService/preAggregateRefresh';
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
 import { AwsWebIdentityResolver } from '../../utils/awsWebIdentity/AwsWebIdentityResolver';
@@ -3777,6 +3782,8 @@ export class ProjectModel {
         beforeWrite?: ExploreWriteCheck,
         publishDocuments?: ExploreWriteCheck,
     ) {
+        explores.forEach(captureNativeModel);
+        await validateNativePublication();
         return wrapSentryTransaction(
             'ProjectModel.saveExploresToCache',
             {},
@@ -3984,6 +3991,7 @@ export class ProjectModel {
                         },
                     );
 
+                    await finalizeNativePublication(trx, projectUuid);
                     return {
                         cachedExploreUuids: individualCachedExplores.map(
                             (explore) => explore.cached_explore_uuid,
@@ -4106,6 +4114,7 @@ export class ProjectModel {
                     const stagedNameOrder: string[] = [];
                     const sizedRows = async function* sizedRowsGenerator() {
                         for await (const explore of explores) {
+                            captureNativeModel(explore);
                             if (!stagedNames.has(explore.name)) {
                                 stagedNames.add(explore.name);
                                 stagedNameOrder.push(explore.name);
@@ -4151,6 +4160,7 @@ export class ProjectModel {
                         performance.now() - stageStartedAt,
                     );
 
+                    await validateNativePublication();
                     const swapStartedAt = performance.now();
                     const { promotedRows, managedNames } =
                         await this.database.transaction(async (trx) => {
@@ -4250,6 +4260,7 @@ export class ProjectModel {
                                     projectUuid,
                                 ],
                             );
+                            await finalizeNativePublication(trx, projectUuid);
                             return {
                                 promotedRows: promotedResult.rows,
                                 managedNames: managedResult.rows.map(
@@ -4506,6 +4517,7 @@ export class ProjectModel {
                             explore,
                             warehouseConnectionUuid,
                         } of explores) {
+                            captureNativeModel(explore);
                             const stagedBinding = stagedBindings.get(
                                 explore.name,
                             );
@@ -4556,6 +4568,7 @@ export class ProjectModel {
                             .merge(['table_names', 'explore']);
                     }
 
+                    await validateNativePublication();
                     const {
                         promotedRows,
                         managedNames,
@@ -4744,6 +4757,7 @@ export class ProjectModel {
                                 projectUuid,
                             ],
                         );
+                        await finalizeNativePublication(trx, projectUuid);
                         return {
                             promotedRows: promotedResult.rows,
                             managedNames: managedResult.rows.map(

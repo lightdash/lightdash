@@ -1,4 +1,10 @@
-import { SupportedDbtAdapter, WeekDay, type Explore } from '@lightdash/common';
+import {
+    attachNativeMaterializationDocument,
+    getNativeMaterializationDocument,
+    SupportedDbtAdapter,
+    WeekDay,
+    type Explore,
+} from '@lightdash/common';
 import { enhanceExploresForPreAggregates } from './enhanceExploresForPreAggregates';
 import { generatePreAggregateExplores } from './generatePreAggregateExplores';
 
@@ -43,4 +49,23 @@ describe('pre-aggregate connection week starts', () => {
                 .mock.calls.map(([args]) => args.startOfWeek),
         ).toEqual([WeekDay.MONDAY, WeekDay.WEDNESDAY, null]);
     });
+});
+
+it('preserves the opt-out on the source when pre-aggregates replace its explore', () => {
+    const orders = source('orders');
+    const document = { name: 'orders', content: null };
+    attachNativeMaterializationDocument(orders, document);
+    vi.mocked(generatePreAggregateExplores).mockReturnValueOnce([
+        { ...orders },
+        source('summary'),
+    ]);
+    const enhanced = enhanceExploresForPreAggregates({
+        explores: [orders],
+        enabled: true,
+        startOfWeek: null,
+    });
+    expect(enhanced.map(getNativeMaterializationDocument)).toEqual([
+        document,
+        null,
+    ]);
 });

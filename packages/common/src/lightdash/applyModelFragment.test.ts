@@ -478,6 +478,16 @@ describe('parseModelFragment', () => {
                 'dimensions.status.sql',
             ]);
             expect(parse(contents).joins).toBeUndefined();
+            expect(
+                remove(
+                    `${orders}pre_aggregates:
+  - name: daily
+    dimensions: [status]
+    metrics: [order_count]
+`,
+                    ['pre_aggregates.daily'],
+                ).contents,
+            ).not.toContain('pre_aggregates');
             expect(refusals).toEqual([
                 { path: 'metrics.nope', reason: 'not_found' },
                 { path: 'dimensions.status.sql', reason: 'not_found' },
