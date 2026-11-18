@@ -137,9 +137,12 @@ const MineRow: FC<{
     </Box>
 );
 
-const whereItStands = ({ pullRequest }: SemanticStudioWorkspace): string => {
+const whereItStands = ({
+    pullRequest,
+    publishedLive,
+}: SemanticStudioWorkspace): string => {
     const number = pullRequestNumberOf(pullRequest?.url);
-    if (!pullRequest) return 'Not saved yet';
+    if (!pullRequest) return publishedLive ? 'Published' : 'Not saved yet';
     switch (pullRequest.state) {
         case 'merged':
             return number ? `Merged as #${number}` : 'Merged';
@@ -170,9 +173,10 @@ export const StudioWorkspacesList: FC<{
         );
     }
     const { others } = data;
-    // Only merged work went live; discarded work is not listed.
+    // Discarded work is not listed.
     const recent = data.recent.filter(
-        ({ pullRequest }) => pullRequest?.state === 'merged',
+        ({ pullRequest, publishedLive }) =>
+            publishedLive || pullRequest?.state === 'merged',
     );
     const waiting = rows.filter(({ run }) => needsYou(run));
     const going = rows.filter(({ run }) => !needsYou(run));
@@ -198,21 +202,10 @@ export const StudioWorkspacesList: FC<{
                 <Text className={classes.title}>Drafts</Text>
                 <Text className={classes.lede}>
                     {rows.length === 0
-                        ? 'No drafts yet. Ask for a change to start one.'
+                        ? 'No drafts yet.'
                         : 'Pick up where you and your team left off.'}
                 </Text>
             </header>
-            {rows.length === 0 ? (
-                <div className={classes.empty}>
-                    <Text fz="sm" fw={500}>
-                        No drafts yet
-                    </Text>
-                    <Text fz="xs" c="dimmed">
-                        Start one with New draft, or ask for a change in the
-                        chat.
-                    </Text>
-                </div>
-            ) : null}
             {waiting.length > 0 ? (
                 <Section label="Needs you" count={waiting.length}>
                     {waiting.map(mineRow)}

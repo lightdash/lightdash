@@ -37,6 +37,8 @@ const propose = async (
         {
             models: [{ name: 'orders', yaml, remove: [], removeModel: false }],
             changeName: null,
+            note: 'Counts refunds too.',
+            options: ['Leave refunds out'],
         },
         callOptions,
     );
@@ -80,12 +82,14 @@ describe('getProposeSemanticLayerChange', () => {
             'label: Orders',
         );
         expect(output.result).toContain('orders: ready');
-        expect(output.result).toContain('Nothing is live until');
+        expect(output.result).toContain('Nothing is published until');
         expect(output.metadata).toMatchObject({
             status: 'success',
             models: [{ model: 'orders', status: 'ready' }],
             diffs: [{ contentAfter: 'after' }],
             draftChangeUuid: 'draft-1',
+            note: 'Counts refunds too.',
+            options: ['Leave refunds out'],
         });
     });
 
@@ -137,6 +141,8 @@ describe('getProposeSemanticLayerChange', () => {
         );
         expect(output.result).toContain('orders: failed');
         expect(output.result).toContain('Nothing joined the draft');
+        // Nothing joined the draft, so there is no card for a note or an offer.
+        expect(output.metadata).toMatchObject({ note: null, options: [] });
     });
 
     it('returns an error when the check throws', async () => {

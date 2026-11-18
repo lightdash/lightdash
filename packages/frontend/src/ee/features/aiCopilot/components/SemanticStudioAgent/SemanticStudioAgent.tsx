@@ -312,6 +312,9 @@ const ExistingThread: FC<
                 projectUuid={projectUuid}
                 agentUuid={agent.uuid}
                 renderArtifactsInline
+                onChoiceSelect={
+                    isBusy ? undefined : (message) => send({ message })
+                }
             >
                 {thread.messages.length === 0 && !isBusy ? (
                     <Text fz="xs" c="dimmed" ta="center" px="md" pb="xs">
@@ -384,21 +387,11 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
 
     if (!isEnabled) return null;
     if (!agent) {
-        return (
+        return isLoadingAgents ? (
             <Box className={classes.panel} p="md">
-                {isLoadingAgents ? (
-                    <Loader size="sm" />
-                ) : (
-                    <>
-                        <Text fw={500}>No agent available</Text>
-                        <Text size="sm" c="dimmed">
-                            Ask a project administrator to set up an agent or
-                            grant you access.
-                        </Text>
-                    </>
-                )}
+                <Loader size="sm" />
             </Box>
-        );
+        ) : null;
     }
     if (!isOpen) return null;
     return (

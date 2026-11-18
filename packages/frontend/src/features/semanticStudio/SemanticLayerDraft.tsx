@@ -26,7 +26,7 @@ import {
     IconTable,
     IconWorldUpload,
 } from '@tabler/icons-react';
-import { countBy, sortBy, uniqBy } from 'es-toolkit/compat';
+import { sortBy, uniqBy } from 'es-toolkit/compat';
 import { useEffect, useRef, useState, type FC } from 'react';
 import { Navigate, useSearchParams } from 'react-router';
 import Callout from '../../components/common/Callout';
@@ -58,7 +58,6 @@ import {
     DRAFT_REVIEW,
     getChangeKind,
     refusalText,
-    type ChangeKind,
 } from './modelCode';
 import classes from './SemanticLayerDraft.module.css';
 import {
@@ -69,19 +68,6 @@ import {
     useSemanticLayerDraft,
     useSemanticLayerDraftImpact,
 } from './useSemanticLayerModel';
-
-const KIND_NOUNS: [ChangeKind, string][] = [
-    ['new', 'new model'],
-    ['changed', 'changed model'],
-    ['removed', 'removed model'],
-];
-
-const summarizeDraftModels = ({ models }: SemanticLayerDraft) => {
-    const totals = countBy(models, getChangeKind);
-    return KIND_NOUNS.flatMap(([kind, noun]) =>
-        totals[kind] ? [count(totals[kind], noun)] : [],
-    ).join(', ');
-};
 
 /** How many models of the draft, or the one named, still have a part to choose between. */
 const countConflicts = (
@@ -184,7 +170,7 @@ const DraftImpact: FC<{ projectUuid: string; model: string | null }> = ({
     );
 };
 
-export const ApplyModal: FC<{
+const ApplyModal: FC<{
     projectUuid: string;
     draft: SemanticLayerDraft;
     model: string | null;
@@ -213,10 +199,10 @@ export const ApplyModal: FC<{
             }
             subtitle={
                 mode === 'pull_request'
-                    ? `${models} ${scoped.length === 1 ? 'goes' : 'go'} to your repository. Nothing is live until it merges.`
+                    ? `${models} ${scoped.length === 1 ? 'goes' : 'go'} to your repository. Nothing is published until it merges.`
                     : mode === 'merge'
                       ? `${models} ${scoped.length === 1 ? 'merges' : 'merge'} into your repository. Everyone sees ${scoped.length === 1 ? 'it' : 'them'} once the project refreshes.`
-                      : `${models} ${scoped.length === 1 ? 'goes' : 'go'} live for everyone on this project.`
+                      : `${models} will be published for everyone on this project.`
             }
             confirmLabel={isRisky ? `${confirmLabel} anyway` : confirmLabel}
             confirmLoading={apply.isLoading}
@@ -257,6 +243,10 @@ export const ApplyModal: FC<{
                                         action,
                                     });
                                 }
+                            } else {
+                                showToastSuccess({
+                                    title: 'Published for everyone',
+                                });
                             }
                             onClose();
                         },
@@ -481,7 +471,8 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                     >
                         <Button
                             size="xs"
-                            variant="default"
+                            variant="subtle"
+                            color="gray"
                             flex="none"
                             leftSection={
                                 <MantineIcon icon={IconPlayerPlay} size={12} />
@@ -543,7 +534,8 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                         <ActionIcon
                             size="md"
                             aria-label="More actions"
-                            variant="default"
+                            variant="subtle"
+                            color="gray"
                         >
                             <MantineIcon icon={IconDots} />
                         </ActionIcon>
@@ -577,7 +569,7 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                         opened
                         variant="delete"
                         title="Discard draft"
-                        description={`${count(draft.changes.length, 'change')} in development will be removed. Nothing live changes, and this cannot be undone.`}
+                        description={`${count(draft.changes.length, 'change')} in this draft will be removed. Published stays as it is, and this cannot be undone.`}
                         confirmLabel="Discard"
                         confirmLoading={discard.isLoading}
                         onClose={() => setDiscarding(false)}
@@ -645,26 +637,6 @@ type DraftProps = { projectUuid: string; draft: SemanticLayerDraft };
 type DraftReviewProps = DraftProps & {
     /** Hands a request to the agent beside the review. */
     onAskAgent: (prompt: string) => void;
-};
-
-export const DraftReviewHeading: FC<DraftProps> = ({ projectUuid, draft }) => {
-    return (
-        <Group className={classes.heading} gap="xs" wrap="nowrap">
-            <Badge color="orange" flex="none">
-                Draft
-            </Badge>
-            <Text fz="sm" fw={500} truncate flex={1}>
-                {draft.models.length > 0
-                    ? summarizeDraftModels(draft)
-                    : 'Already live, nothing to publish'}
-            </Text>
-            <DraftActions
-                projectUuid={projectUuid}
-                draft={draft}
-                model={null}
-            />
-        </Group>
-    );
 };
 
 export const DraftReview: FC<DraftReviewProps> = ({

@@ -85,6 +85,15 @@ describe('canOfferAskUser', () => {
         expect(canOfferAskUser(webPrompt, 'standard')).toBe(true);
     });
 
+    it('offers it in Semantic Studio, where a question before a change needs an answer', () => {
+        expect(
+            canOfferAskUser(
+                { ...webPrompt, threadCreatedFrom: 'semantic_studio' },
+                'standard',
+            ),
+        ).toBe(true);
+    });
+
     it.each([
         ['an api thread', { ...webPrompt, threadCreatedFrom: 'api' }],
         ['a Slack prompt', { ...webPrompt, slackUserId: 'U1' }],

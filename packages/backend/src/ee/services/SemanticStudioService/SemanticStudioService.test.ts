@@ -381,6 +381,7 @@ const setup = ({
             createdAt: new Date(),
             updatedAt: new Date(),
             finishedAt: null,
+            publishedLive: false,
         };
     const workspaces: SemanticStudioWorkspace[] = [];
     const getPullRequestState = vi.fn(
@@ -445,6 +446,7 @@ const setup = ({
                           createdAt: new Date(),
                           updatedAt: new Date(),
                           finishedAt: null,
+                          publishedLive: false,
                       }
                     : null,
             start: startWorkspace,
@@ -2563,6 +2565,32 @@ describe('SemanticStudioService', () => {
         expect(outcome.exploreCount).toBe(1);
     });
 
+    it('says so up front when the models were deployed from elsewhere', async () => {
+        expect(
+            await setup({
+                stored: [],
+                exploreTypes: [ExploreType.DEFAULT],
+            }).service.getPageStatus(deployer, PROJECT_UUID),
+        ).toEqual({
+            enabled: false,
+            blocker: 'models_from_outside',
+            appliesAs: 'live',
+        });
+        expect(
+            await setup({
+                stored: [],
+                exploreTypes: [ExploreType.VIRTUAL],
+            }).service.getPageStatus(deployer, PROJECT_UUID),
+        ).toMatchObject({ enabled: true, blocker: null });
+        // What the rest of the app polls stays as cheap as it was.
+        expect(
+            await setup({
+                stored: [],
+                exploreTypes: [ExploreType.DEFAULT],
+            }).service.getStatus(deployer, PROJECT_UUID),
+        ).toMatchObject({ enabled: true, blocker: null });
+    });
+
     describe('concurrent writes', () => {
         it('rereads and retries when another write lands first', async () => {
             const context = setup({ staleCommits: 1 });
@@ -2810,7 +2838,11 @@ describe('SemanticStudioService', () => {
                         authorization_method: 'personal_access_token',
                     },
                 }).service.getStatus(repoWriter, PROJECT_UUID),
-            ).toEqual({ enabled: false, appliesAs: 'pull_request' });
+            ).toEqual({
+                enabled: false,
+                blocker: 'unsupported_connection',
+                appliesAs: 'pull_request',
+            });
         });
 
         it('opens no pull request for a draft that stopped passing', async () => {
@@ -2835,10 +2867,14 @@ describe('SemanticStudioService', () => {
         it('says how a draft applies', async () => {
             expect(
                 await repo().service.getStatus(repoWriter, PROJECT_UUID),
-            ).toEqual({ enabled: true, appliesAs: 'pull_request' });
+            ).toEqual({
+                enabled: true,
+                blocker: null,
+                appliesAs: 'pull_request',
+            });
             expect(
                 await setup().service.getStatus(deployer, PROJECT_UUID),
-            ).toEqual({ enabled: true, appliesAs: 'live' });
+            ).toEqual({ enabled: true, blocker: null, appliesAs: 'live' });
         });
 
         it('shows changes only to those who can make them', async () => {
@@ -2861,16 +2897,28 @@ describe('SemanticStudioService', () => {
             const dbt = () => setup({ dbtConnection: DBT_IN_GITHUB });
             expect(
                 await dbt().service.getStatus(repoWriter, PROJECT_UUID),
-            ).toEqual({ enabled: true, appliesAs: 'dbt_pull_request' });
+            ).toEqual({
+                enabled: true,
+                blocker: null,
+                appliesAs: 'dbt_pull_request',
+            });
             expect(
                 await dbt().service.getStatus(deployer, PROJECT_UUID),
-            ).toEqual({ enabled: false, appliesAs: 'dbt_pull_request' });
+            ).toEqual({
+                enabled: false,
+                blocker: 'no_repository_access',
+                appliesAs: 'dbt_pull_request',
+            });
             expect(
                 await setup({
                     dbtConnection: DBT_IN_GITHUB,
                     enabled: false,
                 }).service.getStatus(repoWriter, PROJECT_UUID),
-            ).toEqual({ enabled: false, appliesAs: 'dbt_pull_request' });
+            ).toEqual({
+                enabled: false,
+                blocker: 'no_access',
+                appliesAs: 'dbt_pull_request',
+            });
             expect(
                 await dbt().service.canEditModels(repoWriter, PROJECT_UUID),
             ).toBe(false);
@@ -3226,6 +3274,7 @@ describe('workspace pull request reconciliation', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         finishedAt: null,
+        publishedLive: false,
     });
 
     it.each(['merged', 'closed'] as const)(

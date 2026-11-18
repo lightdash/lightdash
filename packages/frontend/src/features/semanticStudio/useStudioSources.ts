@@ -11,7 +11,7 @@ import { useRef } from 'react';
 import { type StoredThread } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import { getAiAgentApiBase } from '../../ee/features/aiCopilot/hooks/aiAgentRouting';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
-import { WORKSPACES_KEY } from './useStudioWorkspaces';
+import { WORKSPACES_KEY } from './useSemanticLayerModel';
 
 const SOURCES_KEY = 'semantic-studio-sources';
 

@@ -3,6 +3,9 @@ import {
     type AiAgentMessageAssistant,
     type AiAgentMessageUser,
     type AiMcpServer,
+    DBT_SAVE_CARD_REPLY,
+    describeSemanticLayerProposals,
+    getEditDbtProjectCardExtras,
     isToolEditDbtProjectResult,
     isToolProposeSemanticLayerChangeResult,
     isToolEditRepoResult,
@@ -53,6 +56,7 @@ import {
 import { Link } from 'react-router';
 import { type CustomRendererProps, type StreamdownProps } from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
+import { AiMarkdownErrorBoundary } from '../../../../../components/common/AiMarkdown/AiMarkdownErrorBoundary';
 import { CopyActionIcon } from '../../../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SemanticLayerProposalCard } from '../../../../../features/semanticStudio/SemanticLayerProposalCard';
@@ -854,7 +858,16 @@ const AssistantBubbleContent: FC<{
                     isStreaming || isPending
                         ? null
                         : getMessageFinalStepFailure(message);
-                const hasAnswerText = messageContent.length > 0;
+                // In Studio a turn that only changed the draft ends on its card; the line kept for history is not shown twice.
+                const cardReply =
+                    semanticLayerProposals.length > 0
+                        ? describeSemanticLayerProposals(semanticLayerProposals)
+                        : editDbtProjectResult
+                          ? DBT_SAVE_CARD_REPLY
+                          : null;
+                const hasAnswerText =
+                    messageContent.length > 0 &&
+                    !(quietCards && messageContent.trim() === cardReply);
                 const failureSummary = finalStepFailure ? (
                     <StepFailureSummary
                         failure={finalStepFailure}
@@ -974,11 +987,22 @@ const AssistantBubbleContent: FC<{
                 streamParts={streamingState?.parts}
             />
             {quietCards && semanticLayerProposals.length > 0 ? (
-                <TurnSummaryCard
-                    projectUuid={projectUuid}
-                    proposals={semanticLayerProposals}
-                    onAsk={askStudio}
-                />
+                <AiMarkdownErrorBoundary
+                    fallback={
+                        <Text fz="sm">
+                            {describeSemanticLayerProposals(
+                                semanticLayerProposals,
+                            )}
+                        </Text>
+                    }
+                >
+                    <TurnSummaryCard
+                        projectUuid={projectUuid}
+                        proposals={semanticLayerProposals}
+                        onAsk={askStudio}
+                        isLatest={isLastMessage}
+                    />
+                </AiMarkdownErrorBoundary>
             ) : (
                 semanticLayerProposals.map((proposal, index) => (
                     <SemanticLayerProposalCard
@@ -995,6 +1019,12 @@ const AssistantBubbleContent: FC<{
                     agentUuid={agentUuid}
                     threadUuid={message.threadUuid}
                     startedAt={message.createdAt}
+                    isLatest={isLastMessage}
+                    {...getEditDbtProjectCardExtras(
+                        message.toolCalls.findLast(
+                            ({ toolName }) => toolName === 'editDbtProject',
+                        )?.toolArgs,
+                    )}
                 />
             )}
             {editRepoMetadata && (

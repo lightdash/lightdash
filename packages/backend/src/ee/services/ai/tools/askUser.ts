@@ -30,7 +30,8 @@ export const canOfferAskUser = (
     executionMode: AiAgentExecutionConfig['mode'],
 ): boolean =>
     !isSlackPrompt(prompt) &&
-    prompt.threadCreatedFrom === 'web_app' &&
+    (prompt.threadCreatedFrom === 'web_app' ||
+        prompt.threadCreatedFrom === 'semantic_studio') &&
     prompt.threadEmbedSpaceUuid === null &&
     prompt.threadEmbedOwnerIdentifier === null &&
     prompt.externalUserId === null &&

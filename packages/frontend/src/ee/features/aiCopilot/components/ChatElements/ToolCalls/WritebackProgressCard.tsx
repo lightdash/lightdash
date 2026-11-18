@@ -42,7 +42,7 @@ const segmentStateOf = (
 };
 
 /** One bar per step: filled when done, shimmering while it runs. */
-export const WritebackSegments: FC<{
+const WritebackSegments: FC<{
     progress: WritebackProgress;
     size?: 'sm' | 'md';
 }> = ({ progress, size = 'md' }) => (

@@ -535,6 +535,7 @@ const FieldRow = memo<{
         onOpen,
         onDragStart,
     }) => {
+        const canDrag = useAddToStudioChat() !== null;
         const summary = summaryOf(field.description);
         return (
             <Box className={classes.fieldItem} top={top}>
@@ -547,13 +548,15 @@ const FieldRow = memo<{
                     role="row"
                     aria-selected={selected}
                     tabIndex={tabStop ? 0 : -1}
-                    draggable
+                    draggable={canDrag}
                     onDragStart={(event) => onDragStart(event, field)}
                     onClick={() => onOpen(field)}
                 >
-                    <Box className={classes.dragGrip} aria-hidden>
-                        <MantineIcon icon={IconGripVertical} size={12} />
-                    </Box>
+                    {canDrag ? (
+                        <Box className={classes.dragGrip} aria-hidden>
+                            <MantineIcon icon={IconGripVertical} size={12} />
+                        </Box>
+                    ) : null}
                     <Group gap={8} wrap="nowrap" className={classes.fieldName}>
                         <Box flex="none" display="flex">
                             <FieldTypeIcon field={field} />

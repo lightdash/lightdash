@@ -1,9 +1,3 @@
-/* Same 24px gutter as the review body below it. */
-.heading {
-    flex: none;
-    padding: var(--mantine-spacing-sm) 24px;
-}
-
 .review {
     flex: 1;
     min-height: 0;

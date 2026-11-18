@@ -53,6 +53,7 @@ import {
     describeModelChange,
     getChangeKind,
     summarizeModelChanges,
+    count,
 } from './modelCode';
 import { LIVE_HEADERS, useTotals } from './useMetricTotals';
 import {
@@ -238,7 +239,7 @@ const ConflictSides: FC<{
             <Box className={classes.options}>
                 <ConflictOption
                     title={publisher.option}
-                    state={`live ${publishedAgo}`}
+                    state={`published ${publishedAgo}`}
                     tone="live"
                     value={conflict.live}
                     base={conflict.base}
@@ -403,7 +404,7 @@ export const ModelNotices: FC<{
                         {paths.length > 0
                             ? listNames(paths.map(describePath))
                             : 'this model'}
-                        , in development.
+                        , in a draft.
                     </Text>
                 </NoticeRow>
             ))}
@@ -455,7 +456,7 @@ const ChangeRow: FC<{
                                 .then(() =>
                                     onAskAgent(
                                         [
-                                            'A change in development stopped applying, so I discarded it.',
+                                            'A change in the draft stopped applying, so I discarded it.',
                                             change.question
                                                 ? `It was asked for with: "${change.question}"`
                                                 : null,
@@ -481,10 +482,10 @@ const ChangeRow: FC<{
             ) : null}
             {count > 1 ? (
                 <Group gap={0} wrap="nowrap" flex="none">
-                    <Tooltip label="Apply earlier">
+                    <Tooltip label="Move earlier">
                         <ActionIcon
                             size="sm"
-                            aria-label="Apply earlier"
+                            aria-label="Move earlier"
                             disabled={index === 0 || move.isLoading}
                             onClick={() =>
                                 move.mutate({
@@ -496,10 +497,10 @@ const ChangeRow: FC<{
                             <MantineIcon icon={IconArrowUp} />
                         </ActionIcon>
                     </Tooltip>
-                    <Tooltip label="Apply later">
+                    <Tooltip label="Move later">
                         <ActionIcon
                             size="sm"
-                            aria-label="Apply later"
+                            aria-label="Move later"
                             disabled={index === count - 1 || move.isLoading}
                             onClick={() =>
                                 move.mutate({
@@ -543,9 +544,18 @@ export const ChangeQueue: FC<{
         ]),
     );
     return (
-        <Paper className={classes.section}>
-            <Text fz="sm" fw={500} className={classes.sectionTitle}>
-                Changes in order
+        <Paper
+            component="details"
+            className={classes.section}
+            open={hasFailure || undefined}
+        >
+            <Text
+                component="summary"
+                fz="sm"
+                fw={500}
+                className={classes.sectionTitle}
+            >
+                {count(draft.changes.length, 'change')}
             </Text>
             {draft.changes.map((change, index) => (
                 <ChangeRow
@@ -710,7 +720,7 @@ const CompareTotals: FC<{
                     >
                         {isNewModel
                             ? 'Run the totals'
-                            : 'Compare totals with live'}
+                            : 'Compare totals with Published'}
                     </Button>
                 </Tooltip>
             </Group>
@@ -774,7 +784,7 @@ const CompareTotals: FC<{
             ) : null}
             {development.isError ? (
                 <Text fz="xs" c="dimmed">
-                    Could not run these in development:{' '}
+                    Could not run these on the draft:{' '}
                     {development.error.error.message}
                 </Text>
             ) : null}
@@ -903,7 +913,7 @@ export const PublishChecklist: FC<{
             ? [
                   {
                       state: 'attention' as const,
-                      text: `${listNames(conflicted.map(labelOf))} changed live in parts you changed too. Choose which to keep in the review`,
+                      text: `${listNames(conflicted.map(labelOf))} changed in Published in parts you changed too. Choose which to keep in the review`,
                   },
               ]
             : []),
@@ -919,8 +929,8 @@ export const PublishChecklist: FC<{
                       text: movedUnder.every(
                           (entry) => entry.reconciliation?.state === 'merged',
                       )
-                          ? `${listNames(movedUnder.map(labelOf))} changed live after you started, outside what you changed. Yours goes on top`
-                          : `${listNames(movedUnder.map(labelOf))} changed live after you started, and it could not be set against yours. Look at it in the review first`,
+                          ? `${listNames(movedUnder.map(labelOf))} changed in Published after you started, outside what you changed. Yours goes on top`
+                          : `${listNames(movedUnder.map(labelOf))} changed in Published after you started, and it could not be set against yours. Look at it in the review first`,
                   },
               ]
             : []),
@@ -999,7 +1009,7 @@ export const PublishSummary: FC<{
     const read = (usage?.fields ?? []).filter((field) => inScope(field.model));
     return (
         <>
-            <Section title="Going live">
+            <Section title="Publishing">
                 {models.map((entry) => (
                     <Group
                         key={entry.model}

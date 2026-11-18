@@ -23,17 +23,16 @@ const TryItModal = lazy(() =>
     })),
 );
 
-/** Primary where it is the next step, beside Merge; quiet on a chat card. */
-type Look = 'primary' | 'quiet';
+/** Primary while it is the next step; secondary once the draft can be published. */
+type Look = 'primary' | 'secondary';
 
 const buttonProps = (look: Look) =>
-    look === 'primary'
-        ? {
-              size: 'xs',
-              variant: 'filled',
-              leftSection: <MantineIcon icon={IconPlayerPlay} size={12} />,
-          }
-        : { size: 'compact-xs', variant: 'default' };
+    ({
+        size: 'xs',
+        variant: look === 'primary' ? 'filled' : 'subtle',
+        color: look === 'primary' ? undefined : 'gray',
+        leftSection: <MantineIcon icon={IconPlayerPlay} size={12} />,
+    }) as const;
 
 const HINT =
     'Opens Explore over this page with your changes. Only you see them until they are merged.';

@@ -90,11 +90,13 @@ export const getEditDbtProject = ({
                 }
                 const { aiWritebackRunUuid, inSandbox } = started;
 
+                const studioResult = inSandbox
+                    ? 'Started the change. It needs dbt to run, so it is saved in a sandbox and takes a few minutes; the pull request opens in the background. Tell the person it will take a few minutes, briefly. Until it opens, listWorkstreams shows it as a change still being opened.'
+                    : 'Started saving the change to the draft. Its card shows the person the files, your note, your options and when it is saved, so write nothing more. Until it is saved, listWorkstreams shows it as a change still being opened.';
                 return {
-                    result:
-                        acceptsScript && inSandbox
-                            ? 'Started the change. It needs dbt to run, so it is saved in a sandbox and takes a few minutes; the pull request opens in the background. Tell the person it will take a few minutes, briefly. Until it opens, listWorkstreams shows it as a change still being opened.'
-                            : 'Started the change; the pull request opens in the background. Acknowledge it briefly. Until it opens, listWorkstreams shows it as a change still being opened.',
+                    result: acceptsScript
+                        ? studioResult
+                        : 'Started the change; the pull request opens in the background. Acknowledge it briefly. Until it opens, listWorkstreams shows it as a change still being opened.',
                     metadata: {
                         status: 'pending',
                         aiWritebackRunUuid,

@@ -1,13 +1,18 @@
 import {
     Box,
+    Button,
     Group,
     Paper,
     Text,
     UnstyledButton,
     VisuallyHidden,
 } from '@mantine/core';
-import { IconTable } from '@tabler/icons-react';
-import { type FC, type ReactNode } from 'react';
+import {
+    IconChevronDown,
+    IconChevronRight,
+    IconTable,
+} from '@tabler/icons-react';
+import { useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { type ChangeKind } from './modelCode';
@@ -79,11 +84,16 @@ export const TurnCard: FC<{
     headerAction: ReactNode;
     groups: TurnGroup[];
     safety: Safety | null;
-    steps: ReactNode[];
+    note: string | null;
+    /** What the agent offers to do next instead; each is sent as the person's message. */
+    options: string[];
+    onAsk: ((message: string) => void) | null;
+    /** Only the latest turn's card is open and offers anything; earlier ones fold to their header. */
+    isLatest: boolean;
     actions: ReactNode[];
     isSettled: boolean;
     isGone: boolean;
-    children: ReactNode;
+    children?: ReactNode;
 }> = ({
     icon,
     status,
@@ -91,112 +101,191 @@ export const TurnCard: FC<{
     headerAction,
     groups,
     safety,
-    steps,
+    note,
+    options,
+    onAsk,
+    isLatest,
     actions,
     isSettled,
     isGone,
     children,
-}) => (
-    <Paper
-        mt="xs"
-        className={classes.card}
-        data-settled={isSettled}
-        data-gone={isGone}
-    >
-        <Group className={classes.section} gap={6} wrap="nowrap">
-            {icon}
-            <Text fz="xs" fw={500} truncate flex={1}>
-                {status}
-                {name ? (
-                    <Text span fz="xs" fw={400} c="dimmed">
-                        {` · ${name}`}
-                    </Text>
-                ) : null}
-            </Text>
-            {headerAction}
-        </Group>
-        {groups.map(({ model, title, subtitle, rows, issues }) =>
-            rows.length === 0 && issues.length === 0 && !subtitle ? null : (
-                <Box key={model} className={classes.model}>
-                    <Group gap={4} wrap="nowrap" className={classes.modelName}>
-                        <MantineIcon
-                            icon={IconTable}
-                            size={12}
-                            color="ldGray.5"
-                        />
-                        <Text fz="xs" c="dimmed" truncate title={model}>
-                            {title}
-                            {subtitle ? ` · ${subtitle}` : ''}
+}) => {
+    const [isOpened, setIsOpened] = useState(false);
+    const isOpen = isLatest || isOpened;
+    const heading = (
+        <Text fz="xs" fw={500} truncate flex={1}>
+            {status}
+            {name ? (
+                <Text span fz="xs" fw={400} c="dimmed">
+                    {` · ${name}`}
+                </Text>
+            ) : null}
+        </Text>
+    );
+    return (
+        <Paper
+            mt="xs"
+            className={classes.card}
+            data-settled={isSettled}
+            data-gone={isGone}
+        >
+            {isLatest ? (
+                <Group className={classes.section} gap={6} wrap="nowrap">
+                    {icon}
+                    {heading}
+                    {headerAction}
+                </Group>
+            ) : (
+                <UnstyledButton
+                    className={classes.fold}
+                    aria-expanded={isOpen}
+                    onClick={() => setIsOpened(!isOpened)}
+                >
+                    {icon}
+                    {heading}
+                    <MantineIcon
+                        icon={isOpen ? IconChevronDown : IconChevronRight}
+                        size={12}
+                        color="dimmed"
+                    />
+                </UnstyledButton>
+            )}
+            {isOpen ? (
+                <>
+                    {groups.map(({ model, title, subtitle, rows, issues }) =>
+                        rows.length === 0 &&
+                        issues.length === 0 &&
+                        !subtitle ? null : (
+                            <Box key={model} className={classes.model}>
+                                <Group
+                                    gap={4}
+                                    wrap="nowrap"
+                                    className={classes.modelName}
+                                >
+                                    <MantineIcon
+                                        icon={IconTable}
+                                        size={12}
+                                        color="ldGray.5"
+                                    />
+                                    <Text
+                                        fz="xs"
+                                        c="dimmed"
+                                        truncate
+                                        title={model}
+                                    >
+                                        {title}
+                                        {subtitle ? ` · ${subtitle}` : ''}
+                                    </Text>
+                                </Group>
+                                {rows.map((row) => (
+                                    <Row key={row.id} row={row} />
+                                ))}
+                                {issues.map(({ kind, detail }) => (
+                                    <Group
+                                        key={`${kind}|${detail}`}
+                                        className={classes.issue}
+                                        gap={6}
+                                        wrap="nowrap"
+                                        align="flex-start"
+                                    >
+                                        <MantineIcon
+                                            icon={ISSUE_KINDS[kind].icon}
+                                            size={14}
+                                            color={ISSUE_KINDS[kind].color}
+                                        />
+                                        <Text
+                                            fz="xs"
+                                            fw={500}
+                                            flex={1}
+                                            miw={0}
+                                            className={classes.wrap}
+                                        >
+                                            {ISSUE_KINDS[kind].label}
+                                            <Text
+                                                span
+                                                fz="xs"
+                                                fw={400}
+                                                c="dimmed"
+                                            >
+                                                {` · ${detail}`}
+                                            </Text>
+                                        </Text>
+                                    </Group>
+                                ))}
+                            </Box>
+                        ),
+                    )}
+                    {note ? (
+                        <Text
+                            className={classes.section}
+                            fz="xs"
+                            c="dimmed"
+                            lineClamp={3}
+                            title={note}
+                        >
+                            {note}
                         </Text>
-                    </Group>
-                    {rows.map((row) => (
-                        <Row key={row.id} row={row} />
-                    ))}
-                    {issues.map(({ kind, detail }) => (
+                    ) : null}
+                    {safety && safety.state !== 'done' ? (
                         <Group
-                            key={`${kind}|${detail}`}
-                            className={classes.issue}
+                            className={classes.section}
                             gap={6}
                             wrap="nowrap"
                             align="flex-start"
                         >
-                            <MantineIcon
-                                icon={ISSUE_KINDS[kind].icon}
-                                size={14}
-                                color={ISSUE_KINDS[kind].color}
-                            />
+                            <Box className={classes.icon}>
+                                <TaskIcon state={safety.state} />
+                            </Box>
                             <Text
                                 fz="xs"
-                                fw={500}
                                 flex={1}
                                 miw={0}
                                 className={classes.wrap}
                             >
-                                {ISSUE_KINDS[kind].label}
-                                <Text span fz="xs" fw={400} c="dimmed">
-                                    {` · ${detail}`}
-                                </Text>
+                                {safety.text}
+                                {safety.why ? (
+                                    <Text span fz="xs" c="dimmed">
+                                        {` · ${safety.why}`}
+                                    </Text>
+                                ) : null}
                             </Text>
                         </Group>
-                    ))}
-                </Box>
-            ),
-        )}
-        {safety ? (
-            <Group
-                className={classes.section}
-                gap={6}
-                wrap="nowrap"
-                align="flex-start"
-            >
-                <Box className={classes.icon}>
-                    <TaskIcon state={safety.state} />
-                </Box>
-                <Text fz="xs" flex={1} miw={0} className={classes.wrap}>
-                    {safety.text}
-                    {safety.why ? (
-                        <Text span fz="xs" c="dimmed">
-                            {` · ${safety.why}`}
-                        </Text>
                     ) : null}
-                </Text>
-            </Group>
-        ) : null}
-        {steps.length > 0 || actions.length > 0 ? (
-            <Group
-                className={classes.section}
-                gap="xs"
-                justify="space-between"
-                wrap="wrap"
-            >
-                <Group gap="sm" wrap="wrap" aria-live="polite">
-                    {steps}
-                </Group>
-                <Group gap={4} wrap="nowrap" ml="auto">
-                    {actions}
-                </Group>
-            </Group>
-        ) : null}
-        {children}
-    </Paper>
-);
+                    {isLatest &&
+                    (actions.some(Boolean) || options.length > 0) ? (
+                        <Group
+                            className={classes.section}
+                            gap={4}
+                            justify="space-between"
+                            wrap="wrap"
+                        >
+                            <Group gap={4} wrap="wrap" miw={0}>
+                                {onAsk
+                                    ? options.map((option) => (
+                                          <Button
+                                              key={option}
+                                              size="compact-xs"
+                                              variant="light"
+                                              color="gray"
+                                              maw="100%"
+                                              title={option}
+                                              onClick={() => onAsk(option)}
+                                          >
+                                              <Text span inherit truncate>
+                                                  {option}
+                                              </Text>
+                                          </Button>
+                                      ))
+                                    : null}
+                            </Group>
+                            <Group gap={4} wrap="nowrap" ml="auto">
+                                {actions}
+                            </Group>
+                        </Group>
+                    ) : null}
+                    {children}
+                </>
+            ) : null}
+        </Paper>
+    );
+};

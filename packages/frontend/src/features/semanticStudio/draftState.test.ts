@@ -90,7 +90,7 @@ describe('describePublisher', () => {
             subject: 'You',
             where: ' from another change',
             option: 'You, in another change',
-            keepLabel: 'Keep the live version',
+            keepLabel: 'Keep the published version',
         });
     });
 

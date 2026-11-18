@@ -7,9 +7,9 @@
 import {
     assertUnreachable,
     type PreAggregateMaterializationSummary,
+    type SemanticLayerBlocker,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Anchor,
     Avatar,
     Box,
@@ -30,13 +30,9 @@ import {
     IconArrowLeft,
     IconArrowUpRight,
     IconBolt,
-    IconCheck,
-    IconChevronDown,
     IconChevronRight,
     IconFileCode,
-    IconGitBranch,
     IconMessage,
-    IconPlus,
     IconRefresh,
     IconSearch,
 } from '@tabler/icons-react';
@@ -55,6 +51,7 @@ import {
     useRef,
     useState,
     type FC,
+    type ReactNode,
     type KeyboardEvent,
 } from 'react';
 import {
@@ -64,6 +61,7 @@ import {
     useNavigate,
     useSearchParams,
 } from 'react-router';
+import { EmptyState } from '../../components/common/EmptyState';
 import MantineIcon from '../../components/common/MantineIcon';
 import { SemanticStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/SemanticStudioAgent';
 import { StudioChanges } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/StudioChanges';
@@ -127,11 +125,7 @@ import {
 } from './modelCode';
 import { ModelCodeView, ModelTabs } from './ModelTabs';
 import { getPreAggregateStatus } from './preAggregateSummary';
-import {
-    DraftDevelopmentBar,
-    DraftReview,
-    DraftReviewHeading,
-} from './SemanticLayerDraft';
+import { DraftDevelopmentBar, DraftReview } from './SemanticLayerDraft';
 import {
     AddSourceButton,
     BuildFirstModel,
@@ -147,12 +141,12 @@ import {
 import { type SourcesTarget } from './SourcesView';
 import {
     AddToStudioChatContext,
+    useAddToStudioChat,
     sameStudioChatRef,
     startStudioChatRefDrag,
     type StudioChatRef,
 } from './studioChatRefs';
-import { StudioCheckoutPicker } from './StudioCheckoutPicker';
-import { needsYou } from './studioRuns';
+import { DraftPickerMenu, StudioCheckoutPicker } from './StudioCheckoutPicker';
 import { StudioStageLine, type StudioStage } from './StudioStageLine';
 import { StudioWorkspacesList } from './StudioWorkspacesList';
 import {
@@ -170,6 +164,7 @@ import {
     useCompileCheckout,
     useDraftCheckout,
     useKeepsSemanticLayerDraft,
+    useSemanticLayerStatus,
     useDraftFreshness,
     useSemanticLayerDraft,
     useSemanticLayerModel,
@@ -188,7 +183,6 @@ import {
     useCheckOut,
     useStudioCheckout,
 } from './useStudioCheckout';
-import { useStudioRuns } from './useStudioRuns';
 import { SOURCE_PARAM } from './useStudioSources';
 import {
     useStudioWorkspaceAction,
@@ -242,7 +236,7 @@ const DraftMarker: FC<{ model: string; isMine: boolean }> = ({
     if (!isMine && others.length === 0) return null;
     const whose = [...(isMine ? ['you'] : []), ...others].join(', ');
     return (
-        <Tooltip label={`Draft by ${whose}. Not live yet.`}>
+        <Tooltip label={`Draft by ${whose}. Not published yet.`}>
             <Box
                 className={classes.draftDot}
                 data-others={!isMine || undefined}
@@ -255,6 +249,47 @@ const DraftMarker: FC<{ model: string; isMine: boolean }> = ({
 const ModelLabel: FC<{ model: string; label: string }> = ({ model, label }) =>
     useContext(DraftMarksContext).labels.get(model) ?? label;
 
+/** Why the models cannot be changed here, for someone who would otherwise expect to. */
+const BlockedNotice: FC<{ blocker: SemanticLayerBlocker }> = ({ blocker }) => {
+    const text = ((): ReactNode => {
+        switch (blocker) {
+            // Someone without the right to deploy has nothing to be told.
+            case 'no_access':
+                return null;
+            case 'unsupported_connection':
+                return "Read-only. This dbt connection can't be written to.";
+            case 'no_repository_access':
+                return 'Read-only. You need write access to the repository.';
+            case 'github_app_missing':
+                return (
+                    <>
+                        Read-only until the GitHub App is installed.{' '}
+                        <Anchor
+                            component={Link}
+                            to="/generalSettings/integrations"
+                            inherit
+                        >
+                            Install it
+                        </Anchor>
+                    </>
+                );
+            case 'models_from_outside':
+                return 'Read-only. These models were deployed from outside this app.';
+            case 'preview_project':
+                return 'Read-only. This is a preview of a pull request.';
+            default:
+                return assertUnreachable(blocker, 'Unknown blocker');
+        }
+    })();
+    return text ? (
+        <Group className={classes.toolbar} px="sm" role="note">
+            <Text fz="xs" c="dimmed">
+                {text}
+            </Text>
+        </Group>
+    ) : null;
+};
+
 const Tree: FC<{
     view: ViewModel;
     expanded: Set<string>;
@@ -263,6 +298,7 @@ const Tree: FC<{
     onToggle: (key: string) => void;
     onSelect: (node: TreeNode) => void;
 }> = ({ view, expanded, drafted, onToggle, onSelect }) => {
+    const canDrag = useAddToStudioChat() !== null;
     const parentRef = useRef<HTMLDivElement>(null);
     const rows = useMemo(
         () => flattenTree(view.tree.nodes, expanded),
@@ -327,7 +363,7 @@ const Tree: FC<{
                             data-selected={node.key === selectedTreeKey}
                             top={item.start}
                             pl={depth * 14 + 4}
-                            draggable={node.ref.type === 'explore'}
+                            draggable={canDrag && node.ref.type === 'explore'}
                             onDragStart={(event) => {
                                 if (node.ref.type !== 'explore') return;
                                 startStudioChatRefDrag(event.dataTransfer, {
@@ -560,7 +596,7 @@ const ExploreBody: FC<{
                                 : null,
                             ...othersHere.map(
                                 ({ name, paths }) =>
-                                    `${name} is changing ${paths.length > 0 ? paths.join(', ') : 'this model'}, in development.`,
+                                    `${name} is changing ${paths.length > 0 ? paths.join(', ') : 'this model'}, in a draft.`,
                             ),
                         ]
                             .filter(Boolean)
@@ -638,6 +674,7 @@ const MainPane: FC<{
     onOpenNode: (node: TreeNode) => void;
     onBuildModel: (() => void) | null;
 }> = ({ view, onOpen, onOpenNode, onBuildModel }) => {
+    const canDrag = useAddToStudioChat() !== null;
     const selected = view.selected;
     const ref = selected ? containerOf(selected) : null;
     const node = ref ? findNode(view.tree.nodes, nodeKey(ref)) : undefined;
@@ -732,7 +769,7 @@ const MainPane: FC<{
                             order={3}
                             className={classes.title}
                             title={title}
-                            draggable={ref?.type === 'explore'}
+                            draggable={canDrag && ref?.type === 'explore'}
                             onDragStart={(event) => {
                                 if (ref?.type !== 'explore') return;
                                 startStudioChatRefDrag(event.dataTransfer, {
@@ -749,9 +786,6 @@ const MainPane: FC<{
                         {isLiveSourcesPage ? <LiveSourceBetaBadge /> : null}
                     </Group>
                     <Group gap={4} wrap="nowrap" flex="none">
-                        {ref?.type === 'kind' ? (
-                            <AddSourceButton view={view} kind={ref.kind} />
-                        ) : null}
                         {liveConnection ? (
                             <LiveSourceHeaderActions
                                 projectUuid={view.project.id}
@@ -764,7 +798,7 @@ const MainPane: FC<{
                                 source={externalSource}
                             />
                         ) : null}
-                        {source ? (
+                        {source && ref?.type !== 'explore' ? (
                             <SettingsLink
                                 view={view}
                                 source={source}
@@ -1100,6 +1134,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     // A dbt project has no draft and no model code here: its files are in its repository.
     const keepsDraft = useKeepsSemanticLayerDraft(view.project.id);
     const canEditModels = useCanEditSemanticLayer(view.project.id);
+    const status = useSemanticLayerStatus(view.project.id);
     const checkout = useStudioCheckout().shown;
     const checkedOutDraft = keepsDraft ? (checkout?.draft ?? null) : null;
 
@@ -1107,6 +1142,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         startNewThread,
         agent: studioAgent,
         isEnabled: hasChat,
+        isLoadingAgents,
     } = useStudioAgent(view.project.id);
     const [isChatOpen, setIsChatOpen] = useChatOpen(view.project.id);
     const [askedPrompt, setAskedPrompt] = useState<string | null>(null);
@@ -1212,7 +1248,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         : null;
     useEffect(() => () => switchOff.current?.(), []);
     const isCode =
-        agentAvailable && keepsDraft && searchParams.get(VIEW_PARAM) === 'code';
+        hasChat && keepsDraft && searchParams.get(VIEW_PARAM) === 'code';
     const [isOnLive, setIsOnLive] = useState(false);
     // Opening a change's page, from anywhere, puts you on that change.
     useEffect(() => {
@@ -1229,7 +1265,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     // Every change is read in one place, Sources, starting on its overview; only your open one is edited there.
     const opensInSources =
         !isOnLive &&
-        agentAvailable &&
+        hasChat &&
         !keepsDraft &&
         !!changeOnPage &&
         (!!routeWorkspace ||
@@ -1237,9 +1273,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             homeShowsChanges);
     const isSources =
         opensInSources ||
-        (agentAvailable &&
-            !keepsDraft &&
-            searchParams.get(VIEW_PARAM) === 'sources');
+        (hasChat && !keepsDraft && searchParams.get(VIEW_PARAM) === 'sources');
     const proposal = useStudioProposal(view.project.id);
     const hasProposal = !keepsDraft && proposal.length > 0;
     // A dbt project's changes are its conversation's: what it proposes, and what its pull request holds.
@@ -1356,7 +1390,21 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 ),
             };
         }
-        // Finished without a merge: it was discarded.
+        if (
+            shownWorkspace?.publishedLive ||
+            shownWorkspace?.pullRequest?.state === 'merged'
+        ) {
+            return { step: 'live', update: 'done' };
+        }
+        if (shownWorkspace?.pullRequest?.state === 'closed') {
+            return {
+                step: 'closed',
+                pullRequestNumber: pullRequestNumberOf(
+                    shownWorkspace.pullRequest.url,
+                ),
+            };
+        }
+        // Finished without a merge or a publish: it was discarded.
         if (shownWorkspace?.finishedAt) {
             return { step: 'closed', pullRequestNumber: null };
         }
@@ -1402,10 +1450,12 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 }
               : null;
     // Only models with YAML here have a file: a deployed model's YAML lives where it was deployed from.
-    const { data: stored } = useSemanticLayerStoredModels(
-        view.project.id,
-        isCode,
-    );
+    const {
+        data: stored,
+        error: storedError,
+        refetch: retryStored,
+        isRefetching: isRetryingStored,
+    } = useSemanticLayerStoredModels(view.project.id, isCode);
     const files = useMemo(() => {
         const removed = new Set(
             checkedOutDraft?.models
@@ -1465,23 +1515,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         (pane === 'changes' || pane === 'review') &&
         !!(shownWorkspace || workspace);
     const hasChangesTab = hasWorkspaces || hasChanges || !!saving;
-    const runs = useStudioRuns(view.project.id, workspaces?.mine ?? [], saving);
-    const waitingOnYou = runs.filter(({ run }) => needsYou(run)).length;
-    // What waits on you wins, then a save under way, then how many are in flight.
-    const changesBadge =
-        waitingOnYou > 0 ? (
-            <span
-                className={classes.tabBadge}
-                data-tone="attention"
-                aria-label={`${waitingOnYou} need you`}
-            >
-                {waitingOnYou}
-            </span>
-        ) : saving ? (
-            <span className={classes.busyDot} aria-label="Saving" />
-        ) : runs.length > 0 ? (
-            <span className={classes.tabBadge}>{runs.length}</span>
-        ) : null;
     const showLive = () => {
         setIsTryingChanges(false);
         setIsOnLive(true);
@@ -1576,7 +1609,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     pullRequest={development}
                 />
             ) : null}
-            {keepsDraft && !isBuildingFirstModel ? (
+            {keepsDraft ? (
                 <DraftDevelopmentBar projectUuid={view.project.id} />
             ) : null}
         </Group>
@@ -1655,6 +1688,14 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     };
     // Like a git branch: which change you are on, or live, and the way to the others.
     const isChangeInSources = pane === 'sources' && !!sourcesPrUrl;
+    // A checked-out draft keeps its actions on every tab; a draft's own page carries them in its header.
+    const showsDraftActions = keepsDraft
+        ? pane !== 'changeSummary' && pane !== 'workspaces'
+        : isChangeInSources ||
+          (pane !== 'changes' &&
+              pane !== 'workspaces' &&
+              isOnMyChange &&
+              (!!development || !!saving));
     const { checkOut, isBusy: isCheckingOut } = useCheckOut(view.project.id);
     const { data: draftCheckout } = useDraftCheckout(view.project.id);
     const compileAgain = useCompileCheckout(view.project.id);
@@ -1675,41 +1716,21 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             />
         ) : null
     ) : (
-        <Menu
-            position="bottom-end"
-            width={260}
-            classNames={{ itemLabel: classes.pickerLabel }}
-        >
-            <Menu.Target>
-                <Button
-                    size="xs"
-                    variant="subtle"
-                    color="gray"
-                    flex="0 1 auto"
-                    miw={0}
-                    maw={420}
-                    className={classes.pickerTitle}
-                    leftSection={<MantineIcon icon={IconGitBranch} size={14} />}
-                    rightSection={
-                        <Group gap={6} wrap="nowrap">
-                            {changesBadge}
-                            <MantineIcon icon={IconChevronDown} size={12} />
-                        </Group>
-                    }
-                >
-                    <Text span inherit truncate>
-                        {sourcesTarget.changeName
-                            ? `Draft: ${sourcesTarget.changeName}`
-                            : isOnMyChange
-                              ? changeName
-                                  ? `Draft: ${changeName}`
-                                  : 'New draft'
-                              : 'Published'}
-                    </Text>
-                </Button>
-            </Menu.Target>
-            <Menu.Dropdown>
-                {branchCompile && compileDescription ? (
+        <DraftPickerMenu
+            currentName={
+                sourcesTarget.changeName ??
+                (isOnMyChange ? (changeName ?? 'New draft') : null)
+            }
+            drafts={myOpenChanges.map((target) => ({
+                id: target.workspaceUuid,
+                name: target.name,
+                isCurrent:
+                    !!sourcesPrUrl && sourcesPrUrl === target.pullRequest?.url,
+            }))}
+            isBusy={false}
+            status={null}
+            header={
+                branchCompile && compileDescription ? (
                     <>
                         <Box px="sm" py={6}>
                             <Text fz="xs" fw={500}>
@@ -1737,55 +1758,19 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                 Compile again
                             </Menu.Item>
                         ) : null}
-                        <Menu.Divider />
                     </>
-                ) : null}
-                <Menu.Item
-                    leftSection={<span className={classes.liveDot} />}
-                    rightSection={
-                        isOnMyChange ? null : (
-                            <MantineIcon icon={IconCheck} size={14} />
-                        )
-                    }
-                    onClick={pickLive}
-                >
-                    Published
-                </Menu.Item>
-                {myOpenChanges.length > 0 ? (
-                    <Menu.Label>Your drafts</Menu.Label>
-                ) : null}
-                {myOpenChanges.map((target) => (
-                    <Menu.Item
-                        key={target.workspaceUuid}
-                        leftSection={
-                            <MantineIcon icon={IconGitBranch} size={14} />
-                        }
-                        rightSection={
-                            sourcesPrUrl &&
-                            sourcesPrUrl === target.pullRequest?.url ? (
-                                <MantineIcon icon={IconCheck} size={14} />
-                            ) : null
-                        }
-                        onClick={() => pickChange(target)}
-                        title={target.name}
-                    >
-                        <Text span inherit truncate>
-                            {target.name}
-                        </Text>
-                    </Menu.Item>
-                ))}
-                <Menu.Divider />
-                {hasChangesTab ? (
-                    <Menu.Item onClick={showChanges}>All drafts</Menu.Item>
-                ) : null}
-                <Menu.Item
-                    leftSection={<MantineIcon icon={IconPlus} size={14} />}
-                    onClick={startNewChange}
-                >
-                    New draft
-                </Menu.Item>
-            </Menu.Dropdown>
-        </Menu>
+                ) : null
+            }
+            onPublished={pickLive}
+            onPick={(id) => {
+                const target = myOpenChanges.find(
+                    ({ workspaceUuid }) => workspaceUuid === id,
+                );
+                if (target) pickChange(target);
+            }}
+            onNew={startNewChange}
+            onShowAll={hasChangesTab ? showChanges : null}
+        />
     );
     const changeUrl =
         development?.prUrl ??
@@ -1941,12 +1926,36 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         modelName={file}
                         fieldName={searchParams.get(FIELD_PARAM)}
                     />
+                ) : storedError ? (
+                    <EmptyState
+                        title="The model code could not be read"
+                        description={storedError.error.message}
+                        maw={460}
+                        titleProps={{ order: 5 }}
+                        descriptionProps={{ fz: 'sm' }}
+                    >
+                        <Button
+                            size="xs"
+                            variant="subtle"
+                            color="gray"
+                            loading={isRetryingStored}
+                            onClick={() => void retryStored()}
+                        >
+                            Try again
+                        </Button>
+                    </EmptyState>
                 ) : !stored ? null : (
-                    <Text fz="sm" c="dimmed" ta="center" py="xl">
-                        {modelled.length > 0
-                            ? 'These models were deployed from outside this app, so their YAML is not here and they cannot be changed here yet.'
-                            : 'No models yet. Ask the agent to build one and its YAML shows up here.'}
-                    </Text>
+                    <EmptyState
+                        title="No model code here yet"
+                        description={
+                            modelled.length > 0
+                                ? 'These models were deployed from outside this app, so there is no YAML to show.'
+                                : 'Ask the agent to build a model and its YAML shows up here.'
+                        }
+                        maw={460}
+                        titleProps={{ order: 5 }}
+                        descriptionProps={{ fz: 'sm' }}
+                    />
                 );
             case 'sources':
                 return !sourceFile && sourcesPrUrl ? (
@@ -1978,13 +1987,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             case 'review':
                 return draft ? (
                     <>
-                        {/* The toolbar's bar carries this except while a first model is being built, when it is hidden. */}
-                        {isBuildingFirstModel ? (
-                            <DraftReviewHeading
-                                projectUuid={view.project.id}
-                                draft={draft}
-                            />
-                        ) : null}
                         <Box className={classes.mainBody}>
                             <DraftReview
                                 projectUuid={view.project.id}
@@ -2052,7 +2054,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     <Box
                         className={classes.shell}
                         data-no-chat={
-                            !hasChat || (!!studioAgent && !isChatOpen)
+                            !hasChat ||
+                            (!isLoadingAgents && (!studioAgent || !isChatOpen))
                         }
                     >
                         {hasChat && (
@@ -2076,7 +2079,11 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                             />
                         )}
                         <Box className={classes.workspace}>
-                            {!agentAvailable ? null : (
+                            {!hasChat ? (
+                                status?.blocker ? (
+                                    <BlockedNotice blocker={status.blocker} />
+                                ) : null
+                            ) : (
                                 <>
                                     <Group
                                         className={classes.toolbar}
@@ -2122,10 +2129,14 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                             >
                                                 {changePicker}
                                                 {/* The bar says how an open draft is doing, so the pill shows only once it ends. */}
-                                                {isChangeInSources &&
-                                                stage &&
-                                                stage.step !== 'in_review' &&
-                                                stage.step !== 'saving' ? (
+                                                {stage &&
+                                                (keepsDraft
+                                                    ? stage.step !== 'proposed'
+                                                    : isChangeInSources &&
+                                                      stage.step !==
+                                                          'in_review' &&
+                                                      stage.step !==
+                                                          'saving') ? (
                                                     <StudioStageLine
                                                         stage={stage}
                                                         href={changeUrl}
@@ -2139,137 +2150,62 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                             miw={0}
                                             ml="auto"
                                         >
-                                            {keepsDraft ? (
-                                                <>
-                                                    {hasDraft &&
-                                                    pane !== 'review' &&
-                                                    pane !== 'changeSummary' ? (
-                                                        <Button
-                                                            size="xs"
-                                                            variant="default"
-                                                            flex="none"
-                                                            onClick={() =>
-                                                                switchView(
-                                                                    'changes',
-                                                                )
-                                                            }
-                                                        >
-                                                            Review changes
-                                                        </Button>
-                                                    ) : null}
-                                                    {!isChatOpen ? (
-                                                        <Button
-                                                            size="xs"
-                                                            variant="default"
-                                                            flex="none"
-                                                            onClick={() =>
-                                                                setIsChatOpen(
-                                                                    true,
-                                                                )
-                                                            }
-                                                        >
-                                                            Build
-                                                        </Button>
-                                                    ) : null}
-                                                </>
-                                            ) : (
-                                                <>
-                                                    {hasChat && !isChatOpen ? (
-                                                        <Button
-                                                            size="xs"
-                                                            variant="default"
-                                                            flex="none"
-                                                            leftSection={
-                                                                <MantineIcon
-                                                                    icon={
-                                                                        IconMessage
-                                                                    }
-                                                                    size={14}
-                                                                />
-                                                            }
-                                                            onClick={() =>
-                                                                setIsChatOpen(
-                                                                    true,
-                                                                )
-                                                            }
-                                                        >
-                                                            Chat
-                                                        </Button>
-                                                    ) : null}
-                                                    {isChangeInSources ? (
-                                                        <>
-                                                            {changeLinks}
-                                                            {changeActions}
-                                                        </>
-                                                    ) : null}
-                                                </>
-                                            )}
-                                        </Group>
-                                    </Group>
-                                    {isChangeOpen && pane === 'review' ? (
-                                        <Group
-                                            className={classes.changeBar}
-                                            wrap="nowrap"
-                                            gap="sm"
-                                        >
-                                            <Tooltip
-                                                label={
-                                                    hasWorkspaces
-                                                        ? 'All drafts'
-                                                        : 'Back to Published'
-                                                }
-                                            >
-                                                <ActionIcon
+                                            {keepsDraft &&
+                                            hasDraft &&
+                                            pane !== 'review' &&
+                                            pane !== 'changeSummary' ? (
+                                                <Button
+                                                    size="xs"
                                                     variant="subtle"
                                                     color="gray"
-                                                    size="md"
-                                                    aria-label={
-                                                        hasWorkspaces
-                                                            ? 'All drafts'
-                                                            : 'Back to Published'
-                                                    }
-                                                    onClick={
-                                                        hasWorkspaces
-                                                            ? showChanges
-                                                            : showLive
+                                                    flex="none"
+                                                    onClick={() =>
+                                                        switchView('changes')
                                                     }
                                                 >
-                                                    <MantineIcon
-                                                        icon={IconArrowLeft}
-                                                    />
-                                                </ActionIcon>
-                                            </Tooltip>
-                                            <Tooltip
-                                                label={
-                                                    workspace?.hint ??
-                                                    'What this draft does'
-                                                }
-                                            >
-                                                <Text
-                                                    className={
-                                                        classes.changeName
-                                                    }
-                                                >
-                                                    {shownWorkspace?.name ??
-                                                        workspace?.name}
-                                                </Text>
-                                            </Tooltip>
-                                            {stage ? (
-                                                <Box
-                                                    className={
-                                                        classes.stageLine
-                                                    }
-                                                >
-                                                    <StudioStageLine
-                                                        stage={stage}
-                                                        href={changeUrl}
-                                                    />
-                                                </Box>
+                                                    Review changes
+                                                </Button>
                                             ) : null}
-                                            {changeLinks}
-                                            {changeActions}
+                                            {showsDraftActions ? (
+                                                <>
+                                                    {changeLinks}
+                                                    {changeActions}
+                                                </>
+                                            ) : null}
+                                            {agentAvailable && !isChatOpen ? (
+                                                <Button
+                                                    size="xs"
+                                                    variant="subtle"
+                                                    color="gray"
+                                                    flex="none"
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconMessage}
+                                                            size={14}
+                                                        />
+                                                    }
+                                                    onClick={() =>
+                                                        setIsChatOpen(true)
+                                                    }
+                                                >
+                                                    Chat
+                                                </Button>
+                                            ) : null}
+                                            {!studioAgent &&
+                                            !isLoadingAgents ? (
+                                                <Button
+                                                    size="xs"
+                                                    variant="subtle"
+                                                    color="gray"
+                                                    flex="none"
+                                                    component={Link}
+                                                    to={`/projects/${view.project.id}/ai-agents/new`}
+                                                >
+                                                    Create an agent
+                                                </Button>
+                                            ) : null}
                                         </Group>
-                                    ) : null}
+                                    </Group>
                                 </>
                             )}
                             <Box
@@ -2277,12 +2213,14 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                 data-sources={pane === 'sources' || undefined}
                                 data-no-rail={
                                     isReviewPane ||
+                                    (pane === 'code' && files.length === 0) ||
                                     (pane !== 'code' &&
                                         pane !== 'sources' &&
                                         isEmpty)
                                 }
                             >
-                                {pane === 'code' ? (
+                                {pane === 'code' &&
+                                files.length === 0 ? null : pane === 'code' ? (
                                     <CodeRail
                                         files={files}
                                         selected={file}
@@ -2310,13 +2248,19 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                         />
                                     </Suspense>
                                 ) : isEmpty || isReviewPane ? null : (
-                                    <Rail
-                                        view={view}
-                                        expanded={expanded}
-                                        drafted={drafted}
-                                        onToggle={toggle}
-                                        onOpen={open}
-                                    />
+                                    <AddToStudioChatContext.Provider
+                                        value={
+                                            agentAvailable ? attachToChat : null
+                                        }
+                                    >
+                                        <Rail
+                                            view={view}
+                                            expanded={expanded}
+                                            drafted={drafted}
+                                            onToggle={toggle}
+                                            onOpen={open}
+                                        />
+                                    </AddToStudioChatContext.Provider>
                                 )}
                                 {pane === 'browse' ? (
                                     renderPaneWithChat()

@@ -105,3 +105,11 @@
 .compareAction:hover {
     color: var(--mantine-color-text);
 }
+
+summary.sectionTitle {
+    cursor: pointer;
+}
+
+details:not([open]) > .sectionTitle {
+    border-bottom: 0;
+}
