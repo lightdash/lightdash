@@ -7,7 +7,7 @@ export const AI_WRITEBACK_PENDING_GRACE_MS = 5 * 60 * 1000;
 export const TOOL_EDIT_DBT_PROJECT_DESCRIPTION = [
     "Open or update a pull request that changes this project's semantic layer (dbt or Lightdash YAML): it edits the repository in an isolated sandbox, validates the semantic layer and opens the pull request on your behalf, so report it as your own work.",
     'Call it, in the same turn you decide to make the change, when the user asks for one in the repository (add or rename a metric, edit a dimension or model, update YAML metadata) or accepts one you offered. It is not for questions about data or code, nor for changes that can be made inside Lightdash, such as to saved charts and dashboards.',
-    'It returns status "pending" once the run starts, and the pull request opens in the background: do not call it again to check on it.',
+    'It returns status "pending" once the run starts, and the pull request opens in the background a few minutes later: do not call it again to check on it. Until it opens, listWorkstreams shows the change as still being opened.',
 ].join(' ');
 
 export const toolEditDbtProjectArgsSchema = z.object({

@@ -1040,17 +1040,26 @@ export type DiscoverReposFn = () => Promise<
  * {@link EditDbtProjectFn}, so the agent can route a follow-up to the right one or
  * decide to open a new one. Optionally scoped to a single `owner/repo`.
  */
+export type AiWritebackWorkstream = {
+    repository: string;
+    provider: string;
+    prUrl: string;
+    prNumber: number;
+    summary: string | null;
+};
+
+export type AiWritebackWorkstreams = {
+    /** Pull requests this thread opened. */
+    workstreams: AiWritebackWorkstream[];
+    /** Start time of each run in this thread whose pull request is not open yet. */
+    pendingStartedAt: Date[];
+    /** Pull requests other threads opened on the same project. */
+    otherThreads: AiWritebackWorkstream[];
+};
+
 export type ListWorkstreamsFn = (args: {
     repoTarget: string | null;
-}) => Promise<
-    {
-        repository: string;
-        provider: string;
-        prUrl: string;
-        prNumber: number;
-        summary: string | null;
-    }[]
->;
+}) => Promise<AiWritebackWorkstreams>;
 
 /**
  * Close (without merging) a pull request the chat thread opened with

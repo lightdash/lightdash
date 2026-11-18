@@ -65,6 +65,17 @@ export class AiWritebackRunModel {
         return workspace?.pull_request_url ?? null;
     }
 
+    /** Runs still opening their pull request, oldest first. */
+    async listInProgressByAiThreadUuid(
+        aiThreadUuid: string,
+    ): Promise<Pick<DbAiWritebackRun, 'created_at'>[]> {
+        return this.database<AiWritebackRunTable>(AiWritebackRunTableName)
+            .where('ai_thread_uuid', aiThreadUuid)
+            .whereNotIn('status', [...AI_WRITEBACK_RUN_TERMINAL_STATUSES])
+            .orderBy('created_at', 'asc')
+            .select('created_at');
+    }
+
     async create(data: {
         organizationUuid: string;
         projectUuid: string;

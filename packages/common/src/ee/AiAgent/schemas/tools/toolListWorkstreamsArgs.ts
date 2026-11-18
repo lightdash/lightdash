@@ -5,8 +5,8 @@ import {
 } from '../outputMetadata';
 
 export const TOOL_LIST_WORKSTREAMS_DESCRIPTION = [
-    'List the pull requests this conversation opened with the repository edit tools, each with its URL and a short summary.',
-    'Call it before an edit when you are unsure whether the change belongs to a pull request that is already open.',
+    'List the pull requests this conversation opened with the repository edit tools, each with its URL and a short summary, the changes in this conversation whose pull request is still being opened, and the pull requests other conversations opened on this project.',
+    'Call it before an edit when you are unsure whether the change belongs to a pull request that is already open; a change listed as still being opened is not missing, it has not finished yet.',
 ].join(' ');
 
 export const toolListWorkstreamsArgsSchema = z.object({
@@ -42,30 +42,31 @@ const workstreamSchema = z.object({
         ),
 });
 
-export const toolListWorkstreamsStructuredContentSchema = z.union([
-    z.object({
-        repoTarget: z
-            .string()
-            .nullable()
-            .describe(
-                'The "owner/repo" the list was restricted to, or null when it spans every repository.',
-            ),
-        workstreams: z
-            .array(workstreamSchema)
-            .length(0)
-            .describe(
-                'Pull requests this conversation has opened; empty when none match.',
-            ),
-    }),
-    z.object({
-        workstreams: z
-            .array(workstreamSchema)
-            .nonempty()
-            .describe(
-                'Pull requests this conversation has opened; empty when none match.',
-            ),
-    }),
-]);
+export const toolListWorkstreamsStructuredContentSchema = z.object({
+    repoTarget: z
+        .string()
+        .nullable()
+        .describe(
+            'The "owner/repo" the list was restricted to, or null when it spans every repository.',
+        ),
+    workstreams: z
+        .array(workstreamSchema)
+        .describe('Pull requests this conversation has opened.'),
+    pendingChanges: z
+        .array(
+            z.object({
+                startedMinutesAgo: z.number().int().nonnegative(),
+            }),
+        )
+        .describe(
+            'Changes started in this conversation whose pull request has not opened yet; each appears under `workstreams` once it opens.',
+        ),
+    otherConversations: z
+        .array(workstreamSchema)
+        .describe(
+            'Pull requests other conversations opened on this project; pass one as `prUrl` to continue it instead of opening a duplicate.',
+        ),
+});
 
 export type ToolListWorkstreamsStructuredContent = z.infer<
     typeof toolListWorkstreamsStructuredContentSchema
