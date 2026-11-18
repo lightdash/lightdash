@@ -934,9 +934,9 @@ export class SavedChartModel {
     }
 
     /**
-     * A query over one persisted-SQL child table, joined to the owning space
-     * directly or through its dashboard. Callers add the table-specific
-     * `whereIn` + `distinct`.
+     * A query over one persisted-SQL child table at each chart's current version,
+     * joined to the owning space directly or through its dashboard. Callers add
+     * the table-specific `whereIn` + `distinct`.
      */
     private provenanceBaseQuery(
         childTable: string,
@@ -976,12 +976,17 @@ export class SavedChartModel {
             .where(`${SavedChartsTableName}.project_uuid`, projectUuid)
             .where(`${SavedChartVersionsTableName}.explore_name`, exploreName)
             .whereNull(`${SavedChartsTableName}.deleted_at`)
-            .whereNull(`${SpaceTableName}.deleted_at`);
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .whereRaw(
+                `${SavedChartVersionsTableName}.saved_queries_version_id = ${latestSavedChartVersionColumnSql(
+                    'saved_queries_version_id',
+                )}`,
+            );
     }
 
     /**
-     * Finds the spaces of saved charts that already persist the given custom SQL,
-     * scoped to a project + explore. Used to authorize re-running unmodified
+     * Finds the spaces of saved charts whose current version persists the given
+     * custom SQL, scoped to a project + explore. Used to authorize re-running unmodified
      * saved-chart SQL from the ad-hoc query path without granting SQL-authoring
      * scopes. Callers must still check that the returned spaces are viewable.
      *
@@ -3820,6 +3825,18 @@ export class SavedChartModel {
         if (updateCount !== 1) {
             throw new NotFoundError('Deleted chart not found');
         }
+    }
+
+    /** Holds new versions of these charts until the transaction ends. */
+    async lockForVersioning(
+        savedChartUuids: string[],
+        trx: Knex.Transaction,
+    ): Promise<void> {
+        await trx(SavedChartsTableName)
+            .select('saved_query_id')
+            .whereIn('saved_query_uuid', savedChartUuids)
+            .orderBy('saved_query_uuid')
+            .forUpdate();
     }
 
     /**

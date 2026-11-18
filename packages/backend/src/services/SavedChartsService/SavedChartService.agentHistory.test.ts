@@ -68,6 +68,7 @@ const setup = (enabled: boolean, organizationEnabled = enabled) => {
         createVersion: vi.fn().mockResolvedValue(chart),
         transaction: vi.fn(async (fn) => fn('transaction')),
         rollbackToVersionAtTimestamp: vi.fn(),
+        lockForVersioning: vi.fn(),
     };
     const dashboardModel = {
         getByIdOrSlug: vi.fn().mockResolvedValue(dashboard),
@@ -105,11 +106,10 @@ const setup = (enabled: boolean, organizationEnabled = enabled) => {
             typeof SavedChartService
         >[0],
     );
-    const dashboardService = new DashboardService(
-        dependencies as unknown as ConstructorParameters<
-            typeof DashboardService
-        >[0],
-    );
+    const dashboardService = new DashboardService({
+        ...dependencies,
+        savedChartService: chartService,
+    } as unknown as ConstructorParameters<typeof DashboardService>[0]);
     return { chartService, dashboardService, ...dependencies };
 };
 
@@ -200,7 +200,7 @@ describe('version history agent identity', () => {
                 chart.uuid,
                 { ...chart, agentIdentity: claim },
                 user,
-                undefined,
+                'transaction',
                 expect.anything(),
                 agent ? context.claim : null,
             );

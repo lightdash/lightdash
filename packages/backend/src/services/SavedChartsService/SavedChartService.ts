@@ -90,6 +90,7 @@ import {
     SchedulerUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
 import {
+    fromSession,
     getAccountWriteContext,
     getEmbedActorChartSpaceUuids,
 } from '../../auth/account';
@@ -1090,6 +1091,148 @@ export class SavedChartService
         }
     }
 
+    /** New or changed custom SQL and merges in `next`, over `saved`, need the scopes that author them. */
+    private async assertCanWriteChartSql(
+        account: Account,
+        auditedAbility: ReturnType<SavedChartService['createAuditedAbility']>,
+        projectContext: {
+            organizationUuid: string;
+            projectUuid: string;
+            metadata: { savedChartUuid: string };
+        },
+        saved: Pick<SavedChartDAO, 'metricQuery' | 'merge'>,
+        next: Pick<SavedChartDAO, 'metricQuery' | 'merge'>,
+    ): Promise<void> {
+        const oldSqlDimensionsById = new Map(
+            (saved.metricQuery.customDimensions ?? [])
+                .filter(isCustomSqlDimension)
+                .map((dim) => [dim.id, dim]),
+        );
+        const hasModifiedSqlCustomDimension = (
+            next.metricQuery.customDimensions ?? []
+        )
+            .filter(isCustomSqlDimension)
+            .some((dim) => {
+                const old = oldSqlDimensionsById.get(dim.id);
+                return !old || old.sql !== dim.sql;
+            });
+
+        if (
+            hasModifiedSqlCustomDimension &&
+            auditedAbility.cannot(
+                'manage',
+                subject('CustomFields', projectContext),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot save queries with modified custom SQL dimensions',
+            );
+        }
+
+        const oldSqlTcsByName = new Map(
+            (saved.metricQuery.tableCalculations ?? [])
+                .filter(isSqlTableCalculation)
+                .map((tc) => [tc.name, tc]),
+        );
+        const hasModifiedSqlTableCalculation = (
+            next.metricQuery.tableCalculations ?? []
+        )
+            .filter(isSqlTableCalculation)
+            .some((tc) => {
+                const old = oldSqlTcsByName.get(tc.name);
+                return !old || old.sql !== tc.sql;
+            });
+
+        if (
+            hasModifiedSqlTableCalculation &&
+            auditedAbility.cannot(
+                'manage',
+                subject('CustomSqlTableCalculations', projectContext),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot save queries with new or modified SQL table calculations',
+            );
+        }
+
+        if (
+            next.merge &&
+            !isEqual(next.merge, saved.merge) &&
+            (!this.lightdashConfig.mergeQueryAuthoring.enabled ||
+                auditedAbility.cannot(
+                    'manage',
+                    subject('MergeQuery', projectContext),
+                ))
+        ) {
+            throw new ForbiddenError(
+                'User cannot save charts with a new or modified merge',
+            );
+        }
+
+        await this.assertCanSaveCustomMetricSql(
+            account,
+            auditedAbility,
+            projectContext,
+            next.metricQuery,
+            saved.metricQuery.additionalMetrics ?? [],
+        );
+    }
+
+    /** A restored version passes the checks a new version does, against the chart's current one. */
+    private async assertCanRestoreVersion(
+        user: SessionUser,
+        current: SavedChartDAO,
+        restored: SavedChartDAO,
+    ): Promise<void> {
+        await this.assertCanWriteChartSql(
+            fromSession(user),
+            this.createAuditedAbility(user),
+            {
+                organizationUuid: current.organizationUuid,
+                projectUuid: current.projectUuid,
+                metadata: { savedChartUuid: current.uuid },
+            },
+            current,
+            restored,
+        );
+    }
+
+    /** Locks the charts against new versions, then checks restoring each to its version at `at`. */
+    async lockAndAssertCanRestoreAt(
+        user: SessionUser,
+        chartUuids: string[],
+        at: Date,
+        tx: Knex.Transaction,
+    ): Promise<void> {
+        if (chartUuids.length === 0) return;
+        await this.savedChartModel.lockForVersioning(chartUuids, tx);
+        await Promise.all(
+            chartUuids.map(async (chartUuid) => {
+                const version =
+                    await this.savedChartModel.getVersionSummaryAtTimestamp(
+                        chartUuid,
+                        at,
+                    );
+                if (!version) return;
+                const [current, restored] = await Promise.all([
+                    this.savedChartModel.get(
+                        chartUuid,
+                        undefined,
+                        undefined,
+                        tx,
+                    ),
+                    this.savedChartModel.get(
+                        chartUuid,
+                        version.versionUuid,
+                        undefined,
+                        tx,
+                    ),
+                ]);
+                await this.assertCanRestoreVersion(user, current, restored);
+            }),
+        );
+    }
+
     async createVersion(
         account: Account,
         savedChartUuid: string,
@@ -1108,9 +1251,6 @@ export class SavedChartService
             metricQuery: {
                 metrics: oldChartMetrics,
                 dimensions: oldChartDimensions,
-                customDimensions: oldCustomDimensions,
-                tableCalculations: oldTableCalculations,
-                additionalMetrics: oldAdditionalMetrics,
             },
         } = existingChart;
 
@@ -1164,66 +1304,6 @@ export class SavedChartService
             organizationUuid,
         });
 
-        const oldSqlDimensionsById = new Map(
-            (oldCustomDimensions ?? [])
-                .filter(isCustomSqlDimension)
-                .map((dim) => [dim.id, dim]),
-        );
-        const hasModifiedSqlCustomDimension = (
-            chartVersion.metricQuery.customDimensions ?? []
-        )
-            .filter(isCustomSqlDimension)
-            .some((dim) => {
-                const saved = oldSqlDimensionsById.get(dim.id);
-                return !saved || saved.sql !== dim.sql;
-            });
-
-        if (
-            hasModifiedSqlCustomDimension &&
-            auditedAbility.cannot(
-                'manage',
-                subject('CustomFields', {
-                    organizationUuid,
-                    projectUuid,
-                    metadata: { savedChartUuid },
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'User cannot save queries with modified custom SQL dimensions',
-            );
-        }
-
-        const oldSqlTcsByName = new Map(
-            (oldTableCalculations ?? [])
-                .filter(isSqlTableCalculation)
-                .map((tc) => [tc.name, tc]),
-        );
-        const hasModifiedSqlTableCalculation = (
-            chartVersion.metricQuery.tableCalculations ?? []
-        )
-            .filter(isSqlTableCalculation)
-            .some((tc) => {
-                const saved = oldSqlTcsByName.get(tc.name);
-                return !saved || saved.sql !== tc.sql;
-            });
-
-        if (
-            hasModifiedSqlTableCalculation &&
-            auditedAbility.cannot(
-                'manage',
-                subject('CustomSqlTableCalculations', {
-                    organizationUuid,
-                    projectUuid,
-                    metadata: { savedChartUuid },
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'User cannot save queries with new or modified SQL table calculations',
-            );
-        }
-
         const merge = chartVersion.merge
             ? normalizeSavedMergeDefinition(
                   chartVersion.merge,
@@ -1234,35 +1314,17 @@ export class SavedChartService
             throw new ParameterError('Invalid saved merge definition.');
         }
 
-        if (
-            merge &&
-            !isEqual(merge, existingChart.merge) &&
-            (!this.lightdashConfig.mergeQueryAuthoring.enabled ||
-                auditedAbility.cannot(
-                    'manage',
-                    subject('MergeQuery', {
-                        organizationUuid,
-                        projectUuid,
-                        metadata: { savedChartUuid },
-                    }),
-                ))
-        ) {
-            throw new ForbiddenError(
-                'User cannot save charts with a new or modified merge',
-            );
-        }
+        await this.assertCanWriteChartSql(
+            account,
+            auditedAbility,
+            { organizationUuid, projectUuid, metadata: { savedChartUuid } },
+            existingChart,
+            { metricQuery: chartVersion.metricQuery, merge },
+        );
 
         await this.validateMetricReferences(
             projectUuid,
             chartVersion.metricQuery,
-        );
-
-        await this.assertCanSaveCustomMetricSql(
-            account,
-            auditedAbility,
-            { organizationUuid, projectUuid, metadata: { savedChartUuid } },
-            chartVersion.metricQuery,
-            oldAdditionalMetrics ?? [],
         );
 
         const verificationAfterUpdate =
@@ -3200,26 +3262,42 @@ export class SavedChartService
             user,
             chartUuid,
         );
-        const currentChartVersion = await this.savedChartModel.get(chartUuid);
-        const chartVersion = await this.savedChartModel.get(
-            chartUuid,
-            versionUuid,
-        );
-        const newChartVersion = await this.savedChartModel.createVersion(
-            chartUuid,
-            chartVersion,
-            user,
-            undefined,
-            {
-                projectUuid: savedChart.projectUuid,
-                dashboardUuid: savedChart.dashboardUuid ?? null,
-                spaceUuid: savedChart.spaceUuid,
-            },
-            getContentWriteAgentIdentity({
-                userUuid: user.userUuid,
-                organizationUuid: savedChart.organizationUuid,
-            }),
-        );
+        const { currentChartVersion, newChartVersion } =
+            await this.savedChartModel.transaction(async (tx) => {
+                await this.savedChartModel.lockForVersioning([chartUuid], tx);
+                const current = await this.savedChartModel.get(
+                    chartUuid,
+                    undefined,
+                    undefined,
+                    tx,
+                );
+                const restored = await this.savedChartModel.get(
+                    chartUuid,
+                    versionUuid,
+                    undefined,
+                    tx,
+                );
+                await this.assertCanRestoreVersion(user, current, restored);
+                const created = await this.savedChartModel.createVersion(
+                    chartUuid,
+                    restored,
+                    user,
+                    tx,
+                    {
+                        projectUuid: savedChart.projectUuid,
+                        dashboardUuid: savedChart.dashboardUuid ?? null,
+                        spaceUuid: savedChart.spaceUuid,
+                    },
+                    getContentWriteAgentIdentity({
+                        userUuid: user.userUuid,
+                        organizationUuid: savedChart.organizationUuid,
+                    }),
+                );
+                return {
+                    currentChartVersion: current,
+                    newChartVersion: created,
+                };
+            });
         this.analytics.track({
             event: 'saved_chart_version.rollback',
             userId: user.userUuid,

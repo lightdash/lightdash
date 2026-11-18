@@ -155,6 +155,8 @@ const savedChartModel = {
     })),
     createVersion: vi.fn(async () => ownedChart),
     updateChartFieldUsage: vi.fn(async () => undefined),
+    transaction: vi.fn(async (fn) => fn('transaction')),
+    lockForVersioning: vi.fn(),
 };
 
 const projectModel = {
@@ -378,7 +380,7 @@ describe('SavedChartService direct-grant write parity', () => {
             ownedChart.uuid,
             ownedChart,
             grantOnlyEditor,
-            undefined,
+            'transaction',
             {
                 projectUuid: ownedChart.projectUuid,
                 dashboardUuid: OWNING_DASHBOARD,
@@ -424,7 +426,7 @@ describe('SavedChartService direct-grant write parity', () => {
             ownedChart.uuid,
             movedChart,
             grantOnlyEditor,
-            undefined,
+            'transaction',
             {
                 projectUuid: ownedChart.projectUuid,
                 dashboardUuid: OWNING_DASHBOARD,
