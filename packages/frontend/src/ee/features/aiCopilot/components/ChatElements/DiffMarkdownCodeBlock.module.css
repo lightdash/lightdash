@@ -62,3 +62,16 @@
     --diffs-bg-context-gutter-override: var(--mantine-color-body);
     --diffs-fg-number-override: var(--mantine-color-ldGray-5);
 }
+
+/* In a narrow side panel code sits on a recessed layer behind the conversation. */
+:global([data-quiet-cards]) .block {
+    border-color: transparent;
+    background-color: var(--mantine-color-ldGray-1);
+    --diffs-bg-context-override: var(--mantine-color-ldGray-1);
+    --diffs-bg-context-gutter-override: var(--mantine-color-ldGray-1);
+}
+
+:global([data-quiet-cards]) .header {
+    border-bottom-color: transparent;
+    background-color: var(--mantine-color-ldGray-1);
+}
