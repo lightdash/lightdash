@@ -10861,6 +10861,15 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
           "description": "A self-contained instruction, written as a direct task: the target model or file when you know it, and the literal change (field names, types, descriptions, SQL). The sandbox does not see this conversation, so include every detail it needs. When the project has more than one dbt source, name the source or its owner/repo verbatim, or you will be asked to choose one.",
           "type": "string",
         },
+        "requestedBy": {
+          "description": "Who asked for this repository change: user_asked when the user asked for it in the repository, offer_accepted when the user said yes to a change you offered, agent_initiated when you decided it alone. An agent_initiated change is not opened: the tool tells you to make what the user asked for with the content tools and offer the repository change instead.",
+          "enum": [
+            "user_asked",
+            "offer_accepted",
+            "agent_initiated",
+          ],
+          "type": "string",
+        },
         "startNewPullRequest": {
           "description": "true opens a new pull request in this conversation for a change unrelated to the open one; null continues the most recent pull request. Ignored when prUrl is set.",
           "type": [
@@ -10873,6 +10882,7 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
         "prompt",
         "prUrl",
         "startNewPullRequest",
+        "requestedBy",
       ],
       "type": "object",
     },
