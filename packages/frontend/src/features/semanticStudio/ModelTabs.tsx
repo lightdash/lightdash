@@ -274,13 +274,24 @@ export const ModelTabs: FC<{
     fields: ReactNode;
     /** The explore's lineage: its upstream dbt models and its joins; null where it does not apply. */
     lineage?: ReactNode;
-}> = ({ projectUuid, modelName, exploreName, fields, lineage = null }) => {
+    /** Only modelled (dbt) explores have pre-aggregates; live and external sources do not. */
+    isModelled: boolean;
+}> = ({
+    projectUuid,
+    modelName,
+    exploreName,
+    fields,
+    lineage = null,
+    isModelled,
+}) => {
     const { data: model } = useSemanticLayerModel(projectUuid, modelName);
     // A repository keeps its own history.
     const asPullRequest = useAppliesAsPullRequest(projectUuid);
     const hasHistory = !!model && !asPullRequest;
     const hasLineage = lineage !== null;
-    const hasPreAggregates = useHealth().data?.preAggregates.enabled === true;
+    const preAggregatesEnabled =
+        useHealth().data?.preAggregates.enabled === true;
+    const hasPreAggregates = isModelled && preAggregatesEnabled;
     const [searchParams, setSearchParams] = useSearchParams();
     const requested = searchParams.get(VIEW_PARAM);
     const view =
