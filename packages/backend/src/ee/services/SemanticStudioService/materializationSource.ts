@@ -5,6 +5,22 @@ import { isDerivedSqlFrom } from './derivedModel';
 
 const safeIdentifier = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 const windowFunctions = new Set(['row_number', 'rank', 'dense_rank']);
+// Immutable built-ins, so a copy holds the same values the warehouse would return.
+const pureFunctions = new Set([
+    'trim',
+    'btrim',
+    'ltrim',
+    'rtrim',
+    'lower',
+    'upper',
+    'length',
+    'coalesce',
+    'nullif',
+    'greatest',
+    'least',
+    'abs',
+    'round',
+]);
 const rejectSource = (): never => {
     throw new Error('Unsupported materialization source');
 };
@@ -58,14 +74,17 @@ export const materializationCatalogCheck = (sqlFrom: string): string | null => {
                         break;
                     case 'call':
                         if (
-                            !windowFunctions.has(node.function.name) ||
                             (node.function.schema &&
                                 node.function.schema !== 'pg_catalog') ||
-                            node.args.length ||
-                            !node.over ||
                             node.filter ||
                             node.withinGroup ||
-                            node.orderBy
+                            node.orderBy ||
+                            node.distinct ||
+                            (pureFunctions.has(node.function.name)
+                                ? node.over
+                                : !windowFunctions.has(node.function.name) ||
+                                  node.args.length ||
+                                  !node.over)
                         )
                             rejectSource();
                         node.over?.partitionBy?.forEach((expr) =>

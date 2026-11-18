@@ -24,12 +24,23 @@ describe('materialization source eligibility', () => {
         expect(sql).toContain('NOT c.relrowsecurity');
     });
 
+    it('accepts immutable built-ins over raw tables', () => {
+        expect(
+            materializationCatalogCheck(
+                "(SELECT trim(a.name) AS name, coalesce(a.code, 'none') AS code, nullif(a.total, 0) AS total FROM raw.items a)",
+            ),
+        ).toContain("('raw', 'items')");
+    });
+
     it.each([
         'items',
         '${other.SQL_TABLE_NAME}',
         'select * from raw.items join other on true',
         'select current_user from raw.items',
         'select source_fn(id) from raw.items',
+        'select now() from raw.items',
+        'select public.lower(name) from raw.items',
+        'select lower(name) over () from raw.items',
         'select row_number() over (order by (select id from hidden)) from raw.items',
         'select id from raw.items; select id from other',
         'pg_catalog.pg_class',
