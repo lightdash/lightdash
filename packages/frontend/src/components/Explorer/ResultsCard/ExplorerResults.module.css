@@ -268,22 +268,12 @@
     position: relative;
 }
 
-/* The + floats over the table, so the last header keeps its menu clear of it */
+/* The + has its own gutter beside the table, so it never covers a column */
 .edgeHost[data-with-edge]
     .results:not([data-grouped])
-    table
-    thead
-    th:last-child:not(:first-child) {
-    padding-right: 36px;
-}
-
-.edgeHost[data-with-edge]
-    .results:not([data-grouped])
-    table
-    thead
-    th:last-child:not(:first-child)
-    [class*='thActionsContainer'] {
-    right: 32px;
+    [class*='tableScrollableWrapper'] {
+    min-width: calc(100% - 28px);
+    margin-right: 28px;
 }
 
 .edgeAction {
