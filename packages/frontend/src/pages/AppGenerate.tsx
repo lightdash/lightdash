@@ -1235,6 +1235,7 @@ const AppGenerate: FC = () => {
                       getRegion: () =>
                           previewContentRef.current?.getBoundingClientRect() ??
                           new DOMRect(),
+                      captureImages: true,
                       resolveTarget: null,
                       transcribe: (audio) =>
                           transcribeCapture(projectUuid, audio),

@@ -9,6 +9,8 @@ import {
     type ApiAiRouterInstructionResponse,
     type ApiAiRouterResponse,
     type ApiAiRouterRouteResponse,
+    type ApiCaptureRouteRequest,
+    type ApiCaptureRouteResponse,
     type ApiErrorPayload,
     type UpsertAiRouterInstructionRequest,
     type UpsertAiRouterRequest,
@@ -150,6 +152,32 @@ export class AiRouterController extends BaseController {
         return {
             status: 'ok',
             results: await this.routerService().route(req.account, body),
+        };
+    }
+
+    /**
+     * Sort a point-and-talk capture made on a dashboard into layout changes
+     * and questions for an agent.
+     * @summary Route dashboard capture
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/capture/{projectUuid}')
+    @OperationId('routeDashboardCapture')
+    async routeCapture(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: ApiCaptureRouteRequest,
+    ): Promise<ApiCaptureRouteResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.routerService().routeCapture(
+                req.account,
+                projectUuid,
+                body,
+            ),
         };
     }
 

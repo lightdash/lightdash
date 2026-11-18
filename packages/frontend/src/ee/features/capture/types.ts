@@ -14,7 +14,10 @@ export type CaptureMark = {
     shape: MarkShape;
     box: Box;
     arrow: { from: Point; to: Point } | null;
+    /** What the mark is on; for an arrow, what it starts on. */
     target: CaptureTarget | null;
+    /** What an arrow ends on. Null for other shapes. */
+    arrowTo: CaptureTarget | null;
 };
 
 // atMs is when the phrase started (its first interim result).
@@ -33,7 +36,12 @@ export type CaptureResult = {
 
 export type CaptureSurface = {
     getRegion: () => DOMRect;
-    resolveTarget: ((box: DOMRect) => Promise<CaptureTarget | null>) | null;
+    /** False when the surface only needs marks and words, not pictures. */
+    captureImages: boolean;
+    /** What is at a viewport point (a tile, a data point). */
+    resolveTarget:
+        | ((point: { x: number; y: number }) => CaptureTarget | null)
+        | null;
     /** Turns the recorded audio into timed words. Null means no voice. */
     transcribe: ((audio: Blob) => Promise<TranscriptWord[]>) | null;
     onCapture: (result: CaptureResult) => void;

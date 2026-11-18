@@ -81,6 +81,12 @@ export enum FeatureFlags {
     DataAppCapture = 'data-app-capture',
 
     /**
+     * Point-and-talk capture on dashboards: layout requests are applied by
+     * the page, data questions go to an AI agent. Demo only.
+     */
+    DashboardCapture = 'dashboard-capture',
+
+    /**
      * AI access (in-app agent, Slack agent, MCP) skips the results cache,
      * earlier results and pre-aggregates. Off by default; organization scope.
      */

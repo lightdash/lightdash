@@ -42,10 +42,13 @@ const describeMark = (mark: CaptureMark): string => {
             return `underlined, ${describePosition(centre)}`;
         case 'scribble':
             return `marked, ${describePosition(centre)}`;
-        case 'arrow':
-            return mark.arrow
-                ? `arrow from ${describePosition(mark.arrow.from)} to ${describePosition(mark.arrow.to)}`
-                : `marked, ${describePosition(centre)}`;
+        case 'arrow': {
+            if (!mark.arrow) return `marked, ${describePosition(centre)}`;
+            const from =
+                mark.target?.label ?? describePosition(mark.arrow.from);
+            const to = mark.arrowTo?.label ?? describePosition(mark.arrow.to);
+            return `arrow from ${from} to ${to}`;
+        }
         default:
             return assertUnreachable(mark.shape, 'Unknown mark shape');
     }
@@ -64,34 +67,51 @@ type Entry =
     | { kind: 'mark'; atMs: number; mark: CaptureMark; speech: string[] }
     | { kind: 'speech'; atMs: number; text: string };
 
+/** Attaches each phrase to the mark it was said with; the rest stay loose. */
+export const assignSpeech = (
+    marks: CaptureMark[],
+    transcript: TranscriptPhrase[],
+): { speechByMark: Map<number, string[]>; loose: TranscriptPhrase[] } => {
+    const speechByMark = new Map<number, string[]>();
+    const loose: TranscriptPhrase[] = [];
+    for (const phrase of transcript) {
+        const owner = marks.findLast(
+            (mark) =>
+                phrase.atMs >= mark.startMs - LEAD_MS &&
+                phrase.atMs <= mark.endMs + TRAIL_MS,
+        );
+        if (owner) {
+            speechByMark.set(owner.number, [
+                ...(speechByMark.get(owner.number) ?? []),
+                phrase.text,
+            ]);
+        } else {
+            loose.push(phrase);
+        }
+    }
+    return { speechByMark, loose };
+};
+
 export const buildSummary = (input: {
     durationMs: number;
     imageCount: number;
     marks: CaptureMark[];
     transcript: TranscriptPhrase[];
 }): string => {
-    const markEntries = input.marks.map((mark) => ({
-        kind: 'mark' as const,
-        atMs: mark.startMs,
-        mark,
-        speech: [] as string[],
-    }));
-    const entries: Entry[] = [...markEntries];
-
-    for (const phrase of input.transcript) {
-        const owner = markEntries.findLast(
-            ({ mark }) =>
-                phrase.atMs >= mark.startMs - LEAD_MS &&
-                phrase.atMs <= mark.endMs + TRAIL_MS,
-        );
-        if (owner) owner.speech.push(phrase.text);
-        else
-            entries.push({
-                kind: 'speech',
-                atMs: phrase.atMs,
-                text: phrase.text,
-            });
-    }
+    const { speechByMark, loose } = assignSpeech(input.marks, input.transcript);
+    const entries: Entry[] = [
+        ...input.marks.map((mark) => ({
+            kind: 'mark' as const,
+            atMs: mark.startMs,
+            mark,
+            speech: speechByMark.get(mark.number) ?? [],
+        })),
+        ...loose.map((phrase) => ({
+            kind: 'speech' as const,
+            atMs: phrase.atMs,
+            text: phrase.text,
+        })),
+    ];
     entries.sort((a, b) => a.atMs - b.atMs);
 
     const lines = [header(input.durationMs, input.imageCount)];
@@ -109,7 +129,10 @@ export const buildSummary = (input: {
                         : `Image ${currentImage + 1} (after scrolling or clicking):`,
                 );
             }
-            const target = mark.target ? ` on ${mark.target.label}` : '';
+            const target =
+                mark.target && mark.shape !== 'arrow'
+                    ? ` on ${mark.target.label}`
+                    : '';
             const speech =
                 entry.speech.length > 0 ? `: "${entry.speech.join(' ')}"` : '';
             lines.push(

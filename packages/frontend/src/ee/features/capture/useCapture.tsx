@@ -45,7 +45,8 @@ type Hold = {
     rect: DOMRect;
     strokes: Stroke[];
     current: Stroke | null;
-    frame: Promise<TabFrame>;
+    /** Null when the surface does not want pictures. */
+    frame: Promise<TabFrame | null>;
 };
 
 const nextPaint = (): Promise<void> =>
@@ -144,10 +145,12 @@ export const useCapture = (
         startingRef.current = true;
         void (async () => {
             try {
-                const stream = await ensureStream();
-                if (!stream.ok) {
-                    showToastError(STREAM_ERROR_TITLES[stream.error]);
-                    return;
+                if (current.captureImages) {
+                    const stream = await ensureStream();
+                    if (!stream.ok) {
+                        showToastError(STREAM_ERROR_TITLES[stream.error]);
+                        return;
+                    }
                 }
                 const voice = await startVoice();
                 voiceOnRef.current = voice === 'on';
@@ -172,7 +175,7 @@ export const useCapture = (
         setHolding(false);
 
         queueRef.current = queueRef.current.then(async () => {
-            let frame: TabFrame;
+            let frame: TabFrame | null;
             try {
                 frame = await hold.frame;
             } catch {
@@ -182,46 +185,59 @@ export const useCapture = (
             }
             const before = stateRef.current;
             if (before.status !== 'recording' || hold.strokes.length === 0) {
-                frame.bitmap.close();
+                frame?.bitmap.close();
                 setInk([]);
                 return;
             }
             const previous = framesRef.current[before.imageCount - 1];
-            const isNewScreen =
-                !previous || !sameScreen(frame.thumb, previous.thumb);
+            // Without pictures every mark belongs to the one "screen".
+            const isNewScreen = frame
+                ? !previous || !sameScreen(frame.thumb, previous.thumb)
+                : before.imageCount === 0;
             const drawing = dispatch({
                 type: 'shiftDown',
                 atMs: hold.startMs,
                 isNewScreen,
             });
             if (drawing.status !== 'recording' || !drawing.drawing) {
-                frame.bitmap.close();
+                frame?.bitmap.close();
                 setInk([]);
                 return;
             }
-            if (drawing.drawing.imageIndex === before.imageCount) {
+            if (frame && drawing.drawing.imageIndex === before.imageCount) {
                 framesRef.current[before.imageCount] = frame;
             } else {
-                frame.bitmap.close();
+                frame?.bitmap.close();
             }
             hold.strokes.forEach((stroke) =>
                 dispatch({ type: 'strokeAdded', stroke }),
             );
 
-            const { box } = classifyMark(hold.strokes);
+            const { box, arrow } = classifyMark(hold.strokes);
             const resolveTarget = surfaceRef.current?.resolveTarget ?? null;
+            const toViewport = (point: Point) => ({
+                x: hold.rect.left + point.x * hold.rect.width,
+                y: hold.rect.top + point.y * hold.rect.height,
+            });
             let target: CaptureTarget | null = null;
-            if (resolveTarget) {
-                target = await resolveTarget(
-                    new DOMRect(
-                        hold.rect.left + box.x * hold.rect.width,
-                        hold.rect.top + box.y * hold.rect.height,
-                        box.width * hold.rect.width,
-                        box.height * hold.rect.height,
-                    ),
-                ).catch(() => null);
+            let arrowTo: CaptureTarget | null = null;
+            if (resolveTarget && arrow) {
+                target = resolveTarget(toViewport(arrow.from));
+                arrowTo = resolveTarget(toViewport(arrow.to));
+            } else if (resolveTarget) {
+                target = resolveTarget(
+                    toViewport({
+                        x: box.x + box.width / 2,
+                        y: box.y + box.height / 2,
+                    }),
+                );
             }
-            const done = dispatch({ type: 'shiftUp', atMs: endMs, target });
+            const done = dispatch({
+                type: 'shiftUp',
+                atMs: endMs,
+                target,
+                arrowTo,
+            });
             if (done.status !== 'recording') return;
 
             setInk([]);
@@ -253,17 +269,20 @@ export const useCapture = (
         setInkVisible(false);
         setRect(region);
         setHolding(true);
-        if (hidePill) setPillHidden(true);
+        if (hidePill && current.captureImages) setPillHidden(true);
 
-        const frame = (async () => {
-            await nextPaint();
-            try {
-                return await grab(region);
-            } finally {
-                setPillHidden(false);
-                setInkVisible(true);
-            }
-        })();
+        const frame = current.captureImages
+            ? (async () => {
+                  await nextPaint();
+                  try {
+                      return await grab(region);
+                  } finally {
+                      setPillHidden(false);
+                      setInkVisible(true);
+                  }
+              })()
+            : Promise.resolve(null);
+        if (!current.captureImages) setInkVisible(true);
         // Failures are reported when the hold ends.
         frame.catch(() => {});
         holdRef.current = {

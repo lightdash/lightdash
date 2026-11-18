@@ -28,7 +28,12 @@ export type CaptureAction =
     | { type: 'started'; voice: VoiceState }
     | { type: 'shiftDown'; atMs: number; isNewScreen: boolean }
     | { type: 'strokeAdded'; stroke: Stroke }
-    | { type: 'shiftUp'; atMs: number; target: CaptureTarget | null }
+    | {
+          type: 'shiftUp';
+          atMs: number;
+          target: CaptureTarget | null;
+          arrowTo: CaptureTarget | null;
+      }
     | { type: 'reset' };
 
 export const captureReducer = (
@@ -89,6 +94,7 @@ export const captureReducer = (
                 strokes: drawing.strokes,
                 ...classifyMark(drawing.strokes),
                 target: action.target,
+                arrowTo: action.arrowTo,
             };
             return {
                 ...state,

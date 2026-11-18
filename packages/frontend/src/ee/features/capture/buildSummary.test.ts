@@ -14,6 +14,7 @@ const mark = (
     box: { x: 0.7, y: 0.05, width: 0.2, height: 0.2 },
     arrow: null,
     target: null,
+    arrowTo: null,
     ...o,
 });
 
@@ -173,5 +174,25 @@ describe('buildSummary', () => {
             marks: [mark({ number: 21, startMs: 0, endMs: 100 })],
         });
         expect(out).toContain('- (21) (0:00) circled, top right');
+    });
+
+    it('names both ends of an arrow when the surface knows them', () => {
+        const out = buildSummary({
+            durationMs: 3000,
+            imageCount: 1,
+            transcript: [],
+            marks: [
+                mark({
+                    number: 1,
+                    startMs: 0,
+                    endMs: 500,
+                    shape: 'arrow',
+                    arrow: { from: { x: 0.1, y: 0.9 }, to: { x: 0.9, y: 0.1 } },
+                    target: { kind: 'tile', id: 'a', label: 'Top customers' },
+                    arrowTo: { kind: 'tile', id: 'b', label: 'Revenue' },
+                }),
+            ],
+        });
+        expect(out).toContain('- ① (0:00) arrow from Top customers to Revenue');
     });
 });

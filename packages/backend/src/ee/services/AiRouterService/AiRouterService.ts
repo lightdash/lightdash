@@ -13,6 +13,8 @@ import {
     type AiRouterRouteRequest,
     type AiRouterRouteResponseResult,
     type AiRouterSelectionMode,
+    type ApiCaptureRouteRequest,
+    type CaptureRoute,
     type RegisteredAccount,
     type UpsertAiRouterInstructionRequest,
     type UpsertAiRouterRequest,
@@ -32,6 +34,7 @@ import { selectAgent, type RoutingAskedFrom } from '../ai/agents/agentSelector';
 import { getModel } from '../ai/models';
 import { OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
 import { type AiAgentService } from '../AiAgentService/AiAgentService';
+import { routeCaptureWithModel } from './captureRouter';
 
 type Deps = {
     analytics: LightdashAnalytics;
@@ -290,6 +293,30 @@ export class AiRouterService extends BaseService {
                     ? 'create_thread'
                     : 'show_picker',
         };
+    }
+
+    /**
+     * Sorts a point-and-talk capture made on a dashboard into layout changes
+     * the page applies itself and questions for an agent.
+     */
+    async routeCapture(
+        account: RegisteredAccount,
+        projectUuid: string,
+        request: ApiCaptureRouteRequest,
+    ): Promise<CaptureRoute> {
+        const organizationUuid = AiRouterService.organizationUuidOf(account);
+        this.assertViewAiAgent(account, organizationUuid, projectUuid);
+        if (request.tiles.length > 200 || request.marks.length > 50) {
+            throw new ParameterError('Capture is too large to route');
+        }
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig({
+                organizationUuid,
+                projectUuid,
+                credentialUuid: null,
+            });
+        const { model } = getModel(copilotConfig);
+        return routeCaptureWithModel({ model, request });
     }
 
     async getConfig(account: RegisteredAccount): Promise<AiRouter> {

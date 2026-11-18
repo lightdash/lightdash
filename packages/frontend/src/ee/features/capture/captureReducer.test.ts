@@ -36,6 +36,7 @@ const hold = (
         type: 'shiftUp',
         atMs: atMs + 1000,
         target: null,
+        arrowTo: null,
     });
 };
 
@@ -61,6 +62,7 @@ describe('captureReducer', () => {
                     endMs: 2000,
                     shape: 'arrow',
                     target: null,
+                    arrowTo: null,
                 },
             ],
         });
@@ -98,9 +100,15 @@ describe('captureReducer', () => {
             type: 'shiftUp',
             atMs: 500,
             target: { kind: 'tile', id: 'abc', label: 'Revenue tile' },
+            arrowTo: { kind: 'tile', id: 'def', label: 'Orders tile' },
         });
         expect(s).toMatchObject({
-            marks: [{ target: { kind: 'tile', id: 'abc' } }],
+            marks: [
+                {
+                    target: { kind: 'tile', id: 'abc' },
+                    arrowTo: { kind: 'tile', id: 'def' },
+                },
+            ],
         });
     });
 
@@ -114,6 +122,7 @@ describe('captureReducer', () => {
             type: 'shiftUp',
             atMs: 1100,
             target: null,
+            arrowTo: null,
         });
         expect(s).toMatchObject({ marks: [], imageCount: 0, drawing: null });
     });
@@ -142,7 +151,12 @@ describe('captureReducer', () => {
         const s = rec();
         expect(captureReducer(s, { type: 'strokeAdded', stroke })).toEqual(s);
         expect(
-            captureReducer(s, { type: 'shiftUp', atMs: 5, target: null }),
+            captureReducer(s, {
+                type: 'shiftUp',
+                atMs: 5,
+                target: null,
+                arrowTo: null,
+            }),
         ).toEqual(s);
     });
 
