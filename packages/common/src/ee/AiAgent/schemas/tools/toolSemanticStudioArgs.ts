@@ -45,6 +45,12 @@ export const toolProposeSemanticLayerChangeArgsSchema = z.object({
         .describe(
             'One entry per model. Models that join each other can change in the same call.',
         ),
+    changeName: z
+        .string()
+        .nullable()
+        .describe(
+            'A short name for the change, describing the request. Used only when this edit starts a new change.',
+        ),
 });
 
 export type ToolProposeSemanticLayerChangeArgs = z.infer<
@@ -98,6 +104,11 @@ const proposalMetadataSchema = z.object({
     ),
     // Null when nothing in this proposal passed, so nothing joined the draft.
     draftChangeUuid: z.string().nullable(),
+    // Absent on results stored before an edit could start a change.
+    startedChange: z
+        .object({ workspaceUuid: z.string(), name: z.string() })
+        .nullable()
+        .default(null),
 });
 
 const proposalStructuredContentSchema = proposalMetadataSchema.pick({

@@ -7,10 +7,20 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { draftModel, draftOf, workspaceOf } from './studioCheckout.mock';
-import { foldDraftExplores, useStudioCheckoutState } from './useStudioCheckout';
+import {
+    foldDraftExplores,
+    StudioCheckoutProvider,
+    useCheckOut,
+    useStudioCheckout,
+    useStudioCheckoutState,
+} from './useStudioCheckout';
 import { WORKSPACES_KEY } from './useStudioWorkspaces';
 
 const api = vi.hoisted(() => vi.fn());
+const showToastInfo = vi.hoisted(() => vi.fn());
+vi.mock('../../hooks/toaster/useToaster', () => ({
+    default: () => ({ showToastInfo, showToastApiError: vi.fn() }),
+}));
 vi.mock('../../providers/LightdashApi/useLightdashApi', () => ({
     useLightdashApi: () => api,
 }));
@@ -38,6 +48,11 @@ const setup = (initial: string | null) => {
         if (url.endsWith('/status')) {
             return Promise.resolve({ enabled: true, appliesAs: 'live' });
         }
+        const activated = /\/workspaces\/(\w+)\/activate$/.exec(url)?.[1];
+        if (activated) {
+            active = activated;
+            return Promise.resolve(workspaceOf(activated));
+        }
         if (url.endsWith('/workspaces')) {
             return Promise.resolve({
                 mine: ['A', 'B'].map((id) =>
@@ -56,12 +71,20 @@ const setup = (initial: string | null) => {
     const client = new QueryClient({
         defaultOptions: { queries: { retry: false } },
     });
-    const wrapper = ({ children }: PropsWithChildren) => (
-        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    const Checkout = ({ children }: PropsWithChildren) => (
+        <StudioCheckoutProvider value={useStudioCheckoutState('project')}>
+            {children}
+        </StudioCheckoutProvider>
     );
-    const { result } = renderHook(() => useStudioCheckoutState('project'), {
-        wrapper,
-    });
+    const wrapper = ({ children }: PropsWithChildren) => (
+        <QueryClientProvider client={client}>
+            <Checkout>{children}</Checkout>
+        </QueryClientProvider>
+    );
+    const { result } = renderHook(
+        () => ({ ...useStudioCheckout(), picker: useCheckOut('project') }),
+        { wrapper },
+    );
     return {
         result,
         checkOut: async (next: string | null) => {
@@ -79,7 +102,7 @@ const setup = (initial: string | null) => {
     };
 };
 
-const shownUuid = (state: ReturnType<typeof useStudioCheckoutState>) =>
+const shownUuid = (state: ReturnType<typeof useStudioCheckout>) =>
     state.shown?.workspace?.workspaceUuid ?? null;
 
 describe('useStudioCheckoutState', () => {
@@ -115,6 +138,31 @@ describe('useStudioCheckoutState', () => {
         await answer('A', draftA);
         expect(shownUuid(result.current)).toBe('B');
         expect(result.current.shown?.draft).toEqual(draftB);
+    });
+});
+
+describe('the checkout leaving Live', () => {
+    it('says which change an agent edit started and checked out', async () => {
+        showToastInfo.mockClear();
+        const { result, checkOut, answer } = setup(null);
+        await waitFor(() => expect(result.current.shown?.workspace).toBe(null));
+        await checkOut('A');
+        await answer('A', draftA);
+        await waitFor(() => expect(shownUuid(result.current)).toBe('A'));
+        expect(showToastInfo).toHaveBeenCalledTimes(1);
+        expect(showToastInfo).toHaveBeenCalledWith({
+            title: 'Now on Change A',
+        });
+    });
+
+    it('says nothing when the person checks out a change themselves', async () => {
+        showToastInfo.mockClear();
+        const { result, answer } = setup(null);
+        await waitFor(() => expect(result.current.shown?.workspace).toBe(null));
+        act(() => result.current.picker.checkOut(workspaceOf('A')));
+        await answer('A', draftA);
+        await waitFor(() => expect(shownUuid(result.current)).toBe('A'));
+        expect(showToastInfo).not.toHaveBeenCalled();
     });
 });
 

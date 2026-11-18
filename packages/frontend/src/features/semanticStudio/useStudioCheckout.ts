@@ -6,7 +6,13 @@ import {
     type SemanticStudioWorkspace,
     type SummaryExplore,
 } from '@lightdash/common';
-import { createContext, useContext, useRef } from 'react';
+import {
+    createContext,
+    useContext,
+    useEffect,
+    useRef,
+    type MutableRefObject,
+} from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
     useSemanticLayerStatus,
@@ -31,6 +37,8 @@ export type StudioCheckoutState = {
     /** A newer checkout is confirmed but not loaded yet, so the shown one stays. */
     isSwitching: boolean;
     error: ApiError | null;
+    /** True while the person's own pick is on its way, so only checkouts they did not pick are announced. */
+    isPicking: MutableRefObject<boolean>;
 };
 
 const LIVE: StudioCheckout = { workspace: null, draft: null };
@@ -55,6 +63,22 @@ export const useStudioCheckoutState = (
         if (!active || !keepsDraft) return { workspace: active, draft: null };
         return draft.data ? { workspace: active, draft: draft.data } : null;
     })();
+    const { showToastInfo } = useToaster();
+    const isPicking = useRef(false);
+    const previousActive = useRef<string | null | undefined>(undefined);
+    useEffect(() => {
+        if (!workspaces.data) return;
+        const previous = previousActive.current;
+        const next = active?.workspaceUuid ?? null;
+        if (previous === next) return;
+        previousActive.current = next;
+        const picked = isPicking.current;
+        isPicking.current = false;
+        // Leaving Live without the person picking means an agent edit started the change.
+        if (keepsDraft && previous === null && active && !picked) {
+            showToastInfo({ title: `Now on ${active.name}` });
+        }
+    }, [workspaces.data, active, keepsDraft, showToastInfo]);
     const shown = useRef<StudioCheckout | null>(null);
     if (
         target &&
@@ -67,6 +91,7 @@ export const useStudioCheckoutState = (
         shown: shown.current,
         isSwitching: target === null,
         error: draft.error ?? null,
+        isPicking,
     };
 };
 
@@ -74,6 +99,7 @@ const StudioCheckoutContext = createContext<StudioCheckoutState>({
     shown: null,
     isSwitching: false,
     error: null,
+    isPicking: { current: false },
 });
 
 export const StudioCheckoutProvider = StudioCheckoutContext.Provider;
@@ -150,9 +176,13 @@ export const isOpenWorkspace = ({
 /** Checks out one of your changes, or Live; the page keeps showing the current one until the next has loaded. */
 export const useCheckOut = (projectUuid: string) => {
     const action = useStudioWorkspaceAction(projectUuid);
-    const { shown, isSwitching } = useStudioCheckout();
+    const { shown, isSwitching, isPicking } = useStudioCheckout();
     const { showToastApiError } = useToaster();
     const isBusy = action.isLoading || isSwitching;
+    const onError = (title: string) => (error: ApiError) => {
+        isPicking.current = false;
+        showToastApiError({ title, apiError: error.error });
+    };
     const checkOut = (target: SemanticStudioWorkspace | null) => {
         if (isBusy) return;
         if (
@@ -161,33 +191,27 @@ export const useCheckOut = (projectUuid: string) => {
         ) {
             return;
         }
+        isPicking.current = true;
         action.mutate(
             target
                 ? { kind: 'activate', workspaceUuid: target.workspaceUuid }
                 : { kind: 'leave' },
             {
-                onError: ({ error }) =>
-                    showToastApiError({
-                        title: `Could not check out ${target?.name ?? 'Live'}`,
-                        apiError: error,
-                    }),
+                onError: onError(
+                    `Could not check out ${target?.name ?? 'Live'}`,
+                ),
             },
         );
     };
     const createChange = () => {
         if (isBusy) return;
+        isPicking.current = true;
         action.mutate(
             {
                 kind: 'start',
                 body: { threadUuid: null, name: 'Untitled change' },
             },
-            {
-                onError: ({ error }) =>
-                    showToastApiError({
-                        title: 'Could not start a change',
-                        apiError: error,
-                    }),
-            },
+            { onError: onError('Could not start a change') },
         );
     };
     return { checkOut, createChange, isBusy, isError: action.isError };

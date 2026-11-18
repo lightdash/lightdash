@@ -15492,6 +15492,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
 
         const proposeSemanticLayerChange: ProposeSemanticLayerChangeFn = (
             models,
+            changeName,
         ) =>
             this.semanticStudioService.proposeDraftChange(
                 user,
@@ -15501,6 +15502,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     promptUuid: prompt.promptUuid,
                     threadUuid: prompt.threadUuid,
                 },
+                changeName,
             );
 
         const listChanges = () =>

@@ -577,6 +577,7 @@ describe('Project model documents on PostgreSQL', () => {
             workspaceUuid: null,
             baseVersions: null,
             promptUuid: null,
+            changeName: 'Orders revenue',
             models: [
                 {
                     name: 'orders',
@@ -590,6 +591,10 @@ describe('Project model documents on PostgreSQL', () => {
             input,
             organization.organization_uuid,
         );
+        expect(first.startedChange).toEqual({
+            workspaceUuid: first.workspaceUuid,
+            name: 'Orders revenue',
+        });
         expect(await workspaces.findActive(owner)).toMatchObject({
             workspaceUuid: first.workspaceUuid,
             threadUuid: null,
@@ -608,7 +613,7 @@ describe('Project model documents on PostgreSQL', () => {
         expect(await workspaces.listChanges(owner)).toEqual(
             expect.arrayContaining([
                 {
-                    name: 'Edit orders model',
+                    name: 'Orders revenue',
                     isCheckedOut: false,
                     models: ['orders'],
                 },

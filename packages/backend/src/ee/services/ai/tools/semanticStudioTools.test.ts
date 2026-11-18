@@ -36,6 +36,7 @@ const propose = async (
     const output = await tool.execute(
         {
             models: [{ name: 'orders', yaml, remove: [], removeModel: false }],
+            changeName: null,
         },
         callOptions,
     );
@@ -74,6 +75,7 @@ describe('getProposeSemanticLayerChange', () => {
                     },
                 ],
                 draftChangeUuid: 'draft-1',
+                startedChange: null,
             }),
             'label: Orders',
         );
@@ -84,6 +86,33 @@ describe('getProposeSemanticLayerChange', () => {
             models: [{ model: 'orders', status: 'ready' }],
             diffs: [{ contentAfter: 'after' }],
             draftChangeUuid: 'draft-1',
+        });
+    });
+
+    it('says when the edit started a change and checked it out', async () => {
+        const output = await propose(
+            async () => ({
+                results: [
+                    {
+                        model: 'orders',
+                        status: 'ready',
+                        changes: [{ path: 'metrics.total', action: 'added' }],
+                        refusals: [],
+                        error: null,
+                        notes: [],
+                    },
+                ],
+                diffs: [],
+                draftChangeUuid: 'draft-1',
+                startedChange: { workspaceUuid: 'w-1', name: 'Order totals' },
+            }),
+            'label: Orders',
+        );
+        expect(output.result).toContain(
+            'Started change "Order totals" and checked it out.',
+        );
+        expect(output.metadata).toMatchObject({
+            startedChange: { workspaceUuid: 'w-1', name: 'Order totals' },
         });
     });
 
@@ -102,6 +131,7 @@ describe('getProposeSemanticLayerChange', () => {
                 ],
                 diffs: [],
                 draftChangeUuid: null,
+                startedChange: null,
             }),
             '- not a mapping',
         );
