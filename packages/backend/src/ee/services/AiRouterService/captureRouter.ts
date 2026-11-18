@@ -1,3 +1,7 @@
+// After changing the prompt or the request shape in this file, run the
+// regression set against the real model (needs a model key, so it is not in CI):
+//   pnpm -F backend capture-router-evals
+// The cases live in ./captureRouterEvals/fixtures.
 import {
     type ApiCaptureRouteRequest,
     type CaptureEdit,

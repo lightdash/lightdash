@@ -1,0 +1,145 @@
+{
+    "name": "Arrow from a tile to empty space is one move",
+    "request": {
+        "dashboardName": "Store performance",
+        "gridColumns": 36,
+        "tiles": [
+            {
+                "uuid": "3f0c5d1e-8a41-4b7e-9c2d-51a7e6b0f9a1",
+                "title": "Weekly trading summary",
+                "x": 0,
+                "y": 0,
+                "w": 36,
+                "h": 2
+            },
+            {
+                "uuid": "7b9e2a64-1c3f-4d58-a0b6-2e8f41c97d35",
+                "title": "Total revenue",
+                "x": 0,
+                "y": 2,
+                "w": 12,
+                "h": 3
+            },
+            {
+                "uuid": "c4a81f07-6e2b-4f93-8d15-9b3a70e5c2d8",
+                "title": "Orders",
+                "x": 12,
+                "y": 2,
+                "w": 12,
+                "h": 3
+            },
+            {
+                "uuid": "0d5b7e92-f3a6-4c18-b7e4-63c1a9f28b50",
+                "title": "Average basket value",
+                "x": 24,
+                "y": 2,
+                "w": 12,
+                "h": 3
+            },
+            {
+                "uuid": "a2e64c3b-95d7-4e01-8f6a-1d07b5c4e893",
+                "title": "Revenue by region",
+                "x": 0,
+                "y": 5,
+                "w": 18,
+                "h": 6
+            },
+            {
+                "uuid": "58f1d0a7-2b4c-49e6-9a3d-e7c62f810b4f",
+                "title": "Orders by channel",
+                "x": 18,
+                "y": 5,
+                "w": 18,
+                "h": 6
+            },
+            {
+                "uuid": "e97a3b15-4d80-4a2c-b5f9-06d1c8e37a62",
+                "title": "Returns by product category",
+                "x": 0,
+                "y": 11,
+                "w": 18,
+                "h": 6
+            }
+        ],
+        "marks": [
+            {
+                "number": 1,
+                "image": 0,
+                "shape": "arrow",
+                "at": {
+                    "tileUuid": "e97a3b15-4d80-4a2c-b5f9-06d1c8e37a62",
+                    "cell": null
+                },
+                "arrowTo": {
+                    "tileUuid": null,
+                    "cell": {
+                        "x": 25,
+                        "y": 12
+                    }
+                },
+                "path": [
+                    {
+                        "tileUuid": "e97a3b15-4d80-4a2c-b5f9-06d1c8e37a62",
+                        "cell": null
+                    },
+                    {
+                        "tileUuid": null,
+                        "cell": {
+                            "x": 18,
+                            "y": 13
+                        }
+                    },
+                    {
+                        "tileUuid": null,
+                        "cell": {
+                            "x": 20,
+                            "y": 13
+                        }
+                    },
+                    {
+                        "tileUuid": null,
+                        "cell": {
+                            "x": 22,
+                            "y": 12
+                        }
+                    },
+                    {
+                        "tileUuid": null,
+                        "cell": {
+                            "x": 24,
+                            "y": 12
+                        }
+                    },
+                    {
+                        "tileUuid": null,
+                        "cell": {
+                            "x": 25,
+                            "y": 12
+                        }
+                    }
+                ],
+                "inside": [
+                    {
+                        "tileUuid": "e97a3b15-4d80-4a2c-b5f9-06d1c8e37a62",
+                        "share": 53
+                    }
+                ],
+                "speech": "move this over here"
+            }
+        ],
+        "looseSpeech": [],
+        "images": []
+    },
+    "expected": {
+        "layout": [
+            {
+                "type": "move",
+                "tileUuid": "e97a3b15-4d80-4a2c-b5f9-06d1c8e37a62",
+                "x": 18,
+                "y": 12
+            }
+        ],
+        "questions": [],
+        "edits": []
+    }
+}
