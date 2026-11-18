@@ -117,7 +117,7 @@ For a weekly chart of "the last 12 weeks up to today" where every week starts on
 
 ### Create and Edit SQL Charts
 
-Always read `sql-chart-reference` first: it says when to save a SQL chart, and how to save, edit and place one on a dashboard.
+Always read `sql-chart-reference` first: it says when to create a SQL chart, and how to save, edit and place one on a dashboard.
 
 ## Editing Charts
 
