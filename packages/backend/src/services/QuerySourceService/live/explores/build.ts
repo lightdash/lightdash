@@ -2,7 +2,6 @@ import {
     ApiConnectorType,
     assertUnreachable,
     DimensionType,
-    getFilterRules,
     getItemId,
     getItemMap,
     isDimension,
@@ -18,15 +17,12 @@ import {
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { createHash } from 'crypto';
 import { isPlainObject, memoize } from 'es-toolkit/compat';
-import { type LiveQueryFields } from '../calls';
 import { tooManyRowsError } from '../query/rows';
 import { getLiveIntegration } from '../registry';
 import { type LiveCapabilities, type LiveScanResult } from '../types';
 import {
     buildLiveExplore,
     getApiName,
-    getLiveDefinitionName,
-    getLiveExplore,
     getLiveRequestLimit,
     type CompiledLiveQuery,
     type LiveExploreDefinition,
@@ -514,56 +510,5 @@ export const toLiveResult = ({
             compiled.limit,
         ),
         columns,
-    };
-};
-
-/**
- * The model and built-in field names a metric query on a live explore reads,
- * without the source's prefix, so they compare across sources. Scanned
- * fields are named by the customer's own schema, so they are only counted.
- */
-export const getLiveQueryFields = (
-    explore: Explore,
-    metricQuery: MetricQuery,
-): LiveQueryFields => {
-    const model = getLiveDefinitionName(explore);
-    const definition = getLiveBaseLayer(
-        getLiveExplore(explore).integration,
-    ).definitions.find(({ name }) => name === model);
-    const builtInNames = new Set([
-        ...(definition?.dimensions ?? []).map(({ name }) => name),
-        ...(definition?.metrics ?? []).map(({ name }) => name),
-    ]);
-    const prefix = `${explore.name}_`;
-    const toNames = (fieldIds: string[]) => [
-        ...new Set(
-            fieldIds.flatMap((fieldId) =>
-                fieldId.startsWith(prefix)
-                    ? [fieldId.slice(prefix.length)]
-                    : [],
-            ),
-        ),
-    ];
-    const read = {
-        dimensions: toNames(metricQuery.dimensions),
-        metrics: toNames(metricQuery.metrics),
-        filters: toNames(
-            getFilterRules(metricQuery.filters).map(
-                ({ target }) => target.fieldId,
-            ),
-        ),
-    };
-    const builtIn = (names: string[]) =>
-        names.filter((name) => builtInNames.has(name));
-    return {
-        model,
-        dimensions: builtIn(read.dimensions),
-        metrics: builtIn(read.metrics),
-        filters: builtIn(read.filters),
-        scannedFieldCount: new Set(
-            Object.values(read)
-                .flat()
-                .filter((name) => !builtInNames.has(name)),
-        ).size,
     };
 };

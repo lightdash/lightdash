@@ -103,13 +103,16 @@ const searchDimensions = (noun: string): LiveDimensionDefinition[] => [
         GITHUB_VALUE_FILTERS,
         `GitHub login of whoever opened the ${noun}.`,
     ),
-    dimension(
-        'assignee',
-        'Assignee',
-        DimensionType.STRING,
-        GITHUB_VALUE_FILTERS,
-        `GitHub login of the first assignee.`,
-    ),
+    {
+        ...dimension(
+            'assignee',
+            'Assignee',
+            DimensionType.STRING,
+            GITHUB_VALUE_FILTERS,
+            `GitHub login of the first assignee.`,
+        ),
+        core: false,
+    },
     dimension(
         'labels',
         'Labels',
@@ -117,23 +120,36 @@ const searchDimensions = (noun: string): LiveDimensionDefinition[] => [
         GITHUB_VALUE_FILTERS,
         `The ${noun}'s labels, comma separated. "Is" keeps ${noun}s that have the label.`,
     ),
-    dimension(
-        'comments',
-        'Comments',
-        DimensionType.NUMBER,
-        GITHUB_NUMBER_FILTERS,
-        'Number of comments.',
-    ),
+    {
+        ...dimension(
+            'comments',
+            'Comments',
+            DimensionType.NUMBER,
+            GITHUB_NUMBER_FILTERS,
+            'Number of comments.',
+        ),
+        core: false,
+    },
     date('created_at', 'Created', `The day the ${noun} was opened, in UTC.`),
-    date('updated_at', 'Updated', `The day the ${noun} last changed, in UTC.`),
+    {
+        ...date(
+            'updated_at',
+            'Updated',
+            `The day the ${noun} last changed, in UTC.`,
+        ),
+        core: false,
+    },
     date('closed_at', 'Closed', `The day the ${noun} was closed, in UTC.`),
-    dimension(
-        'search',
-        'Search text',
-        DimensionType.STRING,
-        GITHUB_TEXT_FILTERS,
-        'Filter only: words in the title or description. Matches whole words. Empty when selected.',
-    ),
+    {
+        ...dimension(
+            'search',
+            'Search text',
+            DimensionType.STRING,
+            GITHUB_TEXT_FILTERS,
+            'Filter only: words in the title or description. Matches whole words. Empty when selected.',
+        ),
+        core: false,
+    },
 ];
 
 const countIncompatibility = (dimensions: LiveDimensionDefinition[]) => ({
@@ -172,7 +188,6 @@ export const GITHUB_PULL_REQUESTS_EXPLORE: LiveExploreDefinition = {
     maxDimensions: null,
     maxMetrics: null,
     dateRange: null,
-    offByDefault: ['assignee', 'comments', 'updated_at', 'search'],
     incompatible: [countIncompatibility(PULL_REQUEST_DIMENSIONS)],
 };
 

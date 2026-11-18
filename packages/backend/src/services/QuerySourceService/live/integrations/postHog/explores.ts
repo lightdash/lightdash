@@ -165,13 +165,16 @@ export const POSTHOG_EVENTS_EXPLORE: LiveExploreDefinition = {
             sql: 'toStartOfMonth(${TABLE}.timestamp)',
             description: 'Month the event happened.',
         }),
-        dimension({
-            name: 'timestamp',
-            apiName: 'timestamp',
-            label: 'Event time',
-            type: DimensionType.TIMESTAMP,
-            description: 'Exact time the event happened.',
-        }),
+        {
+            ...dimension({
+                name: 'timestamp',
+                apiName: 'timestamp',
+                label: 'Event time',
+                type: DimensionType.TIMESTAMP,
+                description: 'Exact time the event happened.',
+            }),
+            core: false,
+        },
         dimension({
             name: 'event',
             apiName: 'event',
@@ -179,26 +182,35 @@ export const POSTHOG_EVENTS_EXPLORE: LiveExploreDefinition = {
             description:
                 '$pageview, $autocapture, $identify or a custom event.',
         }),
-        dimension({
-            name: 'distinct_id',
-            apiName: 'distinct_id',
-            label: 'Distinct ID',
-            description:
-                'The ID the event was sent with: anonymous until identify, then the user ID.',
-        }),
-        dimension({
-            name: 'person_id',
-            apiName: 'person_id',
-            label: 'Person ID',
-            sql: 'toString(${TABLE}.person_id)',
-            description: 'The person after identify and merges.',
-        }),
-        eventProperty(
-            'current_url',
-            '$current_url',
-            'Current URL',
-            'Full URL of the page the event happened on.',
-        ),
+        {
+            ...dimension({
+                name: 'distinct_id',
+                apiName: 'distinct_id',
+                label: 'Distinct ID',
+                description:
+                    'The ID the event was sent with: anonymous until identify, then the user ID.',
+            }),
+            core: false,
+        },
+        {
+            ...dimension({
+                name: 'person_id',
+                apiName: 'person_id',
+                label: 'Person ID',
+                sql: 'toString(${TABLE}.person_id)',
+                description: 'The person after identify and merges.',
+            }),
+            core: false,
+        },
+        {
+            ...eventProperty(
+                'current_url',
+                '$current_url',
+                'Current URL',
+                'Full URL of the page the event happened on.',
+            ),
+            core: false,
+        },
         eventProperty(
             'pathname',
             '$pathname',
@@ -211,24 +223,33 @@ export const POSTHOG_EVENTS_EXPLORE: LiveExploreDefinition = {
             'Referring domain',
             'Domain the visitor came from, or $direct.',
         ),
-        eventProperty(
-            'utm_source',
-            'utm_source',
-            'UTM source',
-            'utm_source of the page URL, such as google or newsletter.',
-        ),
-        eventProperty(
-            'browser',
-            '$browser',
-            'Browser',
-            'Browser name, such as Chrome or Safari.',
-        ),
-        eventProperty(
-            'os',
-            '$os',
-            'Operating system',
-            'Operating system, such as Mac OS X or Android.',
-        ),
+        {
+            ...eventProperty(
+                'utm_source',
+                'utm_source',
+                'UTM source',
+                'utm_source of the page URL, such as google or newsletter.',
+            ),
+            core: false,
+        },
+        {
+            ...eventProperty(
+                'browser',
+                '$browser',
+                'Browser',
+                'Browser name, such as Chrome or Safari.',
+            ),
+            core: false,
+        },
+        {
+            ...eventProperty(
+                'os',
+                '$os',
+                'Operating system',
+                'Operating system, such as Mac OS X or Android.',
+            ),
+            core: false,
+        },
         eventProperty(
             'device_type',
             '$device_type',
@@ -273,15 +294,6 @@ export const POSTHOG_EVENTS_EXPLORE: LiveExploreDefinition = {
     maxDimensions: null,
     maxMetrics: null,
     dateRange: { dimension: 'date', defaultDays: 30 },
-    offByDefault: [
-        'timestamp',
-        'distinct_id',
-        'person_id',
-        'current_url',
-        'utm_source',
-        'browser',
-        'os',
-    ],
     incompatible: [],
 };
 

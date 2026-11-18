@@ -145,12 +145,15 @@ export const YOUTUBE_ANALYTICS_ACTIVITY_EXPLORE: LiveExploreDefinition = {
             'Traffic source type',
             'How viewers reached the video, such as YT_SEARCH, RELATED_VIDEO, SUBSCRIBER or EXT_URL.',
         ),
-        dimension(
-            'creator_content_type',
-            'creatorContentType',
-            'Content type',
-            'LIVE_STREAM, SHORTS, STORY, VIDEO_ON_DEMAND or UNSPECIFIED. Combine it with a date, country, video, device type or traffic source.',
-        ),
+        {
+            ...dimension(
+                'creator_content_type',
+                'creatorContentType',
+                'Content type',
+                'LIVE_STREAM, SHORTS, STORY, VIDEO_ON_DEMAND or UNSPECIFIED. Combine it with a date, country, video, device type or traffic source.',
+            ),
+            core: false,
+        },
     ],
     metrics: [
         count(
@@ -159,12 +162,15 @@ export const YOUTUBE_ANALYTICS_ACTIVITY_EXPLORE: LiveExploreDefinition = {
             'Views',
             'Times videos were viewed. YouTube counts a view differently per report.',
         ),
-        count(
-            'engaged_views',
-            'engagedViews',
-            'Engaged views',
-            'Times videos were viewed past the first frame or started by a click or tap.',
-        ),
+        {
+            ...count(
+                'engaged_views',
+                'engagedViews',
+                'Engaged views',
+                'Times videos were viewed past the first frame or started by a click or tap.',
+            ),
+            core: false,
+        },
         count(
             'estimated_minutes_watched',
             'estimatedMinutesWatched',
@@ -179,28 +185,37 @@ export const YOUTUBE_ANALYTICS_ACTIVITY_EXPLORE: LiveExploreDefinition = {
             NON_ADDITIVE,
             'Average length of a playback, in seconds. Never sum it.',
         ),
-        metric(
-            'average_view_percentage',
-            'averageViewPercentage',
-            'Average view percentage',
-            MetricType.AVERAGE,
-            NON_ADDITIVE,
-            'Average percentage of a video watched per playback, as a number from 0 to 100. Never sum it.',
-        ),
+        {
+            ...metric(
+                'average_view_percentage',
+                'averageViewPercentage',
+                'Average view percentage',
+                MetricType.AVERAGE,
+                NON_ADDITIVE,
+                'Average percentage of a video watched per playback, as a number from 0 to 100. Never sum it.',
+            ),
+            core: false,
+        },
         count('likes', 'likes', 'Likes', 'Times viewers liked a video.'),
-        count(
-            'dislikes',
-            'dislikes',
-            'Dislikes',
-            'Times viewers disliked a video.',
-        ),
+        {
+            ...count(
+                'dislikes',
+                'dislikes',
+                'Dislikes',
+                'Times viewers disliked a video.',
+            ),
+            core: false,
+        },
         count('comments', 'comments', 'Comments', 'Times viewers commented.'),
-        count(
-            'shares',
-            'shares',
-            'Shares',
-            'Times viewers used the Share button.',
-        ),
+        {
+            ...count(
+                'shares',
+                'shares',
+                'Shares',
+                'Times viewers used the Share button.',
+            ),
+            core: false,
+        },
         count(
             'subscribers_gained',
             'subscribersGained',
@@ -217,13 +232,6 @@ export const YOUTUBE_ANALYTICS_ACTIVITY_EXPLORE: LiveExploreDefinition = {
     maxDimensions: 3,
     maxMetrics: null,
     dateRange: { dimension: 'date', defaultDays: 28 },
-    offByDefault: [
-        'creator_content_type',
-        'engaged_views',
-        'average_view_percentage',
-        'dislikes',
-        'shares',
-    ],
     incompatible: [
         {
             fields: ['device_type', 'traffic_source_type'],

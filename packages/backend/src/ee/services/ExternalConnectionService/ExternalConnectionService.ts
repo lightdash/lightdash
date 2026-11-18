@@ -1420,39 +1420,26 @@ export class ExternalConnectionService extends BaseService {
             apiSource,
         );
         const scan = await getScan();
-        const { externalConnectionUuid, projectUuid } = connection;
-        const scannedFields = scan
-            ? toScannedLiveSourceFields(apiSource.connector, scan)
-            : [];
         if (scan) {
+            const { externalConnectionUuid, projectUuid } = connection;
+            const scannedFields = toScannedLiveSourceFields(
+                apiSource.connector,
+                scan,
+            );
             await this.externalConnectionModel.saveLiveSourceScan(
                 externalConnectionUuid,
                 { scannedAt: new Date().toISOString(), fields: scannedFields },
             );
-        }
-        const isExistingSource = await this.projectModel.hasApiSourceExplores(
-            projectUuid,
-            externalConnectionUuid,
-        );
-        if (isExistingSource && scan) {
             await this.externalConnectionModel.initLiveSourceFieldEdits(
                 externalConnectionUuid,
                 getInitialLiveSourceFieldEdits({
-                    scannedFields,
-                    isExistingSource: true,
-                }),
-            );
-        }
-        // A new source starts with its core fields even when its first scan fails
-        if (!isExistingSource) {
-            await this.externalConnectionModel.initLiveSourceFieldEdits(
-                externalConnectionUuid,
-                getInitialLiveSourceFieldEdits({
-                    scannedFields,
-                    isExistingSource: false,
                     base: getLiveWideDefinition(apiSource.connector),
-                    isOnByDefault: getLiveIntegration(apiSource.connector).scan
-                        ?.isOnByDefault,
+                    scannedFields,
+                    isExistingSource:
+                        await this.projectModel.hasApiSourceExplores(
+                            projectUuid,
+                            externalConnectionUuid,
+                        ),
                 }),
             );
         }
@@ -2097,14 +2084,14 @@ export class ExternalConnectionService extends BaseService {
                 projectUuid,
                 connectionUuid,
                 explorePrefix,
-                // Deleted before fields could be curated: every field stays
-                // in use, so its charts keep working instead of starting
-                // with a new source's core fields
+                // Deleted before fields could be curated: every field stays in use
                 deleted.fieldEdits ??
-                    getInitialLiveSourceFieldEdits({
-                        scannedFields: lastScan?.fields ?? [],
-                        isExistingSource: true,
-                    }),
+                    (lastScan
+                        ? getInitialLiveSourceFieldEdits({
+                              scannedFields: lastScan.fields,
+                              isExistingSource: true,
+                          })
+                        : null),
             );
         if (!isReattached) {
             throw new AlreadyExistsError(
@@ -2232,11 +2219,6 @@ export class ExternalConnectionService extends BaseService {
                         columnCount: call.columnCount,
                         truncated: call.truncated,
                         responseBytes: usage.responseBytes,
-                        model: call.fields?.model ?? null,
-                        dimensions: call.fields?.dimensions ?? [],
-                        metrics: call.fields?.metrics ?? [],
-                        filters: call.fields?.filters ?? [],
-                        scannedFieldCount: call.fields?.scannedFieldCount ?? 0,
                     },
                 });
             },

@@ -41,6 +41,12 @@ type ApiSourceFieldDefinition = {
     /** Set from an admin's edits; built-in and scanned fields have none. */
     aiHint?: string;
     groups?: string[];
+    /**
+     * Whether a new source starts with the field in use. Unset, built-in
+     * fields do and scanned fields don't. Sources that already exist keep
+     * their selection.
+     */
+    core?: boolean;
 };
 
 export type LiveDimensionDefinition = ApiSourceFieldDefinition & {
@@ -70,12 +76,6 @@ export type LiveExploreDefinition = {
     maxDimensions: number | null;
     maxMetrics: number | null;
     dateRange: { dimension: string; defaultDays: number } | null;
-    /**
-     * Built-in fields a new source starts with out of use: they stay in the
-     * layer, and an admin switches them on. Sources that already exist keep
-     * their selection. Only the wide (first) explore takes field edits.
-     */
-    offByDefault?: string[];
     incompatible: {
         fields: string[];
         with: string[];

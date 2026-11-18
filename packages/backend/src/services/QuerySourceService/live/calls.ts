@@ -69,18 +69,6 @@ export type LiveQueryCall = {
     truncated: boolean | null;
     /** True when a stored result answered the query and the integration wasn't called. */
     cacheHit: boolean;
-    /** The fields a compiled metric query read; null for a raw api query. */
-    fields: LiveQueryFields | null;
-};
-
-/** Which explore model and built-in field names (`sessions`) a query read. */
-export type LiveQueryFields = {
-    model: string;
-    dimensions: string[];
-    metrics: string[];
-    filters: string[];
-    /** Distinct scanned fields read, which are named by the customer's schema. */
-    scannedFieldCount: number;
 };
 
 /**

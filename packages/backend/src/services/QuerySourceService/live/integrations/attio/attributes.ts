@@ -182,24 +182,3 @@ export const ATTIO_SORT_FIELDS: ReadonlySet<AttioValueProperty> = new Set([
     'currency_value',
     'full_name',
 ]);
-
-/**
- * Attributes a new source starts with in use: the record's name, its
- * choices, numbers, amounts and dates. The rest start off.
- */
-export const isAttioFieldOnByDefault = ({
-    apiName,
-    type,
-}: {
-    apiName: string;
-    type: string;
-}) => {
-    const { slug, property } = parseAttioApiName(apiName);
-    return (
-        slug === 'name' ||
-        isAttioChoiceProperty(property) ||
-        property === 'currency_value' ||
-        (property === null &&
-            (type === DimensionType.NUMBER || type === DimensionType.DATE))
-    );
-};

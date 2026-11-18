@@ -155,12 +155,15 @@ export const META_ADS_INSIGHTS_EXPLORE: LiveExploreDefinition = {
             description:
                 'First day of the month, in the ad account time zone. Filter the date to choose the months.',
         },
-        dimension(
-            'campaign_id',
-            'Campaign ID',
-            'ID of the campaign.',
-            META_ADS_ID_FILTERS,
-        ),
+        {
+            ...dimension(
+                'campaign_id',
+                'Campaign ID',
+                'ID of the campaign.',
+                META_ADS_ID_FILTERS,
+            ),
+            core: false,
+        },
         dimension(
             'campaign_name',
             'Campaign name',
@@ -172,19 +175,30 @@ export const META_ADS_INSIGHTS_EXPLORE: LiveExploreDefinition = {
             'Campaign objective',
             'What the campaign was set up to achieve.',
         ),
-        dimension(
-            'adset_id',
-            'Ad set ID',
-            'ID of the ad set.',
-            META_ADS_ID_FILTERS,
-        ),
+        {
+            ...dimension(
+                'adset_id',
+                'Ad set ID',
+                'ID of the ad set.',
+                META_ADS_ID_FILTERS,
+            ),
+            core: false,
+        },
         dimension(
             'adset_name',
             'Ad set name',
             'Name of the ad set.',
             META_ADS_NAME_FILTERS,
         ),
-        dimension('ad_id', 'Ad ID', 'ID of the ad.', META_ADS_ID_FILTERS),
+        {
+            ...dimension(
+                'ad_id',
+                'Ad ID',
+                'ID of the ad.',
+                META_ADS_ID_FILTERS,
+            ),
+            core: false,
+        },
         dimension(
             'ad_name',
             'Ad name',
@@ -199,11 +213,14 @@ export const META_ADS_INSIGHTS_EXPLORE: LiveExploreDefinition = {
             'Platform',
             'Where the ad ran: facebook, instagram, messenger or audience_network.',
         ),
-        dimension(
-            'platform_position',
-            'Placement',
-            'Position within the platform, such as feed or story. Add Platform too: Meta reports placements per platform.',
-        ),
+        {
+            ...dimension(
+                'platform_position',
+                'Placement',
+                'Position within the platform, such as feed or story. Add Platform too: Meta reports placements per platform.',
+            ),
+            core: false,
+        },
     ],
     metrics: [
         metric(
@@ -231,15 +248,18 @@ export const META_ADS_INSIGHTS_EXPLORE: LiveExploreDefinition = {
             NON_ADDITIVE,
             'People who saw the ads at least once, estimated by Meta. Reach counts each person once per row, so never add rows together: split or filter the query instead. With a breakdown, Meta only reports reach for the last 13 months.',
         ),
-        metric(
-            'frequency',
-            'frequency',
-            'Frequency',
-            MetricType.NUMBER,
-            NON_ADDITIVE,
-            'Average times each person saw the ads, estimated by Meta. Depends on reach, so never add or average rows together.',
-            '0.00',
-        ),
+        {
+            ...metric(
+                'frequency',
+                'frequency',
+                'Frequency',
+                MetricType.NUMBER,
+                NON_ADDITIVE,
+                'Average times each person saw the ads, estimated by Meta. Depends on reach, so never add or average rows together.',
+                '0.00',
+            ),
+            core: false,
+        },
         metric(
             'clicks',
             'clicks',
@@ -325,53 +345,54 @@ export const META_ADS_INSIGHTS_EXPLORE: LiveExploreDefinition = {
             ADDITIVE,
             `Leads from websites and Meta forms. ${ATTRIBUTION_NOTE}`,
         ),
-        metric(
-            'landing_page_views',
-            'actions:landing_page_view',
-            'Landing page views',
-            MetricType.SUM,
-            ADDITIVE,
-            `Times a landing page loaded after a link click. ${ATTRIBUTION_NOTE}`,
-        ),
-        metric(
-            'adds_to_cart',
-            'actions:omni_add_to_cart',
-            'Adds to cart',
-            MetricType.SUM,
-            ADDITIVE,
-            `Adds to cart across the website, app and Meta. ${ATTRIBUTION_NOTE}`,
-        ),
-        metric(
-            'checkouts_initiated',
-            'actions:omni_initiated_checkout',
-            'Checkouts initiated',
-            MetricType.SUM,
-            ADDITIVE,
-            `Checkouts started across the website, app and Meta. ${ATTRIBUTION_NOTE}`,
-        ),
-        metric(
-            'registrations_completed',
-            'actions:omni_complete_registration',
-            'Registrations completed',
-            MetricType.SUM,
-            ADDITIVE,
-            `Registrations across the website, app and Meta. ${ATTRIBUTION_NOTE}`,
-        ),
+        {
+            ...metric(
+                'landing_page_views',
+                'actions:landing_page_view',
+                'Landing page views',
+                MetricType.SUM,
+                ADDITIVE,
+                `Times a landing page loaded after a link click. ${ATTRIBUTION_NOTE}`,
+            ),
+            core: false,
+        },
+        {
+            ...metric(
+                'adds_to_cart',
+                'actions:omni_add_to_cart',
+                'Adds to cart',
+                MetricType.SUM,
+                ADDITIVE,
+                `Adds to cart across the website, app and Meta. ${ATTRIBUTION_NOTE}`,
+            ),
+            core: false,
+        },
+        {
+            ...metric(
+                'checkouts_initiated',
+                'actions:omni_initiated_checkout',
+                'Checkouts initiated',
+                MetricType.SUM,
+                ADDITIVE,
+                `Checkouts started across the website, app and Meta. ${ATTRIBUTION_NOTE}`,
+            ),
+            core: false,
+        },
+        {
+            ...metric(
+                'registrations_completed',
+                'actions:omni_complete_registration',
+                'Registrations completed',
+                MetricType.SUM,
+                ADDITIVE,
+                `Registrations across the website, app and Meta. ${ATTRIBUTION_NOTE}`,
+            ),
+            core: false,
+        },
     ],
     maxDimensions: null,
     maxMetrics: null,
     dateRange: { dimension: 'date', defaultDays: 30 },
-    offByDefault: [
-        'campaign_id',
-        'adset_id',
-        'ad_id',
-        'platform_position',
-        'frequency',
-        'landing_page_views',
-        'adds_to_cart',
-        'checkouts_initiated',
-        'registrations_completed',
-    ],
     incompatible: [
         {
             fields: DEMOGRAPHIC_FIELDS,

@@ -93,30 +93,39 @@ export const PYLON_ISSUES_EXPLORE: LiveExploreDefinition = {
             PYLON_VALUE_FILTERS,
             'Where the issue came from, such as slack, email, chat_widget or manual.',
         ),
-        text(
-            'account_name',
-            'Account',
-            PYLON_VALUE_FILTERS,
-            'Name of the customer account the issue belongs to.',
-        ),
+        {
+            ...text(
+                'account_name',
+                'Account',
+                PYLON_VALUE_FILTERS,
+                'Name of the customer account the issue belongs to.',
+            ),
+            core: false,
+        },
         text(
             'account_id',
             'Account ID',
             [...PYLON_VALUE_FILTERS, ...PYLON_SET_FILTERS],
             'Pylon ID of the customer account.',
         ),
-        text(
-            'assignee_email',
-            'Assignee',
-            [...PYLON_VALUE_FILTERS, ...PYLON_SET_FILTERS],
-            'Email of the teammate assigned to the issue.',
-        ),
-        text(
-            'team_id',
-            'Team ID',
-            PYLON_VALUE_FILTERS,
-            'Pylon ID of the team the issue is routed to.',
-        ),
+        {
+            ...text(
+                'assignee_email',
+                'Assignee',
+                [...PYLON_VALUE_FILTERS, ...PYLON_SET_FILTERS],
+                'Email of the teammate assigned to the issue.',
+            ),
+            core: false,
+        },
+        {
+            ...text(
+                'team_id',
+                'Team ID',
+                PYLON_VALUE_FILTERS,
+                'Pylon ID of the team the issue is routed to.',
+            ),
+            core: false,
+        },
         text(
             'tags',
             'Tags',
@@ -148,13 +157,16 @@ export const PYLON_ISSUES_EXPLORE: LiveExploreDefinition = {
             [],
             'Hours from creation to resolution. Empty while open.',
         ),
-        dimension(
-            'touches',
-            'Touches',
-            DimensionType.NUMBER,
-            PYLON_NUMBER_FILTERS,
-            "Pylon's number of touches: replies and actions from the team.",
-        ),
+        {
+            ...dimension(
+                'touches',
+                'Touches',
+                DimensionType.NUMBER,
+                PYLON_NUMBER_FILTERS,
+                "Pylon's number of touches: replies and actions from the team.",
+            ),
+            core: false,
+        },
         dimension(
             'csat_score',
             'CSAT score',
@@ -167,7 +179,6 @@ export const PYLON_ISSUES_EXPLORE: LiveExploreDefinition = {
     maxDimensions: null,
     maxMetrics: null,
     dateRange: { dimension: 'created_at', defaultDays: 30 },
-    offByDefault: ['account_name', 'assignee_email', 'team_id', 'touches'],
     incompatible: [],
 };
 

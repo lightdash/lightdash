@@ -265,24 +265,16 @@ export const applyLiveSourceFieldEdits = ({
 
 /**
  * The edits a source starts curation with. A source built before curation
- * keeps every field it already had in use, so its charts keep working. A new
- * source starts with its integration's core fields: built-in fields listed
- * in `offByDefault` start off, and scanned fields start on only when the
- * integration picks them.
+ * keeps every scanned field it already had in use, so its charts keep working.
+ * A new source starts with its core fields in use: `core ?? isBuiltIn`.
  */
 export const getInitialLiveSourceFieldEdits = (
     args:
+        | { scannedFields: ScannedLiveSourceField[]; isExistingSource: true }
         | {
-              scannedFields: ScannedLiveSourceField[];
-              isExistingSource: true;
-          }
-        | {
-              scannedFields: ScannedLiveSourceField[];
-              isExistingSource: false;
               base: LiveExploreDefinition;
-              isOnByDefault?: (
-                  definition: LiveDimensionDefinition | LiveMetricDefinition,
-              ) => boolean;
+              scannedFields: ScannedLiveSourceField[];
+              isExistingSource: boolean;
           },
 ): LiveSourceFieldEdits => {
     if (args.isExistingSource) {
@@ -293,22 +285,15 @@ export const getInitialLiveSourceFieldEdits = (
             ]),
         );
     }
-    const { base, scannedFields, isOnByDefault } = args;
-    const required = new Set(getRequiredFieldNames(base));
-    return Object.fromEntries([
-        ...(base.offByDefault ?? [])
-            .filter((name) => !required.has(name))
-            .map((name) => [name, { inUse: false, lastEdit: null }]),
-        ...scannedFields
-            .filter(
-                ({ definition, isInternal }) =>
-                    !isInternal && (isOnByDefault?.(definition) ?? false),
-            )
-            .map(({ definition }) => [
-                definition.name,
-                { inUse: true, lastEdit: null },
-            ]),
-    ]);
+    const required = new Set(getRequiredFieldNames(args.base));
+    return Object.fromEntries(
+        resolveFields(args).flatMap(({ definition, isBuiltIn }) => {
+            const inUse = definition.core ?? isBuiltIn;
+            return inUse === isBuiltIn || required.has(definition.name)
+                ? []
+                : [[definition.name, { inUse, lastEdit: null }]];
+        }),
+    );
 };
 
 const MAX_FIELD_TEXT_LENGTH = 2000;

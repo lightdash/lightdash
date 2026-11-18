@@ -136,6 +136,7 @@ export const GA4_REPORT_EXPLORE: LiveExploreDefinition = {
         },
         {
             name: 'date_year',
+            core: false,
             apiName: 'year',
             label: 'Date year',
             type: DimensionType.DATE,
@@ -162,7 +163,15 @@ export const GA4_REPORT_EXPLORE: LiveExploreDefinition = {
             'Device category',
             'desktop, mobile or tablet.',
         ),
-        dimension('platform', 'platform', 'Platform', 'web, Android or iOS.'),
+        {
+            ...dimension(
+                'platform',
+                'platform',
+                'Platform',
+                'web, Android or iOS.',
+            ),
+            core: false,
+        },
         dimension(
             'session_source',
             'sessionSource',
@@ -175,24 +184,30 @@ export const GA4_REPORT_EXPLORE: LiveExploreDefinition = {
             'Session medium',
             'How the session arrived, such as organic, cpc or referral.',
         ),
-        dimension(
-            'session_campaign',
-            'sessionCampaignName',
-            'Session campaign',
-            'Campaign that brought the session, from utm_campaign or Google Ads.',
-        ),
+        {
+            ...dimension(
+                'session_campaign',
+                'sessionCampaignName',
+                'Session campaign',
+                'Campaign that brought the session, from utm_campaign or Google Ads.',
+            ),
+            core: false,
+        },
         dimension(
             'session_default_channel_group',
             'sessionDefaultChannelGroup',
             'Session default channel group',
             "Google's channel for the session, such as Organic Search, Direct or Paid Social.",
         ),
-        dimension(
-            'first_user_source',
-            'firstUserSource',
-            'First user source',
-            'Where the user first came from; differs from the session source for returning users.',
-        ),
+        {
+            ...dimension(
+                'first_user_source',
+                'firstUserSource',
+                'First user source',
+                'Where the user first came from; differs from the session source for returning users.',
+            ),
+            core: false,
+        },
         dimension(
             'landing_page',
             'landingPage',
@@ -217,12 +232,15 @@ export const GA4_REPORT_EXPLORE: LiveExploreDefinition = {
             'New or returning',
             'new for a first visit, returning otherwise.',
         ),
-        dimension(
-            'item_name',
-            'itemName',
-            'Item name',
-            'Item-scoped: only works with item metrics (item revenue, items purchased, items viewed).',
-        ),
+        {
+            ...dimension(
+                'item_name',
+                'itemName',
+                'Item name',
+                'Item-scoped: only works with item metrics (item revenue, items purchased, items viewed).',
+            ),
+            core: false,
+        },
     ],
     metrics: [
         metric(
@@ -281,15 +299,18 @@ export const GA4_REPORT_EXPLORE: LiveExploreDefinition = {
             // the rate can't be rebuilt from summed rows
             NON_ADDITIVE,
         ),
-        metric(
-            'average_session_duration',
-            'averageSessionDuration',
-            'Average session duration (s)',
-            MetricType.AVERAGE,
-            'Average session length, in seconds.',
-            undefined,
-            NON_ADDITIVE,
-        ),
+        {
+            ...metric(
+                'average_session_duration',
+                'averageSessionDuration',
+                'Average session duration (s)',
+                MetricType.AVERAGE,
+                'Average session length, in seconds.',
+                undefined,
+                NON_ADDITIVE,
+            ),
+            core: false,
+        },
         metric(
             'screen_page_views',
             'screenPageViews',
@@ -335,48 +356,46 @@ export const GA4_REPORT_EXPLORE: LiveExploreDefinition = {
             undefined,
             ADDITIVE,
         ),
-        metric(
-            'item_revenue',
-            'itemRevenue',
-            'Item revenue',
-            MetricType.SUM,
-            'Revenue from items sold, in the property currency, excluding tax and shipping.',
-            undefined,
-            ADDITIVE,
-        ),
-        metric(
-            'items_purchased',
-            'itemsPurchased',
-            'Items purchased',
-            MetricType.SUM,
-            'Units of items purchased.',
-            undefined,
-            ADDITIVE,
-        ),
-        metric(
-            'items_viewed',
-            'itemsViewed',
-            'Items viewed',
-            MetricType.SUM,
-            'Times items were viewed.',
-            undefined,
-            ADDITIVE,
-        ),
+        {
+            ...metric(
+                'item_revenue',
+                'itemRevenue',
+                'Item revenue',
+                MetricType.SUM,
+                'Revenue from items sold, in the property currency, excluding tax and shipping.',
+                undefined,
+                ADDITIVE,
+            ),
+            core: false,
+        },
+        {
+            ...metric(
+                'items_purchased',
+                'itemsPurchased',
+                'Items purchased',
+                MetricType.SUM,
+                'Units of items purchased.',
+                undefined,
+                ADDITIVE,
+            ),
+            core: false,
+        },
+        {
+            ...metric(
+                'items_viewed',
+                'itemsViewed',
+                'Items viewed',
+                MetricType.SUM,
+                'Times items were viewed.',
+                undefined,
+                ADDITIVE,
+            ),
+            core: false,
+        },
     ],
     maxDimensions: 9,
     maxMetrics: 10,
     dateRange: { dimension: 'date', defaultDays: 28 },
-    offByDefault: [
-        'date_year',
-        'platform',
-        'session_campaign',
-        'first_user_source',
-        'average_session_duration',
-        'item_name',
-        'item_revenue',
-        'items_purchased',
-        'items_viewed',
-    ],
     incompatible: [
         {
             fields: ITEM_SCOPED_DIMENSIONS,
