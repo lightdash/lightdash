@@ -105,6 +105,7 @@ import {
     type ChartConfig,
     type ChartReference,
     type ChartRegistryEntry,
+    type ChartRegistryIndex,
     type ChartSampleData,
     type ChartTypeIcon,
     type CompiledExploreJoin,
@@ -10851,6 +10852,108 @@ export class AppGenerateService extends BaseService {
             }
         }
         return { installedSlugs: newSlugs };
+    }
+
+    /**
+     * Makes each required chart type usable in the project: installs it when
+     * missing, upgrades only when the installed version is below `minVersion`.
+     * Returns registry slug -> project app slug for the ones that are usable;
+     * a failure for one type omits it and never throws.
+     */
+    async ensureRegistryChartTypes(
+        user: SessionUser,
+        projectUuid: string,
+        requirements: { slug: string; minVersion: string }[],
+    ): Promise<Map<string, string>> {
+        const usable = new Map<string, string>();
+        if (requirements.length === 0) return usable;
+
+        const isCurrent = (
+            version: string | null,
+            minVersion: string,
+        ): boolean => {
+            if (version === null) return false;
+            try {
+                return compareSemverVersions(version, minVersion) >= 0;
+            } catch {
+                return false;
+            }
+        };
+
+        const installed =
+            await this.appModel.listRegistryInstalledApps(projectUuid);
+        const pending: typeof requirements = [];
+        for (const requirement of requirements) {
+            const app = installed.find(
+                (a) => a.registry_slug === requirement.slug,
+            );
+            if (
+                app &&
+                isCurrent(
+                    app.latest_ready_registry_version,
+                    requirement.minVersion,
+                )
+            ) {
+                usable.set(requirement.slug, app.slug);
+            } else {
+                pending.push(requirement);
+            }
+        }
+        if (pending.length === 0 || !this.chartRegistryClient.isEnabled()) {
+            return usable;
+        }
+
+        const { organizationUuid } = await this.assertDataAppAbility(
+            user,
+            'create',
+            projectUuid,
+            'Insufficient permissions to install chart types',
+        );
+        let index: ChartRegistryIndex;
+        try {
+            index = await this.chartRegistryClient.getIndex();
+        } catch (e) {
+            this.logger.warn(
+                `Chart type index unavailable for project ${projectUuid}: ${getErrorMessage(e)}`,
+            );
+            return usable;
+        }
+
+        const ready = new Set<string>();
+        // Sequential: each install downloads and copies a bundle
+        for (const requirement of pending) {
+            const entry = index.charts.find((c) => c.slug === requirement.slug);
+            if (
+                entry &&
+                !AppGenerateService.isRegistryEntryIncompatible(entry) &&
+                isCurrent(entry.version, requirement.minVersion)
+            ) {
+                try {
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.installRegistryEntry(
+                        user,
+                        projectUuid,
+                        organizationUuid,
+                        entry,
+                        {},
+                    );
+                    ready.add(requirement.slug);
+                } catch (e) {
+                    this.logger.warn(
+                        `Chart type "${requirement.slug}" failed to install in project ${projectUuid}: ${getErrorMessage(e)}`,
+                    );
+                }
+            }
+        }
+        if (ready.size > 0) {
+            // The install result carries the registry slug; the app slug can differ.
+            const after =
+                await this.appModel.listRegistryInstalledApps(projectUuid);
+            after
+                .filter((a) => ready.has(a.registry_slug))
+                .forEach((a) => usable.set(a.registry_slug, a.slug));
+        }
+        return usable;
     }
 
     /** Digest mismatches keep their own error; transport failures get a library-facing one. */
