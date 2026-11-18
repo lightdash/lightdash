@@ -198,14 +198,14 @@ export const StudioWorkspacesList: FC<{
                 <Text className={classes.title}>Drafts</Text>
                 <Text className={classes.lede}>
                     {rows.length === 0
-                        ? 'Nothing in flight yet. Ask for a change to get started.'
+                        ? 'No drafts yet. Ask for a change to start one.'
                         : 'Pick up where you and your team left off.'}
                 </Text>
             </header>
             {rows.length === 0 ? (
                 <div className={classes.empty}>
                     <Text fz="sm" fw={500}>
-                        Nothing in flight
+                        No drafts yet
                     </Text>
                     <Text fz="xs" c="dimmed">
                         Start one with New draft, or ask for a change in the
