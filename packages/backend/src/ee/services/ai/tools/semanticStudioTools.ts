@@ -49,10 +49,10 @@ export const getProposeSemanticLayerChange = ({
 }) =>
     tool({
         ...proposeSemanticLayerChangeToolDefinition.for('agent'),
-        execute: async ({ models }) => {
+        execute: async ({ models, changeName }) => {
             try {
-                const { results, diffs, draftChangeUuid } =
-                    await proposeSemanticLayerChange(models);
+                const { results, diffs, draftChangeUuid, startedChange } =
+                    await proposeSemanticLayerChange(models, changeName);
                 const output: ToolProposeSemanticLayerChangeOutput = {
                     result: [
                         ...results.map((result) => {
@@ -72,6 +72,11 @@ export const getProposeSemanticLayerChange = ({
                                     : [],
                             );
                         }),
+                        ...(startedChange
+                            ? [
+                                  `Started change "${startedChange.name}" and checked it out.`,
+                              ]
+                            : []),
                         draftChangeUuid
                             ? "This joined the person's draft and they see its diff. Nothing is live until they publish the draft."
                             : 'Nothing joined the draft.',
@@ -81,6 +86,7 @@ export const getProposeSemanticLayerChange = ({
                         models: results,
                         diffs,
                         draftChangeUuid,
+                        startedChange,
                     },
                     structuredContent: { models: results },
                 };

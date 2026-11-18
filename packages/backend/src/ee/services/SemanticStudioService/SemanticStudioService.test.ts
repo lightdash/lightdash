@@ -513,10 +513,12 @@ const setup = ({
             createCheckedOutDraftChange: async ({
                 workspaceUuid,
                 promptUuid,
+                changeName,
                 models,
                 baseVersions,
             }) => {
                 const draftChangeUuid = `draft-${drafts.length + 1}`;
+                const started = !activeWorkspace;
                 if (!activeWorkspace)
                     activeWorkspace = { threadUuid: 'first', prUrl: null };
                 draftWorkspaces.set(
@@ -531,11 +533,14 @@ const setup = ({
                     models,
                     baseVersions,
                 });
+                const checkedOut =
+                    workspaceUuid ?? workspaceOf(activeWorkspace.threadUuid);
                 return {
                     draftChangeUuid,
-                    workspaceUuid:
-                        workspaceUuid ??
-                        workspaceOf(activeWorkspace.threadUuid),
+                    workspaceUuid: checkedOut,
+                    startedChange: started
+                        ? { workspaceUuid: checkedOut, name: changeName }
+                        : null,
                 };
             },
             updateDraftChangeStatus: async ({
@@ -689,6 +694,7 @@ const draftAndApply = async (
         PROJECT_UUID,
         fragments.map(toDraftModel),
         null,
+        null,
     );
     const { exploreCount } = await context.service.applyDraft(
         deployer,
@@ -707,6 +713,7 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
                 { promptUuid: 'prompt-1', threadUuid: 'thread-1' },
+                null,
             );
             expect(proposal.results[0].status).toBe('ready');
             expect(proposal.draftChangeUuid).toBe('draft-1');
@@ -716,6 +723,40 @@ describe('SemanticStudioService', () => {
             expect(context.upsert).not.toHaveBeenCalled();
         });
 
+        it('names the change an edit on Live starts, and only that one', async () => {
+            const context = setup();
+            const first = await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+                '  Orders revenue  ',
+            );
+            expect(first.startedChange).toEqual({
+                workspaceUuid: 'workspace-first',
+                name: 'Orders revenue',
+            });
+            const second = await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel('label: Orders\n')],
+                null,
+                'Ignored',
+            );
+            expect(second.startedChange).toBeNull();
+        });
+
+        it('calls a change started without a name Untitled change', async () => {
+            const { startedChange } = await setup().service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+                ' ',
+            );
+            expect(startedChange?.name).toBe('Untitled change');
+        });
+
         it('builds on what is already in the draft', async () => {
             const context = setup();
             await context.service.proposeDraftChange(
@@ -723,11 +764,13 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
                 null,
+                null,
             );
             const second = await context.service.proposeDraftChange(
                 deployer,
                 PROJECT_UUID,
                 [draftModel('label: Orders\n')],
+                null,
                 null,
             );
             expect(second.results).toHaveLength(1);
@@ -747,6 +790,7 @@ describe('SemanticStudioService', () => {
                     ),
                 ],
                 null,
+                null,
             );
             expect(results[0].changes).toEqual([
                 { path: 'dimensions.amount.sql', action: 'redefined' },
@@ -760,6 +804,7 @@ describe('SemanticStudioService', () => {
                 deployer,
                 PROJECT_UUID,
                 [draftModel(null, { remove: ['dimensions.customer_id'] })],
+                null,
                 null,
             );
             expect(results[0].changes).toEqual([
@@ -783,6 +828,7 @@ describe('SemanticStudioService', () => {
                 deployer,
                 PROJECT_UUID,
                 [draftModel(null, { name: 'customers', removeModel: true })],
+                null,
                 null,
             );
             expect(removal.diffs[0].contentAfter).toBeNull();
@@ -820,6 +866,7 @@ describe('SemanticStudioService', () => {
                         }),
                     ],
                     null,
+                    null,
                 );
             expect(results[0].status).toBe('failed');
             expect(results[0].error).toContain('This would break orders');
@@ -838,6 +885,7 @@ describe('SemanticStudioService', () => {
                         ),
                     ],
                     null,
+                    null,
                 );
             expect(results[0].refusals[0].reason).toBe('access');
             expect(draftChangeUuid).toBeNull();
@@ -850,6 +898,7 @@ describe('SemanticStudioService', () => {
                     deployer,
                     PROJECT_UUID,
                     [draftModel(REVENUE_YAML)],
+                    null,
                     null,
                 );
             expect(results[0].status).toBe('failed');
@@ -865,6 +914,7 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [draftModel('- not a mapping')],
                 null,
+                null,
             );
             expect(results[0].status).toBe('failed');
             expect(context.drafts).toEqual([]);
@@ -876,6 +926,7 @@ describe('SemanticStudioService', () => {
                     viewer,
                     PROJECT_UUID,
                     [draftModel(REVENUE_YAML)],
+                    null,
                     null,
                 ),
             ).rejects.toThrow();
@@ -889,6 +940,7 @@ describe('SemanticStudioService', () => {
                 deployer,
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
+                null,
                 null,
             );
             const draft = await context.service.getDraft(
@@ -910,6 +962,7 @@ describe('SemanticStudioService', () => {
                 deployer,
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
+                null,
                 null,
             );
             expect(
@@ -959,6 +1012,7 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [dropCustomerId],
                 null,
+                null,
             );
             expect(context.queueImpactCheck).toHaveBeenCalledTimes(1);
             expect(await impact(context, null)).toEqual({
@@ -980,6 +1034,7 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
                 null,
+                null,
             );
             expect(context.queueImpactCheck).toHaveBeenCalledTimes(2);
             expect((await impact(context, null)).status).toBe('checking');
@@ -991,6 +1046,7 @@ describe('SemanticStudioService', () => {
                 deployer,
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
+                null,
                 null,
             );
             expect(context.queueImpactCheck).not.toHaveBeenCalled();
@@ -1015,6 +1071,7 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [dropCustomerId, toDraftModel(customers)],
                 null,
+                null,
             );
             await context.runImpactCheck();
             expect((await impact(context, 'orders')).breaks).toEqual([
@@ -1035,6 +1092,7 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
                 null,
+                null,
             );
             context.generateValidation.mockRejectedValueOnce(
                 new Error('validator down'),
@@ -1051,6 +1109,7 @@ describe('SemanticStudioService', () => {
                 deployer,
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
+                null,
                 null,
             );
             expect(
@@ -1081,6 +1140,7 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
                 null,
+                null,
             );
             const explores = await context.service.findDevelopmentExplores(
                 deployer,
@@ -1101,6 +1161,7 @@ describe('SemanticStudioService', () => {
                 deployer,
                 PROJECT_UUID,
                 [draftModel(null, { removeModel: true })],
+                null,
                 null,
             );
             expect(
@@ -1395,11 +1456,13 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
                 null,
+                null,
             );
             await context.service.proposeDraftChange(
                 deployer,
                 PROJECT_UUID,
                 [draftModel('label: Orders\n')],
+                null,
                 null,
             );
             const order = () =>
@@ -1460,6 +1523,7 @@ describe('SemanticStudioService', () => {
                     ),
                 ],
                 null,
+                null,
             );
             const usage = await context.service.getDraftUsage(
                 deployer,
@@ -1512,6 +1576,7 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
                 null,
+                null,
             );
             const draft = await context.service.getDraft(
                 deployer,
@@ -1533,6 +1598,7 @@ describe('SemanticStudioService', () => {
                 deployer,
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
+                null,
                 null,
             );
             return context;
@@ -1645,6 +1711,7 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [draftModel('label: Sales\n')],
                 null,
+                null,
             );
             context.drafts[0].baseVersions = { orders: 0 };
             expect((await reconciliationOf(context))?.state).toBe('conflict');
@@ -1688,6 +1755,7 @@ describe('SemanticStudioService', () => {
                 deployer,
                 PROJECT_UUID,
                 [draftModel('label: Sales\n')],
+                null,
                 null,
             );
             context.drafts[0].baseVersions = { orders: 0 };
@@ -1749,12 +1817,14 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
                 { promptUuid: 'prompt-1', threadUuid: 'thread-1' },
+                null,
             );
             await context.service.proposeDraftChange(
                 deployer,
                 PROJECT_UUID,
                 [draftModel('label: Orders\n')],
                 { promptUuid: 'prompt-2', threadUuid: 'thread-1' },
+                null,
             );
             const outcome = await context.service.applyDraft(
                 deployer,
@@ -1780,6 +1850,7 @@ describe('SemanticStudioService', () => {
                 deployer,
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
+                null,
                 null,
             );
             context.draftWorkspaces.set(
@@ -1905,6 +1976,7 @@ describe('SemanticStudioService', () => {
                 deployer,
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
+                null,
                 null,
             );
             await context.service.discardDraft(deployer, PROJECT_UUID, {
@@ -2107,6 +2179,7 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [draftModel(yaml)],
                 { promptUuid: `prompt-${threadUuid}`, threadUuid },
+                null,
             );
         };
         const draftedQuestions = async (context: ReturnType<typeof setup>) =>
@@ -2221,6 +2294,7 @@ describe('SemanticStudioService', () => {
                 deployer,
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
+                null,
                 null,
             );
             await context.service.discardDraft(deployer, PROJECT_UUID, {
@@ -2408,6 +2482,7 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [toDraftModel(customers)],
                 null,
+                null,
             );
         await expect(propose(setup(), viewer)).rejects.toThrow(ForbiddenError);
         await expect(
@@ -2583,6 +2658,7 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
                 null,
+                null,
             );
             const outcome = await context.service.applyDraft(
                 repoWriter,
@@ -2609,6 +2685,7 @@ describe('SemanticStudioService', () => {
                 repoWriter,
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
+                null,
                 null,
             );
             await context.service.applyDraft(repoWriter, PROJECT_UUID, null);

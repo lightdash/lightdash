@@ -591,7 +591,8 @@ export class ProjectModelDocumentModel {
     }
 
     async createCheckedOutDraftChange(
-        input: NewDraftChange,
+        /** `changeName` names the change this starts when the person is on Live. */
+        input: NewDraftChange & { changeName: string },
         organizationUuid: string,
     ) {
         return this.database.transaction(async (trx) => {
@@ -619,20 +620,23 @@ export class ProjectModelDocumentModel {
                             project_uuid: input.projectUuid,
                             created_by_user_uuid: input.userUuid,
                             ai_thread_uuid: null,
-                            name: `Edit ${input.models[0].name} model`.slice(
-                                0,
-                                120,
-                            ),
+                            name: input.changeName,
                             is_active: true,
                         })
-                        .returning('semantic_studio_workspace_uuid')
+                        .returning(['semantic_studio_workspace_uuid', 'name'])
                 )[0];
             const workspaceUuid = workspace.semantic_studio_workspace_uuid;
             const draftChangeUuid = await this.createDraftChange(
                 { ...input, workspaceUuid },
                 trx,
             );
-            return { workspaceUuid, draftChangeUuid };
+            return {
+                workspaceUuid,
+                draftChangeUuid,
+                startedChange: active
+                    ? null
+                    : { workspaceUuid, name: workspace.name },
+            };
         });
     }
 

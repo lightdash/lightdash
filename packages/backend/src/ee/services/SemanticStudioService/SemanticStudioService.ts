@@ -218,6 +218,8 @@ export type SemanticLayerDraftProposal = {
     }[];
     /** Null when nothing passed. */
     draftChangeUuid: string | null;
+    /** The change this started because the person was on Live; null otherwise. */
+    startedChange: { workspaceUuid: string; name: string } | null;
 };
 
 /** A person's draft, replayed on what is live. */
@@ -718,6 +720,8 @@ export class SemanticStudioService extends BaseService {
         models: SemanticLayerDraftModelInput[],
         /** The question asking for it; null when none did. */
         prompt: { promptUuid: string; threadUuid: string } | null,
+        /** Names the change this starts when the person is on Live. */
+        changeName: string | null,
     ): Promise<SemanticLayerDraftProposal> {
         await this.assertCanEditModels(user, projectUuid);
         const owner = await this.findDraftOwner(projectUuid, user.userUuid);
@@ -744,14 +748,22 @@ export class SemanticStudioService extends BaseService {
             (_model, index) => results[index].status === 'ready',
         );
         if (passing.length === 0) {
-            return { results, diffs: [], draftChangeUuid: null };
+            return {
+                results,
+                diffs: [],
+                draftChangeUuid: null,
+                startedChange: null,
+            };
         }
         const before = withWrites(draft.live, draft.writes);
-        const { draftChangeUuid, workspaceUuid } =
+        const { draftChangeUuid, workspaceUuid, startedChange } =
             await this.projectModelDocumentModel.createCheckedOutDraftChange(
                 {
                     ...owner,
                     promptUuid: prompt?.promptUuid ?? null,
+                    changeName:
+                        changeName?.trim().slice(0, 120) ||
+                        UNTITLED_WORKSPACE_NAME,
                     models: passing,
                     // A repository has commits, not versions.
                     baseVersions: draft.repo
@@ -780,6 +792,7 @@ export class SemanticStudioService extends BaseService {
                 }),
             ),
             draftChangeUuid,
+            startedChange,
         };
     }
 
@@ -1345,6 +1358,7 @@ export class SemanticStudioService extends BaseService {
                 {
                     ...owner,
                     promptUuid: null,
+                    changeName: UNTITLED_WORKSPACE_NAME,
                     models: [
                         {
                             name: model,

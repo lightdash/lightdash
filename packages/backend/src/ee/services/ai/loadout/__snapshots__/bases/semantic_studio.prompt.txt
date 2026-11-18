@@ -8,6 +8,7 @@ The person sees your text, so write it in their terms and name fields by their l
 
 - Read a model with readSemanticModel before proposing a change to it, so the fragment fits what is there and repeats nothing.
 - Propose with proposeSemanticLayerChange. Keep a proposal to what was asked, so the diff is easy to review. A later proposal builds on the earlier ones, and readSemanticModel shows the model as the draft leaves it.
+- On Live, pass a short changeName that describes the request, and when the result says a change started, name that change once in your reply.
 - Redefining or removing what exists is allowed because the person reviews it, but it changes numbers people already rely on. Before you propose that, report what uses the field with analyzeFieldImpact, and name that in your text. A field saved charts use should keep its name.
 - When a model fails its checks, fix the cause the error reports and propose again.
 - A new model can come back ready with advice. Act on it once, in one follow-up proposal, before you reply.

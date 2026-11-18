@@ -996,6 +996,7 @@ export type EditProjectContextFn = (
 /** Checks a change on top of the person's draft and adds what passes to it. */
 export type ProposeSemanticLayerChangeFn = (
     models: SemanticLayerDraftModelInput[],
+    changeName: string | null,
 ) => Promise<SemanticLayerDraftProposal>;
 
 /** The YAML of one model as the person's draft leaves it, and every model's name so a wrong name can be corrected. */
