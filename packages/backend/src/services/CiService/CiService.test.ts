@@ -119,6 +119,13 @@ const userWithManageSourceCode: SessionUser = {
     ]),
 };
 
+const userWithProtectedBranch: SessionUser = {
+    ...userWithSourceCode,
+    ability: new Ability<PossibleAbilities>([
+        { subject: 'SourceCode', action: ['view', 'manage'] },
+    ]),
+};
+
 describe('CiService.mergePullRequest', () => {
     const mergePullRequest = vi
         .fn()
@@ -159,12 +166,27 @@ describe('CiService.mergePullRequest', () => {
         expect(mergePullRequest).not.toHaveBeenCalled();
     });
 
-    it('refuses to merge a PR that points at a different repo', async () => {
+    it('refuses a merge from someone who can only write to other branches', async () => {
         const service = buildService('lightdash/lightdash');
 
         await expect(
             service.mergePullRequest({
                 user: userWithManageSourceCode,
+                projectUuid,
+                prUrl: 'https://github.com/lightdash/lightdash/pull/42',
+            }),
+        ).rejects.toThrow(
+            "You don't have permission to write to this project's branch",
+        );
+        expect(mergePullRequest).not.toHaveBeenCalled();
+    });
+
+    it('refuses to merge a PR that points at a different repo', async () => {
+        const service = buildService('lightdash/lightdash');
+
+        await expect(
+            service.mergePullRequest({
+                user: userWithProtectedBranch,
                 projectUuid,
                 prUrl: 'https://github.com/attacker/secret-repo/pull/1',
             }),
@@ -176,7 +198,7 @@ describe('CiService.mergePullRequest', () => {
         const service = buildService('lightdash/lightdash');
 
         const result = await service.mergePullRequest({
-            user: userWithManageSourceCode,
+            user: userWithProtectedBranch,
             projectUuid,
             prUrl: 'https://github.com/Lightdash/Lightdash/pull/42',
             sha: 'head-sha',
