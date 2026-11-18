@@ -142,6 +142,8 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         description:
                             'Response P95 includes observed backend response time, not browser rendering. Older events can lack timing; null is unknown, not instant.',
                         charts: ['slow-dashboards-tail-latency-and-demand'],
+                        layout: 'row',
+                        rowHeight: 9,
                     },
                     {
                         title: 'Failures',
@@ -159,13 +161,20 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         title: 'Workload origins',
                         description:
                             'Origin and actor metadata distinguish workloads where captured; historical unknown values are retained.',
-                        charts: ['query-origin-and-initiating-actor'],
+                        charts: [
+                            'query-flow-origin-to-context',
+                            'query-origin-and-initiating-actor',
+                        ],
+                        layout: 'row',
+                        rowHeight: 10,
                     },
                     {
                         title: 'Caching',
                         description:
                             'Compare warehouse execution and recorded cache use. Cache savings and warehouse currency costs are not captured.',
                         charts: ['warehouse-versus-cached-demand'],
+                        layout: 'row',
+                        rowHeight: 7,
                     },
                 ],
             },
@@ -177,7 +186,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         title: 'Most-used fields',
                         description:
                             'Metrics and dimensions referenced by queries, including filters and sorting. Each query counts once per field, including cached and failed attempts. Counts across fields overlap; absence here does not prove a field is unused.',
-                        charts: ['most-used-fields'],
+                        charts: ['most-used-fields-cloud', 'most-used-fields'],
                     },
                     {
                         title: 'People and content',

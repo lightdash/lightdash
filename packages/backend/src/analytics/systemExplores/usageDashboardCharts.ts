@@ -124,6 +124,48 @@ export const usageChartSpecs: UsageChartSpec[] = [
         sorts: [{ fieldId: 'semantic_usage_total_queries', descending: true }],
     },
     {
+        key: 'most-used-fields-cloud',
+        name: 'Most-used fields at a glance',
+        description:
+            'Fields sized by distinct query attempts over the selected period. Names are those captured at execution; a renamed label can appear separately.',
+        explore: 'semantic_usage',
+        dimensions: ['semantic_usage_field_label'],
+        metrics: ['semantic_usage_total_queries'],
+        filters: [
+            {
+                field: 'semantic_usage_field_kind',
+                values: ['metric', 'dimension'],
+            },
+        ],
+        limit: 20,
+        sorts: [{ fieldId: 'semantic_usage_total_queries', descending: true }],
+        visualization: 'bar',
+        xField: 'semantic_usage_field_label',
+        flipAxes: true,
+        libraryChart: {
+            slug: 'word-cloud',
+            minVersion: '0.4.0',
+            fieldMapping: {
+                word: 'semantic_usage_field_label',
+                size: 'semantic_usage_total_queries',
+            },
+            optionValues: { showLegend: false },
+            query: {
+                dimensions: ['semantic_usage_field_label'],
+                metrics: ['semantic_usage_total_queries'],
+                sorts: [
+                    {
+                        fieldId: 'semantic_usage_total_queries',
+                        descending: true,
+                    },
+                ],
+                limit: 80,
+                description:
+                    'Fields sized by distinct query attempts over the selected period. Names are those captured at execution; a renamed label can appear separately.',
+            },
+        },
+    },
+    {
         key: 'people-using-fields',
         name: 'Who uses each metric and dimension?',
         description:
@@ -1264,6 +1306,33 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
     },
     {
+        key: 'query-flow-origin-to-context',
+        name: 'Where do queries come from?',
+        description:
+            'Queries flowing from each workload origin to the context that ran them, over the selected period.',
+        explore: 'query_events',
+        dimensions: ['query_events_workload_origin', 'query_events_context'],
+        metrics: ['query_events_total_queries'],
+        limit: 200,
+        sorts: [
+            {
+                descending: true,
+                fieldId: 'query_events_total_queries',
+            },
+        ],
+        libraryChart: {
+            slug: 'chord-diagram',
+            minVersion: '0.2.0',
+            fieldMapping: {
+                source: 'query_events_workload_origin',
+                target: 'query_events_context',
+                value: 'query_events_total_queries',
+            },
+            optionValues: { totalLabel: 'Queries' },
+            query: null,
+        },
+    },
+    {
         key: 'query-origin-and-initiating-actor',
         name: 'Query origin and initiating actor',
         description:
@@ -1388,6 +1457,25 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 fieldId: 'query_events_p95_response_time_ms',
             },
         ],
+        libraryChart: {
+            slug: 'customizable-cartesian-chart',
+            minVersion: '0.17.0',
+            fieldMapping: {
+                x: 'query_events_dashboard_name',
+                m1: 'query_events_total_queries',
+                m2: 'query_events_p95_response_time_ms',
+            },
+            optionValues: {
+                seriesType: 'bar',
+                m2Type: 'scatter',
+                dualAxis: true,
+                m2Right: true,
+                xAxisType: 'category',
+                xLabelAutoRotate: false,
+                xLabelRotate: 45,
+            },
+            query: null,
+        },
     },
     {
         key: 'verified-content-audience-share',
@@ -1421,6 +1509,21 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 fieldId: 'query_events_total_queries',
             },
         ],
+        libraryChart: {
+            slug: 'customizable-cartesian-chart',
+            minVersion: '0.17.0',
+            fieldMapping: {
+                x: 'query_events_execution_source',
+                m1: 'query_events_total_queries',
+                splitBy: 'query_events_cache_hit',
+            },
+            optionValues: {
+                seriesType: 'bar',
+                stack: 'normal',
+                xAxisType: 'category',
+            },
+            query: null,
+        },
     },
     {
         key: 'who-visited-which-dashboard',

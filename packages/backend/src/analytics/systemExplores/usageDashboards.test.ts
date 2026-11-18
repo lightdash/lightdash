@@ -810,6 +810,95 @@ describe('built-in usage dashboards', () => {
         );
     });
 
+    it('lists the Queries sub-tab charts in order with their fallback types', () => {
+        const { dashboard, charts: queryCharts } = analyticsContentAsCode.find(
+            ({ dashboard: item }) =>
+                item.slug === 'lightdash-analytics-query-activity',
+        )!;
+        const prefix = 'lightdash-analytics-query-activity-';
+        const slugs = (tabSlug: string) =>
+            dashboard.tiles
+                .filter(
+                    (tile) =>
+                        tile.type === DashboardTileTypes.SAVED_CHART &&
+                        tile.tabSlug === tabSlug,
+                )
+                .map(
+                    (tile) =>
+                        (tile.properties as { chartSlug: string }).chartSlug,
+                );
+        expect(slugs('origins')).toEqual(
+            [
+                'query-flow-origin-to-context',
+                'query-origin-and-initiating-actor',
+                'warehouse-versus-cached-demand',
+            ].map((key) => `${prefix}${key}`),
+        );
+        expect(slugs('fields')).toEqual(
+            [
+                'most-used-fields-cloud',
+                'most-used-fields',
+                'people-using-fields',
+                'content-using-fields',
+                'field-capture-coverage',
+            ].map((key) => `${prefix}${key}`),
+        );
+        const fallbackType = (key: string) =>
+            queryCharts.find(({ slug }) => slug === `${prefix}${key}`)!
+                .chartConfig.type;
+        expect(fallbackType('query-flow-origin-to-context')).toBe(
+            ChartType.TABLE,
+        );
+        expect(fallbackType('most-used-fields-cloud')).toBe(
+            ChartType.CARTESIAN,
+        );
+        const cloud = queryCharts.find(
+            ({ slug }) => slug === `${prefix}most-used-fields-cloud`,
+        )!;
+        expect(cloud.metricQuery.limit).toBe(20);
+        expect(cloud.metricQuery.dimensions).toEqual([
+            'semantic_usage_field_label',
+        ]);
+    });
+
+    it('lays the Queries sections out as explicit rows', () => {
+        const { dashboard } = analyticsContentAsCode.find(
+            ({ dashboard: item }) =>
+                item.slug === 'lightdash-analytics-query-activity',
+        )!;
+        const tile = (tabSlug: string, key: string) =>
+            dashboard.tiles.find(
+                (item) =>
+                    item.type === DashboardTileTypes.SAVED_CHART &&
+                    item.tabSlug === tabSlug &&
+                    (item.properties as { chartSlug: string }).chartSlug ===
+                        `lightdash-analytics-query-activity-${key}`,
+            )!;
+        const slow = tile('latency', 'slow-dashboards-tail-latency-and-demand');
+        expect([slow.x, slow.w, slow.h]).toEqual([0, 36, 9]);
+        const [flow, origin] = [
+            'query-flow-origin-to-context',
+            'query-origin-and-initiating-actor',
+        ].map((key) => tile('origins', key));
+        expect([flow.x, origin.x, flow.w, origin.w, flow.h, origin.h]).toEqual([
+            0, 18, 18, 18, 10, 10,
+        ]);
+        expect(flow.y).toBe(origin.y);
+        const cached = tile('origins', 'warehouse-versus-cached-demand');
+        expect([cached.x, cached.w, cached.h]).toEqual([0, 36, 7]);
+    });
+
+    it('leaves the query calendar chart unchanged', () => {
+        const { charts: queryCharts } = analyticsContentAsCode.find(
+            ({ dashboard: item }) =>
+                item.slug === 'lightdash-analytics-query-activity',
+        )!;
+        const calendar = queryCharts.find(({ slug }) =>
+            slug.endsWith('-query-calendar'),
+        )!;
+        expect(analyticsLibraryChartBindings.has(calendar.slug)).toBe(false);
+    });
+
     it('keeps tile geometry for sections without a layout hint', () => {
         const { dashboard } = analyticsContentAsCode.find(
             ({ dashboard: item }) =>
