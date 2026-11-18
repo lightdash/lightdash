@@ -327,7 +327,7 @@ export type SemanticStudioWorkspace = {
     workspaceUuid: string;
     projectUuid: string;
     name: string;
-    threadUuid: string;
+    threadUuid: string | null;
     agentUuid: string | null;
     owner: { userUuid: string; name: string };
     isMine: boolean;
@@ -359,7 +359,7 @@ export type ApiSemanticStudioWorkspaceResponse =
     ApiSuccess<SemanticStudioWorkspace>;
 
 export type SemanticStudioWorkspaceStartBody = {
-    threadUuid: string;
+    threadUuid: string | null;
     name: string;
 };
 

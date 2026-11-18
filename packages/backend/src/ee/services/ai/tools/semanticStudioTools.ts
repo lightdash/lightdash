@@ -1,7 +1,9 @@
 import {
+    listChangesToolDefinition,
     proposeSemanticLayerChangeToolDefinition,
     readSemanticModelToolDefinition,
     type SemanticLayerDraftItemResult,
+    type StudioChangeSummary,
     type ToolProposeSemanticLayerChangeOutput,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -120,6 +122,25 @@ export const getReadSemanticModel = ({
                     error,
                     'Error reading the semantic model.',
                 );
+            }
+        },
+    });
+
+export const getListChanges = (
+    listChanges: () => Promise<StudioChangeSummary[]>,
+) =>
+    tool({
+        ...listChangesToolDefinition.for('agent'),
+        execute: async () => {
+            try {
+                const changes = await listChanges();
+                return {
+                    result: JSON.stringify(changes),
+                    structuredContent: { changes },
+                    metadata: { status: 'success' as const },
+                };
+            } catch (error) {
+                return toolErrorOutput(error, 'Error listing your changes.');
             }
         },
     });

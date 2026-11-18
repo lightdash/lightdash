@@ -156,6 +156,7 @@ import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import {
+    getListChanges,
     getProposeSemanticLayerChange,
     getReadSemanticModel,
 } from '../tools/semanticStudioTools';
@@ -2182,6 +2183,7 @@ export const getAgentTools = (
                 proposeSemanticLayerChange:
                     dependencies.proposeSemanticLayerChange,
             }),
+        listChanges: () => getListChanges(dependencies.listChanges),
         readSemanticModel: () =>
             getReadSemanticModel({
                 readSemanticModel: dependencies.readSemanticModel,

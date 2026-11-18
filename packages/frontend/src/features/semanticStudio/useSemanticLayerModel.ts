@@ -154,6 +154,9 @@ export const useDraftFreshness = (projectUuid: string) => {
         seen.current = fingerprint;
         // The first value is what the draft on screen was already read against.
         if (previous === null || previous === fingerprint) return;
+        void queryClient.invalidateQueries({
+            queryKey: ['semantic-studio-workspaces', projectUuid],
+        });
         // A read already under way, as after a write here, sees the change.
         if (queryClient.isFetching({ queryKey: [DRAFT_KEY, projectUuid] }))
             return;

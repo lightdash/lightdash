@@ -36,7 +36,6 @@ import {
     PIERRE_POOL_OPTIONS,
 } from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
 import { TryIt } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/TryItButton';
-import { useFinishDiscardedWork } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import useToaster from '../../hooks/toaster/useToaster';
 import { ChangeDiff } from './ChangeDiff';
 import { DevelopmentBar } from './DevelopmentBar';
@@ -475,7 +474,6 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const [isTrying, setIsTrying] = useState(false);
     const discard = useDiscardSemanticLayerDraft(projectUuid);
     const asPullRequest = useAppliesAsPullRequest(projectUuid);
-    const finishDiscardedWork = useFinishDiscardedWork(projectUuid);
     const impact = useSemanticLayerDraftImpact(projectUuid, null);
     const check = useCheckSemanticLayerDraftImpact(projectUuid);
     const isEmpty = !draft || draft.changes.length === 0;
@@ -607,7 +605,6 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                             discard.mutate(null, {
                                 onSuccess: () => {
                                     setDiscarding(false);
-                                    finishDiscardedWork();
                                 },
                             })
                         }
