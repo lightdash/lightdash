@@ -168,13 +168,17 @@ describe('version history agent identity', () => {
                 agentIdentityEnabled: true,
             });
             const restore = () =>
-                dashboardService.rollback(user, dashboard.uuid, 'old-version');
+                dashboardService.rollback(
+                    fromSession(user),
+                    dashboard.uuid,
+                    'old-version',
+                );
             if (agent) await agentExecutionContext.run(context, restore);
             else await restore();
             expect(dashboardModel.addVersion).toHaveBeenCalledWith(
                 dashboard.uuid,
                 expect.anything(),
-                user,
+                expect.objectContaining({ userUuid: user.userUuid }),
                 dashboard.projectUuid,
                 'transaction',
                 agent ? context.claim : null,
@@ -289,7 +293,11 @@ describe('version history agent identity', () => {
                 agentIdentityEnabled: true,
             });
             const restore = () =>
-                dashboardService.rollback(user, dashboard.uuid, 'old-version');
+                dashboardService.rollback(
+                    fromSession(user),
+                    dashboard.uuid,
+                    'old-version',
+                );
             if (agent) await agentExecutionContext.run(context, restore);
             else await restore();
             expect(
@@ -297,7 +305,7 @@ describe('version history agent identity', () => {
             ).toHaveBeenCalledWith(
                 chart.uuid,
                 dashboard.updatedAt,
-                user,
+                expect.objectContaining({ userUuid: user.userUuid }),
                 'transaction',
                 agent ? context.claim : null,
             );

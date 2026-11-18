@@ -278,11 +278,7 @@ export class DashboardController extends BaseController {
         this.setStatus(200);
         await this.services
             .getDashboardService()
-            .rollback(
-                toSessionUser(req.account),
-                dashboardUuidOrSlug,
-                versionUuid,
-            );
+            .rollback(req.account, dashboardUuidOrSlug, versionUuid);
         return {
             status: 'ok',
             results: undefined,
