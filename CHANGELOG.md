@@ -1,3 +1,10 @@
+# [3.302.0](https://github.com/lightdash/lightdash/compare/3.301.2...3.302.0) (2026-11-18)
+
+
+### Features
+
+* attribute embedded analytics to viewers and tenants ([#32751](https://github.com/lightdash/lightdash/issues/32751)) ([27fe137](https://github.com/lightdash/lightdash/commit/27fe137748b55b0ba05353e6e353dca1a57a635f))
+
 ## [3.301.2](https://github.com/lightdash/lightdash/compare/3.301.1...3.301.2) (2026-11-18)
 
 

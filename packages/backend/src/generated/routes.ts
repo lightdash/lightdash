@@ -18581,6 +18581,12 @@ const models: TsoaRoute.Models = {
                         email: { dataType: 'string' },
                     },
                 },
+                usageAnalytics: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        tenantAttribute: { dataType: 'string', required: true },
+                    },
+                },
                 userAttributes: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {},
