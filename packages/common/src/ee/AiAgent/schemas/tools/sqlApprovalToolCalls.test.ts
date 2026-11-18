@@ -168,6 +168,15 @@ describe('composer chart creates', () => {
         expect(getSqlApprovalSql(fromJson)).toBe('-- raw\nselect 1');
     });
 
+    it('reads only the SQL the pipeline saves, not a stray sql field', () => {
+        const withStraySql = {
+            ...fromJson,
+            sql: 'select 0',
+            content: { ...fromJson.content, sql: 'select 0' },
+        };
+        expect(getSqlApprovalSql(withStraySql)).toBe('-- raw\nselect 1');
+    });
+
     it('asks nothing for a query node, whose SQL was approved when it ran', () => {
         const fromNode = {
             type: 'composer_chart',

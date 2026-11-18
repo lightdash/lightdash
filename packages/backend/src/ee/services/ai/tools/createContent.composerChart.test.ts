@@ -32,13 +32,14 @@ const fromJson = {
     chart: {},
 };
 
-// Asks for approval when given a step, as the content service does, then saves.
+// Like the content service: JSON SQL needs an approval step, then it saves.
 const makeTool = (
     sqlChartSaving: Parameters<typeof getCreateContent>[0]['sqlChartSaving'],
 ) => {
     const save = vi.fn();
     const createContent = vi.fn<CreateContentFn>(async (args) => {
-        if (args.type === 'composer_chart' && args.approveSql) {
+        if (args.type === 'composer_chart' && args.content.from === 'json') {
+            if (!args.approveSql) throw new Error('SQL mode is off');
             await args.approveSql({
                 sql: 'select 1',
                 chartName: args.content.name,
@@ -62,10 +63,13 @@ const makeTool = (
         sqlChartSaving,
     });
     const create = (content: unknown) =>
-        tool.execute!(
-            { type: 'composer_chart', content } as never,
-            { messages: [], toolCallId: 'call', context: {} },
-        ) as unknown as Promise<{ metadata: { status: string; slug?: string } }>;
+        tool.execute!({ type: 'composer_chart', content } as never, {
+            messages: [],
+            toolCallId: 'call',
+            context: {},
+        }) as unknown as Promise<{
+            metadata: { status: string; slug?: string };
+        }>;
     return { create, save };
 };
 
@@ -96,7 +100,10 @@ describe('createContent composer_chart', () => {
     it('refuses content that mixes a node with a pipeline, saving nothing', async () => {
         const { create, save } = makeTool({ mode: 'client_approved' });
 
-        const output = await create({ ...fromNode, pipeline: fromJson.pipeline });
+        const output = await create({
+            ...fromNode,
+            pipeline: fromJson.pipeline,
+        });
 
         expect(output.metadata.status).toBe('error');
         expect(save).not.toHaveBeenCalled();

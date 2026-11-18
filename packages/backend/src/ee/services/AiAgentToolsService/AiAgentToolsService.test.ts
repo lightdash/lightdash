@@ -5033,6 +5033,8 @@ describe('AiAgentToolsService createContent composer_chart', () => {
             name: 'Amount by status',
         });
         const update = vi.fn().mockResolvedValue(salesDashboard);
+        const getDashboard = vi.fn().mockResolvedValue(salesDashboard);
+        const preflightCreate = vi.fn().mockResolvedValue(undefined);
         const listComposerQueryNodes = vi
             .fn()
             .mockResolvedValue([rawNode, shapedNode]);
@@ -5042,10 +5044,7 @@ describe('AiAgentToolsService createContent composer_chart', () => {
             { reference: 'amount', type: 'number' },
         ]);
         const service = makeService({
-            dashboardService: {
-                getByIdOrSlug: vi.fn().mockResolvedValue(salesDashboard),
-                update,
-            },
+            dashboardService: { getByIdOrSlug: getDashboard, update },
             dashboardModel: {
                 getByIdOrSlug: vi.fn().mockResolvedValue({
                     uuid: 'bound-uuid',
@@ -5066,7 +5065,7 @@ describe('AiAgentToolsService createContent composer_chart', () => {
             },
             composerChartService: {
                 isEnabled: vi.fn().mockResolvedValue(true),
-                preflightPipeline: vi.fn().mockResolvedValue(undefined),
+                preflightCreate,
                 create,
             },
             aiAgentModel: {
@@ -5086,7 +5085,14 @@ describe('AiAgentToolsService createContent composer_chart', () => {
                           threadUuid: 'thread-uuid',
                       }),
                   );
-        return { runtime, create, update, listComposerQueryNodes };
+        return {
+            runtime,
+            create,
+            update,
+            getDashboard,
+            preflightCreate,
+            listComposerQueryNodes,
+        };
     };
 
     it('saves a query node with the nodes it reads, then adds its tile below the first tab, asking no approval', async () => {
@@ -5106,7 +5112,9 @@ describe('AiAgentToolsService createContent composer_chart', () => {
             pipeline: { terminalNodeId: 'shaped' },
         });
         expect(
-            saved.pipeline.nodes.map(({ nodeId }: { nodeId: string }) => nodeId),
+            saved.pipeline.nodes.map(
+                ({ nodeId }: { nodeId: string }) => nodeId,
+            ),
         ).toEqual(['raw', 'shaped']);
         expect(approveSql).not.toHaveBeenCalled();
         const [, dashboardUuid, { tiles }] = update.mock.calls[0];
@@ -5127,10 +5135,28 @@ describe('AiAgentToolsService createContent composer_chart', () => {
         expect(created.href).toContain('/dashboards/sales-uuid/view');
     });
 
-    it('approves the warehouse SQL of full JSON before saving it', async () => {
-        const { runtime, create } = makeCreateService();
+    it('approves the warehouse SQL of full JSON after every write check, then adds its tile to the layout as it is then', async () => {
+        const { runtime, create, update, getDashboard, preflightCreate } =
+            makeCreateService();
+        const tileAddedWhileWaiting = {
+            uuid: 'c',
+            tabUuid: 'first-tab',
+            x: 0,
+            y: 9,
+            w: 15,
+            h: 6,
+        };
         const approveSql = vi.fn(async () => {
+            expect(preflightCreate).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.anything(),
+                expect.objectContaining({ dashboardUuid: 'sales-uuid' }),
+            );
             expect(create).not.toHaveBeenCalled();
+            getDashboard.mockResolvedValue({
+                ...salesDashboard,
+                tiles: [...salesDashboard.tiles, tileAddedWhileWaiting],
+            });
         });
 
         await runtime.createContent({
@@ -5145,6 +5171,9 @@ describe('AiAgentToolsService createContent composer_chart', () => {
             sqlChanged: true,
         });
         expect(create).toHaveBeenCalled();
+        const [, , { tiles }] = update.mock.calls[0];
+        expect(tiles.map(({ uuid }: { uuid: string }) => uuid)).toContain('c');
+        expect(tiles.at(-1)).toMatchObject({ tabUuid: 'first-tab', y: 15 });
     });
 
     it('refuses full JSON with warehouse SQL without SQL mode', async () => {

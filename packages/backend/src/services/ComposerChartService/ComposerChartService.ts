@@ -332,6 +332,15 @@ export class ComposerChartService extends BaseService {
         );
     }
 
+    /** Every check a create runs, so a caller can refuse before asking anyone to approve its SQL. */
+    async preflightCreate(
+        account: RegisteredAccount,
+        projectUuid: string,
+        data: Pick<CreateComposerChart, 'dashboardUuid' | 'pipeline' | 'chart'>,
+    ): Promise<void> {
+        await this.authorizeWrite(account, projectUuid, data);
+    }
+
     /** A rollback makes a stored pipeline current again, so it passes the checks a write does. */
     async assertCanRestore(
         account: RegisteredAccount,

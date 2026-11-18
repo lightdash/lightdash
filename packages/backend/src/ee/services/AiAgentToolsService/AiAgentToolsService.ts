@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import { subject } from '@casl/ability';
 import {
     Account,
@@ -114,6 +113,7 @@ import {
     type ToolComposerChartAsCodeContent,
     type ToolComposerChartFromNode,
 } from '@lightdash/common';
+import { randomUUID } from 'crypto';
 import * as JsonPatch from 'fast-json-patch';
 import { mcpAgentPermissionsApply } from '../../../auth/agentPermissions/caller';
 import { type AgentToolEffect } from '../../../auth/agentPermissions/capabilityMap';
@@ -578,6 +578,7 @@ type AiAgentToolsServiceDependencies = {
         | 'runWithSavedDashboardState'
         | 'isEnabled'
         | 'preflightPipeline'
+        | 'preflightCreate'
     >;
     savedChartModel: SavedChartModel;
     coderService: CoderService;
@@ -4268,7 +4269,10 @@ export class AiAgentToolsService extends BaseService {
                     `sessionId "${sessionId}" is unknown or belongs to another user or project: pass the sessionId the query result returned for this node.`,
                 );
             }
-            return { scope: composerSessionScope(sessionId), scopeName: 'session' };
+            return {
+                scope: composerSessionScope(sessionId),
+                scopeName: 'session',
+            };
         }
         if (!context.threadUuid) {
             throw new ParameterError(
@@ -4315,7 +4319,10 @@ export class AiAgentToolsService extends BaseService {
     private async buildComposerChartFromNode(
         context: AiAgentToolsRuntimeContext,
         content: ToolComposerChartFromNode,
-    ): Promise<{ pipeline: ComposerChartPipeline; chart: ComposerStoredChart }> {
+    ): Promise<{
+        pipeline: ComposerChartPipeline;
+        chart: ComposerStoredChart;
+    }> {
         const { nodeId, vizConfig, name, description } = content;
         const { scope, scopeName } = await this.getComposerNodeScope(
             context,
@@ -4385,9 +4392,13 @@ export class AiAgentToolsService extends BaseService {
     private async buildComposerChartFromJson(
         context: AiAgentToolsRuntimeContext,
         account: RegisteredAccount,
+        dashboardUuid: string,
         content: ToolComposerChartAsCodeContent,
         approveSql: ApproveSqlFn | null,
-    ): Promise<{ pipeline: ComposerChartPipeline; chart: ComposerStoredChart }> {
+    ): Promise<{
+        pipeline: ComposerChartPipeline;
+        chart: ComposerStoredChart;
+    }> {
         const pipeline = parseComposerPipeline(content.pipeline);
         const chart = await this.coderService.toStoredComposerChart(
             context.projectUuid,
@@ -4406,13 +4417,10 @@ export class AiAgentToolsService extends BaseService {
             context,
             'createContent.composer_chart_sql',
         );
-        await this.composerChartService.preflightPipeline(
+        await this.composerChartService.preflightCreate(
             account,
-            {
-                organizationUuid: context.organizationUuid,
-                projectUuid: context.projectUuid,
-            },
-            pipeline,
+            context.projectUuid,
+            { dashboardUuid, pipeline, chart },
         );
         await approveSql({
             sql: approvalSql,
@@ -4427,7 +4435,10 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         { content, approveSql }: CreateComposerChartArgs,
     ): Promise<
-        Extract<Awaited<ReturnType<CreateContentFn>>, { type: 'composer_chart' }>
+        Extract<
+            Awaited<ReturnType<CreateContentFn>>,
+            { type: 'composer_chart' }
+        >
     > {
         const { account } = context;
         assertRegisteredAccount(account);
@@ -4466,6 +4477,7 @@ export class AiAgentToolsService extends BaseService {
                 : await this.buildComposerChartFromJson(
                       context,
                       account,
+                      dashboard.uuid,
                       content,
                       approveSql,
                   );
@@ -4480,7 +4492,13 @@ export class AiAgentToolsService extends BaseService {
                 chart,
             },
         );
-        const tabUuid = [...dashboard.tabs].sort((a, b) => a.order - b.order)[0]
+        // Re-read: the layout may have changed while the SQL awaited approval.
+        const current = await this.dashboardService.getByIdOrSlug(
+            context.user,
+            dashboard.uuid,
+            { projectUuid: context.projectUuid },
+        );
+        const tabUuid = [...current.tabs].sort((a, b) => a.order - b.order)[0]
             ?.uuid;
         const tile: CreateDashboardComposerChartTile = {
             uuid: randomUUID(),
@@ -4494,7 +4512,7 @@ export class AiAgentToolsService extends BaseService {
             },
             ...getDefaultChartTileSize(chart.chartConfig.type),
             // Each tab is its own canvas, so the tile goes below its own tab's tiles.
-            y: dashboard.tiles
+            y: current.tiles
                 .filter((t) => (t.tabUuid ?? null) === (tabUuid ?? null))
                 .reduce((bottom, t) => Math.max(bottom, t.y + t.h), 0),
         };
@@ -4502,9 +4520,9 @@ export class AiAgentToolsService extends BaseService {
             context.user,
             dashboard.uuid,
             {
-                filters: dashboard.filters,
-                tiles: [...dashboard.tiles, tile],
-                tabs: dashboard.tabs,
+                filters: current.filters,
+                tiles: [...current.tiles, tile],
+                tabs: current.tabs,
             },
             { projectUuid: context.projectUuid },
         );

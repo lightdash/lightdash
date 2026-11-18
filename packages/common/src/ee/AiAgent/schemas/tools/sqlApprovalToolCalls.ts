@@ -202,6 +202,12 @@ export const isSqlApprovalToolCall = (
 /** The SQL a pending approval asks the user to accept; null when the call carries none. */
 export const getSqlApprovalSql = (toolArgs: unknown): string | null => {
     if (!isRecord(toolArgs)) return null;
+    // Only the SQL a composer chart saves counts; any other sql field it carries is ignored.
+    if (isComposerChartContentArgs(toolArgs)) {
+        return isRecord(toolArgs.content)
+            ? getComposerCreateApprovalSql(toolArgs)
+            : getComposerChartApprovalSql(toolArgs.patch);
+    }
     if (typeof toolArgs.sql === 'string') return toolArgs.sql;
     if (Array.isArray(toolArgs.queries)) {
         return getComposerApprovalSql(toolArgs.queries);
@@ -213,11 +219,6 @@ export const getSqlApprovalSql = (toolArgs: unknown): string | null => {
         typeof toolArgs.content.sql === 'string'
     ) {
         return toolArgs.content.sql;
-    }
-    if (isComposerChartContentArgs(toolArgs)) {
-        return isRecord(toolArgs.content)
-            ? getComposerCreateApprovalSql(toolArgs)
-            : getComposerChartApprovalSql(toolArgs.patch);
     }
     return getPatchedSql(toolArgs.patch);
 };
