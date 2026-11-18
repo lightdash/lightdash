@@ -5294,8 +5294,17 @@ export class AsyncQueryService extends ProjectService {
         const isQueuedStatus =
             queryHistory.status === QueryHistoryStatus.PENDING ||
             queryHistory.status === QueryHistoryStatus.QUEUED;
+        // A redelivery means the previous worker stopped sending progress. If
+        // it was killed it left the row EXECUTING, so a redelivery reclaims it.
+        // The claim below is tied to that row's processing_started_at.
+        const reclaimStartedAt =
+            !isQueuedStatus &&
+            queryHistory.status === QueryHistoryStatus.EXECUTING &&
+            QueryHistoryModel.getQueryExecution(queryUuid)?.redelivered
+                ? (queryHistory.processingStartedAt ?? undefined)
+                : undefined;
 
-        if (!isQueuedStatus) {
+        if (!isQueuedStatus && !reclaimStartedAt) {
             this.logger.info(
                 `Worker ${workerLabel} skipped async query ${queryUuid} because status is ${queryHistory.status}`,
             );
@@ -5317,8 +5326,12 @@ export class AsyncQueryService extends ProjectService {
             return false;
         }
 
-        const updated =
-            await this.queryHistoryModel.updateStatusToExecuting(queryUuid);
+        const updated = reclaimStartedAt
+            ? await this.queryHistoryModel.updateStatusToExecuting(
+                  queryUuid,
+                  reclaimStartedAt,
+              )
+            : await this.queryHistoryModel.updateStatusToExecuting(queryUuid);
 
         if (updated === 0) {
             this.logger.info(
@@ -5344,6 +5357,13 @@ export class AsyncQueryService extends ProjectService {
                 getErrorMessage(error),
             );
             throw error;
+        }
+
+        if (reclaimStartedAt) {
+            this.logger.warn(
+                `Worker ${workerLabel} reclaimed async query ${queryUuid} left executing by a worker that stopped`,
+            );
+            return true;
         }
 
         const queryContext = queryHistory.context || 'unknown';

@@ -296,6 +296,7 @@ export class NatsWorker {
         const ownership = QueryHistoryModel.createQueryExecution(
             this.parseMessage(message)?.payload.queryUuid ?? '',
             controller.signal,
+            NatsWorker.deliveryCount(message) > 1,
         );
         this.inFlight.set(originalMessage, { controller, ownership });
         const trackedMessage = new Proxy(message, {
