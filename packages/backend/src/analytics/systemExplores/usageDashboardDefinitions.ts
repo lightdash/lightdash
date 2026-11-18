@@ -15,14 +15,13 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Observed request activity',
                         description:
-                            'Requests by agent, person and week. This is not an eligible-user adoption rate or a comparison with external assistants.',
+                            'Requests by agent, person and day. This is not an eligible-user adoption rate or a comparison with external assistants.',
                         charts: [
                             'agent-requests-trend',
                             'agent-requesters-trend',
                         ],
                         layout: 'row',
                         rowHeight: 4,
-                        noteHeight: 1,
                     },
                     {
                         title: 'Requests by agent',
@@ -31,7 +30,6 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         charts: ['agent-requests-by-agent-and-day'],
                         layout: 'row',
                         rowHeight: 7,
-                        noteHeight: 1,
                     },
                     {
                         title: 'Daily requests per agent',
@@ -40,14 +38,12 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         charts: ['agent-daily-requests-per-agent'],
                         layout: 'row',
                         rowHeight: 9,
-                        noteHeight: 1,
                     },
                     {
                         title: 'Requests by person',
                         description:
-                            'Requests by person, agent and week. This is not an eligible-user adoption rate or a comparison with external assistants.',
+                            'Requests by person and agent. This is not an eligible-user adoption rate or a comparison with external assistants.',
                         charts: ['agent-adoption-by-week'],
-                        noteHeight: 1,
                     },
                 ],
             },
@@ -65,14 +61,12 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         ],
                         layout: 'row',
                         rowHeight: 8,
-                        noteHeight: 1,
                     },
                     {
                         title: 'Feedback coverage',
                         description:
                             'Interpret ratings alongside the feedback sample and outcome coverage. Unrated requests are not positive feedback.',
                         charts: ['agent-feedback-rating-and-sample-coverage'],
-                        noteHeight: 1,
                     },
                 ],
             },
@@ -87,7 +81,6 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         charts: ['agent-retries-latency-and-consumption'],
                         layout: 'row',
                         rowHeight: 7,
-                        noteHeight: 1,
                     },
                     {
                         title: 'AI consumption',
@@ -99,14 +92,12 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         ],
                         layout: 'row',
                         rowHeight: 8,
-                        noteHeight: 1,
                     },
                     {
                         title: 'Consumption by outcome',
                         description:
                             'Request-linked tokens grouped by technical outcome and feedback. Unknown invocation-to-request linkage must not be interpreted as zero consumption.',
                         charts: ['request-consumption-by-outcome-and-feedback'],
-                        noteHeight: 1,
                     },
                 ],
             },

@@ -492,6 +492,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 markType: 'bar',
                 arrangement: 'grid',
                 columns: '4',
+                xLabelAngle: 'angled',
             },
             query: null,
         },
@@ -599,8 +600,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'agent_requests_status',
         ],
         metrics: ['agent_requests_total_requests'],
-        limit: 1000,
+        limit: 5000,
         sorts: [
+            { fieldId: 'agent_requests_status', descending: false },
             { fieldId: 'agent_requests_requested_at_day', descending: false },
         ],
         libraryChart: {

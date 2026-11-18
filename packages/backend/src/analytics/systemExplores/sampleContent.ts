@@ -282,12 +282,13 @@ const aiUsageContent = {
                         dimensions: ['ai_usage_event_ts_day', 'ai_usage_model'],
                         metrics: ['ai_usage_total_ai_calls'],
                         sorts: [
+                            { fieldId: 'ai_usage_model', descending: false },
                             {
                                 fieldId: 'ai_usage_event_ts_day',
                                 descending: false,
                             },
                         ],
-                        limit: 1000,
+                        limit: 5000,
                     },
                 },
             },
@@ -319,12 +320,13 @@ const aiUsageContent = {
                         dimensions: ['ai_usage_event_ts_day', 'ai_usage_model'],
                         metrics: ['ai_usage_total_tokens_used'],
                         sorts: [
+                            { fieldId: 'ai_usage_model', descending: false },
                             {
                                 fieldId: 'ai_usage_event_ts_day',
                                 descending: false,
                             },
                         ],
-                        limit: 1000,
+                        limit: 5000,
                     },
                 },
             },
