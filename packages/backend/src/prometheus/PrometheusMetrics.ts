@@ -39,6 +39,14 @@ import {
     type ComposerQueryStage,
 } from '../services/AsyncQueryService/composerQueryStage';
 import {
+    QUERY_COST_ESTIMATE_CACHE_RESULTS,
+    QUERY_COST_ESTIMATE_OUTCOMES,
+    QUERY_COST_ESTIMATE_SOURCES,
+    type QueryCostEstimateCacheResult,
+    type QueryCostEstimateOutcome,
+    type QueryCostEstimateSource,
+} from '../services/AsyncQueryService/queryCostEstimateTypes';
+import {
     QUERY_POLLING_SOURCES,
     type QueryPollingSource,
 } from '../services/AsyncQueryService/queryPollingSource';
@@ -47,14 +55,6 @@ import {
     LIVE_QUERY_OUTCOMES,
     type LiveQueryOutcome,
 } from '../services/QuerySourceService/live/query/outcome';
-import {
-    QUERY_COST_ESTIMATE_CACHE_RESULTS,
-    QUERY_COST_ESTIMATE_OUTCOMES,
-    QUERY_COST_ESTIMATE_SOURCES,
-    type QueryCostEstimateCacheResult,
-    type QueryCostEstimateOutcome,
-    type QueryCostEstimateSource,
-} from '../services/AsyncQueryService/queryCostEstimateTypes';
 import {
     serializeOtelHttpMetrics,
     shutdownOtelHttpMetrics,

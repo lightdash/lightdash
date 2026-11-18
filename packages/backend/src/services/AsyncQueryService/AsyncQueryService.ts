@@ -525,7 +525,6 @@ import {
     QueryEstimateCache,
     type QueryEstimateResult,
 } from './queryCostEstimate';
-import type { QueryPollingSource } from './queryPollingSource';
 import {
     buildQueryCostEstimateAgentRefusedEvent,
     buildQueryCostEstimateCompletedEvent,
@@ -533,6 +532,7 @@ import {
     unavailableInteractiveEstimateRecord,
     type InteractiveQueryCostEstimateRecord,
 } from './queryCostEstimateTelemetry';
+import type { QueryPollingSource } from './queryPollingSource';
 import {
     canReuseQueryResult,
     toStoredLiveResult,
