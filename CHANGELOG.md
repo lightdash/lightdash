@@ -1,3 +1,19 @@
+# [3.319.0](https://github.com/lightdash/lightdash/compare/3.318.0...3.319.0) (2026-11-18)
+
+
+### Bug Fixes
+
+* **semantic-studio:** keep the page while Try it switches the view ([#32892](https://github.com/lightdash/lightdash/issues/32892)) ([e7957dd](https://github.com/lightdash/lightdash/commit/e7957dd987710152914c425d2856001d2946695b))
+* **semantic-studio:** outline the pull request card in the chat panel ([#32891](https://github.com/lightdash/lightdash/issues/32891)) ([5dfdc78](https://github.com/lightdash/lightdash/commit/5dfdc7813ff14372d523bb8f4faf3136e5d18791))
+
+
+### Features
+
+* **semantic-studio:** live explore summary card in two rows ([#32880](https://github.com/lightdash/lightdash/issues/32880)) ([6f0091d](https://github.com/lightdash/lightdash/commit/6f0091d46804caa026bbc9b33e689344c12b3944))
+* **semantic-studio:** save dbt changes to the draft on the first ask ([#32888](https://github.com/lightdash/lightdash/issues/32888)) ([cf919fa](https://github.com/lightdash/lightdash/commit/cf919faebee0dabdcb310ab1f6f130287aa330c4))
+* **semantic-studio:** show the draft's compile on Publish ([#32893](https://github.com/lightdash/lightdash/issues/32893)) ([2047df1](https://github.com/lightdash/lightdash/commit/2047df116e3f119621ed650c127b74d1ffe8eeec))
+* **semantic-studio:** talk about drafts, not pull requests, on dbt projects ([#32889](https://github.com/lightdash/lightdash/issues/32889)) ([203be01](https://github.com/lightdash/lightdash/commit/203be017760df00923f306886412f5bbb797f60a))
+
 # [3.318.0](https://github.com/lightdash/lightdash/compare/3.317.0...3.318.0) (2026-11-18)
 
 
