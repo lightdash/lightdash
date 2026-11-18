@@ -12,7 +12,6 @@ const idle: ComponentProps<typeof MobileUpsellFrame> = {
     isWaitingForScan: true,
     isSignedIn: false,
     title: 'Sign in on your phone',
-    step: null,
     qr: <div>QR</div>,
     details: null,
     status: null,
