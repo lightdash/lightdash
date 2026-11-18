@@ -12,11 +12,17 @@ For explore-backed tables use grepFields and getMetadata; to find a table's name
       "properties": {
         "database": {
           "description": "Database or catalog from listWarehouseTables, for a table outside the default database. Omit for the project's default database.",
-          "type": "string",
+          "type": [
+            "string",
+            "null",
+          ],
         },
         "schema": {
           "description": "Schema name, e.g. "jaffle". Omit for the project's default schema.",
-          "type": "string",
+          "type": [
+            "string",
+            "null",
+          ],
         },
         "table": {
           "description": "Unqualified table name, e.g. "raw_parts", not "jaffle.raw_parts"; pass the schema and database in their own parameters.",
@@ -6489,7 +6495,10 @@ All branches of an IF must return the same type.",
       "properties": {
         "dashboardName": {
           "description": "The name of the dashboard (for display purposes). Obtained from findContent results.",
-          "type": "string",
+          "type": [
+            "string",
+            "null",
+          ],
         },
         "dashboardUuid": {
           "description": "The UUID of the dashboard to get charts for. Obtained from findContent results.",
@@ -8529,11 +8538,17 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
         },
         "schema": {
           "description": "Schema to list, e.g. "jaffle", "public" or "raw". Omit to list every schema.",
-          "type": "string",
+          "type": [
+            "string",
+            "null",
+          ],
         },
         "search": {
           "description": "Case-insensitive substring of the table name, e.g. "work_order".",
-          "type": "string",
+          "type": [
+            "string",
+            "null",
+          ],
         },
       },
       "type": "object",

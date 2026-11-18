@@ -111,7 +111,10 @@ export const executeEditContent = async (
     args: z.infer<typeof mcpEditContentArgsSchema>,
     approveSql: ApproveSqlFn | null = null,
 ) => {
-    const { slug, type, patch, documentEdit } = args;
+    const { slug, type } = args;
+    // Models send null for the one of these they leave unused
+    const patch = args.patch ?? undefined;
+    const documentEdit = args.documentEdit ?? undefined;
     try {
         getToolVariant(documentsEnabled, chartsEnabled).schema.parse(args);
         const getEditArgs = async (): Promise<Parameters<EditContentFn>[0]> => {
