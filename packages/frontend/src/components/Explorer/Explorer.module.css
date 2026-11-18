@@ -8,7 +8,7 @@
 .stack > :global(.mantine-Card-root) {
     margin-top: -1px;
     border: 0;
-    border-block: 1px solid var(--mantine-color-default-border);
+    border-block: 1px solid var(--mantine-color-ldGray-3);
     border-radius: 0;
     box-shadow: none;
 }
