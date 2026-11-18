@@ -4,6 +4,8 @@ Query Events can distinguish embedded queries for different viewers and
 tenants, even when they use the same dashboard or chart. Use the fields in the
 Analytics project, query them with the Run Query API, or export a result to
 CSV or XLSX. Existing access to the Analytics project applies.
+For complete JWT, API-query and export examples, see the
+[viewer and brand reporting guide](embedded-attribution-api.md).
 
 To report the existing tenant user attribute, add `usageAnalytics.tenantAttribute`
 to the signed JWT alongside the usual `userAttributes` and optional
