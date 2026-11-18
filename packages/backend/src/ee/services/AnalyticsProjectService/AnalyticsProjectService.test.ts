@@ -1147,9 +1147,14 @@ describe('AnalyticsProjectService', () => {
             });
         });
 
+        const heatmapType = {
+            appSlug: 'heatmap',
+            vizSchema: { fields: [], configOptions: [], colorPalette: null },
+        };
+
         it('uploads a bound chart as a library chart when its type is usable', async () => {
             ensureRegistryChartTypes.mockResolvedValue(
-                new Map([['heatmap', 'heatmap']]),
+                new Map([['heatmap', heatmapType]]),
             );
             await service.installSampleContent(user);
             expect(ensureRegistryChartTypes).toHaveBeenCalledExactlyOnceWith(
@@ -1181,6 +1186,41 @@ describe('AnalyticsProjectService', () => {
             });
             expect(upsertChart).toHaveBeenCalledTimes(
                 analyticsContentAsCode.flatMap(({ charts }) => charts).length,
+            );
+            expect(saveSnapshot).toHaveBeenCalled();
+        });
+
+        it('uploads the fallback chart and completes when the binding does not fit the installed type', async () => {
+            mockedBindings.set(slug, {
+                slug: 'heatmap',
+                minVersion: '1.0.0',
+                fieldMapping: { size: 'unknown_field' },
+                optionValues: {},
+                query: null,
+            });
+            ensureRegistryChartTypes.mockResolvedValue(
+                new Map([['heatmap', heatmapType]]),
+            );
+            const warn = vi.spyOn(
+                (service as unknown as { logger: { warn: () => void } }).logger,
+                'warn',
+            );
+            await expect(
+                service.installSampleContent(user),
+            ).resolves.toBeUndefined();
+            expect(upsertedFor()?.[3]).toEqual({
+                ...original,
+                spaceSlug: expect.any(String),
+            });
+            expect(warn).toHaveBeenCalledWith(
+                'Analytics chart does not fit its library chart type',
+                expect.objectContaining({
+                    chartSlug: slug,
+                    typeSlug: 'heatmap',
+                    errors: expect.arrayContaining([
+                        expect.stringMatching(/Unknown field slots/),
+                    ]),
+                }),
             );
             expect(saveSnapshot).toHaveBeenCalled();
         });

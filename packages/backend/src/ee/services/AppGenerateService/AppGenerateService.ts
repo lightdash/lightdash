@@ -10854,19 +10854,18 @@ export class AppGenerateService extends BaseService {
         return { installedSlugs: newSlugs };
     }
 
-    /**
-     * Makes each required chart type usable in the project: installs it when
-     * missing, upgrades only when the installed version is below `minVersion`.
-     * Returns registry slug -> project app slug for the ones that are usable;
-     * a failure for one type, or a missing create permission, omits it and never throws.
-     */
+    // Installs missing types and upgrades ones below minVersion; returns each usable type's
+    // app slug and latest renderable schema by registry slug. A failure omits the type, never throws.
     async ensureRegistryChartTypes(
         user: SessionUser,
         projectUuid: string,
         requirements: { slug: string; minVersion: string }[],
-    ): Promise<Map<string, string>> {
-        const usable = new Map<string, string>();
-        if (requirements.length === 0) return usable;
+    ): Promise<Map<string, { appSlug: string; vizSchema: DataAppVizSchema }>> {
+        type InstalledApp = Awaited<
+            ReturnType<AppModel['listRegistryInstalledApps']>
+        >[number];
+        const usable = new Map<string, InstalledApp>();
+        if (requirements.length === 0) return new Map();
 
         const isCurrent = (
             version: string | null,
@@ -10894,13 +10893,13 @@ export class AppGenerateService extends BaseService {
                     requirement.minVersion,
                 )
             ) {
-                usable.set(requirement.slug, app.slug);
+                usable.set(requirement.slug, app);
             } else {
                 pending.push(requirement);
             }
         }
         if (pending.length === 0 || !this.chartRegistryClient.isEnabled()) {
-            return usable;
+            return this.withRenderableSchemas(projectUuid, usable);
         }
 
         let organizationUuid: string;
@@ -10915,7 +10914,7 @@ export class AppGenerateService extends BaseService {
             this.logger.warn(
                 `Cannot install chart types in project ${projectUuid}: ${getErrorMessage(e)}`,
             );
-            return usable;
+            return this.withRenderableSchemas(projectUuid, usable);
         }
         let index: ChartRegistryIndex;
         try {
@@ -10924,7 +10923,7 @@ export class AppGenerateService extends BaseService {
             this.logger.warn(
                 `Chart type index unavailable for project ${projectUuid}: ${getErrorMessage(e)}`,
             );
-            return usable;
+            return this.withRenderableSchemas(projectUuid, usable);
         }
 
         const ready = new Set<string>();
@@ -10959,9 +10958,43 @@ export class AppGenerateService extends BaseService {
                 await this.appModel.listRegistryInstalledApps(projectUuid);
             after
                 .filter((a) => ready.has(a.registry_slug))
-                .forEach((a) => usable.set(a.registry_slug, a.slug));
+                .forEach((a) => usable.set(a.registry_slug, a));
         }
-        return usable;
+        return this.withRenderableSchemas(projectUuid, usable);
+    }
+
+    // Keeps the types that have a renderable version, with that version's schema.
+    private async withRenderableSchemas(
+        projectUuid: string,
+        apps: Map<string, { app_id: string; slug: string }>,
+    ): Promise<Map<string, { appSlug: string; vizSchema: DataAppVizSchema }>> {
+        const versions = await Promise.all(
+            [...apps].map(async ([registrySlug, app]) => ({
+                registrySlug,
+                appSlug: app.slug,
+                version:
+                    await this.appModel.getLatestRenderableDataAppVizVersion(
+                        app.app_id,
+                    ),
+            })),
+        );
+        const result = new Map<
+            string,
+            { appSlug: string; vizSchema: DataAppVizSchema }
+        >();
+        versions.forEach(({ registrySlug, appSlug, version }) => {
+            if (version?.viz_schema) {
+                result.set(registrySlug, {
+                    appSlug,
+                    vizSchema: version.viz_schema,
+                });
+            } else {
+                this.logger.warn(
+                    `Chart type "${registrySlug}" has no renderable version in project ${projectUuid}`,
+                );
+            }
+        });
+        return result;
     }
 
     /** Digest mismatches keep their own error; transport failures get a library-facing one. */

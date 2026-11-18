@@ -1,9 +1,14 @@
-import { ChartType, type ChartAsCode } from '@lightdash/common';
+import {
+    ChartType,
+    type ChartAsCode,
+    type DataAppVizSchema,
+} from '@lightdash/common';
 import { createAnalyticsExplores } from '../../services/ProjectService/analyticsProject/createAnalyticsExplores';
 import {
     libraryChartFields,
     withLibraryCharts,
     type LibraryChartBinding,
+    type UsableLibraryChartType,
 } from './libraryCharts';
 import {
     analyticsContentAsCode,
@@ -31,13 +36,46 @@ const binding: LibraryChartBinding = {
     query: null,
 };
 
+const heatmapSchema: DataAppVizSchema = {
+    fields: [
+        { name: 'x', label: 'X', type: 'dimension', required: true },
+        { name: 'y', label: 'Y', type: 'dimension', required: true },
+        { name: 'value', label: 'Value', type: 'metric', required: true },
+    ],
+    configOptions: [
+        {
+            type: 'boolean',
+            name: 'showLabels',
+            label: 'Show labels',
+            default: false,
+        },
+    ],
+    colorPalette: null,
+};
+
+const usable = new Map<string, UsableLibraryChartType>([
+    ['heatmap', { appSlug: 'heatmap-1', vizSchema: heatmapSchema }],
+]);
+
 describe('withLibraryCharts', () => {
+    const swap = (
+        charts: ChartAsCode[],
+        bindings: ReadonlyMap<string, LibraryChartBinding>,
+        types: ReadonlyMap<string, UsableLibraryChartType> = usable,
+    ) => withLibraryCharts(charts, bindings, types);
+    const query = {
+        dimensions: ['t_a', 't_b'],
+        metrics: ['t_m', 't_n'],
+        sorts: [{ fieldId: 't_a', descending: false }],
+        limit: 7,
+        description: 'Library description',
+    };
+
     it('swaps the config when the type is usable', () => {
-        const [out] = withLibraryCharts(
-            [chart],
-            new Map([['d-c', binding]]),
-            new Map([['heatmap', 'heatmap-1']]),
-        );
+        const {
+            charts: [out],
+            rejected,
+        } = swap([chart], new Map([['d-c', binding]]));
         expect(out.chartConfig).toEqual({
             type: ChartType.DATA_APP_VIZ,
             config: {
@@ -47,29 +85,47 @@ describe('withLibraryCharts', () => {
             },
         });
         expect(out.metricQuery).toEqual(chart.metricQuery);
+        expect(rejected).toEqual([]);
     });
 
     it('runs the binding query in place of the fallback query', () => {
-        const query = {
-            dimensions: ['t_a'],
-            metrics: ['t_m', 't_n'],
-            sorts: [{ fieldId: 't_a', descending: false }],
-            limit: 7,
-        };
-        const [out] = withLibraryCharts(
-            [chart],
-            new Map([['d-c', { ...binding, query }]]),
-            new Map([['heatmap', 'heatmap-1']]),
-        );
+        const {
+            charts: [out],
+        } = swap([chart], new Map([['d-c', { ...binding, query }]]));
         expect(out.metricQuery.dimensions).toEqual(query.dimensions);
         expect(out.metricQuery.metrics).toEqual(query.metrics);
         expect(out.metricQuery.sorts).toEqual(query.sorts);
         expect(out.metricQuery.limit).toBe(7);
         expect(out.metricQuery.filters).toEqual(chart.metricQuery.filters);
         expect(out.metricQuery.exploreName).toBe(chart.metricQuery.exploreName);
-        expect(out.tableConfig?.columnOrder).toEqual(['t_a', 't_m', 't_n']);
+        expect(out.tableConfig?.columnOrder).toEqual([
+            't_a',
+            't_b',
+            't_m',
+            't_n',
+        ]);
         expect(out.chartConfig.type).toBe(ChartType.DATA_APP_VIZ);
         expect(out.slug).toBe(chart.slug);
+    });
+
+    it('uses the binding query description when the binding has its own query', () => {
+        const {
+            charts: [out],
+        } = swap(
+            [{ ...chart, description: 'Fallback description' }],
+            new Map([['d-c', { ...binding, query }]]),
+        );
+        expect(out.description).toBe('Library description');
+    });
+
+    it('keeps the chart description when the binding has no query', () => {
+        const {
+            charts: [out],
+        } = swap(
+            [{ ...chart, description: 'Fallback description' }],
+            new Map([['d-c', binding]]),
+        );
+        expect(out.description).toBe('Fallback description');
     });
 
     const tableCalc = {
@@ -83,64 +139,142 @@ describe('withLibraryCharts', () => {
     };
 
     it('drops table calculations when the binding has its own query', () => {
-        const [out] = withLibraryCharts(
+        const {
+            charts: [out],
+        } = swap([chartWithCalc], new Map([['d-c', { ...binding, query }]]));
+        expect(out.metricQuery.tableCalculations).toEqual([]);
+    });
+
+    it('keeps table calculations when the binding has no query', () => {
+        const {
+            charts: [out],
+        } = swap([chartWithCalc], new Map([['d-c', binding]]));
+        expect(out.metricQuery.tableCalculations).toEqual([tableCalc]);
+    });
+
+    it('accepts a table calculation mapped from the fallback query', () => {
+        const {
+            charts: [out],
+            rejected,
+        } = swap(
             [chartWithCalc],
             new Map([
                 [
                     'd-c',
                     {
                         ...binding,
-                        query: {
-                            dimensions: ['t_b'],
-                            metrics: ['t_m'],
-                            sorts: [],
-                            limit: 5,
+                        fieldMapping: {
+                            ...binding.fieldMapping,
+                            value: 'calc',
                         },
                     },
                 ],
             ]),
-            new Map([['heatmap', 'heatmap-1']]),
         );
-        expect(out.metricQuery.tableCalculations).toEqual([]);
-    });
-
-    it('keeps table calculations when the binding has no query', () => {
-        const [out] = withLibraryCharts(
-            [chartWithCalc],
-            new Map([['d-c', binding]]),
-            new Map([['heatmap', 'heatmap-1']]),
-        );
-        expect(out.metricQuery.tableCalculations).toEqual([tableCalc]);
+        expect(rejected).toEqual([]);
+        expect(out.chartConfig.type).toBe(ChartType.DATA_APP_VIZ);
     });
 
     it('keeps the fallback query when the binding has no query', () => {
-        const [out] = withLibraryCharts(
-            [chart],
-            new Map([['d-c', binding]]),
-            new Map([['heatmap', 'heatmap-1']]),
-        );
+        const {
+            charts: [out],
+        } = swap([chart], new Map([['d-c', binding]]));
         expect(out.metricQuery).toEqual(chart.metricQuery);
         expect(out.tableConfig).toEqual(chart.tableConfig);
     });
 
     it('returns the same chart object when the type is not usable', () => {
-        expect(
-            withLibraryCharts(
-                [chart],
-                new Map([['d-c', binding]]),
-                new Map(),
-            )[0],
-        ).toBe(chart);
+        const result = swap([chart], new Map([['d-c', binding]]), new Map());
+        expect(result.charts[0]).toBe(chart);
+        expect(result.rejected).toEqual([]);
     });
 
     it('returns the same chart object when the chart has no binding', () => {
-        expect(
-            withLibraryCharts(
-                [chart],
-                new Map(),
-                new Map([['heatmap', 'heatmap-1']]),
-            )[0],
-        ).toBe(chart);
+        expect(swap([chart], new Map()).charts[0]).toBe(chart);
+    });
+
+    describe('validation against the installed type', () => {
+        const rejects = (invalid: LibraryChartBinding) => {
+            const result = swap([chart], new Map([['d-c', invalid]]));
+            expect(result.charts[0]).toBe(chart);
+            expect(result.rejected).toEqual([
+                {
+                    chartSlug: 'd-c',
+                    typeSlug: 'heatmap',
+                    errors: [expect.any(String)],
+                },
+            ]);
+            return result.rejected[0].errors[0];
+        };
+
+        it('rejects a field name the type does not declare', () => {
+            expect(
+                rejects({
+                    ...binding,
+                    fieldMapping: { ...binding.fieldMapping, size: 't_m' },
+                }),
+            ).toMatch(/Unknown field slots in fieldMapping: size/);
+        });
+
+        it('rejects a binding that leaves a required field unmapped', () => {
+            expect(
+                rejects({
+                    ...binding,
+                    fieldMapping: { x: 't_a', value: 't_m' },
+                }),
+            ).toMatch(/Required field slots not bound in fieldMapping: y/);
+        });
+
+        it('rejects a field that is not in the query the chart runs', () => {
+            expect(
+                rejects({
+                    ...binding,
+                    query: { ...query, dimensions: ['t_a'] },
+                }),
+            ).toMatch(/not selected in queryConfig: y → t_b/);
+        });
+
+        it('rejects a field of the wrong kind', () => {
+            expect(
+                rejects({
+                    ...binding,
+                    fieldMapping: { x: 't_a', y: 't_m', value: 't_m' },
+                }),
+            ).toMatch(/Slot "y" \(dimension\) only accepts dimensions/);
+        });
+
+        it('rejects an option the type does not declare', () => {
+            expect(
+                rejects({ ...binding, optionValues: { stacked: true } }),
+            ).toMatch(/Unknown option "stacked"/);
+        });
+
+        it('rejects an option value of the wrong type', () => {
+            expect(
+                rejects({ ...binding, optionValues: { showLabels: 'yes' } }),
+            ).toMatch(/Option "showLabels" \(boolean\) expects true or false/);
+        });
+
+        it('still swaps another chart with a valid binding', () => {
+            const other: ChartAsCode = { ...chart, slug: 'd-other' };
+            const result = swap(
+                [chart, other],
+                new Map([
+                    [
+                        'd-c',
+                        { ...binding, optionValues: { showLabels: 'yes' } },
+                    ],
+                    ['d-other', binding],
+                ]),
+            );
+            expect(result.charts[0]).toBe(chart);
+            expect(result.charts[1].chartConfig.type).toBe(
+                ChartType.DATA_APP_VIZ,
+            );
+            expect(result.rejected.map(({ chartSlug }) => chartSlug)).toEqual([
+                'd-c',
+            ]);
+        });
     });
 });
 

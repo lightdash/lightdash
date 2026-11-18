@@ -24,7 +24,10 @@ import { memoize } from 'es-toolkit/compat';
 import { z } from 'zod';
 import { UsageHistoryBackfill } from '../../../analytics/eventStream/UsageHistoryBackfill';
 import { type LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
-import { withLibraryCharts } from '../../../analytics/systemExplores/libraryCharts';
+import {
+    withLibraryCharts,
+    type UsableLibraryChartType,
+} from '../../../analytics/systemExplores/libraryCharts';
 import {
     analyticsContentAsCode,
     analyticsDefaultSpace,
@@ -546,7 +549,7 @@ export class AnalyticsProjectService extends BaseService {
     private async ensureLibraryChartTypes(
         user: SessionUser,
         projectUuid: string,
-    ): Promise<Map<string, string>> {
+    ): Promise<Map<string, UsableLibraryChartType>> {
         const minVersions = new Map<string, string>();
         analyticsLibraryChartBindings.forEach(({ slug, minVersion }) => {
             const current = minVersions.get(slug);
@@ -694,11 +697,18 @@ export class AnalyticsProjectService extends BaseService {
                             options,
                         );
                     }
-                    for (const chart of withLibraryCharts(
+                    const libraryCharts = withLibraryCharts(
                         charts,
                         analyticsLibraryChartBindings,
                         usableTypes,
-                    )) {
+                    );
+                    libraryCharts.rejected.forEach((rejected) => {
+                        this.logger.warn(
+                            'Analytics chart does not fit its library chart type',
+                            { projectUuid: project.projectUuid, ...rejected },
+                        );
+                    });
+                    for (const chart of libraryCharts.charts) {
                         await this.dependencies.coderService.upsertChart(
                             user,
                             project.projectUuid,

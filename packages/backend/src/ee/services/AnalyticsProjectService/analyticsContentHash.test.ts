@@ -125,6 +125,7 @@ describe('analytics content revision', () => {
                             metrics: ['m'],
                             sorts: [],
                             limit,
+                            description: 'Requests by a and b',
                         },
                     },
                 ],
