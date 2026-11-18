@@ -1,3 +1,10 @@
+# [3.306.0](https://github.com/lightdash/lightdash/compare/3.305.1...3.306.0) (2026-11-18)
+
+
+### Features
+
+* **live-sources:** follow project results caching for live data sources ([#32825](https://github.com/lightdash/lightdash/issues/32825)) ([9a7141b](https://github.com/lightdash/lightdash/commit/9a7141bb80d56e445269006eb82d1eb57000b752))
+
 ## [3.305.1](https://github.com/lightdash/lightdash/compare/3.305.0...3.305.1) (2026-11-18)
 
 
