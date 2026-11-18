@@ -178,9 +178,9 @@ The running app is what we're testing against, not just the diff. Start it on th
 
 Wait for `GET /api/v1/health` to return 200. If the build or startup fails, that's the first signal — the bump may have broken the install or runtime resolution. Report this immediately and stop.
 
-## Phase 6: Test the change with /debug-local tooling
+## Phase 6: Test the change
 
-Use the `/debug-local` skill workflow — but inverted. Instead of investigating a known symptom, we're **fishing for symptoms** in the code paths that touch the upgraded package.
+Fish for symptoms in the code paths that touch the upgraded package.
 
 For each package, design 1–3 focused checks based on what the package actually does. Examples:
 
