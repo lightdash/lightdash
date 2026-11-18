@@ -111,6 +111,9 @@ export const useSaveStudioSource = (projectUuid: string) => {
                 queryKey: ['pullRequestDiff', projectUuid],
             });
             void queryClient.invalidateQueries({
+                queryKey: ['pullRequestCiChecks', projectUuid],
+            });
+            void queryClient.invalidateQueries({
                 queryKey: [WORKSPACES_KEY, projectUuid],
             });
         },
