@@ -1167,6 +1167,23 @@ describe('AnalyticsProjectService', () => {
             );
         });
 
+        it('requires the highest minVersion when bindings share a chart type', async () => {
+            const { slug: otherSlug } = analyticsContentAsCode[0].charts[1];
+            mockedBindings.set(otherSlug, {
+                slug: 'heatmap',
+                minVersion: '1.2.0',
+                fieldMapping: {},
+                optionValues: {},
+                query: null,
+            });
+            await service.installSampleContent(user);
+            expect(ensureRegistryChartTypes).toHaveBeenCalledExactlyOnceWith(
+                user,
+                'analytics-project',
+                [{ slug: 'heatmap', minVersion: '1.2.0' }],
+            );
+        });
+
         it('uploads the fallback chart when the type is not usable', async () => {
             await service.installSampleContent(user);
             expect(upsertedFor()?.[3]).toEqual({

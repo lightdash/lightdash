@@ -353,6 +353,59 @@ describe('analyticsLibraryChartBindings', () => {
         });
     });
 
+    // A schema that accepts exactly what the binding maps, so the real swap runs.
+    const schemaAccepting = (b: LibraryChartBinding): DataAppVizSchema => ({
+        fields: Object.entries(b.fieldMapping).map(([name, value]) => ({
+            name,
+            label: name,
+            type: 'column',
+            required: false,
+            multiple: Array.isArray(value),
+        })),
+        configOptions: Object.entries(b.optionValues).map(([name, value]) => {
+            if (typeof value === 'boolean') {
+                return { type: 'boolean', name, label: name, default: value };
+            }
+            if (typeof value === 'number') {
+                return { type: 'number', name, label: name, default: value };
+            }
+            if (typeof value === 'string') {
+                return { type: 'text', name, label: name, default: value };
+            }
+            return { type: 'gradient', name, label: name, default: value };
+        }),
+        colorPalette: null,
+    });
+
+    it('keeps sorts within the query a library chart runs', () => {
+        entries.forEach(([slug, b]) => {
+            if (!b.query) return;
+            const queryFields = [...b.query.dimensions, ...b.query.metrics];
+            b.query.sorts.forEach(({ fieldId }) => {
+                expect(queryFields).toContain(fieldId);
+            });
+            const {
+                charts: [out],
+                rejected,
+            } = withLibraryCharts(
+                [chartFor(slug)!],
+                new Map([[slug, b]]),
+                new Map([
+                    [
+                        b.slug,
+                        { appSlug: b.slug, vizSchema: schemaAccepting(b) },
+                    ],
+                ]),
+            );
+            expect(rejected).toEqual([]);
+            expect(out.chartConfig.type).toBe(ChartType.DATA_APP_VIZ);
+            out.metricQuery.sorts.forEach(({ fieldId }) => {
+                expect(queryFields).toContain(fieldId);
+            });
+            expect(out.pivotConfig).toBeUndefined();
+        });
+    });
+
     it('has a chart for every binding', () => {
         entries.forEach(([slug]) => {
             expect(chartFor(slug)).toBeDefined();
