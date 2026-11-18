@@ -14,6 +14,7 @@ import {
     type ApiSemanticLayerStatusResponse,
     type ApiSemanticLayerStoredModelsResponse,
     type ApiSemanticLayerUndoResponse,
+    type ApiSemanticStudioCheckoutResponse,
     type ApiSemanticStudioSourceFileResponse,
     type ApiSemanticStudioSourceSaveResponse,
     type ApiSemanticStudioSourcesResponse,
@@ -168,6 +169,50 @@ export class SemanticStudioController extends BaseController {
             projectUuid,
         );
         return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * The change you have checked out, which the whole app shows you; null on what is published.
+     * @summary Get my Semantic Studio checkout
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/checkout')
+    @OperationId('getSemanticStudioCheckout')
+    async getCheckout(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSemanticStudioCheckoutResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().getCheckout(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
+        };
+    }
+
+    /**
+     * Compiles the branch of your checked-out dbt change again.
+     * @summary Compile my Semantic Studio checkout
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/checkout/compile')
+    @OperationId('compileSemanticStudioCheckout')
+    async compileCheckout(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSemanticStudioCheckoutResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().compileCheckout(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
+        };
     }
 
     /**

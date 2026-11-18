@@ -3383,6 +3383,41 @@ describe('compiling a dbt change on its branch', () => {
         ).toEqual(BRANCH_EXPLORE);
     });
 
+    it('tells the person which change they are on and where its compile stands', async () => {
+        const context = onChange();
+        expect(
+            await context.service.getCheckout(repoWriter, PROJECT_UUID),
+        ).toMatchObject({
+            workspaceUuid: 'workspace-thread',
+            appliesAs: 'dbt_pull_request',
+            branchCompile: null,
+        });
+        await context.service.compileCheckout(repoWriter, PROJECT_UUID);
+        expect(
+            (await context.service.getCheckout(repoWriter, PROJECT_UUID))
+                ?.branchCompile,
+        ).toMatchObject({ status: 'compiling', hasExplores: false });
+        await runQueued(context);
+        expect(
+            (await context.service.getCheckout(repoWriter, PROJECT_UUID))
+                ?.branchCompile,
+        ).toMatchObject({
+            status: 'ready',
+            branch: 'studio-branch',
+            hasExplores: true,
+        });
+        expect(
+            await context.service.getCheckout(viewer, PROJECT_UUID),
+        ).toBeNull();
+        await expect(
+            context.service.compileCheckout(viewer, PROJECT_UUID),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        context.setActiveWorkspace(null);
+        expect(
+            await context.service.getCheckout(repoWriter, PROJECT_UUID),
+        ).toBeNull();
+    });
+
     it("says plainly when the pull request's branch cannot be read", async () => {
         const context = onChange();
         context.findPullRequestBranch.mockRejectedValueOnce(
