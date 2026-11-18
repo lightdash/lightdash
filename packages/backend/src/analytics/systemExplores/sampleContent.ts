@@ -224,7 +224,7 @@ const aiUsageContent = {
             {
                 libraryChart: {
                     slug: 'big-number-with-sparkline-trend',
-                    minVersion: '0.6.0',
+                    minVersion: '0.7.0',
                     fieldMapping: { value: 'ai_usage_unique_users' },
                     optionValues: {
                         showLabel: false,
@@ -406,6 +406,10 @@ const aiUsageContent = {
                         ],
                         metrics: ['ai_usage_total_tokens_used'],
                         sorts: [
+                            {
+                                fieldId: 'ai_usage_feature',
+                                descending: false,
+                            },
                             {
                                 fieldId: 'ai_usage_event_ts_day',
                                 descending: false,

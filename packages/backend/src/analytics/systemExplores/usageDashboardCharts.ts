@@ -437,7 +437,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         visualization: 'number',
         libraryChart: {
             slug: 'big-number-with-sparkline-trend',
-            minVersion: '0.6.0',
+            minVersion: '0.7.0',
             fieldMapping: { value: 'agent_requests_distinct_requesters' },
             optionValues: {
                 showLabel: false,
@@ -458,8 +458,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'agent_requests_requested_at_day',
         ],
         metrics: ['agent_requests_total_requests'],
-        limit: 1000,
+        limit: 5000,
         sorts: [
+            { fieldId: 'agent_requests_agent_name', descending: false },
             { fieldId: 'agent_requests_requested_at_day', descending: false },
         ],
         libraryChart: {
