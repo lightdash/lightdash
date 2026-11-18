@@ -689,6 +689,11 @@ describe('built-in usage dashboards', () => {
                 `${prefix}ai-tokens-by-feature-and-model`,
             )?.slug,
         ).toBe('heatmap');
+        expect(
+            analyticsLibraryChartBindings.get(
+                `${prefix}request-consumption-by-outcome-and-feedback`,
+            )?.slug,
+        ).toBe('customizable-cartesian-chart');
     });
 
     it('lays out the Outcomes and Retries sections as explicit rows', () => {
