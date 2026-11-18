@@ -1,3 +1,10 @@
+# [3.318.0](https://github.com/lightdash/lightdash/compare/3.317.0...3.318.0) (2026-11-18)
+
+
+### Features
+
+* **bigquery:** add telemetry to dry-run cost estimates ([#32879](https://github.com/lightdash/lightdash/issues/32879)) ([440b645](https://github.com/lightdash/lightdash/commit/440b645811e58d38a3eb6ae2b7853d47348b8257))
+
 # [3.317.0](https://github.com/lightdash/lightdash/compare/3.316.1...3.317.0) (2026-11-18)
 
 
