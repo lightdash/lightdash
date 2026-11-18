@@ -315,19 +315,20 @@ export class CiService extends BaseService {
 
     /**
      * Resolve the GitHub context for a write action on a PR: enforce
-     * `manage:SourceCode` (the gate for opening the write-back PR, from a
-     * feature branch — hence isProtectedBranch: false), verify the
-     * caller-supplied URL targets this project's own repo, and mint an
+     * `manage:SourceCode`, on the project's branch when the action writes to it,
+     * verify the caller-supplied URL targets this project's own repo, and mint an
      * installation token. Throws (not null) so callers can explain the failure.
      */
     private async resolveWritePrContext({
         user,
         projectUuid,
         prUrl,
+        writesToProtectedBranch,
     }: {
         user: SessionUser;
         projectUuid: string;
         prUrl: string;
+        writesToProtectedBranch: boolean;
     }): Promise<{
         owner: string;
         repo: string;
@@ -341,11 +342,15 @@ export class CiService extends BaseService {
                 subject('SourceCode', {
                     organizationUuid: project.organizationUuid,
                     projectUuid,
-                    isProtectedBranch: false,
+                    isProtectedBranch: writesToProtectedBranch,
                 }),
             )
         ) {
-            throw new ForbiddenError();
+            throw new ForbiddenError(
+                writesToProtectedBranch
+                    ? "You don't have permission to write to this project's branch"
+                    : undefined,
+            );
         }
 
         const provider = this.getCiProvider(project.dbtConnection.type);
@@ -392,8 +397,8 @@ export class CiService extends BaseService {
     }
 
     /**
-     * Merge a write-back pull request. A write, so it requires
-     * `manage:SourceCode` and surfaces failures (conflicts, blocked branch,
+     * Merge a write-back pull request into the project's branch, so it requires
+     * `manage:SourceCode` on the protected branch and surfaces failures (conflicts, blocked branch,
      * stale head) as thrown errors rather than degrading to null.
      */
     async mergePullRequest({
@@ -409,7 +414,12 @@ export class CiService extends BaseService {
         sha?: string;
     }): Promise<MergePullRequestResult> {
         const { owner, repo, pullNumber, token } =
-            await this.resolveWritePrContext({ user, projectUuid, prUrl });
+            await this.resolveWritePrContext({
+                user,
+                projectUuid,
+                prUrl,
+                writesToProtectedBranch: true,
+            });
 
         return this.githubClient.mergePullRequest({
             owner,
@@ -435,7 +445,12 @@ export class CiService extends BaseService {
         prUrl: string;
     }): Promise<ClosePullRequestResult> {
         const { owner, repo, pullNumber, token } =
-            await this.resolveWritePrContext({ user, projectUuid, prUrl });
+            await this.resolveWritePrContext({
+                user,
+                projectUuid,
+                prUrl,
+                writesToProtectedBranch: false,
+            });
 
         return this.githubClient.closePullRequest({
             owner,
