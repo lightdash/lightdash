@@ -403,6 +403,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 showComparison: false,
                 colorSparklineByTrend: false,
             },
+            query: null,
         },
     },
     {
@@ -435,6 +436,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 showComparison: false,
                 colorSparklineByTrend: false,
             },
+            query: null,
         },
     },
     {
@@ -464,6 +466,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 value: 'agent_requests_total_requests',
             },
             optionValues: {},
+            query: null,
         },
     },
     {
@@ -493,6 +496,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 panel: 'agent_requests_agent_name',
             },
             optionValues: { markType: 'bar', arrangement: 'grid' },
+            query: null,
         },
     },
     {
@@ -526,6 +530,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 metric: ['agent_requests_total_requests'],
             },
             optionValues: { decimalPlaces: 0, density: 'compact' },
+            query: null,
         },
     },
     {
@@ -568,6 +573,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 xAxisType: 'category',
                 showSymbols: true,
             },
+            query: null,
         },
     },
     {
@@ -601,6 +607,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 stack: 'normal',
                 xAxisType: 'category',
             },
+            query: null,
         },
     },
     {
@@ -656,6 +663,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 xAxisType: 'category',
                 showSymbols: true,
             },
+            query: null,
         },
     },
     {
@@ -691,6 +699,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 stack: 'normal',
                 xAxisType: 'category',
             },
+            query: null,
         },
     },
     {
@@ -717,6 +726,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 value: 'ai_usage_total_tokens_used',
             },
             optionValues: {},
+            query: null,
         },
     },
     {
