@@ -359,6 +359,7 @@ describe('defineTool', () => {
             'get_data_app_build_status',
             'get_metadata',
             'get_query_result',
+            'get_thread',
             'grep_fields',
             'iterate_custom_chart_type',
             'iterate_data_app',
@@ -366,6 +367,7 @@ describe('defineTool', () => {
             'list_data_app_connections',
             'list_data_app_themes',
             'list_skills',
+            'list_threads',
             'query',
             'read_skill',
             'read_skill_resource',
@@ -374,6 +376,7 @@ describe('defineTool', () => {
             'run_ai_writeback',
             'run_metric_query',
             'run_sql',
+            'search_threads',
         ]);
     });
 

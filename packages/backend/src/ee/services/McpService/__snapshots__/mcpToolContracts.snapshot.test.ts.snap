@@ -1,54 +1,5 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`MCP tool contracts > matches the filter-expression MCP server instructions snapshot 1`] = `
-"## Query Building Workflow
-
-For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
-
-0. \`get_context\`: select the project, and the agent when agent-scoped; follow production/preview and pinned-scope rules.
-1. \`grep_fields\`: discover fields and select one explore at the right grain.
-2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
-3. \`search_field_values\`: find valid filter values when needed.
-4. \`run_metric_query\`: query governed metrics.
-5. \`get_query_result\`: poll running queries; never resubmit the original query.
-6. \`render_chart\`: render completed metric queries when a chart is wanted.
-7. \`list_content\`: browse accessible content.
-8. \`find_content\`: search dashboards, charts, and Data Apps.
-
-## Rules
-
-- \`run_metric_query\` is registered for this session; if your catalogue lacks it, your client cached an outdated tool list — say so and ask the user to reconnect; never substitute \`run_sql\` for it
-- Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
-- Prefer \`run_metric_query\` for standard analysis; its semantic-layer metric definitions stay consistent. Use \`run_sql\`, in the connected warehouse's SQL dialect, only for ad-hoc queries, cross-table joins not modeled in explores, or explicit raw-SQL requests; it defaults to 500 rows (max 5000), adjustable with \`limit\`
-- Before writing filter expressions, read the shared skill referenced by run_metric_query and search_field_values
-- Never mix fields from different explores in one query; sort only by selected dimensions, metrics, or table calculations; when base and joined tables have similar field names, use the one at the query's semantic level
-"
-`;
-
-exports[`MCP tool contracts > matches the structured-filter MCP server instructions snapshot 1`] = `
-"## Query Building Workflow
-
-For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
-
-0. \`get_context\`: select the project, and the agent when agent-scoped; follow production/preview and pinned-scope rules.
-1. \`grep_fields\`: discover fields and select one explore at the right grain.
-2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
-3. \`search_field_values\`: find valid filter values when needed.
-4. \`run_metric_query\`: query governed metrics.
-5. \`get_query_result\`: poll running queries; never resubmit the original query.
-6. \`render_chart\`: render completed metric queries when a chart is wanted.
-7. \`list_content\`: browse accessible content.
-8. \`find_content\`: search dashboards, charts, and Data Apps.
-
-## Rules
-
-- \`run_metric_query\` is registered for this session; if your catalogue lacks it, your client cached an outdated tool list — say so and ask the user to reconnect; never substitute \`run_sql\` for it
-- Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
-- Prefer \`run_metric_query\` for standard analysis; its semantic-layer metric definitions stay consistent. Use \`run_sql\`, in the connected warehouse's SQL dialect, only for ad-hoc queries, cross-table joins not modeled in explores, or explicit raw-SQL requests; it defaults to 500 rows (max 5000), adjustable with \`limit\`
-- Never mix fields from different explores in one query; sort only by selected dimensions, metrics, or table calculations; when base and joined tables have similar field names, use the one at the query's semantic level
-"
-`;
-
 exports[`MCP tool contracts > matches the agent-identity tools and instructions snapshot 1`] = `
 {
   "instructions": "## Query Building Workflow
@@ -11907,6 +11858,1135 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "List conversations",
+      },
+      "description": "Tool: list_threads
+
+List past agent conversations, newest first, with counts of turns, errors and ratings for each.
+
+Use the filters to find conversations that went wrong: \`hasError\`, \`feedback\`, and for organization AI admins the review classifier's \`signal\` and \`rootCause\`. A \`classification\` of \`not_classified\` means the classifier has not judged the conversation, not that it went well; null means you cannot read classifier results.
+",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "createdFrom": {
+            "description": "Only conversations started from this surface.",
+            "enum": [
+              "web_app",
+              "api",
+              "slack",
+            ],
+            "type": "string",
+          },
+          "cursor": {
+            "description": "\`nextCursor\` of the previous page; null for the first page.",
+            "type": "string",
+          },
+          "dateFrom": {
+            "description": "Only conversations started on or after this ISO date, e.g. 2026-01-31.",
+            "type": "string",
+          },
+          "dateTo": {
+            "description": "Only conversations started on or before this ISO date.",
+            "type": "string",
+          },
+          "feedback": {
+            "description": "Only conversations where a turn got this rating.",
+            "enum": [
+              "thumbs_down",
+              "thumbs_up",
+            ],
+            "type": "string",
+          },
+          "hasError": {
+            "description": "true: only conversations where a turn failed with an error. false: only conversations without one.",
+            "type": "boolean",
+          },
+          "limit": {
+            "description": "Conversations per page; null for 25.",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "rootCause": {
+            "description": "Only conversations with a turn the review classifier gave this root cause, e.g. semantic_layer. \`all\` scope and organization AI admins only.",
+            "enum": [
+              "semantic_layer",
+              "project_context",
+              "agent_configuration",
+              "runtime_reliability",
+              "feedback_quality",
+              "not_a_failure",
+              "ambiguous",
+            ],
+            "type": "string",
+          },
+          "scope": {
+            "description": "\`mine\`: your own conversations in the project. \`all\`: every conversation in the projects where you administer AI agents; it is refused without that role.",
+            "enum": [
+              "mine",
+              "all",
+            ],
+            "type": "string",
+          },
+          "signal": {
+            "description": "Only conversations with a turn the review classifier gave this signal. \`all\` scope and organization AI admins only.",
+            "enum": [
+              "normal_refinement",
+              "implicit_correction",
+              "explicit_dispute",
+              "retry_after_failure",
+              "output_shape_correction",
+              "new_question",
+              "acceptance_or_continuation",
+              "product_capability_request",
+              "human_intervention",
+              "standing_instruction",
+              "ambiguous",
+            ],
+            "type": "string",
+          },
+          "userUuid": {
+            "description": "Only conversations started by this user. \`all\` scope only; null otherwise.",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+        },
+        "required": [
+          "scope",
+          "projectUuid",
+        ],
+        "type": "object",
+      },
+      "name": "list_threads",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "nextCursor": {
+            "description": "Pass as \`cursor\` for the next page; null on the last page.",
+            "type": [
+              "string",
+              "null",
+            ],
+          },
+          "threads": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "agentName": {
+                  "type": "string",
+                },
+                "agentUuid": {
+                  "type": "string",
+                },
+                "classification": {
+                  "anyOf": [
+                    {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "status": {
+                              "const": "not_classified",
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "status",
+                          ],
+                          "type": "object",
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "status": {
+                              "const": "classified",
+                              "type": "string",
+                            },
+                            "turns": {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "confidence": {
+                                    "description": "low, medium or high.",
+                                    "type": "string",
+                                  },
+                                  "promptUuid": {
+                                    "type": "string",
+                                  },
+                                  "rootCause": {
+                                    "description": "Why it went wrong, e.g. semantic_layer; null when none.",
+                                    "type": [
+                                      "string",
+                                      "null",
+                                    ],
+                                  },
+                                  "signal": {
+                                    "description": "What the turn was, e.g. explicit_dispute.",
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "promptUuid",
+                                  "signal",
+                                  "rootCause",
+                                  "confidence",
+                                ],
+                                "type": "object",
+                              },
+                              "type": "array",
+                            },
+                          },
+                          "required": [
+                            "status",
+                            "turns",
+                          ],
+                          "type": "object",
+                        },
+                      ],
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Review classifier result. \`not_classified\`: not judged yet. null: you cannot read classifier results.",
+                },
+                "createdAt": {
+                  "description": "ISO timestamp.",
+                  "type": "string",
+                },
+                "createdFrom": {
+                  "type": "string",
+                },
+                "downvoteCount": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "errorCount": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "firstPrompt": {
+                  "description": "Start of the first prompt of the conversation.",
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "projectUuid": {
+                  "type": "string",
+                },
+                "threadUuid": {
+                  "type": "string",
+                },
+                "title": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "turnCount": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "upvoteCount": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "user": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                        },
+                        "uuid": {
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "uuid",
+                        "name",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "required": [
+                "threadUuid",
+                "projectUuid",
+                "agentUuid",
+                "agentName",
+                "title",
+                "createdAt",
+                "createdFrom",
+                "user",
+                "firstPrompt",
+                "turnCount",
+                "errorCount",
+                "upvoteCount",
+                "downvoteCount",
+                "classification",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "threads",
+          "nextCursor",
+        ],
+        "type": "object",
+      },
+      "title": "List conversations",
+    },
+    {
+      "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Search conversations",
+      },
+      "description": "Tool: search_threads
+
+Full-text search over what was asked and answered in past agent conversations: prompts, responses, feedback comments, error messages and titles. Best match first, with snippets of the matching turns.
+
+Every word must match unless joined with \`or\`; quote a phrase to match it exactly; prefix a word with \`-\` to exclude it. Words match by stem, so "orders" finds "order". When a query matches more than 1,000 turns, only the newest 1,000 are ranked, so narrow a broad query with the filters.
+",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "createdFrom": {
+            "description": "Only conversations started from this surface.",
+            "enum": [
+              "web_app",
+              "api",
+              "slack",
+            ],
+            "type": "string",
+          },
+          "cursor": {
+            "description": "\`nextCursor\` of the previous page; null for the first page.",
+            "type": "string",
+          },
+          "dateFrom": {
+            "description": "Only conversations started on or after this ISO date, e.g. 2026-01-31.",
+            "type": "string",
+          },
+          "dateTo": {
+            "description": "Only conversations started on or before this ISO date.",
+            "type": "string",
+          },
+          "feedback": {
+            "description": "Only conversations where a turn got this rating.",
+            "enum": [
+              "thumbs_down",
+              "thumbs_up",
+            ],
+            "type": "string",
+          },
+          "hasError": {
+            "description": "true: only conversations where a turn failed with an error. false: only conversations without one.",
+            "type": "boolean",
+          },
+          "limit": {
+            "description": "Conversations per page; null for 10.",
+            "maximum": 50,
+            "minimum": 1,
+            "type": "integer",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "query": {
+            "description": "Words or quoted phrases to find.",
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string",
+          },
+          "rootCause": {
+            "description": "Only conversations with a turn the review classifier gave this root cause, e.g. semantic_layer. \`all\` scope and organization AI admins only.",
+            "enum": [
+              "semantic_layer",
+              "project_context",
+              "agent_configuration",
+              "runtime_reliability",
+              "feedback_quality",
+              "not_a_failure",
+              "ambiguous",
+            ],
+            "type": "string",
+          },
+          "scope": {
+            "description": "\`mine\`: your own conversations in the project. \`all\`: every conversation in the projects where you administer AI agents; it is refused without that role.",
+            "enum": [
+              "mine",
+              "all",
+            ],
+            "type": "string",
+          },
+          "signal": {
+            "description": "Only conversations with a turn the review classifier gave this signal. \`all\` scope and organization AI admins only.",
+            "enum": [
+              "normal_refinement",
+              "implicit_correction",
+              "explicit_dispute",
+              "retry_after_failure",
+              "output_shape_correction",
+              "new_question",
+              "acceptance_or_continuation",
+              "product_capability_request",
+              "human_intervention",
+              "standing_instruction",
+              "ambiguous",
+            ],
+            "type": "string",
+          },
+          "userUuid": {
+            "description": "Only conversations started by this user. \`all\` scope only; null otherwise.",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+        },
+        "required": [
+          "query",
+          "scope",
+          "projectUuid",
+        ],
+        "type": "object",
+      },
+      "name": "search_threads",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "nextCursor": {
+            "description": "Pass as \`cursor\` for the next page; null on the last page.",
+            "type": [
+              "string",
+              "null",
+            ],
+          },
+          "threads": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "agentName": {
+                  "type": "string",
+                },
+                "agentUuid": {
+                  "type": "string",
+                },
+                "classification": {
+                  "anyOf": [
+                    {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "status": {
+                              "const": "not_classified",
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "status",
+                          ],
+                          "type": "object",
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "status": {
+                              "const": "classified",
+                              "type": "string",
+                            },
+                            "turns": {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "confidence": {
+                                    "description": "low, medium or high.",
+                                    "type": "string",
+                                  },
+                                  "promptUuid": {
+                                    "type": "string",
+                                  },
+                                  "rootCause": {
+                                    "description": "Why it went wrong, e.g. semantic_layer; null when none.",
+                                    "type": [
+                                      "string",
+                                      "null",
+                                    ],
+                                  },
+                                  "signal": {
+                                    "description": "What the turn was, e.g. explicit_dispute.",
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "promptUuid",
+                                  "signal",
+                                  "rootCause",
+                                  "confidence",
+                                ],
+                                "type": "object",
+                              },
+                              "type": "array",
+                            },
+                          },
+                          "required": [
+                            "status",
+                            "turns",
+                          ],
+                          "type": "object",
+                        },
+                      ],
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Review classifier result. \`not_classified\`: not judged yet. null: you cannot read classifier results.",
+                },
+                "createdAt": {
+                  "description": "ISO timestamp.",
+                  "type": "string",
+                },
+                "createdFrom": {
+                  "type": "string",
+                },
+                "downvoteCount": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "errorCount": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "firstPrompt": {
+                  "description": "Start of the first prompt of the conversation.",
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "matchedTurnCount": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "matches": {
+                  "description": "Best matching turns first.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "createdAt": {
+                        "type": [
+                          "string",
+                          "null",
+                        ],
+                      },
+                      "matchedIn": {
+                        "items": {
+                          "enum": [
+                            "title",
+                            "prompt",
+                            "response",
+                            "feedback",
+                            "error",
+                          ],
+                          "type": "string",
+                        },
+                        "type": "array",
+                      },
+                      "promptUuid": {
+                        "description": "null when the title matched.",
+                        "type": [
+                          "string",
+                          "null",
+                        ],
+                      },
+                      "snippet": {
+                        "description": "Matched words are wrapped in \`**\`.",
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "promptUuid",
+                      "createdAt",
+                      "matchedIn",
+                      "snippet",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "projectUuid": {
+                  "type": "string",
+                },
+                "rank": {
+                  "type": "number",
+                },
+                "threadUuid": {
+                  "type": "string",
+                },
+                "title": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "turnCount": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "upvoteCount": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "user": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                        },
+                        "uuid": {
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "uuid",
+                        "name",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "required": [
+                "threadUuid",
+                "projectUuid",
+                "agentUuid",
+                "agentName",
+                "title",
+                "createdAt",
+                "createdFrom",
+                "user",
+                "firstPrompt",
+                "turnCount",
+                "errorCount",
+                "upvoteCount",
+                "downvoteCount",
+                "classification",
+                "rank",
+                "matchedTurnCount",
+                "matches",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "threads",
+          "nextCursor",
+        ],
+        "type": "object",
+      },
+      "title": "Search conversations",
+    },
+    {
+      "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Read conversation",
+      },
+      "description": "Tool: get_thread
+
+Read the transcript of one past agent conversation, a page of turns at a time. Each turn has the prompt, the response, any error, and the user's rating and comment.
+
+Long messages are cut and \`truncated\` is set on the turn. When \`nextTurnOffset\` is not null, call again with it as \`turnOffset\` to read on. Tool call results never include query rows or field values.
+",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "includeToolCalls": {
+            "description": "true to include the tools the agent called in each turn, with their arguments and sanitized results.",
+            "type": "boolean",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "threadUuid": {
+            "description": "\`threadUuid\` of the conversation to read.",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "turnLimit": {
+            "description": "Turns to return; null for 10.",
+            "maximum": 50,
+            "minimum": 1,
+            "type": "integer",
+          },
+          "turnOffset": {
+            "description": "Zero-based turn to start from; null for the first turn.",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer",
+          },
+        },
+        "required": [
+          "threadUuid",
+          "projectUuid",
+        ],
+        "type": "object",
+      },
+      "name": "get_thread",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "nextTurnOffset": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer",
+              },
+              {
+                "type": "null",
+              },
+            ],
+            "description": "Pass as \`turnOffset\` to read on; null after the last turn.",
+          },
+          "thread": {
+            "additionalProperties": false,
+            "properties": {
+              "agentName": {
+                "type": "string",
+              },
+              "agentUuid": {
+                "type": "string",
+              },
+              "classification": {
+                "anyOf": [
+                  {
+                    "oneOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "status": {
+                            "const": "not_classified",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "status",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "status": {
+                            "const": "classified",
+                            "type": "string",
+                          },
+                          "turns": {
+                            "items": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "confidence": {
+                                  "description": "low, medium or high.",
+                                  "type": "string",
+                                },
+                                "promptUuid": {
+                                  "type": "string",
+                                },
+                                "rootCause": {
+                                  "description": "Why it went wrong, e.g. semantic_layer; null when none.",
+                                  "type": [
+                                    "string",
+                                    "null",
+                                  ],
+                                },
+                                "signal": {
+                                  "description": "What the turn was, e.g. explicit_dispute.",
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "promptUuid",
+                                "signal",
+                                "rootCause",
+                                "confidence",
+                              ],
+                              "type": "object",
+                            },
+                            "type": "array",
+                          },
+                        },
+                        "required": [
+                          "status",
+                          "turns",
+                        ],
+                        "type": "object",
+                      },
+                    ],
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+                "description": "Review classifier result. \`not_classified\`: not judged yet. null: you cannot read classifier results.",
+              },
+              "createdAt": {
+                "description": "ISO timestamp.",
+                "type": "string",
+              },
+              "createdFrom": {
+                "type": "string",
+              },
+              "downvoteCount": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer",
+              },
+              "errorCount": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer",
+              },
+              "firstPrompt": {
+                "description": "Start of the first prompt of the conversation.",
+                "type": [
+                  "string",
+                  "null",
+                ],
+              },
+              "projectUuid": {
+                "type": "string",
+              },
+              "threadUuid": {
+                "type": "string",
+              },
+              "title": {
+                "type": [
+                  "string",
+                  "null",
+                ],
+              },
+              "turnCount": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer",
+              },
+              "upvoteCount": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer",
+              },
+              "user": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                      },
+                      "uuid": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "uuid",
+                      "name",
+                    ],
+                    "type": "object",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+              },
+            },
+            "required": [
+              "threadUuid",
+              "projectUuid",
+              "agentUuid",
+              "agentName",
+              "title",
+              "createdAt",
+              "createdFrom",
+              "user",
+              "firstPrompt",
+              "turnCount",
+              "errorCount",
+              "upvoteCount",
+              "downvoteCount",
+              "classification",
+            ],
+            "type": "object",
+          },
+          "turns": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "classification": {
+                  "anyOf": [
+                    {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "status": {
+                              "const": "not_classified",
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "status",
+                          ],
+                          "type": "object",
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "status": {
+                              "const": "classified",
+                              "type": "string",
+                            },
+                            "turns": {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "confidence": {
+                                    "description": "low, medium or high.",
+                                    "type": "string",
+                                  },
+                                  "promptUuid": {
+                                    "type": "string",
+                                  },
+                                  "rootCause": {
+                                    "description": "Why it went wrong, e.g. semantic_layer; null when none.",
+                                    "type": [
+                                      "string",
+                                      "null",
+                                    ],
+                                  },
+                                  "signal": {
+                                    "description": "What the turn was, e.g. explicit_dispute.",
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "promptUuid",
+                                  "signal",
+                                  "rootCause",
+                                  "confidence",
+                                ],
+                                "type": "object",
+                              },
+                              "type": "array",
+                            },
+                          },
+                          "required": [
+                            "status",
+                            "turns",
+                          ],
+                          "type": "object",
+                        },
+                      ],
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Review classifier result. \`not_classified\`: not judged yet. null: you cannot read classifier results.",
+                },
+                "createdAt": {
+                  "type": "string",
+                },
+                "errorMessage": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "humanFeedback": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "humanScore": {
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "-1 thumbs down, 1 thumbs up, null not rated.",
+                },
+                "index": {
+                  "description": "Zero-based turn position.",
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "prompt": {
+                  "type": "string",
+                },
+                "promptUuid": {
+                  "type": "string",
+                },
+                "response": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "toolCalls": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "args": {
+                        "type": "string",
+                      },
+                      "isError": {
+                        "type": "boolean",
+                      },
+                      "name": {
+                        "type": "string",
+                      },
+                      "result": {
+                        "type": [
+                          "string",
+                          "null",
+                        ],
+                      },
+                      "resultOmitted": {
+                        "type": [
+                          "string",
+                          "null",
+                        ],
+                      },
+                      "toolCallId": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "toolCallId",
+                      "name",
+                      "args",
+                      "result",
+                      "resultOmitted",
+                      "isError",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "truncated": {
+                  "type": "boolean",
+                },
+              },
+              "required": [
+                "index",
+                "promptUuid",
+                "createdAt",
+                "prompt",
+                "response",
+                "errorMessage",
+                "humanScore",
+                "humanFeedback",
+                "truncated",
+                "classification",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "thread",
+          "turns",
+          "nextTurnOffset",
+        ],
+        "type": "object",
+      },
+      "title": "Read conversation",
+    },
+    {
+      "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
         "title": "List Skills",
       },
       "description": "List Lightdash built-in skills available to this MCP server. Use this when the client does not expose MCP resources directly.",
@@ -13970,6 +15050,31 @@ Browse the project's custom chart types (including ones installed from the libra
 }
 `;
 
+exports[`MCP tool contracts > matches the filter-expression MCP server instructions snapshot 1`] = `
+"## Query Building Workflow
+
+For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
+
+0. \`get_context\`: select the project, and the agent when agent-scoped; follow production/preview and pinned-scope rules.
+1. \`grep_fields\`: discover fields and select one explore at the right grain.
+2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
+3. \`search_field_values\`: find valid filter values when needed.
+4. \`run_metric_query\`: query governed metrics.
+5. \`get_query_result\`: poll running queries; never resubmit the original query.
+6. \`render_chart\`: render completed metric queries when a chart is wanted.
+7. \`list_content\`: browse accessible content.
+8. \`find_content\`: search dashboards, charts, and Data Apps.
+
+## Rules
+
+- \`run_metric_query\` is registered for this session; if your catalogue lacks it, your client cached an outdated tool list — say so and ask the user to reconnect; never substitute \`run_sql\` for it
+- Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
+- Prefer \`run_metric_query\` for standard analysis; its semantic-layer metric definitions stay consistent. Use \`run_sql\`, in the connected warehouse's SQL dialect, only for ad-hoc queries, cross-table joins not modeled in explores, or explicit raw-SQL requests; it defaults to 500 rows (max 5000), adjustable with \`limit\`
+- Before writing filter expressions, read the shared skill referenced by run_metric_query and search_field_values
+- Never mix fields from different explores in one query; sort only by selected dimensions, metrics, or table calculations; when base and joined tables have similar field names, use the one at the query's semantic level
+"
+`;
+
 exports[`MCP tool contracts > matches the filter-expression run_metric_query tools/list snapshot 1`] = `
 {
   "annotations": {
@@ -14687,6 +15792,9 @@ exports[`MCP tool contracts > matches the shared MCP tool definition names snaps
   "list_agents",
   "route_agent",
   "list_verified_content",
+  "list_threads",
+  "search_threads",
+  "get_thread",
   "run_ai_writeback",
   "get_ai_writeback_status",
   "get_data_app_build_status",
@@ -14695,4 +15803,28 @@ exports[`MCP tool contracts > matches the shared MCP tool definition names snaps
   "find_custom_chart_types",
   "list_custom_chart_types",
 ]
+`;
+
+exports[`MCP tool contracts > matches the structured-filter MCP server instructions snapshot 1`] = `
+"## Query Building Workflow
+
+For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
+
+0. \`get_context\`: select the project, and the agent when agent-scoped; follow production/preview and pinned-scope rules.
+1. \`grep_fields\`: discover fields and select one explore at the right grain.
+2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
+3. \`search_field_values\`: find valid filter values when needed.
+4. \`run_metric_query\`: query governed metrics.
+5. \`get_query_result\`: poll running queries; never resubmit the original query.
+6. \`render_chart\`: render completed metric queries when a chart is wanted.
+7. \`list_content\`: browse accessible content.
+8. \`find_content\`: search dashboards, charts, and Data Apps.
+
+## Rules
+
+- \`run_metric_query\` is registered for this session; if your catalogue lacks it, your client cached an outdated tool list — say so and ask the user to reconnect; never substitute \`run_sql\` for it
+- Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
+- Prefer \`run_metric_query\` for standard analysis; its semantic-layer metric definitions stay consistent. Use \`run_sql\`, in the connected warehouse's SQL dialect, only for ad-hoc queries, cross-table joins not modeled in explores, or explicit raw-SQL requests; it defaults to 500 rows (max 5000), adjustable with \`limit\`
+- Never mix fields from different explores in one query; sort only by selected dimensions, metrics, or table calculations; when base and joined tables have similar field names, use the one at the query's semantic level
+"
 `;

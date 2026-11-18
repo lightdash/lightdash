@@ -390,6 +390,17 @@ import {
     toolSyncDbtProjectOutputSchema,
 } from './toolSyncDbtProjectArgs';
 import {
+    TOOL_GET_THREAD_DESCRIPTION,
+    TOOL_LIST_THREADS_DESCRIPTION,
+    TOOL_SEARCH_THREADS_DESCRIPTION,
+    toolGetThreadArgsSchema,
+    toolGetThreadStructuredContentSchema,
+    toolListThreadsArgsSchema,
+    toolListThreadsStructuredContentSchema,
+    toolSearchThreadsArgsSchema,
+    toolSearchThreadsStructuredContentSchema,
+} from './toolThreadHistoryArgs';
+import {
     TOOL_UPDATE_USER_NAME_DESCRIPTION,
     toolUpdateUserNameArgsSchema,
     toolUpdateUserNameOutputSchema,
@@ -1541,6 +1552,60 @@ export const readPinnedThreadToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolReadPinnedThreadOutputSchema },
 });
 
+export const listThreadsToolDefinition: ToolDefinitionWithMcpOutput<
+    'listThreads',
+    typeof toolListThreadsArgsSchema,
+    typeof toolListThreadsArgsSchema,
+    undefined,
+    typeof toolListThreadsStructuredContentSchema
+> = defineTool({
+    name: 'listThreads',
+    title: 'List conversations',
+    description: TOOL_LIST_THREADS_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: toolListThreadsArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: toolListThreadsStructuredContentSchema,
+    },
+});
+
+export const searchThreadsToolDefinition: ToolDefinitionWithMcpOutput<
+    'searchThreads',
+    typeof toolSearchThreadsArgsSchema,
+    typeof toolSearchThreadsArgsSchema,
+    undefined,
+    typeof toolSearchThreadsStructuredContentSchema
+> = defineTool({
+    name: 'searchThreads',
+    title: 'Search conversations',
+    description: TOOL_SEARCH_THREADS_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: toolSearchThreadsArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: toolSearchThreadsStructuredContentSchema,
+    },
+});
+
+export const getThreadToolDefinition: ToolDefinitionWithMcpOutput<
+    'getThread',
+    typeof toolGetThreadArgsSchema,
+    typeof toolGetThreadArgsSchema,
+    undefined,
+    typeof toolGetThreadStructuredContentSchema
+> = defineTool({
+    name: 'getThread',
+    title: 'Read conversation',
+    description: TOOL_GET_THREAD_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: toolGetThreadArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: toolGetThreadStructuredContentSchema,
+    },
+});
+
 const researchToolOutputMetadataSchema = z.object({
     status: z.enum(['success', 'error']),
 });
@@ -2212,6 +2277,9 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     listAgentsToolDefinition,
     routeAgentToolDefinition,
     listVerifiedContentToolDefinition,
+    listThreadsToolDefinition,
+    searchThreadsToolDefinition,
+    getThreadToolDefinition,
     runAiWritebackToolDefinition,
     getAiWritebackStatusToolDefinition,
     getDataAppBuildStatusToolDefinition,

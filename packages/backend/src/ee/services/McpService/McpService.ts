@@ -55,6 +55,8 @@ import {
     getRunQueryChartConfig,
     getRunSqlDefaultLimit,
     getSlackAiEchartsConfig,
+    getThreadHistoryToolFilters,
+    getThreadToolDefinition,
     getTotalFilterRules,
     getValidAiQueryLimit,
     getWarehousePivotedResults,
@@ -71,6 +73,7 @@ import {
     listDataAppThemesToolDefinition,
     listExploresToolDefinition,
     listSkillsToolDefinition,
+    listThreadsToolDefinition,
     listVerifiedContentToolDefinition,
     MAX_APP_VIZ_BUILD_SAMPLE_ROWS,
     MCP_AI_WRITEBACK_TASK_POLL_INTERVAL_MS,
@@ -109,6 +112,7 @@ import {
     runSqlToolDefinition,
     searchFieldValuesFilterExpressionToolDefinition,
     searchFieldValuesToolDefinition,
+    searchThreadsToolDefinition,
     SemanticLayerSourceQuery,
     SessionUser,
     toComposerNodeColumns,
@@ -121,6 +125,7 @@ import {
     UserAttributeValueMap,
     UUID,
     type AiAgentSkill,
+    type AiAgentThreadHistoryFilters,
     type ParametersValuesMap,
     type PivotConfiguration,
     type QueryHistory,
@@ -264,6 +269,7 @@ import { validateQueryParameters } from '../ai/utils/validators';
 import { withBuildWarnings } from '../ai/utils/withBuildWarnings';
 import { AiAgentService } from '../AiAgentService/AiAgentService';
 import { type AiAgentSkillService } from '../AiAgentSkillService';
+import { type AiAgentThreadHistoryService } from '../AiAgentThreadHistoryService';
 import {
     AiAgentToolsService,
     McpAiAgentToolsRuntime,
@@ -318,6 +324,9 @@ export enum McpToolName {
     GET_QUERY_RESULT = 'get_query_result',
     SEARCH_FIELD_VALUES = 'search_field_values',
     LIST_VERIFIED_CONTENT = 'list_verified_content',
+    LIST_THREADS = 'list_threads',
+    SEARCH_THREADS = 'search_threads',
+    GET_THREAD = 'get_thread',
     RUN_AI_WRITEBACK = 'run_ai_writeback',
     GET_AI_WRITEBACK_STATUS = 'get_ai_writeback_status',
     GENERATE_DATA_APP = 'generate_data_app',
@@ -572,6 +581,15 @@ const mcpGetQueryResultTool = withProjectScopeInput(
 const mcpListVerifiedContentTool = withProjectScopeInput(
     listVerifiedContentToolDefinition.for('mcp'),
 );
+const mcpListThreadsTool = withProjectScopeInput(
+    listThreadsToolDefinition.for('mcp'),
+);
+const mcpSearchThreadsTool = withProjectScopeInput(
+    searchThreadsToolDefinition.for('mcp'),
+);
+const mcpGetThreadTool = withProjectScopeInput(
+    getThreadToolDefinition.for('mcp'),
+);
 const mcpListSkillsTool = listSkillsToolDefinition.for('mcp');
 const mcpReadSkillTool = readSkillToolDefinition.for('mcp');
 const mcpReadSkillResourceTool = readSkillResourceToolDefinition.for('mcp');
@@ -608,6 +626,7 @@ type McpServiceArguments = {
     aiAgentSkillService: AiAgentSkillService;
     aiRouterService: AiRouterService;
     aiWritebackService: AiWritebackService;
+    aiAgentThreadHistoryService: AiAgentThreadHistoryService;
 };
 
 export type McpPinnedAgent = Pick<
@@ -778,6 +797,8 @@ export class McpService extends BaseService {
 
     private aiWritebackService: AiWritebackService;
 
+    private aiAgentThreadHistoryService: AiAgentThreadHistoryService;
+
     private mcpServer: McpServer;
 
     constructor({
@@ -804,6 +825,7 @@ export class McpService extends BaseService {
         aiAgentSkillService,
         aiRouterService,
         aiWritebackService,
+        aiAgentThreadHistoryService,
     }: McpServiceArguments) {
         super();
         this.agentActionLogModel = agentActionLogModel;
@@ -829,6 +851,7 @@ export class McpService extends BaseService {
         this.aiAgentSkillService = aiAgentSkillService;
         this.aiRouterService = aiRouterService;
         this.aiWritebackService = aiWritebackService;
+        this.aiAgentThreadHistoryService = aiAgentThreadHistoryService;
         try {
             this.mcpServer = this.buildMcpServer({
                 pinnedAgent: null,
@@ -3112,6 +3135,129 @@ export class McpService extends BaseService {
                         };
                     },
                 ),
+        );
+    }
+
+    /**
+     * Thread history tools. Who sees which thread is decided entirely by
+     * AiAgentThreadHistoryService; this only passes the session's project and,
+     * when one is pinned, its agent.
+     */
+    private registerThreadHistoryTools(): void {
+        // The wrapper narrows agentUuid to an optional string, and pins it
+        // to the session's agent when one is pinned.
+        const toFilters = (
+            projectUuid: string,
+            args: z.infer<typeof mcpListThreadsTool.inputSchema>,
+        ): AiAgentThreadHistoryFilters => ({
+            ...getThreadHistoryToolFilters({
+                ...args,
+                agentUuid: args.agentUuid ?? null,
+            }),
+            projectUuid,
+        });
+
+        this.registerTrackedTool(
+            mcpListThreadsTool.name,
+            {
+                title: mcpListThreadsTool.title,
+                description: mcpListThreadsTool.description,
+                inputSchema: mcpListThreadsTool.inputSchema.shape,
+                outputSchema: mcpListThreadsTool.outputSchema.shape,
+                annotations: mcpListThreadsTool.annotations,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+                const { user } = McpService.getAccount(ctx);
+                await this.checkMcpAgentsEnabled(user);
+                const projectUuid = await this.resolveToolProjectUuid(
+                    ctx,
+                    args.projectUuid,
+                );
+                // Re-authorizes the agent the call runs as, pinned or passed.
+                await this.getEffectiveScope(ctx, projectUuid, args.agentUuid);
+                const result =
+                    await this.aiAgentThreadHistoryService.listThreads(user, {
+                        scope: args.scope,
+                        filters: toFilters(projectUuid, args),
+                        cursor: args.cursor ?? undefined,
+                        limit: args.limit ?? undefined,
+                    });
+                return mcpListThreadsTool.result.structured(
+                    JSON.stringify(result),
+                    result,
+                );
+            },
+        );
+
+        this.registerTrackedTool(
+            mcpSearchThreadsTool.name,
+            {
+                title: mcpSearchThreadsTool.title,
+                description: mcpSearchThreadsTool.description,
+                inputSchema: mcpSearchThreadsTool.inputSchema.shape,
+                outputSchema: mcpSearchThreadsTool.outputSchema.shape,
+                annotations: mcpSearchThreadsTool.annotations,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+                const { user } = McpService.getAccount(ctx);
+                await this.checkMcpAgentsEnabled(user);
+                const projectUuid = await this.resolveToolProjectUuid(
+                    ctx,
+                    args.projectUuid,
+                );
+                // Re-authorizes the agent the call runs as, pinned or passed.
+                await this.getEffectiveScope(ctx, projectUuid, args.agentUuid);
+                const result =
+                    await this.aiAgentThreadHistoryService.searchThreads(user, {
+                        scope: args.scope,
+                        query: args.query,
+                        filters: toFilters(projectUuid, args),
+                        cursor: args.cursor ?? undefined,
+                        limit: args.limit ?? undefined,
+                    });
+                return mcpSearchThreadsTool.result.structured(
+                    JSON.stringify(result),
+                    result,
+                );
+            },
+        );
+
+        this.registerTrackedTool(
+            mcpGetThreadTool.name,
+            {
+                title: mcpGetThreadTool.title,
+                description: mcpGetThreadTool.description,
+                inputSchema: mcpGetThreadTool.inputSchema.shape,
+                outputSchema: mcpGetThreadTool.outputSchema.shape,
+                annotations: mcpGetThreadTool.annotations,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+                const { user } = McpService.getAccount(ctx);
+                await this.checkMcpAgentsEnabled(user);
+                const projectUuid = await this.resolveToolProjectUuid(
+                    ctx,
+                    args.projectUuid,
+                );
+                // Re-authorizes the agent the call runs as, pinned or passed.
+                await this.getEffectiveScope(ctx, projectUuid, args.agentUuid);
+                const result = await this.aiAgentThreadHistoryService.getThread(
+                    user,
+                    args.threadUuid,
+                    {
+                        turnOffset: args.turnOffset ?? undefined,
+                        turnLimit: args.turnLimit ?? undefined,
+                        includeToolCalls: args.includeToolCalls ?? undefined,
+                        within: { projectUuid, agentUuid: args.agentUuid },
+                    },
+                );
+                return mcpGetThreadTool.result.structured(
+                    JSON.stringify(result),
+                    result,
+                );
+            },
         );
     }
 
@@ -5514,6 +5660,8 @@ export class McpService extends BaseService {
                 );
             },
         );
+
+        this.registerThreadHistoryTools();
 
         this.registerSkillToolHandlers();
 

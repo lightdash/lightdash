@@ -1745,6 +1745,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiRouterService:
                         repository.getAiRouterService<AiRouterService>(),
                     aiWritebackService: repository.getAiWritebackService(),
+                    aiAgentThreadHistoryService:
+                        repository.getAiAgentThreadHistoryService<AiAgentThreadHistoryService>(),
                 }),
             slackService: ({ repository, clients }) =>
                 new CommercialSlackService({

@@ -41,6 +41,7 @@ export * from './toolGetKnowledgeDocumentContentArgs';
 export * from './toolListKnowledgeDocumentsArgs';
 export * from './toolReadAttachmentsArgs';
 export * from './toolReadPinnedThreadArgs';
+export * from './toolThreadHistoryArgs';
 export * from './toolCreateContentArgs';
 export * from './sqlApprovalToolCalls';
 export * from './mcpDocumentContent';
