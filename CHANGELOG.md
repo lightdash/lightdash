@@ -1,3 +1,10 @@
+# [3.313.0](https://github.com/lightdash/lightdash/compare/3.312.0...3.313.0) (2026-11-18)
+
+
+### Features
+
+* **live-sources:** open a new source's page right after it connects ([#32591](https://github.com/lightdash/lightdash/issues/32591)) ([e530ed2](https://github.com/lightdash/lightdash/commit/e530ed271d3fcad6537063bde24875bb5f7ce94f))
+
 # [3.312.0](https://github.com/lightdash/lightdash/compare/3.311.0...3.312.0) (2026-11-18)
 
 
