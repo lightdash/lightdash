@@ -5044,12 +5044,16 @@ describe('AiAgentToolsService createContent composer_chart', () => {
             { reference: 'amount', type: 'number' },
         ]);
         const service = makeService({
-            dashboardService: { getByIdOrSlug: getDashboard, update },
+            dashboardService: {
+                getByIdOrSlug: vi.fn().mockResolvedValue(salesDashboard),
+                update,
+            },
             dashboardModel: {
-                getByIdOrSlug: vi.fn().mockResolvedValue({
-                    uuid: 'bound-uuid',
-                    slug: boundDashboardSlug,
-                }),
+                getByIdOrSlug: vi.fn(async (uuidOrSlug: string) =>
+                    uuidOrSlug === 'bound-uuid'
+                        ? { uuid: 'bound-uuid', slug: boundDashboardSlug }
+                        : getDashboard(),
+                ),
             },
             coderService: {
                 toStoredComposerChart: vi.fn(async (_project, chart) => chart),

@@ -4492,9 +4492,8 @@ export class AiAgentToolsService extends BaseService {
                 chart,
             },
         );
-        // Re-read: the layout may have changed while the SQL awaited approval.
-        const current = await this.dashboardService.getByIdOrSlug(
-            context.user,
+        // Re-read, unrecorded as a view: the layout may have changed while the SQL awaited approval.
+        const current = await this.dashboardModel.getByIdOrSlug(
             dashboard.uuid,
             { projectUuid: context.projectUuid },
         );
