@@ -6369,10 +6369,13 @@ export class CoderService extends BaseService {
             ),
             existingDashboard?.tiles ?? [],
         );
-        assertDashboardWithinLimits(
-            { tiles: tilesWithUuids, tabs: tabsWithUuids },
-            this.lightdashConfig.dashboard,
-        );
+        if (!existingDashboard) {
+            assertDashboardWithinLimits(
+                { tiles: tilesWithUuids, tabs: tabsWithUuids },
+                this.lightdashConfig.dashboard,
+                null,
+            );
+        }
         await this.assertTileChartsViewAccess({
             userUuid: user.userUuid,
             auditedAbility,
@@ -6755,6 +6758,12 @@ export class CoderService extends BaseService {
             user.organizationUuid!,
             promotedDashboard,
             upstreamDashboard,
+        );
+        // After the access checks, so saved tile counts are not revealed
+        assertDashboardWithinLimits(
+            { tiles: tilesWithUuids, tabs: tabsWithUuids },
+            this.lightdashConfig.dashboard,
+            dashboard,
         );
 
         const { space } = await this.getOrCreateSpace(

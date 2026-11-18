@@ -2016,6 +2016,28 @@ describe('DashboardService', () => {
         expect(dashboardModel.update).not.toHaveBeenCalled();
         expect(dashboardModel.addVersion).not.toHaveBeenCalled();
     });
+    test('should only reject an update of an over-limit dashboard when it grows', async () => {
+        const tiles = (count: number) =>
+            Array(count).fill(createDashboard.tiles[0]);
+        const { maxTilesPerTab } = lightdashConfigMock.dashboard;
+        const saved = { ...dashboard, tiles: tiles(maxTilesPerTab + 1) };
+
+        dashboardModel.getByIdOrSlug.mockResolvedValueOnce(saved);
+        await expect(
+            service.update(user, dashboardUuid, {
+                ...updateDashboardDetailsAndTiles,
+                tiles: tiles(maxTilesPerTab + 1),
+            }),
+        ).resolves.toBeDefined();
+        dashboardModel.getByIdOrSlug.mockResolvedValueOnce(saved);
+        await expect(
+            service.update(user, dashboardUuid, {
+                ...updateDashboardDetailsAndTiles,
+                tiles: tiles(maxTilesPerTab + 2),
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(dashboardModel.addVersion).toHaveBeenCalledTimes(1);
+    });
     test('should not fail save when an orphan chart is already gone', async () => {
         // Race with a retried save: getOrphanedCharts returns a chart that
         // permanentDelete then can't find. The save must still succeed.
@@ -2575,6 +2597,24 @@ describe('DashboardService', () => {
                 service as any,
                 'duplicateChartForDashboard',
             ).mockResolvedValue('new-duplicated-chart-uuid');
+        });
+
+        test('should duplicate a dashboard that is over the tiles-per-tab limit', async () => {
+            (
+                dashboardModel.getByIdOrSlug as import('vitest').Mock
+            ).mockResolvedValue({
+                ...dashboardWithScopedCharts,
+                tiles: Array(
+                    lightdashConfigMock.dashboard.maxTilesPerTab + 1,
+                ).fill(dashboardWithScopedCharts.tiles[0]),
+            });
+
+            await service.duplicate(user, projectUuid, dashboard.uuid, {
+                dashboardName: 'Duplicated',
+                dashboardDesc: 'desc',
+            });
+
+            expect(dashboardModel.create).toHaveBeenCalled();
         });
 
         test('should make whoever duplicates the owner of the copy', async () => {
@@ -3300,6 +3340,30 @@ describe('DashboardService', () => {
                 user.userUuid,
                 undefined,
             );
+        });
+
+        test('only refuses an over-limit version that is larger than the current one', async () => {
+            const tiles = (count: number) =>
+                Array(count).fill(dashboard.tiles[0]);
+            const { maxTilesPerTab } = lightdashConfigMock.dashboard;
+            const saved = { ...dashboard, tiles: tiles(maxTilesPerTab + 1) };
+
+            dashboardModel.getByIdOrSlug.mockResolvedValueOnce(saved);
+            dashboardModel.getVersionByUuid.mockResolvedValueOnce({
+                ...targetVersion,
+                tiles: tiles(maxTilesPerTab + 1),
+            });
+            await service.rollback(account, dashboard.uuid, 'old-version-uuid');
+            expect(dashboardModel.addVersion).toHaveBeenCalledTimes(1);
+
+            dashboardModel.getByIdOrSlug.mockResolvedValueOnce(saved);
+            dashboardModel.getVersionByUuid.mockResolvedValueOnce({
+                ...targetVersion,
+                tiles: tiles(maxTilesPerTab + 2),
+            });
+            await expect(
+                service.rollback(account, dashboard.uuid, 'old-version-uuid'),
+            ).rejects.toThrow(ParameterError);
         });
 
         test('reads no composer chart for a version without composer tiles', async () => {

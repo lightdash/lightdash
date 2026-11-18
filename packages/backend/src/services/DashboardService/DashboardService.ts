@@ -2439,6 +2439,7 @@ export class DashboardService
         assertDashboardWithinLimits(
             { tiles: createDashboard.tiles, tabs: createDashboard.tabs ?? [] },
             this.lightdashConfig.dashboard,
+            null,
         );
         const newDashboard = await this.dashboardModel.create(
             space.uuid,
@@ -2665,7 +2666,6 @@ export class DashboardService
                 "You don't have access to the space this dashboard belongs to",
             );
         }
-        assertDashboardWithinLimits(dashboard, this.lightdashConfig.dashboard);
 
         const newTabsMap = dashboard.tabs.map((tab) => ({
             uuid: tab.uuid,
@@ -3267,6 +3267,7 @@ export class DashboardService
                     tabs: incomingFields.tabs ?? [],
                 },
                 this.lightdashConfig.dashboard,
+                existingDashboardDao,
             );
         }
 
@@ -5047,6 +5048,7 @@ export class DashboardService
         assertDashboardWithinLimits(
             targetVersion,
             this.lightdashConfig.dashboard,
+            dashboardDao,
         );
         const agentIdentity = getContentWriteAgentIdentity({
             userUuid: user.userUuid,
@@ -5229,6 +5231,7 @@ export class DashboardService
         assertDashboardWithinLimits(
             { tiles: data.charts.map(() => ({})), tabs: [] },
             this.lightdashConfig.dashboard,
+            null,
         );
         // 1. Create empty dashboard
         const emptyDashboard: CreateDashboard = {

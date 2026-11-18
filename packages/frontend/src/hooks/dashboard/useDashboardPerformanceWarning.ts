@@ -35,6 +35,7 @@ const useDashboardPerformanceWarning = (
         const violations = getDashboardLimitViolations(
             { tiles, tabs },
             { maxTilesPerTab, maxTabsPerDashboard },
+            null,
         );
         return {
             hasWarning: violations.length > 0,
