@@ -19,7 +19,14 @@ import {
     type NodeTypes,
 } from '@xyflow/react';
 import { clsx } from 'clsx';
-import { useEffect, useMemo, useRef, useState, type FC } from 'react';
+import {
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
 import '@xyflow/react/dist/style.css';
 import DefaultEdge from '../../../../../../components/common/ReactFlow/DefaultEdge';
 import reactFlowStyles from '../../../../../../components/common/ReactFlow/reactFlow.module.css';
@@ -168,6 +175,7 @@ const DEFAULT_SIZES: SplitterPaneSize[] = [
     GRAPH_SHARE_BOUNDS.max,
     100 - GRAPH_SHARE_BOUNDS.max,
 ];
+const ASIDE_GRAPH_SHARE = 55;
 
 const LineageFlow: FC<
     {
@@ -312,12 +320,13 @@ type Props = Pick<
     | 'nodeStatuses'
     | 'displayableNodeIds'
     | 'renderNodeResult'
-    | 'chatNodeIds'
-    | 'onAddToChat'
+    | 'threadActions'
     | 'initialFocusNodeId'
 > & {
     queries: SourceQuery[];
     terminalNodeId: string;
+    /** Drawn left of the graph, e.g. the chart the pipeline feeds; the graph pane then takes a fixed, larger share. */
+    graphAside: ReactNode | null;
 };
 
 // The lineage graph on top, one notebook cell per node below; selecting a node
@@ -326,6 +335,7 @@ export const AiComposerLineage: FC<Props> = ({
     queries,
     terminalNodeId,
     nodeStatuses,
+    graphAside,
     ...notebookProps
 }) => {
     const layers = useMemo(
@@ -347,7 +357,8 @@ export const AiComposerLineage: FC<Props> = ({
         splitHeight,
         GRAPH_SHARE_BOUNDS,
     );
-    const fittedSizes: SplitterPaneSize[] = [fittedShare, 100 - fittedShare];
+    const defaultShare = graphAside === null ? fittedShare : ASIDE_GRAPH_SHARE;
+    const fittedSizes: SplitterPaneSize[] = [defaultShare, 100 - defaultShare];
     // null follows the fitted default until the user resizes.
     const [userSizes, setUserSizes] = useState<SplitterPaneSize[] | null>(null);
     const sizes = userSizes ?? fittedSizes;
@@ -358,6 +369,25 @@ export const AiComposerLineage: FC<Props> = ({
             clearSelection();
         }
     });
+
+    const graph = layers.length > 0 && (
+        <ReactFlowProvider key={pipelineKey(layers)}>
+            <LineageFlow
+                layers={layers}
+                onLayout={setGraphContentHeight}
+                nodeStatuses={nodeStatuses}
+                selectedNodeId={selectedNodeId}
+                notebookLineage={notebookLineage}
+                onFocusNode={(nodeId) => notebookRef.current?.focusNode(nodeId)}
+                onHoverNode={(nodeId) =>
+                    nodeId
+                        ? notebookRef.current?.showLineage(nodeId)
+                        : notebookRef.current?.hideLineage()
+                }
+                onClearSelection={clearSelection}
+            />
+        </ReactFlowProvider>
+    );
 
     return (
         <Box ref={splitRef} className={styles.split}>
@@ -374,27 +404,15 @@ export const AiComposerLineage: FC<Props> = ({
                     min={15}
                     className={styles.graphPane}
                 >
-                    {layers.length > 0 && (
-                        <ReactFlowProvider key={pipelineKey(layers)}>
-                            <LineageFlow
-                                layers={layers}
-                                onLayout={setGraphContentHeight}
-                                nodeStatuses={nodeStatuses}
-                                selectedNodeId={selectedNodeId}
-                                notebookLineage={notebookLineage}
-                                onFocusNode={(nodeId) =>
-                                    notebookRef.current?.focusNode(nodeId)
-                                }
-                                onHoverNode={(nodeId) =>
-                                    nodeId
-                                        ? notebookRef.current?.showLineage(
-                                              nodeId,
-                                          )
-                                        : notebookRef.current?.hideLineage()
-                                }
-                                onClearSelection={clearSelection}
-                            />
-                        </ReactFlowProvider>
+                    {graphAside === null ? (
+                        graph
+                    ) : (
+                        <Box className={styles.graphWithAside}>
+                            <Box className={styles.graphAside}>
+                                {graphAside}
+                            </Box>
+                            <Box className={styles.graphBeside}>{graph}</Box>
+                        </Box>
                     )}
                 </ResizableSplitter.Pane>
                 <ResizableSplitter.Pane
