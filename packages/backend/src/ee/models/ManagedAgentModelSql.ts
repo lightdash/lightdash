@@ -1,4 +1,5 @@
 import { DashboardsTableName } from '../../database/entities/dashboards';
+import { queryHistoryExploreNameSql } from '../../database/entities/queryHistory';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SpaceTableName } from '../../database/entities/spaces';
 
@@ -293,7 +294,7 @@ WITH params AS (
 ),
 runs AS (
   SELECT
-    qh.metric_query->>'exploreName' AS explore_name,
+    ${queryHistoryExploreNameSql('qh')} AS explore_name,
     qh.warehouse_execution_time_ms AS execution_ms,
     qh.pre_aggregate_compiled_sql IS NOT NULL AS preagg_hit,
     qh.created_by_user_uuid,
@@ -304,7 +305,7 @@ runs AS (
     AND qh.created_at >= params.window_start
     AND qh.status = 'ready'
     AND qh.error IS NULL
-    AND qh.metric_query->>'exploreName' IS NOT NULL
+    AND ${queryHistoryExploreNameSql('qh')} IS NOT NULL
     AND qh.warehouse_execution_time_ms > 0
 )
 SELECT

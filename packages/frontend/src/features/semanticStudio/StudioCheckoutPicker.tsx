@@ -28,11 +28,11 @@ import classes from './WorkbenchView.module.css';
 export const StudioCheckoutPicker: FC<{
     projectUuid: string;
     onShowChanges: (() => void) | null;
-    onNewChange: () => void;
-}> = ({ projectUuid, onShowChanges, onNewChange }) => {
+}> = ({ projectUuid, onShowChanges }) => {
     const { shown, error } = useStudioCheckout();
     const { data: workspaces } = useStudioWorkspaces(projectUuid);
-    const { checkOut, isBusy, isError } = useCheckOut(projectUuid);
+    const { checkOut, createChange, isBusy, isError } =
+        useCheckOut(projectUuid);
     const current = shown?.workspace ?? null;
     const label = current?.name ?? 'Live';
     const mine = (workspaces?.mine ?? []).filter(isOpenWorkspace);
@@ -148,10 +148,7 @@ export const StudioCheckoutPicker: FC<{
                     <Menu.Item
                         leftSection={<MantineIcon icon={IconPlus} size={14} />}
                         disabled={isBusy}
-                        onClick={() => {
-                            checkOut(null);
-                            onNewChange();
-                        }}
+                        onClick={createChange}
                     >
                         New change
                     </Menu.Item>

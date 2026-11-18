@@ -4,6 +4,7 @@ import {
     formatToolErrorMessage,
     getToolCallFailure,
     isToolCallSettled,
+    isToolCallUnapproved,
 } from './toolCallFailure';
 import { type ToolCallSummary } from './types';
 
@@ -56,18 +57,16 @@ describe('getToolCallFailure', () => {
         ).toEqual({ toolCallId: 'call-1', message: 'Timeout' });
     });
 
-    it('treats timed-out and rejected SQL as failures', () => {
+    it('treats unapproved SQL as neither a failure nor a success', () => {
         const live = (status: string): ToolCallSummary => ({
             ...call,
             isPreliminary: false,
             toolOutput: { result: `Approval ${status}`, metadata: { status } },
         });
-        expect(getToolCallFailure(live('timeout'))?.message).toBe(
-            'Approval timeout',
-        );
-        expect(getToolCallFailure(live('rejected'))?.message).toBe(
-            'Approval rejected',
-        );
+        for (const status of ['rejected', 'timeout']) {
+            expect(getToolCallFailure(live(status))).toBeNull();
+            expect(isToolCallUnapproved(live(status))).toBe(true);
+        }
     });
 
     it('ignores successful results', () => {

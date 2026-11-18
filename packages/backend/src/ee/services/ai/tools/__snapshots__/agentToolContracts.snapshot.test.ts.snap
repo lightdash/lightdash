@@ -1005,6 +1005,22 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
             {
               "additionalProperties": false,
               "properties": {
+                "status": {
+                  "enum": [
+                    "rejected",
+                    "timeout",
+                  ],
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
                 "href": {
                   "type": "string",
                 },
@@ -1995,6 +2011,22 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
               "properties": {
                 "status": {
                   "const": "error",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "enum": [
+                    "rejected",
+                    "timeout",
+                  ],
                   "type": "string",
                 },
               },
@@ -14062,6 +14094,8 @@ Sources:
                       "enum": [
                         "success",
                         "error",
+                        "rejected",
+                        "timeout",
                       ],
                       "type": "string",
                     },
@@ -14540,12 +14574,16 @@ Sources:
                       "enum": [
                         "success",
                         "error",
+                        "rejected",
+                        "timeout",
                       ],
                       "type": "string",
                     },
                     {
                       "enum": [
                         "error",
+                        "rejected",
+                        "timeout",
                       ],
                       "type": "string",
                     },
@@ -21036,7 +21074,7 @@ When to use:
 Returns:
 Matching fields as \`explore/fieldId  [kind type]\` lines grouped by explore. Pick the single explore that answers at the right grain before building a query.
 - A description or hint ending in "...(truncated)" is incomplete; read the full text with getMetadata before using that field.
-- A field annotated with \`⚠params: <names>\` depends on those Lightdash parameters; read their definitions with getMetadata on its explore before querying it.
+- A field annotated with \`requires params: <names>\` depends on those Lightdash parameters; read their definitions with getMetadata on its explore before querying it.
 
 Recovery:
 When no field matches literally, the result lists the closest catalog matches (fuzzy search) under "No exact grep matches". Use those rather than re-grepping a long list of synonyms; broaden the patterns only when those miss too.
@@ -25714,6 +25752,7 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "editDbtProject",
   "editProjectContext",
   "proposeSemanticLayerChange",
+  "listChanges",
   "readSemanticModel",
   "syncDbtProject",
   "exploreRepo",

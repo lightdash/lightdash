@@ -136,11 +136,6 @@ import {
     STDERR_TAIL_BYTES,
     SYSTEM_PROMPT_PATH,
     TMP_PROFILES_DIR,
-    TRY_OUT_HAND_OVER_TIMEOUT_MS,
-    TRY_OUT_MAX_FILE_BYTES,
-    TRY_OUT_MAX_MANIFEST_BYTES,
-    TRY_OUT_PARSE_TIMEOUT_MS,
-    TRY_OUT_TARGET_DIR,
     WAREHOUSE_SKILL_PATH,
 } from './constants';
 import { findDeniedCommitPaths } from './deniedPaths';
@@ -172,7 +167,6 @@ import type {
     CodingAgentConfig,
     GitConnection,
     GitInstallation,
-    ParsedDbtProject,
     RepoContext,
     SetStage,
     TurnContext,
@@ -438,14 +432,6 @@ const getRepoContextAnalyticsProperties = (repoContext: RepoContext | null) => {
         repoContextFileCount: fileCount,
     };
 };
-
-/** dbt prints errors to stdout among model SQL, so only its error lines are logged. */
-export const findDbtErrorLines = (output: string): string[] =>
-    output
-        .split('\n')
-        .filter((line) => /error/i.test(line))
-        .slice(-10)
-        .map((line) => line.trim().slice(0, 300));
 
 export class AiWritebackService extends BaseService {
     private readonly agentPermissionService: AiWritebackServiceDeps['agentPermissionService'];
@@ -1907,6 +1893,28 @@ export class AiWritebackService extends BaseService {
         };
     }
 
+    /** The branch of an open pull request in the project's own repository, read as the app. */
+    async findPullRequestBranch(
+        organizationUuid: string,
+        projectUuid: string,
+        prUrl: string,
+    ): Promise<string> {
+        const { dbtConnection } = await this.projectModel.get(projectUuid);
+        const provider = this.getGitProvider(dbtConnection.type);
+        const connection = provider.resolveConnection(dbtConnection, {
+            projectUuid,
+            projectDbtSourceUuid: null,
+        });
+        const installation =
+            await provider.resolveInstallation(organizationUuid);
+        const { headRef } = await provider.adoptPullRequest({
+            prUrl,
+            connection,
+            installation,
+        });
+        return headRef;
+    }
+
     /**
      * Makes a change with a script, read and committed through the GitHub API
      * with no sandbox. Null when the target needs the sandbox: not GitHub, a
@@ -3245,26 +3253,6 @@ export class AiWritebackService extends BaseService {
                 assertPublishAllowed,
             });
             pauseOnExit = applied.pauseOnExit;
-
-            if (
-                args.onDbtProject &&
-                hasChanges &&
-                config.mode === 'dbt-writeback' &&
-                !(
-                    (turn.gitConnection.provider ===
-                        PullRequestProvider.GITHUB ||
-                        turn.gitConnection.provider ===
-                            PullRequestProvider.BITBUCKET) &&
-                    turn.gitConnection.semanticLayer === 'lightdash'
-                )
-            ) {
-                await this.handOverDbtProject(
-                    sandbox,
-                    turn,
-                    applied.prUrl ?? null,
-                    args.onDbtProject,
-                );
-            }
 
             tracker.completed({
                 exitCode: agent.exitCode,
@@ -4748,76 +4736,6 @@ export class AiWritebackService extends BaseService {
         }
 
         await this.prepareWarehouseSkills(sandbox, turn);
-    }
-
-    /**
-     * Parses the edited project into a manifest and hands it over. Best-effort: a
-     * change that cannot be tried here still has its pull request and preview.
-     */
-    private async handOverDbtProject(
-        sandbox: SandboxHandle,
-        turn: TurnContext,
-        prUrl: string | null,
-        onDbtProject: (project: ParsedDbtProject) => Promise<void>,
-    ): Promise<void> {
-        const projectDir = `${CWD}/${turn.gitConnection.projectSubPath}`;
-        const unsetFlags = COMPILE_STRIPPED_ENV_VARS.map(
-            (name) => `-u ${name}`,
-        ).join(' ');
-        const dbtBin = dbtSandboxVenvBin(turn.dbtVersion);
-        try {
-            // Same secret-stripped env as the compile wrapper: dbt renders the repo's Jinja.
-            await sandbox.commands.run(
-                `env ${unsetFlags} PATH="${dbtBin}:$PATH" dbt parse --project-dir ${quoteShellArgument(
-                    projectDir,
-                )} --profiles-dir ${TMP_PROFILES_DIR} --target-path ${TRY_OUT_TARGET_DIR}`,
-                { cwd: CWD, timeoutMs: TRY_OUT_PARSE_TIMEOUT_MS },
-            );
-            const manifestJson = await sandbox.files.read(
-                `${TRY_OUT_TARGET_DIR}/manifest.json`,
-                { maxBytes: TRY_OUT_MAX_MANIFEST_BYTES },
-            );
-            const lightdashConfigYaml = await sandbox.files
-                .read(`${projectDir}/lightdash.config.yml`, {
-                    maxBytes: TRY_OUT_MAX_FILE_BYTES,
-                })
-                .catch(() => null);
-            const diff = await sandbox.commands.run(
-                'git -c core.quotepath=off diff --name-only -z --relative HEAD~1 HEAD',
-                { cwd: projectDir, maxOutputBytes: TRY_OUT_MAX_FILE_BYTES },
-            );
-            let timer: NodeJS.Timeout | undefined;
-            try {
-                await Promise.race([
-                    onDbtProject({
-                        manifestJson,
-                        lightdashConfigYaml,
-                        changedFiles: diff.stdout.split('\0').filter(Boolean),
-                        prUrl,
-                    }),
-                    new Promise<never>((_, reject) => {
-                        timer = setTimeout(
-                            () => reject(new Error('timed out')),
-                            TRY_OUT_HAND_OVER_TIMEOUT_MS,
-                        );
-                    }),
-                ]);
-            } finally {
-                clearTimeout(timer);
-            }
-        } catch (error) {
-            const errorLines =
-                error instanceof SandboxCommandError
-                    ? findDbtErrorLines(`${error.stderr}\n${error.stdout}`)
-                    : [];
-            const output =
-                errorLines.length > 0 ? `\n${errorLines.join('\n')}` : '';
-            this.logger.warn(
-                `AiWriteback: could not prepare the change to be tried before its preview: ${getErrorMessage(
-                    error,
-                )} (sandboxId=${sandbox.sandboxId})${output}`,
-            );
-        }
     }
 
     private async prepareWarehouseSkills(

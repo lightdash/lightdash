@@ -64,7 +64,7 @@ describe('ProjectModelDocumentModel', () => {
         ['an active workspace', 'workspace', ['workspace']],
         ['no active workspace', null, []],
     ])(
-        'reads the draft of %s with the changes from before workspaces',
+        'reads only the draft of %s',
         async (_case, workspaceUuid, workspaceBindings) => {
             tracker.on.select('project_model_draft_changes').response([]);
             await model.findDraftChanges({
@@ -76,7 +76,7 @@ describe('ProjectModelDocumentModel', () => {
             expect(sql).toContain(
                 workspaceUuid === null
                     ? '"project_model_draft_changes"."workspace_uuid" is null'
-                    : '("project_model_draft_changes"."workspace_uuid" is null or "project_model_draft_changes"."workspace_uuid" = $1)',
+                    : '"project_model_draft_changes"."workspace_uuid" = $1',
             );
             expect(bindings).toEqual([
                 ...workspaceBindings,

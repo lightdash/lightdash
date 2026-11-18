@@ -1,7 +1,9 @@
 import {
+    listChangesToolDefinition,
     proposeSemanticLayerChangeToolDefinition,
     readSemanticModelToolDefinition,
     type SemanticLayerDraftItemResult,
+    type StudioChangeSummary,
     type ToolProposeSemanticLayerChangeOutput,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -47,10 +49,10 @@ export const getProposeSemanticLayerChange = ({
 }) =>
     tool({
         ...proposeSemanticLayerChangeToolDefinition.for('agent'),
-        execute: async ({ models }) => {
+        execute: async ({ models, changeName }) => {
             try {
-                const { results, diffs, draftChangeUuid } =
-                    await proposeSemanticLayerChange(models);
+                const { results, diffs, draftChangeUuid, startedChange } =
+                    await proposeSemanticLayerChange(models, changeName);
                 const output: ToolProposeSemanticLayerChangeOutput = {
                     result: [
                         ...results.map((result) => {
@@ -70,6 +72,11 @@ export const getProposeSemanticLayerChange = ({
                                     : [],
                             );
                         }),
+                        ...(startedChange
+                            ? [
+                                  `Started change "${startedChange.name}" and checked it out.`,
+                              ]
+                            : []),
                         draftChangeUuid
                             ? "This joined the person's draft and they see its diff. Nothing is live until they publish the draft."
                             : 'Nothing joined the draft.',
@@ -79,6 +86,7 @@ export const getProposeSemanticLayerChange = ({
                         models: results,
                         diffs,
                         draftChangeUuid,
+                        startedChange,
                     },
                     structuredContent: { models: results },
                 };
@@ -120,6 +128,25 @@ export const getReadSemanticModel = ({
                     error,
                     'Error reading the semantic model.',
                 );
+            }
+        },
+    });
+
+export const getListChanges = (
+    listChanges: () => Promise<StudioChangeSummary[]>,
+) =>
+    tool({
+        ...listChangesToolDefinition.for('agent'),
+        execute: async () => {
+            try {
+                const changes = await listChanges();
+                return {
+                    result: JSON.stringify(changes),
+                    structuredContent: { changes },
+                    metadata: { status: 'success' as const },
+                };
+            } catch (error) {
+                return toolErrorOutput(error, 'Error listing your changes.');
             }
         },
     });

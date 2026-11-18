@@ -18,6 +18,7 @@ import {
     ProjectType,
     readModelPart,
     ValidationTarget,
+    type CompileSemanticStudioBranchPayload,
     type DbtManifest,
     type Explore,
     type ExploreError,
@@ -39,6 +40,7 @@ import {
     type SemanticLayerStatus,
     type SemanticLayerStoredModels,
     type SemanticLayerTouchedField,
+    type SemanticStudioCheckout,
     type SemanticStudioSourceFile,
     type SemanticStudioSources,
     type SemanticStudioSourceSave,
@@ -71,7 +73,6 @@ import {
 import { type SemanticStudioWorkspaceModel } from '../../models/SemanticStudioWorkspaceModel';
 import { getWritebackConnectionSupport } from '../AiAgentService/writebackConnection';
 import { type AiWritebackService } from '../AiWritebackService/AiWritebackService';
-import { type ParsedDbtProject } from '../AiWritebackService/types';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import {
     findModelsToCompile,
@@ -80,14 +81,7 @@ import {
     type DbtScriptChange,
     type DbtScriptCheck,
 } from './codeMode/dbtManifestPatch';
-import {
-    dbtTryOutFileId,
-    findChangedModels,
-    findLiveTableLocations,
-    markNewModels,
-    pointManifestAtLiveTables,
-    type DbtTryOut,
-} from './dbtTryOut';
+import { dbtTryOutFileId, type DbtTryOut } from './dbtTryOut';
 import {
     DraftChecker,
     usesAnyModel,
@@ -150,7 +144,7 @@ export type SemanticStudioServiceArguments = {
         | 'findDocumentsAt'
         | 'findPublishedSince'
         | 'findSettledDraftChanges'
-        | 'createDraftChange'
+        | 'createCheckedOutDraftChange'
         | 'updateDraftChangeStatus'
         | 'findDraftImpactCheck'
         | 'startDraftImpactCheck'
@@ -158,15 +152,22 @@ export type SemanticStudioServiceArguments = {
     >;
     schedulerClient: {
         checkSemanticLayerDraftImpact: (payload: {
+            workspaceUuid: string | null;
+            expectedHash: string;
             organizationUuid: string;
             projectUuid: string;
             userUuid: string;
         }) => Promise<unknown>;
+        compileSemanticStudioBranch: (
+            payload: CompileSemanticStudioBranchPayload,
+        ) => Promise<unknown>;
     };
     validationService: Pick<ValidationService, 'generateValidation'>;
     projectService: Pick<
         ProjectService,
-        'setExplores' | 'compileExploresFromManifest'
+        | 'setExplores'
+        | 'compileExploresFromManifest'
+        | 'compileExploresFromBranch'
     > &
         DraftCheckerProjectService;
     fileStorageClient: Pick<
@@ -185,15 +186,17 @@ export type SemanticStudioServiceArguments = {
     >;
     aiWritebackService: Pick<
         AiWritebackService,
-        'openStudioCheckout' | 'saveWithScript'
+        'openStudioCheckout' | 'saveWithScript' | 'findPullRequestBranch'
     >;
     workspaceModel: Pick<
         SemanticStudioWorkspaceModel,
         | 'findStudioThread'
         | 'findInProject'
+        | 'listChanges'
         | 'find'
         | 'findActive'
         | 'start'
+        | 'create'
         | 'activate'
         | 'leave'
         | 'rename'
@@ -201,6 +204,10 @@ export type SemanticStudioServiceArguments = {
         | 'attachPullRequest'
         | 'attachThreadPullRequest'
         | 'recordPullRequestState'
+        | 'requestBranchCompile'
+        | 'finishBranchCompile'
+        | 'findBranchCompile'
+        | 'deleteFinishedBranchCompiles'
     >;
 };
 
@@ -214,6 +221,8 @@ export type SemanticLayerDraftProposal = {
     }[];
     /** Null when nothing passed. */
     draftChangeUuid: string | null;
+    /** The change this started because the person was on Live; null otherwise. */
+    startedChange: { workspaceUuid: string; name: string } | null;
 };
 
 /** A person's draft, replayed on what is live. */
@@ -247,11 +256,12 @@ const UNTITLED_WORKSPACE_NAME = 'Untitled change';
 
 /** Identifies a draft on top of what is live, so a check of one is not read as a check of another. */
 const hashDraft = (
+    workspaceUuid: string | null,
     live: Map<string, string>,
     writes: Map<string, string | null>,
 ): string =>
     createHash('sha256')
-        .update(JSON.stringify([[...live], [...writes]]))
+        .update(JSON.stringify([workspaceUuid, [...live], [...writes]]))
         .digest('hex');
 
 const EMPTY_DRAFT: SemanticLayerDraft = {
@@ -713,15 +723,10 @@ export class SemanticStudioService extends BaseService {
         models: SemanticLayerDraftModelInput[],
         /** The question asking for it; null when none did. */
         prompt: { promptUuid: string; threadUuid: string } | null,
+        /** Names the change this starts when the person is on Live. */
+        changeName: string | null,
     ): Promise<SemanticLayerDraftProposal> {
         await this.assertCanEditModels(user, projectUuid);
-        if (prompt) {
-            await this.startConversationWorkspace(
-                user,
-                projectUuid,
-                prompt.threadUuid,
-            );
-        }
         const owner = await this.findDraftOwner(projectUuid, user.userUuid);
         const draft = await this.loadDraft(owner, null);
         await this.assertNoModelsFromElsewhere(projectUuid, draft);
@@ -746,26 +751,40 @@ export class SemanticStudioService extends BaseService {
             (_model, index) => results[index].status === 'ready',
         );
         if (passing.length === 0) {
-            return { results, diffs: [], draftChangeUuid: null };
+            return {
+                results,
+                diffs: [],
+                draftChangeUuid: null,
+                startedChange: null,
+            };
         }
         const before = withWrites(draft.live, draft.writes);
-        const draftChangeUuid =
-            await this.projectModelDocumentModel.createDraftChange({
-                ...owner,
-                promptUuid: prompt?.promptUuid ?? null,
-                models: passing,
-                // A repository has commits, not versions.
-                baseVersions: draft.repo
-                    ? null
-                    : Object.fromEntries(
-                          passing.map(({ name }) => [
-                              name,
-                              draft.stored.find((doc) => doc.name === name)
-                                  ?.version ?? null,
-                          ]),
-                      ),
-            });
-        await this.queueDraftImpactCheckAfterChange(user, projectUuid);
+        const { draftChangeUuid, workspaceUuid, startedChange } =
+            await this.projectModelDocumentModel.createCheckedOutDraftChange(
+                {
+                    ...owner,
+                    promptUuid: prompt?.promptUuid ?? null,
+                    changeName:
+                        changeName?.trim().slice(0, 120) ||
+                        UNTITLED_WORKSPACE_NAME,
+                    models: passing,
+                    // A repository has commits, not versions.
+                    baseVersions: draft.repo
+                        ? null
+                        : Object.fromEntries(
+                              passing.map(({ name }) => [
+                                  name,
+                                  draft.stored.find((doc) => doc.name === name)
+                                      ?.version ?? null,
+                              ]),
+                          ),
+                },
+                draft.organizationUuid,
+            );
+        await this.queueDraftImpactCheckAfterChange(user, {
+            ...owner,
+            workspaceUuid,
+        });
         return {
             results,
             diffs: [...new Set(passing.map(({ name }) => name))].map(
@@ -776,6 +795,7 @@ export class SemanticStudioService extends BaseService {
                 }),
             ),
             draftChangeUuid,
+            startedChange,
         };
     }
 
@@ -791,7 +811,7 @@ export class SemanticStudioService extends BaseService {
         const status = await this.getStatus(user, projectUuid);
         if (status.appliesAs === 'dbt_pull_request') {
             return status.enabled
-                ? this.findDbtTryOutExplores(user, projectUuid)
+                ? this.findDbtDraftExplores(user, projectUuid)
                 : null;
         }
         if (!(await this.canEditModels(user, projectUuid))) return null;
@@ -816,57 +836,6 @@ export class SemanticStudioService extends BaseService {
                 explore,
             ]),
         ]);
-    }
-
-    /** Stores what this person's latest dbt change leaves to try, and returns the models it changed. */
-    async saveDbtTryOut(
-        user: SessionUser,
-        projectUuid: string,
-        {
-            manifestJson,
-            lightdashConfigYaml,
-            changedFiles,
-            prUrl,
-        }: ParsedDbtProject,
-        threadUuid: string | null,
-    ): Promise<string[]> {
-        let manifest: DbtManifest;
-        try {
-            manifest = JSON.parse(manifestJson);
-        } catch {
-            this.logger.warn(
-                `Skipped trying a dbt change on project ${projectUuid}: its manifest is not valid JSON`,
-            );
-            return [];
-        }
-        const changedModels = findChangedModels(manifest, changedFiles);
-        if (!this.fileStorageClient.isEnabled()) return changedModels;
-        const status = await this.getStatus(user, projectUuid);
-        if (!status.enabled || status.appliesAs !== 'dbt_pull_request')
-            return changedModels;
-        const live = await this.projectModel.findExploresFromCache(
-            projectUuid,
-            'name',
-        );
-        const pointed = pointManifestAtLiveTables(
-            manifest,
-            findLiveTableLocations(Object.values(live)),
-        );
-        const explores = markNewModels(
-            await this.projectService.compileExploresFromManifest(
-                user,
-                projectUuid,
-                pointed.manifest,
-                lightdashConfigYaml,
-            ),
-            pointed.newModels,
-        );
-        const tryOut: DbtTryOut = { prUrl, explores };
-        await this.fileStorageClient.uploadTxt(
-            Buffer.from(JSON.stringify(tryOut)),
-            dbtTryOutFileId(projectUuid, user.userUuid, threadUuid),
-        );
-        return changedModels;
     }
 
     /**
@@ -1009,6 +978,7 @@ export class SemanticStudioService extends BaseService {
         projectUuid: string,
         prUrl: string,
     ): Promise<void> {
+        await this.workspaceModel.deleteFinishedBranchCompiles(projectUuid);
         const found = await this.readDbtTryOut(user, projectUuid);
         if (found?.tryOut.prUrl !== prUrl) return;
         await this.fileStorageClient.deleteFile(`${found.fileId}.txt`);
@@ -1038,7 +1008,7 @@ export class SemanticStudioService extends BaseService {
             projectUuid,
             userUuid: user.userUuid,
         });
-        if (active) {
+        if (active?.threadUuid) {
             const fileId = dbtTryOutFileId(
                 projectUuid,
                 user.userUuid,
@@ -1071,6 +1041,194 @@ export class SemanticStudioService extends BaseService {
                   ]),
               )
             : null;
+    }
+
+    /** The explores of the person's checked-out dbt change: its last branch compile, else its try-out. */
+    private async findDbtDraftExplores(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<Map<string, Explore | ExploreError> | null> {
+        const active = await this.workspaceModel.findActive({
+            projectUuid,
+            userUuid: user.userUuid,
+        });
+        const compile = active
+            ? await this.workspaceModel.findBranchCompile(active.workspaceUuid)
+            : null;
+        // Models the branch removes still show until it merges.
+        return compile?.explores
+            ? new Map(
+                  compile.explores.map((explore) => [explore.name, explore]),
+              )
+            : this.findDbtTryOutExplores(user, projectUuid);
+    }
+
+    /**
+     * Has a worker compile the branch of the person's open change on this pull
+     * request, as a refresh would; nothing for a change that is not theirs or a
+     * project that is not dbt in a repository.
+     */
+    async queueBranchCompile(
+        user: SessionUser,
+        projectUuid: string,
+        prUrl: string,
+    ): Promise<void> {
+        const status = await this.getStatus(user, projectUuid);
+        if (!status.enabled || status.appliesAs !== 'dbt_pull_request') return;
+        const workspace = (
+            await this.workspaceModel.findInProject(projectUuid, user.userUuid)
+        ).find(
+            (candidate) =>
+                candidate.isMine &&
+                !candidate.finishedAt &&
+                candidate.pullRequest?.url === prUrl,
+        );
+        if (!workspace) return;
+        await this.requestBranchCompile(
+            user,
+            projectUuid,
+            workspace.workspaceUuid,
+        );
+    }
+
+    private async requestBranchCompile(
+        user: SessionUser,
+        projectUuid: string,
+        workspaceUuid: string,
+    ): Promise<void> {
+        const compileRequestUuid =
+            await this.workspaceModel.requestBranchCompile(workspaceUuid);
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        await this.schedulerClient.compileSemanticStudioBranch({
+            organizationUuid,
+            projectUuid,
+            userUuid: user.userUuid,
+            workspaceUuid,
+            compileRequestUuid,
+        });
+    }
+
+    /** The change this person has checked out, which the whole app shows them; null on what is published or without Studio. */
+    async getCheckout(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<SemanticStudioCheckout | null> {
+        const status = await this.getStatus(user, projectUuid);
+        if (!status.enabled) return null;
+        const active = await this.workspaceModel.findActive({
+            projectUuid,
+            userUuid: user.userUuid,
+        });
+        if (!active) return null;
+        const compile =
+            status.appliesAs === 'dbt_pull_request'
+                ? await this.workspaceModel.findBranchCompile(
+                      active.workspaceUuid,
+                  )
+                : null;
+        return {
+            workspaceUuid: active.workspaceUuid,
+            name: active.name,
+            appliesAs: status.appliesAs,
+            branchCompile: compile && {
+                status: compile.status,
+                branch: compile.branch,
+                error: compile.error,
+                hasExplores: compile.explores !== null,
+                requestedAt: compile.requested_at,
+                compiledAt: compile.compiled_at,
+            },
+        };
+    }
+
+    /** Compiles the checked-out dbt change's branch again, such as after it moved outside the app. */
+    async compileCheckout(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<SemanticStudioCheckout | null> {
+        const status = await this.getStatus(user, projectUuid);
+        if (!status.enabled) {
+            throw new ForbiddenError(
+                "You cannot change this project's models here",
+            );
+        }
+        if (status.appliesAs !== 'dbt_pull_request') {
+            throw new ParameterError(
+                'Only a change to a dbt project in a repository is compiled from its branch',
+            );
+        }
+        const active = await this.workspaceModel.findActive({
+            projectUuid,
+            userUuid: user.userUuid,
+        });
+        if (!active?.pullRequest) {
+            throw new ParameterError(
+                'This draft has no pull request to compile yet',
+            );
+        }
+        await this.requestBranchCompile(
+            user,
+            projectUuid,
+            active.workspaceUuid,
+        );
+        return this.getCheckout(user, projectUuid);
+    }
+
+    /** The worker's compile of a change's branch; a failure is kept for the person to see, with the last good explores. */
+    async compileBranch({
+        organizationUuid,
+        projectUuid,
+        userUuid,
+        workspaceUuid,
+        compileRequestUuid,
+    }: CompileSemanticStudioBranchPayload): Promise<void> {
+        const fail = (branch: string | null, error: string) =>
+            this.workspaceModel.finishBranchCompile(
+                workspaceUuid,
+                compileRequestUuid,
+                { status: 'failed', branch, error },
+            );
+        const workspace = await this.workspaceModel.find(
+            workspaceUuid,
+            userUuid,
+        );
+        const prUrl = workspace?.pullRequest?.url ?? null;
+        if (!workspace || workspace.finishedAt || prUrl === null) {
+            await fail(null, 'This draft has no open pull request to compile.');
+            return;
+        }
+        let branch: string;
+        try {
+            branch = await this.aiWritebackService.findPullRequestBranch(
+                organizationUuid,
+                projectUuid,
+                prUrl,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `SemanticStudio: could not read the branch of ${prUrl}: ${getErrorMessage(error)}`,
+            );
+            await fail(
+                null,
+                "Could not read this draft's branch. Its pull request may be merged, closed or in another repository.",
+            );
+            return;
+        }
+        try {
+            const explores =
+                await this.projectService.compileExploresFromBranch(
+                    { userUuid, organizationUuid },
+                    projectUuid,
+                    branch,
+                );
+            await this.workspaceModel.finishBranchCompile(
+                workspaceUuid,
+                compileRequestUuid,
+                { status: 'ready', branch, explores },
+            );
+        } catch (error) {
+            await fail(branch, getErrorMessage(error));
+        }
     }
 
     /**
@@ -1108,13 +1266,13 @@ export class SemanticStudioService extends BaseService {
         ]);
         // Until its first compile a preview holds only the explores copied into it; the person's own compiled change stands in.
         if (Object.values(explores).every(isUserManagedExplore)) {
-            return this.findDbtTryOutExplores(user, projectUuid);
+            return this.findDbtDraftExplores(user, projectUuid);
         }
         // A reused preview holds the previous round until its compile ends, and for good if that compile fails.
         const compile =
             await this.jobModel.findLatestCompileStatus(previewProjectUuid);
         if (compile !== null && compile !== JobStatusType.DONE) {
-            const tryOut = await this.findDbtTryOutExplores(user, projectUuid);
+            const tryOut = await this.findDbtDraftExplores(user, projectUuid);
             if (tryOut) return tryOut;
         }
         return new Map<string, Explore | ExploreError | null>([
@@ -1336,21 +1494,29 @@ export class SemanticStudioService extends BaseService {
             return;
         }
         // Stored as "as live", not as a copy of what is live now, so it follows live if that changes again.
-        await this.projectModelDocumentModel.createDraftChange({
-            ...owner,
-            promptUuid: null,
-            models: [
+        const { workspaceUuid } =
+            await this.projectModelDocumentModel.createCheckedOutDraftChange(
                 {
-                    name: model,
-                    yaml: null,
-                    remove: [],
-                    removeModel: false,
-                    restore: [path],
+                    ...owner,
+                    promptUuid: null,
+                    changeName: UNTITLED_WORKSPACE_NAME,
+                    models: [
+                        {
+                            name: model,
+                            yaml: null,
+                            remove: [],
+                            removeModel: false,
+                            restore: [path],
+                        },
+                    ],
+                    baseVersions: draft.repo ? null : { [model]: version },
                 },
-            ],
-            baseVersions: draft.repo ? null : { [model]: version },
+                draft.organizationUuid,
+            );
+        await this.queueDraftImpactCheckAfterChange(user, {
+            ...owner,
+            workspaceUuid,
         });
-        await this.queueDraftImpactCheckAfterChange(user, projectUuid);
     }
 
     /** How each drafted model stands against what was published since the draft was based on it; a model with no recorded base is left out. */
@@ -1592,7 +1758,10 @@ export class SemanticStudioService extends BaseService {
             this.projectModelDocumentModel.findDraftImpactCheck(owner),
         ]);
         if (writes.size === 0) return NO_IMPACT;
-        if (!check || check.draftHash !== hashDraft(live, writes)) {
+        if (
+            !check ||
+            check.draftHash !== hashDraft(owner.workspaceUuid, live, writes)
+        ) {
             return { status: 'unchecked', breaks: [] };
         }
         if (check.status === 'done' && check.breaks) {
@@ -1618,39 +1787,40 @@ export class SemanticStudioService extends BaseService {
     private async queueDraftImpactCheck(
         user: SessionUser,
         project: ModelProject,
+        owner: DraftOwner,
     ): Promise<void> {
         if (!this.canValidate(user, project)) return;
-        const owner = await this.findDraftOwner(
-            project.projectUuid,
-            user.userUuid,
-        );
         const { live, writes } = await this.loadDraft(owner, null);
         if (writes.size === 0) return;
+        const expectedHash = hashDraft(owner.workspaceUuid, live, writes);
         await this.projectModelDocumentModel.startDraftImpactCheck({
             projectUuid: owner.projectUuid,
             userUuid: owner.userUuid,
-            draftHash: hashDraft(live, writes),
+            draftHash: expectedHash,
         });
         await this.schedulerClient.checkSemanticLayerDraftImpact({
             projectUuid: owner.projectUuid,
             userUuid: owner.userUuid,
             organizationUuid: project.organizationUuid,
+            workspaceUuid: owner.workspaceUuid,
+            expectedHash,
         });
     }
 
     /** Queues the check after a change to the draft; a failure to queue leaves the draft unchecked, not the change undone. */
     private async queueDraftImpactCheckAfterChange(
         user: SessionUser,
-        projectUuid: string,
+        owner: DraftOwner,
     ): Promise<void> {
         try {
             await this.queueDraftImpactCheck(
                 user,
-                await this.projectModel.get(projectUuid),
+                await this.projectModel.get(owner.projectUuid),
+                owner,
             );
         } catch (error) {
             this.logger.error(
-                `Could not queue a semantic layer draft check for ${projectUuid}`,
+                `Could not queue a semantic layer draft check for ${owner.projectUuid}`,
                 error,
             );
         }
@@ -1669,7 +1839,11 @@ export class SemanticStudioService extends BaseService {
                 'User does not have permission to validate this project',
             );
         }
-        await this.queueDraftImpactCheck(user, project);
+        await this.queueDraftImpactCheck(
+            user,
+            project,
+            await this.findDraftOwner(projectUuid, user.userUuid),
+        );
     }
 
     /** Saved content that works on what is live and would stop working with these writes. */
@@ -1732,20 +1906,29 @@ export class SemanticStudioService extends BaseService {
 
     /** The background check: what applying a person's draft, and each model of it alone, would break. */
     async checkDraftImpact({
+        workspaceUuid,
+        expectedHash,
         projectUuid,
         userUuid,
     }: {
+        workspaceUuid?: string | null;
+        expectedHash?: string;
         projectUuid: string;
         userUuid: string;
     }): Promise<void> {
-        const owner = await this.findDraftOwner(projectUuid, userUuid);
+        const owner =
+            workspaceUuid === undefined
+                ? await this.findDraftOwner(projectUuid, userUuid)
+                : { projectUuid, userUuid, workspaceUuid };
         const { live, writes } = await this.loadDraft(owner, null);
         if (writes.size === 0) return;
         const check = {
             projectUuid,
             userUuid,
-            draftHash: hashDraft(live, writes),
+            draftHash: hashDraft(owner.workspaceUuid, live, writes),
         };
+        if (expectedHash !== undefined && expectedHash !== check.draftHash)
+            return;
         try {
             const models: DraftImpactBreaks['models'] = {};
             // One model alone is the whole draft, so only a draft of several is checked per model.
@@ -1810,7 +1993,7 @@ export class SemanticStudioService extends BaseService {
             throw new NotFoundError('Nothing in the draft matches');
         }
         if (target.kind === 'all') await this.finishDraftWorkspace(owner);
-        await this.queueDraftImpactCheckAfterChange(user, projectUuid);
+        await this.queueDraftImpactCheckAfterChange(user, owner);
     }
 
     /** Moves one change one place earlier or later in this person's draft; each change builds on the ones before it, so the order decides what a later one sees. */
@@ -1836,7 +2019,7 @@ export class SemanticStudioService extends BaseService {
             draftChangeUuid,
             neighbour,
         ]);
-        await this.queueDraftImpactCheckAfterChange(user, projectUuid);
+        await this.queueDraftImpactCheckAfterChange(user, owner);
     }
 
     /** Takes this person's draft live as one change set, or one model of it; nothing goes live when any part fails its checks. */
@@ -1847,11 +2030,11 @@ export class SemanticStudioService extends BaseService {
     ): Promise<SemanticLayerDraftApplyResult> {
         await this.assertCanEditModels(user, projectUuid);
         // Requests that arrive together on this server share one publish; one that lands elsewhere waits on the lock, then finds nothing left to publish.
-        const key = `${projectUuid}:${user.userUuid}:${model ?? ''}`;
+        const owner = await this.findDraftOwner(projectUuid, user.userUuid);
+        const key = `${projectUuid}:${user.userUuid}:${owner.workspaceUuid}:${model ?? ''}`;
         const running = this.publishing.get(key);
         if (running) return running;
         const publish = (async () => {
-            const owner = await this.findDraftOwner(projectUuid, user.userUuid);
             const result = await this.projectModelDocumentModel.withPublishLock(
                 owner,
                 () => this.applyDraftOnce(user, owner, model),
@@ -1860,7 +2043,7 @@ export class SemanticStudioService extends BaseService {
                 await this.recordDraftApplied(owner, result);
             }
             // What is left of the draft now sits on different live models.
-            await this.queueDraftImpactCheckAfterChange(user, projectUuid);
+            await this.queueDraftImpactCheckAfterChange(user, owner);
             return result;
         })().finally(() => this.publishing.delete(key));
         this.publishing.set(key, publish);
@@ -2183,25 +2366,6 @@ export class SemanticStudioService extends BaseService {
         await this.workspaceModel.finish(owner, owner.workspaceUuid);
     }
 
-    /** A conversation's first change starts its workspace, so the change lands in that workspace's draft. */
-    private async startConversationWorkspace(
-        user: SessionUser,
-        projectUuid: string,
-        threadUuid: string,
-    ): Promise<void> {
-        const owner = { projectUuid, userUuid: user.userUuid };
-        const thread = await this.workspaceModel.findStudioThread(
-            owner,
-            threadUuid,
-        );
-        if (!thread) return;
-        await this.workspaceModel.start(owner, {
-            ...thread,
-            threadUuid,
-            name: thread.title ?? UNTITLED_WORKSPACE_NAME,
-        });
-    }
-
     private async assertCanUseStudio(
         user: SessionUser,
         projectUuid: string,
@@ -2377,6 +2541,13 @@ export class SemanticStudioService extends BaseService {
                 );
             });
         }
+        await this.queueBranchCompile(user, projectUuid, savedPrUrl).catch(
+            (error: unknown) => {
+                this.logger.warn(
+                    `SemanticStudio: failed to queue a compile after a hand edit: ${getErrorMessage(error)}`,
+                );
+            },
+        );
         // A preview built by an earlier round would otherwise keep showing the pull request without this edit.
         await this.writebackPreviewService
             .createPreviewForPullRequest({
@@ -2400,7 +2571,14 @@ export class SemanticStudioService extends BaseService {
         };
     }
 
-    /** Everyone's Studio work in this project: yours in flight, others' in flight, and everyone's finished lately. */
+    async listChanges(user: SessionUser, projectUuid: string) {
+        await this.assertCanUseStudio(user, projectUuid);
+        return this.workspaceModel.listChanges({
+            projectUuid,
+            userUuid: user.userUuid,
+        });
+    }
+
     async listWorkspaces(
         user: SessionUser,
         projectUuid: string,
@@ -2512,7 +2690,7 @@ export class SemanticStudioService extends BaseService {
         return workspace;
     }
 
-    /** Makes a conversation's workspace the active one, starting it the first time the conversation changes something. */
+    /** Creates a checkout, or resumes the workspace of a repository conversation. */
     async startWorkspace(
         user: SessionUser,
         projectUuid: string,
@@ -2520,6 +2698,16 @@ export class SemanticStudioService extends BaseService {
     ): Promise<SemanticStudioWorkspace> {
         await this.assertCanUseStudio(user, projectUuid);
         const owner = { projectUuid, userUuid: user.userUuid };
+        if (threadUuid === null) {
+            await this.assertCanEditModels(user, projectUuid);
+            const project = await this.projectModel.get(projectUuid);
+            const uuid = await this.workspaceModel.create(
+                owner,
+                project.organizationUuid,
+                name.trim().slice(0, 120) || UNTITLED_WORKSPACE_NAME,
+            );
+            return this.loadWorkspace(user, projectUuid, uuid);
+        }
         const thread = await this.workspaceModel.findStudioThread(
             owner,
             threadUuid,
@@ -2605,6 +2793,7 @@ export class SemanticStudioService extends BaseService {
             { projectUuid, userUuid: user.userUuid },
             workspaceUuid,
         );
+        await this.workspaceModel.deleteFinishedBranchCompiles(projectUuid);
     }
 
     /** Records a pull request's state as its provider reported it to someone allowed to ask. */

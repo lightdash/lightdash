@@ -753,6 +753,11 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             ) => {
                 await this.semanticStudioService.checkDraftImpact(payload);
             },
+            [EE_SCHEDULER_TASKS.COMPILE_SEMANTIC_STUDIO_BRANCH]: async (
+                payload,
+            ) => {
+                await this.semanticStudioService.compileBranch(payload);
+            },
             [EE_SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: async (
                 payload,
                 _helpers,

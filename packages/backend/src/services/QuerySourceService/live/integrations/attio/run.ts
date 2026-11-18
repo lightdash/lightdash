@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import { z } from 'zod';
 import { assertMaxRows } from '../../integration';
-import { readRowsWithinCap, tooManyRowsError } from '../../query/rows';
+import { readRowsWithinCap } from '../../query/rows';
 import {
     type LiveCalls,
     type LiveColumn,
@@ -37,43 +37,19 @@ const VALUE_PROPERTIES = [
     'interacted_at',
 ] as const satisfies readonly AttioValueProperty[];
 
-const BUILT_IN_COLUMNS = [
-    'record_id',
-    'web_url',
-    'created_at',
-    'created_at_week',
-    'created_at_month',
-    'created_at_year',
-] as const;
+const BUILT_IN_COLUMNS = ['record_id', 'web_url', 'created_at'] as const;
 
 const ATTRIBUTE_COLUMN = new RegExp(
     `^[a-z0-9_]+(\\.(${VALUE_PROPERTIES.join('|')}))?$`,
 );
 
-const COUNT = 'count';
-const TOTAL_PREFIX = 'total:';
-
-const isMetricColumn = (column: string) =>
-    column === COUNT || column.startsWith(TOTAL_PREFIX);
-
 const columnSchema = z
     .string()
-    .refine(
-        (column) =>
-            column === COUNT ||
-            ATTRIBUTE_COLUMN.test(
-                column.startsWith(TOTAL_PREFIX)
-                    ? column.slice(TOTAL_PREFIX.length)
-                    : column,
-            ),
-        {
-            message: `columns are attribute slugs, optionally with .property (${VALUE_PROPERTIES.join(
-                ', ',
-            )}), built-in fields (${BUILT_IN_COLUMNS.join(
-                ', ',
-            )}), count, or total:<attribute>`,
-        },
-    );
+    .refine((column) => ATTRIBUTE_COLUMN.test(column), {
+        message: `columns are attribute slugs, optionally with .property (${VALUE_PROPERTIES.join(
+            ', ',
+        )}), or built-in fields (${BUILT_IN_COLUMNS.join(', ')})`,
+    });
 
 const sortSchema = z
     .object({
@@ -85,10 +61,7 @@ const sortSchema = z
 
 export type AttioSort = z.infer<typeof sortSchema>;
 
-/**
- * One records query, as compile writes it. With count or a total among the
- * columns, records are grouped by the other columns.
- */
+/** One records query, as compile writes it: one row per record. */
 export const attioRequestSchema = z
     .object({
         columns: z.array(columnSchema).min(1),
@@ -112,35 +85,17 @@ type AttioRecord = z.infer<typeof recordSchema>;
 
 const recordsResponseSchema = z.object({ data: z.array(recordSchema) });
 
-const DAY_MS = 86_400_000;
-
-const toWeekStart = (day: string) => {
-    const date = new Date(`${day}T00:00:00Z`);
-    // Weeks start on Monday
-    const daysSinceMonday = (date.getUTCDay() + 6) % 7;
-    return new Date(date.getTime() - daysSinceMonday * DAY_MS)
-        .toISOString()
-        .slice(0, 10);
-};
-
 const readBuiltIn = (
     record: AttioRecord,
     column: (typeof BUILT_IN_COLUMNS)[number],
 ): unknown => {
-    const day = record.created_at.slice(0, 10);
     switch (column) {
         case 'record_id':
             return record.id.record_id;
         case 'web_url':
             return record.web_url ?? null;
         case 'created_at':
-            return day;
-        case 'created_at_week':
-            return toWeekStart(day);
-        case 'created_at_month':
-            return `${day.slice(0, 7)}-01`;
-        case 'created_at_year':
-            return `${day.slice(0, 4)}-01-01`;
+            return record.created_at.slice(0, 10);
         default:
             return null;
     }
@@ -212,10 +167,7 @@ const toColumnType = (
     column: string,
     rows: Record<string, unknown>[],
 ): DimensionType => {
-    if (isMetricColumn(column)) {
-        return DimensionType.NUMBER;
-    }
-    if (column.startsWith('created_at')) {
+    if (column === 'created_at') {
         return DimensionType.DATE;
     }
     const sample = rows.find((row) => row[column] !== null)?.[column];
@@ -278,44 +230,7 @@ const readRecords = async ({
     return { records: records.slice(0, requestedRows), hasMoreRows };
 };
 
-/** Groups records by the dimension columns, counting and totalling each group. */
-const aggregate = (records: AttioRecord[], columns: string[]) => {
-    const dimensions = columns.filter((column) => !isMetricColumn(column));
-    const totals = columns.filter((column) => column.startsWith(TOTAL_PREFIX));
-    const groups = new Map<string, Record<string, unknown>>();
-    records.forEach((record) => {
-        const values = dimensions.map((column) => readColumn(record, column));
-        const key = JSON.stringify(values);
-        const group = groups.get(key) ?? {
-            ...Object.fromEntries(
-                dimensions.map((column, index) => [column, values[index]]),
-            ),
-            [COUNT]: 0,
-            ...Object.fromEntries(totals.map((column) => [column, null])),
-        };
-        group[COUNT] = Number(group[COUNT]) + 1;
-        totals.forEach((column) => {
-            const raw = readAttribute(
-                record,
-                column.slice(TOTAL_PREFIX.length),
-            );
-            const value = Number(raw);
-            if (raw !== null && raw !== '' && Number.isFinite(value)) {
-                group[column] = Number(group[column] ?? 0) + value;
-            }
-        });
-        groups.set(key, group);
-    });
-    return [...groups.values()].map((group) =>
-        Object.fromEntries(columns.map((column) => [column, group[column]])),
-    );
-};
-
-/**
- * Runs one Attio records query. Listing reads the rows asked for; count and
- * totals read every matching record and are refused past what one query can
- * read, since a partial count would be wrong.
- */
+/** Runs one Attio records query: one row per record, in pages of 500. */
 export const runAttioQuery = async ({
     settings: { object },
     request,
@@ -327,29 +242,23 @@ export const runAttioQuery = async ({
 >): Promise<LiveRunResult> => {
     assertMaxRows(limit, ATTIO_MAX_RECORDS);
     const { columns } = request;
-    const isAggregate = columns.some(isMetricColumn);
     const { records, hasMoreRows } = await readRecords({
         object,
         request,
-        requestedRows: isAggregate ? ATTIO_MAX_RECORDS : limit,
+        requestedRows: limit,
         calls,
     });
-    if (isAggregate && hasMoreRows) {
-        throw tooManyRowsError({ label: LABEL, maxRows: ATTIO_MAX_RECORDS });
-    }
-    const rows = isAggregate
-        ? aggregate(records, columns)
-        : records.map((record) =>
-              Object.fromEntries(
-                  columns.map((column) => [column, readColumn(record, column)]),
-              ),
-          );
+    const rows = records.map((record) =>
+        Object.fromEntries(
+            columns.map((column) => [column, readColumn(record, column)]),
+        ),
+    );
     return {
         columns: columns.map(
             (name): LiveColumn => ({ name, type: toColumnType(name, rows) }),
         ),
-        rows: rows.slice(0, limit),
-        hasMoreRows: isAggregate ? rows.length > limit : hasMoreRows,
+        rows,
+        hasMoreRows,
     };
 };
 

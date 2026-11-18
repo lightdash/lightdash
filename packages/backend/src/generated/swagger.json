@@ -37521,6 +37521,7 @@
                     "getPullRequestDiff",
                     "grepFields",
                     "iterateDataApp",
+                    "listChanges",
                     "listContent",
                     "listDataAppConnections",
                     "listDataAppThemes",
@@ -38746,6 +38747,19 @@
                                                     "discovery",
                                                     "status"
                                                 ],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "rejected",
+                                                            "timeout"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
                                                 "type": "object"
                                             },
                                             {
@@ -42695,7 +42709,8 @@
                         "nullable": true
                     },
                     "threadUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "name": {
                         "type": "string"
@@ -42791,11 +42806,109 @@
                         "type": "string"
                     },
                     "threadUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     }
                 },
                 "required": ["name", "threadUuid"],
                 "type": "object"
+            },
+            "SemanticStudioBranchCompileStatus": {
+                "type": "string",
+                "enum": ["compiling", "ready", "failed"]
+            },
+            "SemanticStudioBranchCompile": {
+                "properties": {
+                    "compiledAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "requestedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "hasExplores": {
+                        "type": "boolean",
+                        "description": "Whether a compile has succeeded; until one has, Explore shows what is published."
+                    },
+                    "error": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Why the latest compile failed; null otherwise."
+                    },
+                    "branch": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null until a compile has read the branch."
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/SemanticStudioBranchCompileStatus"
+                    }
+                },
+                "required": [
+                    "compiledAt",
+                    "requestedAt",
+                    "hasExplores",
+                    "error",
+                    "branch",
+                    "status"
+                ],
+                "type": "object",
+                "description": "Where the compile of a dbt change's branch stands."
+            },
+            "SemanticStudioCheckout": {
+                "properties": {
+                    "branchCompile": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SemanticStudioBranchCompile"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Null for a change kept on the server, and for a dbt change with no compile asked for yet."
+                    },
+                    "appliesAs": {
+                        "$ref": "#/components/schemas/SemanticLayerApplyMode"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "workspaceUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "branchCompile",
+                    "appliesAs",
+                    "name",
+                    "workspaceUuid"
+                ],
+                "type": "object",
+                "description": "The change a person has checked out in a project, which the whole app shows them."
+            },
+            "ApiSuccess_SemanticStudioCheckout-or-null_": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SemanticStudioCheckout"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticStudioCheckoutResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticStudioCheckout-or-null_",
+                "description": "Null when the person is on what is published."
             },
             "SemanticStudioSources": {
                 "properties": {
@@ -60911,6 +61024,7 @@
                 "type": "string",
                 "enum": [
                     "checkSemanticLayerDraftImpact",
+                    "compileSemanticStudioBranch",
                     "reconcileAnalyticsContent",
                     "syncAnalyticsContent",
                     "slackAiPrompt",
@@ -80187,7 +80301,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.308.0",
+        "version": "3.311.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -94588,6 +94702,88 @@
                 },
                 "description": "Leaves your active workspace, so your next conversation starts a new one.",
                 "summary": "Leave my Semantic Studio workspace",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/checkout": {
+            "get": {
+                "operationId": "getSemanticStudioCheckout",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticStudioCheckoutResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "The change you have checked out, which the whole app shows you; null on what is published.",
+                "summary": "Get my Semantic Studio checkout",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/checkout/compile": {
+            "post": {
+                "operationId": "compileSemanticStudioCheckout",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticStudioCheckoutResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Compiles the branch of your checked-out dbt change again.",
+                "summary": "Compile my Semantic Studio checkout",
                 "tags": ["Semantic Studio"],
                 "security": [],
                 "parameters": [

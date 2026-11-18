@@ -33,15 +33,12 @@ const on = (
     },
     isSwitching,
     error: null,
+    isPicking: { current: false },
 });
 
 const picker = (state: StudioCheckoutState) => (
     <StudioCheckoutProvider value={state}>
-        <StudioCheckoutPicker
-            projectUuid="project"
-            onShowChanges={null}
-            onNewChange={vi.fn()}
-        />
+        <StudioCheckoutPicker projectUuid="project" onShowChanges={null} />
     </StudioCheckoutProvider>
 );
 
@@ -77,6 +74,22 @@ describe('StudioCheckoutPicker', () => {
         await user.click(await screen.findByRole('menuitem', { name: 'Live' }));
         expect(mutate).toHaveBeenLastCalledWith(
             { kind: 'leave' },
+            expect.anything(),
+        );
+    });
+
+    it('creates a change directly from the current checkout', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(picker(on(A)));
+        await user.click(trigger());
+        await user.click(
+            await screen.findByRole('menuitem', { name: 'New change' }),
+        );
+        expect(mutate).toHaveBeenLastCalledWith(
+            {
+                kind: 'start',
+                body: { threadUuid: null, name: 'Untitled change' },
+            },
             expect.anything(),
         );
     });

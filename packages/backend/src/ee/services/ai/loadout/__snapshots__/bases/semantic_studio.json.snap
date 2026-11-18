@@ -5,6 +5,7 @@
         "analyzeFieldImpact",
         "getMetadata",
         "grepFields",
+        "listChanges",
         "proposeSemanticLayerChange",
         "readSemanticModel",
         "runSql",

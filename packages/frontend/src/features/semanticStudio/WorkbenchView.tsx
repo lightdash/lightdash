@@ -804,6 +804,7 @@ const MainPane: FC<{
                         projectUuid={view.project.id}
                         modelName={explore.id}
                         exploreName={explore.name}
+                        isModelled={source?.kind === 'modelled'}
                         lineage={
                             source?.kind === 'modelled' && !isAdded ? (
                                 <JoinDiagram
@@ -1249,15 +1250,18 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const activeWorkspace = useSyncStudioWorkspace(
         view.project.id,
         hasChanges || !!saving,
+        !keepsDraft,
     );
     // The workspace this page is about: the one in the link, else the one the open chat belongs to.
     const shownWorkspace =
         routeWorkspace ??
         activeWorkspace ??
-        allWorkspaces.find(
-            ({ threadUuid, isMine }) =>
-                isMine && threadUuid === storedThread?.threadUuid,
-        ) ??
+        (keepsDraft
+            ? null
+            : allWorkspaces.find(
+                  ({ threadUuid, isMine }) =>
+                      isMine && threadUuid === storedThread?.threadUuid,
+              )) ??
         null;
     const hasWorkspaces = allWorkspaces.length > 0;
     const openWorkspace = useCallback(
@@ -1266,7 +1270,12 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             { navigateTo }: { navigateTo: boolean },
         ) => {
             // Someone else's change is only looked at: your chat and active change stay as they are.
-            if (!keepsDraft && target.isMine && target.agentUuid) {
+            if (
+                !keepsDraft &&
+                target.isMine &&
+                target.threadUuid &&
+                target.agentUuid
+            ) {
                 setStoredThread({
                     threadUuid: target.threadUuid,
                     agentUuid: target.agentUuid,
@@ -1368,10 +1377,12 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     // Changes asked for by view get the open chat's change address once it is known, so a reload or a link lands on it.
     const changeToAddress =
         searchParams.get(VIEW_PARAM) === 'changes' && !routeWorkspaceUuid
-            ? (allWorkspaces.find(
-                  ({ threadUuid, isMine }) =>
-                      isMine && threadUuid === storedThread?.threadUuid,
-              )?.workspaceUuid ?? null)
+            ? keepsDraft
+                ? activeWorkspace?.workspaceUuid
+                : (allWorkspaces.find(
+                      ({ threadUuid, isMine }) =>
+                          isMine && threadUuid === storedThread?.threadUuid,
+                  )?.workspaceUuid ?? null)
             : null;
     useEffect(() => {
         if (!changeToAddress) return;
@@ -1662,10 +1673,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             <StudioCheckoutPicker
                 projectUuid={view.project.id}
                 onShowChanges={hasChangesTab ? showChanges : null}
-                onNewChange={() => {
-                    startNewThread();
-                    setIsChatOpen(true);
-                }}
             />
         ) : null
     ) : (

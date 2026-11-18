@@ -9,6 +9,7 @@
         "describeWarehouseTable",
         "getMetadata",
         "grepFields",
+        "listChanges",
         "listWarehouseTables",
         "loadProjectContext",
         "proposeSemanticLayerChange",

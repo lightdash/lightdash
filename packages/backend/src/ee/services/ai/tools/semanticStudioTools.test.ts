@@ -5,6 +5,7 @@ import {
 import { findNewModelAdvice } from '../../SemanticStudioService/draftLint';
 import type { ProposeSemanticLayerChangeFn } from '../types/aiAgentDependencies';
 import {
+    getListChanges,
     getProposeSemanticLayerChange,
     getReadSemanticModel,
 } from './semanticStudioTools';
@@ -35,11 +36,22 @@ const propose = async (
     const output = await tool.execute(
         {
             models: [{ name: 'orders', yaml, remove: [], removeModel: false }],
+            changeName: null,
         },
         callOptions,
     );
     return toolProposeSemanticLayerChangeOutputSchema.parse(output);
 };
+
+it('lists changes with their checkout and touched models', async () => {
+    const changes = [
+        { name: 'Revenue', isCheckedOut: true, models: ['orders'] },
+    ];
+    const list = getListChanges(async () => changes);
+    expect(await list.execute?.({}, callOptions)).toMatchObject({
+        structuredContent: { changes },
+    });
+});
 
 describe('getProposeSemanticLayerChange', () => {
     it('reports a passing model as ready, with its diff and its place in the draft', async () => {
@@ -63,6 +75,7 @@ describe('getProposeSemanticLayerChange', () => {
                     },
                 ],
                 draftChangeUuid: 'draft-1',
+                startedChange: null,
             }),
             'label: Orders',
         );
@@ -73,6 +86,33 @@ describe('getProposeSemanticLayerChange', () => {
             models: [{ model: 'orders', status: 'ready' }],
             diffs: [{ contentAfter: 'after' }],
             draftChangeUuid: 'draft-1',
+        });
+    });
+
+    it('says when the edit started a change and checked it out', async () => {
+        const output = await propose(
+            async () => ({
+                results: [
+                    {
+                        model: 'orders',
+                        status: 'ready',
+                        changes: [{ path: 'metrics.total', action: 'added' }],
+                        refusals: [],
+                        error: null,
+                        notes: [],
+                    },
+                ],
+                diffs: [],
+                draftChangeUuid: 'draft-1',
+                startedChange: { workspaceUuid: 'w-1', name: 'Order totals' },
+            }),
+            'label: Orders',
+        );
+        expect(output.result).toContain(
+            'Started change "Order totals" and checked it out.',
+        );
+        expect(output.metadata).toMatchObject({
+            startedChange: { workspaceUuid: 'w-1', name: 'Order totals' },
         });
     });
 
@@ -91,6 +131,7 @@ describe('getProposeSemanticLayerChange', () => {
                 ],
                 diffs: [],
                 draftChangeUuid: null,
+                startedChange: null,
             }),
             '- not a mapping',
         );

@@ -140,7 +140,7 @@ const integrations: {
                 connector: ApiConnectorType.LINKEDIN_ADS,
                 adAccountId: '456',
             }),
-        fields: { dimension: 'campaign_name', metric: 'impressions' },
+        fields: { dimension: 'campaign_id', metric: 'impressions' },
         apiOrder: [],
         localOrder: [{ fieldId: 'impressions', descending: true }],
     },

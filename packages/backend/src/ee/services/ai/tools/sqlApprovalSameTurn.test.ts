@@ -354,7 +354,7 @@ describe('SQL approved earlier in the same turn', () => {
         );
         await turns.call('createContent', 'create-1', approvedSql);
 
-        expect(output.metadata?.status).toBe('error');
+        expect(output.metadata?.status).toBe('rejected');
         expect(turns.runSqlJob).not.toHaveBeenCalled();
         expect(turns.asked).toEqual(['query-1', 'create-1']);
     });
@@ -516,7 +516,7 @@ describe('SQL approved earlier in the same turn', () => {
 });
 
 test.each(['createContent', 'editContent'] as const)(
-    '%s records rejection before its tool output handles the error',
+    '%s records rejection before its tool output reports it',
     async (toolName) => {
         const turns = makeTurns();
         turns.answer('rejected-chart', 'rejected');
@@ -525,7 +525,7 @@ test.each(['createContent', 'editContent'] as const)(
             'rejected-chart',
             approvedSql,
         );
-        expect(result.metadata?.status).toBe('error');
+        expect(result.metadata?.status).toBe('rejected');
         expect(turns.recordRefusal).toHaveBeenCalledExactlyOnceWith(
             toolName === 'createContent' ? 'create' : 'update',
             'sql_approval_rejected',

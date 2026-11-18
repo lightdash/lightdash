@@ -13,8 +13,6 @@ type AttioAttributeRule = {
     filterOperators: FilterOperator[];
     /** Attio sorts it itself; the rest is sorted after reading. */
     sortable: boolean;
-    /** A number we can total. */
-    summable: boolean;
     /** Ids nobody reads, kept out of the default field list. */
     internal: boolean;
 };
@@ -77,7 +75,6 @@ const rule = (
     type,
     filterOperators: [],
     sortable: false,
-    summable: false,
     internal: false,
     ...overrides,
 });
@@ -91,7 +88,6 @@ export const ATTIO_ATTRIBUTE_RULES: Record<string, AttioAttributeRule> = {
     number: rule(DimensionType.NUMBER, {
         filterOperators: ATTIO_NUMBER_FILTERS,
         sortable: true,
-        summable: true,
     }),
     rating: rule(DimensionType.NUMBER, {
         filterOperators: ATTIO_NUMBER_FILTERS,
@@ -101,7 +97,6 @@ export const ATTIO_ATTRIBUTE_RULES: Record<string, AttioAttributeRule> = {
         property: 'currency_value',
         filterOperators: ATTIO_NUMBER_FILTERS,
         sortable: true,
-        summable: true,
     }),
     date: rule(DimensionType.DATE, {
         filterOperators: ATTIO_DATE_FILTERS,

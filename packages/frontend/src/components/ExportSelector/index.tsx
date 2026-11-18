@@ -1,12 +1,6 @@
-import {
-    SchedulerJobStatus,
-    type ApiDownloadCsv,
-    type ApiError,
-    type ApiScheduledDownloadCsv,
-} from '@lightdash/common';
+import { type ApiScheduledDownloadCsv } from '@lightdash/common';
 import { Button, Stack } from '@mantine/core';
 import { IconFileTypeCsv } from '@tabler/icons-react';
-import { useQuery } from '@tanstack/react-query';
 import { memo, type FC } from 'react';
 import { ExportToGoogleSheet } from '../../features/export';
 import useHealth from '../../hooks/health/useHealth';
@@ -22,13 +16,6 @@ const ExportSelector: FC<{
         health.data?.auth.google.oauth2ClientId !== undefined &&
         health.data?.auth.google.googleDriveApiKey !== undefined;
 
-    const { data } = useQuery<ApiDownloadCsv | undefined, ApiError>({
-        queryKey: [`google-sheets`],
-        enabled: false,
-    });
-
-    const isExportingGoogleSheets = data?.status === SchedulerJobStatus.STARTED;
-
     // Reads as a menu: full-width rows, no borders. The options open in
     // a modal owned by the caller.
     return (
@@ -40,7 +27,6 @@ const ExportSelector: FC<{
                 justify="flex-start"
                 onClick={onDownloadData}
                 leftSection={<MantineIcon icon={IconFileTypeCsv} />}
-                disabled={isExportingGoogleSheets}
                 data-testid="chart-export-csv-button"
                 // Walkthrough hop (manage:ExportCsv): the way to the
                 // export form.

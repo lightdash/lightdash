@@ -717,10 +717,7 @@ import {
     WritebackAgentAccessError,
     WritebackThreadPrClosedError,
 } from '../AiWritebackService/errors';
-import type {
-    AiWritebackSource,
-    ParsedDbtProject,
-} from '../AiWritebackService/types';
+import type { AiWritebackSource } from '../AiWritebackService/types';
 import { createWritebackAgentDeliveryGuard } from '../AiWritebackService/writebackAgentWork';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import type { AppGenerateService } from '../AppGenerateService/AppGenerateService';
@@ -13951,20 +13948,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             try {
                 const runArgs = {
                     ...(prompt.threadCreatedFrom === 'semantic_studio'
-                        ? {
-                              continuesThreadPullRequest: true,
-                              onDbtProject: async (
-                                  project: ParsedDbtProject,
-                              ) => {
-                                  changedModels =
-                                      await this.semanticStudioService.saveDbtTryOut(
-                                          user,
-                                          projectUuid,
-                                          project,
-                                          prompt.threadUuid,
-                                      );
-                              },
-                          }
+                        ? { continuesThreadPullRequest: true }
                         : {}),
                     agentPermissionsApply: true,
                     user,
@@ -14137,6 +14121,20 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         Logger.debug(
                             'Failed to add :white_check_mark: reaction to writeback mention:',
                             err,
+                        );
+                    });
+            }
+
+            if (
+                result.prUrl &&
+                result.commitSha &&
+                prompt.threadCreatedFrom === 'semantic_studio'
+            ) {
+                await this.semanticStudioService
+                    .queueBranchCompile(user, projectUuid, result.prUrl)
+                    .catch((error: unknown) => {
+                        Logger.warn(
+                            `AiAgent.runEditDbtProjectPipeline: failed to queue a compile of run ${aiWritebackRunUuid}: ${getErrorMessage(error)}`,
                         );
                     });
             }
@@ -15492,6 +15490,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
 
         const proposeSemanticLayerChange: ProposeSemanticLayerChangeFn = (
             models,
+            changeName,
         ) =>
             this.semanticStudioService.proposeDraftChange(
                 user,
@@ -15501,7 +15500,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     promptUuid: prompt.promptUuid,
                     threadUuid: prompt.threadUuid,
                 },
+                changeName,
             );
+
+        const listChanges = () =>
+            this.semanticStudioService.listChanges(user, projectUuid);
 
         const readSemanticModel: ReadSemanticModelFn = (name) =>
             this.semanticStudioService.readDraftedModel(
@@ -15636,6 +15639,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             editDbtProject,
             editProjectContext,
             proposeSemanticLayerChange,
+            listChanges,
             readSemanticModel,
             exploreRepo,
             readAttachments,
@@ -18028,6 +18032,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     editDbtProject,
                     editProjectContext,
                     proposeSemanticLayerChange,
+                    listChanges,
                     readSemanticModel,
                     exploreRepo,
                     readAttachments,
@@ -18551,6 +18556,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     editDbtProject,
                     editProjectContext,
                     proposeSemanticLayerChange,
+                    listChanges,
                     readSemanticModel,
                     exploreRepo,
                     readAttachments,
@@ -20487,6 +20493,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     return 'Inspecting the project files...';
                 case 'proposeSemanticLayerChange':
                     return 'Checking the change...';
+                case 'listChanges':
+                    return 'Listing your changes...';
                 case 'readSemanticModel':
                     return 'Reading the model...';
                 case 'closePullRequest':

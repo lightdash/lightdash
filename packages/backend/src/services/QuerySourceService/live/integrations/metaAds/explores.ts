@@ -72,13 +72,12 @@ export const META_ADS_BREAKDOWNS = [
     'age',
     'gender',
     'country',
-    'region',
     'publisher_platform',
     'platform_position',
 ] as const;
 
 const DEMOGRAPHIC_FIELDS = ['age', 'gender'];
-const GEO_FIELDS = ['country', 'region'];
+const GEO_FIELDS = ['country'];
 const PLACEMENT_FIELDS = ['publisher_platform', 'platform_position'];
 
 const ADDITIVE: ApiSourceMetricAggregation = { aggregation: 'additive' };
@@ -195,7 +194,6 @@ export const META_ADS_INSIGHTS_EXPLORE: LiveExploreDefinition = {
         dimension('age', 'Age', 'Age range of the audience, such as 25-34.'),
         dimension('gender', 'Gender', 'Gender of the audience.'),
         dimension('country', 'Country', 'Two-letter country code.'),
-        dimension('region', 'Region', 'Region or state of the audience.'),
         dimension(
             'publisher_platform',
             'Platform',
@@ -373,11 +371,6 @@ export const META_ADS_INSIGHTS_EXPLORE: LiveExploreDefinition = {
             fields: GEO_FIELDS,
             with: PLACEMENT_FIELDS,
             reason: 'Meta reports location on its own, without placement.',
-        },
-        {
-            fields: ['country'],
-            with: ['region'],
-            reason: 'Meta reports one location breakdown per query.',
         },
     ],
 };

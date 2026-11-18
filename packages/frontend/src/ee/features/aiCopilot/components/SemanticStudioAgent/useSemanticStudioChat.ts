@@ -2,7 +2,10 @@ import { FeatureFlags } from '@lightdash/common';
 import { useLocalStorage } from '@mantine/hooks';
 import { useCallback } from 'react';
 import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
-import { useCanEditSemanticLayer } from '../../../../../features/semanticStudio/useSemanticLayerModel';
+import {
+    useKeepsSemanticLayerDraft,
+    useCanEditSemanticLayer,
+} from '../../../../../features/semanticStudio/useSemanticLayerModel';
 import {
     useActiveStudioWorkspace,
     useStudioWorkspaceAction,
@@ -89,6 +92,7 @@ export const useFinishDiscardedWork = (projectUuid: string) => {
 
 export const useStudioAgent = (projectUuid: string) => {
     const flag = useServerFeatureFlag(FeatureFlags.SemanticStudioEditing);
+    const keepsDraft = useKeepsSemanticLayerDraft(projectUuid);
     const canEdit = useCanEditSemanticLayer(projectUuid);
     const isEnabled = flag.data?.enabled === true && canEdit;
     const {
@@ -107,6 +111,7 @@ export const useStudioAgent = (projectUuid: string) => {
     const workspaceAction = useStudioWorkspaceAction(projectUuid);
     // Switching chats switches workspaces: the one you talk in is the one your changes go to.
     const follow = (next: StoredThread | null) => {
+        if (keepsDraft) return;
         const workspace = next
             ? workspaces?.mine.find(
                   ({ threadUuid }) => threadUuid === next.threadUuid,

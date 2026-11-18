@@ -366,15 +366,6 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             PERCENT_FORMAT,
         ),
         metric(
-            'engagements',
-            'metrics.engagements',
-            'Engagements',
-            MetricType.SUM,
-            ADDITIVE,
-            'Engagements such as Lightbox expansions.',
-            COUNT_FORMAT,
-        ),
-        metric(
             'conversions',
             'metrics.conversions',
             'Conversions',

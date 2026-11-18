@@ -680,6 +680,29 @@ const manifestWithCompilationSelection = (
     };
 };
 
+/** The same git connection, reading another branch. */
+const withGitBranch = (
+    connection: DbtProjectConfig,
+    branch: string,
+): DbtProjectConfig => {
+    switch (connection.type) {
+        case DbtProjectType.GITHUB:
+        case DbtProjectType.GITLAB:
+        case DbtProjectType.BITBUCKET:
+        case DbtProjectType.AZURE_DEVOPS:
+            return { ...connection, branch };
+        case DbtProjectType.DBT:
+        case DbtProjectType.DBT_CLOUD_IDE:
+        case DbtProjectType.NONE:
+        case DbtProjectType.MANIFEST:
+            throw new ParameterError(
+                'Only a project connected to a git repository can compile a branch',
+            );
+        default:
+            return assertUnreachable(connection, 'Unknown dbt connection');
+    }
+};
+
 const gzipAsync = promisify(gzip);
 
 type TestProjectAdapterCredentials =
@@ -8352,15 +8375,24 @@ export class ProjectService
             dbtTargetPolicy: DbtTargetPolicy;
         }) => Promise<T>,
         manifestFetchAdapters: ProjectAdapter[],
+        /** Compiles this branch of the project's repository instead, leaving the live project as it is. */
+        branch: string | null = null,
     ): Promise<T> {
-        const {
-            project,
-            dbtConnection,
-            warehouseCredentials,
-            cachedWarehouse,
-            dbtVersionOption,
-            dbtPartialParse,
-        } = await this.prepareCompileAdapter(projectUuid, user);
+        const prepared = await this.prepareCompileAdapter(projectUuid, user);
+        const { project, warehouseCredentials, dbtVersionOption } = prepared;
+        const dbtConnection =
+            branch === null
+                ? prepared.dbtConnection
+                : withGitBranch(prepared.dbtConnection, branch);
+        const dbtPartialParse = branch === null && prepared.dbtPartialParse;
+        // Columns a branch adds stay out of the live project's warehouse cache.
+        const cachedWarehouse: CachedWarehouse =
+            branch === null
+                ? prepared.cachedWarehouse
+                : {
+                      ...prepared.cachedWarehouse,
+                      onWarehouseCatalogChange: async () => {},
+                  };
         const dbtTargetPolicy = await this.getDbtTargetPolicy(
             project.organizationUuid,
         );
@@ -8420,6 +8452,24 @@ export class ProjectService
                     );
                 }
             },
+        );
+    }
+
+    /**
+     * Compiles a branch of a git-connected project's repository the way a refresh
+     * compiles its own branch, without saving anything; only the primary dbt source.
+     */
+    async compileExploresFromBranch(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        projectUuid: string,
+        branch: string,
+    ): Promise<(Explore | ExploreError)[]> {
+        return this.withCompileAdapter(
+            projectUuid,
+            user,
+            ({ adapter }) => adapter.compileAllExplores(undefined, false, true),
+            [],
+            branch,
         );
     }
 

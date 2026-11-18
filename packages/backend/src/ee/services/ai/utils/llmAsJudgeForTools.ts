@@ -71,6 +71,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     editDbtProject: 'edit_dbt_project',
     editProjectContext: 'edit_project_context',
     proposeSemanticLayerChange: 'propose_semantic_layer_change',
+    listChanges: 'list_changes',
     readSemanticModel: 'read_semantic_model',
     editRepo: 'edit_repo',
     syncDbtProject: 'sync_dbt_project',
