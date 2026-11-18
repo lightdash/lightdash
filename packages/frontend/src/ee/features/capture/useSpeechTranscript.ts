@@ -30,6 +30,8 @@ const getRecognitionConstructor = (): RecognitionConstructor | null => {
 };
 
 const BLOCKED_ERRORS = ['not-allowed', 'service-not-allowed'];
+// Errors that happen in normal use and do not mean voice is broken.
+const HARMLESS_ERRORS = ['no-speech', 'aborted'];
 // Never let a silent recogniser hold up the start of a capture.
 const START_TIMEOUT_MS = 4000;
 
@@ -41,6 +43,7 @@ export const useSpeechTranscript = ({ now }: { now: () => number }) => {
     const phrasesRef = useRef<TranscriptPhrase[]>([]);
     const interimRef = useRef<TranscriptPhrase | null>(null);
     const [liveText, setLiveText] = useState('');
+    const [problem, setProblem] = useState<string | null>(null);
     const nowRef = useRef(now);
     nowRef.current = now;
 
@@ -57,6 +60,7 @@ export const useSpeechTranscript = ({ now }: { now: () => number }) => {
                 phrasesRef.current = [];
                 interimRef.current = null;
                 setLiveText('');
+                setProblem(null);
                 if (!Ctor) {
                     resolve('off');
                     return;
@@ -118,6 +122,12 @@ export const useSpeechTranscript = ({ now }: { now: () => number }) => {
                     if (!started || BLOCKED_ERRORS.includes(event.error)) {
                         settle('off');
                         runningRef.current = false;
+                        return;
+                    }
+                    // Started but cannot transcribe: say so, stop retrying.
+                    if (!HARMLESS_ERRORS.includes(event.error)) {
+                        runningRef.current = false;
+                        setProblem(event.error);
                     }
                 };
                 // Chrome ends recognition after a pause; keep it going.
@@ -161,5 +171,5 @@ export const useSpeechTranscript = ({ now }: { now: () => number }) => {
         return phrases;
     }, []);
 
-    return { start, stop, liveText };
+    return { start, stop, liveText, problem };
 };

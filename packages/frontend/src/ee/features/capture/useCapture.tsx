@@ -112,6 +112,7 @@ export const useCapture = (
         start: startSpeech,
         stop: stopSpeech,
         liveText,
+        problem: voiceProblem,
     } = useSpeechTranscript({ now });
     const { ensureStream, grab } = useTabFrame({
         onStreamEnded: () => finishRef.current(),
@@ -427,6 +428,7 @@ export const useCapture = (
                           startedAt={startedAt}
                           voice={state.voice}
                           liveText={liveText}
+                          voiceProblem={voiceProblem}
                           atImageLimit={state.atImageLimit}
                           hidden={pillHidden}
                           onStop={finish}

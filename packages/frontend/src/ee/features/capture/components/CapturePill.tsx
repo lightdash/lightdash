@@ -8,6 +8,8 @@ type Props = {
     startedAt: number;
     voice: VoiceState;
     liveText: string;
+    /** Set when voice started but the browser cannot transcribe. */
+    voiceProblem: string | null;
     atImageLimit: boolean;
     /** Hidden for a moment while the screen is photographed. */
     hidden: boolean;
@@ -19,7 +21,16 @@ const LIVE_TEXT_LENGTH = 80;
 
 const CapturePill = forwardRef<HTMLDivElement, Props>(
     (
-        { startedAt, voice, liveText, atImageLimit, hidden, onStop, onCancel },
+        {
+            startedAt,
+            voice,
+            liveText,
+            voiceProblem,
+            atImageLimit,
+            hidden,
+            onStop,
+            onCancel,
+        },
         ref,
     ) => {
         const [elapsedMs, setElapsedMs] = useState(0);
@@ -33,6 +44,8 @@ const CapturePill = forwardRef<HTMLDivElement, Props>(
 
         let caption = liveText.slice(-LIVE_TEXT_LENGTH);
         if (voice === 'off') caption = 'Voice is off';
+        if (voiceProblem)
+            caption = `Voice is not working in this browser (${voiceProblem})`;
         if (atImageLimit) caption = 'Image limit reached';
         if (!caption) caption = 'Hold Shift to draw';
 

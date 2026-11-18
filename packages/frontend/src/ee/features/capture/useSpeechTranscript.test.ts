@@ -154,4 +154,23 @@ describe('useSpeechTranscript', () => {
         recognition.emit([{ transcript: 'hello', isFinal: true }]);
         expect(phrases).toEqual([{ atMs: 0, text: 'hello' }]);
     });
+
+    it('reports a recogniser that starts but cannot transcribe', async () => {
+        const { result } = renderHook(() =>
+            useSpeechTranscript({ now: () => 0 }),
+        );
+        await result.current.start();
+        expect(result.current.problem).toBeNull();
+        act(() => last().onerror?.({ error: 'network' }));
+        expect(result.current.problem).toBe('network');
+    });
+
+    it('does not treat a quiet moment as a problem', async () => {
+        const { result } = renderHook(() =>
+            useSpeechTranscript({ now: () => 0 }),
+        );
+        await result.current.start();
+        act(() => last().onerror?.({ error: 'no-speech' }));
+        expect(result.current.problem).toBeNull();
+    });
 });
