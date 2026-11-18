@@ -1958,4 +1958,31 @@ describe('AppGenerateService.ensureRegistryChartTypes', () => {
 
         expect(result).toEqual(new Map([['radar', 'radar-1']]));
     });
+
+    it('returns only the usable types and skips the registry when the ability check rejects', async () => {
+        const getIndex = vi.fn();
+        const svc = buildService({
+            appModel: {
+                listRegistryInstalledApps: vi
+                    .fn()
+                    .mockResolvedValue([
+                        installedRow('2.0.0', 'radar-1', 'radar'),
+                    ]),
+            },
+            chartRegistryClient: { getIndex },
+        });
+        vi.spyOn(
+            svc as unknown as { assertDataAppAbility: () => Promise<never> },
+            'assertDataAppAbility',
+        ).mockRejectedValue(new ForbiddenError('nope'));
+
+        const result = await svc.ensureRegistryChartTypes(
+            fakeUser,
+            PROJECT_UUID,
+            [...requirements, { slug: 'radar', minVersion: '1.0.0' }],
+        );
+
+        expect(result).toEqual(new Map([['radar', 'radar-1']]));
+        expect(getIndex).not.toHaveBeenCalled();
+    });
 });

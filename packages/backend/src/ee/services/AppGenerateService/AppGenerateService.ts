@@ -10858,7 +10858,7 @@ export class AppGenerateService extends BaseService {
      * Makes each required chart type usable in the project: installs it when
      * missing, upgrades only when the installed version is below `minVersion`.
      * Returns registry slug -> project app slug for the ones that are usable;
-     * a failure for one type omits it and never throws.
+     * a failure for one type, or a missing create permission, omits it and never throws.
      */
     async ensureRegistryChartTypes(
         user: SessionUser,
@@ -10903,12 +10903,20 @@ export class AppGenerateService extends BaseService {
             return usable;
         }
 
-        const { organizationUuid } = await this.assertDataAppAbility(
-            user,
-            'create',
-            projectUuid,
-            'Insufficient permissions to install chart types',
-        );
+        let organizationUuid: string;
+        try {
+            ({ organizationUuid } = await this.assertDataAppAbility(
+                user,
+                'create',
+                projectUuid,
+                'Insufficient permissions to install chart types',
+            ));
+        } catch (e) {
+            this.logger.warn(
+                `Cannot install chart types in project ${projectUuid}: ${getErrorMessage(e)}`,
+            );
+            return usable;
+        }
         let index: ChartRegistryIndex;
         try {
             index = await this.chartRegistryClient.getIndex();
