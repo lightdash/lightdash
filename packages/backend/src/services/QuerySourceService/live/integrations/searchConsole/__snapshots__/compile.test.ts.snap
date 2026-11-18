@@ -7,7 +7,6 @@ exports[`Search Console semantic layer > keeps its field ids stable 1`] = `
   "search_console_performance_page",
   "search_console_performance_country",
   "search_console_performance_device",
-  "search_console_performance_search_appearance",
   "search_console_performance_clicks",
   "search_console_performance_impressions",
   "search_console_performance_ctr",

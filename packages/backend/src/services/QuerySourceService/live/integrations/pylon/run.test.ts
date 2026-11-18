@@ -9,7 +9,6 @@ import {
 import { pylonIntegration } from '.';
 import { connectLiveSource } from '../../liveSource.mock';
 import { type LiveHttpResponse } from '../../types';
-import { PYLON_MAX_QUERY_ROWS } from './run';
 
 // Synthetic fixtures only: never paste rows from a real Pylon workspace here.
 
@@ -92,7 +91,7 @@ const run = (
     limit = 10,
 ) =>
     source.run({
-        query: JSON.stringify({ filters: [], metrics: [], ...request }),
+        query: JSON.stringify({ filters: [], ...request }),
         limit,
     });
 
@@ -174,78 +173,16 @@ describe('pylonIntegration issues', () => {
         expect(result.hasMoreRows).toBe(true);
     });
 
-    it('counts and averages per group from every matching issue', async () => {
-        const { source, send } = connect(
-            page(
-                [
-                    issue(1, { state: 'new', first_response_seconds: 600 }),
-                    issue(2, { state: 'new', first_response_seconds: 1_200 }),
-                    issue(3, {
-                        state: 'closed',
-                        first_response_time: null,
-                        resolution_time: '2026-11-03T09:30:00Z',
-                        resolution_seconds: 7_200,
-                    }),
-                ],
-                'next',
-            ),
-            page([issue(4, { state: 'closed', first_response_seconds: 60 })]),
-        );
-
-        const result = await run(source, {
-            kind: 'issues',
-            filters: [LAST_30_DAYS],
-            columns: ['state'],
-            metrics: [
-                'count',
-                'average_first_response_minutes',
-                'average_resolution_hours',
-            ],
-        });
-
-        expect(send.mock.calls[0][0].body.limit).toBe(1_000);
-        expect(result.rows).toEqual([
-            {
-                state: 'new',
-                count: 2,
-                average_first_response_minutes: 15,
-                average_resolution_hours: null,
-            },
-            {
-                state: 'closed',
-                count: 2,
-                average_first_response_minutes: 1,
-                average_resolution_hours: 2,
-            },
-        ]);
-    });
-
-    it('gives a zero total when no issues match', async () => {
+    it('returns no rows when no issues match', async () => {
         const { source } = connect(page([]));
 
         const result = await run(source, {
             kind: 'issues',
-            columns: [],
-            metrics: ['count'],
+            columns: ['number'],
         });
 
-        expect(result.rows).toEqual([{ count: 0 }]);
-    });
-
-    it('refuses metrics over more issues than one query reads', async () => {
-        const full = Array.from({ length: 1_000 }, (_, index) =>
-            issue(index + 1),
-        );
-        const { source, send } = connect(
-            ...Array.from({ length: 10 }, () => page(full, 'next')),
-        );
-
-        await expect(
-            run(source, { kind: 'issues', columns: [], metrics: ['count'] }),
-        ).rejects.toThrow(
-            `more than ${PYLON_MAX_QUERY_ROWS.toLocaleString('en-US')} rows`,
-        );
-        expect(send).toHaveBeenCalledTimes(10);
+        expect(result.rows).toEqual([]);
+        expect(result.hasMoreRows).toBe(false);
     });
 
     it('names accounts with one lookup of the accounts read', async () => {
@@ -260,8 +197,7 @@ describe('pylonIntegration issues', () => {
 
         const result = await run(source, {
             kind: 'issues',
-            columns: ['account_name'],
-            metrics: ['count'],
+            columns: ['number', 'account_name'],
         });
 
         expect(send.mock.calls[1][0]).toEqual({
@@ -277,9 +213,9 @@ describe('pylonIntegration issues', () => {
             },
         });
         expect(result.rows).toEqual([
-            { account_name: 'Example Co', count: 1 },
-            { account_name: 'Sample Ltd', count: 1 },
-            { account_name: null, count: 1 },
+            { number: 1, account_name: 'Example Co' },
+            { number: 2, account_name: 'Sample Ltd' },
+            { number: 3, account_name: null },
         ]);
     });
 
@@ -347,70 +283,40 @@ describe('pylonIntegration issues', () => {
             filters: [
                 { field: 'account_name', operator: 'in', values: ['Missing'] },
             ],
-            columns: [],
-            metrics: ['count'],
+            columns: ['number'],
         });
 
         expect(send).toHaveBeenCalledTimes(1);
-        expect(result.rows).toEqual([{ count: 0 }]);
+        expect(result.rows).toEqual([]);
     });
 });
 
 describe('pylonIntegration people', () => {
-    it('reads assignee emails from the teammates and requester emails from the contacts', async () => {
+    it('reads assignee emails from the teammates', async () => {
         const { source, send } = connect(
             page([
-                issue(1, {
-                    assignee: { id: 'user-1' },
-                    requester: { id: 'contact-1' },
-                }),
-                issue(2, { assignee: null, requester: { id: 'contact-2' } }),
+                issue(1, { assignee: { id: 'user-1' } }),
+                issue(2, { assignee: null }),
             ]),
             response({
                 data: [{ id: 'user-1', email: 'agent@example.com' }],
                 request_id: 'request',
             }),
-            page([
-                {
-                    id: 'contact-1',
-                    name: 'A',
-                    email: 'a@example.org',
-                    avatar_url: '',
-                    portal_role: 'member',
-                },
-                {
-                    id: 'contact-2',
-                    name: 'B',
-                    avatar_url: '',
-                    portal_role: 'member',
-                },
-            ]),
         );
 
         const result = await run(source, {
             kind: 'issues',
-            columns: ['number', 'assignee_email', 'requester_email'],
+            columns: ['number', 'assignee_email'],
         });
 
-        expect(send.mock.calls[2][0]).toEqual({
-            method: 'POST',
-            path: '/contacts/search',
-            body: {
-                filter: {
-                    field: 'id',
-                    operator: 'in',
-                    values: ['contact-1', 'contact-2'],
-                },
-                limit: 1_000,
-            },
+        expect(send).toHaveBeenCalledTimes(2);
+        expect(send.mock.calls[1][0]).toMatchObject({
+            method: 'GET',
+            path: '/users',
         });
         expect(result.rows).toEqual([
-            {
-                number: 1,
-                assignee_email: 'agent@example.com',
-                requester_email: 'a@example.org',
-            },
-            { number: 2, assignee_email: null, requester_email: null },
+            { number: 1, assignee_email: 'agent@example.com' },
+            { number: 2, assignee_email: null },
         ]);
     });
 
@@ -496,7 +402,7 @@ describe('pylonIntegration accounts and contacts', () => {
         ]);
     });
 
-    it('counts contacts per account name', async () => {
+    it('names the account of each contact', async () => {
         const contact = (id: string, accountId: string | null) => ({
             id,
             name: `Contact ${id}`,
@@ -516,14 +422,14 @@ describe('pylonIntegration accounts and contacts', () => {
 
         const result = await run(source, {
             kind: 'contacts',
-            columns: ['account_name'],
-            metrics: ['count'],
+            columns: ['name', 'account_name'],
         });
 
         expect(send.mock.calls[0][0].path).toBe('/contacts/search');
         expect(result.rows).toEqual([
-            { account_name: 'Example Co', count: 2 },
-            { account_name: null, count: 1 },
+            { name: 'Contact c1', account_name: 'Example Co' },
+            { name: 'Contact c2', account_name: 'Example Co' },
+            { name: 'Contact c3', account_name: null },
         ]);
     });
 });

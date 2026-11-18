@@ -104,7 +104,6 @@ describe('compilePylonQuery issues', () => {
                 kind: 'issues',
                 filters: [LAST_30_DAYS],
                 columns: ['number', 'title'],
-                metrics: [],
                 sort: { field: 'created_at', order: 'desc' },
             },
             localSorts: [],
@@ -138,7 +137,6 @@ describe('compilePylonQuery issues', () => {
             ISSUES,
             query('pylon_issues', {
                 dimensions: [issue('state')],
-                metrics: [issue('count')],
                 filters: filters(
                     rule(issue('state'), FilterOperator.NOT_EQUALS, [
                         'closed',
@@ -227,11 +225,10 @@ describe('compilePylonQuery issues', () => {
         expect(localSorts).toEqual(sorts);
     });
 
-    it('reads every issue for metrics and sorts the groups here', () => {
+    it('reads up to the cap when it sorts the rows here', () => {
         const metricQuery = query('pylon_issues', {
             dimensions: [issue('account_name')],
-            metrics: [issue('count')],
-            sorts: [{ fieldId: issue('count'), descending: true }],
+            sorts: [{ fieldId: issue('account_name'), descending: true }],
         });
         const compiled = compileLiveMetricQuery({
             explore: ISSUES,
@@ -241,20 +238,18 @@ describe('compilePylonQuery issues', () => {
         });
         expect(JSON.parse(compiled.query)).toMatchObject({
             columns: ['account_name'],
-            metrics: ['count'],
         });
         expect(JSON.parse(compiled.query)).not.toHaveProperty('sort');
         expect(compiled.localSorts).toEqual(metricQuery.sorts);
         expect(compiled.requestLimit).toBe(PYLON_MAX_QUERY_ROWS);
     });
 
-    it('passes the shared check for a filtered count by state', () => {
+    it('passes the shared check for issues filtered by state', () => {
         expect(
             getApiSourceQueryIssues(
                 ISSUES.apiSource!,
                 query('pylon_issues', {
                     dimensions: [issue('state')],
-                    metrics: [issue('count')],
                     filters: filters(
                         rule(issue('state'), FilterOperator.EQUALS, [
                             'new',
@@ -309,7 +304,6 @@ describe('compilePylonQuery accounts and contacts', () => {
                     { field: 'account_id', operator: 'in', values: ['acc_1'] },
                 ],
                 columns: ['name', 'domain'],
-                metrics: [],
                 sort: { field: 'name', order: 'asc' },
             },
             localSorts: [],
@@ -340,7 +334,6 @@ describe('compilePylonQuery accounts and contacts', () => {
                 },
             ],
             columns: ['name', 'account_name'],
-            metrics: [],
         });
         expect(localSorts).toEqual(sorts);
     });

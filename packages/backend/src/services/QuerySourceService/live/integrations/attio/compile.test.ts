@@ -92,9 +92,6 @@ describe('Attio scanned fields', () => {
             'record_id record_id',
             'web_url web_url',
             'created_at created_at',
-            'created_at_week created_at_week',
-            'created_at_month created_at_month',
-            'created_at_year created_at_year',
             'name name',
             'stage stage.status',
             'value value.currency_value',
@@ -106,18 +103,13 @@ describe('Attio scanned fields', () => {
             'associated_company associated_company.target_record_id',
             'point_of_contact point_of_contact.full_name',
             'contact_email contact_email.email_address',
-            // A slug a built-in field already uses keeps a prefix
+            // A slug an old built-in field used keeps a prefix
             'attribute_count count',
         ]);
     });
 
-    it('totals number and currency attributes', () => {
-        expect(names('metrics')).toEqual([
-            'count count',
-            'total_value total:value.currency_value',
-            'total_probability total:probability',
-            'total_count total:count',
-        ]);
+    it('adds no metrics', () => {
+        expect(names('metrics')).toEqual([]);
     });
 
     it('keeps record and member ids out of the default field list', () => {
@@ -179,29 +171,6 @@ describe('compileAttioQuery', () => {
         ];
         expect(compile(query({ dimensions: [field('name')], sorts }))).toEqual({
             request: { columns: ['name'] },
-            localSorts: sorts,
-        });
-    });
-
-    it('groups count and totals by the dimensions, sorting them itself', () => {
-        const sorts = [{ fieldId: field('count'), descending: true }];
-        expect(
-            compile(
-                query({
-                    dimensions: [field('stage'), field('created_at_month')],
-                    metrics: [field('count'), field('total_value')],
-                    sorts,
-                }),
-            ),
-        ).toEqual({
-            request: {
-                columns: [
-                    'stage.status',
-                    'created_at_month',
-                    'count',
-                    'total:value.currency_value',
-                ],
-            },
             localSorts: sorts,
         });
     });
@@ -381,9 +350,8 @@ describe('compileAttioQuery', () => {
         const compiled = compileLiveMetricQuery({
             explore: DEALS,
             metricQuery: query({
-                dimensions: [field('stage')],
-                metrics: [field('count')],
-                sorts: [{ fieldId: field('count'), descending: true }],
+                dimensions: [field('name'), field('stage')],
+                sorts: [{ fieldId: field('stage'), descending: true }],
                 limit: 10,
             }),
             timezone: 'UTC',
@@ -391,8 +359,8 @@ describe('compileAttioQuery', () => {
         });
         expect(compiled.requestLimit).toBe(ATTIO_MAX_RECORDS);
         expect(compiled.fieldIdsByColumn).toEqual({
+            name: field('name'),
             'stage.status': field('stage'),
-            count: field('count'),
         });
     });
 });

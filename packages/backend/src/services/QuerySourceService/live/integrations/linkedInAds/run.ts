@@ -2,7 +2,6 @@ import {
     ApiConnectorType,
     DimensionType,
     LIVE_INTEGRATION_CATALOG,
-    ParameterError,
     TooManyRequestsError,
     UnexpectedServerError,
     WarehouseConnectionError,
@@ -11,7 +10,6 @@ import {
 import { z } from 'zod';
 import { tooManyRowsError } from '../../query/rows';
 import {
-    type LiveCalls,
     type LiveColumn,
     type LiveHttpResponse,
     type LiveRunArgs,
@@ -37,10 +35,6 @@ export const LINKEDIN_ADS_ANALYTICS_PATH = '/rest/adAnalytics';
 
 export const getLinkedInAdsAccountPath = (adAccountId: string) =>
     `/rest/adAccounts/${adAccountId}`;
-export const getLinkedInAdsCampaignsPath = (adAccountId: string) =>
-    `${getLinkedInAdsAccountPath(adAccountId)}/adCampaigns`;
-export const getLinkedInAdsCampaignGroupsPath = (adAccountId: string) =>
-    `${getLinkedInAdsAccountPath(adAccountId)}/adCampaignGroups`;
 
 const LABEL =
     LIVE_INTEGRATION_CATALOG[ApiConnectorType.LINKEDIN_ADS].messageLabel;
@@ -48,13 +42,8 @@ const LABEL =
 const LINKEDIN_ADS_MAX_ELEMENTS = 15_000;
 /** The most rows one query can ask for; one fewer than a response holds, to detect truncation. */
 export const LINKEDIN_ADS_MAX_QUERY_ROWS = LINKEDIN_ADS_MAX_ELEMENTS - 1;
-const PAGE_SIZE = 1_000;
-// An account has at most 5,000 campaigns, and campaign groups have no limit
-const MAX_CAMPAIGN_PAGES = 5;
-const MAX_CAMPAIGN_GROUP_PAGES = 3;
-/** One report plus the campaign and campaign group lookups. */
-export const LINKEDIN_ADS_CALLS_PER_QUERY =
-    1 + MAX_CAMPAIGN_PAGES + MAX_CAMPAIGN_GROUP_PAGES;
+/** One adAnalytics report. */
+export const LINKEDIN_ADS_CALLS_PER_QUERY = 1;
 
 export const LINKEDIN_ADS_PIVOTS = [
     'ACCOUNT',
@@ -123,11 +112,6 @@ const analyticsSchema = z.object({
                 .passthrough(),
         )
         .optional(),
-});
-
-const searchSchema = z.object({
-    elements: z.array(z.record(z.string(), z.unknown())).optional(),
-    metadata: z.object({ nextPageToken: z.string().optional() }).optional(),
 });
 
 const errorSchema = z.object({ message: z.string().optional() });
@@ -204,55 +188,7 @@ const getColumnType = (name: string): DimensionType =>
         ? DimensionType.DATE
         : DimensionType.STRING;
 
-/** Every entity of an account-level search, so rows show names as they are now. */
-const searchAll = async ({
-    calls,
-    path,
-    statuses,
-    maxPages,
-    label,
-}: {
-    calls: LiveCalls;
-    path: string;
-    statuses: string;
-    maxPages: number;
-    label: string;
-}): Promise<Map<string, Record<string, unknown>>> => {
-    const baseQuery = `q=search&search=(status:(values:List(${statuses})))&pageSize=${PAGE_SIZE}`;
-    const collect = async (
-        page: number,
-        pageToken: string | undefined,
-    ): Promise<Record<string, unknown>[]> => {
-        const { elements = [], metadata } = await calls.fetch(
-            {
-                method: 'GET',
-                path,
-                rawQuery: pageToken
-                    ? `${baseQuery}&pageToken=${encodeURIComponent(pageToken)}`
-                    : baseQuery,
-                body: null,
-            },
-            searchSchema,
-        );
-        const nextToken = metadata?.nextPageToken;
-        if (!nextToken) return elements;
-        if (page >= maxPages) {
-            throw new ParameterError(
-                `This ad account has more ${label} than one query can look up. Remove the ${label} name, status or type from the query.`,
-            );
-        }
-        return [...elements, ...(await collect(page + 1, nextToken))];
-    };
-    const items = await collect(1, undefined);
-    return new Map(items.map((item) => [String(item.id), item]));
-};
-
-const noEntities = async () => new Map<string, Record<string, unknown>>();
-
-/**
- * Runs one adAnalytics report, then joins campaign and campaign group names
- * from account-wide lookups when the query asks for them.
- */
+/** Runs one adAnalytics report: one call, no pagination. */
 export const runLinkedInAdsQuery = async ({
     settings: { adAccountId },
     request,
@@ -303,52 +239,8 @@ export const runLinkedInAdsQuery = async ({
         });
     }
 
-    const dimensions = new Set(request.dimensions);
-    const usesCampaign = (name: string) =>
-        dimensions.has(name) && name !== 'campaign.id';
-    const needsCampaigns =
-        LINKEDIN_ADS_CAMPAIGN_COLUMNS.some(usesCampaign) ||
-        (request.pivot === 'CAMPAIGN' &&
-            LINKEDIN_ADS_CAMPAIGN_GROUP_COLUMNS.some((name) =>
-                dimensions.has(name),
-            ));
-    const [campaigns, campaignGroups] = await Promise.all([
-        needsCampaigns
-            ? searchAll({
-                  calls,
-                  path: getLinkedInAdsCampaignsPath(adAccountId),
-                  statuses:
-                      'ACTIVE,PAUSED,ARCHIVED,COMPLETED,CANCELED,DRAFT,PENDING_DELETION,REMOVED',
-                  maxPages: MAX_CAMPAIGN_PAGES,
-                  label: 'campaigns',
-              })
-            : noEntities(),
-        dimensions.has('campaignGroup.name')
-            ? searchAll({
-                  calls,
-                  path: getLinkedInAdsCampaignGroupsPath(adAccountId),
-                  statuses:
-                      'ACTIVE,ARCHIVED,CANCELED,DRAFT,PAUSED,PENDING_DELETION,REMOVED',
-                  maxPages: MAX_CAMPAIGN_GROUP_PAGES,
-                  label: 'campaign groups',
-              })
-            : noEntities(),
-    ]);
-
     const rows = elements.slice(0, rowLimit).map((element) => {
         const pivotId = lastSegment(element.pivotValues?.[0]);
-        const campaign =
-            request.pivot === 'CAMPAIGN' && pivotId !== null
-                ? campaigns.get(pivotId)
-                : undefined;
-        let groupId: string | null = null;
-        if (request.pivot === 'CAMPAIGN_GROUP') {
-            groupId = pivotId;
-        } else if (campaign) {
-            groupId = lastSegment(campaign.campaignGroup);
-        }
-        const group =
-            groupId !== null ? campaignGroups.get(groupId) : undefined;
         const toCell = (name: string): unknown => {
             switch (name) {
                 case 'day':
@@ -358,19 +250,9 @@ export const runLinkedInAdsQuery = async ({
                         ? toDateCell(name, element.dateRange.start)
                         : null;
                 case 'campaign.id':
-                    return pivotId;
-                case 'campaign.name':
-                    return campaign?.name ?? null;
-                case 'campaign.status':
-                    return campaign?.status ?? null;
-                case 'campaign.type':
-                    return campaign?.type ?? null;
-                case 'campaign.objectiveType':
-                    return campaign?.objectiveType ?? null;
+                    return request.pivot === 'CAMPAIGN' ? pivotId : null;
                 case 'campaignGroup.id':
-                    return groupId;
-                case 'campaignGroup.name':
-                    return group?.name ?? null;
+                    return request.pivot === 'CAMPAIGN_GROUP' ? pivotId : null;
                 default:
                     return null;
             }

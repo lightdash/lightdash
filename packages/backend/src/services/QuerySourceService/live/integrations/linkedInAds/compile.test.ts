@@ -4,13 +4,12 @@ import {
     SupportedDbtAdapter,
     type FilterRule,
     type MetricQuery,
-    type ParameterError,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { linkedInAdsIntegration } from '.';
 import { type LiveTransport } from '../../calls';
 import { compileLiveMetricQuery } from '../../explores/build';
-import { buildLiveExplore } from '../../explores/definition';
+import { assertLiveQuery, buildLiveExplore } from '../../explores/definition';
 import { connectLiveSource } from '../../liveSource.mock';
 import { compileLinkedInAdsQuery } from './compile';
 import { LINKEDIN_ADS_PERFORMANCE_EXPLORE } from './explores';
@@ -47,7 +46,7 @@ const rule = (
 
 const query = (overrides: Partial<MetricQuery> = {}): MetricQuery => ({
     exploreName: EXPLORE,
-    dimensions: [field('campaign_name')],
+    dimensions: [field('campaign_id')],
     metrics: [field('impressions')],
     filters: {},
     sorts: [],
@@ -97,18 +96,18 @@ describe('compileLinkedInAdsQuery', () => {
             timeGranularity: 'ALL',
             dateRange: { start: '2026-10-12', end: '2026-11-08' },
             fields: ['impressions'],
-            dimensions: ['campaign.name'],
+            dimensions: ['campaign.id'],
         });
         expect(fieldIdsByColumn).toEqual({
-            'campaign.name': field('campaign_name'),
+            'campaign.id': field('campaign_id'),
             impressions: field('impressions'),
         });
     });
 
     it.each([
         [[], 'ACCOUNT'],
-        [['campaign_group_name'], 'CAMPAIGN_GROUP'],
-        [['campaign_group_name', 'campaign_id'], 'CAMPAIGN'],
+        [['campaign_group_id'], 'CAMPAIGN_GROUP'],
+        [['campaign_id', 'date'], 'CAMPAIGN'],
         [['date'], 'ACCOUNT'],
     ])('pivots %j on %s', (names, pivot) => {
         expect(
@@ -171,111 +170,36 @@ describe('compileLinkedInAdsQuery', () => {
         ).toThrow("isn't a LinkedIn numeric ID");
     });
 
-    describe('row identity', () => {
-        it.each([
-            [
-                ['campaign_type'],
-                'campaign_type',
-                /one row per campaign and can't group them by Campaign type\. Add Campaign name or Campaign ID/,
-            ],
-            [
-                ['campaign_status'],
-                'campaign_status',
-                /one row per campaign .* Campaign status/,
-            ],
-            [
-                ['campaign_objective', 'date'],
-                'campaign_objective',
-                /one row per campaign/,
-            ],
-            [
-                ['campaign_group_name', 'campaign_status'],
-                'campaign_status',
-                /one row per campaign/,
-            ],
-        ])('refuses grouping by %j', (dimensions, fieldName, message) => {
-            const error = (() => {
-                try {
-                    compile(query({ dimensions: dimensions.map(field) }));
-                    return null;
-                } catch (e) {
-                    return e as ParameterError;
-                }
-            })();
-            expect(error?.message).toMatch(message);
-            expect(error?.data).toMatchObject({
-                liveSourceErrorCode: 'live_source.refused.field_combination',
-                liveSourceFieldIds: [field(fieldName)],
-            });
-        });
-
-        it.each([
-            [['campaign_type', 'campaign_id']],
-            [['campaign_status', 'campaign_name']],
-            [['campaign_group_name']],
-            [['campaign_group_id', 'campaign_group_name']],
-            [['date']],
-        ])('allows grouping by %j', (dimensions) => {
+    describe('campaign and campaign group', () => {
+        it('refuses Campaign group ID with Campaign ID', () => {
             expect(() =>
-                compile(query({ dimensions: dimensions.map(field) })),
-            ).not.toThrow();
+                assertLiveQuery(
+                    explore,
+                    query({
+                        dimensions: [
+                            field('campaign_group_id'),
+                            field('campaign_id'),
+                        ],
+                    }),
+                ),
+            ).toThrow(
+                'LinkedIn reports campaigns without their campaign group',
+            );
         });
 
-        it('returns one row per campaign when an ID is selected with the type', async () => {
-            const { query: request, fieldIdsByColumn } = compileLive(
-                query({
-                    dimensions: [field('campaign_type'), field('campaign_id')],
-                    metrics: [field('clicks')],
-                }),
-            );
-            const source = connect(async ({ path }) => ({
-                status: 200,
-                headers: {},
-                body: path.endsWith('/adCampaigns')
-                    ? {
-                          elements: [
-                              { id: 11, type: 'SPONSORED_UPDATES' },
-                              { id: 12, type: 'SPONSORED_UPDATES' },
-                          ],
-                      }
-                    : {
-                          elements: [
-                              {
-                                  pivotValues: ['urn:li:sponsoredCampaign:11'],
-                                  clicks: 3,
-                              },
-                              {
-                                  pivotValues: ['urn:li:sponsoredCampaign:12'],
-                                  clicks: 4,
-                              },
-                          ],
-                      },
-            }));
-            const { rows } = await source.run({
-                query: request,
-                limit: 10,
-            });
+        it('filters campaigns by campaign group', () => {
             expect(
-                rows.map((row) =>
-                    Object.fromEntries(
-                        Object.entries(row).map(([column, value]) => [
-                            fieldIdsByColumn[column],
-                            value,
-                        ]),
-                    ),
-                ),
-            ).toEqual([
-                {
-                    [field('campaign_type')]: 'SPONSORED_UPDATES',
-                    [field('campaign_id')]: '11',
-                    [field('clicks')]: 3,
-                },
-                {
-                    [field('campaign_type')]: 'SPONSORED_UPDATES',
-                    [field('campaign_id')]: '12',
-                    [field('clicks')]: 4,
-                },
-            ]);
+                compileLive(
+                    query({
+                        dimensions: [field('campaign_id')],
+                        ...filtered(
+                            rule('campaign_group_id', FilterOperator.EQUALS, [
+                                '9',
+                            ]),
+                        ),
+                    }),
+                ).request,
+            ).toMatchObject({ pivot: 'CAMPAIGN', campaignGroups: ['9'] });
         });
     });
 
