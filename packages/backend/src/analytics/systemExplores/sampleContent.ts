@@ -524,7 +524,7 @@ export const analyticsSampleDashboards = [
                 {
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
-                        minVersion: '0.6.0',
+                        minVersion: '0.7.0',
                         fieldMapping: { value: 'query_events_unique_users' },
                         optionValues: {
                             showLabel: false,
@@ -544,7 +544,7 @@ export const analyticsSampleDashboards = [
                 {
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
-                        minVersion: '0.6.0',
+                        minVersion: '0.7.0',
                         fieldMapping: {
                             value: 'query_events_avg_warehouse_execution_time_ms',
                         },
@@ -566,7 +566,7 @@ export const analyticsSampleDashboards = [
                 {
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
-                        minVersion: '0.6.0',
+                        minVersion: '0.7.0',
                         fieldMapping: {
                             value: 'query_events_p90_warehouse_execution_time_ms',
                         },

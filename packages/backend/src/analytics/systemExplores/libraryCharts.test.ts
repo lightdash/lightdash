@@ -580,7 +580,7 @@ describe('legacyLibraryChartBindings', () => {
             (key) => {
                 expect(queryBinding(key)).toMatchObject({
                     slug: 'big-number-with-sparkline-trend',
-                    minVersion: '0.6.0',
+                    minVersion: '0.7.0',
                     optionValues: {
                         showLabel: false,
                         showCardBorder: false,

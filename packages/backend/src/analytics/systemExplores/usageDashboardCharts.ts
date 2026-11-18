@@ -1315,10 +1315,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
         metrics: ['query_events_total_queries'],
         limit: 200,
         sorts: [
-            {
-                descending: true,
-                fieldId: 'query_events_total_queries',
-            },
+            { fieldId: 'query_events_workload_origin', descending: false },
+            { fieldId: 'query_events_context', descending: false },
         ],
         libraryChart: {
             slug: 'heatmap',
