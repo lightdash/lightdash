@@ -14,6 +14,7 @@ import {
     useCallback,
     useEffect,
     useLayoutEffect,
+    useMemo,
     useRef,
     useState,
     type FC,
@@ -33,6 +34,7 @@ import {
     NOT_ON_LIVE_SOURCES,
     useIsRefusedOnLiveSource,
 } from '../../../features/externalConnections/liveSources/apiSourceExplore';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
@@ -113,6 +115,42 @@ const ResultsCard: FC = memo(() => {
     );
     const { user } = useApp();
     const resultsExport = useResultsExport();
+    const { showToastSuccess, showToastWarning, showToastError } = useToaster();
+    const { copyResultsToClipboard } = resultsExport;
+    const handleCopyToClipboard = useMemo(() => {
+        if (!copyResultsToClipboard) return undefined;
+        return async () => {
+            try {
+                const { copiedRows, totalResults } =
+                    await copyResultsToClipboard();
+                setIsExportMenuOpen(false);
+                if (copiedRows < totalResults) {
+                    showToastWarning({
+                        title: `Copied the first ${copiedRows.toLocaleString()} of ${totalResults.toLocaleString()} rows`,
+                        subtitle:
+                            'Download the data to get every row in a file.',
+                    });
+                } else {
+                    showToastSuccess({
+                        title: `Copied ${copiedRows.toLocaleString()} ${
+                            copiedRows === 1 ? 'row' : 'rows'
+                        } to the clipboard`,
+                    });
+                }
+            } catch (error) {
+                showToastError({
+                    title: 'Unable to copy results',
+                    subtitle:
+                        error instanceof Error ? error.message : undefined,
+                });
+            }
+        };
+    }, [
+        copyResultsToClipboard,
+        showToastError,
+        showToastSuccess,
+        showToastWarning,
+    ]);
     const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
     const [isDownloadOpen, setIsDownloadOpen] = useState(false);
     const isStale = useIsResultsStale();
@@ -335,6 +373,15 @@ const ResultsCard: FC = memo(() => {
                                             setIsExportMenuOpen(false);
                                             setIsDownloadOpen(true);
                                         }}
+                                        copyToClipboard={
+                                            isStale || !handleCopyToClipboard
+                                                ? undefined
+                                                : {
+                                                      onCopy: handleCopyToClipboard,
+                                                      isLoading:
+                                                          !resultsExport.isCopyReady,
+                                                  }
+                                        }
                                     />
                                 </Popover.Dropdown>
                             </Popover>
