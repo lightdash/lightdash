@@ -601,6 +601,7 @@ export const analyticsSampleDashboards = [
                             stack: 'normal',
                             xAxisType: 'time',
                             xTimeFormat: '{MMM} {d}',
+                            splitTopN: 6,
                         },
                         query: {
                             dimensions: [
@@ -619,7 +620,7 @@ export const analyticsSampleDashboards = [
                                 },
                             ],
                             limit: 5000,
-                            description: `Queries per day, split by the context that ran them. ${defaultChartDescription}`,
+                            description: `Queries per day, split by the six contexts that ran the most, with the rest grouped as Other. ${defaultChartDescription}`,
                         },
                     },
                 },

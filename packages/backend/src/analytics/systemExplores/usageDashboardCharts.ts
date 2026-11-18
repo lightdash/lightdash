@@ -1,3 +1,4 @@
+import { FilterOperator } from '@lightdash/common';
 import { monthlyQueryComparisonCharts } from './monthlyQueryComparisonCharts';
 import type { UsageChartSpec } from './usageDashboardTypes';
 
@@ -1306,31 +1307,6 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
     },
     {
-        key: 'query-flow-origin-to-context',
-        name: 'Where do queries come from?',
-        description:
-            'Queries by workload origin and the context that ran them, over the selected period.',
-        explore: 'query_events',
-        dimensions: ['query_events_workload_origin', 'query_events_context'],
-        metrics: ['query_events_total_queries'],
-        limit: 200,
-        sorts: [
-            { fieldId: 'query_events_workload_origin', descending: false },
-            { fieldId: 'query_events_context', descending: false },
-        ],
-        libraryChart: {
-            slug: 'heatmap',
-            minVersion: '0.4.0',
-            fieldMapping: {
-                x: 'query_events_context',
-                y: 'query_events_workload_origin',
-                value: 'query_events_total_queries',
-            },
-            optionValues: {},
-            query: null,
-        },
-    },
-    {
         key: 'query-origin-and-initiating-actor',
         name: 'Query origin and initiating actor',
         description:
@@ -1448,6 +1424,13 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'query_events_p95_response_time_ms',
             'query_events_avg_warehouse_execution_time_ms',
         ],
+        filters: [
+            {
+                field: 'query_events_dashboard_name',
+                operator: FilterOperator.NOT_NULL,
+                values: [],
+            },
+        ],
         limit: 20,
         sorts: [
             {
@@ -1507,21 +1490,6 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 fieldId: 'query_events_total_queries',
             },
         ],
-        libraryChart: {
-            slug: 'customizable-cartesian-chart',
-            minVersion: '0.17.0',
-            fieldMapping: {
-                x: 'query_events_execution_source',
-                m1: 'query_events_total_queries',
-                splitBy: 'query_events_cache_hit',
-            },
-            optionValues: {
-                seriesType: 'bar',
-                stack: 'normal',
-                xAxisType: 'category',
-            },
-            query: null,
-        },
     },
     {
         key: 'who-visited-which-dashboard',

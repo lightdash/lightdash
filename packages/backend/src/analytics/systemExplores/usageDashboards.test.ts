@@ -829,7 +829,6 @@ describe('built-in usage dashboards', () => {
                 );
         expect(slugs('origins')).toEqual(
             [
-                'query-flow-origin-to-context',
                 'query-origin-and-initiating-actor',
                 'warehouse-versus-cached-demand',
             ].map((key) => `${prefix}${key}`),
@@ -846,7 +845,7 @@ describe('built-in usage dashboards', () => {
         const fallbackType = (key: string) =>
             queryCharts.find(({ slug }) => slug === `${prefix}${key}`)!
                 .chartConfig.type;
-        expect(fallbackType('query-flow-origin-to-context')).toBe(
+        expect(fallbackType('query-origin-and-initiating-actor')).toBe(
             ChartType.TABLE,
         );
         expect(fallbackType('most-used-fields-cloud')).toBe(
@@ -861,7 +860,7 @@ describe('built-in usage dashboards', () => {
         ]);
     });
 
-    it('lays the Queries sections out as explicit rows', () => {
+    it('lays the Queries latency section out as an explicit row', () => {
         const { dashboard } = analyticsContentAsCode.find(
             ({ dashboard: item }) =>
                 item.slug === 'lightdash-analytics-query-activity',
@@ -876,16 +875,6 @@ describe('built-in usage dashboards', () => {
             )!;
         const slow = tile('latency', 'slow-dashboards-tail-latency-and-demand');
         expect([slow.x, slow.w, slow.h]).toEqual([0, 36, 9]);
-        const [flow, origin] = [
-            'query-flow-origin-to-context',
-            'query-origin-and-initiating-actor',
-        ].map((key) => tile('origins', key));
-        expect([flow.x, origin.x, flow.w, origin.w, flow.h, origin.h]).toEqual([
-            0, 18, 18, 18, 8, 8,
-        ]);
-        expect(flow.y).toBe(origin.y);
-        const cached = tile('origins', 'warehouse-versus-cached-demand');
-        expect([cached.x, cached.w, cached.h]).toEqual([0, 36, 7]);
     });
 
     it('leaves the query calendar chart unchanged', () => {

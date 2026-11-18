@@ -161,20 +161,13 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         title: 'Workload origins',
                         description:
                             'Origin and actor metadata distinguish workloads where captured; historical unknown values are retained.',
-                        charts: [
-                            'query-flow-origin-to-context',
-                            'query-origin-and-initiating-actor',
-                        ],
-                        layout: 'row',
-                        rowHeight: 8,
+                        charts: ['query-origin-and-initiating-actor'],
                     },
                     {
                         title: 'Caching',
                         description:
                             'Compare warehouse execution and recorded cache use. Cache savings and warehouse currency costs are not captured.',
                         charts: ['warehouse-versus-cached-demand'],
-                        layout: 'row',
-                        rowHeight: 7,
                     },
                 ],
             },

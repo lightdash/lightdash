@@ -590,17 +590,6 @@ describe('legacyLibraryChartBindings', () => {
                 });
             },
         );
-        expect(queryBinding('query-flow-origin-to-context')).toEqual({
-            slug: 'heatmap',
-            minVersion: '0.4.0',
-            fieldMapping: {
-                x: 'query_events_context',
-                y: 'query_events_workload_origin',
-                value: 'query_events_total_queries',
-            },
-            optionValues: {},
-            query: null,
-        });
         expect(queryBinding('queries-by-day')).toMatchObject({
             slug: 'customizable-cartesian-chart',
             minVersion: '0.17.0',
@@ -609,8 +598,10 @@ describe('legacyLibraryChartBindings', () => {
                 m1: 'query_events_total_queries',
                 splitBy: 'query_events_context',
             },
+            optionValues: { splitTopN: 6 },
         });
         [
+            'warehouse-versus-cached-demand',
             'active-users-by-day',
             'query-cache',
             'queries-by-context',
@@ -729,7 +720,7 @@ describe('legacyLibraryChartBindings', () => {
                 'lightdash-analytics-query-activity-queries-by-day',
             ),
         ).toBe(
-            `Queries per day, split by the context that ran them. ${chartDescription('lightdash-analytics-query-activity-queries-by-day')}`,
+            `Queries per day, split by the six contexts that ran the most, with the rest grouped as Other. ${chartDescription('lightdash-analytics-query-activity-queries-by-day')}`,
         );
         const agentChart = (key: string) =>
             [...analyticsLibraryChartBindings.keys()].find((slug) =>
