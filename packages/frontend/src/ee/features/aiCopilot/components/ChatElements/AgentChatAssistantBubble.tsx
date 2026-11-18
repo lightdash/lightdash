@@ -44,6 +44,7 @@ import { clsx } from 'clsx';
 import {
     memo,
     useCallback,
+    useContext,
     useMemo,
     useState,
     type FC,
@@ -55,6 +56,7 @@ import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import { CopyActionIcon } from '../../../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SemanticLayerProposalCard } from '../../../../../features/semanticStudio/SemanticLayerProposalCard';
+import { TurnSummaryCard } from '../../../../../features/semanticStudio/TurnSummaryCard';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
 import useApp from '../../../../../providers/App/useApp';
@@ -125,6 +127,7 @@ import {
     LiveActivityCard,
     type LiveActivityToolGroup,
 } from './ToolCalls/LiveActivityCard';
+import { QuietCardsContext, StudioAskContext } from './ToolCalls/quietCards';
 import { toReasoningTexts } from './ToolCalls/reasoningHelpers';
 import { StepFailureSummary } from './ToolCalls/StepFailureSummary';
 import { getMessageFinalStepFailure } from './ToolCalls/utils/getFinalStepFailure';
@@ -544,6 +547,8 @@ const AssistantBubbleContent: FC<{
         return { metadata: liveOutput.metadata };
     })();
 
+    const quietCards = useContext(QuietCardsContext);
+    const askStudio = useContext(StudioAskContext);
     // Persisted once the turn is saved; until then the stream carries them.
     const persistedProposals: SemanticLayerProposal[] = message.toolResults
         .filter(isToolProposeSemanticLayerChangeResult)
@@ -968,13 +973,21 @@ const AssistantBubbleContent: FC<{
                 message={message}
                 streamParts={streamingState?.parts}
             />
-            {semanticLayerProposals.map((proposal, index) => (
-                <SemanticLayerProposalCard
-                    key={index}
+            {quietCards && semanticLayerProposals.length > 0 ? (
+                <TurnSummaryCard
                     projectUuid={projectUuid}
-                    proposal={proposal}
+                    proposals={semanticLayerProposals}
+                    onAsk={askStudio}
                 />
-            ))}
+            ) : (
+                semanticLayerProposals.map((proposal, index) => (
+                    <SemanticLayerProposalCard
+                        key={index}
+                        projectUuid={projectUuid}
+                        proposal={proposal}
+                    />
+                ))
+            )}
             {editDbtProjectResult && (
                 <AiEditDbtProjectToolCall
                     metadata={editDbtProjectResult.metadata}

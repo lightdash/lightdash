@@ -3,6 +3,7 @@ import {
     type CompiledDimension,
     type CompiledMetric,
     type Explore,
+    type SemanticLayerDraft,
     type SemanticLayerDraftModel,
 } from '@lightdash/common';
 import { isEqual, omit } from 'es-toolkit/compat';
@@ -56,4 +57,20 @@ export const describePublisher = (
         option: by ?? 'Someone else',
         keepLabel: by ? `Keep ${by}'s version` : 'Keep their version',
     };
+};
+
+/** Whether the draft, or one model of it, fails its checks. */
+export const cannotApply = (
+    { changes, errors }: SemanticLayerDraft,
+    model: string | null,
+) => {
+    const inScope = (name: string) => model === null || name === model;
+    return (
+        errors.some((error) => inScope(error.model)) ||
+        changes.some((change) =>
+            change.models.some(
+                (entry) => inScope(entry.model) && entry.error !== null,
+            ),
+        )
+    );
 };

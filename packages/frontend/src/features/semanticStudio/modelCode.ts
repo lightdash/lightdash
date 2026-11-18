@@ -194,6 +194,149 @@ export const summarizeModelChanges = (
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null && !Array.isArray(value);
 
+export type FieldChangeKind = 'dimension' | 'metric' | 'join' | 'model';
+
+/** One thing a change touched, in the words of the semantic layer. */
+export type FieldChange = {
+    kind: FieldChangeKind;
+    name: string;
+    change: ChangeKind;
+    label: string;
+    /** How it is defined when new, or which keys changed; null when removed. */
+    detail: string | null;
+};
+
+const kindOfPath = (path: string): FieldChangeKind => {
+    const [head, , second] = path.split('.');
+    if (head === 'joins') return 'join';
+    if (head === 'metrics' || second === 'metrics') return 'metric';
+    return head === 'dimensions' ? 'dimension' : 'model';
+};
+
+const loadRecord = (content: string | null): Record<string, unknown> => {
+    try {
+        const parsed: unknown = content === null ? null : load(content);
+        return isRecord(parsed) ? parsed : {};
+    } catch {
+        return {};
+    }
+};
+
+const namedIn = (list: unknown, key: string, name: string) =>
+    Array.isArray(list)
+        ? list.find((item) => isRecord(item) && item[key] === name)
+        : undefined;
+
+/** A field's or join's definition in a model document, and the dimension it hangs off when it is a nested metric. */
+const findDefinition = (
+    doc: Record<string, unknown>,
+    kind: FieldChangeKind,
+    name: string,
+): { part: Record<string, unknown>; parent: string | null } | null => {
+    if (kind === 'model') return { part: doc, parent: null };
+    if (kind === 'join') {
+        const join =
+            namedIn(doc.joins, 'alias', name) ??
+            namedIn(doc.joins, 'join', name);
+        return isRecord(join) ? { part: join, parent: null } : null;
+    }
+    const dimensions: unknown[] = Array.isArray(doc.dimensions)
+        ? doc.dimensions
+        : [];
+    if (kind === 'dimension') {
+        const own = namedIn(dimensions, 'name', name);
+        if (isRecord(own)) return { part: own, parent: null };
+    }
+    const group = kind === 'metric' ? 'metrics' : 'additional_dimensions';
+    const topLevel = isRecord(doc[group]) ? doc[group][name] : undefined;
+    if (isRecord(topLevel)) return { part: topLevel, parent: null };
+    const nested = dimensions.filter(isRecord).find((dimension) => {
+        const parts = dimension[group];
+        return isRecord(parts) && isRecord(parts[name]);
+    });
+    const parts = nested?.[group];
+    return nested && isRecord(parts) && isRecord(parts[name])
+        ? { part: parts[name], parent: String(nested.name) }
+        : null;
+};
+
+const SQL_REFERENCE = /^\$\{(\w+)\}$/;
+
+const describeNew = (
+    kind: FieldChangeKind,
+    definition: { part: Record<string, unknown>; parent: string | null },
+): string | null => {
+    const { part, parent } = definition;
+    const type = typeof part.type === 'string' ? part.type : null;
+    if (kind !== 'metric') return type;
+    const sql = typeof part.sql === 'string' ? part.sql.trim() : '';
+    const of = SQL_REFERENCE.exec(sql)?.[1] ?? parent;
+    return [type, of ? `of ${of}` : null].filter(Boolean).join(' ') || null;
+};
+
+const CHANGE_OF_ACTION: Record<ModelFragmentChange['action'], ChangeKind> = {
+    created: 'new',
+    added: 'new',
+    patched: 'changed',
+    redefined: 'changed',
+    removed: 'removed',
+};
+
+/** The fields, joins and model keys a proposal touched, labelled from the model before or after it. */
+export const listFieldChanges = (
+    model: string,
+    changes: ModelFragmentChange[],
+    content: { contentBefore: string | null; contentAfter: string | null },
+): FieldChange[] => {
+    const touched = new Map<
+        string,
+        {
+            kind: FieldChangeKind;
+            name: string;
+            change: ChangeKind;
+            keys: string[];
+        }
+    >();
+    changes.forEach(({ path, action }) => {
+        // A whole model being created or removed is the model's own header, not a row.
+        if (path === model || path === '') return;
+        const { name, key } = parseChangePath(path);
+        const kind = kindOfPath(path);
+        const id = `${kind}:${name ?? model}`;
+        const entry = touched.get(id) ?? {
+            kind,
+            name: name ?? model,
+            change: key === null ? CHANGE_OF_ACTION[action] : 'changed',
+            keys: [],
+        };
+        if (key === null) entry.change = CHANGE_OF_ACTION[action];
+        else if (!entry.keys.includes(key)) entry.keys.push(key);
+        touched.set(id, entry);
+    });
+    const before = loadRecord(content.contentBefore);
+    const after = loadRecord(content.contentAfter);
+    return [...touched.values()].map(({ kind, name, change, keys }) => {
+        const definition = findDefinition(
+            change === 'removed' ? before : after,
+            kind,
+            name,
+        );
+        const label = definition?.part.label;
+        return {
+            kind,
+            name,
+            change,
+            label: typeof label === 'string' ? label : name,
+            detail:
+                change === 'removed'
+                    ? null
+                    : change === 'new' && definition
+                      ? describeNew(kind, definition)
+                      : keys.join(', ') || null,
+        };
+    });
+};
+
 const countMetrics = (part: unknown): number => {
     if (!isRecord(part)) return 0;
     if (Array.isArray(part.metrics)) return part.metrics.length;
