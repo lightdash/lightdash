@@ -1,3 +1,10 @@
+## [3.304.1](https://github.com/lightdash/lightdash/compare/3.304.0...3.304.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **ai:** list in-flight and sibling-thread pull requests in listWorkstreams ([#32829](https://github.com/lightdash/lightdash/issues/32829)) ([7497e18](https://github.com/lightdash/lightdash/commit/7497e18cd3dfe0ba6a938023d23e600b9e28e4cc))
+
 # [3.304.0](https://github.com/lightdash/lightdash/compare/3.303.2...3.304.0) (2026-11-18)
 
 
