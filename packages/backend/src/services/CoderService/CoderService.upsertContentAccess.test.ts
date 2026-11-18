@@ -194,6 +194,60 @@ const buildService = (overrides: AnyType = {}) =>
         ...overrides,
     });
 
+const mockUpdatableDashboard = (
+    service: CoderService,
+    saved: { tiles: AnyType[]; tabs: AnyType[] },
+) => {
+    vi.mocked(service.dashboardModel.find).mockResolvedValue([
+        { uuid: 'dashboard-uuid' } as AnyType,
+    ]);
+    vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
+        uuid: 'dashboard-uuid',
+        slug: 'dashboard',
+        name: 'Dashboard',
+        spaceUuid: SPACE_UUID,
+        filters: { dimensions: [], metrics: [], tableCalculations: [] },
+        ...saved,
+    } as AnyType);
+    vi.mocked(service.promoteService.getPromotedDashboard).mockResolvedValue({
+        promotedDashboard: {
+            dashboard: { uuid: 'dashboard-uuid', name: 'Dashboard' },
+            projectUuid: PROJECT_UUID,
+            space: { name: 'Space' },
+            spaceAccessContext: {
+                organizationUuid: ORG_UUID,
+                projectUuid: PROJECT_UUID,
+                access: [],
+            },
+        },
+        upstreamDashboard: {
+            dashboard: { uuid: 'dashboard-uuid', name: 'Dashboard' },
+            projectUuid: PROJECT_UUID,
+            space: { name: 'Space' },
+            spaceAccessContext: {
+                organizationUuid: ORG_UUID,
+                projectUuid: PROJECT_UUID,
+                access: [],
+            },
+        },
+    } as AnyType);
+    vi.mocked(
+        service.promoteService.getPromotionDashboardChanges,
+    ).mockResolvedValue([
+        {
+            dashboards: [
+                {
+                    action: PromotionAction.UPDATE,
+                    data: { uuid: 'dashboard-uuid' },
+                },
+            ],
+            charts: [],
+            spaces: [],
+        },
+        [],
+    ] as AnyType);
+};
+
 const registerContentAccessTests = (
     contentAsCodeAction: 'create' | 'manage',
 ) => {
@@ -205,6 +259,19 @@ const registerContentAccessTests = (
                     : rule,
             ),
         );
+    const dashboardUpdater = makeUser([
+        { subject: 'ContentAsCode', action: 'create' },
+        {
+            subject: 'Dashboard',
+            action: 'update',
+            conditions: { projectUuid: PROJECT_UUID },
+        },
+        {
+            subject: 'Dashboard',
+            action: 'promote',
+            conditions: { projectUuid: PROJECT_UUID },
+        },
+    ]);
     describe('CoderService dashboard slug rename permissions', () => {
         const request = {
             resourceType: ContentType.DASHBOARD,
@@ -813,35 +880,68 @@ const registerContentAccessTests = (
         expect(service.dashboardModel.create).not.toHaveBeenCalled();
     });
 
-    it('accepts an upload over the tiles-per-tab limit when the saved dashboard has as many tiles', async () => {
-        const service = buildService();
-        const tiles = Array(
-            lightdashConfigMock.dashboard.maxTilesPerTab + 1,
-        ).fill(markdownTile);
-        vi.mocked(service.dashboardModel.find).mockResolvedValue([
-            { uuid: 'dashboard-uuid' } as AnyType,
-        ]);
-        vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
-            uuid: 'dashboard-uuid',
-            slug: 'dashboard',
-            name: 'Dashboard',
-            filters: { dimensions: [], metrics: [], tableCalculations: [] },
-            tiles,
-            tabs: [],
-        } as AnyType);
-        vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
-            space: { uuid: SPACE_UUID } as AnyType,
-            created: false,
-        });
-        const user = makeUser([{ subject: 'ContentAsCode', action: 'create' }]);
-
-        // Stops at the space permission check, which runs after the limit check
-        await expect(
-            service.upsertDashboard(user, PROJECT_UUID, dashboardAsCode.slug, {
+    describe('saved dashboard over the tiles-per-tab limit', () => {
+        const overLimit = lightdashConfigMock.dashboard.maxTilesPerTab + 1;
+        const upload = (tileCount: number) =>
+            ({
                 ...dashboardAsCode,
-                tiles,
-            } as unknown as DashboardAsCode),
-        ).rejects.toThrow(ForbiddenError);
+                tabs: [{ name: 'Sales', slug: 'sales', order: 0 }],
+                tiles: Array(tileCount).fill({
+                    ...markdownTile,
+                    tabSlug: 'sales',
+                }),
+            }) as unknown as DashboardAsCode;
+        const buildServiceWithSavedDashboard = () => {
+            const service = buildService();
+            mockUpdatableDashboard(service, {
+                tabs: [{ uuid: 'sales-uuid', name: 'Sales', order: 0 }],
+                tiles: Array(overLimit).fill({
+                    ...markdownTile,
+                    tabUuid: 'sales-uuid',
+                }),
+            });
+            return service;
+        };
+
+        it('accepts an upload that keeps the saved tile count', async () => {
+            await expect(
+                buildServiceWithSavedDashboard().upsertDashboard(
+                    dashboardUpdater,
+                    PROJECT_UUID,
+                    dashboardAsCode.slug,
+                    upload(overLimit),
+                ),
+            ).resolves.toMatchObject({
+                dashboards: [{ action: PromotionAction.UPDATE }],
+            });
+        });
+
+        it('rejects an upload that adds a tile', async () => {
+            await expect(
+                buildServiceWithSavedDashboard().upsertDashboard(
+                    dashboardUpdater,
+                    PROJECT_UUID,
+                    dashboardAsCode.slug,
+                    upload(overLimit + 1),
+                ),
+            ).rejects.toThrow(
+                `Tab "Sales" has ${overLimit + 1} tiles, which is over the limit of ${overLimit - 1} tiles per tab`,
+            );
+        });
+
+        it('checks access before the saved tile count', async () => {
+            const user = makeUser([
+                { subject: 'ContentAsCode', action: 'create' },
+            ]);
+            await expect(
+                buildServiceWithSavedDashboard().upsertDashboard(
+                    user,
+                    PROJECT_UUID,
+                    dashboardAsCode.slug,
+                    upload(overLimit + 1),
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        });
     });
 
     it('does not let ContentAsCode alone create dashboards in a space', async () => {
@@ -998,74 +1098,11 @@ const registerContentAccessTests = (
 
     it('allows write-only callers to update dashboards in accessible spaces', async () => {
         const service = buildService();
-        vi.mocked(service.dashboardModel.find).mockResolvedValue([
-            { uuid: 'dashboard-uuid' } as AnyType,
-        ]);
-        vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
-            uuid: 'dashboard-uuid',
-            slug: 'dashboard',
-            name: 'Dashboard',
-            spaceUuid: SPACE_UUID,
-            filters: { dimensions: [], metrics: [], tableCalculations: [] },
-            tiles: [],
-            tabs: [],
-        } as AnyType);
-        vi.mocked(
-            service.promoteService.getPromotedDashboard,
-        ).mockResolvedValue({
-            promotedDashboard: {
-                dashboard: { uuid: 'dashboard-uuid', name: 'Dashboard' },
-                projectUuid: PROJECT_UUID,
-                space: { name: 'Space' },
-                spaceAccessContext: {
-                    organizationUuid: ORG_UUID,
-                    projectUuid: PROJECT_UUID,
-                    access: [],
-                },
-            },
-            upstreamDashboard: {
-                dashboard: { uuid: 'dashboard-uuid', name: 'Dashboard' },
-                projectUuid: PROJECT_UUID,
-                space: { name: 'Space' },
-                spaceAccessContext: {
-                    organizationUuid: ORG_UUID,
-                    projectUuid: PROJECT_UUID,
-                    access: [],
-                },
-            },
-        } as AnyType);
-        vi.mocked(
-            service.promoteService.getPromotionDashboardChanges,
-        ).mockResolvedValue([
-            {
-                dashboards: [
-                    {
-                        action: PromotionAction.UPDATE,
-                        data: { uuid: 'dashboard-uuid' },
-                    },
-                ],
-                charts: [],
-                spaces: [],
-            },
-            [],
-        ] as AnyType);
-        const user = makeUser([
-            { subject: 'ContentAsCode', action: 'create' },
-            {
-                subject: 'Dashboard',
-                action: 'update',
-                conditions: { projectUuid: PROJECT_UUID },
-            },
-            {
-                subject: 'Dashboard',
-                action: 'promote',
-                conditions: { projectUuid: PROJECT_UUID },
-            },
-        ]);
+        mockUpdatableDashboard(service, { tiles: [], tabs: [] });
 
         await expect(
             service.upsertDashboard(
-                user,
+                dashboardUpdater,
                 PROJECT_UUID,
                 dashboardAsCode.slug,
                 dashboardAsCode,
