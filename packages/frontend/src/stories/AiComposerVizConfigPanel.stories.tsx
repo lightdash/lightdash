@@ -15,11 +15,11 @@ import { type Meta, type StoryObj } from '@storybook/react-vite';
 import { clsx } from 'clsx';
 import { useState } from 'react';
 import panelStyles from '../ee/features/aiCopilot/components/ChatElements/AiArtifactPanel.module.css';
-import { AiComposerResultError } from '../ee/features/aiCopilot/components/ChatElements/AiComposerResultError';
 import {
     AiComposerVizConfigPanel,
     type AiComposerVizConfigPanelMode,
 } from '../ee/features/aiCopilot/components/ChatElements/composerVizConfig/AiComposerVizConfigPanel';
+import { AiComposerResultError } from '../features/composerCharts/lineage/AiComposerResultError';
 
 const columns: ResultColumn[] = [
     { reference: 'month', type: DimensionType.DATE, label: 'Month' },

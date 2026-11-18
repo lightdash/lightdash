@@ -21,15 +21,15 @@ import {
 import { useEffect, useMemo, useState, type FC, type ReactNode } from 'react';
 import BigNumberView from '../../../../../components/DataViz/visualizations/BigNumberView';
 import ChartView from '../../../../../components/DataViz/visualizations/ChartView';
+import { ArtifactLoadingSketch } from '../../../../../features/composerCharts/lineage/ArtifactLoadingSketch';
+import { useArtifactResultRows } from '../../../../../features/composerCharts/lineage/useArtifactResultRows';
 import { useProjectColorPalette } from '../../../../../hooks/appearance/useProjectColorPalette';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
-import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
 import {
     buildComposerChartSpec,
     buildComposerPivotSpec,
     type ComposerChartSpec,
 } from './composerChartSpec';
-import { useArtifactResultRows } from './useArtifactResultRows';
 import { useComposerPivot } from './useComposerPivot';
 
 export type ComposerChartVizConfig = Exclude<AllVizChartConfig, VizTableConfig>;

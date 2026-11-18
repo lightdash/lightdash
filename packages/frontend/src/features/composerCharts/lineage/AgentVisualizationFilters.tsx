@@ -19,7 +19,7 @@ import { useMemo, type FC } from 'react';
 import {
     getConditionalRuleLabel,
     getConditionalRuleLabelFromItem,
-} from '../../../../../components/common/Filters/FilterInputs/utils';
+} from '../../../components/common/Filters/FilterInputs/utils';
 import classes from './AgentVisualizationFilters.module.css';
 import chipClasses from './QueryChip.module.css';
 

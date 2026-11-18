@@ -4,7 +4,7 @@ import {
     type UiStringKey,
 } from '@lightdash/common';
 import { useCallback } from 'react';
-import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { type MergeNodeSummary } from './mergeNodeSummary';
 
 const JOIN_TYPE_KEYS = {

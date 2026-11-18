@@ -38,7 +38,7 @@ import {
     type ToolSearchSemanticLayerArgs,
 } from '@lightdash/common';
 import type { FC } from 'react';
-import { type ComposerQueryNodeStatus } from '../../composerNodeStatus';
+import { type ComposerQueryNodeStatus } from '../../../../../../../features/composerCharts/lineage/composerNodeStatus';
 import { type SqlApprovalTarget } from '../SqlApprovalActions';
 import { isToolWithoutDescription } from '../utils/toolsWithoutDescription';
 import type { ToolCallSummary } from '../utils/types';

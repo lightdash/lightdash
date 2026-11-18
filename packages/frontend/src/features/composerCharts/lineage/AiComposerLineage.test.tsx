@@ -8,31 +8,31 @@ import {
 } from '@lightdash/common';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { useLiveSourceExplore } from '../../../../../../features/externalConnections/liveSources/apiSourceExplore';
-import { compileMergeQuery } from '../../../../../../features/mergeQuery/hooks/useMergeQuery';
-import { useCompiledSqlFromMetricQuery } from '../../../../../../hooks/useCompiledSql';
-import mockIntersectingObserver from '../../../../../../testing/intersectingObserver';
-import { renderWithProviders } from '../../../../../../testing/testUtils';
-import { type ComposerRunNodeStatus } from '../useComposerRunNodeStatuses';
+import { useCompiledSqlFromMetricQuery } from '../../../hooks/useCompiledSql';
+import mockIntersectingObserver from '../../../testing/intersectingObserver';
+import { renderWithProviders } from '../../../testing/testUtils';
+import { useLiveSourceExplore } from '../../externalConnections/liveSources/apiSourceExplore';
+import { compileMergeQuery } from '../../mergeQuery/hooks/useMergeQuery';
 import { AiComposerLineage } from './AiComposerLineage';
 import { type PipelineThreadActions } from './notebook/PipelineNotebook';
+import { type ComposerRunNodeStatus } from './useComposerRunNodeStatuses';
 
-vi.mock('../../../../../../hooks/useCompiledSql', () => ({
+vi.mock('../../../hooks/useCompiledSql', () => ({
     useCompiledSqlFromMetricQuery: vi.fn(() => ({ data: undefined })),
 }));
 const compiledSql = vi.mocked(useCompiledSqlFromMetricQuery);
-vi.mock('../../../../../../hooks/useExplore', () => ({
+vi.mock('../../../hooks/useExplore', () => ({
     useExploreByProjectUuid: vi.fn(() => ({ data: undefined })),
 }));
 vi.mock(
-    '../../../../../../features/externalConnections/liveSources/apiSourceExplore',
+    '../../externalConnections/liveSources/apiSourceExplore',
     async (importOriginal) => ({
         ...(await importOriginal<object>()),
         useLiveSourceExplore: vi.fn(() => null),
     }),
 );
 const liveSourceExplore = vi.mocked(useLiveSourceExplore);
-vi.mock('../../../../../../features/mergeQuery/hooks/useMergeQuery', () => ({
+vi.mock('../../mergeQuery/hooks/useMergeQuery', () => ({
     compileMergeQuery: vi.fn(async () => ({
         sql: 'select * from merge_source_0 left join merge_source_1 using (partner)',
         legs: [

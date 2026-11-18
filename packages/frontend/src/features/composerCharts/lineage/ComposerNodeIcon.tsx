@@ -1,10 +1,10 @@
 import { QuerySourceType, type SourceQuery } from '@lightdash/common';
 import { type FC } from 'react';
-import MantineIcon from '../../../../../../components/common/MantineIcon';
+import MantineIcon from '../../../components/common/MantineIcon';
 import {
     LiveSourceConnectionIcon,
     LiveSourceIcon,
-} from '../../../../../../features/externalConnections/liveSources/LiveSourceIcon';
+} from '../../externalConnections/liveSources/LiveSourceIcon';
 import { nodeTypeIcon } from './nodeTypeIcon';
 import { useComposerNodeLiveSource } from './useComposerNodeLiveSource';
 

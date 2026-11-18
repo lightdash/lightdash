@@ -78,9 +78,12 @@ vi.mock('../../../../../hooks/useSnowflake', () => ({
         error: null,
     }),
 }));
-vi.mock('../../hooks/useCanViewAiAgentSql', () => ({
-    useCanViewAiAgentSql: () => false,
-}));
+vi.mock(
+    '../../../../../features/composerCharts/hooks/useCanViewAiAgentSql',
+    () => ({
+        useCanViewAiAgentSql: () => false,
+    }),
+);
 vi.mock('../../../../../hooks/useCompiledSql', () => ({
     useCompiledSqlFromMetricQuery: () => ({ data: undefined }),
 }));
@@ -115,36 +118,42 @@ vi.mock('../../../../../hooks/appearance/useProjectColorPalette', () => ({
     useProjectColorPalette: () => ({ data: undefined }),
 }));
 // The headers the Lightdash table would draw.
-vi.mock('./AiComposerRunQueryChart', () => ({
-    AiComposerRunQueryChart: ({
-        chart,
-        setEchartsRef,
-    }: {
-        chart: ComposerRunQueryChart;
-        setEchartsRef?: (ref: { current: null }) => void;
-    }) => {
-        mocks.chartEchartsRefSetter(setEchartsRef);
-        useEffect(() => setEchartsRef?.({ current: null }), [setEchartsRef]);
-        return (
-            <table>
-                <thead>
-                    <tr>
-                        {[
-                            ...chart.metricQuery.dimensions,
-                            ...chart.metricQuery.metrics,
-                        ].map((fieldId) => (
-                            <th key={fieldId}>
-                                {getItemLabelWithoutTableName(
-                                    chart.fields[fieldId],
-                                )}
-                            </th>
-                        ))}
-                    </tr>
-                </thead>
-            </table>
-        );
-    },
-}));
+vi.mock(
+    '../../../../../features/composerCharts/lineage/AiComposerRunQueryChart',
+    () => ({
+        AiComposerRunQueryChart: ({
+            chart,
+            setEchartsRef,
+        }: {
+            chart: ComposerRunQueryChart;
+            setEchartsRef?: (ref: { current: null }) => void;
+        }) => {
+            mocks.chartEchartsRefSetter(setEchartsRef);
+            useEffect(
+                () => setEchartsRef?.({ current: null }),
+                [setEchartsRef],
+            );
+            return (
+                <table>
+                    <thead>
+                        <tr>
+                            {[
+                                ...chart.metricQuery.dimensions,
+                                ...chart.metricQuery.metrics,
+                            ].map((fieldId) => (
+                                <th key={fieldId}>
+                                    {getItemLabelWithoutTableName(
+                                        chart.fields[fieldId],
+                                    )}
+                                </th>
+                            ))}
+                        </tr>
+                    </thead>
+                </table>
+            );
+        },
+    }),
+);
 vi.mock('./AiVisualizationRenderer', () => ({
     AiVisualizationRenderer: ({
         headerContent,

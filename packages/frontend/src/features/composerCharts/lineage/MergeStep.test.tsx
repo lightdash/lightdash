@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import { fireEvent, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../../../../../testing/testUtils';
+import { renderWithProviders } from '../../../testing/testUtils';
 import { type PipelineNode } from './groupPipeline';
 import { summarizeMergeNode } from './mergeNodeSummary';
 import { MergeStepBody } from './MergeStep';

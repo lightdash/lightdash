@@ -1,6 +1,6 @@
 import { Box, VisuallyHidden } from '@mantine/core';
 import { type FC } from 'react';
-import { useUiString } from '../../../../providers/Embed/useUiStrings';
+import { useUiString } from '../../../ee/providers/Embed/useUiStrings';
 import styles from './ArtifactLoadingSketch.module.css';
 
 const BAR_COUNT = 7;

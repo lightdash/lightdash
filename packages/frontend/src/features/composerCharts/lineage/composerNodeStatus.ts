@@ -5,7 +5,7 @@ import {
     type UiStringKey,
 } from '@lightdash/common';
 import { useCallback } from 'react';
-import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 
 /** Where one pipeline node is in a run, as shown in the tool-call card and the pipeline panel. */
 export type ComposerNodeStatus =

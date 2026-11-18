@@ -37,6 +37,15 @@ import { DrillDownModal } from '../../../../../components/MetricQueryData/DrillD
 import MetricQueryDataProvider from '../../../../../components/MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../../../../../components/MetricQueryData/UnderlyingDataModal';
 import { type EchartsSeriesClickEvent } from '../../../../../components/SimpleChart';
+import AgentVisualizationFilters from '../../../../../features/composerCharts/lineage/AgentVisualizationFilters';
+import AgentVisualizationMetricsAndDimensions from '../../../../../features/composerCharts/lineage/AgentVisualizationMetricsAndDimensions';
+import AgentVisualizationParameters from '../../../../../features/composerCharts/lineage/AgentVisualizationParameters';
+import {
+    getVisualizationFieldsCount,
+    getVisualizationFiltersCount,
+    shouldDisplayMetricsAndDimensions,
+    shouldDisplayVisualizationFilters,
+} from '../../../../../features/composerCharts/lineage/AiVisualizationRenderer.utils';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { useProjectColorPalette } from '../../../../../hooks/appearance/useProjectColorPalette';
 import useHealth from '../../../../../hooks/health/useHealth';
@@ -46,16 +55,7 @@ import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults'
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTypeSwitcher';
 import { getAgentVisualizationChartTypes } from './AgentVisualizationChartTypeSwitcher.utils';
-import AgentVisualizationFilters from './AgentVisualizationFilters';
-import AgentVisualizationMetricsAndDimensions from './AgentVisualizationMetricsAndDimensions';
-import AgentVisualizationParameters from './AgentVisualizationParameters';
 import styles from './AiVisualizationRenderer.module.css';
-import {
-    getVisualizationFieldsCount,
-    getVisualizationFiltersCount,
-    shouldDisplayMetricsAndDimensions,
-    shouldDisplayVisualizationFilters,
-} from './AiVisualizationRenderer.utils';
 
 type Props = {
     vizQueryData: ApiAiAgentThreadMessageVizQuery;

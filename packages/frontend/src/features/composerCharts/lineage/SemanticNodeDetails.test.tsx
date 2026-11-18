@@ -9,7 +9,7 @@ import {
 import { screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
-import { renderWithProviders } from '../../../../../../testing/testUtils';
+import { renderWithProviders } from '../../../testing/testUtils';
 import {
     SemanticNodeDetails,
     type SemanticNodeQuery,

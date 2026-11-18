@@ -3,14 +3,17 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useCanViewAiAgentSql } from '../../../../../../../features/composerCharts/hooks/useCanViewAiAgentSql';
 import { renderWithProviders } from '../../../../../../../testing/testUtils';
-import { useCanViewAiAgentSql } from '../../../../hooks/useCanViewAiAgentSql';
 import { store } from '../../../../store';
 import { ComposerQueriesToolCallDescription } from './ComposerQueriesToolCallDescription';
 
-vi.mock('../../../../hooks/useCanViewAiAgentSql', () => ({
-    useCanViewAiAgentSql: vi.fn(() => true),
-}));
+vi.mock(
+    '../../../../../../../features/composerCharts/hooks/useCanViewAiAgentSql',
+    () => ({
+        useCanViewAiAgentSql: vi.fn(() => true),
+    }),
+);
 
 const sqlNode = (nodeId: string, title: string, sql: string) =>
     ({

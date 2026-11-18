@@ -6,11 +6,11 @@ import {
     type SemanticLayerSourceQuery,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { PRIMARY_SOURCE_ID } from '../../../../../../../features/mergeQuery/constants';
+import { PRIMARY_SOURCE_ID } from '../../../mergeQuery/constants';
 import {
     MERGE_URL_PARAM,
     parseMergeState,
-} from '../../../../../../../features/mergeQuery/context/mergeUrlState';
+} from '../../../mergeQuery/context/mergeUrlState';
 import { getNodeExploreUrl } from './useExploreFromHere';
 
 const semantic = (

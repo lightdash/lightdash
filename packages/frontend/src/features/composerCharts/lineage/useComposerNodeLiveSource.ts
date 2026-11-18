@@ -1,5 +1,5 @@
 import { QuerySourceType, type SourceQuery } from '@lightdash/common';
-import { useLiveSourceExplore } from '../../../../../../features/externalConnections/liveSources/apiSourceExplore';
+import { useLiveSourceExplore } from '../../externalConnections/liveSources/apiSourceExplore';
 import { LIVE_DATA_SOURCE_LABEL, nodeTypeLabelOf } from './groupPipeline';
 
 /** The live data source a semantic node's explore reads, or null for any other node. */

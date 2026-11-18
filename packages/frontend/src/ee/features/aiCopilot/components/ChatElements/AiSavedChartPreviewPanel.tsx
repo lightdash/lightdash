@@ -16,6 +16,7 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { ArtifactLoadingSketch } from '../../../../../features/composerCharts/lineage/ArtifactLoadingSketch';
 import { useContentAuthoringEnabled } from '../../../../../hooks/useContentAuthoringEnabled';
 import { useSavedQuery } from '../../../../../hooks/useSavedQuery';
 import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
@@ -29,7 +30,6 @@ import { useAiAgentStoreDispatch } from '../../store/hooks';
 import artifactStyles from './AiArtifactPanel.module.css';
 import { AiSavedChartVisualization } from './AiSavedChartVisualization';
 import { ArtifactWindowControls } from './ArtifactFocusToggle';
-import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
 import { ArtifactPanelHeading } from './ArtifactPanelHeading';
 
 type Props = {

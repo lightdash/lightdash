@@ -28,18 +28,17 @@ import {
     type ReactNode,
 } from 'react';
 import '@xyflow/react/dist/style.css';
-import DefaultEdge from '../../../../../../components/common/ReactFlow/DefaultEdge';
-import reactFlowStyles from '../../../../../../components/common/ReactFlow/reactFlow.module.css';
-import ResizableSplitter from '../../../../../../components/common/ResizableSplitter';
-import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
+import DefaultEdge from '../../../components/common/ReactFlow/DefaultEdge';
+import reactFlowStyles from '../../../components/common/ReactFlow/reactFlow.module.css';
+import ResizableSplitter from '../../../components/common/ResizableSplitter';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
+import styles from './AiComposerLineage.module.css';
+import { ComposerNodeIcon } from './ComposerNodeIcon';
 import {
     useComposerNodeRowsLabel,
     useComposerNodeStatusLabel,
-} from '../composerNodeStatus';
-import { NodeStatusIndicator } from '../ComposerNodeStatusIndicator';
-import { type ComposerRunNodeStatus } from '../useComposerRunNodeStatuses';
-import styles from './AiComposerLineage.module.css';
-import { ComposerNodeIcon } from './ComposerNodeIcon';
+} from './composerNodeStatus';
+import { NodeStatusIndicator } from './ComposerNodeStatusIndicator';
 import {
     groupPipeline,
     type NodeLineage,
@@ -59,6 +58,7 @@ import {
     type PipelineFlowNode,
 } from './pipelineGraph';
 import { useComposerNodeTypeLabel } from './useComposerNodeLiveSource';
+import { type ComposerRunNodeStatus } from './useComposerRunNodeStatuses';
 
 type GraphDisplay = {
     selectedNodeId: string | null;

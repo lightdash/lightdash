@@ -5,11 +5,11 @@ import {
     type ParametersValuesMap,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import {
     compileMergeQuery,
     type CompiledMergeQuery,
-} from '../../../../features/mergeQuery/hooks/useMergeQuery';
-import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
+} from '../../mergeQuery/hooks/useMergeQuery';
 
 /** Compiles a merge for display; idle while there is no merge. */
 export const useCompiledMergeQuery = (

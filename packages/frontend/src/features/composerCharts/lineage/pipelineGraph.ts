@@ -1,12 +1,12 @@
 import Dagre from '@dagrejs/dagre';
 import { type SourceQuery } from '@lightdash/common';
 import type { Edge, Node } from '@xyflow/react';
-import { type ComposerRunNodeStatus } from '../useComposerRunNodeStatuses';
 import {
     type NodeLineage,
     type PipelineLayer,
     type PipelineNode,
 } from './groupPipeline';
+import { type ComposerRunNodeStatus } from './useComposerRunNodeStatuses';
 
 type PipelineFlowNodeData = {
     title: string;
