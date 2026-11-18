@@ -137,6 +137,23 @@
     visibility: hidden;
 }
 
+.dashboardEmbed {
+    /* The dashboard pads itself by one grid gap; pull it out so its tiles line up with the tabs */
+    margin-inline: calc(-1 * var(--mantine-spacing-sm));
+}
+
+.dashboardFrame {
+    display: block;
+    width: 100%;
+    border: 0;
+}
+
+.dashboardFrame[data-loading] {
+    position: absolute;
+    inset: 0 0 auto;
+    visibility: hidden;
+}
+
 .chart {
     height: 240px !important;
 }

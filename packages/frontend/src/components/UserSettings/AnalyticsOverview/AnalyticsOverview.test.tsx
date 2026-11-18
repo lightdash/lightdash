@@ -2,6 +2,7 @@ import {
     ProjectType,
     QueryHistoryStatus,
     getFilterRules,
+    type DashboardBasicDetails,
     type ExecuteAsyncMetricQueryRequestParams,
 } from '@lightdash/common';
 import { act, screen, waitFor, within } from '@testing-library/react';
@@ -87,13 +88,13 @@ const mockQueries = (
     return launched;
 };
 
-const renderOverview = () =>
+const renderOverview = (dashboards: DashboardBasicDetails[] = []) =>
     renderWithProviders(
         <MemoryRouter>
             <AnalyticsOverview
                 projectUuid="analytics"
                 projectUrlIdentifier="analytics-slug"
-                dashboards={[]}
+                dashboards={dashboards}
                 heading={null}
                 actions={null}
             />
@@ -284,6 +285,31 @@ describe('Analytics settings overview', () => {
             ).toBeVisible(),
         );
         expect(monthlyQueries()).toHaveLength(3);
+    });
+
+    it('shows the dashboard of a tab in place of its charts and filters', async () => {
+        mockQueries();
+        renderOverview([
+            {
+                slug: 'lightdash-analytics-query-activity',
+                name: 'Queries',
+                verification: {},
+            } as DashboardBasicDetails,
+        ]);
+        await userEvent.click(screen.getByRole('tab', { name: 'Queries' }));
+        expect(screen.getByTitle('Queries dashboard')).toHaveAttribute(
+            'src',
+            '/minimal/projects/analytics-slug/dashboards/lightdash-analytics-query-activity',
+        );
+        expect(screen.queryByText('Last 30 days')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('region', {
+                name: 'How often are queries served from cache?',
+            }),
+        ).not.toBeInTheDocument();
+        // A tab with no dashboard still draws its own charts
+        await userEvent.click(screen.getByRole('tab', { name: 'Users' }));
+        expect(screen.getByText('Last 30 days')).toBeVisible();
     });
 
     it('falls back to the Adoption charts and filters where the app cannot be opened', async () => {

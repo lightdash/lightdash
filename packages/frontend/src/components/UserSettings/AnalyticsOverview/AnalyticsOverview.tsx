@@ -44,6 +44,7 @@ import {
     AnalyticsAdoptionLink,
     AnalyticsAdoptionPreview,
 } from './AnalyticsAdoptionPreview';
+import AnalyticsDashboardEmbed from './AnalyticsDashboardEmbed';
 import classes from './AnalyticsOverview.module.css';
 import AnalyticsOverviewChart from './AnalyticsOverviewChart';
 import {
@@ -169,6 +170,7 @@ const AnalyticsOverview = ({
     projectUuid,
     projectUrlIdentifier,
     dashboards,
+    areDashboardsLoading = false,
     heading,
     status,
     actions,
@@ -176,6 +178,7 @@ const AnalyticsOverview = ({
     projectUuid: string;
     projectUrlIdentifier: string;
     dashboards: DashboardBasicDetails[];
+    areDashboardsLoading?: boolean;
     heading: ReactNode;
     status?: ReactNode;
     actions: ReactNode;
@@ -246,7 +249,21 @@ const AnalyticsOverview = ({
         onAdoptionTab || hasOpenedAdoption,
     );
     const isAdoption = onAdoptionTab && adoptionApp.status !== 'unavailable';
-    const charts = isAdoption ? [] : tab.charts;
+    const dashboard = dashboards.find(
+        ({ slug, verification }) => slug === tab.dashboardSlug && verification,
+    );
+    // A tab with a dashboard shows that dashboard. Its own charts are only for when there is none to show
+    const isDashboard = !isAdoption && dashboard !== undefined;
+    const isWaitingForDashboard =
+        !isAdoption && areDashboardsLoading && tab.dashboardSlug !== null;
+    // Once opened, a dashboard stays loaded behind the other tabs, like the Adoption app
+    const [openedDashboards, setOpenedDashboards] = useState<string[]>([]);
+    if (isDashboard && !openedDashboards.includes(dashboard.slug))
+        setOpenedDashboards([...openedDashboards, dashboard.slug]);
+    const showsOwnCharts =
+        !isAdoption && !isDashboard && !isWaitingForDashboard;
+    const charts = showsOwnCharts ? tab.charts : [];
+    const summary = showsOwnCharts ? tab.summary : null;
     // The headline numbers summarise the whole instance, so they sit on the first tab only
     const showHeadlines = tab.id === 'overview';
     const headlineSpecs = showHeadlines
@@ -257,7 +274,7 @@ const AnalyticsOverview = ({
         [
             ...headlineSpecs,
             ...charts.map(({ query }) => query),
-            ...(tab.summary ? [tab.summary.query] : []),
+            ...(summary ? [summary.query] : []),
         ],
         filters,
     );
@@ -270,9 +287,6 @@ const AnalyticsOverview = ({
         headlineSpecs,
         previousFilters,
         currentQueries.every((query) => !query.isLoading),
-    );
-    const dashboard = dashboards.find(
-        ({ slug, verification }) => slug === tab.dashboardSlug && verification,
     );
     const lastDay = new Date(`${filters.end}T00:00:00Z`);
     lastDay.setUTCDate(lastDay.getUTCDate() - 1);
@@ -451,7 +465,33 @@ const AnalyticsOverview = ({
                         />
                     </Box>
                 )}
-                <Tabs.Panel value={activeTab} pt={isAdoption ? 0 : 'lg'}>
+                {openedDashboards.map((slug) => {
+                    const opened = dashboards.find(
+                        (candidate) => candidate.slug === slug,
+                    );
+                    if (!opened) return null;
+                    const isShown = isDashboard && dashboard.slug === slug;
+                    return (
+                        <Box
+                            key={slug}
+                            pt={isShown ? 'sm' : 0}
+                            className={
+                                isShown ? undefined : classes.adoptionHidden
+                            }
+                            aria-hidden={!isShown || undefined}
+                        >
+                            <AnalyticsDashboardEmbed
+                                projectUrlIdentifier={projectUrlIdentifier}
+                                slug={slug}
+                                name={opened.name}
+                            />
+                        </Box>
+                    );
+                })}
+                <Tabs.Panel
+                    value={activeTab}
+                    pt={isAdoption || isDashboard ? 0 : 'lg'}
+                >
                     {isAdoption ? (
                         adoptionApp.status === 'loading' && (
                             <Center
@@ -462,6 +502,14 @@ const AnalyticsOverview = ({
                                 <Loader size="sm" />
                             </Center>
                         )
+                    ) : isDashboard ? null : isWaitingForDashboard ? (
+                        <Center
+                            h={480}
+                            role="status"
+                            aria-label="Loading dashboard"
+                        >
+                            <Loader size="sm" />
+                        </Center>
                     ) : (
                         <Stack gap="md">
                             <Group gap="md" justify="flex-end" align="center">
@@ -560,10 +608,10 @@ const AnalyticsOverview = ({
                                     )}
                                 </SimpleGrid>
                             )}
-                            {tab.summary && (
+                            {summary && (
                                 <AnalyticsTabSummary
                                     key={tab.id}
-                                    summary={tab.summary}
+                                    summary={summary}
                                     result={
                                         currentQueries[
                                             headlineSpecs.length + charts.length
