@@ -87,6 +87,7 @@ const renderPanel = (props: {
             displayableNodeIds={new Set(['orders', 'amounts', 'joined'])}
             nodeStatuses={{}}
             renderNodeResult={(nodeId) => <div>rows of {nodeId}</div>}
+            graphAside={null}
             threadActions={{ chatNodeIds: new Set(), onAddToChat: null }}
             initialFocusNodeId={null}
             {...props}

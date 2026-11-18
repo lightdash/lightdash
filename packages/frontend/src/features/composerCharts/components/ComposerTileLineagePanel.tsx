@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { IconHierarchy2 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { type FC, type ReactNode } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { ComposerTileLineage } from './ComposerTileLineage';
@@ -18,9 +18,10 @@ type Props = {
     pipeline: ComposerChartPipeline;
     run: ComposerChartRunResults | null;
     runError: string | null;
+    chart: ReactNode | null;
 };
 
-/** The tile's lineage in a near full-screen modal, giving the graph and steps the most room. */
+/** The tile's lineage in a full-screen modal: chart and graph side by side above the steps. */
 export const ComposerTileLineagePanel: FC<Props> = ({
     opened,
     onClose,

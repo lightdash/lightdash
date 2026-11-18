@@ -475,6 +475,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                     />
                 ) : null;
             }}
+            graphAside={null}
             threadActions={{ chatNodeIds, onAddToChat }}
         />
     );

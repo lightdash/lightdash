@@ -177,3 +177,21 @@
     height: 100%;
     min-height: 0;
 }
+
+.graphWithAside {
+    display: flex;
+    height: 100%;
+}
+
+.graphAside {
+    flex: 1;
+    min-width: 0;
+    padding: var(--mantine-spacing-md);
+    border-right: 1px solid var(--mantine-color-default-border);
+    overflow: hidden;
+}
+
+.graphBeside {
+    flex: 1;
+    min-width: 0;
+}

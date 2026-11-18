@@ -74,6 +74,8 @@ type DrawState =
     | { status: 'ready'; draw: ComposerChartDraw }
     | { status: 'error'; message: string };
 
+const noop = () => {};
+
 const getTitle = (tile: ComposerChartTile) =>
     tile.properties.title || tile.properties.chartName || '';
 
@@ -410,6 +412,23 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                     pipeline={chart.pipeline}
                     run={run ?? null}
                     runError={runQuery.error?.error.message ?? null}
+                    chart={
+                        readyDraw && results.hasFetchedAllRows ? (
+                            <ComposerChartVisualization
+                                projectUuid={projectUuid}
+                                composerChartUuid={composerChartUuid}
+                                dashboardUuid={dashboardUuid}
+                                tileUuid={tile.uuid}
+                                isTitleHidden
+                                minimal
+                                draw={readyDraw}
+                                results={results}
+                                rows={rows}
+                                onScreenshotReady={noop}
+                                onScreenshotError={noop}
+                            />
+                        ) : null
+                    }
                 />
             )}
             {exportQueryUuid && projectUuid && run && (

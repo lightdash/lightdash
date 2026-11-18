@@ -96,6 +96,7 @@ describe('ComposerTileLineage', () => {
                 pipeline={pipeline}
                 run={run}
                 runError={null}
+                chart={null}
             />,
         );
         expect(cell('orders').getByText('Recent orders')).toBeInTheDocument();
@@ -115,6 +116,7 @@ describe('ComposerTileLineage', () => {
                 pipeline={pipeline}
                 run={run}
                 runError={null}
+                chart={null}
             />,
         );
         expect(
@@ -136,11 +138,26 @@ describe('ComposerTileLineage', () => {
                 pipeline={pipeline}
                 run={null}
                 runError='column "refund_amount" does not exist'
+                chart={null}
             />,
         );
         expect(
             screen.getByText('column "refund_amount" does not exist'),
         ).toBeInTheDocument();
         expect(cell('refunds').getByText('Refunds')).toBeInTheDocument();
+    });
+
+    it('draws the chart beside the graph', () => {
+        mockedLightdashApi.mockResolvedValue(statuses as never);
+        renderWithProviders(
+            <ComposerTileLineage
+                projectUuid="project"
+                pipeline={pipeline}
+                run={run}
+                runError={null}
+                chart={<div>the tile's chart</div>}
+            />,
+        );
+        expect(screen.getByText("the tile's chart")).toBeInTheDocument();
     });
 });

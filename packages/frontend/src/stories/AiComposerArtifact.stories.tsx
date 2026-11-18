@@ -253,6 +253,7 @@ const ComposerArtifact = ({
                                     withBorder={false}
                                 />
                             )}
+                            graphAside={null}
                             threadActions={{
                                 chatNodeIds,
                                 onAddToChat: (node) =>

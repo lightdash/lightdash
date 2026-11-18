@@ -3,7 +3,7 @@ import {
     type ComposerChartRunResults,
 } from '@lightdash/common';
 import { Box, Stack } from '@mantine/core';
-import { useMemo, type FC } from 'react';
+import { useMemo, type FC, type ReactNode } from 'react';
 import Callout from '../../../components/common/Callout';
 import { ComposerNodeResultTable } from '../../../ee/features/aiCopilot/components/ChatElements/AiComposerNodeResult';
 import { AiComposerLineage } from '../../../ee/features/aiCopilot/components/ChatElements/composerPipeline/AiComposerLineage';
@@ -34,6 +34,8 @@ type Props = {
     run: ComposerChartRunResults | null;
     /** Why the run failed before any node ran; its nodes then carry no status. */
     runError: string | null;
+    /** The tile's chart, drawn beside the graph; null while it cannot draw. */
+    chart: ReactNode | null;
 };
 
 /** A composer tile's pipeline, read-only: each node's query, status, rows and error from the tile's run. */
@@ -42,6 +44,7 @@ export const ComposerTileLineage: FC<Props> = ({
     pipeline,
     run,
     runError,
+    chart,
 }) => {
     const runFailed = useUiString('tile.composerChart.lineageRunFailed');
     const nodeQueryUuids = useMemo(
@@ -77,6 +80,7 @@ export const ComposerTileLineage: FC<Props> = ({
                     <NodeRows projectUuid={projectUuid} queryUuid={queryUuid} />
                 ) : null;
             }}
+            graphAside={chart}
             threadActions={null}
             initialFocusNodeId={null}
         />
