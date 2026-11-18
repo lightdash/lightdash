@@ -9,7 +9,7 @@ export const transcribeCapture = async (
     audio: Blob,
 ): Promise<CaptureTranscriptWord[]> => {
     const response = await fetch(
-        `/api/v1/ee/projects/${projectUuid}/apps/transcribe-capture`,
+        `/api/v1/ee/projects/${projectUuid}/apps/transcribe-capture?language=${encodeURIComponent(navigator.language)}`,
         {
             method: 'POST',
             body: audio,

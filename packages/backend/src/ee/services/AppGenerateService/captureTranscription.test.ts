@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     audioFilenameForMimeType,
     parseTranscriptionWords,
+    transcriptionLanguage,
 } from './captureTranscription';
 
 describe('parseTranscriptionWords', () => {
@@ -67,5 +68,18 @@ describe('audioFilenameForMimeType', () => {
     it('rejects anything that is not audio', () => {
         expect(audioFilenameForMimeType('image/png')).toBeNull();
         expect(audioFilenameForMimeType('application/json')).toBeNull();
+    });
+});
+
+describe('transcriptionLanguage', () => {
+    it('reduces a browser locale to a two-letter language', () => {
+        expect(transcriptionLanguage('en-GB')).toBe('en');
+        expect(transcriptionLanguage('FR')).toBe('fr');
+    });
+
+    it('ignores anything that is not a language code', () => {
+        expect(transcriptionLanguage(undefined)).toBeNull();
+        expect(transcriptionLanguage('')).toBeNull();
+        expect(transcriptionLanguage('english please')).toBeNull();
     });
 });

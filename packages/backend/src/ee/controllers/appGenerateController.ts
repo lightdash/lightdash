@@ -712,6 +712,7 @@ export class AppGenerateController extends BaseController {
     async transcribeCapture(
         @Request() req: express.Request,
         @Path() projectUuid: string,
+        @Query() language?: string,
     ): Promise<ApiCaptureTranscriptResponse> {
         assertRegisteredAccount(req.account);
         const mimeType = req.headers['content-type'];
@@ -730,6 +731,7 @@ export class AppGenerateController extends BaseController {
             mimeType,
             req,
             contentLength,
+            language,
         );
         this.setStatus(200);
         return { status: 'ok', results: { words } };

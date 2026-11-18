@@ -21,6 +21,14 @@ export const audioFilenameForMimeType = (mimeType: string): string | null => {
     return 'capture.webm';
 };
 
+/** Browser locale to the two-letter code the transcription API takes. */
+export const transcriptionLanguage = (
+    locale: string | undefined,
+): string | null => {
+    const match = /^([a-z]{2})(-[a-z0-9]+)*$/i.exec(locale?.trim() ?? '');
+    return match ? match[1].toLowerCase() : null;
+};
+
 /** Reads a verbose transcription reply into words timed in milliseconds. */
 export const parseTranscriptionWords = (
     reply: unknown,
@@ -66,12 +74,15 @@ export const transcribeCaptureAudio = async ({
     audio,
     filename,
     mimeType,
+    language,
 }: {
     apiKey: string;
     baseUrl: string | null;
     audio: Buffer;
     filename: string;
     mimeType: string;
+    /** Pinning the language stops silence being heard as another one. */
+    language: string | null;
 }): Promise<CaptureTranscriptWord[]> => {
     const form = new FormData();
     form.append(
@@ -80,6 +91,7 @@ export const transcribeCaptureAudio = async ({
         filename,
     );
     form.append('model', TRANSCRIPTION_MODEL);
+    if (language) form.append('language', language);
     form.append('response_format', 'verbose_json');
     form.append('timestamp_granularities[]', 'word');
     form.append('timestamp_granularities[]', 'segment');

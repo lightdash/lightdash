@@ -40,6 +40,7 @@ import {
 } from '../capture';
 import { applyLayoutOps } from './applyLayoutOps';
 import classes from './DashboardCapture.module.css';
+import { buildLayoutSaveBody } from './layoutSaveBody';
 import { routeCapture } from './routeCapture';
 import {
     buildRouteRequest,
@@ -319,16 +320,9 @@ const DashboardCapture: FC = () => {
     if (!surface || !dashboard) return null;
 
     const handleSave = () => {
-        saveDashboard(
-            {
-                tiles: tilesRef.current,
-                filters: dashboard.filters,
-                tabs: dashboard.tabs,
-                config: dashboard.config,
-                parameters: dashboard.parameters,
-            },
-            { onSuccess: () => setTilesBeforePreview(null) },
-        );
+        saveDashboard(buildLayoutSaveBody(dashboard, tilesRef.current), {
+            onSuccess: () => setTilesBeforePreview(null),
+        });
     };
     const handleDiscard = () => {
         if (tilesBeforePreview) setDashboardTiles(tilesBeforePreview);

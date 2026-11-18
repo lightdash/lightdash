@@ -318,6 +318,7 @@ import {
 import {
     audioFilenameForMimeType,
     transcribeCaptureAudio,
+    transcriptionLanguage,
 } from './captureTranscription';
 import {
     CLARIFY_APP_SYSTEM_PROMPT,
@@ -2581,6 +2582,7 @@ export class AppGenerateService extends BaseService {
         declaredMimeType: string,
         body: Readable,
         contentLength: number,
+        locale?: string,
     ): Promise<CaptureTranscriptWord[]> {
         await this.assertAnyAppsEnabled(user);
         const { organizationUuid } = await this.assertDataAppAbility(
@@ -2629,6 +2631,7 @@ export class AppGenerateService extends BaseService {
             audio: Buffer.concat(chunks),
             filename,
             mimeType: declaredMimeType,
+            language: transcriptionLanguage(locale),
         });
         this.logger.info(
             `Capture transcription: ${received} bytes of ${declaredMimeType}, ${words.length} words: ${words
