@@ -79,6 +79,7 @@ describe('youtubeAnalyticsIntegration run', () => {
         expect(send).toHaveBeenCalledWith({
             method: 'GET',
             path: YOUTUBE_ANALYTICS_REPORTS_PATH,
+            endpoint: YOUTUBE_ANALYTICS_REPORTS_PATH,
             query: {
                 ids: `channel==${CHANNEL}`,
                 ...BASE,

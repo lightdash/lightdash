@@ -72,6 +72,8 @@ export type LiveHttpCall = {
     method: string;
     /** Without the query string, which can hold filter values. */
     path: string;
+    /** The path with identifiers as placeholders; see `LiveHttpRequest.endpoint`. */
+    endpoint: string;
     /** Null when no response arrived. */
     providerStatus: number | null;
     rowCount: number | null;

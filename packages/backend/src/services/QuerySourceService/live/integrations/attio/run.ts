@@ -255,6 +255,7 @@ const readRecords = async ({
                 {
                     method: 'POST',
                     path: getAttioRecordsQueryPath(object),
+                    endpoint: getAttioRecordsQueryPath('{object}'),
                     body: {
                         ...(request.filter ? { filter: request.filter } : {}),
                         ...(request.sorts ? { sorts: request.sorts } : {}),
@@ -365,6 +366,7 @@ export const scanAttioAttributes = async ({
         {
             method: 'GET',
             path: getAttioAttributesPath(object),
+            endpoint: getAttioAttributesPath('{object}'),
             body: undefined,
         },
         z.unknown(),

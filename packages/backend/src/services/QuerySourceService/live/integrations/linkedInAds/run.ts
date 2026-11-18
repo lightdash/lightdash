@@ -208,12 +208,14 @@ const getColumnType = (name: string): DimensionType =>
 const searchAll = async ({
     calls,
     path,
+    endpoint,
     statuses,
     maxPages,
     label,
 }: {
     calls: LiveCalls;
     path: string;
+    endpoint: string;
     statuses: string;
     maxPages: number;
     label: string;
@@ -227,6 +229,7 @@ const searchAll = async ({
             {
                 method: 'GET',
                 path,
+                endpoint,
                 rawQuery: pageToken
                     ? `${baseQuery}&pageToken=${encodeURIComponent(pageToken)}`
                     : baseQuery,
@@ -290,6 +293,7 @@ export const runLinkedInAdsQuery = async ({
         {
             method: 'GET',
             path: LINKEDIN_ADS_ANALYTICS_PATH,
+            endpoint: LINKEDIN_ADS_ANALYTICS_PATH,
             rawQuery,
             body: null,
         },
@@ -317,6 +321,7 @@ export const runLinkedInAdsQuery = async ({
             ? searchAll({
                   calls,
                   path: getLinkedInAdsCampaignsPath(adAccountId),
+                  endpoint: getLinkedInAdsCampaignsPath('{adAccountId}'),
                   statuses:
                       'ACTIVE,PAUSED,ARCHIVED,COMPLETED,CANCELED,DRAFT,PENDING_DELETION,REMOVED',
                   maxPages: MAX_CAMPAIGN_PAGES,
@@ -327,6 +332,7 @@ export const runLinkedInAdsQuery = async ({
             ? searchAll({
                   calls,
                   path: getLinkedInAdsCampaignGroupsPath(adAccountId),
+                  endpoint: getLinkedInAdsCampaignGroupsPath('{adAccountId}'),
                   statuses:
                       'ACTIVE,ARCHIVED,CANCELED,DRAFT,PAUSED,PENDING_DELETION,REMOVED',
                   maxPages: MAX_CAMPAIGN_GROUP_PAGES,

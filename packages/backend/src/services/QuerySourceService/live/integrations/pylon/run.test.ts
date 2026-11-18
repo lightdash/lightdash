@@ -122,6 +122,7 @@ describe('pylonIntegration issues', () => {
         expect(send).toHaveBeenNthCalledWith(1, {
             method: 'POST',
             path: '/issues/search',
+            endpoint: '/issues/search',
             body: {
                 filter: LAST_30_DAYS,
                 limit: 6,
@@ -267,6 +268,7 @@ describe('pylonIntegration issues', () => {
         expect(send.mock.calls[1][0]).toEqual({
             method: 'POST',
             path: '/accounts/search',
+            endpoint: '/accounts/search',
             body: {
                 filter: {
                     field: 'account_id',
@@ -325,6 +327,7 @@ describe('pylonIntegration issues', () => {
         expect(send.mock.calls[1][0]).toMatchObject({
             method: 'GET',
             path: '/users',
+            endpoint: '/users',
         });
         expect(send.mock.calls[2][0].body.filter).toEqual({
             operator: 'and',
@@ -395,6 +398,7 @@ describe('pylonIntegration people', () => {
         expect(send.mock.calls[2][0]).toEqual({
             method: 'POST',
             path: '/contacts/search',
+            endpoint: '/contacts/search',
             body: {
                 filter: {
                     field: 'id',

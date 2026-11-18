@@ -493,6 +493,7 @@ const searchPage = async ({
         {
             method: 'POST',
             path,
+            endpoint: path,
             body: {
                 ...toPylonFilter(filters),
                 limit,
@@ -531,7 +532,12 @@ const findAccountIds = async (calls: LiveCalls, names: string[]) => {
 
 const readUsers = async (calls: LiveCalls) => {
     const { data } = await calls.fetch(
-        { method: 'GET', path: PYLON_USERS_PATH, body: undefined },
+        {
+            method: 'GET',
+            path: PYLON_USERS_PATH,
+            endpoint: PYLON_USERS_PATH,
+            body: undefined,
+        },
         usersSchema,
     );
     return data;

@@ -112,6 +112,7 @@ export const runSearchConsoleQuery = async ({
         {
             method: 'POST',
             path: getSearchConsoleQueryPath(settings.siteUrl),
+            endpoint: `${SEARCH_CONSOLE_SITES_PATH}{siteUrl}/searchAnalytics/query`,
             body: { ...request, rowLimit: rowLimit + 1, startRow: 0 },
         },
         responseSchema,

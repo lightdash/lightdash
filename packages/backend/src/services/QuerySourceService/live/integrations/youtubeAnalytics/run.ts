@@ -100,6 +100,7 @@ export const runYoutubeAnalyticsQuery = async ({
         {
             method: 'GET',
             path: YOUTUBE_ANALYTICS_REPORTS_PATH,
+            endpoint: YOUTUBE_ANALYTICS_REPORTS_PATH,
             query: {
                 ids: `channel==${channelId}`,
                 ...request,

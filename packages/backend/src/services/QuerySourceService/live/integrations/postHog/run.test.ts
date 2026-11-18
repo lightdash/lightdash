@@ -88,6 +88,7 @@ describe('postHogIntegration run', () => {
         expect(send).toHaveBeenCalledExactlyOnceWith({
             method: 'POST',
             path: '/api/projects/303731/query/',
+            endpoint: '/api/projects/{projectId}/query/',
             body: {
                 query: {
                     kind: 'HogQLQuery',
@@ -292,6 +293,7 @@ describe('postHogIntegration scan', () => {
         expect(send).toHaveBeenCalledWith({
             method: 'GET',
             path: getPostHogPropertyDefinitionsPrefix('303731'),
+            endpoint: '/api/projects/{projectId}/property_definitions/',
             query: { type: 'event', limit: '500', offset: '1' },
             body: null,
         });

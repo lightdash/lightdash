@@ -89,8 +89,8 @@ export type ExternalConnectionEvent = BaseTrack &
                   /** 1 for the query's first call, counting up. */
                   sequence: number;
                   method: string;
-                  /** Without the query string, which can hold filter values. */
-                  path: string;
+                  /** The path with identifiers as placeholders, e.g. /repos/{owner}/{repo}/stats/contributors; never the raw path. */
+                  endpoint: string;
                   /** Null when no response arrived. */
                   providerStatus: number | null;
                   /** Rows in this call's response; null when it failed or got no response. */

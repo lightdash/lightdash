@@ -75,6 +75,7 @@ describe('githubIntegration search', () => {
         expect(send).toHaveBeenCalledWith({
             method: 'GET',
             path: '/search/issues',
+            endpoint: '/search/issues',
             query: {
                 q: 'repo:lightdash/lightdash is:pr is:merged author:octocat',
                 per_page: '1',
@@ -260,6 +261,7 @@ describe('githubIntegration contributors', () => {
         expect(send).toHaveBeenCalledWith({
             method: 'GET',
             path: '/repos/lightdash/lightdash/stats/contributors',
+            endpoint: '/repos/{owner}/{repo}/stats/contributors',
             body: undefined,
         });
         // The week of 27 September holds 1 October, so it counts

@@ -251,6 +251,7 @@ export const runMetaAdsQuery = async ({
                 {
                     method: 'GET',
                     path: getMetaAdsInsightsPath(adAccountId),
+                    endpoint: getMetaAdsInsightsPath('{adAccountId}'),
                     query: {
                         ...baseQuery,
                         limit: String(pageLimit),

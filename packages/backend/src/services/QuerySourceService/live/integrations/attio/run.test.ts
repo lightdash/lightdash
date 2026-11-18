@@ -76,6 +76,7 @@ describe('attioIntegration listing', () => {
         expect(send).toHaveBeenCalledWith({
             method: 'POST',
             path: '/v2/objects/deals/records/query',
+            endpoint: '/v2/objects/{object}/records/query',
             body: {
                 filter: { stage: 'Won' },
                 sorts: [{ attribute: 'name', direction: 'asc' }],
@@ -246,6 +247,7 @@ describe('attioIntegration scan', () => {
         expect(send).toHaveBeenCalledWith({
             method: 'GET',
             path: '/v2/objects/deals/attributes',
+            endpoint: '/v2/objects/{object}/attributes',
             body: undefined,
         });
         expect(scan).toEqual({ attioAttributes: ATTIO_DEAL_ATTRIBUTES });

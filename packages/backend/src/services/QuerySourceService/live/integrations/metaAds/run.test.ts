@@ -84,6 +84,7 @@ describe('metaAdsIntegration run', () => {
         expect(send).toHaveBeenCalledWith({
             method: 'GET',
             path: '/v25.0/act_123/insights',
+            endpoint: '/v25.0/act_{adAccountId}/insights',
             query: {
                 level: 'campaign',
                 time_range: '{"since":"2026-10-01","until":"2026-10-30"}',

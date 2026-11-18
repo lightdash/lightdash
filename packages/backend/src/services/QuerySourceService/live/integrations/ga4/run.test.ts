@@ -72,6 +72,7 @@ describe('ga4Integration run', () => {
         expect(send).toHaveBeenCalledWith({
             method: 'POST',
             path: '/v1beta/properties/123456:runReport',
+            endpoint: '/v1beta/properties/{propertyId}:runReport',
             body: { ...request, limit: 3, offset: 0 },
         });
         expect(getGa4ReportPath('123456')).toBe(

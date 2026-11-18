@@ -78,6 +78,7 @@ describe('searchConsoleIntegration run', () => {
         expect(send).toHaveBeenCalledWith({
             method: 'POST',
             path: getSearchConsoleQueryPath('https://lightdash.com/'),
+            endpoint: '/webmasters/v3/sites/{siteUrl}/searchAnalytics/query',
             body: {
                 startDate: '2026-10-01',
                 endDate: '2026-10-28',

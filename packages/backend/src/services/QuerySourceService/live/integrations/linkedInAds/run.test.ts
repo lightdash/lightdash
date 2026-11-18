@@ -91,6 +91,7 @@ describe('linkedInAdsIntegration run', () => {
         expect(send.mock.calls[0][0]).toEqual({
             method: 'GET',
             path: LINKEDIN_ADS_ANALYTICS_PATH,
+            endpoint: LINKEDIN_ADS_ANALYTICS_PATH,
             rawQuery:
                 'q=analytics&pivot=CAMPAIGN&timeGranularity=DAILY&dateRange=(start:(year:2026,month:10,day:1),end:(year:2026,month:10,day:3))&accounts=List(urn%3Ali%3AsponsoredAccount%3A507404993)&campaigns=List(urn%3Ali%3AsponsoredCampaign%3A11)&fields=impressions,costInLocalCurrency,dateRange,pivotValues',
             body: null,

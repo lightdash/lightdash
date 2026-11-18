@@ -115,6 +115,7 @@ export const scanGa4Metadata = async ({
     const response = await calls.send({
         method: 'GET',
         path: getGa4MetadataPath(propertyId),
+        endpoint: getGa4MetadataPath('{propertyId}'),
         body: null,
     });
     return { ga4Metadata: response.body };
@@ -133,6 +134,7 @@ export const runGa4Query = async ({
         {
             method: 'POST',
             path: getGa4ReportPath(propertyId),
+            endpoint: getGa4ReportPath('{propertyId}'),
             body: { ...request, limit: rowLimit + 1, offset: 0 },
         },
         responseSchema,

@@ -140,6 +140,7 @@ export const runPostHogQuery = async ({
     const response = await calls.send({
         method: 'POST',
         path: getPostHogQueryPath(projectId),
+        endpoint: getPostHogQueryPath('{projectId}'),
         body: {
             query: {
                 kind: 'HogQLQuery',
@@ -187,6 +188,7 @@ const readPropertyDefinitions = async (
         const response = await calls.send({
             method: 'GET',
             path: getPostHogPropertyDefinitionsPrefix(projectId),
+            endpoint: getPostHogPropertyDefinitionsPrefix('{projectId}'),
             query: {
                 type,
                 limit: String(PROPERTY_DEFINITIONS_PAGE_SIZE),

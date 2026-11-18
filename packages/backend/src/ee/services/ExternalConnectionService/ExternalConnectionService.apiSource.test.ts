@@ -405,7 +405,9 @@ describe('ExternalConnectionService api sources', () => {
                 {
                     sequence: 1,
                     method: 'POST',
-                    path: expect.stringContaining('/query/'),
+                    path: expect.stringMatching(
+                        /^\/api\/projects\/\d+\/query\/$/,
+                    ),
                     provider_status: 200,
                     row_count: 3,
                     response_bytes: responseBytes,
@@ -445,6 +447,7 @@ describe('ExternalConnectionService api sources', () => {
                 queryUuid: 'query-1',
                 sequence: 1,
                 method: 'POST',
+                endpoint: '/api/projects/{projectId}/query/',
                 providerStatus: 200,
                 rowCount: 3,
                 responseBytes,
@@ -453,6 +456,8 @@ describe('ExternalConnectionService api sources', () => {
         // The query text can hold filter values, so it stays out of analytics.
         expect(JSON.stringify(trackedEvent)).not.toContain('SELECT 1 AS a');
         expect(JSON.stringify(httpCallEvent)).not.toContain('SELECT 1 AS a');
+        // The raw path holds the customer's account identifiers.
+        expect(httpCallEvent.properties).not.toHaveProperty('path');
     });
 
     it('counts a call that never got a response, and never fails on logging', async () => {
@@ -475,7 +480,10 @@ describe('ExternalConnectionService api sources', () => {
             httpCalls: [
                 {
                     method: 'POST',
-                    path: expect.stringContaining('/query/'),
+                    path: expect.stringMatching(
+                        /^\/api\/projects\/\d+\/query\/$/,
+                    ),
+                    endpoint: '/api/projects/{projectId}/query/',
                     providerStatus: null,
                     rowCount: null,
                     responseBytes: 0,

@@ -83,6 +83,7 @@ describe('googleAdsIntegration run', () => {
         expect(send).toHaveBeenCalledWith({
             method: 'POST',
             path: getGoogleAdsSearchPath('1234567890'),
+            endpoint: getGoogleAdsSearchPath('{customerId}'),
             body: {
                 query: CAMPAIGN_QUERY.replace('LIMIT 2', 'LIMIT 3'),
             },

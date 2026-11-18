@@ -239,6 +239,7 @@ const runSearch = async ({
             {
                 method: 'GET',
                 path: GITHUB_SEARCH_PATH,
+                endpoint: GITHUB_SEARCH_PATH,
                 query: { q, per_page: '1' },
                 body: undefined,
             },
@@ -266,6 +267,7 @@ const runSearch = async ({
                 {
                     method: 'GET',
                     path: GITHUB_SEARCH_PATH,
+                    endpoint: GITHUB_SEARCH_PATH,
                     query: {
                         q,
                         ...sortQuery,
@@ -323,6 +325,7 @@ const fetchContributorStats = async (
         const response = await calls.send({
             method: 'GET',
             path,
+            endpoint: getGithubContributorsPath('{owner}', '{repo}'),
             body: undefined,
         });
         if (response.status !== 202) {

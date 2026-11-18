@@ -2254,7 +2254,7 @@ export class ExternalConnectionService extends BaseService {
                             queryUuid: call.queryUuid,
                             sequence: index + 1,
                             method: httpCall.method,
-                            path: httpCall.path,
+                            endpoint: httpCall.endpoint,
                             providerStatus: httpCall.providerStatus,
                             rowCount: httpCall.rowCount,
                             responseBytes: httpCall.responseBytes,
@@ -2464,7 +2464,7 @@ export class ExternalConnectionService extends BaseService {
                     attributes: {
                         'lightdash.integration': apiSource.connector,
                         'http.request.method': request.method,
-                        'url.path': request.path,
+                        'url.template': request.endpoint,
                     },
                 },
                 async (span) => {
@@ -2473,6 +2473,7 @@ export class ExternalConnectionService extends BaseService {
                     const httpCall: LiveHttpCall = {
                         method: request.method,
                         path: request.path,
+                        endpoint: request.endpoint,
                         providerStatus: null,
                         rowCount: null,
                         responseBytes: 0,

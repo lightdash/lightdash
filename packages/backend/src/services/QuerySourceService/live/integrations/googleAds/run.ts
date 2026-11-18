@@ -141,6 +141,7 @@ export const runGoogleAdsQuery = async ({
                 {
                     method: 'POST',
                     path: getGoogleAdsSearchPath(customerId),
+                    endpoint: getGoogleAdsSearchPath('{customerId}'),
                     body: { query: `${baseQuery} LIMIT ${pageLimit}` },
                 },
                 responseSchema,

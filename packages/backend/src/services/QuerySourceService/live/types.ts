@@ -163,6 +163,12 @@ export type LiveHttpRequest = {
     method: 'GET' | 'POST';
     /** Path on the API's origin, e.g. /api/projects/1/query/ */
     path: string;
+    /**
+     * The path with every account, site, repository or object identifier as a
+     * placeholder, e.g. /api/projects/{projectId}/query/. Analytics and traces
+     * get this instead of `path`, so they never carry customer identifiers.
+     */
+    endpoint: string;
     query?: Record<string, string>;
     /** A query string sent exactly as given, for APIs whose syntax must stay unencoded. */
     rawQuery?: string;
