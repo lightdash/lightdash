@@ -61,6 +61,7 @@ import {
     useNavigate,
     useSearchParams,
 } from 'react-router';
+import { EmptyState } from '../../components/common/EmptyState';
 import MantineIcon from '../../components/common/MantineIcon';
 import { SemanticStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/SemanticStudioAgent';
 import { StudioChanges } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/StudioChanges';
@@ -1442,10 +1443,12 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 }
               : null;
     // Only models with YAML here have a file: a deployed model's YAML lives where it was deployed from.
-    const { data: stored, error: storedError } = useSemanticLayerStoredModels(
-        view.project.id,
-        isCode,
-    );
+    const {
+        data: stored,
+        error: storedError,
+        refetch: retryStored,
+        isRefetching: isRetryingStored,
+    } = useSemanticLayerStoredModels(view.project.id, isCode);
     const files = useMemo(() => {
         const removed = new Set(
             checkedOutDraft?.models
@@ -1934,15 +1937,34 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         fieldName={searchParams.get(FIELD_PARAM)}
                     />
                 ) : storedError ? (
-                    <Text fz="sm" c="dimmed" ta="center" p="xl">
-                        {storedError.error.message}
-                    </Text>
+                    <EmptyState
+                        title="The model code could not be read"
+                        description={storedError.error.message}
+                        maw={460}
+                        titleProps={{ order: 5 }}
+                        descriptionProps={{ fz: 'sm' }}
+                    >
+                        <Button
+                            size="xs"
+                            variant="default"
+                            loading={isRetryingStored}
+                            onClick={() => void retryStored()}
+                        >
+                            Try again
+                        </Button>
+                    </EmptyState>
                 ) : !stored ? null : (
-                    <Text fz="sm" c="dimmed" ta="center" py="xl">
-                        {modelled.length > 0
-                            ? 'These models were deployed from outside this app, so their YAML is not here and they cannot be changed here yet.'
-                            : 'No models yet. Ask the agent to build one and its YAML shows up here.'}
-                    </Text>
+                    <EmptyState
+                        title="No model code here yet"
+                        description={
+                            modelled.length > 0
+                                ? 'These models were deployed from outside this app, so their YAML is not here and they cannot be changed here yet.'
+                                : 'Ask the agent to build a model and its YAML shows up here.'
+                        }
+                        maw={460}
+                        titleProps={{ order: 5 }}
+                        descriptionProps={{ fz: 'sm' }}
+                    />
                 );
             case 'sources':
                 return !sourceFile && sourcesPrUrl ? (
@@ -2204,12 +2226,14 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                 data-sources={pane === 'sources' || undefined}
                                 data-no-rail={
                                     isReviewPane ||
+                                    (pane === 'code' && files.length === 0) ||
                                     (pane !== 'code' &&
                                         pane !== 'sources' &&
                                         isEmpty)
                                 }
                             >
-                                {pane === 'code' ? (
+                                {pane === 'code' &&
+                                files.length === 0 ? null : pane === 'code' ? (
                                     <CodeRail
                                         files={files}
                                         selected={file}
