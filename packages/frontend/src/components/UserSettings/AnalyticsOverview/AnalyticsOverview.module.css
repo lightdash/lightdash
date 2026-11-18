@@ -138,8 +138,8 @@
 }
 
 .dashboardFrameBox {
-    /* The dashboard insets its tiles by half a grid gap; pull it out so they line up with the tabs */
-    margin-inline: -5px;
+    /* The dashboard insets its cards by one grid gap; pull it out so they line up with the tabs */
+    margin-inline: -10px;
 }
 
 .dashboardTabs {
