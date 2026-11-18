@@ -13,8 +13,8 @@ import { type LibraryChartBinding } from '../../../analytics/systemExplores/libr
 import {
     analyticsContentAsCode,
     analyticsDefaultSpace,
+    analyticsLibraryChartBindings,
 } from '../../../analytics/systemExplores/sampleContent';
-import { analyticsLibraryChartBindings } from '../../../analytics/systemExplores/usageDashboards';
 import { fromSession } from '../../../auth/account';
 import { ANALYTICS_DATA_APP_SNAPSHOT_TYPE } from '../../../models/ContentAsCodeSnapshotModel';
 import * as analyticsExplores from '../../../services/ProjectService/analyticsProject/createAnalyticsExplores';
@@ -31,9 +31,9 @@ import { managedAdoptionAppSlug } from './managedAdoptionApp';
 const { mockedBindings } = vi.hoisted(() => ({
     mockedBindings: new Map<string, LibraryChartBinding>(),
 }));
-vi.mock('../../../analytics/systemExplores/usageDashboards', async (orig) => ({
+vi.mock('../../../analytics/systemExplores/sampleContent', async (orig) => ({
     ...(await orig<
-        typeof import('../../../analytics/systemExplores/usageDashboards')
+        typeof import('../../../analytics/systemExplores/sampleContent')
     >()),
     analyticsLibraryChartBindings: mockedBindings,
 }));
@@ -1143,6 +1143,7 @@ describe('AnalyticsProjectService', () => {
                 minVersion: '1.0.0',
                 fieldMapping: {},
                 optionValues: {},
+                query: null,
             });
         });
 

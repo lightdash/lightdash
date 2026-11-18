@@ -9,14 +9,19 @@ import {
 import { buildAiTokenDashboard } from './aiTokenDashboard';
 import { withAnalyticsChartPresentation } from './analyticsChartPresentation';
 import { withEmbedRankingPresentation } from './embedDashboard';
+import type { LibraryChartBinding } from './libraryCharts';
 import { buildQueryCalendarChart } from './queryCalendarChart';
-import { buildUsageDashboards } from './usageDashboards';
+import {
+    buildUsageDashboards,
+    usageLibraryChartBindings,
+} from './usageDashboards';
 
 type SampleChart = Omit<
     ChartAsCode,
     'slug' | 'version' | 'spaceSlug' | 'dashboardSlug'
 > & {
     key: string;
+    libraryChart?: LibraryChartBinding;
 };
 
 const chart = (
@@ -32,6 +37,7 @@ const chart = (
         seriesNames?: string[];
         colors?: string[];
         axisLabel?: string;
+        libraryChart?: LibraryChartBinding;
     } = {},
 ): SampleChart => {
     const metricId = `${tableName}_${metric}`;
@@ -43,6 +49,7 @@ const chart = (
     const isBar = options.visualization === 'bar';
     const result: SampleChart = {
         key,
+        libraryChart: options.libraryChart,
         name,
         description:
             options.description ??
@@ -298,13 +305,28 @@ export const analyticsSampleDashboards = [
     },
 ];
 
+// Library chart bindings declared on sample charts, keyed by final chart slug.
+export const legacyLibraryChartBindings = (
+    bundles: { key: string; charts: SampleChart[] }[],
+): Map<string, LibraryChartBinding> =>
+    new Map(
+        bundles.flatMap((bundle) =>
+            bundle.charts.flatMap(
+                ({ key, libraryChart }): [string, LibraryChartBinding][] =>
+                    libraryChart
+                        ? [[`${bundle.key}-${key}`, libraryChart]]
+                        : [],
+            ),
+        ),
+    );
+
 const legacyContentAsCode: {
     dashboard: DashboardAsCode;
     charts: ChartAsCode[];
 }[] = analyticsSampleDashboards.map((bundle) => {
     const { spaceSlug } = bundle;
     const charts: ChartAsCode[] = bundle.charts.map(
-        ({ key, ...definition }) => ({
+        ({ key, libraryChart, ...definition }) => ({
             ...definition,
             slug: `${bundle.key}-${key}`,
             dashboardSlug: bundle.key,
@@ -395,3 +417,11 @@ export const analyticsContentAsCode = [
         spaceSlug: analyticsDefaultSpace.slug,
     })),
 }));
+
+export const analyticsLibraryChartBindings: ReadonlyMap<
+    string,
+    LibraryChartBinding
+> = new Map([
+    ...usageLibraryChartBindings,
+    ...legacyLibraryChartBindings(analyticsSampleDashboards),
+]);

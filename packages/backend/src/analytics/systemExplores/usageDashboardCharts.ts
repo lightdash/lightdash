@@ -976,6 +976,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 value: 'agent_requests_total_request_tokens',
             },
             optionValues: {},
+            query: null,
         },
     },
     {

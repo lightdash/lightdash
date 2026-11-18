@@ -90,6 +90,7 @@ describe('analytics content revision', () => {
                         minVersion: '0.4.0',
                         fieldMapping: { x: 'a', y: 'b', value: 'm' },
                         optionValues: { colour: value },
+                        query: null,
                     },
                 ],
             ]);
@@ -104,6 +105,41 @@ describe('analytics content revision', () => {
                 explores,
                 analyticsContentAsCode,
                 bindingWith('blue'),
+            ),
+        );
+    });
+
+    it('changes when only a binding query limit changes', () => {
+        const explores = createAnalyticsExplores();
+        const bindingWith = (limit: number) =>
+            new Map<string, LibraryChartBinding>([
+                [
+                    'd-c',
+                    {
+                        slug: 'heatmap',
+                        minVersion: '0.4.0',
+                        fieldMapping: { x: 'a', y: 'b', value: 'm' },
+                        optionValues: {},
+                        query: {
+                            dimensions: ['a', 'b'],
+                            metrics: ['m'],
+                            sorts: [],
+                            limit,
+                        },
+                    },
+                ],
+            ]);
+        expect(
+            getAnalyticsContentHash(
+                explores,
+                analyticsContentAsCode,
+                bindingWith(10),
+            ),
+        ).not.toBe(
+            getAnalyticsContentHash(
+                explores,
+                analyticsContentAsCode,
+                bindingWith(20),
             ),
         );
     });

@@ -364,7 +364,7 @@ const allChartSpecs: UsageChartSpec[] = [
     ...peopleNoActivityChartSpecs,
 ];
 
-export const analyticsLibraryChartBindings: ReadonlyMap<
+export const usageLibraryChartBindings: ReadonlyMap<
     string,
     LibraryChartBinding
 > = new Map(
