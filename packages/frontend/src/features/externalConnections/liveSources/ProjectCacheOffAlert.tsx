@@ -21,7 +21,7 @@ export const ProjectCacheOffAlert: FC<{ projectUuid: string }> = ({
             icon={<MantineIcon icon={IconAlertTriangle} />}
         >
             <Text fz="xs">
-                Project caching is off, so queries can hit rate limits.{' '}
+                Project caching is off.{' '}
                 <Anchor
                     component={Link}
                     to={`/generalSettings/projectManagement/${projectUuid}/caching`}

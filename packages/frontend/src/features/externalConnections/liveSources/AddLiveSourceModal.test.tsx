@@ -64,7 +64,7 @@ describe('AddLiveSourceModal', () => {
         resultsCacheStatus.mockReturnValue({ data: { enabled: true } });
     });
 
-    it('warns about rate limits while the project caches no results', () => {
+    it('warns while the project caches no results', () => {
         resultsCacheStatus.mockReturnValue({ data: { enabled: false } });
         renderModal();
 
