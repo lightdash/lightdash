@@ -42,6 +42,7 @@ import { AiAgentModel } from './models/AiAgentModel';
 import { AiAgentReviewClassifierModel } from './models/AiAgentReviewClassifierModel';
 import { AiAgentReviewNotificationModel } from './models/AiAgentReviewNotificationModel';
 import { AiAgentSkillModel } from './models/AiAgentSkillModel';
+import { AiAgentThreadHistoryModel } from './models/AiAgentThreadHistoryModel';
 import { AiCreditAllowanceAlertModel } from './models/AiCreditAllowanceAlertModel';
 import { AiCreditContractModel } from './models/AiCreditContractModel';
 import { AiCreditHoldModel } from './models/AiCreditHoldModel';
@@ -94,6 +95,7 @@ import { AiAgentReviewClassifierService } from './services/AiAgentReviewClassifi
 import { AiAgentReviewNotificationService } from './services/AiAgentReviewNotificationService';
 import { AiAgentService } from './services/AiAgentService/AiAgentService';
 import { AiAgentSkillService } from './services/AiAgentSkillService';
+import { AiAgentThreadHistoryService } from './services/AiAgentThreadHistoryService';
 import { AiAgentToolsService } from './services/AiAgentToolsService/AiAgentToolsService';
 import { AiCreditService } from './services/AiCreditService';
 import { AiDeepResearchExecutor } from './services/AiDeepResearchService/AiDeepResearchExecutor';
@@ -1029,6 +1031,17 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         aiModelCatalog,
                     }),
                 }),
+            aiAgentThreadHistoryService: ({ models, repository }) =>
+                new AiAgentThreadHistoryService({
+                    aiAgentThreadHistoryModel:
+                        models.getAiAgentThreadHistoryModel<AiAgentThreadHistoryModel>(),
+                    aiAgentModel: models.getAiAgentModel(),
+                    aiAgentService:
+                        repository.getAiAgentService<AiAgentService>(),
+                    aiAgentAdminService:
+                        repository.getAiAgentAdminService<AiAgentAdminService>(),
+                    groupsModel: models.getGroupsModel(),
+                }),
             aiThreadFileService: ({ models, repository }) =>
                 new AiThreadFileService({
                     aiThreadFileModel:
@@ -1825,6 +1838,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AiAgentDocumentModel({ database }),
             aiThreadFileModel: ({ database }) =>
                 new AiThreadFileModel({ database }),
+            aiAgentThreadHistoryModel: ({ database }) =>
+                new AiAgentThreadHistoryModel({ database }),
             aiAgentSkillModel: ({ database }) =>
                 new AiAgentSkillModel({ database }),
             aiWritebackThreadModel: ({ database }) =>

@@ -192,7 +192,7 @@ type SourceCodeAction = 'view' | 'manage';
  * = principal limited to the projects where they hold project-level
  * `view:AiAgent`.
  */
-type AiAdminReadScope =
+export type AiAdminReadScope =
     | { kind: 'all' }
     | { kind: 'projects'; projectUuids: string[] };
 
@@ -572,7 +572,7 @@ export class AiAgentAdminService extends BaseService {
      * at creation, so a stale grant there must not open org-wide admin reads.
      * Throws when the principal has neither org nor any project AI-admin access.
      */
-    private async resolveReadScope(
+    async resolveReadScope(
         user: SessionUser,
         organizationUuid: string,
     ): Promise<AiAdminReadScope> {
@@ -610,9 +610,7 @@ export class AiAgentAdminService extends BaseService {
     }
 
     /** Narrows admin filters to a principal's readable projects. */
-    private static restrictFiltersToScope<
-        T extends { projectUuids?: string[] },
-    >(
+    static restrictFiltersToScope<T extends { projectUuids?: string[] }>(
         scope: AiAdminReadScope,
         filters: T | undefined,
     ): {
