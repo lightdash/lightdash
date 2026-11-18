@@ -385,6 +385,11 @@ export type SemanticStudioCheckout = {
     branchCompile: SemanticStudioBranchCompile | null;
 };
 
+/** The pull request of the checked-out draft, so a stale page cannot publish another one. */
+export type SemanticStudioPublishBody = {
+    prUrl: string;
+};
+
 /** Null when the person is on what is published. */
 export type ApiSemanticStudioCheckoutResponse =
     ApiSuccess<SemanticStudioCheckout | null>;
