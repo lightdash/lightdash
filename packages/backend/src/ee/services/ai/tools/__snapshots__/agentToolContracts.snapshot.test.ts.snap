@@ -19257,7 +19257,7 @@ Pie and series-split charts return readability notes when they have many slices 
               "properties": {
                 "groupBy": {
                   "default": null,
-                  "description": "Columns that split y into one series per value, readable up to about 6 series. bar/line/area/scatter only. Must not include x.",
+                  "description": "Columns that split y into one series per value. A reader tells about 6 series apart at a glance, so prefer a coarser split when the choice is yours and keep a split the user asked for. bar/line/area/scatter only. Must not include x.",
                   "items": {
                     "description": "A result column reference of the presented node",
                     "type": "string",
@@ -19324,7 +19324,8 @@ Pie and series-split charts return readability notes when they have many slices 
 - pie: 2 to 6 non-negative parts of one whole; more parts read better as a bar.
 - scatter: how two measures relate, one point per entity.
 - funnel: ordered stages of one process.
-- big_number: one value as a card, when the user asks for the card or wants to save it; a figure otherwise goes in the answer text.",
+- big_number: one value as a card, when the user asks for the card or wants to save it; a figure otherwise goes in the answer text.
+A custom chart type is chosen the same way: by its own description first, then as the built-in type it most resembles.",
                   "enum": [
                     "table",
                     "big_number",
@@ -19461,7 +19462,7 @@ Pie and series-split charts return readability notes when they have many slices 
                 },
                 "type": {
                   "const": "custom",
-                  "description": "Renders one of this project's custom chart types. Most vary a built-in type: choose one as you would the type it varies.",
+                  "description": "Renders one of this project's custom chart types.",
                   "type": "string",
                 },
               },

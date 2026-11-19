@@ -26,7 +26,8 @@ export const composerBuiltinChartVizConfigSchemaV1 = z.object({
 - pie: 2 to 6 non-negative parts of one whole; more parts read better as a bar.
 - scatter: how two measures relate, one point per entity.
 - funnel: ordered stages of one process.
-- big_number: one value as a card, when the user asks for the card or wants to save it; a figure otherwise goes in the answer text.`,
+- big_number: one value as a card, when the user asks for the card or wants to save it; a figure otherwise goes in the answer text.
+A custom chart type is chosen the same way: by its own description first, then as the built-in type it most resembles.`,
     ),
     x: refSchema
         .nullish()
@@ -46,7 +47,7 @@ export const composerBuiltinChartVizConfigSchemaV1 = z.object({
         .nullish()
         .default(null)
         .describe(
-            'Columns that split y into one series per value, readable up to about 6 series. bar/line/area/scatter only. Must not include x.',
+            'Columns that split y into one series per value. A reader tells about 6 series apart at a glance, so prefer a coarser split when the choice is yours and keep a split the user asked for. bar/line/area/scatter only. Must not include x.',
         ),
     stack: z
         .boolean()
@@ -82,9 +83,7 @@ export const composerBuiltinChartVizConfigSchemaV1 = z.object({
 const composerCustomChartVizConfigSchemaV1 = z.object({
     type: z
         .literal('custom')
-        .describe(
-            "Renders one of this project's custom chart types. Most vary a built-in type: choose one as you would the type it varies.",
-        ),
+        .describe("Renders one of this project's custom chart types."),
     customChartTypeSlug: z.string().describe('Slug of the custom chart type.'),
     fieldMapping: z
         .record(z.string(), z.union([refSchema, z.array(refSchema)]))
