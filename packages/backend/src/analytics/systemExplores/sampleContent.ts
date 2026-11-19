@@ -495,6 +495,7 @@ export const analyticsSampleDashboards = [
                         },
                         optionValues: {
                             valueAggregation: 'sum',
+                            style: 'compact',
                             colorSparklineByTrend: false,
                             showLabel: false,
                             showCardBorder: false,

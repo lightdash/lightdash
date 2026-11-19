@@ -888,6 +888,49 @@ describe('built-in usage dashboards', () => {
         expect(analyticsLibraryChartBindings.has(calendar.slug)).toBe(false);
     });
 
+    it('captions only the Queries sections with library charts and shows the query total compactly', () => {
+        const spec = usageDashboardSpecs.find(
+            ({ key }) => key === 'lightdash-analytics-query-activity',
+        )!;
+        const { dashboard } = analyticsContentAsCode.find(
+            ({ dashboard: item }) =>
+                item.slug === 'lightdash-analytics-query-activity',
+        )!;
+        const captioned = spec.tabs.flatMap(({ sections }) =>
+            sections.filter(({ caption }) => caption).map(({ title }) => title),
+        );
+        expect(captioned).toEqual(['Response latency', 'Most-used fields']);
+        spec.tabs.forEach((tab) => {
+            const notes = dashboard.tiles.filter(
+                (tile) =>
+                    tile.tabSlug === tab.key &&
+                    tile.type === DashboardTileTypes.MARKDOWN,
+            );
+            tab.sections.forEach((section, index) => {
+                const { h, properties } = notes[index] as {
+                    h: number;
+                    properties: { content: string };
+                };
+                if (section.caption) {
+                    expect(h).toBe(1);
+                    expect(properties.content).toBe(section.description);
+                } else {
+                    expect(h).toBe(section.noteHeight ?? 2);
+                    expect(properties.content).toBe(
+                        `### ${section.title}\n\n${section.description}`,
+                    );
+                }
+            });
+        });
+        const queries = analyticsLibraryChartBindings.get(
+            'lightdash-analytics-query-activity-queries',
+        )!;
+        expect(queries.optionValues).toMatchObject({
+            valueAggregation: 'sum',
+            style: 'compact',
+        });
+    });
+
     it('keeps tile geometry for sections without a layout hint', () => {
         const { dashboard } = analyticsContentAsCode.find(
             ({ dashboard: item }) =>

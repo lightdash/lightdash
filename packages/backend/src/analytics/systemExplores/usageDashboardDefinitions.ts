@@ -139,6 +139,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                 sections: [
                     {
                         title: 'Response latency',
+                        caption: true,
                         description:
                             'Response P95 includes observed backend response time, not browser rendering. Older events can lack timing; null is unknown, not instant.',
                         charts: ['slow-dashboards-tail-latency-and-demand'],
@@ -177,6 +178,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                 sections: [
                     {
                         title: 'Most-used fields',
+                        caption: true,
                         description:
                             'Metrics and dimensions referenced by queries, including filters and sorting. Each query counts once per field, including cached and failed attempts. Counts across fields overlap; absence here does not prove a field is unused.',
                         charts: ['most-used-fields-cloud', 'most-used-fields'],
