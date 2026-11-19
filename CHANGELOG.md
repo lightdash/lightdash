@@ -1,3 +1,10 @@
+## [3.350.1](https://github.com/lightdash/lightdash/compare/3.350.0...3.350.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **semantic-studio:** go straight to the published Models list when a draft is discarded ([#33027](https://github.com/lightdash/lightdash/issues/33027)) ([60e7395](https://github.com/lightdash/lightdash/commit/60e7395e1375833ff86f766ebe0bf46478a772ee))
+
 # [3.350.0](https://github.com/lightdash/lightdash/compare/3.349.0...3.350.0) (2026-11-19)
 
 
