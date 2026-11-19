@@ -84,6 +84,7 @@ const AgentsRouterPage = () => {
     const canStartDeepResearch = useDeepResearchAccess(projectUuid);
     const chartUuid = searchParams.get('chartUuid');
     const sqlChartUuid = searchParams.get('sqlChartUuid');
+    const composerChartUuid = searchParams.get('composerChartUuid');
     const dashboardUuid = searchParams.get('dashboardUuid');
     const dataAppUuid = searchParams.get('dataAppUuid');
     const documentUuid = searchParams.get('documentUuid');
@@ -100,6 +101,7 @@ const AgentsRouterPage = () => {
         dataAppUuidOrSlug: dataAppUuid,
         documentUuid,
         sqlChartUuid,
+        composerChartUuid,
     });
 
     const {

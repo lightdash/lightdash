@@ -1109,6 +1109,14 @@ const toOptimisticContextItem = (
                 displayName: null,
                 pinnedVersionUuid: null,
             };
+        case 'composer_chart':
+            return {
+                type: 'composer_chart',
+                composerChartUuid: item.composerChartUuid,
+                composerChartSlug: item.composerChartSlug,
+                displayName: null,
+                pinnedVersionUuid: null,
+            };
         // System-only pins are seeded by the remediation flow or the thread
         // restore endpoint, never optimistically attached from the UI.
         case 'proposed_change':

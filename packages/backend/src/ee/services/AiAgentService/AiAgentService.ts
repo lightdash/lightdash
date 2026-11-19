@@ -374,6 +374,7 @@ import { REQUEST_AUTHORITY } from '../../../services/AsyncQueryService/types';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
 import { CoderService } from '../../../services/CoderService/CoderService';
+import { type ComposerChartService } from '../../../services/ComposerChartService/ComposerChartService';
 import { ContentService } from '../../../services/ContentService/ContentService';
 import { DashboardService } from '../../../services/DashboardService/DashboardService';
 import { DocumentService } from '../../../services/DocumentService/DocumentService';
@@ -1072,6 +1073,7 @@ type AiAgentServiceDependencies = {
     documentService: DocumentService;
     savedChartService: SavedChartService;
     savedSqlService: SavedSqlService;
+    composerChartService: Pick<ComposerChartService, 'get' | 'isEnabled'>;
     contentService: ContentService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
     aiCreditService: Pick<AiCreditService, 'assertAiCreditsAvailable'>;
@@ -1443,6 +1445,11 @@ export class AiAgentService extends BaseService {
 
     private readonly savedSqlService: SavedSqlService;
 
+    private readonly composerChartService: Pick<
+        ComposerChartService,
+        'get' | 'isEnabled'
+    >;
+
     private readonly savedChartService: SavedChartService;
 
     private readonly contentService: ContentService;
@@ -1702,6 +1709,9 @@ export class AiAgentService extends BaseService {
                     break;
                 case 'sql_chart':
                     key = `sql_chart:${item.sqlChartUuid}`;
+                    break;
+                case 'composer_chart':
+                    key = `composer_chart:${item.composerChartUuid}`;
                     break;
                 case 'design':
                     key = designContextKey(item.designUuid);
@@ -1965,6 +1975,30 @@ export class AiAgentService extends BaseService {
                     return;
                 }
 
+                if (item.type === 'composer_chart') {
+                    // Composer charts do not draw in embeds.
+                    if (allowedSpaces) {
+                        throw new ForbiddenError(
+                            'Composer charts are not available in embedded AI',
+                        );
+                    }
+                    if (
+                        !(await this.composerChartService.isEnabled({
+                            userUuid: user.userUuid,
+                            organizationUuid: agent.organizationUuid,
+                        }))
+                    ) {
+                        throw new NotFoundError('Composer chart not found');
+                    }
+                    // Checks view through the chart's dashboard.
+                    await this.composerChartService.get(
+                        fromSession(user),
+                        agent.projectUuid,
+                        item.composerChartUuid,
+                    );
+                    return;
+                }
+
                 if (item.type === 'document') {
                     // Checks project and space access for this user.
                     const document = await this.documentService.get(
@@ -2168,6 +2202,7 @@ export class AiAgentService extends BaseService {
         this.dashboardService = dependencies.dashboardService;
         this.documentService = dependencies.documentService;
         this.savedSqlService = dependencies.savedSqlService;
+        this.composerChartService = dependencies.composerChartService;
         this.savedChartService = dependencies.savedChartService;
         this.contentService = dependencies.contentService;
         this.prometheusMetrics = dependencies.prometheusMetrics;
@@ -13301,6 +13336,12 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                     const name = item.displayName ?? '(name unavailable)';
                     const slugText = item.appSlug ?? '(slug unavailable)';
                     return `- Data app "${name}" (dataAppSlug: ${slugText})`;
+                }
+                case 'composer_chart': {
+                    const name = item.displayName ?? '(name unavailable)';
+                    const slugText =
+                        item.composerChartSlug ?? '(slug unavailable)';
+                    return `- Composer chart "${name}" (composerChartSlug: ${slugText}) — the dashboard composer chart the user asked about. When the user says "this" or asks for a change without naming content, they mean this chart. Read it with readContent (type composer_chart, slug) before answering or editing, check its rows with runContentQuery (source dashboardChart, chartType composer_chart, its dashboard's slug), and save changes with editContent (type composer_chart).`;
                 }
                 case 'sql_chart': {
                     const name = item.displayName ?? '(name unavailable)';

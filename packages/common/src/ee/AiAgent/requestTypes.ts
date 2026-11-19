@@ -330,6 +330,12 @@ export type AiPromptContextItemInput =
           sqlChartSlug: string | null;
       }
     | {
+          // A dashboard's composer chart; the server snapshots its name and latest version.
+          type: 'composer_chart';
+          composerChartUuid: string;
+          composerChartSlug: string | null;
+      }
+    | {
           type: 'thread';
           threadUuid: string;
           // The turn the reference points at (e.g. a flagged prompt).
@@ -501,6 +507,13 @@ export type AiPromptContextItem =
           type: 'sql_chart';
           sqlChartUuid: string;
           sqlChartSlug: string | null;
+          pinnedVersionUuid: string | null;
+          displayName: string | null;
+      }
+    | {
+          type: 'composer_chart';
+          composerChartUuid: string;
+          composerChartSlug: string | null;
           pinnedVersionUuid: string | null;
           displayName: string | null;
       }
