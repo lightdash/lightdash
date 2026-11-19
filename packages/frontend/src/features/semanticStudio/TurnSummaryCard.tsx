@@ -27,7 +27,7 @@ import {
     listFieldChanges,
     type FieldChange,
 } from './modelCode';
-import { listProposalIssues } from './proposalIssues';
+import { listTurnIssues } from './proposalIssues';
 import { TaskIcon } from './TaskRow';
 import { draftActions } from './turnActions';
 import { TurnCard, type Safety } from './TurnCard';
@@ -245,7 +245,7 @@ export const TurnSummaryCard: FC<{
         }
         return modelUrl(model);
     };
-    const issues = proposals.flatMap(listProposalIssues);
+    const issues = listTurnIssues(proposals);
     const name =
         proposals.find(({ startedChange }) => startedChange)?.startedChange
             ?.name ??
