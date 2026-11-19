@@ -195,7 +195,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'content-using-fields',
         name: 'Field use by content',
         description:
-            'Charts, dashboards and apps whose queries used each field. Queries from exploring directly, and some others, are not linked to saved content.',
+            'Charts, dashboards and data apps whose queries used each field. Queries from exploring directly, and some others, are not linked to saved content.',
         explore: 'semantic_usage',
         dimensions: [
             'semantic_usage_field_label',
@@ -236,7 +236,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'daily-trend',
-        name: 'App loads and viewers by day',
+        name: 'Data app loads and viewers by day',
         description: '',
         explore: 'data_app_events',
         dimensions: ['data_app_events_event_ts_day'],
@@ -266,9 +266,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'distinct-viewers',
-        name: 'App viewers',
+        name: 'Data app viewers',
         description:
-            'Distinct identified people who loaded an app. Anonymous visitors are not counted.',
+            'Distinct identified people who loaded a data app. Anonymous visitors are not counted.',
         explore: 'data_app_events',
         dimensions: [],
         metrics: ['data_app_events_unique_viewers'],
@@ -289,8 +289,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'top-apps',
-        name: 'Most-used apps',
-        description: 'Loads and viewers for each app and project.',
+        name: 'Most-used data apps',
+        description: 'Loads and viewers for each data app and project.',
         explore: 'data_app_events',
         dimensions: [
             'data_app_events_app_name',
@@ -318,7 +318,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'top-people',
-        name: 'Most active app viewers',
+        name: 'Most active data app viewers',
         description: '',
         explore: 'data_app_events',
         dimensions: ['data_app_events_user_name', 'data_app_events_user_id'],
@@ -339,8 +339,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'total-loads',
-        name: 'App loads',
-        description: 'Number of times an app was loaded. Reloads count.',
+        name: 'Data app loads',
+        description: 'Number of times a data app was loaded. Reloads count.',
         explore: 'data_app_events',
         dimensions: [],
         metrics: ['data_app_events_total_views'],
@@ -361,8 +361,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'user-app-detail',
-        name: 'App loads by person and app',
-        description: 'Loads for each person, app and project.',
+        name: 'Data app loads by person and app',
+        description: 'Loads for each person, data app and project.',
         explore: 'data_app_events',
         dimensions: [
             'data_app_events_user_name',
@@ -389,8 +389,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'viewed-apps',
-        name: 'Apps loaded',
-        description: 'Distinct apps loaded at least once.',
+        name: 'Data apps loaded',
+        description: 'Distinct data apps loaded at least once.',
         explore: 'data_app_events',
         dimensions: [],
         metrics: ['data_app_events_unique_apps'],
@@ -853,9 +853,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'app-generation-consumption',
-        name: 'App generation tokens by builder, model and week',
+        name: 'Data app generation tokens by builder, model and week',
         description:
-            'Tokens used to generate apps, by builder, week and model.',
+            'Tokens used to generate data apps, by builder, week and model.',
         explore: 'ai_usage',
         dimensions: [
             'ai_usage_user_name',
@@ -885,9 +885,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'app-lifecycle-build-activity-versus-loads',
-        name: 'Build activity versus loads by app',
+        name: 'Build activity versus loads by data app',
         description:
-            'Number of recorded events for each app and project, split by event type, such as created, iterated and loaded. Unknown or removed apps are included.',
+            'Number of recorded events for each data app and project, split by event type, such as created, iterated and loaded. Unknown or deleted apps are included.',
         explore: 'data_app_events',
         dimensions: [
             'data_app_events_app_name',
@@ -907,9 +907,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'apps-loads-and-observed-viewers',
-        name: 'Loads and viewers by app',
+        name: 'Loads and viewers by data app',
         description:
-            'Loads and viewers for each app and project, including unknown or removed apps.',
+            'Loads and viewers for each data app and project, including unknown or deleted apps.',
         explore: 'data_app_events',
         dimensions: [
             'data_app_events_app_name',
@@ -940,7 +940,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'content-creation-by-month',
         name: 'Content created by month',
         description:
-            'Items in the latest inventory by the month they were created, including soft-deleted items. This is not a full history of all content. The date filter does not apply.',
+            'Items in the latest inventory by the month they were created, including deleted items (recoverable). This is not a full history of all content. The date filter does not apply.',
         explore: 'content_inventory',
         dimensions: ['content_health_created_at_month'],
         metrics: ['content_health_total_content'],
@@ -1019,8 +1019,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'data-app-builders-creation-and-iterations-by-week',
-        name: 'Data App builders · creation and iterations by week',
-        description: 'People who created or iterated on apps, grouped by week.',
+        name: 'Data app builders: creations and iterations by week',
+        description:
+            'People who created or iterated on data apps, grouped by week.',
         explore: 'data_app_events',
         dimensions: [
             'data_app_events_user_name',
@@ -1104,7 +1105,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'high-compute-dashboards-audience-versus-warehouse-time',
         name: 'High-compute dashboards: viewers versus warehouse time',
         description:
-            'Retained warehouse execution milliseconds are a performance proxy, not currency cost. Compare per dashboard; cross-type attribution can overlap. Top 25 by execution time. Each point is a dashboard; inspect underlying results for names.',
+            'Top 25 dashboards by warehouse execution time (ms), across all recorded history. The date filter does not apply. Each point is a dashboard; open the underlying results to see names.',
         explore: 'content_health',
         dimensions: [
             'content_health_content_name',

@@ -160,7 +160,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Query origins',
                         description:
-                            'Queries by origin, by who or what started them, and by context, where recorded. Origin is the kind of work, such as interactive, scheduled or app. Context is where the query was run from, such as a dashboard or an Explore. Older queries with unknown values are still shown. Shows the selected period. Activity before recording began can be missing.',
+                            'Queries by origin, by who or what started them, and by context, where recorded. Origin is the kind of work, such as interactive, scheduled or data app. Context is where the query was run from, such as a dashboard or an Explore. Older queries with unknown values are still shown. Shows the selected period. Activity before recording began can be missing.',
                         charts: ['query-origin-and-initiating-actor'],
                     },
                     {
@@ -185,7 +185,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'People and content',
                         description:
-                            'See who uses each field, and which charts, dashboards or apps the queries came from. Rows with no name or no linked content are still shown.',
+                            'See who uses each field, and which charts, dashboards or data apps the queries came from. Rows with no name or no linked content are still shown.',
                         charts: ['people-using-fields', 'content-using-fields'],
                     },
                     {
@@ -322,7 +322,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Audience and execution time',
                         description:
-                            'Warehouse execution time stands in for compute. It is not cost. The same execution time can be attributed to both a chart and a dashboard.',
+                            'Time the warehouse spent running queries. The same execution time can be attributed to both a chart and a dashboard.',
                         charts: [
                             'high-compute-dashboards-audience-versus-warehouse-time',
                         ],
@@ -333,17 +333,17 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
     },
     {
         key: 'lightdash-analytics-apps',
-        name: 'Apps',
-        description: 'App usage, audiences and generation activity.',
+        name: 'Data apps',
+        description: 'Data app usage, audiences and generation activity.',
         tabs: [
             {
                 key: 'usage',
-                name: 'App usage',
+                name: 'Data app usage',
                 sections: [
                     {
-                        title: 'Observed app use',
+                        title: 'Observed data app use',
                         description:
-                            'Recorded app loads, including reloads. Viewer counts exclude anonymous visitors, and preview activity may be incomplete. Shows the selected period. Unknown or removed apps are included.',
+                            'Recorded data app loads, including reloads. Viewer counts exclude anonymous visitors, and preview activity may be incomplete. Shows the selected period. Unknown or deleted apps are included.',
                         charts: [
                             'total-loads',
                             'distinct-viewers',
@@ -357,9 +357,9 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         charts: ['daily-trend'],
                     },
                     {
-                        title: 'Popular apps',
+                        title: 'Popular data apps',
                         description:
-                            'Most-used apps and their projects. Unknown or removed apps remain in totals.',
+                            'Most-used data apps and their projects. Unknown or deleted apps remain in totals.',
                         charts: ['top-apps'],
                     },
                 ],
@@ -369,9 +369,9 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                 name: 'People',
                 sections: [
                     {
-                        title: 'App audiences',
+                        title: 'Data app audiences',
                         description:
-                            'See who uses each app, how often they load it and how many apps they use.',
+                            'See who uses each data app, how often they load it and how many apps they use.',
                         charts: ['top-people', 'user-app-detail'],
                     },
                 ],
@@ -383,15 +383,15 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Build activity',
                         description:
-                            'Apps created and iterated on, by builder and week. Uploads and views are not counted.',
+                            'Data apps created and iterated on, by builder and week. Uploads and views are not counted.',
                         charts: [
                             'data-app-builders-creation-and-iterations-by-week',
                         ],
                     },
                     {
-                        title: 'Tokens for app generation',
+                        title: 'Tokens for data app generation',
                         description:
-                            'Tokens used to generate apps, by builder, week and model. Tokens are not cost. Tokens cannot yet be linked to individual apps or builds.',
+                            'Tokens used to generate data apps, by builder, week and model. Tokens are not cost. Tokens cannot yet be linked to individual apps or builds.',
                         charts: ['app-generation-consumption'],
                     },
                 ],
@@ -403,7 +403,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Audience and loads',
                         description:
-                            'Loads and viewers show that apps are being used. They are not sessions, and not a complete picture of creators versus consumers.',
+                            'Loads and viewers show that data apps are being used. They are not sessions, and not a complete picture of creators versus consumers.',
                         charts: ['apps-loads-and-observed-viewers'],
                     },
                     {

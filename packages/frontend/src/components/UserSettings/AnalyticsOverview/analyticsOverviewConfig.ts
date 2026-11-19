@@ -403,7 +403,7 @@ export const analyticsTabs: {
     {
         id: 'apps',
         summary: appSummary,
-        label: 'Apps',
+        label: 'Data apps',
         description:
             'App loads, audiences, builders and generation consumption.',
         dashboardSlug: 'lightdash-analytics-apps',
@@ -485,7 +485,7 @@ export const analyticsTabs: {
     {
         id: 'tokens',
         summary: null,
-        label: 'AI usage',
+        label: 'AI token usage',
         description:
             'All captured token usage for the selected dates. The full dashboard also includes billing-specific views with a narrower scope.',
         dashboardSlug: 'lightdash-analytics-ai-tokens',

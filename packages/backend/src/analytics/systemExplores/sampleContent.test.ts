@@ -195,20 +195,54 @@ describe('analytics sample content', () => {
                     h,
                 }));
 
+        it('opens the overview with one caption row saying tokens are not cost', () => {
+            const { dashboard, charts } = analyticsContentAsCode.find(
+                ({ dashboard: { slug } }) =>
+                    slug === 'lightdash-analytics-overview',
+            )!;
+            const notes = dashboard.tiles.filter(
+                (tile) =>
+                    tile.tabSlug === 'overview' &&
+                    tile.type === DashboardTileTypes.MARKDOWN,
+            );
+            expect(notes).toHaveLength(1);
+            expect(notes[0]).toMatchObject({
+                x: 0,
+                y: 0,
+                w: 36,
+                h: 1,
+                properties: {
+                    content: 'Tokens measure usage, not cost.',
+                    hideFrame: true,
+                },
+            });
+            // The caption carries the caveat, so the token tiles do not repeat it.
+            const overviewSlugs = dashboard.tiles
+                .filter((tile) => tile.tabSlug === 'overview')
+                .flatMap(({ properties }) =>
+                    'chartSlug' in properties ? [properties.chartSlug] : [],
+                );
+            for (const chart of charts.filter(({ slug }) =>
+                overviewSlugs.includes(slug),
+            )) {
+                expect(chart.description).not.toMatch(/cost/i);
+            }
+        });
+
         it('lays out the overview tiles at their explicit positions', () => {
             const prefix = 'lightdash-analytics-overview-';
             expect(overviewTiles('lightdash-analytics-overview')).toEqual(
                 expect.arrayContaining(
                     [
-                        ['ai-calls', 0, 0, 9, 3],
-                        ['tokens', 9, 0, 9, 3],
-                        ['ai-users', 18, 0, 9, 3],
-                        ['output-tokens', 27, 0, 9, 3],
-                        ['tokens-by-feature', 0, 3, 36, 7],
-                        ['ai-calls-by-day', 0, 10, 18, 7],
-                        ['tokens-by-day', 18, 10, 18, 7],
-                        ['tokens-by-model', 0, 17, 18, 8],
-                        ['calls-by-model', 18, 17, 18, 8],
+                        ['ai-calls', 0, 1, 9, 3],
+                        ['tokens', 9, 1, 9, 3],
+                        ['ai-users', 18, 1, 9, 3],
+                        ['output-tokens', 27, 1, 9, 3],
+                        ['tokens-by-feature', 0, 4, 36, 7],
+                        ['ai-calls-by-day', 0, 11, 18, 7],
+                        ['tokens-by-day', 18, 11, 18, 7],
+                        ['tokens-by-model', 0, 18, 18, 8],
+                        ['calls-by-model', 18, 18, 18, 8],
                     ].map(([key, x, y, w, h]) => ({
                         chartSlug: `${prefix}${key}`,
                         x,
@@ -218,8 +252,9 @@ describe('analytics sample content', () => {
                     })),
                 ),
             );
+            // Nine charts and the caption row above them.
             expect(overviewTiles('lightdash-analytics-overview')).toHaveLength(
-                9,
+                10,
             );
         });
 

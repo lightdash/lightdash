@@ -14,6 +14,7 @@ import type { LibraryChartBinding } from './libraryCharts';
 import { buildQueryCalendarChart } from './queryCalendarChart';
 import {
     buildUsageDashboards,
+    note,
     usageLibraryChartBindings,
     wholeMillisecondOverrides,
 } from './usageDashboards';
@@ -168,7 +169,7 @@ const aiUsageContent = {
     charts: [
         chart('ai-calls', 'AI calls', 'ai_usage', 'total_ai_calls', undefined, {
             description:
-                'AI calls in the selected period. One question to an agent can make several AI calls.',
+                'AI calls in the selected period. One agent request can make several AI calls.',
             libraryChart: {
                 slug: 'big-number-with-sparkline-trend',
                 minVersion: '0.7.1',
@@ -194,7 +195,7 @@ const aiUsageContent = {
                     ],
                     limit: 500,
                     description:
-                        'AI calls in the selected period. One question to an agent can make several AI calls.',
+                        'AI calls in the selected period. One agent request can make several AI calls.',
                 },
             },
         }),
@@ -205,8 +206,7 @@ const aiUsageContent = {
             'total_tokens_used',
             undefined,
             {
-                description:
-                    'Tokens used in the selected period. Tokens are not cost.',
+                description: 'Tokens used in the selected period.',
                 libraryChart: {
                     slug: 'big-number-with-sparkline-trend',
                     minVersion: '0.7.1',
@@ -234,8 +234,7 @@ const aiUsageContent = {
                             },
                         ],
                         limit: 500,
-                        description:
-                            'Tokens used in the selected period. Tokens are not cost.',
+                        description: 'Tokens used in the selected period.',
                     },
                 },
             },
@@ -482,16 +481,18 @@ const aiUsageTilePositions: Record<
     string,
     { x: number; y: number; w: number; h: number }
 > = {
-    'ai-calls': { x: 0, y: 0, w: 9, h: 3 },
-    tokens: { x: 9, y: 0, w: 9, h: 3 },
-    'ai-users': { x: 18, y: 0, w: 9, h: 3 },
-    'output-tokens': { x: 27, y: 0, w: 9, h: 3 },
-    'tokens-by-feature': { x: 0, y: 3, w: 36, h: 7 },
-    'ai-calls-by-day': { x: 0, y: 10, w: 18, h: 7 },
-    'tokens-by-day': { x: 18, y: 10, w: 18, h: 7 },
-    'tokens-by-model': { x: 0, y: 17, w: 18, h: 8 },
-    'calls-by-model': { x: 18, y: 17, w: 18, h: 8 },
+    'ai-calls': { x: 0, y: 1, w: 9, h: 3 },
+    tokens: { x: 9, y: 1, w: 9, h: 3 },
+    'ai-users': { x: 18, y: 1, w: 9, h: 3 },
+    'output-tokens': { x: 27, y: 1, w: 9, h: 3 },
+    'tokens-by-feature': { x: 0, y: 4, w: 36, h: 7 },
+    'ai-calls-by-day': { x: 0, y: 11, w: 18, h: 7 },
+    'tokens-by-day': { x: 18, y: 11, w: 18, h: 7 },
+    'tokens-by-model': { x: 0, y: 18, w: 18, h: 8 },
+    'calls-by-model': { x: 18, y: 18, w: 18, h: 8 },
 };
+// One caption row above the Overview tiles, which start at y = 1.
+const aiUsageOverviewCaption = 'Tokens measure usage, not cost.';
 
 export const analyticsSampleDashboards = [
     aiUsageContent,
@@ -828,65 +829,76 @@ const legacyContentAsCode: {
             version: 1,
             tabs: [],
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
-            tiles: charts.map(({ slug }, index) => {
-                if (bundle.key === aiUsageContent.key) {
-                    const key = slug.slice(bundle.key.length + 1);
-                    const position = aiUsageTilePositions[key];
-                    if (!position) {
-                        throw new Error(
-                            `No Overview position for chart ${key}`,
-                        );
-                    }
-                    return {
-                        uuid: undefined,
-                        tileSlug: slug,
-                        type: DashboardTileTypes.SAVED_CHART,
-                        ...position,
-                        tabSlug: null,
-                        properties: { chartSlug: slug },
-                    };
-                }
-                if (
-                    bundle.key === 'lightdash-analytics-query-activity' &&
-                    index >= 4
-                ) {
-                    const positions = [
-                        { x: 0, y: 9, w: 18, h: 8 },
-                        { x: 18, y: 9, w: 18, h: 8 },
-                        { x: 0, y: 17, w: 18, h: 8 },
-                        { x: 18, y: 17, w: 18, h: 8 },
-                        { x: 0, y: 25, w: 36, h: 8 },
-                        { x: 0, y: 3, w: 36, h: 6 },
-                    ];
-                    return {
-                        uuid: undefined,
-                        tileSlug: slug,
-                        type: DashboardTileTypes.SAVED_CHART,
-                        ...positions[index - 4],
-                        tabSlug: null,
-                        properties: { chartSlug: slug },
-                    };
-                }
-                let width = index < 4 ? 9 : 18;
-                if (
-                    index >= 4 &&
-                    index === charts.length - 1 &&
-                    index % 2 === 0
-                ) {
-                    width = 36;
-                }
-                return {
-                    uuid: undefined,
-                    tileSlug: slug,
-                    type: DashboardTileTypes.SAVED_CHART,
-                    x: index < 4 ? index * 9 : ((index - 4) % 2) * 18,
-                    y: index < 4 ? 0 : 3 + Math.floor((index - 4) / 2) * 8,
-                    w: width,
-                    h: index < 4 ? 3 : 8,
-                    tabSlug: null,
-                    properties: { chartSlug: slug },
-                };
-            }),
+            tiles: [
+                ...(bundle.key === aiUsageContent.key
+                    ? [note('overview', 0, 1, aiUsageOverviewCaption)]
+                    : []),
+                ...charts.map(
+                    ({ slug }, index): DashboardAsCode['tiles'][number] => {
+                        if (bundle.key === aiUsageContent.key) {
+                            const key = slug.slice(bundle.key.length + 1);
+                            const position = aiUsageTilePositions[key];
+                            if (!position) {
+                                throw new Error(
+                                    `No Overview position for chart ${key}`,
+                                );
+                            }
+                            return {
+                                uuid: undefined,
+                                tileSlug: slug,
+                                type: DashboardTileTypes.SAVED_CHART,
+                                ...position,
+                                tabSlug: null,
+                                properties: { chartSlug: slug },
+                            };
+                        }
+                        if (
+                            bundle.key ===
+                                'lightdash-analytics-query-activity' &&
+                            index >= 4
+                        ) {
+                            const positions = [
+                                { x: 0, y: 9, w: 18, h: 8 },
+                                { x: 18, y: 9, w: 18, h: 8 },
+                                { x: 0, y: 17, w: 18, h: 8 },
+                                { x: 18, y: 17, w: 18, h: 8 },
+                                { x: 0, y: 25, w: 36, h: 8 },
+                                { x: 0, y: 3, w: 36, h: 6 },
+                            ];
+                            return {
+                                uuid: undefined,
+                                tileSlug: slug,
+                                type: DashboardTileTypes.SAVED_CHART,
+                                ...positions[index - 4],
+                                tabSlug: null,
+                                properties: { chartSlug: slug },
+                            };
+                        }
+                        let width = index < 4 ? 9 : 18;
+                        if (
+                            index >= 4 &&
+                            index === charts.length - 1 &&
+                            index % 2 === 0
+                        ) {
+                            width = 36;
+                        }
+                        return {
+                            uuid: undefined,
+                            tileSlug: slug,
+                            type: DashboardTileTypes.SAVED_CHART,
+                            x: index < 4 ? index * 9 : ((index - 4) % 2) * 18,
+                            y:
+                                index < 4
+                                    ? 0
+                                    : 3 + Math.floor((index - 4) / 2) * 8,
+                            w: width,
+                            h: index < 4 ? 3 : 8,
+                            tabSlug: null,
+                            properties: { chartSlug: slug },
+                        };
+                    },
+                ),
+            ],
         },
     };
 });

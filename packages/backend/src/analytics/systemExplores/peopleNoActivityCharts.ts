@@ -91,7 +91,7 @@ export const peopleNoActivitySections = [
     {
         title: 'Who has not used Lightdash?',
         description:
-            'The first list covers all recorded history. The second covers the 30 complete UTC days before the latest membership snapshot, and includes people who were active before then. Activity through shows the cut-off date. These lists ignore the event date, app and surface filters.',
+            'The first list covers all recorded history. The second covers the 30 complete UTC days before the latest membership snapshot, and includes people who were active before then. Activity through shows the cut-off date. These lists ignore the Date, Data app and Surface filters.',
         charts: [
             'people-without-observed-activity-detail',
             'people-without-activity-30d-detail',

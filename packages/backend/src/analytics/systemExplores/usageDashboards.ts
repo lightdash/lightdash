@@ -360,7 +360,7 @@ const buildChart = (
     },
 });
 
-const note = (
+export const note = (
     tabSlug: string,
     y: number,
     h: number,
