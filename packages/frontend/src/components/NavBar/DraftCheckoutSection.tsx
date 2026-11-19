@@ -1,0 +1,81 @@
+import { type SemanticStudioCheckout } from '@lightdash/common';
+import { Anchor, Box, Button, Group, Text } from '@mantine/core';
+import { IconGitBranch } from '@tabler/icons-react';
+import { type FC } from 'react';
+import {
+    describeBranchCompile,
+    useCompileCheckout,
+} from '../../features/semanticStudio/useSemanticLayerModel';
+import { useStudioWorkspaceAction } from '../../features/semanticStudio/useStudioWorkspaces';
+import useToaster from '../../hooks/toaster/useToaster';
+import MantineIcon from '../common/MantineIcon';
+import classes from './ProjectSwitcher.module.css';
+
+/** Says the whole app shows a checked-out draft, and goes back to what is published in one click. */
+export const DraftCheckoutSection: FC<{
+    projectUuid: string;
+    checkout: SemanticStudioCheckout;
+}> = ({ projectUuid, checkout }) => {
+    const { mutate, isLoading } = useStudioWorkspaceAction(projectUuid);
+    const { mutate: compileAgain, isLoading: isCompiling } =
+        useCompileCheckout(projectUuid);
+    const { showToastApiError } = useToaster();
+    const compile = checkout.branchCompile;
+    const compileState = compile ? describeBranchCompile(compile) : null;
+    return (
+        <Group
+            className={classes.draftSection}
+            gap="sm"
+            wrap="nowrap"
+            align="center"
+        >
+            <MantineIcon
+                icon={IconGitBranch}
+                size="md"
+                color="yellow.5"
+                className={classes.draftIcon}
+            />
+            <Box miw={0} flex={1}>
+                <Text fz="xs" fw={600} lineClamp={2}>
+                    {checkout.name}
+                </Text>
+                {compileState ? (
+                    <Text fz="xs" c="dimmed">
+                        {compileState}{' '}
+                        {compile?.status === 'failed' ? (
+                            <Anchor
+                                component="button"
+                                type="button"
+                                fz="xs"
+                                disabled={isCompiling}
+                                onClick={() => compileAgain()}
+                            >
+                                Compile again
+                            </Anchor>
+                        ) : null}
+                    </Text>
+                ) : null}
+            </Box>
+            <Button
+                size="compact-xs"
+                variant="default"
+                flex="none"
+                loading={isLoading}
+                onClick={() =>
+                    mutate(
+                        { kind: 'leave' },
+                        {
+                            onError: ({ error }) =>
+                                showToastApiError({
+                                    title: 'Could not go back to Published',
+                                    apiError: error,
+                                }),
+                        },
+                    )
+                }
+            >
+                Back to Published
+            </Button>
+        </Group>
+    );
+};
