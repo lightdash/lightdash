@@ -1,3 +1,13 @@
+## [3.343.1](https://github.com/lightdash/lightdash/compare/3.343.0...3.343.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **semantic-studio:** fail a save at once when its worker shuts down, and offer a retry ([#33005](https://github.com/lightdash/lightdash/issues/33005)) ([d4a29bf](https://github.com/lightdash/lightdash/commit/d4a29bf470e732d58d6b98b0c6d0c6a51067e838))
+* **semantic-studio:** keep a save on the quick path when only exposures changed ([#33004](https://github.com/lightdash/lightdash/issues/33004)) ([3fdc543](https://github.com/lightdash/lightdash/commit/3fdc543b98c0b61efa607f4a34cf72e512dbb6fd))
+* **semantic-studio:** keep Try it open when the view is switched off elsewhere ([#33007](https://github.com/lightdash/lightdash/issues/33007)) ([8d54ae5](https://github.com/lightdash/lightdash/commit/8d54ae5c584e94081a420a9a3bdd9aa81801f408))
+* **semantic-studio:** offer changes as a choice, keep replies short, and start the first turn sooner ([#33006](https://github.com/lightdash/lightdash/issues/33006)) ([b9a192d](https://github.com/lightdash/lightdash/commit/b9a192df88addd8edd7a1edc74a632ed0d9e6155))
+
 # [3.343.0](https://github.com/lightdash/lightdash/compare/3.342.0...3.343.0) (2026-11-19)
 
 
