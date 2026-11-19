@@ -1,6 +1,6 @@
 import { type SemanticStudioCheckout } from '@lightdash/common';
 import { Anchor, Box, Button, Group, Text } from '@mantine/core';
-import { IconArrowLeft } from '@tabler/icons-react';
+import { IconGitBranch } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
     describeBranchCompile,
@@ -23,42 +23,48 @@ export const DraftCheckoutSection: FC<{
     const compile = checkout.branchCompile;
     const compileState = compile ? describeBranchCompile(compile) : null;
     return (
-        <Box className={classes.draftSection}>
-            <Group gap="xs" wrap="nowrap" align="flex-start">
-                <Box className={classes.draftDot} mt={5} />
-                <Box miw={0} flex={1}>
-                    <Text fz="xs" fw={600}>
-                        {checkout.name}
+        <Group
+            className={classes.draftSection}
+            gap="sm"
+            wrap="nowrap"
+            align="flex-start"
+        >
+            <MantineIcon
+                icon={IconGitBranch}
+                size="md"
+                color="yellow.5"
+                className={classes.draftIcon}
+            />
+            <Box miw={0} flex={1}>
+                <Text fz="xs" fw={600} lineClamp={2}>
+                    {checkout.name}
+                </Text>
+                <Text fz="xs" c="dimmed">
+                    Only you see this draft. Explore and dashboards show its
+                    changes.
+                </Text>
+                {compileState ? (
+                    <Text fz="xs" c="dimmed" mt={4}>
+                        {compileState}{' '}
+                        {compile?.status === 'failed' ? (
+                            <Anchor
+                                component="button"
+                                type="button"
+                                fz="xs"
+                                disabled={isCompiling}
+                                onClick={() => compileAgain()}
+                            >
+                                Compile again
+                            </Anchor>
+                        ) : null}
                     </Text>
-                    <Text fz="xs" c="dimmed">
-                        You are on this draft. Explore and dashboards show its
-                        changes, and only you see them.
-                    </Text>
-                    {compileState ? (
-                        <Text fz="xs" c="dimmed" mt={4}>
-                            {compileState}{' '}
-                            {compile?.status === 'failed' ? (
-                                <Anchor
-                                    component="button"
-                                    type="button"
-                                    fz="xs"
-                                    disabled={isCompiling}
-                                    onClick={() => compileAgain()}
-                                >
-                                    Compile again
-                                </Anchor>
-                            ) : null}
-                        </Text>
-                    ) : null}
-                </Box>
-            </Group>
+                ) : null}
+            </Box>
             <Button
                 size="compact-xs"
                 variant="default"
-                mt="xs"
-                ml={15}
+                flex="none"
                 loading={isLoading}
-                leftSection={<MantineIcon icon={IconArrowLeft} size={12} />}
                 onClick={() =>
                     mutate(
                         { kind: 'leave' },
@@ -74,6 +80,6 @@ export const DraftCheckoutSection: FC<{
             >
                 Back to Published
             </Button>
-        </Box>
+        </Group>
     );
 };

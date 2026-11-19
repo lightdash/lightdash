@@ -21,6 +21,7 @@ import {
     IconChevronDown,
     IconChevronLeft,
     IconChevronRight,
+    IconGitBranch,
     IconPlus,
     IconSearch,
     IconX,
@@ -106,31 +107,23 @@ const SwitcherLabel: FC<{
     if (draftName && !upstreamProjectName) {
         return (
             <Group gap={6} wrap="nowrap" miw={0}>
-                <Text
-                    truncate
-                    fw={500}
-                    fz="xs"
-                    c="dimmed"
-                    className={classes.draftProjectName}
-                >
-                    {activeProjectName}
-                </Text>
                 <MantineIcon
-                    icon={IconChevronRight}
-                    size="xs"
-                    color="ldGray.5"
+                    icon={IconGitBranch}
+                    size="sm"
+                    color="yellow.5"
                     className={classes.breadcrumbSeparator}
                 />
-                <Box className={classes.draftDot} />
-                <Text
-                    truncate
-                    fw={600}
-                    fz="xs"
-                    c="yellow.5"
-                    className={classes.previewName}
-                >
-                    {draftName}
-                </Text>
+                <Tooltip label={activeProjectName} disabled={!isTruncated}>
+                    <Text
+                        ref={truncatedRef}
+                        truncate
+                        fw={500}
+                        fz="xs"
+                        className={classes.previewName}
+                    >
+                        {activeProjectName}
+                    </Text>
+                </Tooltip>
                 <MantineIcon
                     icon={IconChevronDown}
                     size="sm"
@@ -646,12 +639,11 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
             >
                 <Menu.Target>
                     <Button
-                        aria-label={`Switch project, current: ${activeProject?.name ?? 'none'}`}
+                        aria-label={`Switch project, current: ${activeProject?.name ?? 'none'}${draftCheckout ? `, on the draft ${draftCheckout.name}` : ''}`}
                         variant="default"
                         size="xs"
                         className={classes.targetButton}
                         classNames={{ label: classes.targetButtonLabel }}
-                        data-draft={draftCheckout ? true : undefined}
                     >
                         <SwitcherLabel
                             activeProjectName={
