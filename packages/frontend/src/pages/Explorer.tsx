@@ -16,6 +16,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
+import { McpAppFrameExplorerBridge } from '../features/mcpAppFrame/McpAppFrameExplorerBridge';
 import { MergeProvider } from '../features/mergeQuery/context/MergeContext';
 import { useMergeSafe } from '../features/mergeQuery/context/useMerge';
 import { useExplore } from '../hooks/useExplore';
@@ -69,6 +70,7 @@ const ExplorerContent = memo(() => {
             withFullHeight
             noContentPadding
         >
+            <McpAppFrameExplorerBridge />
             <Explorer />
         </Page>
     );

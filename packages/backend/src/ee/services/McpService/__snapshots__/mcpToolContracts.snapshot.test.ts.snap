@@ -2649,7 +2649,7 @@ A custom chart type is chosen the same way: by its own description first, then a
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Open the Lightdash app beside the conversation so the user and you can work in it together. Pass a Lightdash URL from another tool (an Explore, chart or dashboard link) to open that page, or omit it to open the Lightdash home page. While the view is open, use its show_lightdash_page and get_lightdash_page tools to change or read the page the user sees.",
+      "description": "Open the Lightdash app beside the conversation so the user and you can work in it together. Pass a Lightdash URL from another tool (an Explore, chart or dashboard link) to open that page, or omit it to open the Lightdash home page. While the view is open, use its tools to work in it with the user: get_lightdash_page reads what the user sees, show_lightdash_page changes the page, and explore_add_field, explore_remove_field, explore_add_filter, explore_set_chart_type and explore_run_query change the open Explore.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {

@@ -11,6 +11,7 @@ import BuildSkewRefresher from './features/buildHashHandshake/BuildSkewRefresher
 import { installChunkLoadErrorHandler } from './features/chunkErrorHandler/chunkErrorHandler';
 import ChunkErrorRouteBoundary from './features/errorBoundary/ChunkErrorRouteBoundary';
 import ErrorBoundary from './features/errorBoundary/ErrorBoundary';
+import McpAppFrameBridge from './features/mcpAppFrame/McpAppFrameBridge';
 import { observeMobileUpsellNavigation } from './features/mobile/upsell/getMobileUpsell';
 import ChartColorMappingContextProvider from './hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import AbilityProvider from './providers/Ability/AbilityProvider';
@@ -47,6 +48,7 @@ const router = sentryCreateBrowserRouter([
             <AppProvider>
                 <FullscreenProvider enabled={!isMinimalPage}>
                     <VersionAutoUpdater />
+                    <McpAppFrameBridge />
                     <BuildSkewRefresher />
                     <ThirdPartyProvider enabled={!isMinimalPage}>
                         <ErrorBoundary wrapper={{ mt: '4xl' }}>

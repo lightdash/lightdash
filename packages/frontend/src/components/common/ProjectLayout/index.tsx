@@ -2,6 +2,7 @@ import { Box, VisuallyHidden } from '@mantine/core';
 import * as Sentry from '@sentry/react';
 import { type FC } from 'react';
 import { Outlet, useLocation, useMatches, useNavigation } from 'react-router';
+import { isMcpAppFrame } from '../../../features/mcpAppFrame/mcpAppFrame';
 import ScopeTourHost from '../../../features/scopeTours/ScopeTourHost';
 import { useAnalyticsProjectRouteView } from '../../../hooks/useAnalyticsProjectView';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
@@ -34,12 +35,16 @@ const ProjectLayout: FC = () => {
         return handle?.navBarFixed === false;
     });
 
+    const isFramed = isMcpAppFrame();
+
     return (
         <>
-            <NavBar isFixed={isNavBarFixed || isNavigating} />
-            <Sentry.ErrorBoundary fallback={<></>}>
-                <ScopeTourHost />
-            </Sentry.ErrorBoundary>
+            {!isFramed && <NavBar isFixed={isNavBarFixed || isNavigating} />}
+            {!isFramed && (
+                <Sentry.ErrorBoundary fallback={<></>}>
+                    <ScopeTourHost />
+                </Sentry.ErrorBoundary>
+            )}
             {/* Keep the current page mounted so cancelled navigation preserves edits. */}
             <Box display="contents" inert={isNavigating}>
                 <ContentAuthoringRoute>

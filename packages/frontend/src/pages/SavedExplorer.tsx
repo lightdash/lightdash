@@ -30,6 +30,7 @@ import {
     selectSavedChart,
     useExplorerSelector,
 } from '../features/explorer/store';
+import { McpAppFrameExplorerBridge } from '../features/mcpAppFrame/McpAppFrameExplorerBridge';
 import { MergeProvider } from '../features/mergeQuery/context/MergeContext';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
@@ -72,6 +73,7 @@ const SavedExplorerContent = memo(() => {
             withFullHeight
             noContentPadding
         >
+            <McpAppFrameExplorerBridge />
             <Explorer />
         </Page>
     );
