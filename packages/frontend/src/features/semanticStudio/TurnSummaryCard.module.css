@@ -13,6 +13,11 @@
     padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
 }
 
+/* The header sits on the page's own tone, a shade off the card, so it reads as the card's label. */
+.head {
+    background: var(--ld-color-page);
+}
+
 /* Each model the turn touched is a step, on a line that runs from one icon to the next. */
 .steps {
     display: flex;

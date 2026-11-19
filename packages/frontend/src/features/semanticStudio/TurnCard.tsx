@@ -216,6 +216,10 @@ export const TurnCard: FC<{
             rows.length > 0 || issues.length > 0 || subtitle !== null,
     );
     const needsCheck = safety !== null && safety.state !== 'done';
+    const changeCount = shown.reduce(
+        (sum, { rows, subtitle }) => sum + rows.length + (subtitle ? 1 : 0),
+        0,
+    );
     return (
         <Paper mt="xs" className={classes.card} data-gone={isGone}>
             {isLatest ? (
@@ -224,6 +228,11 @@ export const TurnCard: FC<{
                     <Box flex={1} miw={0}>
                         <Text fz="sm" fw={500} truncate>
                             {status}
+                            {changeCount > 0 ? (
+                                <Text span inherit fw={400} c="dimmed">
+                                    {` · ${changeCount} ${changeCount === 1 ? 'change' : 'changes'}`}
+                                </Text>
+                            ) : null}
                         </Text>
                         {name ? (
                             <Text fz="xs" c="dimmed" truncate title={name}>

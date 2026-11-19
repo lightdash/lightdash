@@ -4,7 +4,7 @@ import {
     type SemanticLayerDraftImpact,
     type SemanticLayerProposal,
 } from '@lightdash/common';
-import { Button } from '@mantine/core';
+import { Button, ThemeIcon } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconArrowsJoin,
@@ -12,6 +12,7 @@ import {
     IconCircleMinus,
     IconGitBranch,
     IconGitPullRequest,
+    IconPencil,
     IconTable,
 } from '@tabler/icons-react';
 import { lazy, Suspense, useEffect, useState, type FC } from 'react';
@@ -376,7 +377,19 @@ export const TurnSummaryCard: FC<{
                           icon: <TaskIcon state="failed" />,
                           status: "Draft doesn't compile",
                       }
-                    : { icon: null, status: 'Drafted' };
+                    : {
+                          icon: (
+                              <ThemeIcon
+                                  variant="light"
+                                  color="indigo"
+                                  size={22}
+                                  radius="sm"
+                              >
+                                  <MantineIcon icon={IconPencil} size={14} />
+                              </ThemeIcon>
+                          ),
+                          status: 'Drafted',
+                      };
             case 'published':
                 return {
                     icon: (
