@@ -86,8 +86,13 @@ import Table from '../LightTable';
 import { CELL_HEIGHT } from '../LightTable/constants';
 import MantineIcon from '../MantineIcon';
 import { ColumnWindowColGroup } from '../Table/ColumnWindowColGroup';
-import { ROW_NUMBER_COLUMN_ID } from '../Table/constants';
+import {
+    COLUMN_VIRTUALIZATION_THRESHOLD,
+    ROW_NUMBER_COLUMN_ID,
+} from '../Table/constants';
 import { getGroupedRowModelLightdash } from '../Table/getGroupedRowModelLightdash';
+import { getRowNumberWidth } from '../Table/measureColumnWidth';
+import { StaticTableRenderContext } from '../Table/StaticTableRenderContext';
 import TotalCalculationErrorCell from '../Table/TotalCalculationErrorCell';
 import { columnHelper, type TableColumn } from '../Table/types';
 import { useColumnResize } from '../Table/useColumnResize';
@@ -106,6 +111,10 @@ import {
     projectMetricsAsRowsSubtotalRenderRows,
 } from './getMetricsAsRowsSubtotalRenderRows';
 import { getPivotCellInteractionProps } from './getPivotCellInteractionProps';
+import {
+    getPivotColumnWidths,
+    PIVOT_CELL_PADDING,
+} from './getPivotColumnWidths';
 import { getPivotColumnWindows } from './getPivotColumnWindow';
 import { getGroupedDimColumnIds, getRowSpanMerges } from './getRowSpanMerges';
 import {
@@ -456,13 +465,10 @@ const PivotTable: FC<PivotTableProps> = ({
         [columnProperties],
     );
 
-    // Width of the leftmost row-number column. Mirrors the formula used by
-    // the non-pivoted Table (see Table/TableProvider.tsx) so freeze offsets
-    // line up with the actual rendered column width.
     const rowNumberWidth = useMemo(() => {
         if (hideRowNumbers) return 0;
         const rowCount = data.retrofitData.allCombinedData.length;
-        return `${rowCount}`.length * 10 + 20;
+        return getRowNumberWidth(rowCount, false, PIVOT_CELL_PADDING);
     }, [hideRowNumbers, data.retrofitData.allCombinedData.length]);
 
     // In metricsAsRows mode the leftmost label column shows metric names
@@ -749,22 +755,166 @@ const PivotTable: FC<PivotTableProps> = ({
         () => [...rowNumberColumns, ...contentColumns],
         [rowNumberColumns, contentColumns],
     );
+    const getColumnTotalValueFromAxis = useCallback(
+        (total: unknown, colIndex: number): ResultValue | null => {
+            const value = last(data.headerValues)?.[colIndex];
+            if (!value || !value.fieldId) throw new Error('Invalid pivot data');
+
+            const item = getField(value.fieldId);
+            // Column totals are warehouse-computed for every metric type, so
+            // there is no `isSummable` gate; a null total just renders blank.
+            if (total === null || total === undefined) {
+                return null;
+            }
+            const formattedValue = formatItemValue(
+                item,
+                total,
+                false,
+                parameters,
+            );
+
+            return {
+                raw: total,
+                formatted: formattedValue,
+            };
+        },
+        [data.headerValues, getField, parameters],
+    );
+
+    const getMetricAsRowColumnTotalValueFromAxis = useCallback(
+        (total: unknown, rowIndex: number): ResultValue | null => {
+            const value = last(data.columnTotalFields?.[rowIndex]);
+            if (!value || !value.fieldId) throw new Error('Invalid pivot data');
+
+            const item = getField(value.fieldId);
+            if (total === null || total === undefined) {
+                return null;
+            }
+
+            const formattedValue = formatItemValue(
+                item,
+                total,
+                false,
+                parameters,
+            );
+
+            return {
+                raw: total,
+                formatted: formattedValue,
+            };
+        },
+        [data.columnTotalFields, getField, parameters],
+    );
+
+    const getGrandTotalValueFromAxis = useCallback(
+        (total: unknown, metricIndex: number): ResultValue | null => {
+            const totalField = data.pivotConfig.metricsAsRows
+                ? last(data.columnTotalFields?.[metricIndex])
+                : last(data.rowTotalFields)?.[metricIndex];
+            if (!totalField?.fieldId) return null;
+            if (total === null || total === undefined) return null;
+
+            return {
+                raw: total,
+                formatted: formatItemValue(
+                    getField(totalField.fieldId),
+                    total,
+                    false,
+                    parameters,
+                ),
+            };
+        },
+        [
+            data.columnTotalFields,
+            data.pivotConfig.metricsAsRows,
+            data.rowTotalFields,
+            getField,
+            parameters,
+        ],
+    );
+
+    const staticRender = React.useContext(StaticTableRenderContext);
+    const titleSortIcons = useMemo(() => {
+        const icons = new Map<string, ReturnType<typeof getSortIcon>>();
+        for (const sort of sortBy ?? []) {
+            if (sort.pivotValues?.length || icons.has(sort.fieldId)) continue;
+            const item = getField(sort.fieldId);
+            if (item)
+                icons.set(sort.fieldId, getSortIcon(item, sort.descending));
+        }
+        return icons;
+    }, [sortBy, getField]);
+    const metricSortIcons = useMemo(() => {
+        const icons = new Map<number, ReturnType<typeof getSortIcon>>();
+        for (const [col, sort] of sortMatchByDataColIndex) {
+            const item = getField(sort.fieldId);
+            if (item) icons.set(col, getSortIcon(item, sort.descending));
+        }
+        return icons;
+    }, [sortMatchByDataColIndex, getField]);
+    const autoColumnWidths = useMemo(
+        () =>
+            !staticRender &&
+            contentColumns.length > COLUMN_VIRTUALIZATION_THRESHOLD
+                ? getPivotColumnWidths(
+                      data,
+                      getFieldLabel,
+                      (id) => titleSortIcons.has(id),
+                      (row, col) =>
+                          row === metricLabelHeaderRowIndex &&
+                          metricSortIcons.has(col),
+                      (total, row, col) =>
+                          (data.pivotConfig.metricsAsRows
+                              ? getMetricAsRowColumnTotalValueFromAxis(
+                                    total,
+                                    row,
+                                )
+                              : getColumnTotalValueFromAxis(total, col)
+                          )?.formatted,
+                      (total, metric) =>
+                          getGrandTotalValueFromAxis(total, metric)?.formatted,
+                  )
+                : [],
+        [
+            staticRender,
+            contentColumns.length,
+            data,
+            getFieldLabel,
+            titleSortIcons,
+            metricLabelHeaderRowIndex,
+            metricSortIcons,
+            getColumnTotalValueFromAxis,
+            getMetricAsRowColumnTotalValueFromAxis,
+            getGrandTotalValueFromAxis,
+        ],
+    );
     const windowColumns = useMemo(
         () =>
-            visibleColumns.map((column) => ({
+            visibleColumns.map((column, i) => ({
                 id: column.id,
                 width:
                     column.id === ROW_NUMBER_COLUMN_ID
                         ? rowNumberWidth
                         : (column.columnDef.meta?.width ??
+                          autoColumnWidths[i - rowNumberColumns.length] ??
                           DEFAULT_COLUMN_WIDTH),
                 pinned:
                     column.id === ROW_NUMBER_COLUMN_ID ||
                     frozenLayout.has(column.id),
             })),
-        [visibleColumns, rowNumberWidth, frozenLayout],
+        [
+            visibleColumns,
+            rowNumberWidth,
+            frozenLayout,
+            autoColumnWidths,
+            rowNumberColumns.length,
+        ],
     );
-    const columnWindow = useColumnWindow(containerRef, windowColumns);
+    const columnWindow = useColumnWindow(
+        containerRef,
+        windowColumns,
+        contentColumns.length,
+    );
     const titleStart = hideRowNumbers ? 0 : 1;
     const dataStart = titleStart + (data.titleFields[0]?.length ?? 0);
     const totalsStart = dataStart + data.dataColumnCount;
@@ -848,84 +998,6 @@ const PivotTable: FC<PivotTableProps> = ({
               renderRow: projectedRows[virtualRow.index],
               renderIndex: virtualRow.index,
           }));
-
-    const getColumnTotalValueFromAxis = useCallback(
-        (total: unknown, colIndex: number): ResultValue | null => {
-            const value = last(data.headerValues)?.[colIndex];
-            if (!value || !value.fieldId) throw new Error('Invalid pivot data');
-
-            const item = getField(value.fieldId);
-            // Column totals are warehouse-computed for every metric type, so
-            // there is no `isSummable` gate; a null total just renders blank.
-            if (total === null || total === undefined) {
-                return null;
-            }
-            const formattedValue = formatItemValue(
-                item,
-                total,
-                false,
-                parameters,
-            );
-
-            return {
-                raw: total,
-                formatted: formattedValue,
-            };
-        },
-        [data.headerValues, getField, parameters],
-    );
-
-    const getMetricAsRowColumnTotalValueFromAxis = useCallback(
-        (total: unknown, rowIndex: number): ResultValue | null => {
-            const value = last(data.columnTotalFields?.[rowIndex]);
-            if (!value || !value.fieldId) throw new Error('Invalid pivot data');
-
-            const item = getField(value.fieldId);
-            if (total === null || total === undefined) {
-                return null;
-            }
-
-            const formattedValue = formatItemValue(
-                item,
-                total,
-                false,
-                parameters,
-            );
-
-            return {
-                raw: total,
-                formatted: formattedValue,
-            };
-        },
-        [data.columnTotalFields, getField, parameters],
-    );
-
-    const getGrandTotalValueFromAxis = useCallback(
-        (total: unknown, metricIndex: number): ResultValue | null => {
-            const totalField = data.pivotConfig.metricsAsRows
-                ? last(data.columnTotalFields?.[metricIndex])
-                : last(data.rowTotalFields)?.[metricIndex];
-            if (!totalField?.fieldId) return null;
-            if (total === null || total === undefined) return null;
-
-            return {
-                raw: total,
-                formatted: formatItemValue(
-                    getField(totalField.fieldId),
-                    total,
-                    false,
-                    parameters,
-                ),
-            };
-        },
-        [
-            data.columnTotalFields,
-            data.pivotConfig.metricsAsRows,
-            data.rowTotalFields,
-            getField,
-            parameters,
-        ],
-    );
 
     const getUnderlyingFieldValues = useCallback(
         (row: Row<ResultRow>, dataRowIndex: number, colIndex: number) => {
@@ -1423,26 +1495,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                           : undefined;
                                 const titleIsClickable =
                                     !!titleMenuTarget && !!renderSortMenu;
-                                const titleSortMatch =
-                                    (isIndexTitle || isGroupByTitle) &&
-                                    titleField?.fieldId
-                                        ? sortBy?.find(
-                                              (s) =>
-                                                  s.fieldId ===
-                                                      titleField.fieldId &&
-                                                  !s.pivotValues?.length,
-                                          )
-                                        : undefined;
-                                const titleSortField = titleSortMatch
-                                    ? getField(titleSortMatch.fieldId)
-                                    : undefined;
                                 const titleSortIcon =
-                                    titleSortMatch && titleSortField
-                                        ? getSortIcon(
-                                              titleSortField,
-                                              titleSortMatch.descending,
-                                          )
-                                        : undefined;
+                                    titleField &&
+                                    titleSortIcons.get(titleField.fieldId);
 
                                 const titleInnerContent =
                                     titleField?.fieldId ? (
@@ -1657,21 +1712,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                     isLabel &&
                                     !!renderSortMenu &&
                                     !!columnMetricRef;
-                                const sortMatch =
-                                    isMetricLabelRow && isLabel
-                                        ? sortMatchByDataColIndex.get(
-                                              headerColIndex,
-                                          )
-                                        : undefined;
-                                const sortMatchItem = sortMatch
-                                    ? getField(sortMatch.fieldId)
-                                    : undefined;
                                 const sortIcon =
-                                    sortMatch && sortMatchItem
-                                        ? getSortIcon(
-                                              sortMatchItem,
-                                              sortMatch.descending,
-                                          )
+                                    isMetricLabelRow && isLabel
+                                        ? metricSortIcons.get(headerColIndex)
                                         : undefined;
 
                                 const cellClassName = [

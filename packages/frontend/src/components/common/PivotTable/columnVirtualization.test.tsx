@@ -8,6 +8,8 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import PivotTable from '.';
 import { renderWithProviders } from '../../../testing/testUtils';
+import { measureColumnWidth } from '../Table/measureColumnWidth';
+import { PIVOT_CELL_PADDING } from './getPivotColumnWidths';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -39,7 +41,8 @@ it.each([false, true])(
             ),
         };
         const getField = () => undefined;
-        const getFieldLabel = (id: string) => id;
+        const getFieldLabel = (id: string) =>
+            id === 'week' ? 'Order fulfillment week of year' : id;
         const data = convertSqlPivotedRowsToPivotData({
             rows: ['Oakland', 'Portland'].map((city) => ({
                 ...row,
@@ -64,7 +67,7 @@ it.each([false, true])(
             warehouseColumnTotals: Object.fromEntries(
                 valuesColumns.map(({ pivotColumnName }, index) => [
                     pivotColumnName,
-                    100 + index,
+                    index === 0 ? 1234567890123 : 100 + index,
                 ]),
             ),
             warehouseGrandTotals: { sales: 888 },
@@ -72,6 +75,7 @@ it.each([false, true])(
             getField,
             getFieldLabel,
         });
+        const saveWidth = vi.fn();
         renderWithProviders(
             <PivotTable
                 data={data}
@@ -83,6 +87,8 @@ it.each([false, true])(
                 isMinimal={false}
                 showRowGrouping
                 enableContextMenu={false}
+                renderSortMenu={() => null}
+                onColumnWidthChange={saveWidth}
                 columnProperties={{ region: { frozen: true } }}
             />,
         );
@@ -98,9 +104,36 @@ it.each([false, true])(
         expect(screen.getByText('2026').closest('th')!.colSpan).toBeLessThan(
             80,
         );
-        expect(footer.getByText('100')).toBeInTheDocument();
+        const totalCell = footer.getByText('1,234,567,890,123').closest('th')!;
+        const totalColumn = table.querySelector<HTMLTableColElement>(
+            `col[data-column-index="${totalCell.getAttribute('aria-colindex')}"]`,
+        );
+        expect(
+            Number(totalColumn!.style.width.match(/[\d.]+/)![0]),
+        ).toBeGreaterThan(110);
+        const weekTitle = within(table.tHead!).getByText(
+            'Order fulfillment week of year',
+        );
+        const weekTitleIndex = weekTitle
+            .closest('th,td')!
+            .getAttribute('aria-colindex');
+        const weekTitleColumn = table.querySelector<HTMLTableColElement>(
+            `col[data-column-index="${weekTitleIndex}"]`,
+        );
+        expect(Number(weekTitleColumn!.style.width.match(/[\d.]+/)![0])).toBe(
+            measureColumnWidth(
+                'Order fulfillment week of year',
+                [],
+                0,
+                PIVOT_CELL_PADDING,
+            ),
+        );
+        const totalWidth = Array.from(table.querySelectorAll('col')).reduce(
+            (sum, col) => sum + Number(col.style.width.match(/[\d.]+/)![0]),
+            0,
+        );
         fireEvent.scroll(table.parentElement!, {
-            target: { scrollLeft: metricsAsRows ? 8030 : 7930 },
+            target: { scrollLeft: totalWidth - 400 },
         });
         await waitFor(() => expect(body.getByText('79')).toBeInTheDocument());
         expect(screen.queryByText('week 0')).toBeNull();
@@ -116,5 +149,24 @@ it.each([false, true])(
         );
         expect(footer.getByText('179')).toBeInTheDocument();
         expect(footer.getByText('888')).toBeInTheDocument();
+        const header = within(table.tHead!).getByText('region').closest('th')!;
+        const width = table.style.width;
+        const minWidth = table.style.minWidth;
+        vi.spyOn(table, 'getBoundingClientRect').mockReturnValue(
+            DOMRect.fromRect({ width: 8500 }),
+        );
+        vi.spyOn(header, 'getBoundingClientRect').mockReturnValue(
+            DOMRect.fromRect({ width: 100 }),
+        );
+        fireEvent.mouseDown(within(header).getByRole('separator'), {
+            clientX: 100,
+        });
+        fireEvent.mouseMove(document, { clientX: 10 });
+        expect(table.style.width).toBe('8450px');
+        expect(table.style.minWidth).toBe('8450px');
+        fireEvent.mouseUp(document, { clientX: 10 });
+        expect(saveWidth).toHaveBeenCalledWith('region', 50);
+        expect(table.style.width).toBe(width);
+        expect(table.style.minWidth).toBe(minWidth);
     },
 );
