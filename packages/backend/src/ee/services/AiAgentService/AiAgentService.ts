@@ -223,6 +223,7 @@ import {
     type AiDeepResearchPhase,
     type AiPromptContextInput,
     type AiPromptContextItem,
+    type AiPromptContextItemInput,
     type AiSemanticChartArtifactConfig,
     type AiThreadCreatedFrom,
     type AiWebAppThreadCreatedFrom,
@@ -753,6 +754,7 @@ import {
     redactThreadToolResults,
 } from './embedDebugRedaction';
 import {
+    agentsReachingPinnedSpaces,
     isOutsideAgentSpaces,
     OUTSIDE_AGENT_SPACES_NOTE,
     spaceScopedPinnedUuid,
@@ -13724,26 +13726,25 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         }
     }
 
-    // The user attached these, so naming them as out of reach reveals nothing
-    // they cannot already see. Items the user cannot open are left unflagged.
-    private async findPinnedOutsideAgentSpaces(
-        contextMap: Map<string, AiPromptContext>,
+    /**
+     * Space of each pinned dashboard, chart and data app, keyed by its id.
+     * Items the user cannot open are left out, so nothing here is new to them.
+     */
+    private async findPinnedSpaces(
+        user: SessionUser,
         projectUuid: string,
-        agentScope: { user: SessionUser; spaceAccess: string[] } | null,
-    ): Promise<Set<string>> {
-        if (!agentScope || agentScope.spaceAccess.length === 0) {
-            return new Set();
-        }
-        const { user, spaceAccess } = agentScope;
-        const items = new Map<string, AiPromptContextItem>();
-        for (const context of contextMap.values()) {
-            for (const item of context) {
-                const uuid = spaceScopedPinnedUuid(item);
-                if (uuid) items.set(uuid, item);
-            }
+        pinned: (AiPromptContextItem | AiPromptContextItemInput)[],
+    ): Promise<Map<string, string | null>> {
+        const items = new Map<
+            string,
+            AiPromptContextItem | AiPromptContextItemInput
+        >();
+        for (const item of pinned) {
+            const uuid = spaceScopedPinnedUuid(item);
+            if (uuid) items.set(uuid, item);
         }
         const spaceUuidOf = async (
-            item: AiPromptContextItem,
+            item: AiPromptContextItem | AiPromptContextItemInput,
         ): Promise<string | null | undefined> => {
             switch (item.type) {
                 case 'dashboard':
@@ -13777,20 +13778,69 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     return undefined;
             }
         };
-        const outside = await Promise.all(
+        const found = await Promise.all(
             [...items].map(async ([uuid, item]) => {
                 try {
                     const spaceUuid = await spaceUuidOf(item);
-                    return spaceUuid !== undefined &&
-                        isOutsideAgentSpaces(spaceAccess, spaceUuid)
-                        ? uuid
-                        : null;
+                    return spaceUuid === undefined
+                        ? null
+                        : ([uuid, spaceUuid] as const);
                 } catch {
                     return null;
                 }
             }),
         );
-        return new Set(outside.filter((uuid): uuid is string => uuid !== null));
+        return new Map(
+            found.filter(
+                (entry): entry is readonly [string, string | null] =>
+                    entry !== null,
+            ),
+        );
+    }
+
+    /** Agents whose spaces hold everything the user pinned; all of them when none do. */
+    public async filterAgentsReachingPinnedContext<
+        T extends { spaceAccess: string[] },
+    >(
+        user: SessionUser,
+        projectUuid: string,
+        agents: T[],
+        context: AiPromptContextInput,
+    ): Promise<T[]> {
+        if (!agents.some((agent) => agent.spaceAccess.length > 0)) {
+            return agents;
+        }
+        const pinnedSpaces = await this.findPinnedSpaces(
+            user,
+            projectUuid,
+            context,
+        );
+        return agentsReachingPinnedSpaces(agents, [...pinnedSpaces.values()]);
+    }
+
+    // The user attached these, so naming them as out of reach reveals nothing
+    // they cannot already see. Items the user cannot open are left unflagged.
+    private async findPinnedOutsideAgentSpaces(
+        contextMap: Map<string, AiPromptContext>,
+        projectUuid: string,
+        agentScope: { user: SessionUser; spaceAccess: string[] } | null,
+    ): Promise<Set<string>> {
+        if (!agentScope || agentScope.spaceAccess.length === 0) {
+            return new Set();
+        }
+        const { user, spaceAccess } = agentScope;
+        const pinnedSpaces = await this.findPinnedSpaces(
+            user,
+            projectUuid,
+            [...contextMap.values()].flat(),
+        );
+        return new Set(
+            [...pinnedSpaces]
+                .filter(([, spaceUuid]) =>
+                    isOutsideAgentSpaces(spaceAccess, spaceUuid),
+                )
+                .map(([uuid]) => uuid),
+        );
     }
 
     // Only files the thread owns are readable; a pinned row can only reference

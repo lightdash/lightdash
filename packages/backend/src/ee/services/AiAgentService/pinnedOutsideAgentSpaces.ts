@@ -1,4 +1,7 @@
-import { type AiPromptContextItem } from '@lightdash/common';
+import {
+    type AiPromptContextItem,
+    type AiPromptContextItemInput,
+} from '@lightdash/common';
 
 /** Same rule as the agent's tools: no space list means every space. */
 export const isOutsideAgentSpaces = (
@@ -11,7 +14,7 @@ export const isOutsideAgentSpaces = (
 
 /** The id of a pinned item the agent's space limits apply to, else null. */
 export const spaceScopedPinnedUuid = (
-    item: AiPromptContextItem,
+    item: AiPromptContextItem | AiPromptContextItemInput,
 ): string | null => {
     switch (item.type) {
         case 'dashboard':
@@ -23,6 +26,22 @@ export const spaceScopedPinnedUuid = (
         default:
             return null;
     }
+};
+
+/**
+ * The agents that may use every pinned space. When none can, all are kept so
+ * the chosen agent can tell the user what is out of reach.
+ */
+export const agentsReachingPinnedSpaces = <T extends { spaceAccess: string[] }>(
+    agents: T[],
+    pinnedSpaceUuids: (string | null)[],
+): T[] => {
+    const reaching = agents.filter((agent) =>
+        pinnedSpaceUuids.every(
+            (spaceUuid) => !isOutsideAgentSpaces(agent.spaceAccess, spaceUuid),
+        ),
+    );
+    return reaching.length > 0 ? reaching : agents;
 };
 
 export const OUTSIDE_AGENT_SPACES_NOTE =

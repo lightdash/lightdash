@@ -208,14 +208,14 @@ export class AiRouterService extends BaseService {
         const organizationUuid = AiRouterService.organizationUuidOf(account);
         this.assertViewAiAgent(account, organizationUuid, projectUuid);
 
-        const candidates = await this.aiAgentService.getAvailableAgents(
+        const accessibleAgents = await this.aiAgentService.getAvailableAgents(
             organizationUuid,
             account.user.userUuid,
             { aiRequireOAuth: true },
             { projectFilter: { projectUuid } },
         );
 
-        if (candidates.length === 0) {
+        if (accessibleAgents.length === 0) {
             throw new ParameterError(
                 'No accessible AI agents are available for this project',
             );
@@ -224,13 +224,23 @@ export class AiRouterService extends BaseService {
         // The web routing UI is short-circuited when fewer than two agents are
         // accessible, so the web endpoint keeps requiring at least two. MCP has
         // no such picker, so a sole agent is routed to directly.
-        if (mode === 'web' && candidates.length < 2) {
+        if (mode === 'web' && accessibleAgents.length < 2) {
             throw new ParameterError(
                 'AI router requires at least two accessible agents',
             );
         }
 
-        if (candidates.length === 1) {
+        // Only offer agents that can open what the user pinned.
+        const candidates = context
+            ? await this.aiAgentService.filterAgentsReachingPinnedContext(
+                  account.user,
+                  projectUuid,
+                  accessibleAgents,
+                  context,
+              )
+            : accessibleAgents;
+
+        if (accessibleAgents.length === 1) {
             return {
                 candidates,
                 suggestedAgent: candidates[0],
@@ -243,6 +253,18 @@ export class AiRouterService extends BaseService {
         }
 
         const router = await this.getEnabledRouter(organizationUuid);
+        if (candidates.length === 1) {
+            return {
+                candidates,
+                suggestedAgent: candidates[0],
+                routerUuid: router.routerUuid,
+                confidence: 'high',
+                reasoning: 'Only agent that can use the pinned content',
+                shouldSkipForwardingQuery: false,
+                nextAction: 'create_thread',
+            };
+        }
+
         const instruction = await this.aiRouterModel.getLatestInstruction({
             routerUuid: router.routerUuid,
             projectUuid,
