@@ -1,4 +1,5 @@
 import {
+    supportsAiServiceAccount,
     WarehouseTypes,
     type OrganizationAgentIdentityOverview,
     type OrganizationAgentIdentityRule,
@@ -12,12 +13,12 @@ import { SettingsCard } from '../../components/common/Settings/SettingsCard';
 import { AgentIdentityChip } from './AgentIdentityChip';
 import classes from './AgentIdentityChip.module.css';
 import AgentIdentityRuleConfirmModal from './AgentIdentityRuleConfirmModal';
+import { type AiServiceAccountRule } from './agentIdentityWarehouses';
 import {
     useSnowflakeAgentSetup,
     useSnowflakeAgentVerify,
     useUpdateOrganizationAgentIdentityRule,
 } from './api';
-import { identityWarehouseNames } from './identityLabels';
 import { SnowflakeAgentSetup } from './SnowflakeAgentSetup';
 
 const getVerificationStatus = (
@@ -28,13 +29,17 @@ const getVerificationStatus = (
     return verify.data?.passed === true ? 'verified' : null;
 };
 
+const isAiServiceAccountRule = (
+    rule: OrganizationAgentIdentityRule,
+): rule is AiServiceAccountRule => supportsAiServiceAccount(rule.warehouseType);
+
 const AgentIdentityRule = ({
     rule,
     configured,
     canEdit,
     setupLoading,
 }: {
-    rule: OrganizationAgentIdentityRule;
+    rule: AiServiceAccountRule;
     configured: boolean;
     canEdit: boolean;
     setupLoading: boolean;
@@ -156,13 +161,14 @@ export const OrganizationAgentIdentityCard = ({
     const warehouses = new Set(
         projects.map((project) => project.warehouseType),
     );
-    const rules = overview.rules.filter(
-        (rule) =>
-            rule.warehouseType in identityWarehouseNames &&
-            (warehouses.has(rule.warehouseType) ||
+    const rules = overview.rules
+        .filter(isAiServiceAccountRule)
+        .filter(
+            (rule) =>
+                warehouses.has(rule.warehouseType) ||
                 rule.source !== 'marked_person' ||
-                shownWarehouses.has(rule.warehouseType)),
-    );
+                shownWarehouses.has(rule.warehouseType),
+        );
     if (rules.some((rule) => !shownWarehouses.has(rule.warehouseType))) {
         setShownWarehouses(
             new Set([
