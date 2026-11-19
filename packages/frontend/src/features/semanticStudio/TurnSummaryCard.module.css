@@ -10,7 +10,7 @@
     border-top: 1px solid var(--mantine-color-default-border);
 }
 
-.card[data-settled='true'] .model {
+.card[data-gone='true'] .model {
     opacity: 0.6;
 }
 
@@ -28,9 +28,9 @@
 
 .row {
     display: grid;
-    grid-template-columns: 12px auto minmax(0, 1fr);
+    grid-template-columns: 12px 16px minmax(0, 1fr);
     column-gap: 6px;
-    align-items: baseline;
+    align-items: center;
     width: 100%;
     padding: 3px var(--mantine-spacing-xs);
 }
@@ -58,12 +58,17 @@
     color: var(--mantine-color-red-text);
 }
 
+.kindIcon {
+    display: flex;
+}
+
 .label {
     min-width: 0;
 }
 
+/* How the part is defined, under its name. */
 .sub {
-    grid-column: 2 / 4;
+    grid-column: 3;
     min-width: 0;
 }
 

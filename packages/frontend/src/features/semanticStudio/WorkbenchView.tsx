@@ -85,6 +85,7 @@ import {
     DRAFT_PARAM,
     DRAFT_REVIEW,
     FIELD_PARAM,
+    getChangeKind,
     VIEW_PARAM,
 } from './modelCode';
 import { ModelCodeView } from './ModelTabs';
@@ -308,6 +309,12 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     ({ model, explore }): [string, string][] =>
                         explore?.label ? [[model, explore.label]] : [],
                 ),
+            ),
+            kinds: new Map(
+                (checkedOutDraft?.models ?? []).map((entry) => [
+                    entry.model,
+                    getChangeKind(entry),
+                ]),
             ),
             others: new Map(
                 (draft?.othersDrafting ?? []).map(

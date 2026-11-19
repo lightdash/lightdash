@@ -9,10 +9,8 @@ import {
     Group,
     Loader,
     Menu,
-    Paper,
     Stack,
     Text,
-    ThemeIcon,
     Tooltip,
     VisuallyHidden,
 } from '@mantine/core';
@@ -22,9 +20,9 @@ import {
     IconDots,
     IconExternalLink,
     IconEye,
+    IconFileCode,
     IconGitPullRequest,
     IconPlayerPlay,
-    IconTable,
     IconWorldUpload,
 } from '@tabler/icons-react';
 import { sortBy, uniqBy } from 'es-toolkit/compat';
@@ -51,9 +49,11 @@ import {
     PublishSummary,
 } from './DraftInsights';
 import { cannotApply, describePublisher } from './draftState';
+import { FieldChangeIcon } from './KindTypeIcon';
 import {
     CHANGE_KIND_LABELS,
     count,
+    countChangedLines,
     describeModelChange,
     DRAFT_PARAM,
     DRAFT_REVIEW,
@@ -71,6 +71,7 @@ import {
     useSemanticLayerDraftImpact,
 } from './useSemanticLayerModel';
 import { useDraftPullRequest } from './useStudioCheckout';
+import { LineCounts } from './WorkbenchRail';
 
 /** How many models of the draft, or the one named, still have a part to choose between. */
 const countConflicts = (
@@ -187,7 +188,6 @@ const ApplyModal: FC<{
     const scoped = draft.models.filter(
         (entry) => model === null || entry.model === model,
     );
-    const models = scoped.length === 1 ? '1 model' : `${scoped.length} models`;
     const sent = useDraftPullRequest() !== null;
     const sendLabel = sent ? 'Update pull request' : 'Open pull request';
     const confirmLabel = asPullRequest ? sendLabel : 'Publish';
@@ -202,10 +202,10 @@ const ApplyModal: FC<{
             title={asPullRequest ? sendLabel : 'Publish to everyone'}
             subtitle={
                 mode === 'pull_request'
-                    ? `${models} ${scoped.length === 1 ? 'goes' : 'go'} to your repository. Nothing is published until it merges.`
+                    ? 'Nothing is published until it merges.'
                     : mode === 'merge'
-                      ? `${models} ${scoped.length === 1 ? 'merges' : 'merge'} into your repository. Everyone sees ${scoped.length === 1 ? 'it' : 'them'} once the project refreshes.`
-                      : `${models} will be published for everyone on this project.`
+                      ? 'Merges into your repository.'
+                      : undefined
             }
             confirmLabel={isRisky ? `${confirmLabel} anyway` : confirmLabel}
             confirmLoading={apply.isLoading}
@@ -243,7 +243,7 @@ const ApplyModal: FC<{
                                               ? 'Pull request updated'
                                               : 'Pull request opened',
                                         subtitle: merge?.merged
-                                            ? 'Everyone sees it once the project refreshes.'
+                                            ? 'Updating for everyone.'
                                             : undefined,
                                         action,
                                     });
@@ -713,41 +713,49 @@ export const DraftReview: FC<DraftReviewProps> = ({
                         modelChange,
                     );
                     return (
-                        <Paper
+                        <Box
                             key={modelChange.model}
+                            component="section"
                             className={classes.model}
                         >
+                            {/* A file's header, as an editor shows one: its name, what it models, how much moved. */}
                             <Group
                                 className={classes.modelHead}
                                 gap="xs"
                                 wrap="nowrap"
                             >
-                                <ThemeIcon
-                                    variant="light"
-                                    color="indigo"
-                                    size={24}
-                                    radius="sm"
+                                <MantineIcon
+                                    icon={IconFileCode}
+                                    color="dimmed"
+                                />
+                                <Text
+                                    component="h3"
+                                    fz="sm"
+                                    fw={500}
+                                    truncate
+                                    flex={1}
+                                    miw={0}
                                 >
-                                    <MantineIcon icon={IconTable} size={14} />
-                                </ThemeIcon>
-                                <Box miw={0} flex={1}>
-                                    <Text
-                                        component="h3"
-                                        fz="sm"
-                                        fw={500}
-                                        truncate
-                                    >
-                                        {title}
+                                    {modelChange.model}.yml
+                                    <Text span inherit fw={400} c="dimmed">
+                                        {` · ${[
+                                            title,
+                                            subtitle ??
+                                                (fields.length === 0
+                                                    ? CHANGE_KIND_LABELS[
+                                                          getChangeKind(
+                                                              modelChange,
+                                                          )
+                                                      ]
+                                                    : null),
+                                        ]
+                                            .filter(Boolean)
+                                            .join(' · ')}`}
                                     </Text>
-                                    {subtitle || fields.length === 0 ? (
-                                        <Text fz="xs" c="dimmed" truncate>
-                                            {subtitle ??
-                                                CHANGE_KIND_LABELS[
-                                                    getChangeKind(modelChange)
-                                                ]}
-                                        </Text>
-                                    ) : null}
-                                </Box>
+                                </Text>
+                                <LineCounts
+                                    counts={countChangedLines(modelChange)}
+                                />
                                 {modelChange.reconciliation?.state ===
                                 'conflict' ? (
                                     <Badge color="yellow" flex="none">
@@ -769,34 +777,42 @@ export const DraftReview: FC<DraftReviewProps> = ({
                             {fields.length > 0 ? (
                                 <Box className={classes.fields}>
                                     {fields.map((field) => (
-                                        <Text
+                                        <Group
                                             key={`${field.kind}:${field.name}`}
-                                            fz="xs"
-                                            truncate
+                                            gap={6}
+                                            wrap="nowrap"
                                         >
                                             <Text
                                                 span
-                                                inherit
+                                                fz="xs"
                                                 className={classes.glyph}
                                                 data-change={field.change}
                                                 aria-hidden
                                             >
                                                 {CHANGE_GLYPHS[field.change]}
                                             </Text>
-                                            <VisuallyHidden>
-                                                {
-                                                    CHANGE_KIND_LABELS[
-                                                        field.change
-                                                    ]
-                                                }{' '}
-                                            </VisuallyHidden>
-                                            {field.label}{' '}
-                                            <Text span inherit c="dimmed">
-                                                {[field.kind, field.detail]
-                                                    .filter(Boolean)
-                                                    .join(' · ')}
+                                            <FieldChangeIcon field={field} />
+                                            <Text fz="xs" truncate>
+                                                <VisuallyHidden>
+                                                    {
+                                                        CHANGE_KIND_LABELS[
+                                                            field.change
+                                                        ]
+                                                    }{' '}
+                                                    {field.kind}{' '}
+                                                </VisuallyHidden>
+                                                {field.label}
+                                                {field.detail ? (
+                                                    <Text
+                                                        span
+                                                        inherit
+                                                        c="dimmed"
+                                                    >
+                                                        {` · ${field.detail}`}
+                                                    </Text>
+                                                ) : null}
                                             </Text>
-                                        </Text>
+                                        </Group>
                                     ))}
                                 </Box>
                             ) : null}
@@ -823,7 +839,7 @@ export const DraftReview: FC<DraftReviewProps> = ({
                                 draft={draft}
                                 model={modelChange}
                             />
-                        </Paper>
+                        </Box>
                     );
                 })}
             </WorkerPoolContextProvider>

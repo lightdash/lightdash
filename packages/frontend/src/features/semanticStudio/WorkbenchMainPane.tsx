@@ -9,9 +9,10 @@ import {
     Title,
 } from '@mantine/core';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useEffect, useMemo, useRef, type FC } from 'react';
+import { useContext, useEffect, useMemo, useRef, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { LiveSourceBetaBadge } from '../externalConnections/liveSources/LiveSourceBetaBadge';
+import { DraftMarksContext } from './draftMarks';
 import { useExternalSourceActions } from './externalSources/externalSourceActions';
 import {
     ExternalSourceHeaderActions,
@@ -40,7 +41,7 @@ import {
     type NodeRef,
     type TreeNode,
 } from './model';
-import { getModelCodeSearch } from './modelCode';
+import { CHANGE_KIND_LABELS, getModelCodeSearch } from './modelCode';
 import { ModelTabs } from './ModelTabs';
 import {
     FieldDetailModal,
@@ -70,6 +71,7 @@ const ChildrenList: FC<{
     onOpen: (node: TreeNode) => void;
 }> = ({ view, nodes, onOpen }) => {
     const parentRef = useRef<HTMLDivElement>(null);
+    const { kinds } = useContext(DraftMarksContext);
     const virtualizer = useVirtualizer({
         count: nodes.length,
         getScrollElement: () => parentRef.current,
@@ -108,6 +110,10 @@ const ChildrenList: FC<{
                 >
                     {virtualizer.getVirtualItems().map((item) => {
                         const node = nodes[item.index];
+                        const kind =
+                            node.ref.type === 'explore'
+                                ? kinds.get(node.ref.exploreId)
+                                : undefined;
                         return (
                             <Box
                                 key={node.key}
@@ -132,6 +138,14 @@ const ChildrenList: FC<{
                                     >
                                         {node.label}
                                     </Text>
+                                    {kind ? (
+                                        <Text
+                                            className={classes.changeTag}
+                                            data-change={kind}
+                                        >
+                                            {CHANGE_KIND_LABELS[kind]}
+                                        </Text>
+                                    ) : null}
                                 </Group>
                                 {describe ? (
                                     <Text

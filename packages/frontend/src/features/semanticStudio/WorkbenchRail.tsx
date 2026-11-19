@@ -29,6 +29,7 @@ import {
     type NodeRef,
     type TreeNode,
 } from './model';
+import { CHANGE_KIND_LABELS } from './modelCode';
 import { getPreAggregateStatus } from './preAggregateSummary';
 import { AddSourceButton, NodeIcon, SearchResultsList } from './shared';
 import { useAddToStudioChat, startStudioChatRefDrag } from './studioChatRefs';
@@ -42,13 +43,18 @@ const DraftMarker: FC<{ model: string; isMine: boolean }> = ({
     model,
     isMine,
 }) => {
-    const others = useContext(DraftMarksContext).others.get(model) ?? [];
+    const marks = useContext(DraftMarksContext);
+    const others = marks.others.get(model) ?? [];
     if (!isMine && others.length === 0) return null;
     const whose = [...(isMine ? ['you'] : []), ...others].join(', ');
+    const kind = isMine ? marks.kinds.get(model) : undefined;
     return (
-        <Tooltip label={`Draft by ${whose}. Not published yet.`}>
+        <Tooltip
+            label={`${kind ? `${CHANGE_KIND_LABELS[kind]} in a draft` : 'Draft'} by ${whose}. Not published yet.`}
+        >
             <Box
                 className={classes.draftDot}
+                data-change={kind}
                 data-others={!isMine || undefined}
             />
         </Tooltip>
@@ -280,7 +286,7 @@ export const Rail: FC<{
     );
 };
 
-const LineCounts: FC<{
+export const LineCounts: FC<{
     counts: { additions: number; deletions: number } | null;
 }> = ({ counts }) =>
     counts ? (
@@ -298,6 +304,17 @@ const LineCounts: FC<{
             ) : null}
         </Text>
     ) : null;
+
+const sumLineCounts = (
+    counts: Map<string, { additions: number; deletions: number }>,
+) =>
+    [...counts.values()].reduce(
+        (total, { additions, deletions }) => ({
+            additions: total.additions + additions,
+            deletions: total.deletions + deletions,
+        }),
+        { additions: 0, deletions: 0 },
+    );
 
 /**
  * The Code view's rail: every model with YAML behind it, and any the draft adds.
@@ -326,8 +343,9 @@ export const CodeRail: FC<{
     onOpen,
 }) => (
     <Box className={classes.rail}>
-        <Box className={classes.treeScroll}>
-            {overview ? (
+        {/* Above the files and apart from them: it is the whole change, not one more file. */}
+        {overview ? (
+            <Box className={classes.railOverview}>
                 <Box
                     component="button"
                     className={classes.fileRow}
@@ -340,8 +358,11 @@ export const CodeRail: FC<{
                         color="dimmed"
                     />
                     <Text className={classes.treeLabel}>Overview</Text>
+                    <LineCounts counts={sumLineCounts(lineCounts)} />
                 </Box>
-            ) : null}
+            </Box>
+        ) : null}
+        <Box className={classes.treeScroll}>
             {files.map((file) => (
                 <Fragment key={file}>
                     <Box

@@ -17,6 +17,7 @@ import { useEffect, type FC } from 'react';
 import { Link } from 'react-router';
 import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
 import MantineIcon from '../../components/common/MantineIcon';
+import { FieldChangeIcon } from './KindTypeIcon';
 import {
     describeModelChange,
     DRAFT_PARAM,
@@ -389,6 +390,7 @@ export const TurnSummaryCard: FC<{
                     id: `${field.kind}:${field.name}`,
                     change: field.change,
                     kind: KIND_LABELS[field.kind],
+                    icon: <FieldChangeIcon field={field} />,
                     label: field.label,
                     detail: field.detail,
                     title: field.name,
@@ -406,11 +408,6 @@ export const TurnSummaryCard: FC<{
             onAsk={onAsk}
             isLatest={isLatest}
             actions={actions}
-            isSettled={
-                phase.kind === 'published' ||
-                phase.kind === 'pull_request' ||
-                phase.kind === 'gone'
-            }
             isGone={phase.kind === 'gone'}
         />
     );

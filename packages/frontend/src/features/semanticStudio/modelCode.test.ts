@@ -264,6 +264,7 @@ describe('listFieldChanges', () => {
                 name: 'points',
                 change: 'changed',
                 label: 'Round points',
+                type: 'number',
                 detail: 'label',
             },
             {
@@ -271,6 +272,7 @@ describe('listFieldChanges', () => {
                 name: 'avg_points',
                 change: 'new',
                 label: 'Average points',
+                type: 'average',
                 detail: 'average of points',
             },
             {
@@ -278,6 +280,7 @@ describe('listFieldChanges', () => {
                 name: 'old_points',
                 change: 'removed',
                 label: 'Old points',
+                type: 'sum',
                 detail: null,
             },
             {
@@ -285,6 +288,7 @@ describe('listFieldChanges', () => {
                 name: 'total',
                 change: 'new',
                 label: 'total',
+                type: 'sum',
                 detail: 'sum of points',
             },
             {
@@ -292,6 +296,7 @@ describe('listFieldChanges', () => {
                 name: 'drivers',
                 change: 'new',
                 label: 'drivers',
+                type: null,
                 detail: null,
             },
             {
@@ -299,6 +304,7 @@ describe('listFieldChanges', () => {
                 name: 'rounds',
                 change: 'changed',
                 label: 'Rounds',
+                type: null,
                 detail: 'label',
             },
         ]);

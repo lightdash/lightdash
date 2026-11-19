@@ -30,7 +30,9 @@ const GLYPHS: Record<ChangeKind, { glyph: string; word: string }> = {
 export type TurnRow = {
     id: string;
     change: ChangeKind;
+    /** What it is, for a reader who cannot see its icon. */
     kind: string;
+    icon: ReactNode;
     label: string;
     detail: string | null;
     title: string;
@@ -60,11 +62,11 @@ const Row: FC<{ row: TurnRow }> = ({ row }) => {
             <Text span fz="xs" className={classes.glyph} aria-hidden>
                 {glyph}
             </Text>
-            <Text span fz="xs" c="dimmed">
-                <VisuallyHidden>{word} </VisuallyHidden>
-                {row.kind}
-            </Text>
+            <Box className={classes.kindIcon}>{row.icon}</Box>
             <Text span fz="xs" truncate className={classes.label}>
+                <VisuallyHidden>
+                    {word} {row.kind}{' '}
+                </VisuallyHidden>
                 {row.label}
             </Text>
             {row.detail ? (
@@ -91,7 +93,6 @@ export const TurnCard: FC<{
     /** Only the latest turn's card is open and offers anything; earlier ones fold to their header. */
     isLatest: boolean;
     actions: ReactNode[];
-    isSettled: boolean;
     isGone: boolean;
     children?: ReactNode;
 }> = ({
@@ -106,7 +107,6 @@ export const TurnCard: FC<{
     onAsk,
     isLatest,
     actions,
-    isSettled,
     isGone,
     children,
 }) => {
@@ -123,12 +123,7 @@ export const TurnCard: FC<{
         </Text>
     );
     return (
-        <Paper
-            mt="xs"
-            className={classes.card}
-            data-settled={isSettled}
-            data-gone={isGone}
-        >
+        <Paper mt="xs" className={classes.card} data-gone={isGone}>
             {isLatest ? (
                 <Group className={classes.section} gap={6} wrap="nowrap">
                     {icon}
@@ -158,23 +153,32 @@ export const TurnCard: FC<{
                         !subtitle ? null : (
                             <Box key={model} className={classes.model}>
                                 <Group
-                                    gap={4}
+                                    gap={6}
                                     wrap="nowrap"
                                     className={classes.modelName}
                                 >
                                     <MantineIcon
                                         icon={IconTable}
-                                        size={12}
-                                        color="ldGray.5"
+                                        size={14}
+                                        color="dimmed"
                                     />
                                     <Text
                                         fz="xs"
-                                        c="dimmed"
+                                        fw={500}
                                         truncate
                                         title={model}
                                     >
                                         {title}
-                                        {subtitle ? ` · ${subtitle}` : ''}
+                                        {subtitle ? (
+                                            <Text
+                                                span
+                                                inherit
+                                                fw={400}
+                                                c="dimmed"
+                                            >
+                                                {` · ${subtitle}`}
+                                            </Text>
+                                        ) : null}
                                     </Text>
                                 </Group>
                                 {rows.map((row) => (
