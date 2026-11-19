@@ -280,6 +280,25 @@ export const Rail: FC<{
     );
 };
 
+const LineCounts: FC<{
+    counts: { additions: number; deletions: number } | null;
+}> = ({ counts }) =>
+    counts ? (
+        <Text fz="xs" flex="none">
+            {counts.additions > 0 ? (
+                <Text span inherit c="green.7">
+                    +{counts.additions}
+                </Text>
+            ) : null}
+            {counts.additions > 0 && counts.deletions > 0 ? ' ' : null}
+            {counts.deletions > 0 ? (
+                <Text span inherit c="red.7">
+                    −{counts.deletions}
+                </Text>
+            ) : null}
+        </Text>
+    ) : null;
+
 /**
  * The Code view's rail: every model with YAML behind it, and any the draft adds.
  * Not virtualised; only native YAML projects get here, so add it if one reaches thousands of models.
@@ -290,6 +309,8 @@ export const CodeRail: FC<{
     overview: { isOpen: boolean; onOpen: () => void } | null;
     selected: string | null;
     drafted: Set<string>;
+    /** Lines the draft adds to and removes from each file it changes. */
+    lineCounts: Map<string, { additions: number; deletions: number }>;
     /** The pre-aggregate open in the file, so its row reads as selected and not the file's. */
     selectedPart: string | null;
     preAggregates: Map<string, PreAggregateMaterializationSummary[]>;
@@ -300,6 +321,7 @@ export const CodeRail: FC<{
     selected,
     selectedPart,
     drafted,
+    lineCounts,
     preAggregates,
     onOpen,
 }) => (
@@ -340,7 +362,12 @@ export const CodeRail: FC<{
                         >
                             {file}.yml
                         </Text>
-                        <DraftMarker model={file} isMine={drafted.has(file)} />
+                        <LineCounts counts={lineCounts.get(file) ?? null} />
+                        {/* The counts already say the file is in your draft. */}
+                        <DraftMarker
+                            model={file}
+                            isMine={drafted.has(file) && !lineCounts.has(file)}
+                        />
                     </Box>
                     {/* A pre-aggregate lives in its model's file; its row jumps to where it is defined. */}
                     {(preAggregates.get(file) ?? []).map((summary) => {

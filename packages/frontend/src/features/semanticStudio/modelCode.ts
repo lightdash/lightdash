@@ -5,6 +5,7 @@ import {
     type ModelFragmentRefusal,
     type SemanticLayerModelChange,
 } from '@lightdash/common';
+import { parseDiffFromFile } from '@pierre/diffs';
 import { load } from 'js-yaml';
 
 export const VIEW_PARAM = 'view';
@@ -401,6 +402,21 @@ export const describeModelChange = (
     return {
         title,
         subtitle: `${CHANGE_KIND_LABELS.new} · ${count(parsed.dimensions, 'dimension')} · ${count(parsed.metrics, 'metric')}`,
+    };
+};
+
+/** How many lines a change adds and removes, as a diff counts them. */
+export const countChangedLines = ({
+    contentBefore,
+    contentAfter,
+}: ContentChange): { additions: number; deletions: number } => {
+    const { hunks } = parseDiffFromFile(
+        { name: 'model.yml', contents: contentBefore ?? '' },
+        { name: 'model.yml', contents: contentAfter ?? '' },
+    );
+    return {
+        additions: hunks.reduce((sum, hunk) => sum + hunk.additionLines, 0),
+        deletions: hunks.reduce((sum, hunk) => sum + hunk.deletionLines, 0),
     };
 };
 

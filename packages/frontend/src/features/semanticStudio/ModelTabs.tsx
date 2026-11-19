@@ -102,9 +102,9 @@ export const ModelCodeView: FC<{
     return (
         <Box className={classes.codePane}>
             {content !== null ? (
-                <Group className={classes.codeToolbar} justify="flex-end">
+                <Box className={classes.codeCopy}>
                     <CopyActionIcon value={content} copyLabel="Copy YAML" />
-                </Group>
+                </Box>
             ) : null}
             <Box className={classes.codeEditor} ref={editor}>
                 {content === null ? (

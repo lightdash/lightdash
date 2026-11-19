@@ -81,6 +81,7 @@ import {
     type TreeNode,
 } from './model';
 import {
+    countChangedLines,
     DRAFT_PARAM,
     DRAFT_REVIEW,
     FIELD_PARAM,
@@ -341,6 +342,16 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     );
     const drafted = useMemo(
         () => new Set(checkedOutDraft?.models.map(({ model }) => model)),
+        [checkedOutDraft],
+    );
+    const lineCounts = useMemo(
+        () =>
+            new Map(
+                (checkedOutDraft?.models ?? []).map((entry) => [
+                    entry.model,
+                    countChangedLines(entry),
+                ]),
+            ),
         [checkedOutDraft],
     );
     const { data: workspaces } = useStudioWorkspaces(view.project.id);
@@ -1410,6 +1421,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                             FIELD_PARAM,
                                         )}
                                         drafted={drafted}
+                                        lineCounts={lineCounts}
                                         preAggregates={preAggregatesByModel}
                                         onOpen={(next, part) =>
                                             setSearchParams({

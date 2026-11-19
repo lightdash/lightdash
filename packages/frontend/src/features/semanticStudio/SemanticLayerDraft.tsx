@@ -14,6 +14,7 @@ import {
     Text,
     ThemeIcon,
     Tooltip,
+    VisuallyHidden,
 } from '@mantine/core';
 import { WorkerPoolContextProvider } from '@pierre/diffs/react';
 import {
@@ -57,6 +58,7 @@ import {
     DRAFT_PARAM,
     DRAFT_REVIEW,
     getChangeKind,
+    listFieldChanges,
     refusalText,
 } from './modelCode';
 import classes from './SemanticLayerDraft.module.css';
@@ -647,6 +649,8 @@ const DraftNotes: FC<{ draft: SemanticLayerDraft }> = ({ draft }) => {
     );
 };
 
+const CHANGE_GLYPHS = { new: '+', changed: '~', removed: '−' };
+
 type DraftProps = { projectUuid: string; draft: SemanticLayerDraft };
 
 type DraftReviewProps = DraftProps & {
@@ -695,6 +699,19 @@ export const DraftReview: FC<DraftReviewProps> = ({
                         modelChange.model,
                         modelChange,
                     );
+                    const fields = listFieldChanges(
+                        modelChange.model,
+                        draft.changes.flatMap(({ models: entries }) =>
+                            entries
+                                .filter(
+                                    ({ model, error }) =>
+                                        model === modelChange.model &&
+                                        error === null,
+                                )
+                                .flatMap(({ changes }) => changes),
+                        ),
+                        modelChange,
+                    );
                     return (
                         <Paper
                             key={modelChange.model}
@@ -722,12 +739,14 @@ export const DraftReview: FC<DraftReviewProps> = ({
                                     >
                                         {title}
                                     </Text>
-                                    <Text fz="xs" c="dimmed" truncate>
-                                        {subtitle ??
-                                            CHANGE_KIND_LABELS[
-                                                getChangeKind(modelChange)
-                                            ]}
-                                    </Text>
+                                    {subtitle || fields.length === 0 ? (
+                                        <Text fz="xs" c="dimmed" truncate>
+                                            {subtitle ??
+                                                CHANGE_KIND_LABELS[
+                                                    getChangeKind(modelChange)
+                                                ]}
+                                        </Text>
+                                    ) : null}
                                 </Box>
                                 {modelChange.reconciliation?.state ===
                                 'conflict' ? (
@@ -747,6 +766,40 @@ export const DraftReview: FC<DraftReviewProps> = ({
                                     />
                                 ) : null}
                             </Group>
+                            {fields.length > 0 ? (
+                                <Box className={classes.fields}>
+                                    {fields.map((field) => (
+                                        <Text
+                                            key={`${field.kind}:${field.name}`}
+                                            fz="xs"
+                                            truncate
+                                        >
+                                            <Text
+                                                span
+                                                inherit
+                                                className={classes.glyph}
+                                                data-change={field.change}
+                                                aria-hidden
+                                            >
+                                                {CHANGE_GLYPHS[field.change]}
+                                            </Text>
+                                            <VisuallyHidden>
+                                                {
+                                                    CHANGE_KIND_LABELS[
+                                                        field.change
+                                                    ]
+                                                }{' '}
+                                            </VisuallyHidden>
+                                            {field.label}{' '}
+                                            <Text span inherit c="dimmed">
+                                                {[field.kind, field.detail]
+                                                    .filter(Boolean)
+                                                    .join(' · ')}
+                                            </Text>
+                                        </Text>
+                                    ))}
+                                </Box>
+                            ) : null}
                             <ModelNotices
                                 projectUuid={projectUuid}
                                 model={modelChange}

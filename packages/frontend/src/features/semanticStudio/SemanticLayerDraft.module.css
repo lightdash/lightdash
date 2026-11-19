@@ -17,3 +17,25 @@
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
     border-bottom: 1px solid var(--mantine-color-default-border);
 }
+
+.fields {
+    display: grid;
+    gap: 2px;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.glyph {
+    display: inline-block;
+    width: 16px;
+    font-weight: 600;
+    color: var(--mantine-color-orange-7);
+}
+
+.glyph[data-change='new'] {
+    color: var(--mantine-color-green-7);
+}
+
+.glyph[data-change='removed'] {
+    color: var(--mantine-color-red-7);
+}
