@@ -149,7 +149,6 @@ export const DbtTurnSummaryCard: FC<{
         files.length > 0
             ? [...new Set(files.map(getModelOfFile))].map((model) => ({
                   model,
-                  change: 'changed',
                   title: model,
                   subtitle: null,
                   issues: [],
@@ -179,7 +178,6 @@ export const DbtTurnSummaryCard: FC<{
               }))
             : changedModels.map((model) => ({
                   model,
-                  change: 'changed',
                   title: model,
                   subtitle: null,
                   issues: [],

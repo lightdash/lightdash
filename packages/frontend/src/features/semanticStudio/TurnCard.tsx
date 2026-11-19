@@ -10,7 +10,6 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import {
-    IconBulb,
     IconChevronDown,
     IconChevronRight,
     IconInfoCircle,
@@ -19,7 +18,7 @@ import {
 import { useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
-import { CHANGE_COLORS, type ChangeKind } from './modelCode';
+import { type ChangeKind } from './modelCode';
 import { ISSUE_KINDS, type Issue } from './proposalIssues';
 import { TaskIcon, type TaskState } from './TaskRow';
 import classes from './TurnSummaryCard.module.css';
@@ -39,8 +38,6 @@ export type TurnRow = {
 
 export type TurnGroup = {
     model: string;
-    /** What happened to the model as a whole. */
-    change: ChangeKind;
     title: string;
     subtitle: string | null;
     rows: TurnRow[];
@@ -179,14 +176,7 @@ export const TurnCard: FC<{
                 <>
                     <Box className={classes.body}>
                         {groups.map(
-                            ({
-                                model,
-                                change,
-                                title,
-                                subtitle,
-                                rows,
-                                issues,
-                            }) =>
+                            ({ model, title, subtitle, rows, issues }) =>
                                 rows.length === 0 &&
                                 issues.length === 0 &&
                                 !subtitle ? null : (
@@ -198,7 +188,7 @@ export const TurnCard: FC<{
                                         >
                                             <MantineIcon
                                                 icon={IconTable}
-                                                color={CHANGE_COLORS[change]}
+                                                color="green"
                                             />
                                             <Text
                                                 fz="sm"
@@ -328,21 +318,6 @@ export const TurnCard: FC<{
                     {isLatest &&
                     (actions.some(Boolean) || (onAsk && options.length > 0)) ? (
                         <Box className={classes.next}>
-                            {onAsk && options.length > 0 ? (
-                                <Group
-                                    className={classes.line}
-                                    gap={8}
-                                    wrap="nowrap"
-                                >
-                                    <MantineIcon
-                                        icon={IconBulb}
-                                        color="indigo"
-                                    />
-                                    <Text fz="sm" c="dimmed">
-                                        You could ask next
-                                    </Text>
-                                </Group>
-                            ) : null}
                             {onAsk && options.length > 0 ? (
                                 <Group className={classes.offers} gap={4}>
                                     {options.map((option) => (
