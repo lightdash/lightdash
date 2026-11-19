@@ -13,11 +13,9 @@ import {
     IconGitBranch,
     IconGitPullRequest,
     IconTable,
-    IconTrash,
 } from '@tabler/icons-react';
 import { lazy, Suspense, useEffect, useState, type FC } from 'react';
 import { Link } from 'react-router';
-import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
 import MantineIcon from '../../components/common/MantineIcon';
 import { cannotApply } from './draftState';
 import { FieldChangeIcon } from './KindTypeIcon';
@@ -38,13 +36,12 @@ import { draftActions, fixAction } from './turnActions';
 import { TurnCard, type Safety } from './TurnCard';
 import { getSemanticStudioUrl } from './urls';
 import {
-    useDiscardDraftChange,
     usePublishMode,
     useRefreshSemanticLayerDraft,
     useSemanticLayerDraft,
     useSemanticLayerDraftImpact,
 } from './useSemanticLayerModel';
-import { useDraftPullRequest, useStudioCheckout } from './useStudioCheckout';
+import { useDraftPullRequest } from './useStudioCheckout';
 
 // The review and its diff viewer stay out of the chat's bundle until someone publishes from a card.
 const ApplyModal = lazy(() =>
@@ -251,10 +248,8 @@ export const TurnSummaryCard: FC<{
     isLatest: boolean;
 }> = ({ projectUuid, proposals, onAsk, isLatest }) => {
     const { data: draft } = useSemanticLayerDraft(projectUuid);
-    const { shown: checkedOut } = useStudioCheckout();
     const { data: impact } = useSemanticLayerDraftImpact(projectUuid, null);
     const refresh = useRefreshSemanticLayerDraft(projectUuid);
-    const discard = useDiscardDraftChange(projectUuid);
     const uuids = proposals.flatMap(({ draftChangeUuid }) =>
         draftChangeUuid ? [draftChangeUuid] : [],
     );
@@ -286,11 +281,6 @@ export const TurnSummaryCard: FC<{
         return modelUrl(model);
     };
     const issues = listTurnIssues(proposals);
-    const name =
-        proposals.find(({ startedChange }) => startedChange)?.startedChange
-            ?.name ??
-        (phase.kind === 'draft' ? (checkedOut?.workspace?.name ?? null) : null);
-
     const isDraft = phase.kind === 'draft';
     const conflicts = (draft?.models ?? []).filter(
         ({ reconciliation }) => reconciliation?.state === 'conflict',
@@ -386,7 +376,7 @@ export const TurnSummaryCard: FC<{
                           icon: <TaskIcon state="failed" />,
                           status: "Draft doesn't compile",
                       }
-                    : { icon: null, status: 'Saved to your draft' };
+                    : { icon: null, status: 'Drafted' };
             case 'published':
                 return {
                     icon: (
@@ -434,22 +424,8 @@ export const TurnSummaryCard: FC<{
         <TurnCard
             icon={header.icon}
             status={header.status}
-            name={name}
-            headerAction={
-                isDraft ? (
-                    <ConfirmDeleteButton
-                        size="sm"
-                        aria-label="Discard these changes"
-                        tooltip="Click again to discard these changes"
-                        disabled={discard.isLoading}
-                        onConfirm={() =>
-                            uuids.forEach((uuid) => discard.mutate(uuid))
-                        }
-                    >
-                        <MantineIcon icon={IconTrash} />
-                    </ConfirmDeleteButton>
-                ) : null
-            }
+            name={null}
+            headerAction={null}
             groups={groups.map(
                 ({ model, change, title, subtitle, fields }) => ({
                     model,
