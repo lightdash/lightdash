@@ -27,13 +27,8 @@ export const getQueryingComposerSection = ({
     enablePythonNodes: boolean;
     canRunSql: boolean;
     slackChannelId: string | null;
-}): string => {
-    // Node kinds a follow-up should build on rather than rerun
-    const costlyNodeKinds = [
-        ...(enablePythonNodes ? ['python'] : []),
-        ...(canRunSql ? ['approved sql'] : []),
-    ].join(' or ');
-    return [
+}): string =>
+    [
         '## Answering data questions',
         '',
         '- Query each explore with one semanticLayer node.',
@@ -54,11 +49,7 @@ export const getQueryingComposerSection = ({
               ]
             : []),
         '- Build an answer that takes several queries, or a computation over their results, as one pipeline in one query call, whose terminal node is the result that answers the question.',
-        `- When a follow-up needs a new query, plan its pipeline as for a first question: the fewest nodes from source to result, counting the earlier nodes it reads, and among such plans the one that reads earlier nodes unchanged.${
-            costlyNodeKinds
-                ? ` Exception: when an earlier ${costlyNodeKinds} node holds what the follow-up needs, compute from its result rather than writing a new one.`
-                : ''
-        }`,
+        '- When a follow-up needs a new query, plan its pipeline as for a first question: the fewest nodes from source to result, counting the earlier nodes it reads, and among such plans the one that reads earlier nodes unchanged.',
         '- For a follow-up that changes an earlier result, change only what the user asked for and keep the rest: metrics, filters, period, grouping, sort, chart type and the rows shown, zero and small values included. Claim a change only after the call succeeds. When the requested field is not among the carried-forward candidates, discover it rather than binding its value to an unrelated existing dimension.',
         slackChannelId
             ? '- After query, call visualize on the node your answer rests on when the user asks for a chart or when its rows materially help: with the chart type the user asked for; otherwise with a chart that fits the result, or a table. Skip visualize when a sentence answers the question.'
@@ -85,4 +76,3 @@ export const getQueryingComposerSection = ({
         '- For date dimensions, pick the granularity the user asked for (`order_date_month` over `order_date` for "by month").',
         '- Discovery returns the joined-table fields it judges relevant; use them rather than substituting a base-table field with a similar name. Joined-table fields are marked `isFromJoinedTable="true"` in discovery results.',
     ].join('\n');
-};
