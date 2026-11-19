@@ -119,20 +119,25 @@ const FormatButtons = <V extends string>({
     value,
     onChange,
 }: FormatButtonsProps<V>) =>
-    options.map((option) => (
-        <Tooltip key={option.value} label={option.label}>
-            <ActionIcon
-                size="sm"
-                variant={option.value === value ? 'light' : undefined}
-                aria-label={option.label}
-                aria-pressed={option.value === value}
-                onMouseDown={keepFocus}
-                onClick={() => onChange(option.value)}
-            >
-                <MantineIcon icon={option.icon} />
-            </ActionIcon>
-        </Tooltip>
-    ));
+    options.map((option) => {
+        const isActive = option.value === value;
+        return (
+            <Tooltip key={option.value} label={option.label}>
+                <ActionIcon
+                    size="sm"
+                    variant={isActive ? 'light' : undefined}
+                    aria-label={option.label}
+                    aria-pressed={isActive}
+                    onMouseDown={keepFocus}
+                    // Picking what already shows must not store it on a
+                    // heading that had no setting, or mark it as edited
+                    onClick={() => !isActive && onChange(option.value)}
+                >
+                    <MantineIcon icon={option.icon} />
+                </ActionIcon>
+            </Tooltip>
+        );
+    });
 
 const DashboardHeadingTile: FC<Props> = (props) => {
     const { tile, isEditMode, onEdit } = props;

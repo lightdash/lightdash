@@ -136,6 +136,16 @@ describe('DashboardHeadingTile inline editing', () => {
         });
     });
 
+    it('leaves a heading alone when the option already showing is picked', () => {
+        const onEdit = renderTile();
+        fireEvent.focus(screen.getByRole('textbox', { name: 'Heading text' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Medium' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Align left' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Align middle' }));
+
+        expect(onEdit).not.toHaveBeenCalled();
+    });
+
     it('changes the alignment from the actions shown while editing', () => {
         const onEdit = renderTile();
         editHeading('Revenue');
