@@ -54,9 +54,9 @@ export const getQueryingComposerSection = ({
               ]
             : []),
         '- Build an answer that takes several queries, or a computation over their results, as one pipeline in one query call, whose terminal node is the result that answers the question.',
-        `- When a follow-up needs a new query, plan its pipeline as for a first question: the fewest nodes from source to result, and among such plans the one that reads earlier nodes unchanged.${
+        `- When a follow-up needs a new query, plan its pipeline as for a first question: the fewest nodes from source to result, counting the earlier nodes it reads, and among such plans the one that reads earlier nodes unchanged.${
             costlyNodeKinds
-                ? ` When an earlier ${costlyNodeKinds} node holds what the follow-up needs, compute from its result rather than running it again.`
+                ? ` Exception: when an earlier ${costlyNodeKinds} node holds what the follow-up needs, compute from its result rather than writing a new one.`
                 : ''
         }`,
         '- For a follow-up that changes an earlier result, change only what the user asked for and keep the rest: metrics, filters, period, grouping, sort, chart type and the rows shown, zero and small values included. Claim a change only after the call succeeds. When the requested field is not among the carried-forward candidates, discover it rather than binding its value to an unrelated existing dimension.',
