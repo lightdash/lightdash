@@ -29,13 +29,15 @@ const ScrollableTable: FC<ScrollableTableProps> = ({
         () =>
             headerGroups.at(-1)?.headers.map(({ column }) => {
                 const meta = column.columnDef.meta;
+                const width = meta?.width ?? meta?.styleProps?.w;
                 return {
                     id: column.id,
                     width:
-                        meta?.width ??
-                        (meta?.frozen
-                            ? DEFAULT_FROZEN_COLUMN_WIDTH
-                            : column.getSize()),
+                        typeof width === 'number'
+                            ? width
+                            : meta?.frozen
+                              ? DEFAULT_FROZEN_COLUMN_WIDTH
+                              : column.getSize(),
                     pinned:
                         column.id === draggedColumn ||
                         meta?.className?.includes('sticky-column'),

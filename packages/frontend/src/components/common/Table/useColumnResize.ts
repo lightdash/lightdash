@@ -49,17 +49,23 @@ export const useColumnResize = ({
             if (tableEl) {
                 const colIndex =
                     (state.thElement as HTMLTableCellElement).cellIndex + 1;
+                const logicalIndex =
+                    state.thElement.getAttribute('aria-colindex');
 
                 // Update <col> element if table uses <colgroup> (table-layout: fixed)
                 const colEl = tableEl.querySelector<HTMLElement>(
-                    `colgroup col:nth-child(${colIndex})`,
+                    logicalIndex
+                        ? `colgroup col[data-column-index="${logicalIndex}"]`
+                        : `colgroup col:nth-child(${colIndex})`,
                 );
                 if (colEl) {
                     colEl.style.width = widthPx;
                 }
 
                 const cells = tableEl.querySelectorAll<HTMLElement>(
-                    `thead th:nth-child(${colIndex}), tbody td:nth-child(${colIndex}), tbody th:nth-child(${colIndex}), tfoot td:nth-child(${colIndex}), tfoot th:nth-child(${colIndex})`,
+                    logicalIndex
+                        ? `td[aria-colindex="${logicalIndex}"], th[aria-colindex="${logicalIndex}"]`
+                        : `thead th:nth-child(${colIndex}), tbody td:nth-child(${colIndex}), tbody th:nth-child(${colIndex}), tfoot td:nth-child(${colIndex}), tfoot th:nth-child(${colIndex})`,
                 );
                 for (const cell of cells) {
                     if (cell === state.thElement) continue;

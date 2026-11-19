@@ -1,4 +1,9 @@
-import { type ResultRow } from '@lightdash/common';
+import {
+    DimensionType,
+    FieldType,
+    type Dimension,
+    type ResultRow,
+} from '@lightdash/common';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import ScrollableTable from '.';
@@ -151,7 +156,9 @@ it('uses the reordered visible columns and their current widths', async () => {
         ...field,
         meta: {
             ...field.meta,
-            width: index === 99 ? 500 : 100,
+            width: index === 99 ? undefined : 100,
+            styleProps:
+                index === 99 ? { w: 500, miw: 500, maw: 500 } : undefined,
             isVisible: index !== 97,
         },
     }));
@@ -210,4 +217,55 @@ it('keeps the dragged column mounted when scrolling to a distant drop target', a
     await waitFor(() =>
         expect(within(table).queryByText('value 1')).toBeNull(),
     );
+});
+
+it('resizes the same field on rows with a merged dimension', async () => {
+    const { row, columns } = makeWideTable();
+    const fields = columns.map((field, index) => ({
+        ...field,
+        meta: {
+            ...field.meta,
+            item:
+                index < 2
+                    ? ({
+                          fieldType: FieldType.DIMENSION,
+                          type: DimensionType.STRING,
+                          table: 't',
+                          name: field.id,
+                          label: field.id,
+                      } as Dimension)
+                    : undefined,
+        },
+    }));
+    renderWithProviders(
+        <TableProvider
+            data={[row, row]}
+            columns={fields}
+            columnOrder={fields.map((field) => field.id!)}
+            totalRowsCount={2}
+            isFetchingRows={false}
+            fetchMoreRows={vi.fn()}
+            onColumnWidthChange={vi.fn()}
+            hideRowNumbers
+        >
+            <ScrollableTable
+                minimal={false}
+                showRowGrouping
+                showSubtotals={false}
+            />
+        </TableProvider>,
+    );
+    expect((await screen.findByText('value 0')).closest('td')).toHaveAttribute(
+        'rowspan',
+        '2',
+    );
+    const header = screen.getByText('Field 2').closest('th')!;
+    fireEvent.mouseDown(within(header).getByRole('separator'), { clientX: 0 });
+    fireEvent.mouseMove(document, { clientX: 200 });
+    expect(screen.getAllByText('value 2')[1].closest('td')!.style.width).toBe(
+        '200px',
+    );
+    const neighbor = screen.getAllByText('value 3')[1].closest('td')!;
+    expect(neighbor.style.width).toBe('');
+    fireEvent.mouseUp(document, { clientX: 200 });
 });

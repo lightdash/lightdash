@@ -13,6 +13,9 @@ export function ColumnWindowColGroup({
                 <Box
                     component="col"
                     key={slot.key}
+                    data-column-index={
+                        slot.index === undefined ? undefined : slot.index + 1
+                    }
                     w={`calc(${slot.width}px)`}
                 />
             ))}
