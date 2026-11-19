@@ -1,3 +1,10 @@
+# [3.342.0](https://github.com/lightdash/lightdash/compare/3.341.0...3.342.0) (2026-11-19)
+
+
+### Features
+
+* **semantic-studio:** run the Studio agent on Claude where it is offered ([#33003](https://github.com/lightdash/lightdash/issues/33003)) ([9f06f2f](https://github.com/lightdash/lightdash/commit/9f06f2f06c141c636a4d4e8bce6f0eff64bbe2c4))
+
 # [3.341.0](https://github.com/lightdash/lightdash/compare/3.340.1...3.341.0) (2026-11-19)
 
 
