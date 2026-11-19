@@ -1,3 +1,10 @@
+## [3.340.1](https://github.com/lightdash/lightdash/compare/3.340.0...3.340.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **apps:** Voice Design clock and unreadable audio ([#32971](https://github.com/lightdash/lightdash/issues/32971)) ([8110d35](https://github.com/lightdash/lightdash/commit/8110d3554f765e670de11114d0a6970007f5f6d6))
+
 # [3.340.0](https://github.com/lightdash/lightdash/compare/3.339.0...3.340.0) (2026-11-19)
 
 
