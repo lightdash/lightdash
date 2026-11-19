@@ -13,6 +13,7 @@ import {
     getErrorMessage,
     getExploreParameterDefinitions,
     getReferencedParameterDefinitions,
+    isCartesianChartConfig,
     isComposerChartTileRequest,
     isDashboardComposerChartTile,
     NotFoundError,
@@ -813,7 +814,14 @@ export class ComposerChartService extends BaseService {
         const dateZoomByNodeId = getComposerNodeDateZooms({
             nodes: resolved.nodes,
             exploreByNodeId,
-            dateZoom: request.dateZoom,
+            dateZoom: request.dateZoom && {
+                ...request.dateZoom,
+                xAxisFieldId:
+                    request.dateZoom.xAxisFieldId ??
+                    (isCartesianChartConfig(chart.chart.chartConfig.config)
+                        ? chart.chart.chartConfig.config.layout?.xField
+                        : undefined),
+            },
         });
         const binding = ComposerRunBinding.forAuthorizedViewer({
             account,

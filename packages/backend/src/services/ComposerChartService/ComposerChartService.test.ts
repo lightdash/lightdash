@@ -272,6 +272,11 @@ const setup = ({ flagEnabled = true } = {}) => {
                                     table: name,
                                     type: DimensionType.TIMESTAMP,
                                 },
+                                shipped_at: {
+                                    name: 'shipped_at',
+                                    table: name,
+                                    type: DimensionType.TIMESTAMP,
+                                },
                             },
                             metrics: {},
                         },
@@ -803,6 +808,47 @@ describe('ComposerChartService.run', () => {
             submitComposerRun.mock.calls[1][0].binding.dateZoomByNodeId,
         ).toEqual({});
         expect(unzoomed.dateZoomApplied).toBe(false);
+    });
+
+    test("zooms the stored chart's x-axis field when the tile names none", async () => {
+        const body = createBody(PIPELINES.python);
+        const { service, submitComposerRun } = setupRun({
+            nodes: PIPELINES.python.map((node) =>
+                node.nodeId === 'orders'
+                    ? semantic({
+                          dimensions: [
+                              'orders_created_at',
+                              'orders_shipped_at',
+                          ],
+                      })
+                    : node,
+            ),
+            chart: {
+                ...body.chart,
+                chartConfig: {
+                    type: ChartType.CARTESIAN,
+                    config: {
+                        layout: { xField: 'orders_shipped_at', yField: ['n'] },
+                        eChartsConfig: { series: [] },
+                    },
+                },
+            },
+        });
+        await service.run(
+            viewer(),
+            projectUuid,
+            'chart-uuid',
+            { ...runRequest, dateZoom: { granularity: DateGranularity.WEEK } },
+            QueryExecutionContext.DASHBOARD,
+        );
+        expect(
+            submitComposerRun.mock.calls[0][0].binding.dateZoomByNodeId,
+        ).toEqual({
+            orders: {
+                granularity: DateGranularity.WEEK,
+                xAxisFieldId: 'orders_shipped_at',
+            },
+        });
     });
 
     test('returns the parameter values each node query ran with', async () => {
