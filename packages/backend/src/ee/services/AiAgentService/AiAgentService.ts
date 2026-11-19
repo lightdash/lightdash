@@ -17868,7 +17868,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                             user,
                             projectUuid: prompt.projectUuid,
                             agentUuid: agentSettings.uuid,
+                            // Studio's loadout takes no MCP tools, so its turns do not wait on those servers.
                             includeAttachedMcpServers:
+                                !isSemanticStudioThread &&
                                 shouldIncludeAttachedMcpServers(
                                     responseExecution.mode,
                                     responseExecution.mode === 'deep_research'
@@ -17929,14 +17931,16 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         user,
                         featureFlagId: FeatureFlags.AiFilterExpressions,
                     });
+                // Studio's chat offers a change as a choice, so its threads ask without the flag.
                 const enableAskUser =
                     canOfferAskUser(prompt, responseExecution.mode) &&
-                    (
-                        await this.featureFlagService.get({
-                            user,
-                            featureFlagId: FeatureFlags.AiAgentAskUser,
-                        })
-                    ).enabled;
+                    (isSemanticStudioThread ||
+                        (
+                            await this.featureFlagService.get({
+                                user,
+                                featureFlagId: FeatureFlags.AiAgentAskUser,
+                            })
+                        ).enabled);
                 // A dbt project keeps no draft in Semantic Studio; its thread edits the repository instead.
                 const semanticStudioStatus = isSemanticStudioThread
                     ? await this.semanticStudioService.getStatus(
