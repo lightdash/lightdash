@@ -1,3 +1,10 @@
+# [3.329.0](https://github.com/lightdash/lightdash/compare/3.328.3...3.329.0) (2026-11-19)
+
+
+### Features
+
+* **analytics:** add agent evaluation reporting ([#32945](https://github.com/lightdash/lightdash/issues/32945)) ([6b55419](https://github.com/lightdash/lightdash/commit/6b55419c456445255274cb0c3be0c02d4169f11e))
+
 ## [3.328.3](https://github.com/lightdash/lightdash/compare/3.328.2...3.328.3) (2026-11-19)
 
 
