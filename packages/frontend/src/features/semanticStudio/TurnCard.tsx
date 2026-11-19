@@ -19,7 +19,7 @@ import {
 import { useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
-import { type ChangeKind } from './modelCode';
+import { CHANGE_COLORS, type ChangeKind } from './modelCode';
 import { ISSUE_KINDS, type Issue } from './proposalIssues';
 import { TaskIcon, type TaskState } from './TaskRow';
 import classes from './TurnSummaryCard.module.css';
@@ -39,6 +39,8 @@ export type TurnRow = {
 
 export type TurnGroup = {
     model: string;
+    /** What happened to the model as a whole. */
+    change: ChangeKind;
     title: string;
     subtitle: string | null;
     rows: TurnRow[];
@@ -177,7 +179,14 @@ export const TurnCard: FC<{
                 <>
                     <Box className={classes.body}>
                         {groups.map(
-                            ({ model, title, subtitle, rows, issues }) =>
+                            ({
+                                model,
+                                change,
+                                title,
+                                subtitle,
+                                rows,
+                                issues,
+                            }) =>
                                 rows.length === 0 &&
                                 issues.length === 0 &&
                                 !subtitle ? null : (
@@ -189,7 +198,7 @@ export const TurnCard: FC<{
                                         >
                                             <MantineIcon
                                                 icon={IconTable}
-                                                color="dimmed"
+                                                color={CHANGE_COLORS[change]}
                                             />
                                             <Text
                                                 fz="sm"
@@ -272,7 +281,7 @@ export const TurnCard: FC<{
                                 <Box className={classes.icon}>
                                     <MantineIcon
                                         icon={IconInfoCircle}
-                                        color="dimmed"
+                                        color="yellow"
                                     />
                                 </Box>
                                 <Text
@@ -327,7 +336,7 @@ export const TurnCard: FC<{
                                 >
                                     <MantineIcon
                                         icon={IconBulb}
-                                        color="dimmed"
+                                        color="indigo"
                                     />
                                     <Text fz="sm" c="dimmed">
                                         You could ask next
@@ -341,7 +350,7 @@ export const TurnCard: FC<{
                                             key={option}
                                             size="compact-sm"
                                             variant="light"
-                                            color="gray"
+                                            color="indigo"
                                             maw="100%"
                                             title={option}
                                             onClick={() => onAsk(option)}

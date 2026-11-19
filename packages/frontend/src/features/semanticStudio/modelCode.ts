@@ -123,6 +123,13 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
     removed: 'Removed',
 };
 
+/** The colour of a change, as the diff beside the chat paints it; a changed thing stays quiet. */
+export const CHANGE_COLORS: Record<ChangeKind, string> = {
+    new: 'green',
+    changed: 'dimmed',
+    removed: 'red',
+};
+
 /** What an applied change did to a model, as its history reads it. */
 export const CHANGE_KIND_VERBS: Record<ChangeKind, string> = {
     new: 'Created',

@@ -7,10 +7,12 @@ import {
 import { Button } from '@mantine/core';
 import {
     IconAlertTriangle,
+    IconArrowsJoin,
     IconCircleCheck,
     IconCircleMinus,
     IconGitBranch,
     IconGitPullRequest,
+    IconTable,
     IconTrash,
 } from '@tabler/icons-react';
 import { lazy, Suspense, useEffect, useState, type FC } from 'react';
@@ -23,6 +25,7 @@ import {
     describeModelChange,
     DRAFT_PARAM,
     DRAFT_REVIEW,
+    CHANGE_COLORS,
     CHANGE_KIND_LABELS,
     getChangeKind,
     type ChangeKind,
@@ -83,6 +86,7 @@ const describeWholeModel = (subtitle: string | null): string | null => {
 
 type ModelGroup = {
     model: string;
+    change: ChangeKind;
     title: string;
     subtitle: string | null;
     removed: boolean;
@@ -127,6 +131,7 @@ const groupByModel = (proposals: SemanticLayerProposal[]): ModelGroup[] => {
             model,
             title,
             subtitle: describeWholeModel(subtitle),
+            change: span === null ? 'changed' : getChangeKind(span),
             removed: span !== null && getChangeKind(span) === 'removed',
             fields: [...fields.values()],
         };
@@ -383,7 +388,12 @@ export const TurnSummaryCard: FC<{
                           status: "Draft doesn't compile",
                       }
                     : {
-                          icon: <MantineIcon icon={IconGitBranch} />,
+                          icon: (
+                              <MantineIcon
+                                  icon={IconGitBranch}
+                                  color="indigo"
+                              />
+                          ),
                           status: 'Saved to your draft',
                       };
             case 'published':
@@ -449,38 +459,55 @@ export const TurnSummaryCard: FC<{
                     </ConfirmDeleteButton>
                 ) : null
             }
-            groups={groups.map(({ model, title, subtitle, fields }) => ({
-                model,
-                title,
-                subtitle,
-                rows: fields.map((field) => ({
-                    id: `${field.kind}:${field.name}`,
-                    change: field.change,
-                    action: ACTIONS[field.kind][field.change],
-                    icon: <FieldChangeIcon field={field} />,
-                    label: (() => {
-                        // A model's own keys have no name of their own to show.
-                        if (field.kind === 'model') {
-                            return `its ${field.detail ?? 'settings'}`;
-                        }
-                        // A join to a model this turn touched reads by that model's name.
-                        if (field.kind === 'join') {
-                            return (
-                                groups.find((g) => g.model === field.name)
-                                    ?.title ?? field.label
-                            );
-                        }
-                        return field.label;
-                    })(),
-                    // How it is defined waits on hover and in the review; the card names what changed.
-                    detail: null,
-                    title: [field.name, field.detail]
-                        .filter(Boolean)
-                        .join(' · '),
-                    to: fieldUrl(model, field),
-                })),
-                issues: issues.filter((issue) => issue.model === model),
-            }))}
+            groups={groups.map(
+                ({ model, change, title, subtitle, fields }) => ({
+                    model,
+                    change,
+                    title,
+                    subtitle,
+                    rows: fields.map((field) => ({
+                        id: `${field.kind}:${field.name}`,
+                        change: field.change,
+                        action: ACTIONS[field.kind][field.change],
+                        // A field keeps the Explorer's own icon; a join or a model key takes its change's colour.
+                        icon:
+                            field.kind === 'dimension' ||
+                            field.kind === 'metric' ? (
+                                <FieldChangeIcon field={field} />
+                            ) : (
+                                <MantineIcon
+                                    icon={
+                                        field.kind === 'join'
+                                            ? IconArrowsJoin
+                                            : IconTable
+                                    }
+                                    color={CHANGE_COLORS[field.change]}
+                                />
+                            ),
+                        label: (() => {
+                            // A model's own keys have no name of their own to show.
+                            if (field.kind === 'model') {
+                                return `its ${field.detail ?? 'settings'}`;
+                            }
+                            // A join to a model this turn touched reads by that model's name.
+                            if (field.kind === 'join') {
+                                return (
+                                    groups.find((g) => g.model === field.name)
+                                        ?.title ?? field.label
+                                );
+                            }
+                            return field.label;
+                        })(),
+                        // How it is defined waits on hover and in the review; the card names what changed.
+                        detail: null,
+                        title: [field.name, field.detail]
+                            .filter(Boolean)
+                            .join(' · '),
+                        to: fieldUrl(model, field),
+                    })),
+                    issues: issues.filter((issue) => issue.model === model),
+                }),
+            )}
             safety={safety}
             note={
                 isDraft
