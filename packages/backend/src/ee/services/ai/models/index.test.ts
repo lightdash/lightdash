@@ -1119,7 +1119,7 @@ describe('custom OpenAI-compatible gateway models', () => {
         expect(model.modelId).toBe(customModelName);
     });
 
-    it('sends custom models stateless without asking for encrypted reasoning', async () => {
+    it('sends non-reasoning gateway models stateless without asking for encrypted reasoning', async () => {
         const { model, providerOptions } = getModel(
             gatewayConfig({ modelName: customModelName }),
         );
