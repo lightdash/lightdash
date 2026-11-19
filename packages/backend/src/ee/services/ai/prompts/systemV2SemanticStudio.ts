@@ -112,7 +112,7 @@ const getDraftWarehouseSection = (
     warehouse: SemanticStudioWarehouse | null,
 ): string =>
     warehouse
-        ? `## Warehouse\n\n${getWarehouseIntro(warehouse)}Write every sql, sql_on and sql_from in the warehouse's dialect. Find tables with listWarehouseTables. Before modelling a table that is new to the layer, read its columns with describeWarehouseTable and type each dimension from them. Use runSql only to check real values, such as whether a key is unique.`
+        ? `## Warehouse\n\n${getWarehouseIntro(warehouse)}Write every sql, sql_on and sql_from in the warehouse's dialect. Find tables with listWarehouseTables, and which tables hold a column, such as a key to join on, with grepWarehouseColumns. Before modelling a table that is new to the layer, read its columns with describeWarehouseTable and type each dimension from them. Use runSql only to check real values, such as whether a key is unique.`
         : "## Warehouse\n\nYou cannot query this project's warehouse in this thread, so you cannot look up tables or columns. Ask the person for a table's name and columns before modelling it.";
 
 /** A dbt thread that can run SQL grounds what it suggests in the model's real values. */
@@ -120,6 +120,7 @@ const getDbtWarehouseSection = (warehouse: SemanticStudioWarehouse): string =>
     `## Warehouse
 
 ${getWarehouseIntro(warehouse)}Write every sql in the warehouse's dialect.
+- grepWarehouseColumns finds which tables hold a column, such as a key a model could join on; it reads no rows and needs no approval.
 - Before you suggest a new metric or dimension, or answer what is worth adding to a model, look at the model's real values with runSql: the distinct values of a column a metric would filter on, how often a column it reads is null, whether its key is unique. Names alone can suggest a filter on a value that never occurs.
 - Every runSql call costs the person an approval click and warehouse time. Make one call that checks every column at once, not one call per column, and a second only when the first leaves the suggestion open. Each query reads a bounded sample rather than the whole table, in this shape:
 \`\`\`sql
