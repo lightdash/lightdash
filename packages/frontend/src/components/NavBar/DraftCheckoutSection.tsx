@@ -27,7 +27,7 @@ export const DraftCheckoutSection: FC<{
             className={classes.draftSection}
             gap="sm"
             wrap="nowrap"
-            align="flex-start"
+            align="center"
         >
             <MantineIcon
                 icon={IconGitBranch}
@@ -39,12 +39,8 @@ export const DraftCheckoutSection: FC<{
                 <Text fz="xs" fw={600} lineClamp={2}>
                     {checkout.name}
                 </Text>
-                <Text fz="xs" c="dimmed">
-                    Only you see this draft. Explore and dashboards show its
-                    changes.
-                </Text>
                 {compileState ? (
-                    <Text fz="xs" c="dimmed" mt={4}>
+                    <Text fz="xs" c="dimmed">
                         {compileState}{' '}
                         {compile?.status === 'failed' ? (
                             <Anchor
