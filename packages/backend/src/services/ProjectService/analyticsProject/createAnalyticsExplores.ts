@@ -13,6 +13,7 @@ import {
     type UncompiledExplore,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+import { agentEvaluationRunColumns } from '../../../analytics/eventStream/agentEvaluationRuns';
 import { contentInventoryColumns } from '../../../analytics/eventStream/contentInventory';
 import { peopleMembershipColumns } from '../../../analytics/eventStream/peopleMembership';
 import { compactedStreamSchemas } from '../../../analytics/eventStream/registry';
@@ -20,7 +21,6 @@ import type { CompactedColumnType } from '../../../analytics/eventStream/types';
 import {
     usageDimensionSchemas,
     usageDimensionTable,
-    type UsageDimensionName,
 } from '../../../analytics/eventStream/usageDimensions';
 import { historicalActivityColumns } from '../../../analytics/eventStream/usageHistorySources';
 import {
@@ -121,6 +121,7 @@ export const analyticsExploreNames = [
     'agent_requests',
     'agent_request_starts',
     'agent_request_events',
+    'agent_evaluation_runs',
     'semantic_usage',
     'data_app_reach',
     'data_app_outcomes',
@@ -237,6 +238,45 @@ export const createAnalyticsExplores = (): Explore[] => {
                     ? agentRequestStartsMetrics
                     : agentRequestsMetrics,
             },
+            agent_evaluation_runs: {
+                columns: agentEvaluationRunColumns,
+                metrics: [
+                    {
+                        name: 'total_runs',
+                        type: MetricType.COUNT,
+                        column: 'run_id',
+                        description: 'Completed and failed evaluation runs.',
+                    },
+                    {
+                        name: 'passed_assessments',
+                        type: MetricType.SUM,
+                        column: 'passed_count',
+                        description:
+                            'Passing assessments; human and AI assessments count separately.',
+                    },
+                    {
+                        name: 'failed_assessments',
+                        type: MetricType.SUM,
+                        column: 'failed_count',
+                        description:
+                            'Failing assessments; human and AI assessments count separately.',
+                    },
+                    {
+                        name: 'unassessed_results',
+                        type: MetricType.SUM,
+                        column: 'unassessed_count',
+                        description:
+                            'Completed prompt results without an assessment.',
+                    },
+                    {
+                        name: 'execution_errors',
+                        type: MetricType.SUM,
+                        column: 'execution_error_count',
+                        description:
+                            'Prompt results that failed to execute, not failed assessments.',
+                    },
+                ],
+            },
             agent_request_events: {
                 columns: compactedStreamSchemas.agent_request_events,
                 metrics: [
@@ -262,6 +302,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             name === 'content_inventory' ||
             name === 'agent_requests' ||
             name === 'agent_request_events' ||
+            name === 'agent_evaluation_runs' ||
             name === 'data_app_reach' ||
             name === 'data_app_outcomes' ||
             name === 'people_adoption' ||
@@ -371,6 +412,18 @@ export const createAnalyticsExplores = (): Explore[] => {
                 sql: '1.0 * SUM(CASE WHEN ${feedback_score} = -1 THEN 1 ELSE 0 END) / NULLIF(COUNT(${feedback_score}), 0)',
             };
         }
+        if (name === 'agent_evaluation_runs') {
+            metrics.pass_rate = {
+                ...base,
+                name: 'pass_rate',
+                label: 'Assessment pass rate',
+                description:
+                    'Passing assessments divided by all assessments. Runs without assessments have no rate.',
+                type: MetricType.NUMBER,
+                formatOptions: { type: CustomFormatType.PERCENT, round: 1 },
+                sql: '1.0 * SUM(${passed_count}) / NULLIF(SUM(${passed_count} + ${failed_count}), 0)',
+            };
+        }
         const table = {
             name: tableName,
             label,
@@ -388,6 +441,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                           content_health: contentHealthSql,
                           content_inventory: '"lightdash_content"',
                           agent_requests: agentRequestsSql,
+                          agent_evaluation_runs: `"${usageDimensionTable('agent_evaluation_runs')}"`,
                           semantic_usage: semanticUsageSql,
                           data_app_reach: dataAppReachSql,
                           data_app_outcomes: dataAppOutcomesSql,
@@ -564,6 +618,17 @@ export const createAnalyticsExplores = (): Explore[] => {
         if (name === 'agent_requests') {
             metrics.total_requests.label = 'Agent questions';
         }
+        if (name === 'agent_evaluation_runs') {
+            for (const column of [
+                'org_id',
+                'passed_count',
+                'failed_count',
+                'unassessed_count',
+                'execution_error_count',
+            ]) {
+                table.dimensions[column].hidden = true;
+            }
+        }
         if (name === 'ai_usage') {
             metrics.total_ai_calls.label = 'AI model calls';
         }
@@ -582,8 +647,7 @@ export const createAnalyticsExplores = (): Explore[] => {
     return analyticsExploreNames.map((exploreName) => {
         const startsOnly = exploreName === 'agent_request_starts';
         const name = startsOnly ? 'agent_requests' : exploreName;
-        const dimensions: Exclude<UsageDimensionName, 'content' | 'people'>[] =
-            [];
+        const dimensions: (keyof typeof dimensionFields)[] = [];
         if (
             name === 'query_events' ||
             name === 'export_events' ||

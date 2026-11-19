@@ -3564,6 +3564,29 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         });
     }
 
+    async getSchemaColumns(
+        schemas: { database: string; schema: string }[],
+    ): Promise<WarehouseCatalog> {
+        if (schemas.length === 0) return {};
+        return this.withSession(async (db) => {
+            const result = await db.run(
+                `SELECT table_catalog, table_schema, table_name, column_name, data_type
+                 FROM information_schema.columns
+                 WHERE ${schemas
+                     .map(
+                         ({ database, schema }) =>
+                             `(table_catalog = '${this.escapeString(database)}' AND table_schema = '${this.escapeString(schema)}')`,
+                     )
+                     .join(' OR ')}`,
+            );
+            return this.parseWarehouseCatalog(
+                await result.getRowObjects(),
+                mapFieldTypeFromString,
+                getDuckdbTimestampDomainFromString,
+            );
+        });
+    }
+
     async getAllTables(
         schema?: string,
         tags?: Record<string, string>,

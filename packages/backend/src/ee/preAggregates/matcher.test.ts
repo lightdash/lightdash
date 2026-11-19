@@ -3132,7 +3132,7 @@ describe('findMatch', () => {
         });
     });
 
-    it('returns table_calculation_present when a SQL table calculation exists', () => {
+    it('matches when a SQL table calculation references covered fields', () => {
         const explore = {
             ...baseExplore(),
             preAggregates: [
@@ -3152,20 +3152,21 @@ describe('findMatch', () => {
                     {
                         name: 'calc_1',
                         displayName: 'Calc',
-                        sql: '1',
+                        sql: '${orders.order_count} - pivot_offset(${orders.order_count}, -1)',
                     },
                 ],
             }),
             explore,
         );
 
-        expect(result.miss).toStrictEqual({
-            reason: PreAggregateMissReason.TABLE_CALCULATION_PRESENT,
-            fieldId: 'calc_1',
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_summary',
+            miss: null,
         });
     });
 
-    it('returns table_calculation_present when SQL and semantic table calculations are mixed', () => {
+    it('matches when SQL and semantic table calculations are mixed', () => {
         const explore = {
             ...baseExplore(),
             preAggregates: [
@@ -3193,16 +3194,51 @@ describe('findMatch', () => {
                     {
                         name: 'calc_sql',
                         displayName: 'SQL calc',
-                        sql: '1',
+                        sql: '${orders.order_count} * 2',
                     },
                 ],
             }),
             explore,
         );
 
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_summary',
+            miss: null,
+        });
+    });
+
+    it('reports the uncovered metric, not the SQL table calculation that uses it', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_summary',
+                    dimensions: ['status'],
+                    metrics: ['order_count'],
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_status'],
+                metrics: ['orders_total_order_amount'],
+                tableCalculations: [
+                    {
+                        name: 'calc_sql',
+                        displayName: 'SQL calc',
+                        sql: '${orders.total_order_amount} * 2',
+                    },
+                ],
+            }),
+            explore,
+        );
+
+        expect(result.hit).toBe(false);
         expect(result.miss).toStrictEqual({
-            reason: PreAggregateMissReason.TABLE_CALCULATION_PRESENT,
-            fieldId: 'calc_sql',
+            reason: PreAggregateMissReason.METRIC_NOT_IN_PRE_AGGREGATE,
+            fieldId: 'orders_total_order_amount',
         });
     });
 

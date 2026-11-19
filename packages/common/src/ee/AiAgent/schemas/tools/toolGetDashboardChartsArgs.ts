@@ -18,7 +18,7 @@ export const toolGetDashboardChartsArgsSchema = createToolSchema()
             ),
         dashboardName: z
             .string()
-            .optional()
+            .nullish()
             .describe(
                 'The name of the dashboard (for display purposes). Obtained from findContent results.',
             ),

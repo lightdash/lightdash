@@ -4,16 +4,23 @@ import {
     Group,
     Text,
     Tooltip,
+    UnstyledButton,
     useComputedColorScheme,
 } from '@mantine/core';
 import { PatchDiff, Virtualizer } from '@pierre/diffs/react';
-import { IconArrowsDiagonal, IconFileDiff } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import {
+    IconArrowsDiagonal,
+    IconChevronDown,
+    IconChevronRight,
+    IconFileDiff,
+} from '@tabler/icons-react';
+import { useContext, useState, type FC } from 'react';
 import { type CustomRendererProps } from 'streamdown';
 import { AiMarkdownErrorBoundary } from '../../../../../components/common/AiMarkdown/AiMarkdownErrorBoundary';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import classes from './DiffMarkdownCodeBlock.module.css';
+import { QuietCardsContext } from './ToolCalls/quietCards';
 import { recountHunks } from './ToolCalls/splitPatch';
 
 const PlainDiff: FC<{ code: string }> = ({ code }) => (
@@ -62,6 +69,9 @@ export const DiffMarkdownCodeBlock: FC<CustomRendererProps> = ({
     isIncomplete,
 }) => {
     const [isExpanded, setIsExpanded] = useState(false);
+    // A narrow panel shows each file as one line, opened at a click.
+    const quiet = useContext(QuietCardsContext);
+    const [isOpen, setIsOpen] = useState(!quiet);
     // With git's a/ and b/ prefixes the header reads as a rename of the file onto itself.
     const patch = recountHunks(
         code.replace(/^--- a\//gm, '--- ').replace(/^\+\+\+ b\//gm, '+++ '),
@@ -78,9 +88,23 @@ export const DiffMarkdownCodeBlock: FC<CustomRendererProps> = ({
         <Box className={classes.block}>
             {path ? (
                 <Group className={classes.header} gap="xs" wrap="nowrap">
-                    <Group gap={6} wrap="nowrap" miw={0}>
+                    <Group
+                        component={quiet ? UnstyledButton : undefined}
+                        gap={6}
+                        wrap="nowrap"
+                        miw={0}
+                        flex={1}
+                        aria-expanded={quiet ? isOpen : undefined}
+                        onClick={quiet ? () => setIsOpen(!isOpen) : undefined}
+                    >
                         <MantineIcon
-                            icon={IconFileDiff}
+                            icon={
+                                !quiet
+                                    ? IconFileDiff
+                                    : isOpen
+                                      ? IconChevronDown
+                                      : IconChevronRight
+                            }
                             size={14}
                             color="dimmed"
                         />
@@ -116,7 +140,7 @@ export const DiffMarkdownCodeBlock: FC<CustomRendererProps> = ({
                     </Group>
                 </Group>
             ) : null}
-            {isIncomplete || !isPatch ? (
+            {path && !isOpen ? null : isIncomplete || !isPatch ? (
                 <PlainDiff code={code} />
             ) : (
                 <Diff code={code} patch={patch} overflow="scroll" />

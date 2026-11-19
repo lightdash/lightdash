@@ -4582,6 +4582,7 @@ export class AsyncQueryService extends ProjectService {
         executionExplore,
         fieldsMap,
         pivotConfiguration,
+        pivotDimensions,
         startOfWeek,
         userAccessControls,
         availableParameterDefinitions,
@@ -4601,6 +4602,7 @@ export class AsyncQueryService extends ProjectService {
         executionExplore?: (name: string) => Promise<Explore>;
         fieldsMap: ItemsMap;
         pivotConfiguration?: PivotConfiguration;
+        pivotDimensions?: string[];
         startOfWeek: CreateWarehouseCredentials['startOfWeek'];
         userAccessControls?: UserAccessControls;
         availableParameterDefinitions?: ParameterDefinitions;
@@ -4628,6 +4630,7 @@ export class AsyncQueryService extends ProjectService {
                 parameters,
                 fieldsMap,
                 pivotConfiguration,
+                pivotDimensions,
                 startOfWeek,
                 userAccessControls,
                 availableParameterDefinitions,
@@ -7533,6 +7536,8 @@ export class AsyncQueryService extends ProjectService {
                               executionExplore,
                               fieldsMap,
                               pivotConfiguration,
+                              pivotDimensions:
+                                  queryComposer.getPivotDimensions(),
                               startOfWeek: warehouseCredentials.startOfWeek,
                               userAccessControls:
                                   queryComposer.getUserAccessControls(),
@@ -10318,8 +10323,9 @@ export class AsyncQueryService extends ProjectService {
         tileUuid: string;
         dashboardFilters: DashboardFilters;
         chartSavedValues: ParametersValuesMap;
-        parameters: ParametersValuesMap;
-        excludedParameterKeys: string[];
+        // Undefined: the dashboard's saved parameter state, as for a run with no app state.
+        parameters: ParametersValuesMap | undefined;
+        excludedParameterKeys: string[] | undefined;
     }): Promise<
         Pick<
             DashboardTileParameterInputs,

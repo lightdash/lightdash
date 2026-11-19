@@ -185,6 +185,8 @@ const makeTurns = ({
             runSavedChartQuery: vi.fn(),
             getSavedChart: vi.fn(),
             getSqlChart: vi.fn(),
+            getComposerChart: vi.fn(),
+            runComposerChartQuery: vi.fn(),
             runSqlChartQuery: vi.fn(),
             validateContent: vi.fn(),
             maxLimit: 5000,
@@ -203,6 +205,7 @@ const makeTurns = ({
             sqlChartSaving,
         }),
         editContent: getEditContent({
+            prepareComposerChartEdit: null,
             siteUrl: 'https://app.lightdash.cloud',
             editContent,
             sqlChartSaving,

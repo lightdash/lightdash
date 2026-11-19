@@ -11,7 +11,7 @@ import { useRef } from 'react';
 import { type StoredThread } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import { getAiAgentApiBase } from '../../ee/features/aiCopilot/hooks/aiAgentRouting';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
-import { WORKSPACES_KEY } from './useStudioWorkspaces';
+import { WORKSPACES_KEY } from './useSemanticLayerModel';
 
 const SOURCES_KEY = 'semantic-studio-sources';
 
@@ -109,6 +109,9 @@ export const useSaveStudioSource = (projectUuid: string) => {
             void queryClient.invalidateQueries({ queryKey: [SOURCES_KEY] });
             void queryClient.invalidateQueries({
                 queryKey: ['pullRequestDiff', projectUuid],
+            });
+            void queryClient.invalidateQueries({
+                queryKey: ['pullRequestCiChecks', projectUuid],
             });
             void queryClient.invalidateQueries({
                 queryKey: [WORKSPACES_KEY, projectUuid],

@@ -690,6 +690,14 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog>;
 
+    /**
+     * The top-level columns of every table in these schemas, in one request per
+     * schema or fewer. Absent where the warehouse can only be read table by table.
+     */
+    getSchemaColumns?(
+        schemas: { database: string; schema: string }[],
+    ): Promise<WarehouseCatalog>;
+
     // null when the table has no partitions or the warehouse does not report them
     getTablePartitioning(
         tableName: string,

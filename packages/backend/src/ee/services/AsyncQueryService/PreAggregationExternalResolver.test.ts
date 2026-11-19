@@ -5,9 +5,15 @@ import {
     FieldType,
     FilterOperator,
     MetricType,
+    SortByDirection,
     SupportedDbtAdapter,
+    TableCalculationType,
+    VizAggregationOptions,
+    VizIndexType,
     type Explore,
+    type ItemsMap,
     type MetricQuery,
+    type TableCalculation,
 } from '@lightdash/common';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
@@ -271,6 +277,139 @@ describe('PreAggregationExternalResolver', () => {
         if (!result.resolved) throw new Error('unreachable');
         expect(result.query).toContain('WHERE');
         expect(result.query).toContain('(orders.orders_status) IS NOT NULL');
+    });
+
+    test('compiles SQL table calculations on top of the aggregated metric', async () => {
+        const { resolver } = getResolver();
+
+        const result = await resolver.resolve({
+            ...baseResolveArgs,
+            metricQuery: {
+                ...metricQuery,
+                tableCalculations: [
+                    {
+                        name: 'double_amount',
+                        displayName: 'Double amount',
+                        sql: '${orders.total_order_amount} * 2',
+                    },
+                ],
+            },
+        });
+
+        expect(result.resolved).toBe(true);
+        if (!result.resolved) throw new Error('unreachable');
+        expect(result.query).toContain(`FROM ${EXTERNAL_TABLE} AS "orders"`);
+        expect(result.query).toContain(
+            '"orders_total_order_amount" * 2 AS "double_amount"',
+        );
+    });
+
+    test('compiles pivot_offset SQL table calculations for pivoted queries', async () => {
+        const explore: Explore = {
+            ...externalPreAggExplore,
+            tables: {
+                orders: {
+                    ...externalPreAggExplore.tables.orders,
+                    dimensions: {
+                        ...externalPreAggExplore.tables.orders.dimensions,
+                        order_date_day: {
+                            fieldType: FieldType.DIMENSION,
+                            type: DimensionType.DATE,
+                            name: 'order_date_day',
+                            label: 'Order date day',
+                            table: 'orders',
+                            tableLabel: 'Orders',
+                            sql: 'orders.orders_order_date_day',
+                            compiledSql: 'orders.orders_order_date_day',
+                            tablesReferences: ['orders'],
+                            hidden: false,
+                        },
+                    },
+                },
+            },
+        };
+        const { resolver } = getResolver({ explore });
+        const dailyDiff: TableCalculation = {
+            name: 'daily_diff',
+            displayName: 'Daily diff',
+            type: TableCalculationType.NUMBER,
+            sql: '${orders.total_order_amount} - pivot_offset(${orders.total_order_amount}, -1)',
+        };
+        const fieldsMap: ItemsMap = { daily_diff: dailyDiff };
+
+        const result = await resolver.resolve({
+            ...baseResolveArgs,
+            metricQuery: {
+                ...metricQuery,
+                dimensions: ['orders_order_date_day', 'orders_status'],
+                sorts: [{ fieldId: 'orders_order_date_day', descending: true }],
+                tableCalculations: [dailyDiff],
+            },
+            fieldsMap,
+            pivotConfiguration: {
+                indexColumn: [
+                    {
+                        reference: 'orders_status',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'orders_total_order_amount',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                    {
+                        reference: 'daily_diff',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'orders_order_date_day' }],
+                sortBy: [
+                    {
+                        reference: 'orders_order_date_day',
+                        direction: SortByDirection.DESC,
+                    },
+                ],
+            },
+        });
+
+        expect(result.resolved).toBe(true);
+        if (!result.resolved) throw new Error('unreachable');
+        expect(result.query).toContain(`FROM ${EXTERNAL_TABLE} AS "orders"`);
+        expect(result.query).toContain(
+            '"orders_total_order_amount_any" - CASE WHEN LAG("column_index", 1) OVER (PARTITION BY "row_index" ORDER BY "column_index") = "column_index" + (-1) THEN LAG("orders_total_order_amount_any", 1) OVER (PARTITION BY "row_index" ORDER BY "column_index") ELSE NULL END AS "daily_diff_any"',
+        );
+        expect(result.query).not.toContain('pivot_offset');
+    });
+
+    test('resolves row_total() from pivotDimensions when no pivotConfiguration is sent', async () => {
+        const { resolver } = getResolver();
+        const share: TableCalculation = {
+            name: 'share',
+            displayName: 'Share',
+            type: TableCalculationType.NUMBER,
+            sql: '${orders.total_order_amount} / row_total(${orders.total_order_amount})',
+        };
+
+        const result = await resolver.resolve({
+            ...baseResolveArgs,
+            metricQuery: {
+                ...metricQuery,
+                tableCalculations: [share],
+            },
+            fieldsMap: { share },
+            pivotConfiguration: undefined,
+            pivotDimensions: ['orders_status'],
+        });
+
+        expect(result.resolved).toBe(true);
+        if (!result.resolved) throw new Error('unreachable');
+        expect(result.query).toContain(
+            '"orders_total_order_amount__row_total"',
+        );
+        expect(result.query).not.toContain(
+            '"orders_total_order_amount" / "orders_total_order_amount"',
+        );
     });
 
     test('returns unresolved when pre-aggregates are disabled', async () => {

@@ -324,9 +324,14 @@ vi.mock('../src/ee/pages/AiAgents/AgentPage', async () => {
 
     return {
         default: function MockAgentPage() {
-            const { agentUuid, projectUuid } = useParams();
+            const { agentUuid, projectUuid, threadUuid } = useParams();
             const isEmbedded = useIsEmbedded();
-            useEmitEmbedAgentContentEvents({ projectUuid, agentUuid });
+            useEmitEmbedAgentContentEvents({
+                projectUuid,
+                agentUuid,
+                threadUuid,
+                thread: undefined,
+            });
             return (
                 <div
                     data-testid="agent-page"

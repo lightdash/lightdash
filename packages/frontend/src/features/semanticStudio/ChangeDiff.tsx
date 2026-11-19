@@ -9,6 +9,8 @@ const YAML_KEY = /^(\s*(?:- )?[^\s:]+:)(.*)$/;
 
 const PEEK_LINES = 4;
 
+const CONTEXT_LINES = { full: 2, compact: 1, peek: 1, whole: 100_000 };
+
 const PlainYaml: FC<{ content: string; isPeek: boolean }> = ({
     content,
     isPeek,
@@ -48,18 +50,21 @@ const PlainYaml: FC<{ content: string; isPeek: boolean }> = ({
     );
 };
 
-/** A model's YAML diff. `compact` fits the agent panel, where a new file reads as plain YAML; `peek` starts a new model's YAML at its metrics. */
+/** A model's YAML diff. `compact` fits the agent panel, where a new file reads as plain YAML; `peek` starts a new model's YAML at its metrics; `whole` keeps every line of the file. */
 export const ChangeDiff: FC<{
     modelName: string;
     change: Pick<SemanticLayerModelChange, 'contentBefore' | 'contentAfter'>;
-    variant: 'full' | 'compact' | 'peek';
+    variant: 'full' | 'compact' | 'peek' | 'whole';
 }> = ({ modelName, change, variant }) => {
-    const compact = variant !== 'full';
+    const compact = variant === 'compact' || variant === 'peek';
     const colorScheme = useComputedColorScheme('light');
     const name = `${modelName}.yml`;
     const theme = colorScheme === 'dark' ? 'pierre-dark' : 'pierre-light';
     const viewport = {
-        className: classes.diffViewport,
+        className:
+            variant === 'whole'
+                ? `${classes.diffViewport} ${classes.whole}`
+                : classes.diffViewport,
         'data-compact': compact || undefined,
     };
     if (
@@ -76,7 +81,7 @@ export const ChangeDiff: FC<{
             </Box>
         );
     }
-    // Virtualizer is the scroll viewport.
+    // Virtualizer is the scroll viewport. The file's name colours it as YAML.
     return (
         <Virtualizer {...viewport}>
             {/* The diff does not redraw when its contents change under the same file name. */}
@@ -85,12 +90,10 @@ export const ChangeDiff: FC<{
                 oldFile={{
                     name,
                     contents: change.contentBefore ?? '',
-                    lang: 'text',
                 }}
                 newFile={{
                     name,
                     contents: change.contentAfter ?? '',
-                    lang: 'text',
                 }}
                 className={classes.diffHost}
                 options={{
@@ -100,7 +103,7 @@ export const ChangeDiff: FC<{
                     hunkSeparators: 'simple',
                     diffIndicators: 'bars',
                     lineDiffType: 'word',
-                    parseDiffOptions: { context: compact ? 1 : 2 },
+                    parseDiffOptions: { context: CONTEXT_LINES[variant] },
                     theme,
                 }}
             />

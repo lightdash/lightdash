@@ -118,6 +118,7 @@ const makeTool = (sqlChartSaving: SqlChartSaving) => {
     const { editContent, save } = makeEditContent();
     return {
         tool: getEditContent({
+            prepareComposerChartEdit: null,
             siteUrl: 'https://app.lightdash.cloud',
             editContent,
             sqlChartSaving,

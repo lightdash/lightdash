@@ -22,16 +22,25 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useState,
     type ComponentProps,
     type FC,
+    type RefObject,
 } from 'react';
+import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from '../../../components/common/ChartDownload/chartDownloadUtils';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import { DashboardExportImage } from '../../../components/DashboardTiles/DashboardExportImage';
 import ExportDataModal from '../../../components/DashboardTiles/ExportDataModal';
+import ExportImageModal from '../../../components/DashboardTiles/ExportImageModal';
 import TileBase from '../../../components/DashboardTiles/TileBase/index';
 import { TileFiltersPopover } from '../../../components/DashboardTiles/TileFiltersPopover';
 import { TileParametersPopover } from '../../../components/DashboardTiles/TileParametersPopover';
+import { type EChartsReact } from '../../../components/EChartsReactWrapper';
 import { NO_CELL_LIMITED_SCOPES } from '../../../components/ExportResults/exportCellEstimate';
+import { AskAiAgentButton } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
+import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
+import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
 import { useUiString } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardFiltersForTile from '../../../hooks/dashboard/useDashboardFiltersForTile';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -127,6 +136,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
     const { composerChartUuid } = tile.properties;
     const projectUuid = useProjectUuid();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
+    const isEmbedded = useIsEmbedded();
     const appliedParameterValues = useDashboardSelector(selectParameterValues);
     const {
         dashboardValues: parameters,
@@ -304,6 +314,21 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
     const viewLineage = useUiString('tileMenu.viewLineage');
     const [lineageOpened, { open: openLineage, close: closeLineage }] =
         useDisclosure(false);
+    const [echartRef, setEchartRef] = useState<
+        RefObject<EChartsReact | null> | undefined
+    >();
+    const [
+        imageExportOpened,
+        { open: openImageExport, close: closeImageExport },
+    ] = useDisclosure(false);
+    // Same rule as the classic chart tile; needs the chart drawn to capture it
+    const canExportImage =
+        canExportData &&
+        !minimal &&
+        errorMessage === null &&
+        results.hasFetchedAllRows &&
+        !!readyDraw &&
+        !CHART_TYPES_WITHOUT_IMAGE_EXPORT.includes(readyDraw.chartConfig.type);
     const exportQueryUuid =
         errorMessage === null && results.hasFetchedAllRows
             ? displayedQueryUuid
@@ -317,9 +342,26 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
         [markTileScreenshotErrored, tile.uuid],
     );
 
+    const askAiProps =
+        !minimal && !isEmbedded && composerChartUuid
+            ? ({
+                  projectUuid,
+                  composerChartUuid,
+                  dashboardUuid,
+                  clickedFrom: 'dashboard_composer_chart_tile',
+              } as const)
+            : null;
+    const askAiTileActions = askAiProps
+        ? {
+              titleLeftIcon: <AskAiAgentButton {...askAiProps} />,
+              mobileMenuItems: <AskAiAgentMenuItem {...askAiProps} />,
+          }
+        : {};
+
     return (
         <TileBase
             {...props}
+            {...askAiTileActions}
             title={title}
             chartName={tile.properties.chartName ?? undefined}
             isLoading={isLoading}
@@ -350,6 +392,12 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                         >
                             {downloadData}
                         </Menu.Item>
+                    )}
+                    {canExportImage && (
+                        <DashboardExportImage
+                            onClick={openImageExport}
+                            isMinimal={false}
+                        />
                     )}
                 </>
             }
@@ -400,6 +448,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                             rows={rows}
                             onScreenshotReady={handleScreenshotReady}
                             onScreenshotError={handleScreenshotError}
+                            setEchartsRef={setEchartRef}
                         />
                     </Sentry.ErrorBoundary>
                 )
@@ -443,6 +492,14 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                     chartName={title}
                     hideLimitSelection
                     cellLimitedScopes={NO_CELL_LIMITED_SCOPES}
+                />
+            )}
+            {canExportImage && (
+                <ExportImageModal
+                    echartRef={echartRef}
+                    chartName={title}
+                    isOpen={imageExportOpened}
+                    onClose={closeImageExport}
                 />
             )}
         </TileBase>

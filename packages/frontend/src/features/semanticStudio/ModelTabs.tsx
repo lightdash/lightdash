@@ -21,6 +21,7 @@ import {
     PIERRE_POOL_OPTIONS,
 } from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
 import useHealth from '../../hooks/health/useHealth';
+import useToaster from '../../hooks/toaster/useToaster';
 import { ChangeDiff } from './ChangeDiff';
 import {
     CHANGE_KIND_VERBS,
@@ -68,6 +69,9 @@ export const ModelCodeView: FC<{
     const block =
         fieldName && content ? findFieldBlock(content, fieldName) : null;
     const line = block?.start ?? null;
+    // A changed file shows the draft's lines marked; a new one would be marked whole, and a field asked for is shown alone.
+    const marksDraft =
+        drafted !== null && drafted.contentBefore !== null && block === null;
     const editor = useRef<HTMLDivElement>(null);
     // The viewer marks the line but does not bring it into view, and it renders after this does.
     useEffect(() => {
@@ -97,28 +101,27 @@ export const ModelCodeView: FC<{
     }
     return (
         <Box className={classes.codePane}>
-            <Group
-                className={classes.codeToolbar}
-                justify="space-between"
-                wrap="nowrap"
-            >
-                <Text fz="xs" c="dimmed" truncate>
-                    {modelName}.yml
-                    {isDraft
-                        ? ', not published yet'
-                        : `, version ${model?.version}`}
-                </Text>
-                <Group gap="xs" wrap="nowrap" flex="none">
-                    {content !== null ? (
-                        <CopyActionIcon value={content} copyLabel="Copy YAML" />
-                    ) : null}
-                </Group>
-            </Group>
+            {content !== null ? (
+                <Box className={classes.codeCopy}>
+                    <CopyActionIcon value={content} copyLabel="Copy YAML" />
+                </Box>
+            ) : null}
             <Box className={classes.codeEditor} ref={editor}>
                 {content === null ? (
                     <Text fz="sm" c="dimmed" p="md">
-                        This change removes this model.
+                        This draft removes this model.
                     </Text>
+                ) : marksDraft ? (
+                    <WorkerPoolContextProvider
+                        poolOptions={PIERRE_POOL_OPTIONS}
+                        highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
+                    >
+                        <ChangeDiff
+                            modelName={modelName}
+                            change={drafted}
+                            variant="whole"
+                        />
+                    </WorkerPoolContextProvider>
                 ) : (
                     <WorkerPoolContextProvider
                         poolOptions={PIERRE_POOL_OPTIONS}
@@ -153,6 +156,8 @@ const HistoryPane: FC<{
     history: SemanticLayerModelChange[];
 }> = ({ projectUuid, modelName, history }) => {
     const undo = useUndoSemanticLayerChanges(projectUuid);
+    const { showToastSuccess } = useToaster();
+    const [armed, setArmed] = useState<string | null>(null);
     const { shown } = useStudioCheckout();
     const [, setSearchParams] = useSearchParams();
     const unpublished = findCheckedOutModel(shown, modelName);
@@ -178,7 +183,7 @@ const HistoryPane: FC<{
                 <Paper variant="dotted" p="sm" mb="sm">
                     <Group gap="sm" justify="space-between" wrap="nowrap">
                         <Box miw={0}>
-                            <Text fz="sm">Your changes in development</Text>
+                            <Text fz="sm">In your draft</Text>
                             <Text fz="xs" c="dimmed">
                                 Not live. Only you see them until you publish;
                                 everything below is live.
@@ -242,11 +247,24 @@ const HistoryPane: FC<{
                                     variant="subtle"
                                     color="gray"
                                     disabled={undo.isLoading}
-                                    onClick={() =>
-                                        undo.mutate([change.changeSetUuid])
-                                    }
+                                    onBlur={() => setArmed(null)}
+                                    onClick={() => {
+                                        if (armed !== change.changeSetUuid) {
+                                            setArmed(change.changeSetUuid);
+                                            return;
+                                        }
+                                        setArmed(null);
+                                        undo.mutate([change.changeSetUuid], {
+                                            onSuccess: () =>
+                                                showToastSuccess({
+                                                    title: 'Undone for everyone',
+                                                }),
+                                        });
+                                    }}
                                 >
-                                    Undo
+                                    {armed === change.changeSetUuid
+                                        ? 'Confirm undo'
+                                        : 'Undo'}
                                 </Button>
                             ) : null}
                         </Group>

@@ -12006,6 +12006,94 @@
                 ],
                 "type": "object"
             },
+            "ComposerStoredChart": {
+                "properties": {
+                    "tableConfig": {
+                        "properties": {
+                            "columnOrder": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columnOrder"],
+                        "type": "object"
+                    },
+                    "pivotConfig": {
+                        "properties": {
+                            "columns": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columns"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartConfig"
+                    },
+                    "columns": {
+                        "items": {
+                            "$ref": "#/components/schemas/ComposerChartColumn"
+                        },
+                        "type": "array"
+                    },
+                    "schemaVersion": {
+                        "type": "number",
+                        "enum": [1],
+                        "nullable": false
+                    }
+                },
+                "required": [
+                    "tableConfig",
+                    "pivotConfig",
+                    "chartConfig",
+                    "columns",
+                    "schemaVersion"
+                ],
+                "type": "object"
+            },
+            "PromotedComposerChart": {
+                "properties": {
+                    "chart": {
+                        "$ref": "#/components/schemas/ComposerStoredChart"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "oldUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "chart",
+                    "description",
+                    "name",
+                    "projectUuid",
+                    "slug",
+                    "oldUuid",
+                    "uuid"
+                ],
+                "type": "object",
+                "description": "The pipeline stays server side; only the chart travels in a diff."
+            },
             "PromotedApp": {
                 "properties": {
                     "name": {
@@ -12052,6 +12140,21 @@
                             "properties": {
                                 "data": {
                                     "$ref": "#/components/schemas/PromotedApp"
+                                },
+                                "action": {
+                                    "$ref": "#/components/schemas/PromotionAction"
+                                }
+                            },
+                            "required": ["data", "action"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "composerCharts": {
+                        "items": {
+                            "properties": {
+                                "data": {
+                                    "$ref": "#/components/schemas/PromotedComposerChart"
                                 },
                                 "action": {
                                     "$ref": "#/components/schemas/PromotionAction"
@@ -25774,6 +25877,50 @@
             "ApiAppFileUploadResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__fileId-string--imageId_deprecated-true_-string--filename_description-Sanitizedoriginalfilename.canonicalizedserver-side._-string--mimeType_description-NormalizedMIMEtypeasstoredonthestagedS3object._-string__"
             },
+            "CaptureTranscriptWord": {
+                "properties": {
+                    "text": {
+                        "type": "string"
+                    },
+                    "endMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "startMs": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["text", "endMs", "startMs"],
+                "type": "object",
+                "description": "One spoken word from a Voice Design recording, timed from the start of its audio."
+            },
+            "ApiSuccess__words-CaptureTranscriptWord-Array__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "words": {
+                                "items": {
+                                    "$ref": "#/components/schemas/CaptureTranscriptWord"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["words"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiCaptureTranscriptResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__words-CaptureTranscriptWord-Array__"
+            },
             "DataAppContextFile": {
                 "properties": {
                     "contentBase64": {
@@ -28875,6 +29022,28 @@
                             }
                         },
                         "required": ["sqlChartSlug", "sqlChartUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "composerChartSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "composerChartUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["composer_chart"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "composerChartSlug",
+                            "composerChartUuid",
+                            "type"
+                        ],
                         "type": "object"
                     },
                     {
@@ -33766,6 +33935,10 @@
                     "integrations": {
                         "items": {
                             "properties": {
+                                "serviceAccountUuid": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
                                 "channelId": {
                                     "type": "string"
                                 },
@@ -34862,6 +35035,10 @@
                     "integrations": {
                         "items": {
                             "properties": {
+                                "serviceAccountUuid": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
                                 "channelId": {
                                     "type": "string"
                                 },
@@ -35788,6 +35965,10 @@
                     "integrations": {
                         "items": {
                             "properties": {
+                                "serviceAccountUuid": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
                                 "channelId": {
                                     "type": "string"
                                 },
@@ -35932,6 +36113,10 @@
                     "integrations": {
                         "items": {
                             "properties": {
+                                "serviceAccountUuid": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
                                 "channelId": {
                                     "type": "string"
                                 },
@@ -36739,6 +36924,38 @@
                                 "type": "string",
                                 "nullable": true
                             },
+                            "pinnedVersionUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "composerChartSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "composerChartUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["composer_chart"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "displayName",
+                            "pinnedVersionUuid",
+                            "composerChartSlug",
+                            "composerChartUuid",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "displayName": {
+                                "type": "string",
+                                "nullable": true
+                            },
                             "promptUuid": {
                                 "type": "string",
                                 "nullable": true
@@ -37520,6 +37737,7 @@
                     "getProjectInfo",
                     "getPullRequestDiff",
                     "grepFields",
+                    "grepWarehouseColumns",
                     "iterateDataApp",
                     "listChanges",
                     "listContent",
@@ -37540,6 +37758,7 @@
                     "resolveUrl",
                     "runComposerQueries",
                     "runContentQuery",
+                    "runMetricQuery",
                     "runQuery",
                     "runSavedChart",
                     "searchFieldValues",
@@ -42582,6 +42801,17 @@
                 "required": ["instruction"],
                 "type": "object"
             },
+            "SemanticLayerBlocker": {
+                "type": "string",
+                "enum": [
+                    "no_access",
+                    "unsupported_connection",
+                    "no_repository_access",
+                    "github_app_missing",
+                    "models_from_outside",
+                    "preview_project"
+                ]
+            },
             "SemanticLayerApplyMode": {
                 "type": "string",
                 "enum": ["live", "pull_request", "dbt_pull_request"]
@@ -42592,12 +42822,20 @@
                         "$ref": "#/components/schemas/SemanticLayerApplyMode",
                         "description": "How a change lands: `live` applies a draft here, `pull_request` sends a draft to the project's repository, and `dbt_pull_request` has the agent edit the dbt project in a pull request, with no draft."
                     },
+                    "blocker": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SemanticLayerBlocker"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "enabled": {
                         "type": "boolean",
                         "description": "Whether this person can change this project's models from Semantic Studio."
                     }
                 },
-                "required": ["appliesAs", "enabled"],
+                "required": ["appliesAs", "blocker", "enabled"],
                 "type": "object"
             },
             "ApiSuccess_SemanticLayerStatus_": {
@@ -42653,6 +42891,10 @@
             },
             "SemanticStudioWorkspace": {
                 "properties": {
+                    "publishedLive": {
+                        "type": "boolean",
+                        "description": "Whether any of its draft went live here, without a pull request."
+                    },
                     "finishedAt": {
                         "type": "string",
                         "format": "date-time",
@@ -42723,6 +42965,7 @@
                     }
                 },
                 "required": [
+                    "publishedLive",
                     "finishedAt",
                     "updatedAt",
                     "createdAt",
@@ -43858,6 +44101,37 @@
             },
             "SemanticLayerDraftApplyResult": {
                 "properties": {
+                    "merge": {
+                        "anyOf": [
+                            {
+                                "properties": {
+                                    "merged": {
+                                        "type": "boolean",
+                                        "enum": [true],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["merged"],
+                                "type": "object"
+                            },
+                            {
+                                "properties": {
+                                    "reason": {
+                                        "type": "string"
+                                    },
+                                    "merged": {
+                                        "type": "boolean",
+                                        "enum": [false],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["reason", "merged"],
+                                "type": "object"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Whether that pull request merged when publishing asked for it, and why not; null when no merge was asked."
+                    },
                     "pullRequestUrl": {
                         "type": "string",
                         "nullable": true,
@@ -43886,7 +44160,12 @@
                         "description": "Null when nothing went live."
                     }
                 },
-                "required": ["pullRequestUrl", "failures", "exploreCount"],
+                "required": [
+                    "merge",
+                    "pullRequestUrl",
+                    "failures",
+                    "exploreCount"
+                ],
                 "type": "object"
             },
             "ApiSuccess_SemanticLayerDraftApplyResult_": {
@@ -49318,6 +49597,10 @@
                     "integrations": {
                         "items": {
                             "properties": {
+                                "serviceAccountUuid": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
                                 "channelId": {
                                     "type": "string"
                                 },
@@ -78906,57 +79189,6 @@
                 "required": ["item"],
                 "type": "object"
             },
-            "ComposerStoredChart": {
-                "properties": {
-                    "tableConfig": {
-                        "properties": {
-                            "columnOrder": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["columnOrder"],
-                        "type": "object"
-                    },
-                    "pivotConfig": {
-                        "properties": {
-                            "columns": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["columns"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "chartConfig": {
-                        "$ref": "#/components/schemas/ChartConfig"
-                    },
-                    "columns": {
-                        "items": {
-                            "$ref": "#/components/schemas/ComposerChartColumn"
-                        },
-                        "type": "array"
-                    },
-                    "schemaVersion": {
-                        "type": "number",
-                        "enum": [1],
-                        "nullable": false
-                    }
-                },
-                "required": [
-                    "tableConfig",
-                    "pivotConfig",
-                    "chartConfig",
-                    "columns",
-                    "schemaVersion"
-                ],
-                "type": "object"
-            },
             "ComposerChart": {
                 "properties": {
                     "updatedByUserUuid": {
@@ -80311,7 +80543,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.319.0",
+        "version": "3.338.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -95695,6 +95927,15 @@
                         "schema": {
                             "$ref": "#/components/schemas/UUID"
                         }
+                    },
+                    {
+                        "description": "For a project whose models live in a repository, also merge the pull request the draft is sent as.",
+                        "in": "query",
+                        "name": "merge",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
                     }
                 ]
             }
@@ -95743,6 +95984,15 @@
                         "required": true,
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    {
+                        "description": "For a project whose models live in a repository, also merge the pull request the model is sent as.",
+                        "in": "query",
+                        "name": "merge",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
                         }
                     }
                 ]

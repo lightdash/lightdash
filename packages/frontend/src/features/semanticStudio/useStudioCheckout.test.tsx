@@ -7,6 +7,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { draftModel, draftOf, workspaceOf } from './studioCheckout.mock';
+import { WORKSPACES_KEY } from './useSemanticLayerModel';
 import {
     foldDraftExplores,
     StudioCheckoutProvider,
@@ -14,7 +15,6 @@ import {
     useStudioCheckout,
     useStudioCheckoutState,
 } from './useStudioCheckout';
-import { WORKSPACES_KEY } from './useStudioWorkspaces';
 
 const api = vi.hoisted(() => vi.fn());
 const showToastInfo = vi.hoisted(() => vi.fn());
@@ -46,7 +46,11 @@ const setup = (initial: string | null) => {
     const waiting = new Map<string, (draft: SemanticLayerDraft) => void>();
     api.mockImplementation(({ url }: { url: string }) => {
         if (url.endsWith('/status')) {
-            return Promise.resolve({ enabled: true, appliesAs: 'live' });
+            return Promise.resolve({
+                enabled: true,
+                blocker: null,
+                appliesAs: 'live',
+            });
         }
         const activated = /\/workspaces\/(\w+)\/activate$/.exec(url)?.[1];
         if (activated) {

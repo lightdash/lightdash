@@ -294,6 +294,7 @@ describe('createAnalyticsExplores', () => {
             'agent_requests',
             'agent_request_starts',
             'agent_request_events',
+            'agent_evaluation_runs',
             'semantic_usage',
             'data_app_reach',
             'data_app_outcomes',

@@ -145,6 +145,7 @@ const NewThreadPanel: FC<{
 
     const chartUuid = pendingContext?.chartUuid;
     const sqlChartUuid = pendingContext?.sqlChartUuid;
+    const composerChartUuid = pendingContext?.composerChartUuid;
     const dashboardUuid = pendingContext?.dashboardUuid;
     const dataAppUuid = pendingContext?.dataAppUuid;
     const documentUuid = pendingContext?.documentUuid;
@@ -166,6 +167,7 @@ const NewThreadPanel: FC<{
         dataAppUuidOrSlug: dataAppUuid,
         documentUuid,
         sqlChartUuid,
+        composerChartUuid,
     });
     const { curateContext } = useDashboardPageContextCuration({
         previousContext: contextInput,

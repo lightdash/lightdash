@@ -1,10 +1,4 @@
-import {
-    isStepCount,
-    readUIMessageStream,
-    streamText,
-    tool,
-    wrapLanguageModel,
-} from 'ai';
+import { isStepCount, readUIMessageStream, streamText, tool } from 'ai';
 import type { JSONValue, LanguageModel } from 'ai';
 import { MockLanguageModelV3 } from 'ai/test';
 import { z } from 'zod';
@@ -28,14 +22,6 @@ import {
     type OrgModelOverrides,
 } from './index';
 import type { ModelPreset, ModelPresetProvider } from './presets';
-
-vi.mock('ai', async () => {
-    const actual = await vi.importActual<typeof import('ai')>('ai');
-    return {
-        ...actual,
-        wrapLanguageModel: vi.fn(actual.wrapLanguageModel),
-    };
-});
 
 const baseCopilotConfig = lightdashConfigMock.ai.copilot;
 
@@ -105,22 +91,11 @@ type V4Model = Extract<
 >;
 type ModelCallOptions = Parameters<V4Model['doGenerate']>[0];
 
-const captureModelRequest = async (
-    model: Exclude<LanguageModel, string>,
-    providerOptions: Record<string, Record<string, JSONValue>> | undefined,
-    tools: ModelCallOptions['tools'] = [],
-) => {
-    if (model.specificationVersion !== 'v4') {
-        throw new Error('expected a v4 language model');
-    }
+const captureRequest = async (call: () => PromiseLike<unknown>) => {
     const fetchSpy = vi.fn(async () => new Response('{}', { status: 500 }));
     vi.stubGlobal('fetch', fetchSpy);
     try {
-        await model.doGenerate({
-            prompt: [{ role: 'user', content: [{ type: 'text', text: 'hi' }] }],
-            providerOptions,
-            tools,
-        });
+        await call();
     } catch {
         // The stubbed upstream always fails; only the request matters.
     } finally {
@@ -136,22 +111,34 @@ const captureModelRequest = async (
     };
 };
 
-const copilotConfigWithZeroDataRetention = () => {
-    const config = copilotConfigWithStreaming(true);
-    return {
-        ...config,
-        providers: {
-            ...config.providers,
-            openai: {
-                ...config.providers.openai,
-                zeroDataRetention: true,
-            },
-        },
-    };
+const asV4Model = (model: Exclude<LanguageModel, string>) => {
+    if (model.specificationVersion !== 'v4') {
+        throw new Error('expected a v4 language model');
+    }
+    return model;
 };
 
+const captureModelRequest = async (
+    model: Exclude<LanguageModel, string>,
+    providerOptions: Record<string, Record<string, JSONValue>> | undefined,
+    tools: ModelCallOptions['tools'] = [],
+    prompt: ModelCallOptions['prompt'] = [
+        { role: 'user', content: [{ type: 'text', text: 'hi' }] },
+    ],
+) =>
+    captureRequest(() =>
+        asV4Model(model).doGenerate({ prompt, providerOptions, tools }),
+    );
+
+const captureStreamRequest = async (model: Exclude<LanguageModel, string>) =>
+    captureRequest(() =>
+        asV4Model(model).doStream({
+            prompt: [{ role: 'user', content: [{ type: 'text', text: 'hi' }] }],
+        }),
+    );
+
 const copilotConfigWithChatCompletions = () => {
-    const config = copilotConfigWithZeroDataRetention();
+    const config = copilotConfigWithStreaming(true);
     return {
         ...config,
         providers: {
@@ -250,26 +237,16 @@ describe('getModel', () => {
         },
     );
 
-    it.each([false, true])(
-        'keeps OpenAI zero data retention stateless when extended reasoning is %s',
-        (enableReasoning) => {
-            const { providerOptions } = getModel(
-                copilotConfigWithZeroDataRetention(),
-                {
-                    enableReasoning,
-                    modelName: 'gpt-5.5',
-                },
-            );
+    it('keeps OpenAI Responses requests stateless when callers pass no provider options', async () => {
+        // e.g. agent routing and eval judges call with the model alone.
+        const { model } = getModel(copilotConfigWithStreaming(true), {
+            modelName: 'gpt-5.5',
+        });
 
-            if (!providerOptions || !('openai' in providerOptions)) {
-                throw new Error('expected openai provider options');
-            }
-            expect(providerOptions.openai.store).toBe(false);
-            expect(providerOptions.openai.include).toEqual([
-                'reasoning.encrypted_content',
-            ]);
-        },
-    );
+        const { body } = await captureModelRequest(model, undefined);
+        expect(body.store).toBe(false);
+        expect(body.include).toEqual(['reasoning.encrypted_content']);
+    });
 
     it('enables OpenAI reasoning only when requested', () => {
         const { providerOptions } = getModel(copilotConfigWithStreaming(true), {
@@ -307,9 +284,59 @@ describe('getModel', () => {
         expect(providerOptions.openai.reasoningEffort).toBe('minimal');
     });
 
+    it('resends earlier steps in full instead of by item ID', async () => {
+        // Zero Data Retention accounts reject `item_reference` inputs.
+        const { model, providerOptions } = getModel(
+            copilotConfigWithStreaming(true),
+            { modelName: 'gpt-6.1-sol' },
+        );
+
+        const { body } = await captureModelRequest(
+            model,
+            providerOptions,
+            [],
+            [
+                { role: 'user', content: [{ type: 'text', text: 'hi' }] },
+                {
+                    role: 'assistant',
+                    content: [
+                        {
+                            type: 'reasoning',
+                            text: '',
+                            providerOptions: {
+                                openai: {
+                                    itemId: 'rs_1',
+                                    reasoningEncryptedContent: 'encrypted',
+                                },
+                            },
+                        },
+                        {
+                            type: 'text',
+                            text: 'Looking it up.',
+                            providerOptions: { openai: { itemId: 'msg_1' } },
+                        },
+                    ],
+                },
+                { role: 'user', content: [{ type: 'text', text: 'go on' }] },
+            ],
+        );
+
+        expect(body.input).toEqual([
+            { role: 'user', content: [{ type: 'input_text', text: 'hi' }] },
+            {
+                type: 'reasoning',
+                id: 'rs_1',
+                encrypted_content: 'encrypted',
+                summary: [],
+            },
+            { role: 'assistant', content: 'Looking it up.' },
+            { role: 'user', content: [{ type: 'input_text', text: 'go on' }] },
+        ]);
+    });
+
     it('sends OpenAI requests to the Responses API by default', async () => {
         const { model, providerOptions } = getModel(
-            copilotConfigWithZeroDataRetention(),
+            copilotConfigWithStreaming(true),
             { enableReasoning: true, modelName: 'gpt-5.5' },
         );
 
@@ -427,10 +454,12 @@ describe('getModel', () => {
         expect(body.reasoning).toEqual({ effort: 'low', summary: 'auto' });
     });
 
-    it('does not wrap the model when the provider supports streaming', () => {
-        getModel(copilotConfigWithStreaming(true));
+    it('streams natively when the provider supports streaming', async () => {
+        const { model } = getModel(copilotConfigWithStreaming(true));
 
-        expect(wrapLanguageModel).not.toHaveBeenCalled();
+        const { body } = await captureStreamRequest(model);
+        expect(body.stream).toBe(true);
+        expect(body.store).toBe(false);
     });
 
     it('stamps lightdash-managed when the resolved provider is declared Lightdash-managed and not BYO', () => {
@@ -657,11 +686,12 @@ describe('getModel', () => {
         expect(keyManagement).toBe('self-managed');
     });
 
-    it('wraps the model with simulateStreamingMiddleware when the provider does not support streaming', () => {
+    it('serves streams as non-streaming requests when the provider does not support streaming', async () => {
         const { model } = getModel(copilotConfigWithStreaming(false));
 
-        expect(wrapLanguageModel).toHaveBeenCalledTimes(1);
-        expect(model).toBe(vi.mocked(wrapLanguageModel).mock.results[0].value);
+        const { body } = await captureStreamRequest(model);
+        expect(body.stream).toBeUndefined();
+        expect(body.store).toBe(false);
     });
 });
 
@@ -1088,6 +1118,17 @@ describe('custom OpenAI-compatible gateway models', () => {
         );
 
         expect(model.modelId).toBe(customModelName);
+    });
+
+    it('sends non-reasoning gateway models stateless without asking for encrypted reasoning', async () => {
+        const { model, providerOptions } = getModel(
+            gatewayConfig({ modelName: customModelName }),
+        );
+
+        const { url, body } = await captureModelRequest(model, providerOptions);
+        expect(url).toBe('https://litellm.example.com/responses');
+        expect(body.store).toBe(false);
+        expect(body.include).toBeUndefined();
     });
 
     it('resolves a custom model requested by name (e.g. from an agent setting)', () => {

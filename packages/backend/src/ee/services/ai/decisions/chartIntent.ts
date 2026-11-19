@@ -27,6 +27,7 @@ import {
     type DetectedCorrection,
 } from './corrections';
 import { SIMPLE_DATA_ANSWER_QUESTION } from './modelRouting';
+import type { PreviousAnswer } from './previousAnswer';
 
 export const CHART_TYPES = [
     'line',
@@ -2620,14 +2621,14 @@ const INSTANT_REPLY_QUESTIONS: Record<string, DecisionQuestion> = {
     instantReply: {
         type: 'choice',
         instructions:
-            'Is `prompt` one of these small follow-ups about the previous answer, needing no new analysis?',
+            "Is `prompt` one of these small follow-ups about the previous answer, needing no new analysis? `previousAnswer` is the end of the agent's last reply, if any.",
         criteria: {
             acknowledgement:
-                'Only thanks, agreement or a reaction to the previous answer; it asks for nothing',
+                'Only thanks or a reaction that closes the topic; it asks for nothing and answers no offer, suggestion or question in `previousAnswer`',
             show_query: 'Asks to see the query or SQL behind the current chart',
             download_help:
                 'Asks how to download or export the current data or chart',
-            other: 'Anything else, including any change, new data, a question about the data or an explanation',
+            other: 'Anything else, including any reply (such as yes, ok or sure) that accepts, declines or answers an offer, suggestion or question in `previousAnswer`, any change, new data, a question about the data or an explanation',
         },
     },
     englishPrompt: {
@@ -2662,6 +2663,7 @@ export const decideTurn = async ({
     prompt,
     instructions,
     conversation,
+    previousAnswer,
     context,
     thresholds = CHART_INTENT_THRESHOLDS,
 }: {
@@ -2669,17 +2671,21 @@ export const decideTurn = async ({
     prompt: string;
     instructions: string | null;
     conversation: unknown[];
+    previousAnswer: PreviousAnswer | null;
     context: ChartIntentContext | null;
     thresholds?: ChartIntentThresholds;
 }): Promise<{ decision: TurnDecision; answers: DecisionAnswers | null }> => {
-    const state = context
-        ? {
-              prompt,
-              instructions,
-              conversation,
-              chart: describeChart(context, { filterDetails: true }),
-          }
-        : { prompt, instructions };
+    const state = {
+        prompt,
+        instructions,
+        previousAnswer: previousAnswer?.text ?? null,
+        ...(context
+            ? {
+                  conversation,
+                  chart: describeChart(context, { filterDetails: true }),
+              }
+            : {}),
+    };
     const allQuestions: Record<string, DecisionQuestion> = {
         ...(context
             ? buildChartIntentQuestions({ prompt, context })
@@ -2743,7 +2749,9 @@ export const decideTurn = async ({
                 (decisionProbability(answers.simple) ?? 0) >=
                     CHART_INTENT_THRESHOLDS.simpleDataAnswer,
             chart,
-            instantReply: instantReplyOf(answers, chart),
+            instantReply: previousAnswer?.askedUser
+                ? null
+                : instantReplyOf(answers, chart),
             correction: picked?.correction ?? null,
         },
         // Pick answers are kept with the turn under their own prefix for later review.

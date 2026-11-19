@@ -15,6 +15,7 @@ import {
 } from '../../../features/visualization/store';
 import { useCartesianEditorActions } from '../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { derived } from '../../../utils/changeOrigin';
 import {
     isBigNumberVisualizationConfig,
     isCartesianVisualizationConfig,
@@ -55,62 +56,67 @@ const DroppedFieldPlacer: FC<Props> = ({ field, pickChartType, onPlaced }) => {
 
     useEffect(() => {
         if (!hasField) return;
-        const { fieldId, isDimension } = field;
-        // A big value cannot show a breakdown, so a dimension moves it on
-        const outgrowsBigValue =
-            isDimension && isBigNumberVisualizationConfig(visualizationConfig);
-        if (pickChartType || outgrowsBigValue) {
-            const dimensions = resultsData?.metricQuery?.dimensions ?? [];
-            const kind =
-                dimensions.length === 0
-                    ? ChartKind.BIG_NUMBER
-                    : dimensions.some((id) => {
-                            const item = itemsMap?.[id];
-                            return (
-                                !!item &&
-                                isDimensionItem(item) &&
-                                isDateItem(item)
-                            );
-                        })
-                      ? ChartKind.LINE
-                      : ChartKind.VERTICAL_BAR;
-            options.find((option) => option.id === kind)?.select();
-        } else if (isCartesianVisualizationConfig(visualizationConfig)) {
-            if (!isDimension) {
-                if (!layout?.yField?.includes(fieldId)) {
-                    addSingleSeries(fieldId);
-                }
-            } else if (!layout?.xField) {
-                setXField(fieldId);
-            } else if (
-                layout.xField !== fieldId &&
-                (pivotDimensions ?? []).length === 0
-            ) {
-                setPivotDimensions([fieldId]);
-                // Grouped series come from a pivoted query, so run it again
-                explorerDispatch(explorerActions.requestQueryExecution());
-            } else if (layout.xField !== fieldId) {
-                // Axis and grouping are taken: say where the field went
-                const item = itemsMap?.[fieldId];
-                showToastInfo({
-                    title: `${item ? getItemLabelWithoutTableName(item) : 'Field'} added to the results`,
-                    subtitle: 'The chart already has an x-axis and a grouping.',
-                    action: {
-                        children: 'Configure',
-                        onClick: () => {
-                            explorerDispatch(
-                                explorerActions.openVisualizationConfig(),
-                            );
-                            explorerDispatch(
-                                explorerActions.setChartSidebarStep(
-                                    'configure',
-                                ),
-                            );
+        // Placing the field finishes the drop, so it is no step of its own
+        derived(() => {
+            const { fieldId, isDimension } = field;
+            // A big value cannot show a breakdown, so a dimension moves it on
+            const outgrowsBigValue =
+                isDimension &&
+                isBigNumberVisualizationConfig(visualizationConfig);
+            if (pickChartType || outgrowsBigValue) {
+                const dimensions = resultsData?.metricQuery?.dimensions ?? [];
+                const kind =
+                    dimensions.length === 0
+                        ? ChartKind.BIG_NUMBER
+                        : dimensions.some((id) => {
+                                const item = itemsMap?.[id];
+                                return (
+                                    !!item &&
+                                    isDimensionItem(item) &&
+                                    isDateItem(item)
+                                );
+                            })
+                          ? ChartKind.LINE
+                          : ChartKind.VERTICAL_BAR;
+                options.find((option) => option.id === kind)?.select();
+            } else if (isCartesianVisualizationConfig(visualizationConfig)) {
+                if (!isDimension) {
+                    if (!layout?.yField?.includes(fieldId)) {
+                        addSingleSeries(fieldId);
+                    }
+                } else if (!layout?.xField) {
+                    setXField(fieldId);
+                } else if (
+                    layout.xField !== fieldId &&
+                    (pivotDimensions ?? []).length === 0
+                ) {
+                    setPivotDimensions([fieldId]);
+                    // Grouped series come from a pivoted query, so run it again
+                    explorerDispatch(explorerActions.requestQueryExecution());
+                } else if (layout.xField !== fieldId) {
+                    // Axis and grouping are taken: say where the field went
+                    const item = itemsMap?.[fieldId];
+                    showToastInfo({
+                        title: `${item ? getItemLabelWithoutTableName(item) : 'Field'} added to the results`,
+                        subtitle:
+                            'The chart already has an x-axis and a grouping.',
+                        action: {
+                            children: 'Configure',
+                            onClick: () => {
+                                explorerDispatch(
+                                    explorerActions.openVisualizationConfig(),
+                                );
+                                explorerDispatch(
+                                    explorerActions.setChartSidebarStep(
+                                        'configure',
+                                    ),
+                                );
+                            },
                         },
-                    },
-                });
+                    });
+                }
             }
-        }
+        });
         onPlaced();
         // Runs once, when the dropped field first shows up in the results
         // eslint-disable-next-line react-hooks/exhaustive-deps

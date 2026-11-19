@@ -327,6 +327,14 @@ const setup = ({
             body: string;
         }) => ({ url: PULL_REQUEST_URL }),
     );
+    const updatePullRequest = vi.fn(
+        async ({
+            prUrl,
+        }: {
+            writes: Map<string, string | null>;
+            prUrl: string;
+        }): Promise<{ url: string } | null> => ({ url: prUrl }),
+    );
     const queueImpactCheck = vi.fn(async () => undefined);
     const createPreviewForPullRequest = vi.fn(async () => null);
     const compileExploresFromManifest = vi.fn(
@@ -347,6 +355,7 @@ const setup = ({
         sha: 'merge-sha',
         compileJobUuid: 'job-1',
     }));
+    const scheduleCompileAfterMerge = vi.fn(async () => 'job-2');
     let activeWorkspace: { threadUuid: string; prUrl: string | null } | null =
         null;
     const unused = async (): Promise<never> => {
@@ -381,6 +390,7 @@ const setup = ({
             createdAt: new Date(),
             updatedAt: new Date(),
             finishedAt: null,
+            publishedLive: false,
         };
     const workspaces: SemanticStudioWorkspace[] = [];
     const getPullRequestState = vi.fn(
@@ -392,6 +402,7 @@ const setup = ({
             _projectUuid: string,
             url: string,
             state: SemanticStudioWorkspacePullRequestState,
+            finishes: boolean,
         ) => {
             for (const workspace of workspaces) {
                 if (workspace.pullRequest?.url === url) {
@@ -399,6 +410,13 @@ const setup = ({
                     workspace.finishedAt = new Date();
                     workspace.isActive = false;
                 }
+            }
+            if (
+                activeWorkspace?.prUrl === url &&
+                state !== 'open' &&
+                finishes
+            ) {
+                activeWorkspace = null;
             }
         },
     );
@@ -408,6 +426,7 @@ const setup = ({
             saveWithScript: unused,
             findPullRequestBranch,
             mergePullRequest,
+            scheduleCompileAfterMerge,
         },
         workspaceModel: {
             listChanges: async () => [],
@@ -445,6 +464,7 @@ const setup = ({
                           createdAt: new Date(),
                           updatedAt: new Date(),
                           finishedAt: null,
+                          publishedLive: false,
                       }
                     : null,
             start: startWorkspace,
@@ -452,7 +472,9 @@ const setup = ({
             leave: unused,
             rename: unused,
             finish: finishWorkspace,
-            attachPullRequest: async () => undefined,
+            attachPullRequest: async (_owner, url) => {
+                if (activeWorkspace) activeWorkspace.prUrl = url;
+            },
             attachThreadPullRequest: async () => undefined,
             recordPullRequestState,
             requestBranchCompile: async (workspaceUuid) => {
@@ -675,6 +697,7 @@ const setup = ({
                 modelsDirectory: 'models',
             }),
             openPullRequest,
+            updatePullRequest,
         },
         projectService: {
             getWarehouseSqlBuilderSettings: async () => ({
@@ -737,7 +760,9 @@ const setup = ({
         queueBranchCompile,
         branchCompiles,
         upsert,
+        scheduleCompileAfterMerge,
         openPullRequest,
+        updatePullRequest,
         recordedPullRequests,
         commitCalls,
         setExplores,
@@ -2003,6 +2028,7 @@ describe('SemanticStudioService', () => {
                 exploreCount: null,
                 failures: [],
                 pullRequestUrl: null,
+                merge: null,
             });
             expect(context.commitCalls).toEqual([]);
             expect(context.settled).toEqual(['applied']);
@@ -2562,6 +2588,32 @@ describe('SemanticStudioService', () => {
         expect(outcome.exploreCount).toBe(1);
     });
 
+    it('says so up front when the models were deployed from elsewhere', async () => {
+        expect(
+            await setup({
+                stored: [],
+                exploreTypes: [ExploreType.DEFAULT],
+            }).service.getPageStatus(deployer, PROJECT_UUID),
+        ).toEqual({
+            enabled: false,
+            blocker: 'models_from_outside',
+            appliesAs: 'live',
+        });
+        expect(
+            await setup({
+                stored: [],
+                exploreTypes: [ExploreType.VIRTUAL],
+            }).service.getPageStatus(deployer, PROJECT_UUID),
+        ).toMatchObject({ enabled: true, blocker: null });
+        // What the rest of the app polls stays as cheap as it was.
+        expect(
+            await setup({
+                stored: [],
+                exploreTypes: [ExploreType.DEFAULT],
+            }).service.getStatus(deployer, PROJECT_UUID),
+        ).toMatchObject({ enabled: true, blocker: null });
+    });
+
     describe('concurrent writes', () => {
         it('rereads and retries when another write lands first', async () => {
             const context = setup({ staleCommits: 1 });
@@ -2717,14 +2769,123 @@ describe('SemanticStudioService', () => {
                 exploreCount: null,
                 failures: [],
                 pullRequestUrl: PULL_REQUEST_URL,
+                merge: null,
             });
+            expect(context.mergePullRequest).not.toHaveBeenCalled();
             const [{ writes, title }] = context.openPullRequest.mock.calls[0];
             expect(writes.get('orders')).toContain('revenue');
             expect(title).toBe('Update semantic layer: orders');
-            expect(context.recordedPullRequests).toEqual([PULL_REQUEST_URL]);
             expect(context.commitCalls).toHaveLength(0);
             expect(context.setExplores).not.toHaveBeenCalled();
+            // The draft stays while its pull request is open, so it can still be read, tried and added to.
+            expect(context.drafts).toHaveLength(1);
+            expect(context.recordedPullRequests).toEqual([]);
+        });
+
+        it('merges the pull request when publishing asks to', async () => {
+            const context = repo();
+            await context.service.proposeDraftChange(
+                repoWriter,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+                null,
+            );
+            const outcome = await context.service.applyDraft(
+                repoWriter,
+                PROJECT_UUID,
+                null,
+                true,
+            );
+            expect(outcome.merge).toEqual({ merged: true });
+            expect(context.mergePullRequest).toHaveBeenCalledWith({
+                user: repoWriter,
+                projectUuid: PROJECT_UUID,
+                prUrl: PULL_REQUEST_URL,
+            });
+            // The merge is what settles the draft.
             expect(context.drafts).toHaveLength(0);
+            expect(context.recordedPullRequests).toEqual([PULL_REQUEST_URL]);
+        });
+
+        it('leaves the pull request open and says why when the repository refuses the merge', async () => {
+            const context = repo();
+            context.mergePullRequest.mockRejectedValueOnce(
+                new Error('Required status check "ci" is expected.'),
+            );
+            await context.service.proposeDraftChange(
+                repoWriter,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+                null,
+            );
+            const outcome = await context.service.applyDraft(
+                repoWriter,
+                PROJECT_UUID,
+                null,
+                true,
+            );
+            expect(outcome).toMatchObject({
+                failures: [],
+                pullRequestUrl: PULL_REQUEST_URL,
+                merge: {
+                    merged: false,
+                    reason: 'Required status check "ci" is expected.',
+                },
+            });
+            expect(context.drafts).toHaveLength(1);
+        });
+
+        it('keeps the draft and its workspace when the pull request closes, and settles it when it merges elsewhere', async () => {
+            const context = repo();
+            await context.service.proposeDraftChange(
+                repoWriter,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+                null,
+            );
+            await context.service.applyDraft(repoWriter, PROJECT_UUID, null);
+            await context.service.recordPullRequestState(
+                PROJECT_UUID,
+                PULL_REQUEST_URL,
+                'closed',
+            );
+            expect(context.recordPullRequestState).toHaveBeenLastCalledWith(
+                PROJECT_UUID,
+                PULL_REQUEST_URL,
+                'closed',
+                false,
+            );
+            expect(context.drafts).toHaveLength(1);
+            await context.service.recordPullRequestState(
+                PROJECT_UUID,
+                PULL_REQUEST_URL,
+                'merged',
+            );
+            expect(context.recordPullRequestState).toHaveBeenLastCalledWith(
+                PROJECT_UUID,
+                PULL_REQUEST_URL,
+                'merged',
+                true,
+            );
+            expect(context.drafts).toHaveLength(0);
+        });
+
+        it('sends a draft whole, never one model of it', async () => {
+            const context = repo();
+            await context.service.proposeDraftChange(
+                repoWriter,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+                null,
+            );
+            await expect(
+                context.service.applyDraft(repoWriter, PROJECT_UUID, 'orders'),
+            ).rejects.toThrow(/sent whole/);
+            expect(context.openPullRequest).not.toHaveBeenCalled();
         });
 
         it('opens one pull request when the same draft is applied twice', async () => {
@@ -2742,8 +2903,13 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 null,
             );
-            expect(second.pullRequestUrl).toBeNull();
+            // The second send goes to the pull request the first one opened.
+            expect(second.pullRequestUrl).toBe(PULL_REQUEST_URL);
             expect(context.openPullRequest).toHaveBeenCalledTimes(1);
+            expect(context.updatePullRequest).toHaveBeenCalledTimes(1);
+            expect(context.updatePullRequest.mock.calls[0][0].prUrl).toBe(
+                PULL_REQUEST_URL,
+            );
         });
 
         it('is off for a repository the GitHub App cannot reach', async () => {
@@ -2755,7 +2921,11 @@ describe('SemanticStudioService', () => {
                         authorization_method: 'personal_access_token',
                     },
                 }).service.getStatus(repoWriter, PROJECT_UUID),
-            ).toEqual({ enabled: false, appliesAs: 'pull_request' });
+            ).toEqual({
+                enabled: false,
+                blocker: 'unsupported_connection',
+                appliesAs: 'pull_request',
+            });
         });
 
         it('opens no pull request for a draft that stopped passing', async () => {
@@ -2780,10 +2950,14 @@ describe('SemanticStudioService', () => {
         it('says how a draft applies', async () => {
             expect(
                 await repo().service.getStatus(repoWriter, PROJECT_UUID),
-            ).toEqual({ enabled: true, appliesAs: 'pull_request' });
+            ).toEqual({
+                enabled: true,
+                blocker: null,
+                appliesAs: 'pull_request',
+            });
             expect(
                 await setup().service.getStatus(deployer, PROJECT_UUID),
-            ).toEqual({ enabled: true, appliesAs: 'live' });
+            ).toEqual({ enabled: true, blocker: null, appliesAs: 'live' });
         });
 
         it('shows changes only to those who can make them', async () => {
@@ -2806,16 +2980,28 @@ describe('SemanticStudioService', () => {
             const dbt = () => setup({ dbtConnection: DBT_IN_GITHUB });
             expect(
                 await dbt().service.getStatus(repoWriter, PROJECT_UUID),
-            ).toEqual({ enabled: true, appliesAs: 'dbt_pull_request' });
+            ).toEqual({
+                enabled: true,
+                blocker: null,
+                appliesAs: 'dbt_pull_request',
+            });
             expect(
                 await dbt().service.getStatus(deployer, PROJECT_UUID),
-            ).toEqual({ enabled: false, appliesAs: 'dbt_pull_request' });
+            ).toEqual({
+                enabled: false,
+                blocker: 'no_repository_access',
+                appliesAs: 'dbt_pull_request',
+            });
             expect(
                 await setup({
                     dbtConnection: DBT_IN_GITHUB,
                     enabled: false,
                 }).service.getStatus(repoWriter, PROJECT_UUID),
-            ).toEqual({ enabled: false, appliesAs: 'dbt_pull_request' });
+            ).toEqual({
+                enabled: false,
+                blocker: 'no_access',
+                appliesAs: 'dbt_pull_request',
+            });
             expect(
                 await dbt().service.canEditModels(repoWriter, PROJECT_UUID),
             ).toBe(false);
@@ -3171,6 +3357,7 @@ describe('workspace pull request reconciliation', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         finishedAt: null,
+        publishedLive: false,
     });
 
     it.each(['merged', 'closed'] as const)(
@@ -3190,6 +3377,12 @@ describe('workspace pull request reconciliation', () => {
                 PROJECT_UUID,
                 workspace(1).pullRequest?.url,
                 state,
+                // A dbt draft has nothing kept on the server, so a closed pull request ends it too.
+                true,
+            );
+            // Only a merge brings new models, so only a merge refreshes the project.
+            expect(context.scheduleCompileAfterMerge).toHaveBeenCalledTimes(
+                state === 'merged' ? 1 : 0,
             );
         },
     );
@@ -3367,14 +3560,19 @@ describe('compiling a dbt change on its branch', () => {
         ).toMatchObject({
             workspaceUuid: 'workspace-thread',
             appliesAs: 'dbt_pull_request',
-            branchCompile: null,
+            // A draft with a pull request that was never compiled starts compiling when it is read.
+            branchCompile: { status: 'compiling', hasExplores: false },
         });
+        expect(context.queueBranchCompile).toHaveBeenCalledTimes(1);
+        await context.service.getCheckout(repoWriter, PROJECT_UUID);
+        expect(context.queueBranchCompile).toHaveBeenCalledTimes(1);
         await context.service.compileCheckout(repoWriter, PROJECT_UUID);
         expect(
             (await context.service.getCheckout(repoWriter, PROJECT_UUID))
                 ?.branchCompile,
         ).toMatchObject({ status: 'compiling', hasExplores: false });
-        await runQueued(context);
+        // The compile asked for last is the one that is kept.
+        await runQueued(context, 1);
         expect(
             (await context.service.getCheckout(repoWriter, PROJECT_UUID))
                 ?.branchCompile,
@@ -3436,6 +3634,7 @@ describe('compiling a dbt change on its branch', () => {
             PROJECT_UUID,
             OWN_PULL_REQUEST,
             'merged',
+            true,
         );
     });
 

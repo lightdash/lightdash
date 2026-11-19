@@ -27,6 +27,47 @@ export const isSqlChartContentArgs = (toolArgs: unknown): boolean =>
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null;
 
+export const isComposerChartContentArgs = (toolArgs: unknown): boolean =>
+    isRecord(toolArgs) && toolArgs.type === 'composer_chart';
+
+const COMPOSER_NODE_SQL_POINTER = /^\/pipeline\/nodes\/[^/]+\/sql$/;
+
+const getWarehouseNodeSql = (value: unknown): string[] => {
+    if (Array.isArray(value)) return value.flatMap(getWarehouseNodeSql);
+    if (!isRecord(value)) return [];
+    return [
+        ...(value.sourceType === QuerySourceType.SQL &&
+        typeof value.sql === 'string'
+            ? [value.sql]
+            : []),
+        ...Object.values(value).flatMap(getWarehouseNodeSql),
+    ];
+};
+
+// Literal SQL a composer chart patch writes; a node's /sql may be DuckDB, so this can over-ask.
+export const getComposerChartPatchSql = (patch: unknown): string[] =>
+    Array.isArray(patch)
+        ? patch.flatMap((operation) => {
+              if (
+                  !isRecord(operation) ||
+                  (operation.op !== 'add' && operation.op !== 'replace')
+              )
+                  return [];
+              if (
+                  typeof operation.path === 'string' &&
+                  COMPOSER_NODE_SQL_POINTER.test(operation.path) &&
+                  typeof operation.value === 'string'
+              )
+                  return [operation.value];
+              return getWarehouseNodeSql(operation.value);
+          })
+        : [];
+
+const getComposerChartApprovalSql = (patch: unknown): string | null => {
+    const sql = getComposerChartPatchSql(patch);
+    return sql.length > 0 ? sql.join('\n\n') : null;
+};
+
 const getPatch = (toolArgs: unknown): unknown =>
     isRecord(toolArgs) ? toolArgs.patch : undefined;
 
@@ -108,6 +149,16 @@ const getComposerApprovalSql = (queries: unknown[]): string | null => {
     return sqlNodes.length > 0 ? sqlNodes.join('\n\n') : null;
 };
 
+/** Warehouse SQL a composer chart create writes as JSON; one from a query node writes none. */
+const getComposerCreateApprovalSql = (toolArgs: unknown): string | null =>
+    isRecord(toolArgs) &&
+    isRecord(toolArgs.content) &&
+    toolArgs.content.from === 'json' &&
+    isRecord(toolArgs.content.pipeline) &&
+    Array.isArray(toolArgs.content.pipeline.nodes)
+        ? getComposerApprovalSql(toolArgs.content.pipeline.nodes)
+        : null;
+
 /**
  * Composer gates only with warehouse SQL nodes; content tools only when they
  * run or save new SQL: a SQL content query, creating a SQL chart, or editing
@@ -131,11 +182,17 @@ export const isSqlApprovalToolCall = (
         case 'runContentQuery':
             return getContentQuerySql(toolArgs) !== null;
         case 'createContent':
-            return isSqlChartContentArgs(toolArgs);
+            return (
+                isSqlChartContentArgs(toolArgs) ||
+                (isComposerChartContentArgs(toolArgs) &&
+                    getComposerCreateApprovalSql(toolArgs) !== null)
+            );
         case 'editContent':
             return (
-                isSqlChartContentArgs(toolArgs) &&
-                doesPatchTouchSqlChartSql(getPatch(toolArgs))
+                (isSqlChartContentArgs(toolArgs) &&
+                    doesPatchTouchSqlChartSql(getPatch(toolArgs))) ||
+                (isComposerChartContentArgs(toolArgs) &&
+                    getComposerChartApprovalSql(getPatch(toolArgs)) !== null)
             );
         default:
             return assertUnreachable(toolName, 'Unknown SQL approval tool');
@@ -145,6 +202,12 @@ export const isSqlApprovalToolCall = (
 /** The SQL a pending approval asks the user to accept; null when the call carries none. */
 export const getSqlApprovalSql = (toolArgs: unknown): string | null => {
     if (!isRecord(toolArgs)) return null;
+    // Only the SQL a composer chart saves counts; any other sql field it carries is ignored.
+    if (isComposerChartContentArgs(toolArgs)) {
+        return isRecord(toolArgs.content)
+            ? getComposerCreateApprovalSql(toolArgs)
+            : getComposerChartApprovalSql(toolArgs.patch);
+    }
     if (typeof toolArgs.sql === 'string') return toolArgs.sql;
     if (Array.isArray(toolArgs.queries)) {
         return getComposerApprovalSql(toolArgs.queries);

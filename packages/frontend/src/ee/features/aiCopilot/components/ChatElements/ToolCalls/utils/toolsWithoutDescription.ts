@@ -25,6 +25,8 @@ const TOOLS_WITHOUT_DESCRIPTION = [
     'updateUserName',
     'askUser',
     'syncDbtProject',
+    'runMetricQuery',
+    'grepWarehouseColumns',
     'runSavedChart',
     'readPinnedThread',
     'readAttachments',

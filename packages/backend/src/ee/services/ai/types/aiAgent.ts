@@ -60,6 +60,7 @@ import {
     FindCustomChartTypesFn,
     FindExploresFn,
     GenerateDataAppFn,
+    GetComposerChartFn,
     GetDashboardChartsFn,
     GetExploreFn,
     GetKnowledgeDocumentContentFn,
@@ -83,9 +84,11 @@ import {
     ListProjectsFn,
     ListSqlApprovalDecisionsFn,
     ListThreadComposerQueryNodesFn,
+    ListWarehouseColumnsFn,
     ListWarehouseTablesFn,
     ListWorkstreamsFn,
     LoadAgentSkillFn,
+    PrepareComposerChartEditFn,
     ProposeSemanticLayerChangeFn,
     ReadAttachmentsFn,
     ReadContentFn,
@@ -98,6 +101,7 @@ import {
     ResolveCustomChartTypeFn,
     ResolveUrlFn,
     RunAsyncQueryFn,
+    RunComposerChartQueryFn,
     RunComposerQueriesFn,
     RunSavedChartQueryFn,
     RunSqlChartQueryFn,
@@ -432,6 +436,7 @@ export type AiAgentDependencies = {
     readContent: ReadContentFn;
     resolveUrl: ResolveUrlFn;
     editContent: EditContentFn;
+    prepareComposerChartEdit: PrepareComposerChartEditFn;
     recordSqlChartRefusal?: (
         action: 'create' | 'update',
         reasonCode: string,
@@ -451,16 +456,19 @@ export type AiAgentDependencies = {
     runAsyncQuery: RunAsyncQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;
     runSqlChartQuery: RunSqlChartQueryFn;
+    runComposerChartQuery: RunComposerChartQueryFn;
     runSqlJob: RunSqlJobFn;
     runComposerQueries: RunComposerQueriesFn;
     listWarehouseTables: ListWarehouseTablesFn;
     describeWarehouseTable: DescribeWarehouseTableFn;
+    listWarehouseColumns: ListWarehouseColumnsFn;
     listKnowledgeDocuments: ListKnowledgeDocumentsFn;
     getKnowledgeDocumentContent: GetKnowledgeDocumentContentFn;
     readPinnedThread: ReadPinnedThreadFn;
     readAttachments: ReadAttachmentsFn;
     getSavedChart: GetSavedChartFn;
     getSqlChart: GetSqlChartFn;
+    getComposerChart: GetComposerChartFn;
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;
     deferSlackVisualization?: import('./aiAgentDependencies').DeferSlackVisualizationFn;
@@ -491,6 +499,10 @@ export type AiAgentDependencies = {
     editProjectContext: EditProjectContextFn;
     proposeSemanticLayerChange: ProposeSemanticLayerChangeFn;
     listChanges: () => Promise<StudioChangeSummary[]>;
+    /** Reads an explore as the person's draft leaves it. */
+    getDraftExplore: GetExploreFn;
+    /** Runs a metric query on the person's draft over what is published. */
+    runDraftQuery: RunAsyncQueryFn;
     readSemanticModel: ReadSemanticModelFn;
     syncDbtProject: SyncDbtProjectFn;
     exploreRepo: ExploreRepoFn;

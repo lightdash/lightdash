@@ -14,6 +14,12 @@ vi.mock('@pierre/diffs/react', () => ({
     File: ({ file }: { file: { contents: string } }) => (
         <pre data-testid="code">{file.contents}</pre>
     ),
+    Virtualizer: ({ children }: PropsWithChildren) => children,
+    MultiFileDiff: ({ newFile }: { newFile: { contents: string } }) => (
+        <pre data-testid="code" data-marked>
+            {newFile.contents}
+        </pre>
+    ),
 }));
 vi.mock('./useSemanticLayerModel', () => ({
     useSemanticLayerModel: (_projectUuid: string, name: string) => ({
@@ -58,7 +64,8 @@ describe('ModelCodeView', () => {
             ),
         );
         expect(screen.getByTestId('code')).toHaveTextContent('orders in A');
-        expect(screen.getByText(/not published yet/)).toBeInTheDocument();
+        // A file the draft changes shows its lines marked.
+        expect(screen.getByTestId('code')).toHaveAttribute('data-marked');
         expect(screen.queryByRole('radio')).not.toBeInTheDocument();
 
         rerender(
@@ -71,7 +78,7 @@ describe('ModelCodeView', () => {
 
         rerender(codeOf(on(null), 'orders'));
         expect(screen.getByTestId('code')).toHaveTextContent('live orders');
-        expect(screen.getByText(/version 3/)).toBeInTheDocument();
+        expect(screen.getByTestId('code')).not.toHaveAttribute('data-marked');
     });
 
     it('shows a model the change adds, and says when it removes one', () => {
@@ -81,10 +88,11 @@ describe('ModelCodeView', () => {
         ]);
         const { rerender } = renderWithProviders(codeOf(change, 'payments'));
         expect(screen.getByTestId('code')).toHaveTextContent('payments in A');
+        expect(screen.getByTestId('code')).not.toHaveAttribute('data-marked');
 
         rerender(codeOf(change, 'orders'));
         expect(
-            screen.getByText('This change removes this model.'),
+            screen.getByText('This draft removes this model.'),
         ).toBeInTheDocument();
 
         rerender(codeOf(on(null), 'payments'));

@@ -30,8 +30,6 @@ const SAME_IN_EITHER_VIEW = new Set([
 ]);
 
 const PROJECT_IN_PATH = /\/projects\/([^/]+)/;
-// Studio shows the checkout itself, and its Try switch decides what it reads.
-const STUDIO_PATH = /\/projects\/[^/]+\/semantic-layer(?=\/|$)/;
 
 const findProjectInPath = (pathname: string): string | null =>
     PROJECT_IN_PATH.exec(pathname)?.[1] ?? null;
@@ -75,8 +73,7 @@ export const getDevelopmentViewHeaders = (): Record<string, string> => {
                 ...(preview ? { [DEVELOPMENT_PREVIEW_HEADER]: preview } : {}),
             };
         }
-        return isOnFor(localStorage.getItem(CHECKOUT_STORAGE_KEY), pathname) &&
-            !STUDIO_PATH.test(pathname)
+        return isOnFor(localStorage.getItem(CHECKOUT_STORAGE_KEY), pathname)
             ? { [DEVELOPMENT_VIEW_HEADER]: 'true' }
             : {};
     } catch {
@@ -128,7 +125,15 @@ export const pinDevelopmentView = (): (() => void) => {
 };
 export const isDevelopmentViewPinned = (): boolean => pins > 0;
 
-export const isDevelopmentViewOn = (): boolean =>
+const isCheckedOutHere = (pathname: string): boolean => {
+    try {
+        return isOnFor(localStorage.getItem(CHECKOUT_STORAGE_KEY), pathname);
+    } catch {
+        return false;
+    }
+};
+
+const isDevelopmentViewOn = (): boolean =>
     Object.keys(getDevelopmentViewHeaders()).length > 0;
 
 /**
@@ -156,14 +161,7 @@ export const useDevelopmentView = (): [
         (next: boolean, previewProjectUuid: string | null = null) => {
             const here = findProjectInPath(pathname);
             const preview = next && here ? previewProjectUuid : null;
-            // Asked for what is already showing: nothing reads differently, so nothing is fetched again.
-            if (
-                next === isDevelopmentViewOn() &&
-                preview === getDevelopmentPreview()
-            ) {
-                return;
-            }
-            switchView(queryClient, () => {
+            const write = () => {
                 try {
                     if (next && here && previewProjectUuid) {
                         localStorage.setItem(
@@ -185,7 +183,14 @@ export const useDevelopmentView = (): [
                           ].join(' ')
                         : null,
                 );
-            });
+            };
+            // A checked-out draft already has every request reading it, so the switch is recorded and nothing is fetched again.
+            const readsTheSame =
+                ((next && !!here) || isCheckedOutHere(pathname)) ===
+                    isDevelopmentViewOn() &&
+                preview === getDevelopmentPreview();
+            if (readsTheSame) write();
+            else switchView(queryClient, write);
         },
         [pathname, queryClient, setProject, projectRoute],
     );

@@ -2658,6 +2658,40 @@ export type DataAppViewOutcomeEvent = BaseTrack & {
     };
 };
 
+type DataAppStateEventProperties = {
+    organizationId: string;
+    projectId: string;
+    appUuid: string;
+};
+
+// App state events never carry keys or values: both are user content.
+export type DataAppStateReadEvent = BaseTrack & {
+    event: 'data_app.state.read';
+    userId: string;
+    properties: DataAppStateEventProperties & {
+        viewer: 'user' | 'embed';
+        userKeyCount: number;
+        sharedKeyCount: number;
+    };
+};
+
+export type DataAppStateSetEvent = BaseTrack & {
+    event: 'data_app.state.set';
+    userId: string;
+    properties: DataAppStateEventProperties & {
+        scope: 'user' | 'shared';
+        valueBytes: number;
+    };
+};
+
+export type DataAppStateDeletedEvent = BaseTrack & {
+    event: 'data_app.state.deleted';
+    userId: string;
+    properties: DataAppStateEventProperties & {
+        scope: 'user' | 'shared';
+    };
+};
+
 export type DataAppVersionRestoredEvent = BaseTrack & {
     event: 'data_app.version.restored';
     userId: string;
@@ -2838,6 +2872,9 @@ export type DataAppEvent =
     | DataAppFileUploadedEvent
     | DataAppViewedEvent
     | DataAppViewOutcomeEvent
+    | DataAppStateReadEvent
+    | DataAppStateSetEvent
+    | DataAppStateDeletedEvent
     | DataAppVersionRestoredEvent
     | DataAppThreadClearedEvent
     | DataAppThreadSessionLostEvent

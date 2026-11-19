@@ -108,6 +108,7 @@ describe('AI Agent Document authoring', () => {
                     documentsEnabled,
                 }),
                 getEditContent({
+                    prepareComposerChartEdit: null,
                     siteUrl: 'https://app.lightdash.cloud',
                     editContent: vi.fn(),
                     documentsEnabled,
@@ -308,6 +309,7 @@ describe('AI Agent Document authoring', () => {
     test('rejects disabled edits even when called directly', async () => {
         const editContent = vi.fn();
         const tool = getEditContent({
+            prepareComposerChartEdit: null,
             siteUrl: 'https://app.lightdash.cloud',
             editContent,
             documentsEnabled: false,
@@ -331,6 +333,7 @@ describe('AI Agent Document authoring', () => {
     test('returns metadata updates with the canonical reference and current version', async () => {
         const editContent = vi.fn().mockResolvedValue(document);
         const tool = getEditContent({
+            prepareComposerChartEdit: null,
             siteUrl: 'https://app.lightdash.cloud',
             editContent,
             documentsEnabled: true,
@@ -358,6 +361,7 @@ describe('AI Agent Document authoring', () => {
             .fn()
             .mockRejectedValue(new ConflictError('Document has changed'));
         const tool = getEditContent({
+            prepareComposerChartEdit: null,
             siteUrl: 'https://app.lightdash.cloud',
             editContent,
             documentsEnabled: true,
@@ -388,6 +392,7 @@ describe('AI Agent Document authoring', () => {
     test('passes full replacement and base version to the shared edit path', async () => {
         const editContent = vi.fn().mockResolvedValue(document);
         const tool = getEditContent({
+            prepareComposerChartEdit: null,
             siteUrl: 'https://app.lightdash.cloud',
             editContent,
             documentsEnabled: true,
@@ -414,6 +419,7 @@ describe('AI Agent Document authoring', () => {
     test('rejects patch-based Document edits', async () => {
         const editContent = vi.fn();
         const tool = getEditContent({
+            prepareComposerChartEdit: null,
             siteUrl: 'https://app.lightdash.cloud',
             editContent,
             documentsEnabled: true,
@@ -543,6 +549,7 @@ describe('AI Agent Document authoring', () => {
     test('replaces a chart with an artifact on edit', async () => {
         const editContent = vi.fn().mockResolvedValue(document);
         const tool = getEditContent({
+            prepareComposerChartEdit: null,
             siteUrl: 'https://app.lightdash.cloud',
             editContent,
             documentsEnabled: true,

@@ -75,6 +75,13 @@ export enum FeatureFlags {
     EnableDataApps = 'enable-data-apps',
 
     /**
+     * Voice Design in the data app builder: the user draws on the preview
+     * while talking, and the marked-up screenshots and what they said land
+     * in the prompt box. Off by default; per user or organization.
+     */
+    DataAppCapture = 'data-app-capture',
+
+    /**
      * AI access (in-app agent, Slack agent, MCP) skips the results cache,
      * earlier results and pre-aggregates. Off by default; organization scope.
      */
@@ -195,6 +202,13 @@ export enum FeatureFlags {
      * committed through the GitHub API. Off by default; organization-scoped.
      */
     SemanticStudioEditing = 'semantic-studio-editing',
+
+    /**
+     * Undo and redo for the chart being built in the Explorer: the header
+     * buttons and their keyboard shortcuts. Off by default; resolves per user
+     * or organization. It gates the browser only, there is no backend action.
+     */
+    ExplorerUndoRedo = 'explorer-undo-redo',
 
     /**
      * Configurable retention for AI agent threads. Off by default; enabled

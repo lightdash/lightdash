@@ -226,6 +226,12 @@ const usedParametersByQuery: Record<string, ParametersValuesMap> = {
     'other-query': { region: 'UK' },
 };
 
+const savedDashboardFilters: DashboardFilters = {
+    dimensions: [],
+    metrics: [],
+    tableCalculations: [],
+};
+
 const setup = ({ flagEnabled = true } = {}) => {
     const querySourceService = {
         submitComposerRun: vi.fn(
@@ -272,12 +278,12 @@ const setup = ({ flagEnabled = true } = {}) => {
                 excludedParameterKeys,
             }: {
                 dashboardFilters: DashboardFilters;
-                parameters: ParametersValuesMap;
-                excludedParameterKeys: string[];
+                parameters: ParametersValuesMap | undefined;
+                excludedParameterKeys: string[] | undefined;
             }) => ({
                 dashboardFilters,
-                dashboardValues: parameters,
-                excludedKeys: excludedParameterKeys,
+                dashboardValues: parameters ?? {},
+                excludedKeys: excludedParameterKeys ?? [],
                 projectDefinitions: { region: { label: 'Region' } },
             }),
         ),
@@ -312,6 +318,7 @@ const setup = ({ flagEnabled = true } = {}) => {
                 spaceUuid: 'space-uuid',
             })),
             getByIdOrSlug: vi.fn(async () => ({
+                filters: savedDashboardFilters,
                 tiles: [
                     {
                         uuid: 'tile-uuid',
@@ -346,7 +353,12 @@ const setup = ({ flagEnabled = true } = {}) => {
         getQuerySourceService: () => querySourceService,
         getAsyncQueryService: () => asyncQueryService,
     });
-    return { service, composerChartModel, querySourceService };
+    return {
+        service,
+        composerChartModel,
+        querySourceService,
+        asyncQueryService,
+    };
 };
 
 describe('ComposerChartService.create', () => {
@@ -504,6 +516,33 @@ describe('ComposerChartService.create', () => {
     });
 });
 
+describe('ComposerChartService.preflightPipeline', () => {
+    const project = { organizationUuid, projectUuid };
+
+    test('refuses a SQL node from an editor without SQL runner, before any write', async () => {
+        const { service, composerChartModel } = setup();
+        await expect(
+            service.preflightPipeline(
+                sessionAccount(abilityWithout('SqlRunner')),
+                project,
+                createBody(PIPELINES.sql).pipeline,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(composerChartModel.create).not.toHaveBeenCalled();
+    });
+
+    test('passes an editor who holds every permission the nodes need', async () => {
+        const { service } = setup();
+        await expect(
+            service.preflightPipeline(
+                sessionAccount(abilityWithout(null)),
+                project,
+                createBody(PIPELINES.sql).pipeline,
+            ),
+        ).resolves.toBeUndefined();
+    });
+});
+
 describe('ComposerChartService.create with a custom chart type', () => {
     test('pins the latest renderable version when the chart names none', async () => {
         const { service, composerChartModel } = setup();
@@ -583,8 +622,12 @@ describe('ComposerChartService.run', () => {
             chart?: CreateComposerChart['chart'];
         } = {},
     ) => {
-        const { service, composerChartModel, querySourceService } =
-            setup(options);
+        const {
+            service,
+            composerChartModel,
+            querySourceService,
+            asyncQueryService,
+        } = setup(options);
         const body = createBody(PIPELINES.python);
         const stored = body.pipeline;
         Object.assign(composerChartModel, {
@@ -604,8 +647,34 @@ describe('ComposerChartService.run', () => {
                 ? { ...node, parameters: {} }
                 : node,
         );
-        return { service, stored, resolvedNodes, submitComposerRun };
+        return {
+            service,
+            stored,
+            resolvedNodes,
+            submitComposerRun,
+            asyncQueryService,
+        };
     };
+
+    test('resolves the dashboard saved filters and parameter state for a run without app state', async () => {
+        const { service, asyncQueryService, submitComposerRun } = setupRun();
+        await service.runWithSavedDashboardState(
+            viewer(),
+            projectUuid,
+            'chart-uuid',
+            { dashboardUuid, tileUuid: 'tile-uuid', invalidateCache: false },
+        );
+        expect(asyncQueryService.getComposerTileContext).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dashboardFilters: savedDashboardFilters,
+                parameters: undefined,
+                excludedParameterKeys: undefined,
+            }),
+        );
+        expect(submitComposerRun).toHaveBeenCalledWith(
+            expect.objectContaining({ context: QueryExecutionContext.AI }),
+        );
+    });
 
     test('runs the stored pipeline for a dashboard viewer and returns every node query', async () => {
         const { service, stored, resolvedNodes, submitComposerRun } =

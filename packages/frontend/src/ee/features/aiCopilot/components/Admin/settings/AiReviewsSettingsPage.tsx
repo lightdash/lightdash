@@ -226,6 +226,7 @@ export const AiReviewsSettingsPage = () => {
             <GuidedTour
                 steps={REVIEWS_TOUR_STEPS}
                 opened={isTourOpen}
+                tracking={null}
                 onClose={closeTour}
             />
 
