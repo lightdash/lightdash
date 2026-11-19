@@ -86,6 +86,7 @@ import {
 import { type SemanticStudioWorkspaceModel } from '../../models/SemanticStudioWorkspaceModel';
 import { getWritebackConnectionSupport } from '../AiAgentService/writebackConnection';
 import { type AiWritebackService } from '../AiWritebackService/AiWritebackService';
+import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import {
     advanceCompiledManifest,
@@ -2977,16 +2978,25 @@ export class SemanticStudioService extends BaseService {
                 expectedSource:
                     revision === undefined ? null : { path, revision },
             });
+        // The writeback's own wording tells the agent what to call next, which is no use to a person.
+        const forPerson = (error: unknown): never => {
+            if (error instanceof WritebackThreadPrClosedError) {
+                throw new ParameterError(
+                    `This draft's pull request is ${error.reason}, so it can no longer be edited. Go back to Published and edit there to start a new draft.`,
+                );
+            }
+            throw error;
+        };
         // Null means only dbt can check the change, so it is committed unchecked.
-        const dryRun = await save(true, true);
+        const dryRun = await save(true, true).catch(forPerson);
         if (dryRun?.status === 'script_failed') {
             return { status: 'failed', error: dryRun.error };
         }
         const checked = dryRun !== null;
-        const saved = await save(false, checked);
+        const saved = await save(false, checked).catch(forPerson);
         if (saved === null) {
             throw new ParameterError(
-                'This change cannot take hand edits. Ask the agent in the chat to make this edit.',
+                'This draft cannot take hand edits. Ask for the change in the chat, or go back to Published and edit there to start a new draft.',
             );
         }
         if (saved.status === 'script_failed') {
@@ -3013,6 +3023,20 @@ export class SemanticStudioService extends BaseService {
                     name: `Edit ${path.split('/').pop() ?? path}`,
                 });
             }
+        }
+        // With no conversation to hang it on, the new pull request still becomes a draft of its own.
+        if (!threadUuid && saved.result.prAction === 'opened') {
+            const owner = { projectUuid, userUuid: user.userUuid };
+            const project = await this.projectModel.get(projectUuid);
+            const workspaceUuid = await this.workspaceModel.create(
+                owner,
+                project.organizationUuid,
+                `Edit ${path.split('/').pop() ?? path}`,
+            );
+            await this.workspaceModel.attachPullRequest(
+                { ...owner, workspaceUuid },
+                savedPrUrl,
+            );
         }
         // A save writes no agent run, so the conversation learns its pull request here.
         if (threadUuid && saved.result.prUrl) {

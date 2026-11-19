@@ -853,10 +853,10 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             sourcesPrUrl && sourcesPrUrl === pullRequest?.prUrl
                 ? pullRequest.revision
                 : null,
-        // On live a save starts a change of its own, not one for the last conversation.
-        threadUuid: isOnLive ? null : (storedThread?.threadUuid ?? null),
+        // On Published a save starts a draft of its own, not one for the last conversation.
+        threadUuid: isOnMyChange ? (storedThread?.threadUuid ?? null) : null,
         newChangeAgentUuid:
-            isOnLive || !storedThread ? (studioAgent?.uuid ?? null) : null,
+            !isOnMyChange || !storedThread ? (studioAgent?.uuid ?? null) : null,
         changeName: sourcesPrUrl
             ? (changeName ??
               `Draft #${pullRequestNumberOf(sourcesPrUrl) ?? ''}`)

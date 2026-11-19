@@ -43,6 +43,7 @@ import {
     type ProjectModelDocumentModel,
     type StoredDraftChange,
 } from '../../models/ProjectModelDocumentModel';
+import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
 import { type ApiCheckout } from '../AiWritebackService/providers/GithubProvider';
 import { type DbtScriptChange } from './codeMode/dbtManifestPatch';
 import {
@@ -3276,6 +3277,57 @@ describe('saving a hand edit', () => {
                 revision: 'original',
             });
         }
+    });
+
+    it("says in a person's words that a closed pull request can no longer be edited", async () => {
+        const context = setup();
+        vi.spyOn(
+            context.aiWritebackService,
+            'saveWithScript',
+        ).mockRejectedValue(new WritebackThreadPrClosedError('merged'));
+        await expect(
+            context.service.saveSource(deployer, PROJECT_UUID, edit(null)),
+        ).rejects.toThrow(
+            "This draft's pull request is merged, so it can no longer be edited. Go back to Published and edit there to start a new draft.",
+        );
+    });
+
+    it('keeps a save with no conversation as a draft of its own', async () => {
+        const context = setup();
+        vi.spyOn(context.aiWritebackService, 'saveWithScript')
+            .mockResolvedValueOnce({ status: 'checked' })
+            .mockResolvedValueOnce({
+                status: 'saved',
+                changedModels: [],
+                explores: null,
+                result: {
+                    output: '',
+                    exitCode: 0,
+                    prUrl: 'https://github.com/acme/shop/pull/7',
+                    prAction: 'opened',
+                    commitSha: 'abc',
+                    additions: 1,
+                    deletions: 0,
+                    projectName: 'Shop',
+                    repository: 'acme/shop',
+                    steps: [],
+                    dbtSourceUuid: null,
+                },
+            });
+        const create = vi
+            .spyOn(context.workspaceModel, 'create')
+            .mockResolvedValue('workspace-new');
+        const attach = vi.spyOn(context.workspaceModel, 'attachPullRequest');
+        await context.service.saveSource(deployer, PROJECT_UUID, edit(null));
+        expect(create).toHaveBeenCalledWith(
+            { projectUuid: PROJECT_UUID, userUuid: deployer.userUuid },
+            ORGANIZATION_UUID,
+            'Edit orders.yml',
+        );
+        expect(attach).toHaveBeenCalledWith(
+            expect.objectContaining({ workspaceUuid: 'workspace-new' }),
+            'https://github.com/acme/shop/pull/7',
+        );
     });
 
     it('refuses to continue a thread owned by someone else', async () => {
