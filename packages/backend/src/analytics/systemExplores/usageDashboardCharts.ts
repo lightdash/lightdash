@@ -24,7 +24,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'assessment-volume-by-day',
-        name: 'Passing and failing assessments by day',
+        name: 'Passed and failed assessments by day',
         description:
             'Assessment count behind each day’s pass rate. Human and AI assessments count separately, matching the run summary.',
         explore: 'agent_evaluation_runs',
@@ -45,9 +45,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'quality-by-evaluation',
-        name: 'Quality by agent and evaluation',
+        name: 'Runs and assessment outcomes by agent and evaluation',
         description:
-            'Compare retained runs and assessment outcomes across agents and evaluations.',
+            'Recorded runs and assessment outcomes for each agent and evaluation.',
         explore: 'agent_evaluation_runs',
         dimensions: [
             'agent_evaluation_runs_agent_name',
@@ -72,7 +72,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'recent-evaluation-runs',
         name: 'Recent evaluation runs',
         description:
-            'The 100 most recent completed or failed runs in the selected period. Execution errors and negative assessments are different outcomes.',
+            'The 100 most recent completed or failed runs in the selected period. An execution error is not a failed assessment.',
         explore: 'agent_evaluation_runs',
         dimensions: [
             'agent_evaluation_runs_event_ts_raw',
@@ -96,9 +96,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'most-used-fields',
-        name: 'Most-used metrics and dimensions',
+        name: 'Queries per field',
         description:
-            'Distinct query attempts per field, including selected, filtered, grouped and sorted references. Names are those captured at execution; a renamed label can appear separately. Field totals overlap.',
+            'Distinct queries per field, counting fields that were selected, filtered, grouped or sorted.',
         explore: 'semantic_usage',
         dimensions: [
             'semantic_usage_field_label',
@@ -126,9 +126,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'most-used-fields-cloud',
-        name: 'Most-used fields at a glance',
-        description:
-            'Fields sized by distinct query attempts over the selected period. Names are those captured at execution; a renamed label can appear separately.',
+        name: 'Most-used fields, sized by queries',
+        description: 'Fields sized by distinct queries in the selected period.',
         explore: 'semantic_usage',
         dimensions: ['semantic_usage_field_label'],
         metrics: ['semantic_usage_total_queries'],
@@ -162,15 +161,15 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 ],
                 limit: 80,
                 description:
-                    'Fields sized by distinct query attempts over the selected period. Names are those captured at execution; a renamed label can appear separately.',
+                    'Fields sized by distinct queries in the selected period.',
             },
         },
     },
     {
         key: 'people-using-fields',
-        name: 'Who uses each metric and dimension?',
+        name: 'Field use by person',
         description:
-            'Recorded users and fields, with distinct query attempts. A missing user name does not imply anonymous activity. One query can use several fields.',
+            'Distinct queries per user and field. A missing name does not mean the activity was anonymous.',
         explore: 'semantic_usage',
         dimensions: [
             'semantic_usage_user_name',
@@ -194,9 +193,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'content-using-fields',
-        name: 'Where are metrics and dimensions used?',
+        name: 'Field use by content',
         description:
-            'Charts, dashboards and apps associated with recorded field use. Direct exploration and other queries can have no saved-content attribution. Query counts overlap across fields.',
+            'Charts, dashboards and apps whose queries used each field. Queries from exploring directly, and some others, are not linked to saved content.',
         explore: 'semantic_usage',
         dimensions: [
             'semantic_usage_field_label',
@@ -226,7 +225,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'field-capture-coverage',
         name: 'Queries with field details',
         description:
-            'Distinct query attempts by available field detail, including old history and SQL queries. Partial capture can identify some fields; missing details are not evidence of no field use.',
+            'Distinct queries by how much field detail was recorded, including older history and SQL queries. Missing detail does not mean a query used no fields.',
         explore: 'semantic_usage',
         dimensions: ['semantic_usage_lineage_status'],
         metrics: ['semantic_usage_total_queries'],
@@ -237,9 +236,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'daily-trend',
-        name: 'Daily app loads and viewers',
-        description:
-            'Recorded app activity over the available history, including unknown or removed apps.',
+        name: 'App loads and viewers by day',
+        description: '',
         explore: 'data_app_events',
         dimensions: ['data_app_events_event_ts_day'],
         metrics: [
@@ -268,9 +266,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'distinct-viewers',
-        name: 'Distinct app viewers',
+        name: 'App viewers',
         description:
-            'Recorded app activity over the available history, including unknown or removed apps.',
+            'Distinct identified people who loaded an app. Anonymous visitors are not counted.',
         explore: 'data_app_events',
         dimensions: [],
         metrics: ['data_app_events_unique_viewers'],
@@ -292,8 +290,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
     {
         key: 'top-apps',
         name: 'Most-used apps',
-        description:
-            'Recorded app loads and viewers by app and project, including unknown or removed apps. Loads include reloads and are not distinct visits.',
+        description: 'Loads and viewers for each app and project.',
         explore: 'data_app_events',
         dimensions: [
             'data_app_events_app_name',
@@ -322,8 +319,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
     {
         key: 'top-people',
         name: 'Most active app viewers',
-        description:
-            'Recorded app activity over the available history, including unknown or removed apps.',
+        description: '',
         explore: 'data_app_events',
         dimensions: ['data_app_events_user_name', 'data_app_events_user_id'],
         metrics: ['data_app_events_total_views', 'data_app_events_unique_apps'],
@@ -343,9 +339,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'total-loads',
-        name: 'Recorded app loads',
-        description:
-            'Recorded app activity over the available history, including unknown or removed apps.',
+        name: 'App loads',
+        description: 'Number of times an app was loaded. Reloads count.',
         explore: 'data_app_events',
         dimensions: [],
         metrics: ['data_app_events_total_views'],
@@ -366,9 +361,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'user-app-detail',
-        name: 'Who uses which app? · user-by-app detail',
-        description:
-            'Recorded app loads and viewers by app and project, including unknown or removed apps. Loads include reloads and are not distinct visits.',
+        name: 'App loads by person and app',
+        description: 'Loads for each person, app and project.',
         explore: 'data_app_events',
         dimensions: [
             'data_app_events_user_name',
@@ -395,9 +389,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'viewed-apps',
-        name: 'Apps with recorded loads',
-        description:
-            'Recorded app activity over the available history, including unknown or removed apps.',
+        name: 'Apps loaded',
+        description: 'Distinct apps loaded at least once.',
         explore: 'data_app_events',
         dimensions: [],
         metrics: ['data_app_events_unique_apps'],
@@ -420,7 +413,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'agent-requests-trend',
         name: 'Agent requests',
         description:
-            'All retained captured history. Recent capture is not a full historical census.',
+            'Requests to agents in the selected period. A request counts once, however many steps the agent takes.',
         explore: 'agent_requests',
         dimensions: [],
         metrics: ['agent_requests_total_requests'],
@@ -460,7 +453,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 ],
                 limit: 500,
                 description:
-                    'All retained captured history. Recent capture is not a full historical census.',
+                    'Requests to agents in the selected period. A request counts once, however many steps the agent takes.',
             },
         },
     },
@@ -515,8 +508,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
     {
         key: 'agent-requests-by-agent-and-day',
         name: 'Requests by agent and day',
-        description:
-            'All retained captured history. Recent capture is not a full historical census.',
+        description: '',
         explore: 'agent_requests',
         dimensions: [
             'agent_requests_agent_name',
@@ -542,9 +534,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'agent-daily-requests-per-agent',
-        name: 'Daily requests per agent',
+        name: 'Requests by day, one row per agent',
         description:
-            'All retained captured history. Recent capture is not a full historical census.',
+            'Each agent has its own scale, so row heights cannot be compared.',
         explore: 'agent_requests',
         dimensions: [
             'agent_requests_requested_at_day',
@@ -583,8 +575,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
     {
         key: 'agent-adoption-by-week',
         name: 'Requests by person and agent',
-        description:
-            'All retained captured history. Recent capture is not a full historical census.',
+        description: '',
         explore: 'agent_requests',
         dimensions: [
             'agent_requests_agent_name',
@@ -628,15 +619,15 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 ],
                 limit: 500,
                 description:
-                    'Requests per person and agent over the selected period. People without a display name are grouped as Unknown user. This is not an eligible-user adoption rate.',
+                    'Requests per person and agent in the selected period. People without a display name are grouped as Unknown user.',
             },
         },
     },
     {
         key: 'agent-feedback-rating-and-sample-coverage',
-        name: 'Agent feedback · rating and sample coverage',
+        name: 'Agent feedback: ratings and share of requests rated',
         description:
-            'Negative feedback rate excludes unrated requests. Read it with feedback coverage and request count; small samples are not reliable rankings.',
+            'The negative feedback rate leaves out unrated requests. Read it with the share of requests rated and the request count.',
         explore: 'agent_requests',
         dimensions: ['agent_requests_agent_name', 'agent_requests_agent_id'],
         metrics: [
@@ -678,7 +669,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'agent-requests-and-completion-by-day',
         name: 'Requests and completion rate by day',
         description:
-            'Logical requests, not individual agent steps. Pending requests may still lack an observed outcome.',
+            'Requests per day with the completion rate. Pending requests may not have an outcome yet.',
         explore: 'agent_requests',
         dimensions: ['agent_requests_requested_at_day'],
         metrics: [
@@ -713,9 +704,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'agent-request-outcomes',
-        name: 'Agent request outcomes',
-        description:
-            'Logical requests, not individual agent steps. Pending requests may still lack an observed outcome.',
+        name: 'Requests by outcome',
+        description: 'Pending requests may not have an outcome yet.',
         explore: 'agent_requests',
         dimensions: ['agent_requests_status'],
         metrics: ['agent_requests_total_requests'],
@@ -730,9 +720,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'agent-retries-latency-and-consumption',
-        name: 'Agent retries · latency and consumption',
+        name: 'Requests and latency by retry count',
         description:
-            'Captured retry count and overhead; incomplete token attribution is possible. Agent steps are not equivalent to retries.',
+            'Requests, time spent on failed attempts, average latency and tokens for each retry count. Waiting time between attempts is not included. Token totals can be incomplete. An agent step is not a retry.',
         explore: 'agent_requests',
         dimensions: ['agent_requests_retry_count'],
         metrics: [
@@ -781,15 +771,14 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 ],
                 limit: 30,
                 description:
-                    'Requests and average request latency by captured retry count. Agent steps are not equivalent to retries.',
+                    'Requests and average request latency by recorded retry count. An agent step is not a retry.',
             },
         },
     },
     {
         key: 'ai-consumption-by-person-feature-and-model',
-        name: 'AI consumption by person, feature and model',
-        description:
-            'All retained captured history. Recent capture is not a full historical census.',
+        name: 'Tokens by person and model',
+        description: 'Tokens and AI calls for each person, model and feature.',
         explore: 'ai_usage',
         dimensions: [
             'ai_usage_user_name',
@@ -831,15 +820,14 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 ],
                 limit: 24,
                 description:
-                    'Top 24 person and model pairs by tokens over the selected period, so a person near the cut-off can be missing smaller models. People without a display name are grouped as Unknown user. Tokens are not monetary cost.',
+                    'Top 24 person and model pairs by tokens in the selected period, so a person near the cut-off can be missing their smaller models. People without a display name are grouped as Unknown user.',
             },
         },
     },
     {
         key: 'ai-tokens-by-feature-and-model',
         name: 'Tokens by feature and model',
-        description:
-            'All retained captured history. Recent capture is not a full historical census.',
+        description: '',
         explore: 'ai_usage',
         dimensions: ['ai_usage_feature', 'ai_usage_model'],
         metrics: ['ai_usage_total_tokens_used'],
@@ -864,9 +852,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'app-generation-consumption',
-        name: 'App generation · weekly tokens by builder and model',
+        name: 'App generation tokens by builder, model and week',
         description:
-            'AI usage for app generation, by builder, week and AI model. Tokens do not measure monetary spend, and usage cannot yet be attributed to individual apps or builds.',
+            'Tokens used to generate apps, by builder, week and model.',
         explore: 'ai_usage',
         dimensions: [
             'ai_usage_user_name',
@@ -896,9 +884,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'app-lifecycle-build-activity-versus-loads',
-        name: 'App lifecycle · build activity versus loads',
+        name: 'Build activity versus loads by app',
         description:
-            'Recorded app loads and viewers by app and project, including unknown or removed apps. Loads include reloads and are not distinct visits.',
+            'Number of recorded events for each app and project, split by event type, such as created, iterated and loaded. Unknown or removed apps are included.',
         explore: 'data_app_events',
         dimensions: [
             'data_app_events_app_name',
@@ -918,9 +906,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'apps-loads-and-observed-viewers',
-        name: 'Apps · loads and observed viewers',
+        name: 'Loads and viewers by app',
         description:
-            'Recorded app loads and viewers by app and project, including unknown or removed apps. Loads include reloads and are not distinct visits.',
+            'Loads and viewers for each app and project, including unknown or removed apps.',
         explore: 'data_app_events',
         dimensions: [
             'data_app_events_app_name',
@@ -949,9 +937,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'content-creation-by-month',
-        name: 'Content creation by month',
+        name: 'Content created by month',
         description:
-            'Creation dates of items in the latest inventory, including soft-deleted items; not complete historical inventory.',
+            'Items in the latest inventory by the month they were created, including soft-deleted items. This is not a full history of all content. The date filter does not apply.',
         explore: 'content_inventory',
         dimensions: ['content_health_created_at_month'],
         metrics: ['content_health_total_content'],
@@ -968,9 +956,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'content-ownership-current-snapshot',
-        name: 'Content ownership · current snapshot',
+        name: 'Content ownership (current)',
         description:
-            'Owner status reflects current application membership, not verified employment status.',
+            'Owner status reflects current Lightdash membership, not whether the person is still employed.',
         explore: 'content_inventory',
         dimensions: ['content_health_owner_status'],
         metrics: ['content_health_total_content'],
@@ -988,9 +976,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'content-reach-distinct-people-not-just-views',
-        name: 'Content reach · distinct people, not just views',
+        name: 'Viewers and views by content',
         description:
-            'All retained captured history. Recent capture is not a full historical census.',
+            'Distinct people who viewed each item, with the number of views.',
         explore: 'content_reach',
         dimensions: [
             'content_reach_content_type',
@@ -1012,9 +1000,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'daily-observed-active-people',
-        name: 'Daily observed active people',
-        description:
-            'All retained captured history. Recent capture is not a full historical census.',
+        name: 'People with any recorded activity by day',
+        description: 'Distinct people with any recorded activity each day.',
         explore: 'user_activity',
         dimensions: ['user_activity_activity_date_day'],
         metrics: ['user_activity_unique_users'],
@@ -1032,8 +1019,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
     {
         key: 'data-app-builders-creation-and-iterations-by-week',
         name: 'Data App builders · creation and iterations by week',
-        description:
-            'People who created or iterated on apps, grouped by week. Uploads are excluded.',
+        description: 'People who created or iterated on apps, grouped by week.',
         explore: 'data_app_events',
         dimensions: [
             'data_app_events_user_name',
@@ -1060,9 +1046,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'export-audit-actor-content-and-outcome',
-        name: 'Export audit · actor, content and outcome',
+        name: 'Exports by user, content and outcome',
         description:
-            'Result downloads only. Content links can be missing; null is unattributed, not proof there was no content.',
+            'Downloads of results only. A blank content link means the content is unknown, not that there was none.',
         explore: 'export_events',
         dimensions: [
             'export_events_user_name',
@@ -1089,9 +1075,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'google-sheets-query-audience',
-        name: 'Google Sheets query audience',
+        name: 'People querying from Google Sheets',
         description:
-            'Recorded Sheets queries only; first observed activity is not acquisition or first-ever usage.',
+            'Recorded Google Sheets queries only. The first recorded activity is not necessarily when the person joined or first used the integration.',
         explore: 'query_events',
         dimensions: [
             'query_events_user_name',
@@ -1115,7 +1101,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'high-compute-dashboards-audience-versus-warehouse-time',
-        name: 'High-compute dashboards · audience versus warehouse time',
+        name: 'High-compute dashboards: viewers versus warehouse time',
         description:
             'Retained warehouse execution milliseconds are a performance proxy, not currency cost. Compare per dashboard; cross-type attribution can overlap. Top 25 by execution time. Each point is a dashboard; inspect underlying results for names.',
         explore: 'content_health',
@@ -1148,9 +1134,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'mcp-users-clients-tools-and-error-rates',
-        name: 'MCP users · clients, tools and error rates',
-        description:
-            'Error rate uses known outcomes only; historical unknown outcomes remain unknown. Latency is in milliseconds.',
+        name: 'MCP tool calls by user, client and tool',
+        description: 'Latency is in milliseconds.',
         explore: 'tool_activity',
         dimensions: [
             'tool_activity_user_name',
@@ -1181,9 +1166,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'new-content-adoption-creation-week-proxy',
-        name: 'New-content adoption · creation-week proxy',
+        name: 'New content adoption after the first week',
         description:
-            'Creation date is a launch proxy. Returning after the first seven creation days requires an adequate captured window.',
+            'Creation date stands in for launch date. Return activity after the first seven days only shows when enough history has been recorded.',
         explore: 'content_reach',
         dimensions: [
             'content_reach_content_name',
@@ -1205,9 +1190,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'observed-active-people',
-        name: 'Observed active people',
+        name: 'People with any recorded activity',
         description:
-            'Distinct people with recorded activity. Background activity may be included; this is not the percentage of people with access who use Lightdash.',
+            'Distinct people with any recorded activity. This is not the percentage of people with access who use Lightdash.',
         explore: 'user_activity',
         dimensions: [],
         metrics: ['user_activity_unique_users'],
@@ -1222,9 +1207,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'observed-activity-by-person-and-week',
-        name: 'Observed activity by person and week',
-        description:
-            'All retained captured history. Recent capture is not a full historical census.',
+        name: 'Recorded activity by person and week',
+        description: '',
         explore: 'user_activity',
         dimensions: [
             'user_activity_user_name',
@@ -1246,9 +1230,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'observed-history-stable-user-and-project-uuids',
-        name: 'Observed history · people, date and activity stream',
+        name: 'Activity history by person, date and activity stream',
         description:
-            'Recent recorded activity by person and project. The table shows up to 5,000 results.',
+            'Recorded activity in the selected period by person, day and activity stream, most recent first. Shows up to 500 rows.',
         explore: 'user_activity',
         dimensions: [
             'user_activity_user_name',
@@ -1268,9 +1252,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'power-users-queries-ai-and-exports',
-        name: 'Power users · queries, AI and exports',
-        description:
-            'All retained captured history. Recent capture is not a full historical census.',
+        name: 'Power users: queries, AI and exports',
+        description: '',
         explore: 'user_activity',
         dimensions: ['user_activity_user_name', 'user_activity_user_id'],
         metrics: [
@@ -1289,9 +1272,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'query-failures-affected-people',
-        name: 'Query failures · affected people',
+        name: 'Query failures by users affected',
         description:
-            'Recorded error outcomes ranked by affected people. Missing content attribution is retained; no root-cause inference.',
+            'Failed queries, ranked by users affected. Failures not linked to any content are still shown.',
         explore: 'query_events',
         dimensions: [
             'query_events_status',
@@ -1316,9 +1299,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'query-origin-and-initiating-actor',
-        name: 'Query origin and initiating actor',
-        description:
-            'All retained captured history. Recent capture is not a full historical census.',
+        name: 'Queries by origin and who started them',
+        description: '',
         explore: 'query_events',
         dimensions: [
             'query_events_workload_origin',
@@ -1336,9 +1318,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'request-consumption-by-outcome-and-feedback',
-        name: 'Request consumption by outcome and feedback',
+        name: 'Tokens linked to requests by outcome',
         description:
-            'Tokens linked to captured requests only; unlinked calls and unknown token accounting are not zero cost.',
+            'Requests, tokens and AI calls by outcome and feedback rating. Only tokens linked to recorded requests are counted. Unlinked AI calls and unknown token counts are not zero tokens.',
         explore: 'agent_requests',
         dimensions: ['agent_requests_status', 'agent_requests_feedback_score'],
         metrics: [
@@ -1376,15 +1358,15 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 ],
                 limit: 30,
                 description:
-                    'Request-linked tokens by technical outcome over the selected period. Tokens linked to captured requests only; unlinked calls and unknown token accounting are not zero cost.',
+                    'Tokens linked to requests by technical outcome in the selected period. Unlinked AI calls and unknown token counts are not zero tokens.',
             },
         },
     },
     {
         key: 'review-candidates-activity-and-known-dependencies',
-        name: 'Review candidates · activity and known dependencies',
+        name: 'Review candidates: activity and known dependencies',
         description:
-            'Known schedule/dashboard dependencies only. Missing observed activity never establishes safe deletion.',
+            'Content with no recorded activity, with its known schedule and dashboard dependencies. Uses all recorded history; the date filter does not apply.',
         explore: 'content_health',
         dimensions: [
             'content_health_content_name',
@@ -1418,9 +1400,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'slow-dashboards-tail-latency-and-demand',
-        name: 'Slow dashboards · tail latency and demand',
-        description:
-            'All retained captured history. Recent capture is not a full historical census.',
+        name: 'Slow dashboards: P95 response time and queries',
+        description: 'Queries and P95 response time for each dashboard.',
         explore: 'query_events',
         dimensions: [
             'query_events_dashboard_name',
@@ -1463,16 +1444,16 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 xLabelAutoRotate: false,
                 xLabelRotate: 45,
                 yName: 'Queries',
-                yRightName: 'p95 response time (ms)',
+                yRightName: 'P95 response time (ms)',
             },
             query: null,
         },
     },
     {
         key: 'verified-content-audience-share',
-        name: 'Verified-content audience share',
+        name: 'Share of viewers who viewed verified content',
         description:
-            'Share of viewers with known verification state who visited verified content; viewer may also visit unverified content.',
+            'Viewers of verified content as a share of viewers of content with a known verification status.',
         explore: 'content_reach',
         dimensions: [],
         metrics: ['content_reach_verified_audience_share'],
@@ -1487,9 +1468,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'warehouse-versus-cached-demand',
-        name: 'Warehouse versus cached demand',
+        name: 'Warehouse versus cached queries',
         description:
-            'Request demand by cache hit and execution source; this is not currency saved.',
+            'Queries by cache hit and by what ran or served them, such as the warehouse, the results cache or a pre-aggregate.',
         explore: 'query_events',
         dimensions: ['query_events_cache_hit', 'query_events_execution_source'],
         metrics: ['query_events_total_queries'],
@@ -1503,9 +1484,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'who-visited-which-dashboard',
-        name: 'Who visited which dashboard?',
-        description:
-            'All retained captured history. Recent capture is not a full historical census.',
+        name: 'Dashboard views by person',
+        description: '',
         explore: 'content_reach',
         dimensions: [
             'content_reach_content_name',

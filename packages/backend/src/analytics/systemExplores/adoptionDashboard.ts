@@ -29,8 +29,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
                 period === 'day'
                     ? 'Daily active people'
                     : 'Weekly active people',
-            description:
-                'Distinct identified people with recorded activity in each period. Includes activity attributed to users by background work; this is not a login count or the share of people with access.',
+            description: `Distinct identified people with recorded activity each ${period}. Includes activity that background work attributed to a person. This is not a count of logins or the share of people with access.`,
             explore: 'user_activity',
             dimensions: [`user_activity_activity_date_${period}`],
             metrics: ['user_activity_unique_users'],
@@ -49,7 +48,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-people-history',
         name: 'Who is active, and when?',
         description:
-            'Recorded activity by person and week. A missing name is retained separately by user identity. Recent activity is not evidence of a recent login.',
+            'Recorded activity by person and week. Recent activity does not mean a recent login.',
         explore: 'user_activity',
         dimensions: [
             'user_activity_user_name',
@@ -71,7 +70,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-dashboard-audience',
         name: 'Which dashboards are people viewing?',
         description:
-            'Distinct people and recorded dashboard views. Repeat fetches can add views; visits served entirely from the browser cache are not captured. Viewer counts overlap between dashboards.',
+            'Distinct viewers and recorded views for each dashboard. Reloads can add views. Views served entirely from the browser cache are not counted. One person can view several dashboards, so viewer counts overlap.',
         explore: 'content_reach',
         dimensions: [
             'content_reach_content_name',
@@ -103,7 +102,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-app-audience',
         name: 'Which apps are people loading?',
         description:
-            'Recorded app loads from standalone pages, dashboards and charts. Reloads and creators using their own apps count. Builder previews, embeds, deliveries and older loads with unknown context are excluded. Loads do not confirm successful rendering or readership.',
+            'Recorded app loads from standalone pages, dashboards and charts. Reloads count, and so do creators using their own apps. Builder previews, embeds, deliveries and older loads with unknown context are left out. A load does not confirm the app rendered or was read.',
         explore: 'data_app_reach',
         dimensions: [
             'data_app_reach_app_name',
@@ -129,9 +128,9 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'adoption-apps-created',
-        name: 'Apps created each week',
+        name: 'Apps created by week',
         description:
-            'Distinct apps with a recorded creation event each week. Creating an app does not mean it has been shared or read. Earlier creation history may be unavailable.',
+            'Distinct apps created each week. Older creation history may be missing.',
         explore: 'data_app_events',
         dimensions: ['data_app_events_event_ts_week'],
         metrics: ['data_app_events_unique_apps'],
@@ -155,7 +154,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-app-creators',
         name: 'Who is creating apps?',
         description:
-            'Creators and apps from recorded creation events, grouped by week. Names reflect the latest available lookup. Iterations and reads are excluded.',
+            'People who created apps, and the apps they created, by week. Names are the latest available. Iterations and loads are not counted.',
         explore: 'data_app_events',
         dimensions: [
             'data_app_events_user_name',
@@ -182,9 +181,9 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'adoption-app-reader-trend',
-        name: 'App loads and viewers each day',
+        name: 'App loads and viewers by day',
         description:
-            'Recorded loads and distinct identified viewers from standalone pages, dashboards and charts each day. Includes reloads. Older loads with unknown context are shown separately in the surface breakdown. Viewer counts cannot be summed across days.',
+            'Loads and distinct identified viewers per day, from standalone pages, dashboards and charts. Older loads with unknown context appear in the surface breakdown instead. Daily viewer counts cannot be added up across days.',
         explore: 'data_app_reach',
         dimensions: ['data_app_reach_event_ts_day'],
         metrics: [
@@ -204,7 +203,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-app-reader-detail',
         name: 'Who loads each app?',
         description:
-            'People loading apps from standalone pages, dashboards and charts, grouped by app and week. Includes reloads and creators viewing their own apps. The same person can appear across apps and weeks; do not sum rows to count distinct people.',
+            'People who loaded apps from standalone pages, dashboards and charts, by app and week. Creators loading their own apps count. The same person can appear for several apps and weeks, so rows cannot be added up to count people.',
         explore: 'data_app_reach',
         dimensions: [
             'data_app_reach_app_name',
@@ -234,7 +233,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-app-first-audience',
         name: 'Where are apps being loaded?',
         description:
-            'All recorded app loads by surface, including builder previews, embeds, deliveries and older loads with unknown context. Embed viewers are unidentified. Historical unknown context cannot separate viewers from embed token issuers. Apps with no captured loads are absent.',
+            'All recorded app loads by surface, including builder previews, embeds, deliveries and older loads with unknown context. Viewers of embeds are not identified. For older loads with unknown context, viewers cannot be told apart from embed token issuers. Apps with no recorded loads are not shown.',
         explore: 'data_app_reach',
         dimensions: ['data_app_reach_view_context'],
         metrics: [
@@ -251,9 +250,9 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'adoption-app-outcome-trend',
-        name: 'Observed app errors each day',
+        name: 'App errors by day',
         description:
-            'Distinct app navigations with an HTML delivery failure or an observed runtime error each day, across all surfaces. An app can appear in both series. Missing SDK signals are unknown, not evidence of an error.',
+            'Distinct app navigations each day with an HTML delivery failure or a runtime error, on all surfaces. A navigation with both kinds of error is counted in both series.',
         explore: 'data_app_outcomes',
         dimensions: ['data_app_outcomes_event_ts_day'],
         metrics: [
@@ -274,7 +273,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-app-outcome-detail',
         name: 'App outcomes by app and surface',
         description:
-            'Observed HTML delivery, SDK startup and runtime errors, deduplicated by app navigation. Includes builder previews, embeds and deliveries. Captured signals include repeats and observations that cannot be linked to a navigation; missing SDK signals remain unknown.',
+            'HTML delivery, SDK startup and runtime errors for each app and surface, each counted once per navigation. Includes builder previews, embeds and deliveries. The Captured signals column is a raw count: it includes repeated signals and signals with no navigation ID.',
         explore: 'data_app_outcomes',
         dimensions: [
             'data_app_outcomes_app_name',
@@ -309,9 +308,9 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'adoption-ask-ai-questions',
-        name: 'Ask AI questions each day',
+        name: 'Ask AI questions by day',
         description:
-            'Captured prompts submitted to the AI agent in the web app, including follow-ups and requests still pending or failed. Excludes Slack and embedded requests; one question can cause several AI calls.',
+            'Questions sent to the AI agent in the web app, including follow-ups and questions that are pending or failed. One question can make several AI calls.',
         explore: 'agent_request_starts',
         dimensions: ['agent_requests_requested_at_day'],
         metrics: ['agent_requests_total_requests'],
@@ -325,9 +324,9 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'adoption-ask-ai-people',
-        name: 'People asking AI each week',
+        name: 'People asking AI by week',
         description:
-            'Distinct identified people submitting web-app AI agent prompts each week. Using other AI-powered features does not count here.',
+            'Distinct identified people who asked the AI agent a question in the web app each week. Using other AI features does not count.',
         explore: 'agent_request_starts',
         dimensions: ['agent_requests_requested_at_week'],
         metrics: ['agent_requests_distinct_requesters'],
@@ -343,9 +342,9 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'adoption-ask-ai-frequency',
-        name: 'Questions per active AI user each day',
+        name: 'Questions per person asking, by day',
         description:
-            'Questions from identified web-app requesters divided by the distinct people asking that day. People who asked nothing are outside this average. No activity is not shown as a zero-person average.',
+            'Questions from identified people in the web app, divided by the number of people who asked that day. People who asked nothing are not in the average. Days with no questions show no value, not zero.',
         explore: 'agent_request_starts',
         dimensions: ['agent_requests_requested_at_day'],
         metrics: [
@@ -381,7 +380,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-ask-ai-users',
         name: 'Who is asking AI?',
         description:
-            'People ranked by captured web-app AI agent questions. Missing names remain separate by identity; this does not count app building or background AI calls.',
+            'People ranked by questions to the AI agent in the web app.',
         explore: 'agent_request_starts',
         dimensions: ['agent_requests_user_name', 'agent_requests_user_id'],
         metrics: ['agent_requests_total_requests'],
@@ -394,7 +393,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-ask-ai-agents',
         name: 'Which agents are people asking?',
         description:
-            'Web-app questions and distinct requesters for each AI agent. People can use several agents, so audiences overlap.',
+            'Questions in the web app and distinct people asking, for each AI agent. One person can use several agents, so the people counts overlap.',
         explore: 'agent_request_starts',
         dimensions: ['agent_requests_agent_name', 'agent_requests_agent_id'],
         metrics: [
@@ -414,7 +413,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
 export const adoptionDashboardSpec: UsageDashboardSpec = {
     key: dashboardKey,
     name: 'Adoption',
-    description: 'Active people, content reach and Ask AI use.',
+    description: 'Active people, dashboard and app use, and Ask AI use.',
     filters: {
         dimensions: [
             {
@@ -519,7 +518,7 @@ export const adoptionDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'Are apps loading reliably?',
                     description:
-                        'Technical observations across all surfaces, including previews, embeds and deliveries. SDK startup does not confirm complete rendering or readership. Older bundles may have no SDK signals. Counts are per navigation, not people; daily counts should not be summed to deduplicate a longer period.',
+                        'Technical signals from every surface, including previews, embeds and deliveries. SDK startup does not confirm the app rendered fully or was read. Older app bundles may send no SDK signals: that is unknown, not an error. Counts are per navigation, not per person. A navigation is one load of an app page. Daily counts cannot be added up to get a deduplicated count for a longer period. The Date, App and Surface filters change only the tiles on this tab.',
                     charts: [
                         'adoption-app-outcome-trend',
                         'adoption-app-outcome-detail',
@@ -544,7 +543,7 @@ export const adoptionDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'Who is using Ask AI?',
                     description:
-                        'Named people and agents make it easier to see where usage is growing. Missing names do not necessarily mean anonymous use.',
+                        'Questions by person and by agent. A missing name does not necessarily mean anonymous use.',
                     charts: ['adoption-ask-ai-users', 'adoption-ask-ai-agents'],
                 },
             ],

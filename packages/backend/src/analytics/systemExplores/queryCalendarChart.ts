@@ -349,9 +349,9 @@ queryCalendarSpec.layer = [
 export const buildQueryCalendarChart = (source: ChartAsCode): ChartAsCode => ({
     ...source,
     slug: 'lightdash-analytics-query-activity-query-calendar',
-    name: 'Query activity calendar · daily',
+    name: 'Queries by day (calendar)',
     description:
-        'Daily query patterns across the returned date range (UTC). The original Queries by day chart retains date zoom and drill-down. This calendar always groups by UTC day; date-range filters still apply. Grey gaps mean no recorded data. Results are limited to 500 days in ascending order.',
+        'Queries per UTC day. Date-range filters apply, but the calendar always groups by day. Grey means no recorded data. Shows the earliest 500 days in the range. Use Queries by day for date zoom and drill-down.',
     metricQuery: {
         ...source.metricQuery,
         dimensions: [day],

@@ -1639,7 +1639,7 @@ describe('display fixes', () => {
             analyticsLibraryChartBindings.get(slow.slug)?.optionValues,
         ).toMatchObject({
             yName: 'Queries',
-            yRightName: 'p95 response time (ms)',
+            yRightName: 'P95 response time (ms)',
         });
         ['avg-execution-time', 'p90-execution-time'].forEach((key) => {
             const [metric] = bySuffix(key).metricQuery.metrics;

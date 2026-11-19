@@ -21,10 +21,9 @@ const day = 'ai_usage_event_ts_day';
 const queryLimit = 5000;
 // The top five groups take the Analytics palette; grey marks "Other".
 const colors = [...analyticsColorPalette.colors.slice(0, 5), '#868e96'];
+// The one place billing scope is defined; other tiles refer to "tokens in billing scope".
 const scopeDescription =
-    'Complete usage on Lightdash-managed keys for Ask AI, deep research, subtasks, compaction and Data Apps, including unpriced models. These tokens are not credits or the priced billable-token total in Settings.';
-const periodDescription =
-    'Current month through yesterday UTC, using retained captured usage. Today is excluded. Missing provider usage is unknown, not zero.';
+    'Tokens from work that completed, on Lightdash-managed keys, for Ask AI, deep research, subtasks, compaction and Data Apps. Unpriced models are included. These tokens are not credits, and not the priced billable-token total in Settings.';
 
 type Query = ChartAsCode['metricQuery'];
 type Breakdown = {
@@ -34,6 +33,21 @@ type Breakdown = {
     identity: string;
     label: string;
     billingScope: boolean;
+    // Chart descriptions; billing-scope breakdowns derive theirs from the title.
+    descriptions?: { daily: string; rank?: string };
+};
+
+const breakdownDescription = (
+    { title, billingScope, descriptions }: Breakdown,
+    daily: boolean,
+): string => {
+    if (!billingScope && descriptions) {
+        return daily ? descriptions.daily : (descriptions.rank ?? '');
+    }
+    const groups = `the five largest ${title.toLowerCase()}s plus Other`;
+    return daily
+        ? `Tokens in billing scope per day, for ${groups}.`
+        : `Each group's share of tokens in billing scope, for ${groups}.`;
 };
 
 const breakdowns: Breakdown[] = [
@@ -89,6 +103,10 @@ const breakdowns: Breakdown[] = [
         identity: "datum.ai_usage_model || 'Unknown model'",
         label: "datum.ai_usage_model || 'Unknown model'",
         billingScope: false,
+        descriptions: {
+            daily: 'All recorded tokens per day, for the five largest models plus Other.',
+            rank: "Each model's share of all recorded tokens, for the five largest models plus Other.",
+        },
     },
     {
         key: 'key',
@@ -97,6 +115,9 @@ const breakdowns: Breakdown[] = [
         identity: "datum.ai_usage_key_management || 'Unknown key origin'",
         label: "datum.ai_usage_key_management || 'Unknown key origin'",
         billingScope: false,
+        descriptions: {
+            daily: 'All recorded tokens per day by key origin, for example Lightdash-managed or self-managed keys.',
+        },
     },
     {
         key: 'outcome',
@@ -105,6 +126,9 @@ const breakdowns: Breakdown[] = [
         identity: "datum.ai_usage_outcome || 'Unknown outcome'",
         label: "datum.ai_usage_outcome || 'Unknown outcome'",
         billingScope: false,
+        descriptions: {
+            daily: 'All recorded tokens per day by outcome.',
+        },
     },
 ];
 
@@ -525,7 +549,7 @@ const chart = (
     name: string,
     query: Query,
     chartConfig: ChartAsCode['chartConfig'],
-    description = periodDescription,
+    description: string,
 ): ChartAsCode => ({
     version: 1,
     slug: `${dashboardSlug}-${key}`,
@@ -549,6 +573,7 @@ const number = (
     key: string,
     name: string,
     metric: string,
+    description: string,
     billingScope = false,
 ) =>
     chart(
@@ -563,7 +588,7 @@ const number = (
                 showBigNumberLabel: false,
             },
         },
-        billingScope ? scopeDescription : periodDescription,
+        description,
     );
 
 export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
@@ -572,17 +597,58 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
         config: { showTableNames: false, hideRowNumbers: true },
     };
     const charts = [
-        number('total', 'Reported tokens · all usage', tokens),
-        number('eligible', 'Tokens in billing scope', tokens, true),
-        number('records', 'Recorded usage events', 'ai_usage_total_ai_calls'),
+        number(
+            'total',
+            'Tokens (all usage)',
+            tokens,
+            'All recorded tokens this month, in and out of billing scope. Missing provider usage is unknown, not zero.',
+        ),
+        number(
+            'eligible',
+            'Tokens in billing scope',
+            tokens,
+            scopeDescription,
+            true,
+        ),
+        number(
+            'records',
+            'AI calls',
+            'ai_usage_total_ai_calls',
+            'AI calls this month. An AI call is not a question, and this is not an exact count of provider calls.',
+        ),
         ...[
-            ['input', 'Input tokens', 'input'],
-            ['output', 'Output tokens', 'output'],
-            ['cache-read', 'Cache-read tokens', 'cache_read'],
-            ['cache-write', 'Cache-write tokens', 'cache_write'],
-            ['reasoning', 'Reasoning tokens', 'reasoning'],
-        ].map(([key, name, field]) =>
-            number(key, name, `ai_usage_total_${field}_tokens`),
+            [
+                'input',
+                'Input tokens',
+                'input',
+                'Input tokens. Includes cache-read and cache-write tokens.',
+            ],
+            [
+                'output',
+                'Output tokens',
+                'output',
+                'Output tokens. May include reasoning tokens.',
+            ],
+            [
+                'cache-read',
+                'Cache-read tokens',
+                'cache_read',
+                'Cache-read tokens. Already counted in input tokens.',
+            ],
+            [
+                'cache-write',
+                'Cache-write tokens',
+                'cache_write',
+                'Cache-write tokens. Already counted in input tokens.',
+            ],
+            [
+                'reasoning',
+                'Reasoning tokens',
+                'reasoning',
+                'Reasoning tokens. May already be counted in output tokens.',
+            ],
+        ].map(([key, name, field, description]) =>
+            number(key, name, `ai_usage_total_${field}_tokens`, description),
         ),
         ...breakdowns.flatMap((breakdown) =>
             (['key', 'outcome'].includes(breakdown.key)
@@ -592,8 +658,8 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                 chart(
                     `${breakdown.key}-${daily ? 'daily' : 'rank'}`,
                     daily
-                        ? `Daily tokens by ${breakdown.title.toLowerCase()}`
-                        : `${breakdown.title} · token share`,
+                        ? `Tokens by ${breakdown.title.toLowerCase()} and day`
+                        : `Token share by ${breakdown.title.toLowerCase()}`,
                     metricQuery(breakdown.billingScope, {
                         dimensions: [
                             ...(daily ? [day] : []),
@@ -611,13 +677,13 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                         type: ChartType.CUSTOM,
                         config: { spec: visualSpec(breakdown, daily) },
                     },
-                    `${breakdown.billingScope ? scopeDescription : periodDescription} Largest five groups plus Other; shares describe tokens in this scope, not allowance. Identical names retain separate identities.`,
+                    breakdownDescription(breakdown, daily),
                 ),
             ),
         ),
         chart(
             'details',
-            'Billing-scope records · attribution details',
+            'AI calls in billing scope: attribution details',
             metricQuery(true, {
                 dimensions: [
                     'ai_usage_user_name',
@@ -659,11 +725,11 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                     },
                 },
             },
-            `${scopeDescription} Up to 1,000 grouped rows. Usage records are not human questions or an exact provider-call count.`,
+            'AI calls in billing scope. Up to 1,000 grouped rows. An AI call is not a question or an exact count of provider calls.',
         ),
         chart(
             'quality',
-            'Token coverage by feature, key origin and outcome',
+            'AI calls with known token totals, by feature, key origin and outcome',
             metricQuery(false, {
                 dimensions: [
                     'ai_usage_feature',
@@ -679,7 +745,7 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                 additionalMetrics: [
                     {
                         name: 'known_usage_records',
-                        label: 'Events with reported token total',
+                        label: 'AI calls with reported token total',
                         type: MetricType.COUNT,
                         table: 'ai_usage',
                         sql: '${ai_usage.total_tokens}',
@@ -687,7 +753,7 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                 ],
             }),
             tableConfig,
-            'Known totals count captured events where total_tokens is non-null. Complete reporting among captured events does not prove all provider calls were captured. Data App events may aggregate a run per model.',
+            'An AI call has a known total when its token count is not blank. Even if every AI call has a total, some provider calls may not have been recorded. For Data Apps, one AI call can cover a whole run for one model.',
         ),
     ];
 
@@ -696,7 +762,7 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
         slug: dashboardSlug,
         spaceSlug,
         name: 'AI usage · Tokens & billing coverage',
-        description: 'AI token consumption and reporting coverage.',
+        description: 'AI tokens used this month, in and out of billing scope.',
         config: { isDateZoomDisabled: true, isAddFilterDisabled: false },
         tabs: [],
         tiles: [],
@@ -716,12 +782,12 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
         keys,
     });
     const attributionNotes: Record<string, string> = {
-        user: ' Embedded viewers are combined. Unattributed and deleted users remain visible; short UUIDs distinguish people with the same name.',
+        user: ' Embedded viewers are shown as one group. Unattributed and deleted users are still shown. Short UUIDs tell apart users with the same name.',
         project:
-            ' Project names reflect the latest successful project snapshot. Unresolved projects retain their identity; full UUIDs are available in tooltips and the attribution table.',
-        agent: ' Usage with no agent ID, including Data App generation, stays in Unattributed agent.',
+            ' Project names are from the latest successful project snapshot. Projects with no name are still listed separately. Full UUIDs are in the tooltips and the attribution table.',
+        agent: ' Usage with no agent ID, including Data App generation, is shown as Unattributed agent.',
         channel:
-            ' Missing channel attribution stays in Unknown channel; it is not inferred from the feature.',
+            ' Usage with no channel is shown as Unknown channel. The channel is not guessed from the feature.',
     };
     const tabs = [
         ...breakdowns
@@ -732,14 +798,14 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                 rows: [
                     note(
                         1,
-                        '**Current month through yesterday UTC.** Billing-scope tokens include unpriced models. Credit accounting and allowance are separate measures.',
+                        '**Current month up to yesterday (UTC). Today is excluded.** Tokens in billing scope include unpriced models. Credits and allowance are measured separately.',
                     ),
                     row(3, 'eligible', 'total', 'records'),
                     row(7, `${key}-daily`),
                     row(8, `${key}-rank`),
                     note(
                         3,
-                        `${scopeDescription} **Top five groups + Other**; bars show share of scope, not remaining allowance. Data updates with the usage-processing refresh; today is excluded.${attributionNotes[key] ?? ''}`,
+                        `**Top five groups plus Other.** Bars show each group's share of tokens in billing scope, not remaining allowance. Groups with the same name are kept separate. Data updates when usage is processed.${attributionNotes[key] ?? ''}`,
                     ),
                 ],
             })),
@@ -749,13 +815,13 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
             rows: [
                 note(
                     2,
-                    '### All recorded AI usage\nIncludes billing-scope, excluded/background and self-managed consumption. **Current month through yesterday UTC**; captured usage is not a provider invoice or a count of human questions.',
+                    '### All recorded AI usage\nTokens in billing scope, excluded or background usage, and self-managed usage. **Current month up to yesterday (UTC). Today is excluded.** Recorded usage is not a provider invoice or a count of questions people asked.',
                 ),
                 row(3, 'total', 'input', 'output'),
                 row(3, 'cache-read', 'cache-write', 'reasoning'),
                 note(
                     1,
-                    '**Do not add all six categories.** Cache reads/writes are included in input; reasoning may be included in output. Missing provider usage is unknown, not zero.',
+                    '**Do not add these tiles together.** Cache-read and cache-write tokens are included in input tokens. Reasoning tokens may be included in output tokens. Missing provider usage is unknown, not zero.',
                 ),
                 row(7, 'model-daily'),
                 row(8, 'model-rank'),
@@ -763,7 +829,7 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                 row(7, 'quality'),
                 note(
                     5,
-                    '### Reporting coverage\n**Tokens are not credits or currency.** Credit accounting uses effective-dated model rates, including separate cache rates. Contract periods, allowances and holds are not part of this explore.\n\n**Attribution:** app/build identity is not available in this model. Unknown channel and missing identities are retained, not silently assigned.\n\n**Completeness:** reported totals describe captured usage. Failed or aborted partial provider usage may not be captured. A Data App record can aggregate a model over a run. Settings uses a live ledger; compare the same time window before reconciling it with retained closed-day Analytics data.',
+                    '### Reporting coverage\n**Tokens are not credits or cost.** Credits are calculated from model rates that apply from a given date, with separate rates for cached tokens. Contract periods, allowances and holds are not shown here.\n\n**Attribution:** usage cannot be linked to an individual app or build. Unknown channels and missing identities are shown as they are, not assigned to another group.\n\n**Completeness:** totals cover recorded usage only. Partial usage from failed or aborted provider calls may not be recorded. For Data Apps, one AI call can cover a whole run for one model. Settings uses a live ledger. To reconcile with it, compare the same time window, because Analytics covers complete days only.',
                 ),
                 row(8, 'details'),
             ],

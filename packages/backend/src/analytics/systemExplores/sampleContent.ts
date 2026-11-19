@@ -157,6 +157,8 @@ const aiUsageContent = {
         'AI calls, token consumption, adoption and model usage. Duplicate this dashboard to keep a customized copy separate from future built-in updates.',
     charts: [
         chart('ai-calls', 'AI calls', 'ai_usage', 'total_ai_calls', undefined, {
+            description:
+                'AI calls in the selected period. One question to an agent can make several AI calls.',
             libraryChart: {
                 slug: 'big-number-with-sparkline-trend',
                 minVersion: '0.7.1',
@@ -181,7 +183,8 @@ const aiUsageContent = {
                         { fieldId: 'ai_usage_event_ts_day', descending: false },
                     ],
                     limit: 500,
-                    description: defaultChartDescription,
+                    description:
+                        'AI calls in the selected period. One question to an agent can make several AI calls.',
                 },
             },
         }),
@@ -192,6 +195,8 @@ const aiUsageContent = {
             'total_tokens_used',
             undefined,
             {
+                description:
+                    'Tokens used in the selected period. Tokens are not cost.',
                 libraryChart: {
                     slug: 'big-number-with-sparkline-trend',
                     minVersion: '0.7.1',
@@ -219,14 +224,15 @@ const aiUsageContent = {
                             },
                         ],
                         limit: 500,
-                        description: defaultChartDescription,
+                        description:
+                            'Tokens used in the selected period. Tokens are not cost.',
                     },
                 },
             },
         ),
         chart(
             'ai-users',
-            'Users using AI',
+            'People using AI',
             'ai_usage',
             'unique_users',
             undefined,
@@ -271,6 +277,7 @@ const aiUsageContent = {
             'total_output_tokens',
             undefined,
             {
+                description: 'Output tokens in the selected period.',
                 libraryChart: {
                     slug: 'big-number-with-sparkline-trend',
                     minVersion: '0.7.1',
@@ -298,7 +305,7 @@ const aiUsageContent = {
                             },
                         ],
                         limit: 500,
-                        description: defaultChartDescription,
+                        description: 'Output tokens in the selected period.',
                     },
                 },
             },
@@ -312,6 +319,7 @@ const aiUsageContent = {
             {
                 colors: ['#7950F2'],
                 axisLabel: 'Calls',
+                description: '',
                 libraryChart: {
                     slug: 'customizable-cartesian-chart',
                     minVersion: '0.17.1',
@@ -337,7 +345,7 @@ const aiUsageContent = {
                             },
                         ],
                         limit: 5000,
-                        description: defaultChartDescription,
+                        description: '',
                     },
                 },
             },
@@ -351,6 +359,7 @@ const aiUsageContent = {
             {
                 colors: ['#339AF0'],
                 axisLabel: 'Tokens',
+                description: '',
                 libraryChart: {
                     slug: 'customizable-cartesian-chart',
                     minVersion: '0.17.1',
@@ -376,14 +385,14 @@ const aiUsageContent = {
                             },
                         ],
                         limit: 5000,
-                        description: defaultChartDescription,
+                        description: '',
                     },
                 },
             },
         ),
         chart(
             'tokens-by-model',
-            'Which models consume the most tokens?',
+            'Tokens by model (top 10)',
             'ai_usage',
             'total_tokens_used',
             'model',
@@ -392,12 +401,12 @@ const aiUsageContent = {
                 colors: ['#7950F2'],
                 axisLabel: 'Tokens',
                 description:
-                    'Top 10 models by total tokens, across all available events. Token volume is not monetary cost.',
+                    'Top 10 models by total tokens in the selected period.',
             },
         ),
         chart(
             'calls-by-model',
-            'Which models are called most often?',
+            'AI calls by model (top 10)',
             'ai_usage',
             'total_ai_calls',
             'model',
@@ -406,12 +415,12 @@ const aiUsageContent = {
                 colors: ['#339AF0'],
                 axisLabel: 'Calls',
                 description:
-                    'Top 10 models by AI calls across all available events. Compare with token volume to distinguish frequent calls from token-heavy calls.',
+                    'Top 10 models by AI calls in the selected period. Compare with tokens by model to tell frequent calls from token-heavy calls.',
             },
         ),
         chart(
             'tokens-by-feature',
-            'Token use by feature',
+            'Tokens by feature',
             'ai_usage',
             'total_tokens_used',
             'feature',
@@ -419,8 +428,7 @@ const aiUsageContent = {
                 visualization: 'bar',
                 colors: ['#7950F2'],
                 axisLabel: 'Tokens',
-                description:
-                    'Tokens by feature over the selected period. Token volume is not monetary cost.',
+                description: 'Tokens by feature in the selected period.',
                 libraryChart: {
                     slug: 'heatmap',
                     minVersion: '0.4.2',
@@ -448,7 +456,7 @@ const aiUsageContent = {
                         ],
                         limit: 5000,
                         description:
-                            'Tokens per feature per day over the selected period. Token volume is not monetary cost.',
+                            'Tokens per feature per day in the selected period.',
                     },
                 },
             },
@@ -483,11 +491,12 @@ export const analyticsSampleDashboards = [
         charts: [
             chart(
                 'queries',
-                'Queries executed',
+                'Queries run',
                 'query_events',
                 'total_queries',
                 undefined,
                 {
+                    description: 'Queries run in the selected period.',
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
                         minVersion: '0.7.1',
@@ -515,7 +524,7 @@ export const analyticsSampleDashboards = [
                                 },
                             ],
                             limit: 500,
-                            description: defaultChartDescription,
+                            description: 'Queries run in the selected period.',
                         },
                     },
                 },
@@ -555,7 +564,7 @@ export const analyticsSampleDashboards = [
                             ],
                             limit: 500,
                             description:
-                                'People who ran queries on the latest day in the selected period, with the daily trend. A person active on several days is counted on each of those days.',
+                                'Users who ran queries on the latest day in the selected period, with the daily trend. A user active on several days is counted on each of those days.',
                         },
                     },
                 },
@@ -655,6 +664,7 @@ export const analyticsSampleDashboards = [
                 {
                     colors: ['#12B886'],
                     axisLabel: 'Queries',
+                    description: '',
                     libraryChart: {
                         slug: 'customizable-cartesian-chart',
                         minVersion: '0.17.1',
@@ -687,7 +697,8 @@ export const analyticsSampleDashboards = [
                                 },
                             ],
                             limit: 5000,
-                            description: `Queries per day, split by the six contexts that ran the most, with the rest grouped as Other. ${defaultChartDescription}`,
+                            description:
+                                'Queries per day, split by the six contexts that ran the most queries, with the rest grouped as Other.',
                         },
                     },
                 },
@@ -702,24 +713,24 @@ export const analyticsSampleDashboards = [
                     colors: ['#339AF0'],
                     axisLabel: 'Users',
                     description:
-                        'Distinct users with query events each day. Daily distinct counts should not be summed to calculate period-wide unique users.',
+                        'Distinct users who ran queries each day. Daily counts cannot be added up to get users for the whole period.',
                 },
             ),
             chart(
                 'query-cache',
-                'How often are queries served from cache?',
+                'Queries by cache hit',
                 'query_events',
                 'total_queries',
                 'cache_hit',
                 {
                     visualization: 'donut',
                     description:
-                        'Share of query events by cache-hit flag. Missing flags remain a separate group rather than being treated as misses.',
+                        'Share of queries by whether they hit the cache. Queries with no cache information are a separate group, not counted as misses.',
                 },
             ),
             chart(
                 'queries-by-context',
-                'Where are queries coming from?',
+                'Queries by context (top 10)',
                 'query_events',
                 'total_queries',
                 'context',
@@ -728,12 +739,12 @@ export const analyticsSampleDashboards = [
                     colors: ['#339AF0'],
                     axisLabel: 'Queries',
                     description:
-                        'Top 10 query contexts by volume across all available events.',
+                        'Top 10 query contexts by number of queries in the selected period.',
                 },
             ),
             chart(
                 'query-latency-by-day',
-                'Is warehouse execution getting slower?',
+                'Warehouse time by day (average and P90)',
                 'query_events',
                 'avg_warehouse_execution_time_ms',
                 'event_ts_day',
@@ -743,7 +754,7 @@ export const analyticsSampleDashboards = [
                     colors: ['#12B886', '#F59F00'],
                     axisLabel: 'Milliseconds',
                     description:
-                        'Daily average and 90th percentile warehouse execution time, in milliseconds. Missing timings are excluded; this is not end-to-end request latency.',
+                        'Average and P90 warehouse execution time per day, in milliseconds. Queries with no timing are left out. This is warehouse time only, not end-to-end response time.',
                 },
             ),
         ],

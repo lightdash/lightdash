@@ -228,7 +228,7 @@ export const withAnalyticsChartPresentation = (
         else if (style === Compact.AUTO) style = undefined;
         let { name } = chart;
         if (chart.slug.endsWith('-avg-execution-time'))
-            name = 'Avg. warehouse time (ms)';
+            name = 'Average warehouse time (ms)';
         if (chart.slug.endsWith('-p90-execution-time'))
             name = 'P90 warehouse time (ms)';
         return {

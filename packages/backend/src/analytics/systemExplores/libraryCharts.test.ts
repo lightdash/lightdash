@@ -730,22 +730,53 @@ describe('legacyLibraryChartBindings', () => {
                 'lightdash-analytics-query-activity-queries-by-day',
             ),
         ).toBe(
-            `Queries per day, split by the six contexts that ran the most, with the rest grouped as Other. ${chartDescription('lightdash-analytics-query-activity-queries-by-day')}`,
+            'Queries per day, split by the six contexts that ran the most queries, with the rest grouped as Other.',
         );
+        // The fallback line chart needs no description beyond its title.
+        expect(
+            chartDescription(
+                'lightdash-analytics-query-activity-queries-by-day',
+            ),
+        ).toBe('');
         const agentChart = (key: string) =>
             [...analyticsLibraryChartBindings.keys()].find((slug) =>
                 slug.endsWith(`-${key}`),
             )!;
+        // Caveats shared by a whole tab live once in that tab's caption.
+        const captions = (dashboardSlug: string, tabSlug: string) =>
+            analyticsContentAsCode
+                .find(({ dashboard }) => dashboard.slug === dashboardSlug)!
+                .dashboard.tiles.filter(
+                    (tile) =>
+                        tile.tabSlug === tabSlug &&
+                        'content' in tile.properties,
+                )
+                .map(
+                    (tile) => (tile.properties as { content: string }).content,
+                );
         expect(queryDescription(agentChart('agent-adoption-by-week'))).toBe(
-            'Requests per person and agent over the selected period. People without a display name are grouped as Unknown user. This is not an eligible-user adoption rate.',
+            'Requests per person and agent in the selected period. People without a display name are grouped as Unknown user.',
         );
+        expect(
+            captions('lightdash-analytics-overview', 'adoption').filter(
+                (content) =>
+                    content.includes(
+                        'This is not the share of eligible people who use agents',
+                    ),
+            ),
+        ).toHaveLength(1);
         expect(
             queryDescription(
                 agentChart('ai-consumption-by-person-feature-and-model'),
             ),
         ).toBe(
-            'Top 24 person and model pairs by tokens over the selected period, so a person near the cut-off can be missing smaller models. People without a display name are grouped as Unknown user. Tokens are not monetary cost.',
+            'Top 24 person and model pairs by tokens in the selected period, so a person near the cut-off can be missing their smaller models. People without a display name are grouped as Unknown user.',
         );
+        expect(
+            captions('lightdash-analytics-overview', 'consumption').filter(
+                (content) => content.includes('Tokens are not cost.'),
+            ),
+        ).toHaveLength(1);
         expect(queryDescription(agentChart('agent-requests-trend'))).toBe(
             chartDescription(agentChart('agent-requests-trend')),
         );
@@ -754,7 +785,7 @@ describe('legacyLibraryChartBindings', () => {
                 agentChart('agent-retries-latency-and-consumption'),
             ),
         ).toBe(
-            'Requests and average request latency by captured retry count. Agent steps are not equivalent to retries.',
+            'Requests and average request latency by recorded retry count. An agent step is not a retry.',
         );
     });
 });
