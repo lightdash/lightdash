@@ -807,6 +807,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     dashboardModel: models.getDashboardModel(),
                     savedChartService: repository.getSavedChartService(),
                     savedSqlService: repository.getSavedSqlService(),
+                    composerChartService: repository.getComposerChartService(),
                     savedChartModel: models.getSavedChartModel(),
                     coderService: repository.getCoderService(),
                     contentService: repository.getContentService(),

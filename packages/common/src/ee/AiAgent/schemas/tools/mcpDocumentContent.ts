@@ -201,7 +201,7 @@ export const DOCUMENT_CREATE_CONTENT_DESCRIPTION = (
 ): string =>
     `Create a Document from its JSON. ${getDocumentCreateGuidance(context)}`;
 
-export const MCP_READ_CONTENT_DESCRIPTION = `Read a dashboard, chart, SQL chart, data app or Document by its slug. ${READ_CONTENT_SHARED_DESCRIPTION} A Document returns Markdown where each chart is a short tag (id, title, type, explore), plus the latest version UUID that edits need; pass chartId to read one chart in full. A tag marked unsupported is a chart from a newer version: keep its tag unchanged when editing.`;
+export const MCP_READ_CONTENT_DESCRIPTION = `Read a dashboard, chart, SQL chart, composer chart, data app or Document by its slug. ${READ_CONTENT_SHARED_DESCRIPTION} A Document returns Markdown where each chart is a short tag (id, title, type, explore), plus the latest version UUID that edits need; pass chartId to read one chart in full. A tag marked unsupported is a chart from a newer version: keep its tag unchanged when editing.`;
 
 export const MCP_EDIT_CONTENT_DESCRIPTION = (
     context: ToolDescriptionContext,
@@ -230,7 +230,14 @@ export const documentCreateContentArgsSchema = z.object({
 });
 
 export const mcpReadContentArgsSchema = toolReadContentArgsSchema.extend({
-    type: z.enum(['dashboard', 'chart', 'sql_chart', 'data_app', 'document']),
+    type: z.enum([
+        'dashboard',
+        'chart',
+        'sql_chart',
+        'composer_chart',
+        'data_app',
+        'document',
+    ]),
     chartId: z
         .string()
         .min(1)

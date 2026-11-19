@@ -1,4 +1,7 @@
-import type { ToolRunContentQueryArgs } from '@lightdash/common';
+import {
+    READ_CONTENT_TYPE_LABELS,
+    type ToolRunContentQueryArgs,
+} from '@lightdash/common';
 import { rem, Text } from '@mantine/core';
 import type { FC } from 'react';
 import { ExploreChip } from '../ExploreChip';
@@ -34,7 +37,7 @@ export const RunContentQueryToolCallDescription: FC<
         );
     }
 
-    const chartLabel = source.chartType === 'sql_chart' ? 'SQL chart' : 'chart';
+    const chartLabel = READ_CONTENT_TYPE_LABELS[source.chartType ?? 'chart'];
 
     if (source.type === 'dashboardChart') {
         return (

@@ -77,8 +77,9 @@ type ComposerChartServiceArguments = {
     >;
 };
 
-/** Where a bound run is recorded in query history: a dashboard view, a scheduled delivery or a dashboard CSV export. */
+/** Where a bound run is recorded in query history: a dashboard view, a scheduled delivery, a dashboard CSV export or an AI agent. */
 export type ComposerChartRunContext =
+    | QueryExecutionContext.AI
     | QueryExecutionContext.DASHBOARD
     | QueryExecutionContext.SCHEDULED_DELIVERY
     | QueryExecutionContext.CSV;
@@ -667,8 +668,58 @@ export class ComposerChartService extends BaseService {
         body: ComposerChartRunRequest,
         context: ComposerChartRunContext,
     ): Promise<ComposerChartRunResults> {
-        Sentry.setTag('lightdash.chartKind', 'composer');
         const request = parseComposerChartRunRequest(body);
+        return this.runOnTile(account, projectUuid, composerChartUuid, {
+            dashboardUuid: request.dashboardUuid,
+            tileUuid: request.tileUuid,
+            invalidateCache: request.invalidateCache,
+            context,
+            dashboardState: {
+                type: 'request',
+                dashboardFilters: request.dashboardFilters,
+                parameters: request.parameters,
+                excludedParameterKeys: request.excludedParameterKeys,
+            },
+        });
+    }
+
+    /** As the tile runs on its dashboard opened unchanged: saved filters and parameter controls, resolved here. */
+    async runWithSavedDashboardState(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+        tile: Pick<
+            ComposerChartRunRequest,
+            'dashboardUuid' | 'tileUuid' | 'invalidateCache'
+        >,
+    ): Promise<ComposerChartRunResults> {
+        return this.runOnTile(account, projectUuid, composerChartUuid, {
+            ...tile,
+            context: QueryExecutionContext.AI,
+            dashboardState: { type: 'saved' },
+        });
+    }
+
+    private async runOnTile(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+        request: Pick<
+            ComposerChartRunRequest,
+            'dashboardUuid' | 'tileUuid' | 'invalidateCache'
+        > & {
+            context: ComposerChartRunContext;
+            dashboardState:
+                | ({ type: 'request' } & Pick<
+                      ComposerChartRunRequest,
+                      | 'dashboardFilters'
+                      | 'parameters'
+                      | 'excludedParameterKeys'
+                  >)
+                | { type: 'saved' };
+        },
+    ): Promise<ComposerChartRunResults> {
+        Sentry.setTag('lightdash.chartKind', 'composer');
         const { organizationUuid, dashboardUuid } = await this.assertCanView(
             account,
             projectUuid,
@@ -681,10 +732,11 @@ export class ComposerChartService extends BaseService {
         if (!enabled) {
             throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
         }
-        const { tiles } = await this.dashboardModel.getByIdOrSlug(
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
             dashboardUuid,
             { projectUuid },
         );
+        const { tiles } = dashboard;
         const shown = tiles.some(
             (tile) =>
                 tile.uuid === request.tileUuid &&
@@ -709,12 +761,16 @@ export class ComposerChartService extends BaseService {
                 organizationUuid,
                 dashboardUuid,
                 tileUuid: request.tileUuid,
-                dashboardFilters: request.dashboardFilters,
                 chartSavedValues: getComposerSavedParameterValues(
                     chart.pipeline.nodes,
                 ),
-                parameters: request.parameters,
-                excludedParameterKeys: request.excludedParameterKeys,
+                ...(request.dashboardState.type === 'request'
+                    ? request.dashboardState
+                    : {
+                          dashboardFilters: dashboard.filters,
+                          parameters: undefined,
+                          excludedParameterKeys: undefined,
+                      }),
             });
         const filtered = applyDashboardFiltersToComposerNodes({
             tileUuid: request.tileUuid,
@@ -755,7 +811,7 @@ export class ComposerChartService extends BaseService {
                     account,
                     projectUuid,
                     binding,
-                    context,
+                    context: request.context,
                     invalidateCache: request.invalidateCache,
                 }),
         );

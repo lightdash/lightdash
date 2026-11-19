@@ -15,6 +15,7 @@ import {
     CacheMetadata,
     CatalogField,
     ChartAsCode,
+    ComposerChartAsCode,
     ComposerNodeColumn,
     CreateSchedulerAndTargetsWithoutIds,
     CustomChartType,
@@ -377,6 +378,11 @@ export type ReadContentFn = (
           href: string;
       }
     | {
+          type: 'composer_chart';
+          content: ComposerChartAsCode;
+          href: string;
+      }
+    | {
           type: 'data_app';
           content: DataAppRead;
           href: string;
@@ -572,6 +578,29 @@ export type RunSqlChartQueryFn = (args: {
     chartSlug: string;
     dashboardSlug: string | null;
 }) => Promise<SqlQueryRows & { sqlChart: SqlChartSummary; limit: number }>;
+
+export type ComposerChartSummary = {
+    uuid: string;
+    slug: string;
+    name: string;
+    terminalNodeId: string;
+};
+
+export type ComposerChartTileRef = {
+    chartSlug: string;
+    dashboardSlug: string;
+};
+
+export type GetComposerChartFn = (
+    tile: ComposerChartTileRef,
+) => Promise<ComposerChartSummary>;
+
+/** Runs a composer chart as its dashboard tile does; returns its terminal node's rows, not a series-split stage. */
+export type RunComposerChartQueryFn = (
+    tile: ComposerChartTileRef,
+) => Promise<
+    SqlQueryRows & { composerChart: ComposerChartSummary; limit: number }
+>;
 
 export type SendFileFn = (args: PostSlackFile) => Promise<string | undefined>;
 

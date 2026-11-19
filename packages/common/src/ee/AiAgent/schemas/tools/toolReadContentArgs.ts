@@ -2,14 +2,14 @@ import { z } from 'zod';
 import { toolErrorStructuredContentSchema } from '../outputMetadata';
 
 export const READ_CONTENT_SHARED_DESCRIPTION =
-    'Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only: a view of what the app shows and its per-explore data references, without code. Address a data app by the slug listed or found for it, not the id in its URL.';
+    'Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. A composer_chart tile names a composer chart (a pipeline of queries plus a chart) by chartSlug; read it with type composer_chart, since a chart may share its slug. Data apps are read-only: a view of what the app shows and its per-explore data references, without code. Address a data app by the slug listed or found for it, not the id in its URL.';
 
-export const TOOL_READ_CONTENT_DESCRIPTION = `Read a dashboard, chart, SQL chart or data app as JSON by its slug. ${READ_CONTENT_SHARED_DESCRIPTION}`;
+export const TOOL_READ_CONTENT_DESCRIPTION = `Read a dashboard, chart, SQL chart, composer chart or data app as JSON by its slug. ${READ_CONTENT_SHARED_DESCRIPTION}`;
 
 export const toolReadContentArgsSchema = z.object({
     slug: z.string().min(1).describe('Slug of the content to read.'),
     type: z
-        .enum(['dashboard', 'chart', 'sql_chart', 'data_app'])
+        .enum(['dashboard', 'chart', 'sql_chart', 'composer_chart', 'data_app'])
         .describe('Type of Lightdash content to read.'),
 });
 
@@ -53,6 +53,12 @@ export const toolReadContentStructuredContentSchema = z.discriminatedUnion(
             ),
         }),
         readContentBaseSchema.extend({
+            type: z.literal('composer_chart'),
+            content: contentJsonSchema.describe(
+                'Composer chart as code JSON (pipeline and chart), exactly as shown in `result`.',
+            ),
+        }),
+        readContentBaseSchema.extend({
             type: z.literal('data_app'),
             content: contentJsonSchema.describe(
                 'Read-only data app JSON (no code), exactly as shown in `result`.',
@@ -91,6 +97,7 @@ export const READ_CONTENT_TYPE_LABELS: Record<ReadContentType, string> = {
     dashboard: 'dashboard',
     chart: 'chart',
     sql_chart: 'SQL chart',
+    composer_chart: 'composer chart',
     data_app: 'data app',
 };
 export type ToolReadContentStructuredContent = z.infer<
