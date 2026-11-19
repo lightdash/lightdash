@@ -1,3 +1,10 @@
+# [3.350.0](https://github.com/lightdash/lightdash/compare/3.349.0...3.350.0) (2026-11-19)
+
+
+### Features
+
+* **semantic-studio:** follow a publish through to the model it changed ([#33026](https://github.com/lightdash/lightdash/issues/33026)) ([f865cb7](https://github.com/lightdash/lightdash/commit/f865cb753fbccf177e019fa6a07c9c2c0001ea8b))
+
 # [3.349.0](https://github.com/lightdash/lightdash/compare/3.348.1...3.349.0) (2026-11-19)
 
 

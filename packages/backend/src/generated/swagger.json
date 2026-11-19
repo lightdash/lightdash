@@ -44014,6 +44014,41 @@
                 "type": "object",
                 "description": "What became of a change that left the draft."
             },
+            "SemanticLayerInReviewModel": {
+                "properties": {
+                    "contentAfter": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null when the pull request removes the model."
+                    },
+                    "contentBefore": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null when the pull request creates the model."
+                    },
+                    "changes": {
+                        "items": {
+                            "$ref": "#/components/schemas/ModelFragmentChange"
+                        },
+                        "type": "array"
+                    },
+                    "pullRequestUrl": {
+                        "type": "string"
+                    },
+                    "model": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "contentAfter",
+                    "contentBefore",
+                    "changes",
+                    "pullRequestUrl",
+                    "model"
+                ],
+                "type": "object",
+                "description": "What this person's changes waiting in an open pull request do to one model, against what is live."
+            },
             "SemanticLayerDraft": {
                 "properties": {
                     "othersDrafting": {
@@ -44034,6 +44069,12 @@
                         },
                         "type": "array",
                         "description": "Every model other people have unpublished changes to, whether or not this draft touches it."
+                    },
+                    "inReview": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerInReviewModel"
+                        },
+                        "type": "array"
                     },
                     "settled": {
                         "items": {
@@ -44073,6 +44114,7 @@
                 },
                 "required": [
                     "othersDrafting",
+                    "inReview",
                     "settled",
                     "errors",
                     "models",
@@ -80992,7 +81034,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.349.0",
+        "version": "3.350.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

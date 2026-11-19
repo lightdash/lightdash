@@ -49188,6 +49188,39 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerInReviewModel: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                contentAfter: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                contentBefore: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                changes: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'ModelFragmentChange' },
+                    required: true,
+                },
+                pullRequestUrl: { dataType: 'string', required: true },
+                model: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerDraft: {
         dataType: 'refAlias',
         type: {
@@ -49208,6 +49241,14 @@ const models: TsoaRoute.Models = {
                             },
                             model: { dataType: 'string', required: true },
                         },
+                    },
+                    required: true,
+                },
+                inReview: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'SemanticLayerInReviewModel',
                     },
                     required: true,
                 },
