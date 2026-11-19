@@ -1909,7 +1909,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                             gap="sm"
                                         >
                                             <Text fz="sm">
-                                                Check out this change to see it
+                                                Check out this draft to see it
                                                 in Models and Code, then review
                                                 and publish it.
                                             </Text>

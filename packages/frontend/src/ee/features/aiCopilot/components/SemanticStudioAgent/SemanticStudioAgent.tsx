@@ -318,7 +318,7 @@ const ExistingThread: FC<
             >
                 {thread.messages.length === 0 && !isBusy ? (
                     <Text fz="xs" c="dimmed" ta="center" px="md" pb="xs">
-                        You edited this change by hand. Ask for more here, or
+                        You edited this draft by hand. Ask for more here, or
                         publish it when it is ready.
                     </Text>
                 ) : null}

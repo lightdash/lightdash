@@ -168,7 +168,7 @@ export const StudioWorkspacesList: FC<{
     if (error || !data) {
         return (
             <Text fz="sm" c="dimmed" ta="center" py="xl">
-                Changes could not be loaded.
+                Drafts could not be loaded.
             </Text>
         );
     }
