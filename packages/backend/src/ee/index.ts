@@ -1127,8 +1127,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiAgentService<AiAgentService>(),
                     aiService: repository.getAiService<AiService>(),
                 }),
-            appStateService: ({ models, repository }) =>
+            appStateService: ({ models, repository, context }) =>
                 new AppStateService({
+                    analytics: context.lightdashAnalytics,
                     appStateModel: models.getAppStateModel<AppStateModel>(),
                     appModel: models.getAppModel(),
                     projectModel: models.getProjectModel(),

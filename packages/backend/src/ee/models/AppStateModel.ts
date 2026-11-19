@@ -290,10 +290,11 @@ export class AppStateModel {
         appUuid: string,
         userUuid: string,
         key: string,
-    ): Promise<void> {
-        await this.database(AppUserStateTableName)
+    ): Promise<boolean> {
+        const deleted = await this.database(AppUserStateTableName)
             .where({ app_uuid: appUuid, user_uuid: userUuid, key })
             .delete();
+        return deleted > 0;
     }
 
     async countSharedKeys(appUuid: string): Promise<number> {
@@ -423,10 +424,11 @@ export class AppStateModel {
     }
 
     /** Removes the current value. History stays, so versions keep counting. */
-    async deleteSharedState(appUuid: string, key: string): Promise<void> {
-        await this.database(AppSharedStateTableName)
+    async deleteSharedState(appUuid: string, key: string): Promise<boolean> {
+        const deleted = await this.database(AppSharedStateTableName)
             .where({ app_uuid: appUuid, key })
             .delete();
+        return deleted > 0;
     }
 
     /**
