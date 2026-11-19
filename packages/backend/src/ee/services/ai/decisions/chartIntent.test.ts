@@ -1708,24 +1708,34 @@ describe('decideTurn', () => {
         ).toBeNull();
     });
 
-    it('shows JEV the end of the previous answer on every turn', async () => {
-        const evaluate = vi.fn().mockResolvedValue({ simple: noul(0.1) });
+    it('shows JEV the end of the previous answer on chart and other turns', async () => {
+        const evaluate = vi.fn().mockResolvedValue(null);
+        const previousAnswer = {
+            text: 'Want me to break it down by payment method?',
+            askedUser: false,
+        };
+        const turn = { prompt: 'yes', instructions: null, conversation: [] };
         await decideTurn({
+            ...turn,
             decisions: { evaluate },
-            prompt: 'yes',
-            instructions: null,
-            conversation: [],
-            previousAnswer: {
-                text: 'Want me to break it down by payment method?',
-                askedUser: false,
-            },
+            previousAnswer,
             context: null,
         });
-        expect(evaluate.mock.calls[0][0].state).toEqual({
-            prompt: 'yes',
-            instructions: null,
-            previousAnswer: 'Want me to break it down by payment method?',
+        await decideTurn({
+            ...turn,
+            decisions: { evaluate },
+            previousAnswer,
+            context: buildChartIntentContext({
+                filterRules: [],
+                prompt: 'yes',
+                artifact,
+                explore,
+                usage: noUsage,
+            }),
         });
+        expect(
+            evaluate.mock.calls.map(([args]) => args.state.previousAnswer),
+        ).toEqual([previousAnswer.text, previousAnswer.text]);
     });
 
     it('never answers instantly when the user is answering an askUser question', async () => {
