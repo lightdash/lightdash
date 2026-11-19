@@ -1,6 +1,10 @@
 import {
     DashboardHeadingSize,
+    DashboardHeadingTextAlign,
+    DashboardHeadingVerticalAlign,
     DEFAULT_DASHBOARD_HEADING_SIZE,
+    DEFAULT_DASHBOARD_HEADING_TEXT_ALIGN,
+    DEFAULT_DASHBOARD_HEADING_VERTICAL_ALIGN,
     type DashboardHeadingTile as DashboardHeadingTileType,
 } from '@lightdash/common';
 import {
@@ -13,11 +17,17 @@ import {
     Tooltip,
 } from '@mantine/core';
 import {
+    IconAlignCenter,
+    IconAlignLeft,
+    IconAlignRight,
     IconCopy,
     IconH1,
     IconH2,
     IconH3,
     IconH4,
+    IconLayoutAlignBottom,
+    IconLayoutAlignMiddle,
+    IconLayoutAlignTop,
     IconUnderline,
     type Icon,
 } from '@tabler/icons-react';
@@ -51,18 +61,78 @@ export type Props = Pick<
     tile: DashboardHeadingTileType;
 };
 
-const SIZE_OPTIONS: {
-    size: DashboardHeadingSize;
-    label: string;
-    icon: Icon;
-}[] = [
-    { size: DashboardHeadingSize.LG, label: 'Large', icon: IconH1 },
-    { size: DashboardHeadingSize.MD, label: 'Medium', icon: IconH2 },
-    { size: DashboardHeadingSize.SM, label: 'Small', icon: IconH3 },
-    { size: DashboardHeadingSize.XS, label: 'Extra small', icon: IconH4 },
+type FormatOption<V extends string> = { value: V; label: string; icon: Icon };
+
+const SIZE_OPTIONS: FormatOption<DashboardHeadingSize>[] = [
+    { value: DashboardHeadingSize.LG, label: 'Large', icon: IconH1 },
+    { value: DashboardHeadingSize.MD, label: 'Medium', icon: IconH2 },
+    { value: DashboardHeadingSize.SM, label: 'Small', icon: IconH3 },
+    { value: DashboardHeadingSize.XS, label: 'Extra small', icon: IconH4 },
+];
+
+const TEXT_ALIGN_OPTIONS: FormatOption<DashboardHeadingTextAlign>[] = [
+    {
+        value: DashboardHeadingTextAlign.LEFT,
+        label: 'Align left',
+        icon: IconAlignLeft,
+    },
+    {
+        value: DashboardHeadingTextAlign.CENTER,
+        label: 'Align center',
+        icon: IconAlignCenter,
+    },
+    {
+        value: DashboardHeadingTextAlign.RIGHT,
+        label: 'Align right',
+        icon: IconAlignRight,
+    },
+];
+
+const VERTICAL_ALIGN_OPTIONS: FormatOption<DashboardHeadingVerticalAlign>[] = [
+    {
+        value: DashboardHeadingVerticalAlign.TOP,
+        label: 'Align top',
+        icon: IconLayoutAlignTop,
+    },
+    {
+        value: DashboardHeadingVerticalAlign.CENTER,
+        label: 'Align middle',
+        icon: IconLayoutAlignMiddle,
+    },
+    {
+        value: DashboardHeadingVerticalAlign.BOTTOM,
+        label: 'Align bottom',
+        icon: IconLayoutAlignBottom,
+    },
 ];
 
 const keepFocus = (event: React.MouseEvent) => event.preventDefault();
+
+type FormatButtonsProps<V extends string> = {
+    options: FormatOption<V>[];
+    value: V;
+    onChange: (value: V) => void;
+};
+
+const FormatButtons = <V extends string>({
+    options,
+    value,
+    onChange,
+}: FormatButtonsProps<V>) =>
+    options.map((option) => (
+        <Tooltip key={option.value} label={option.label}>
+            <ActionIcon
+                size="sm"
+                variant={option.value === value ? 'light' : undefined}
+                aria-label={option.label}
+                aria-pressed={option.value === value}
+                onMouseDown={keepFocus}
+                onClick={() => onChange(option.value)}
+            >
+                <MantineIcon icon={option.icon} />
+            </ActionIcon>
+        </Tooltip>
+    ));
 
 const DashboardHeadingTile: FC<Props> = (props) => {
     const { tile, isEditMode, onEdit } = props;
@@ -70,6 +140,8 @@ const DashboardHeadingTile: FC<Props> = (props) => {
         text,
         showDivider = false,
         size = DEFAULT_DASHBOARD_HEADING_SIZE,
+        textAlign = DEFAULT_DASHBOARD_HEADING_TEXT_ALIGN,
+        verticalAlign = DEFAULT_DASHBOARD_HEADING_VERTICAL_ALIGN,
     } = tile.properties;
 
     const dispatch = useDashboardDispatch();
@@ -142,9 +214,9 @@ const DashboardHeadingTile: FC<Props> = (props) => {
         [tile, showDivider, onEdit],
     );
 
-    const setSize = useCallback(
-        (next: DashboardHeadingSize) =>
-            onEdit({ ...tile, properties: { ...tile.properties, size: next } }),
+    const setFormat = useCallback(
+        (format: Partial<DashboardHeadingTileType['properties']>) =>
+            onEdit({ ...tile, properties: { ...tile.properties, ...format } }),
         [tile, onEdit],
     );
 
@@ -164,6 +236,7 @@ const DashboardHeadingTile: FC<Props> = (props) => {
             <TileBase title="" transparent {...props}>
                 <Text
                     data-size={size}
+                    data-text-align={textAlign}
                     className={clsx(
                         styles.heading,
                         styles.text,
@@ -193,24 +266,27 @@ const DashboardHeadingTile: FC<Props> = (props) => {
                 focusedActions={
                     isToolbarOpen && (
                         <>
-                            {SIZE_OPTIONS.map((option) => (
-                                <Tooltip key={option.size} label={option.label}>
-                                    <ActionIcon
-                                        size="sm"
-                                        variant={
-                                            option.size === size
-                                                ? 'light'
-                                                : undefined
-                                        }
-                                        aria-label={option.label}
-                                        aria-pressed={option.size === size}
-                                        onMouseDown={keepFocus}
-                                        onClick={() => setSize(option.size)}
-                                    >
-                                        <MantineIcon icon={option.icon} />
-                                    </ActionIcon>
-                                </Tooltip>
-                            ))}
+                            <FormatButtons
+                                options={SIZE_OPTIONS}
+                                value={size}
+                                onChange={(next) => setFormat({ size: next })}
+                            />
+                            <Divider orientation="vertical" />
+                            <FormatButtons
+                                options={TEXT_ALIGN_OPTIONS}
+                                value={textAlign}
+                                onChange={(next) =>
+                                    setFormat({ textAlign: next })
+                                }
+                            />
+                            <Divider orientation="vertical" />
+                            <FormatButtons
+                                options={VERTICAL_ALIGN_OPTIONS}
+                                value={verticalAlign}
+                                onChange={(next) =>
+                                    setFormat({ verticalAlign: next })
+                                }
+                            />
                             <Divider orientation="vertical" />
                             <Tooltip label="Underline">
                                 <ActionIcon
@@ -240,7 +316,10 @@ const DashboardHeadingTile: FC<Props> = (props) => {
                     onFocus={handleFocus}
                     onBlur={handleBlur}
                     onKeyDown={handleKeyDown}
-                    wrapperProps={{ 'data-size': size }}
+                    wrapperProps={{
+                        'data-size': size,
+                        'data-text-align': textAlign,
+                    }}
                     className={clsx(
                         styles.heading,
                         showDivider && styles.withDivider,

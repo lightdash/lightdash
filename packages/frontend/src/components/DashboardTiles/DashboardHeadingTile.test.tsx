@@ -1,5 +1,7 @@
 import {
     DashboardHeadingSize,
+    DashboardHeadingTextAlign,
+    DashboardHeadingVerticalAlign,
     DashboardTileTypes,
     type DashboardHeadingTile as DashboardHeadingTileType,
 } from '@lightdash/common';
@@ -131,6 +133,29 @@ describe('DashboardHeadingTile inline editing', () => {
         expect(onEdit).toHaveBeenCalledWith({
             ...tile,
             properties: { ...tile.properties, size: DashboardHeadingSize.LG },
+        });
+    });
+
+    it('changes the alignment from the actions shown while editing', () => {
+        const onEdit = renderTile();
+        editHeading('Revenue');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Align right' }));
+        expect(onEdit).toHaveBeenLastCalledWith({
+            ...tile,
+            properties: {
+                ...tile.properties,
+                textAlign: DashboardHeadingTextAlign.RIGHT,
+            },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Align bottom' }));
+        expect(onEdit).toHaveBeenLastCalledWith({
+            ...tile,
+            properties: {
+                ...tile.properties,
+                verticalAlign: DashboardHeadingVerticalAlign.BOTTOM,
+            },
         });
     });
 

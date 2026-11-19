@@ -1,12 +1,12 @@
 import {
     DashboardConfig,
     DashboardFilters,
-    DashboardHeadingSize,
     DashboardTileTypes,
     type AgentIdentityClaim,
     type DashboardParameters,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { type DbHeadingTileConfig } from '../../models/DashboardModel/headingTileConfig';
 
 export const DashboardsTableName = 'dashboards';
 export const DashboardVersionsTableName = 'dashboard_versions';
@@ -155,7 +155,7 @@ type DbDashboardTileHeadings = {
     dashboard_tile_uuid: string;
     text: string;
     show_divider: boolean | null;
-    size: DashboardHeadingSize | null;
+    config: DbHeadingTileConfig | null;
 };
 
 export type DashboardTileHeadingsTable =

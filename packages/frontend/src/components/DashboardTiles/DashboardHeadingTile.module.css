@@ -18,8 +18,17 @@
     }
 }
 
+.heading[data-text-align='center'] {
+    --heading-ta: center;
+}
+
+.heading[data-text-align='right'] {
+    --heading-ta: right;
+}
+
 .heading.text,
 .input {
+    text-align: var(--heading-ta, left);
     font-size: var(--heading-fz);
     font-weight: bold;
     line-height: var(--heading-lh);
