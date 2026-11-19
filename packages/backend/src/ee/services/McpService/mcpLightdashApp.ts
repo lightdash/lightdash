@@ -1,7 +1,7 @@
 import { createHash } from 'crypto';
 import { z } from 'zod';
 
-export const MCP_LIGHTDASH_APP_RESOURCE_URI = 'ui://lightdash/app.html';
+export const MCP_LIGHTDASH_APP_RESOURCE_URI = 'ui://lightdash/app-v2.html';
 
 export const mcpOpenLightdashTool = {
     name: 'open_lightdash',
