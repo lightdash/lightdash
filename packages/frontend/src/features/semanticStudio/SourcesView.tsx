@@ -35,6 +35,7 @@ import {
     IconChevronDown,
     IconGitCompare,
     IconListDetails,
+    IconPencil,
     IconSearch,
 } from '@tabler/icons-react';
 import {
@@ -94,6 +95,8 @@ export type SourcesTarget = {
     changeName: string | null;
     /** False on someone else's change or one that is merged or closed: it is read, not edited. */
     canEdit: boolean;
+    /** Why it is read and not edited, as a sentence; null when it can be edited. */
+    readOnlyReason: string | null;
 };
 
 type ChangedFile = {
@@ -522,6 +525,9 @@ export const SourcePane: FC<{
     }
     const value = text ?? loaded ?? '';
     const isDirty = text !== null && text !== loaded;
+    // Code is read until the person asks to edit it; unsaved text keeps it in editing.
+    const [editingKey, setEditingKey] = useState<string | null>(null);
+    const isEditing = target.canEdit && (isDirty || editingKey === editKey);
     // A proposal shown in the editor is the agent's until the person types over it.
     const hasOwnEdits = isDirty && text !== offered;
     const open = useRef({ key: editKey, path });
@@ -802,11 +808,40 @@ export const SourcePane: FC<{
                     ) : null}
                 </Group>
                 <Group gap="xs" wrap="nowrap" flex="none">
-                    {target.canEdit ? null : (
-                        <Text fz="xs" c="dimmed">
-                            Read only
+                    {!target.canEdit ? (
+                        <Text fz="xs" c="dimmed" truncate maw={320}>
+                            {target.readOnlyReason ?? 'Read only'}
                         </Text>
+                    ) : isEditing ? null : (
+                        <Tooltip
+                            label={
+                                target.prUrl
+                                    ? `Saves to ${where}`
+                                    : 'Saving starts a draft. Published stays as it is.'
+                            }
+                        >
+                            <Button
+                                size="compact-xs"
+                                variant="default"
+                                leftSection={
+                                    <MantineIcon icon={IconPencil} size={12} />
+                                }
+                                onClick={() => setEditingKey(editKey)}
+                            >
+                                Edit
+                            </Button>
+                        </Tooltip>
                     )}
+                    {isEditing && !isDirty ? (
+                        <Button
+                            size="compact-xs"
+                            variant="subtle"
+                            color="gray"
+                            onClick={() => setEditingKey(null)}
+                        >
+                            Done
+                        </Button>
+                    ) : null}
                     {isFetching && !isDirty ? (
                         <Loader size={12} color="gray" />
                     ) : null}
@@ -883,6 +918,7 @@ export const SourcePane: FC<{
                                 onClick={() => {
                                     reset();
                                     setNotice(null);
+                                    setEditingKey(null);
                                 }}
                             >
                                 Discard
@@ -963,7 +999,7 @@ export const SourcePane: FC<{
                                     className={classes.sourceHost}
                                     file={current}
                                     options={options}
-                                    edit={target.canEdit && !save.isLoading}
+                                    edit={isEditing && !save.isLoading}
                                     editorOptions={fileOptions}
                                     onEditChange={(event) =>
                                         setText(event.file.contents)
@@ -988,7 +1024,7 @@ export const SourcePane: FC<{
                                         diffIndicators: 'bars',
                                         lineDiffType: 'word',
                                     }}
-                                    edit={target.canEdit && !save.isLoading}
+                                    edit={isEditing && !save.isLoading}
                                     editorOptions={diffOptions}
                                     onEditChange={(event) =>
                                         setText(event.file.contents)

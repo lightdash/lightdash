@@ -832,6 +832,20 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                   : null) ??
               openedPrUrl);
     const sourcesPrUrl = isOnLive ? null : changePrUrl;
+    // Why the code of the change on the page is read and not edited, or null when it can be.
+    const sourcesReadOnlyReason = ((): string | null => {
+        // A save by the agent commits over a hand save to the same file, so they take turns.
+        if (saving && !isOnLive) {
+            return 'The agent is saving. You can edit when it finishes.';
+        }
+        if (!opensInSources) return null;
+        if (!changeOnPage?.isMine) {
+            return `Only ${shownWorkspace?.owner.name ?? 'its owner'} can edit this draft.`;
+        }
+        return changeOnPage.isOpen
+            ? null
+            : `This draft's pull request is ${changeOnPage.state}, so it can no longer be edited.`;
+    })();
     const sourcesTarget: SourcesTarget = {
         projectUuid: view.project.id,
         prUrl: sourcesPrUrl,
@@ -847,8 +861,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             ? (changeName ??
               `Draft #${pullRequestNumberOf(sourcesPrUrl) ?? ''}`)
             : null,
-        canEdit:
-            !opensInSources || (!!changeOnPage?.isMine && changeOnPage.isOpen),
+        canEdit: sourcesReadOnlyReason === null,
+        readOnlyReason: sourcesReadOnlyReason,
     };
     // Your chat's proposal belongs to its own change, not to whichever one is open.
     const shownProposal =
