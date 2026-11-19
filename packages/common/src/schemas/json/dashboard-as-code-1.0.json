@@ -737,6 +737,10 @@
                 }
             ]
         },
+        "DashboardHeadingSize": {
+            "enum": ["xs", "sm", "md", "lg"],
+            "type": "string"
+        },
         "DashboardHeadingTileAsCode": {
             "additionalProperties": false,
             "properties": {
@@ -750,6 +754,10 @@
                     "properties": {
                         "showDivider": {
                             "type": "boolean"
+                        },
+                        "size": {
+                            "$ref": "#/$defs/DashboardHeadingSize",
+                            "description": "Omitted means the default size, `md`"
                         },
                         "text": {
                             "type": "string"

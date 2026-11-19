@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     DashboardTileTypes,
+    DEFAULT_DASHBOARD_HEADING_SIZE,
     type DashboardTile,
     type DashboardTileWithSlug,
 } from '@lightdash/common';
@@ -40,6 +41,7 @@ const getContentKey = (tile: DashboardTile): string | null => {
                 tile.type,
                 tile.properties.text,
                 tile.properties.showDivider ?? false,
+                tile.properties.size ?? DEFAULT_DASHBOARD_HEADING_SIZE,
             ]);
         default:
             return assertUnreachable(tile, 'Unknown dashboard tile type');

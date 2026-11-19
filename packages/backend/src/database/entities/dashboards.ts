@@ -1,6 +1,7 @@
 import {
     DashboardConfig,
     DashboardFilters,
+    DashboardHeadingSize,
     DashboardTileTypes,
     type AgentIdentityClaim,
     type DashboardParameters,
@@ -154,6 +155,7 @@ type DbDashboardTileHeadings = {
     dashboard_tile_uuid: string;
     text: string;
     show_divider: boolean | null;
+    size: DashboardHeadingSize | null;
 };
 
 export type DashboardTileHeadingsTable =

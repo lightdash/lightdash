@@ -1,5 +1,28 @@
 .heading {
     width: 100%;
+    --heading-fz: 24px;
+    --heading-lh: var(--mantine-line-height);
+
+    &[data-size='xs'] {
+        --heading-fz: 16px;
+    }
+
+    &[data-size='sm'] {
+        --heading-fz: 20px;
+    }
+
+    /* Tighter leading so the largest size still fits a one-row tile */
+    &[data-size='lg'] {
+        --heading-fz: 32px;
+        --heading-lh: 1.2;
+    }
+}
+
+.heading.text,
+.input {
+    font-size: var(--heading-fz);
+    font-weight: bold;
+    line-height: var(--heading-lh);
 }
 
 .withDivider {
@@ -11,10 +34,6 @@
     padding: 0;
     height: auto;
     min-height: 0;
-    font-size: 24px;
-    font-weight: bold;
-    /* The line height a 24px Text gets, so the text does not move on focus */
-    line-height: 24px;
     color: inherit;
     cursor: text;
 }

@@ -1,6 +1,26 @@
-import { type DashboardHeadingTile as DashboardHeadingTileType } from '@lightdash/common';
-import { ActionIcon, Box, Menu, Text, Textarea, Tooltip } from '@mantine/core';
-import { IconCopy, IconUnderline } from '@tabler/icons-react';
+import {
+    DashboardHeadingSize,
+    DEFAULT_DASHBOARD_HEADING_SIZE,
+    type DashboardHeadingTile as DashboardHeadingTileType,
+} from '@lightdash/common';
+import {
+    ActionIcon,
+    Box,
+    Divider,
+    Menu,
+    Text,
+    Textarea,
+    Tooltip,
+} from '@mantine/core';
+import {
+    IconCopy,
+    IconH1,
+    IconH2,
+    IconH3,
+    IconH4,
+    IconUnderline,
+    type Icon,
+} from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import React, {
     useCallback,
@@ -31,11 +51,26 @@ export type Props = Pick<
     tile: DashboardHeadingTileType;
 };
 
+const SIZE_OPTIONS: {
+    size: DashboardHeadingSize;
+    label: string;
+    icon: Icon;
+}[] = [
+    { size: DashboardHeadingSize.LG, label: 'Large', icon: IconH1 },
+    { size: DashboardHeadingSize.MD, label: 'Medium', icon: IconH2 },
+    { size: DashboardHeadingSize.SM, label: 'Small', icon: IconH3 },
+    { size: DashboardHeadingSize.XS, label: 'Extra small', icon: IconH4 },
+];
+
 const keepFocus = (event: React.MouseEvent) => event.preventDefault();
 
 const DashboardHeadingTile: FC<Props> = (props) => {
     const { tile, isEditMode, onEdit } = props;
-    const { text, showDivider = false } = tile.properties;
+    const {
+        text,
+        showDivider = false,
+        size = DEFAULT_DASHBOARD_HEADING_SIZE,
+    } = tile.properties;
 
     const dispatch = useDashboardDispatch();
     const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -107,6 +142,12 @@ const DashboardHeadingTile: FC<Props> = (props) => {
         [tile, showDivider, onEdit],
     );
 
+    const setSize = useCallback(
+        (next: DashboardHeadingSize) =>
+            onEdit({ ...tile, properties: { ...tile.properties, size: next } }),
+        [tile, onEdit],
+    );
+
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
     const setHaveTilesChanged = useDashboardContext(
         (c) => c.setHaveTilesChanged,
@@ -122,10 +163,10 @@ const DashboardHeadingTile: FC<Props> = (props) => {
         return (
             <TileBase title="" transparent {...props}>
                 <Text
-                    size="24px"
-                    fw="bold"
+                    data-size={size}
                     className={clsx(
                         styles.heading,
+                        styles.text,
                         showDivider && styles.withDivider,
                     )}
                 >
@@ -151,18 +192,39 @@ const DashboardHeadingTile: FC<Props> = (props) => {
                 }
                 focusedActions={
                     isToolbarOpen && (
-                        <Tooltip label="Underline">
-                            <ActionIcon
-                                size="sm"
-                                variant={showDivider ? 'light' : undefined}
-                                aria-label="Underline"
-                                aria-pressed={showDivider}
-                                onMouseDown={keepFocus}
-                                onClick={toggleDivider}
-                            >
-                                <MantineIcon icon={IconUnderline} />
-                            </ActionIcon>
-                        </Tooltip>
+                        <>
+                            {SIZE_OPTIONS.map((option) => (
+                                <Tooltip key={option.size} label={option.label}>
+                                    <ActionIcon
+                                        size="sm"
+                                        variant={
+                                            option.size === size
+                                                ? 'light'
+                                                : undefined
+                                        }
+                                        aria-label={option.label}
+                                        aria-pressed={option.size === size}
+                                        onMouseDown={keepFocus}
+                                        onClick={() => setSize(option.size)}
+                                    >
+                                        <MantineIcon icon={option.icon} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            ))}
+                            <Divider orientation="vertical" />
+                            <Tooltip label="Underline">
+                                <ActionIcon
+                                    size="sm"
+                                    variant={showDivider ? 'light' : undefined}
+                                    aria-label="Underline"
+                                    aria-pressed={showDivider}
+                                    onMouseDown={keepFocus}
+                                    onClick={toggleDivider}
+                                >
+                                    <MantineIcon icon={IconUnderline} />
+                                </ActionIcon>
+                            </Tooltip>
+                        </>
                     )
                 }
             >
@@ -178,6 +240,7 @@ const DashboardHeadingTile: FC<Props> = (props) => {
                     onFocus={handleFocus}
                     onBlur={handleBlur}
                     onKeyDown={handleKeyDown}
+                    wrapperProps={{ 'data-size': size }}
                     className={clsx(
                         styles.heading,
                         showDivider && styles.withDivider,

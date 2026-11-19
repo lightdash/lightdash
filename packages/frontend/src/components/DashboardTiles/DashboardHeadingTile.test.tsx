@@ -1,4 +1,5 @@
 import {
+    DashboardHeadingSize,
     DashboardTileTypes,
     type DashboardHeadingTile as DashboardHeadingTileType,
 } from '@lightdash/common';
@@ -115,6 +116,44 @@ describe('DashboardHeadingTile inline editing', () => {
             ...tile,
             properties: { ...tile.properties, showDivider: true },
         });
+    });
+
+    it('changes the size from the actions shown while editing', () => {
+        const onEdit = renderTile();
+        editHeading('Revenue');
+
+        expect(screen.getByRole('button', { name: 'Medium' })).toHaveAttribute(
+            'aria-pressed',
+            'true',
+        );
+        fireEvent.click(screen.getByRole('button', { name: 'Large' }));
+
+        expect(onEdit).toHaveBeenCalledWith({
+            ...tile,
+            properties: { ...tile.properties, size: DashboardHeadingSize.LG },
+        });
+    });
+
+    it('renders the saved size in view mode', () => {
+        permissions.canManageDashboard = false;
+        renderWithProviders(
+            <DashboardStoreTestProvider store={createDashboardTestStore()}>
+                <DashboardHeadingTile
+                    tile={{
+                        ...tile,
+                        properties: {
+                            ...tile.properties,
+                            size: DashboardHeadingSize.XS,
+                        },
+                    }}
+                    isEditMode={false}
+                    onEdit={vi.fn()}
+                    onDelete={vi.fn()}
+                />
+            </DashboardStoreTestProvider>,
+        );
+
+        expect(screen.getByText('Revenue')).toHaveAttribute('data-size', 'xs');
     });
 
     it('duplicates the heading from the tile menu', () => {

@@ -97,12 +97,23 @@ export type DashboardSqlChartTileProperties = {
     };
 };
 
+export enum DashboardHeadingSize {
+    XS = 'xs',
+    SM = 'sm',
+    MD = 'md',
+    LG = 'lg',
+}
+
+export const DEFAULT_DASHBOARD_HEADING_SIZE = DashboardHeadingSize.MD;
+
 export type DashboardHeadingTileProperties = {
     type: DashboardTileTypes.HEADING;
     properties: {
         title?: undefined;
         text: string;
         showDivider?: boolean;
+        /** Omitted means the default size, `md` */
+        size?: DashboardHeadingSize;
     };
 };
 

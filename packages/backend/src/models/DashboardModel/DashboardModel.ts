@@ -14,6 +14,7 @@ import {
     DashboardChartTile,
     DashboardDAO,
     DashboardDataAppTile,
+    DashboardHeadingSize,
     DashboardHeadingTile,
     DashboardLoomTile,
     DashboardMarkdownTile,
@@ -22,6 +23,7 @@ import {
     DashboardTileTypes,
     DashboardUnversionedFields,
     DashboardVersionedFields,
+    DEFAULT_DASHBOARD_HEADING_SIZE,
     getMalformedParameterControlMessages,
     HTML_SANITIZE_MARKDOWN_TILE_RULES,
     isDashboardChartTileType,
@@ -491,6 +493,7 @@ export class DashboardModel {
                     dashboard_tile_uuid: uuid,
                     text: properties.text,
                     show_divider: properties.showDivider ?? false,
+                    size: properties.size ?? null,
                 })),
             );
         }
@@ -1355,6 +1358,7 @@ export class DashboardModel {
                     hide_title: boolean | null;
                     hide_frame: boolean | null;
                     show_divider: boolean | null;
+                    size: DashboardHeadingSize | null;
                     title: string | null;
                     views_count: string;
                     first_viewed_at: Date | null;
@@ -1420,6 +1424,7 @@ export class DashboardModel {
                 `${DashboardTileMarkdownsTableName}.hide_frame`,
                 `${DashboardTileHeadingsTableName}.text`,
                 `${DashboardTileHeadingsTableName}.show_divider`,
+                `${DashboardTileHeadingsTableName}.size`,
                 `${DashboardTileDataAppsTableName}.app_uuid`,
                 `${DashboardTileComposerChartsTableName}.composer_chart_uuid`,
                 database.raw(`${AppsTableName}.slug AS app_slug`),
@@ -1606,6 +1611,7 @@ export class DashboardModel {
                     content,
                     hide_frame,
                     show_divider,
+                    size,
                     text,
                     belongs_to_dashboard,
                     name,
@@ -1685,6 +1691,8 @@ export class DashboardModel {
                                 properties: {
                                     text: text || '',
                                     showDivider: show_divider ?? false,
+                                    size:
+                                        size ?? DEFAULT_DASHBOARD_HEADING_SIZE,
                                 },
                             };
                         case DashboardTileTypes.DATA_APP:
@@ -2949,6 +2957,7 @@ export class DashboardModel {
                     hide_title: boolean | null;
                     hide_frame: boolean | null;
                     show_divider: boolean | null;
+                    size: DashboardHeadingSize | null;
                     title: string | null;
                     views_count: string;
                     first_viewed_at: Date | null;
@@ -3014,6 +3023,7 @@ export class DashboardModel {
                 `${DashboardTileMarkdownsTableName}.hide_frame`,
                 `${DashboardTileHeadingsTableName}.text`,
                 `${DashboardTileHeadingsTableName}.show_divider`,
+                `${DashboardTileHeadingsTableName}.size`,
                 `${DashboardTileDataAppsTableName}.app_uuid`,
                 `${DashboardTileComposerChartsTableName}.composer_chart_uuid`,
                 this.database.raw(`${AppsTableName}.slug AS app_slug`),
@@ -3181,6 +3191,7 @@ export class DashboardModel {
                     content,
                     hide_frame,
                     show_divider,
+                    size,
                     text,
                     belongs_to_dashboard,
                     name,
@@ -3260,6 +3271,8 @@ export class DashboardModel {
                                 properties: {
                                     text: text || '',
                                     showDivider: show_divider ?? false,
+                                    size:
+                                        size ?? DEFAULT_DASHBOARD_HEADING_SIZE,
                                 },
                             };
                         case DashboardTileTypes.DATA_APP:
