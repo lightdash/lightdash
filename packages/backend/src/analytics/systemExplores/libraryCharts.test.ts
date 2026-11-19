@@ -504,4 +504,186 @@ describe('legacyLibraryChartBindings', () => {
             expect(slugs).toContain(slug);
         });
     });
+
+    it('binds the Overview charts under their final slugs', () => {
+        const prefix = 'lightdash-analytics-overview-';
+        [
+            'ai-calls',
+            'tokens',
+            'output-tokens',
+            'ai-users',
+            'ai-calls-by-day',
+            'tokens-by-day',
+        ].forEach((key) => {
+            expect(analyticsLibraryChartBindings.has(`${prefix}${key}`)).toBe(
+                true,
+            );
+        });
+        ['tokens-by-model', 'calls-by-model'].forEach((key) => {
+            expect(analyticsLibraryChartBindings.has(`${prefix}${key}`)).toBe(
+                false,
+            );
+        });
+    });
+
+    it('shows the latest day and daily trend on the AI users card', () => {
+        expect(
+            analyticsLibraryChartBindings.get(
+                'lightdash-analytics-overview-ai-users',
+            ),
+        ).toEqual({
+            slug: 'big-number-with-sparkline-trend',
+            minVersion: '0.7.1',
+            fieldMapping: {
+                value: 'ai_usage_unique_users',
+                sparklineMetric: 'ai_usage_unique_users',
+                time: 'ai_usage_event_ts_day',
+            },
+            optionValues: {
+                valueAggregation: 'latest',
+                showComparison: false,
+                colorSparklineByTrend: false,
+                showLabel: true,
+                label: 'Latest day',
+                showCardBorder: false,
+                showCardShadow: false,
+            },
+            query: {
+                dimensions: ['ai_usage_event_ts_day'],
+                metrics: ['ai_usage_unique_users'],
+                sorts: [
+                    { fieldId: 'ai_usage_event_ts_day', descending: false },
+                ],
+                limit: 500,
+                description:
+                    'People who used AI on the latest day in the selected period, with the daily trend. A person active on several days is counted on each of those days.',
+            },
+        });
+    });
+
+    it('runs the day query on the real AI calls chart only when its type is usable', () => {
+        const slug = 'lightdash-analytics-overview-ai-calls';
+        const real = allCharts.find((c) => c.slug === slug)!;
+        const bigNumberSchema: DataAppVizSchema = {
+            fields: ['value', 'sparklineMetric', 'time'].map((name) => ({
+                name,
+                label: name,
+                type: 'column',
+                required: false,
+            })),
+            configOptions: [
+                {
+                    type: 'text',
+                    name: 'valueAggregation',
+                    label: 'Aggregation',
+                    default: 'last',
+                },
+                {
+                    type: 'text',
+                    name: 'style',
+                    label: 'Number format',
+                    default: 'default',
+                },
+                {
+                    type: 'boolean',
+                    name: 'colorSparklineByTrend',
+                    label: 'Colour by trend',
+                    default: true,
+                },
+                {
+                    type: 'boolean',
+                    name: 'showLabel',
+                    label: 'showLabel',
+                    default: true,
+                },
+                {
+                    type: 'text',
+                    name: 'label',
+                    label: 'label',
+                    default: '',
+                },
+                {
+                    type: 'boolean',
+                    name: 'showCardBorder',
+                    label: 'showCardBorder',
+                    default: true,
+                },
+                {
+                    type: 'boolean',
+                    name: 'showCardShadow',
+                    label: 'showCardShadow',
+                    default: true,
+                },
+            ],
+            colorPalette: null,
+        };
+        const {
+            charts: [swapped],
+            rejected,
+        } = withLibraryCharts(
+            [real],
+            analyticsLibraryChartBindings,
+            new Map([
+                [
+                    'big-number-with-sparkline-trend',
+                    {
+                        appSlug: 'big-number-1',
+                        vizSchema: bigNumberSchema,
+                        registryVersion:
+                            analyticsLibraryChartBindings.get(slug)!.minVersion,
+                    },
+                ],
+            ]),
+        );
+        expect(rejected).toEqual([]);
+        expect(swapped.chartConfig.type).toBe(ChartType.DATA_APP_VIZ);
+        expect(swapped.metricQuery.dimensions).toEqual([
+            'ai_usage_event_ts_day',
+        ]);
+        expect(swapped.description).toBe(real.description);
+        const {
+            charts: [plain],
+        } = withLibraryCharts([real], analyticsLibraryChartBindings, new Map());
+        expect(plain).toBe(real);
+    });
+
+    it('describes each library rendering that runs its own query', () => {
+        const queryDescription = (slug: string) =>
+            analyticsLibraryChartBindings.get(slug)?.query?.description;
+        const chartDescription = (slug: string) =>
+            allCharts.find((c) => c.slug === slug)?.description;
+        [
+            'lightdash-analytics-overview-ai-calls',
+            'lightdash-analytics-overview-tokens',
+            'lightdash-analytics-overview-output-tokens',
+            'lightdash-analytics-overview-ai-calls-by-day',
+            'lightdash-analytics-overview-tokens-by-day',
+        ].forEach((slug) => {
+            expect(queryDescription(slug)).toBe(chartDescription(slug));
+        });
+        const agentChart = (key: string) =>
+            [...analyticsLibraryChartBindings.keys()].find((slug) =>
+                slug.endsWith(`-${key}`),
+            )!;
+        expect(queryDescription(agentChart('agent-adoption-by-week'))).toBe(
+            'Requests per person and agent over the selected period. People without a display name are grouped as Unknown user. This is not an eligible-user adoption rate.',
+        );
+        expect(
+            queryDescription(
+                agentChart('ai-consumption-by-person-feature-and-model'),
+            ),
+        ).toBe(
+            'Top 24 person and model pairs by tokens over the selected period, so a person near the cut-off can be missing smaller models. People without a display name are grouped as Unknown user. Tokens are not monetary cost.',
+        );
+        expect(queryDescription(agentChart('agent-requests-trend'))).toBe(
+            chartDescription(agentChart('agent-requests-trend')),
+        );
+        expect(
+            queryDescription(
+                agentChart('agent-retries-latency-and-consumption'),
+            ),
+        ).toBe(
+            'Requests and average request latency by captured retry count. Agent steps are not equivalent to retries.',
+        );
+    });
 });
