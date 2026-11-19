@@ -368,11 +368,23 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         checkout !== null &&
         !!routeWorkspace &&
         !isRouteCheckedOut;
+    // A draft there when the page opens is the page; one that lands later never swaps it.
+    const opened = useRef<{ visit: string; hadDraft: boolean | null }>({
+        visit,
+        hadDraft: null,
+    });
+    if (opened.current.visit !== visit) {
+        opened.current = { visit, hadDraft: null };
+    }
+    if (opened.current.hadDraft === null && draft) {
+        opened.current.hadDraft = hasDraft;
+    }
     const isReviewingDraft =
         isBuildingFirstModel ||
         (hasDraft &&
             (searchParams.get(DRAFT_PARAM) === DRAFT_REVIEW ||
-                (isDefaultView && isRouteCheckedOut)));
+                (isDefaultView &&
+                    (isRouteCheckedOut || opened.current.hadDraft === true))));
     // A linked change is read from its own record, yours or someone else's; otherwise the one your chat is on.
     const pullRequest = useStudioPullRequest(
         view.project.id,
@@ -624,7 +636,10 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         error: storedError,
         refetch: retryStored,
         isRefetching: isRetryingStored,
-    } = useSemanticLayerStoredModels(view.project.id, isCode);
+    } = useSemanticLayerStoredModels(
+        view.project.id,
+        isCode || (keepsDraft && isReviewingDraft),
+    );
     const files = useMemo(() => {
         const removed = new Set(
             checkedOutDraft?.models
@@ -674,10 +689,13 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     })();
     // Reviewing changes takes the full width: the tree is for browsing models.
     const isReviewPane =
-        pane === 'changes' ||
-        pane === 'review' ||
-        pane === 'workspaces' ||
-        pane === 'changeSummary';
+        pane === 'changes' || pane === 'workspaces' || pane === 'changeSummary';
+    // A draft's overview sits in Code, above the files it changes.
+    const isCodeTab =
+        pane === 'sources' || pane === 'code' || pane === 'review';
+    const showsCodeRail =
+        (pane === 'code' || pane === 'review') &&
+        (files.length > 0 || hasDraft);
     // Published is the default state; Drafts is everything in flight, and an open draft gets its own bar.
     const isChangesView = isReviewPane;
     const isChangeOpen =
@@ -828,7 +846,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const isSourcesView = pane === 'sources' || pane === 'code';
     const showSources = () =>
         keepsDraft
-            ? switchView('code')
+            ? switchView(hasDraft ? 'changes' : 'code')
             : setStudioParams({
                   [VIEW_PARAM]: 'sources',
                   ...(lastSourceFile.current
@@ -1269,8 +1287,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                                 role="tab"
                                                 className={classes.view}
                                                 aria-selected={
-                                                    !isSourcesView &&
-                                                    !isChangesView
+                                                    !isCodeTab && !isChangesView
                                                 }
                                                 onClick={() =>
                                                     switchView('models')
@@ -1282,9 +1299,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                                 <UnstyledButton
                                                     role="tab"
                                                     className={classes.view}
-                                                    aria-selected={
-                                                        isSourcesView
-                                                    }
+                                                    aria-selected={isCodeTab}
                                                     onClick={showSources}
                                                 >
                                                     Code
@@ -1323,22 +1338,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                             miw={0}
                                             ml="auto"
                                         >
-                                            {keepsDraft &&
-                                            hasDraft &&
-                                            pane !== 'review' &&
-                                            pane !== 'changeSummary' ? (
-                                                <Button
-                                                    size="xs"
-                                                    variant="subtle"
-                                                    color="gray"
-                                                    flex="none"
-                                                    onClick={() =>
-                                                        switchView('changes')
-                                                    }
-                                                >
-                                                    Review changes
-                                                </Button>
-                                            ) : null}
                                             {showsDraftActions ? (
                                                 <>
                                                     {changeLinks}
@@ -1386,17 +1385,27 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                 data-sources={pane === 'sources' || undefined}
                                 data-no-rail={
                                     isReviewPane ||
-                                    (pane === 'code' && files.length === 0) ||
-                                    (pane !== 'code' &&
-                                        pane !== 'sources' &&
-                                        isEmpty)
+                                    ((pane === 'code' || pane === 'review') &&
+                                        !showsCodeRail) ||
+                                    (!isCodeTab && isEmpty)
                                 }
                             >
-                                {pane === 'code' &&
-                                files.length === 0 ? null : pane === 'code' ? (
+                                {(pane === 'code' || pane === 'review') &&
+                                !showsCodeRail ? null : showsCodeRail ? (
                                     <CodeRail
                                         files={files}
-                                        selected={file}
+                                        overview={
+                                            hasDraft
+                                                ? {
+                                                      isOpen: pane === 'review',
+                                                      onOpen: () =>
+                                                          switchView('changes'),
+                                                  }
+                                                : null
+                                        }
+                                        selected={
+                                            pane === 'review' ? null : file
+                                        }
                                         selectedPart={searchParams.get(
                                             FIELD_PARAM,
                                         )}

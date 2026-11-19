@@ -4,6 +4,7 @@ import {
     IconBolt,
     IconChevronRight,
     IconFileCode,
+    IconListDetails,
     IconSearch,
 } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -285,15 +286,40 @@ export const Rail: FC<{
  */
 export const CodeRail: FC<{
     files: string[];
+    /** The draft's overview, listed first; null with no draft. */
+    overview: { isOpen: boolean; onOpen: () => void } | null;
     selected: string | null;
     drafted: Set<string>;
     /** The pre-aggregate open in the file, so its row reads as selected and not the file's. */
     selectedPart: string | null;
     preAggregates: Map<string, PreAggregateMaterializationSummary[]>;
     onOpen: (file: string, part: string | null) => void;
-}> = ({ files, selected, selectedPart, drafted, preAggregates, onOpen }) => (
+}> = ({
+    files,
+    overview,
+    selected,
+    selectedPart,
+    drafted,
+    preAggregates,
+    onOpen,
+}) => (
     <Box className={classes.rail}>
         <Box className={classes.treeScroll}>
+            {overview ? (
+                <Box
+                    component="button"
+                    className={classes.fileRow}
+                    data-selected={overview.isOpen}
+                    onClick={overview.onOpen}
+                >
+                    <MantineIcon
+                        icon={IconListDetails}
+                        size={14}
+                        color="dimmed"
+                    />
+                    <Text className={classes.treeLabel}>Overview</Text>
+                </Box>
+            ) : null}
             {files.map((file) => (
                 <Fragment key={file}>
                     <Box
