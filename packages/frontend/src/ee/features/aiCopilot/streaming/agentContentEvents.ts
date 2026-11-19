@@ -38,13 +38,11 @@ const getContentEvent = (part: StreamPart): AgentContentEvent | null => {
                 payload: { dashboardUuid: uuid, action },
             };
         case 'sql_chart':
+        case 'composer_chart':
         case 'document':
             return null;
         default:
-            return assertUnreachable(
-                part.toolArgs.type,
-                `Unknown content type: ${part.toolArgs.type}`,
-            );
+            return assertUnreachable(part.toolArgs, 'Unknown content type');
     }
 };
 

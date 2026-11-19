@@ -27,6 +27,47 @@ export const isSqlChartContentArgs = (toolArgs: unknown): boolean =>
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null;
 
+export const isComposerChartContentArgs = (toolArgs: unknown): boolean =>
+    isRecord(toolArgs) && toolArgs.type === 'composer_chart';
+
+const COMPOSER_NODE_SQL_POINTER = /^\/pipeline\/nodes\/[^/]+\/sql$/;
+
+const getWarehouseNodeSql = (value: unknown): string[] => {
+    if (Array.isArray(value)) return value.flatMap(getWarehouseNodeSql);
+    if (!isRecord(value)) return [];
+    return [
+        ...(value.sourceType === QuerySourceType.SQL &&
+        typeof value.sql === 'string'
+            ? [value.sql]
+            : []),
+        ...Object.values(value).flatMap(getWarehouseNodeSql),
+    ];
+};
+
+// Literal SQL a composer chart patch writes; a node's /sql may be DuckDB, so this can over-ask.
+export const getComposerChartPatchSql = (patch: unknown): string[] =>
+    Array.isArray(patch)
+        ? patch.flatMap((operation) => {
+              if (
+                  !isRecord(operation) ||
+                  (operation.op !== 'add' && operation.op !== 'replace')
+              )
+                  return [];
+              if (
+                  typeof operation.path === 'string' &&
+                  COMPOSER_NODE_SQL_POINTER.test(operation.path) &&
+                  typeof operation.value === 'string'
+              )
+                  return [operation.value];
+              return getWarehouseNodeSql(operation.value);
+          })
+        : [];
+
+const getComposerChartApprovalSql = (patch: unknown): string | null => {
+    const sql = getComposerChartPatchSql(patch);
+    return sql.length > 0 ? sql.join('\n\n') : null;
+};
+
 const getPatch = (toolArgs: unknown): unknown =>
     isRecord(toolArgs) ? toolArgs.patch : undefined;
 
@@ -134,8 +175,10 @@ export const isSqlApprovalToolCall = (
             return isSqlChartContentArgs(toolArgs);
         case 'editContent':
             return (
-                isSqlChartContentArgs(toolArgs) &&
-                doesPatchTouchSqlChartSql(getPatch(toolArgs))
+                (isSqlChartContentArgs(toolArgs) &&
+                    doesPatchTouchSqlChartSql(getPatch(toolArgs))) ||
+                (isComposerChartContentArgs(toolArgs) &&
+                    getComposerChartApprovalSql(getPatch(toolArgs)) !== null)
             );
         default:
             return assertUnreachable(toolName, 'Unknown SQL approval tool');
@@ -156,6 +199,9 @@ export const getSqlApprovalSql = (toolArgs: unknown): string | null => {
         typeof toolArgs.content.sql === 'string'
     ) {
         return toolArgs.content.sql;
+    }
+    if (isComposerChartContentArgs(toolArgs)) {
+        return getComposerChartApprovalSql(toolArgs.patch);
     }
     return getPatchedSql(toolArgs.patch);
 };

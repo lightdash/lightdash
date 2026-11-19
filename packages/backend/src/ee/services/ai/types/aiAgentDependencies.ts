@@ -407,6 +407,13 @@ export type EditContentFn = (
               // Runs only when the patch changes the SQL, before saving.
               approveSql: ApproveSqlFn;
           }
+        | {
+              slug: string;
+              type: 'composer_chart';
+              patch: unknown;
+              // Null without SQL mode: an edit that adds warehouse SQL is refused.
+              approveSql: ApproveSqlFn | null;
+          }
         | { slug: string; type: 'document'; documentEdit: McpDocumentEdit },
 ) => Promise<
     | DocumentContentResult
@@ -440,7 +447,23 @@ export type EditContentFn = (
               after: string | null;
           };
       }
+    | {
+          type: 'composer_chart';
+          content: ComposerChartAsCode;
+          uuid: string;
+          href: string;
+          versionUuids: {
+              before: string | null;
+              after: string | null;
+          };
+      }
 >;
+
+/** Runs a composer chart edit's checks without saving; `approvalSql` is the new warehouse SQL, or null. */
+export type PrepareComposerChartEditFn = (args: {
+    slug: string;
+    patch: unknown;
+}) => Promise<{ approvalSql: string | null }>;
 
 type CreateContentArgs =
     | {

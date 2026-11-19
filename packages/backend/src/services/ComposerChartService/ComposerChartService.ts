@@ -306,8 +306,17 @@ export class ComposerChartService extends BaseService {
         project: ProjectSubject,
         data: Pick<CreateComposerChart, 'pipeline' | 'chart'>,
     ): Promise<void> {
-        const pipeline = parseComposerPipeline(data.pipeline);
         const input = parseComposerChartInput(data.chart);
+        await this.preflightPipeline(account, project, data.pipeline);
+        await this.pinCustomChartType(project.projectUuid, input);
+    }
+
+    /** The pipeline checks alone, so a caller can refuse before asking anyone to approve its SQL. */
+    async preflightPipeline(
+        account: RegisteredAccount,
+        project: ProjectSubject,
+        pipeline: unknown,
+    ): Promise<void> {
         if (
             !(await this.isEnabled({
                 userUuid: account.user.userUuid,
@@ -316,8 +325,11 @@ export class ComposerChartService extends BaseService {
         ) {
             throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
         }
-        await this.assertCanWritePipeline(account, project, pipeline);
-        await this.pinCustomChartType(project.projectUuid, input);
+        await this.assertCanWritePipeline(
+            account,
+            project,
+            parseComposerPipeline(pipeline),
+        );
     }
 
     /** A rollback makes a stored pipeline current again, so it passes the checks a write does. */

@@ -1,4 +1,5 @@
 import {
+    getComposerChartPatchSql,
     getPatchedSql,
     getSameTurnSqlApprovalProgressId,
     getSqlApprovalSql,
@@ -87,6 +88,59 @@ describe('isSqlApprovalToolCall', () => {
                 patch: [{ op: 'replace', path: '/sql', value: 'select 1' }],
             }),
         ).toBe(false);
+    });
+});
+
+describe('composer chart edits', () => {
+    it('gates a composer chart edit only when the patch writes SQL', () => {
+        expect(
+            isSqlApprovalToolCall('editContent', {
+                type: 'composer_chart',
+                patch: [
+                    {
+                        op: 'replace',
+                        path: '/pipeline/nodes/1/sql',
+                        value: 'select 2',
+                    },
+                ],
+            }),
+        ).toBe(true);
+        expect(
+            isSqlApprovalToolCall('editContent', {
+                type: 'composer_chart',
+                patch: [
+                    {
+                        op: 'replace',
+                        path: '/chart/chartConfig/type',
+                        value: 'table',
+                    },
+                ],
+            }),
+        ).toBe(false);
+    });
+
+    it('reads SQL set at a node and SQL in a warehouse node written whole', () => {
+        const patch = [
+            { op: 'replace', path: '/pipeline/nodes/0/sql', value: 'select 1' },
+            {
+                op: 'add',
+                path: '/pipeline/nodes/-',
+                value: composerSqlNode('extra', 'select 2'),
+            },
+            {
+                op: 'add',
+                path: '/pipeline/nodes/-',
+                value: { nodeId: 'joined', sourceType: 'duckdb', sql: 'x' },
+            },
+            { op: 'remove', path: '/pipeline/nodes/3' },
+        ];
+        expect(getComposerChartPatchSql(patch)).toEqual([
+            'select 1',
+            'select 2',
+        ]);
+        expect(getSqlApprovalSql({ type: 'composer_chart', patch })).toBe(
+            'select 1\n\nselect 2',
+        );
     });
 });
 

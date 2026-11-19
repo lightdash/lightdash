@@ -103,6 +103,7 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         }),
         updateUserName: getUpdateUserName({ updateUserName: noopAsync }),
         editContent: getEditContent({
+            prepareComposerChartEdit: null,
             siteUrl: 'https://app.lightdash.cloud',
             editContent: noop,
         }),

@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     type DashboardChartTile,
     type DashboardFilters,
+    type DashboardComposerChartTile,
     type DashboardSqlChartTile,
     type DashboardTile,
     isDashboardChartTileType,
@@ -201,6 +202,22 @@ const DashboardAiAgentContextBridge = () => {
         [queryClient],
     );
 
+    const refreshComposerChartTiles = useCallback(
+        async (tiles: DashboardComposerChartTile[]) => {
+            const composerChartUuids = new Set(
+                tiles.map((tile) => tile.properties.composerChartUuid),
+            );
+            // The stored chart and its runs are both keyed by chart uuid.
+            await queryClient.invalidateQueries({
+                predicate: ({ queryKey: [kind, , composerChartUuid] }) =>
+                    (kind === 'composerChart' || kind === 'composerChartRun') &&
+                    typeof composerChartUuid === 'string' &&
+                    composerChartUuids.has(composerChartUuid),
+            });
+        },
+        [queryClient],
+    );
+
     const refreshTiles = useCallback(
         async (chartTiles: DashboardAiAgentChartTiles) => {
             switch (chartTiles.type) {
@@ -208,6 +225,8 @@ const DashboardAiAgentContextBridge = () => {
                     return refreshSavedChartTiles(chartTiles.tiles);
                 case 'sql_chart':
                     return refreshSqlChartTiles(chartTiles.tiles);
+                case 'composer_chart':
+                    return refreshComposerChartTiles(chartTiles.tiles);
                 default:
                     return assertUnreachable(
                         chartTiles,
@@ -215,7 +234,11 @@ const DashboardAiAgentContextBridge = () => {
                     );
             }
         },
-        [refreshSavedChartTiles, refreshSqlChartTiles],
+        [
+            refreshSavedChartTiles,
+            refreshSqlChartTiles,
+            refreshComposerChartTiles,
+        ],
     );
 
     const refreshChartTilesFromTiles = useCallback(

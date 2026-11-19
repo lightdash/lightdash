@@ -205,6 +205,7 @@ const makeTurns = ({
             sqlChartSaving,
         }),
         editContent: getEditContent({
+            prepareComposerChartEdit: null,
             siteUrl: 'https://app.lightdash.cloud',
             editContent,
             sqlChartSaving,
