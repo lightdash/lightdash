@@ -18,8 +18,10 @@ export const wordsToPhrases = (
     let previous: { startMs: number; endMs: number } | null = null;
 
     for (const word of words) {
-        const startMs = word.startMs + options.offsetMs;
-        const endMs = word.endMs + options.offsetMs;
+        // The recorder starts just before the capture clock, so the first
+        // words can fall before zero; they belong at the start.
+        const startMs = Math.max(0, word.startMs + options.offsetMs);
+        const endMs = Math.max(0, word.endMs + options.offsetMs);
         const last = previous;
         const startsNewPhrase =
             last === null ||
