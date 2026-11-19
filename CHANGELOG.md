@@ -1,3 +1,10 @@
+## [3.328.1](https://github.com/lightdash/lightdash/compare/3.328.0...3.328.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **ai-agent:** remove "Step failed" summary from agent answers ([#32946](https://github.com/lightdash/lightdash/issues/32946)) ([28203b5](https://github.com/lightdash/lightdash/commit/28203b51303fd25b6e58d6d1ee7485176acf5b4a))
+
 # [3.328.0](https://github.com/lightdash/lightdash/compare/3.327.4...3.328.0) (2026-11-19)
 
 
