@@ -39,6 +39,10 @@ export const selectIsTileSelected = (
     state: DashboardStoreState,
     tileUuid: string,
 ) => state.edit.selectedTileUuid === tileUuid;
+export const selectIsTileTextFocusPending = (
+    state: DashboardStoreState,
+    tileUuid: string,
+) => state.edit.textFocusTileUuid === tileUuid;
 export const selectDashboardTabs = (state: DashboardStoreState) =>
     state.edit.tabs;
 export const selectHaveTabsChanged = (state: DashboardStoreState) =>

@@ -88,6 +88,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     children,
     extraHeaderElement,
     visibleHeaderElement,
+    focusedActions = null,
     hasNonMenuHeaderContent = false,
     titleHref,
     minimal = false,
@@ -191,8 +192,13 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     const canManageDashboard = useCanManageDashboard();
     const canEditTileContent = isEditMode || (!minimal && canManageDashboard);
 
+    // Headings are edited in place, and only while the dashboard is being edited:
+    // a view-mode edit saves and reloads the whole dashboard
+    const hasContentModal =
+        canEditTileContent && tile.type !== DashboardTileTypes.HEADING;
+
     const hasMenuContent =
-        canEditTileContent || !!extraMenuItems || canCopyTileLink;
+        hasContentModal || isEditMode || !!extraMenuItems || canCopyTileLink;
     const isVerified = verification !== null && verification !== undefined;
     const hasHeaderContent =
         hasMenuContent || isVerified || hasNonMenuHeaderContent || canViewChart;
@@ -213,12 +219,12 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     Copy link to tile
                 </Menu.Item>
             )}
-            {canCopyTileLink && (!!extraMenuItems || canEditTileContent) && (
+            {canCopyTileLink && (!!extraMenuItems || hasContentModal) && (
                 <Menu.Divider />
             )}
             {extraMenuItems}
-            {canEditTileContent && extraMenuItems && <Menu.Divider />}
-            {canEditTileContent && (
+            {hasContentModal && extraMenuItems && <Menu.Divider />}
+            {hasContentModal && (
                 <Box>
                     <Menu.Item
                         leftSection={<MantineIcon icon={IconEdit} />}
@@ -264,7 +270,14 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
         </>
     );
     const useCompactActions = isPhoneLayout && mobileMenuItems !== undefined;
-    const headerActions = useCompactActions ? (
+    const headerActions = focusedActions ? (
+        <FloatingActionsPill
+            visible
+            className={clsx('non-draggable', styles.tileTooltip)}
+        >
+            {focusedActions}
+        </FloatingActionsPill>
+    ) : useCompactActions ? (
         <FloatingActionsPill
             visible
             className={clsx('non-draggable', styles.tileTooltip)}
