@@ -36,9 +36,6 @@ import useDashboardContext from '../../../providers/Dashboard/useDashboardContex
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import launcherClasses from '../aiCopilot/components/Launcher/AiAgentsLauncher.module.css';
 import { useLauncherDockExtras } from '../aiCopilot/components/Launcher/launcherDockExtras';
-import { useProjectAiAgents } from '../aiCopilot/hooks/useProjectAiAgents';
-import { openDefaultAgentPanel } from '../aiCopilot/store/aiAgentLauncherSlice';
-import { useAiAgentStoreDispatch } from '../aiCopilot/store/hooks';
 import {
     CaptureHost,
     type CaptureHostHandle,
@@ -122,7 +119,6 @@ const DashboardCapture: FC = () => {
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     const flag = useServerFeatureFlag(FeatureFlags.DashboardCapture);
     const { health } = useApp();
-    const agentDispatch = useAiAgentStoreDispatch();
     const { showToastInfo, showToastWarning, showToastError } = useToaster();
 
     const tilesRef = useRef<DashboardTile[]>([]);
@@ -136,12 +132,7 @@ const DashboardCapture: FC = () => {
     );
     const [isSaving, setIsSaving] = useState(false);
 
-    const { data: agents } = useProjectAiAgents({
-        projectUuid,
-        redirectOnUnauthorized: false,
-    });
-    const agentUuid = agents?.[0]?.uuid ?? null;
-    const sendToAgent = useSendCaptureToAgent(projectUuid ?? '');
+    const { send: sendToAgent } = useSendCaptureToAgent(projectUuid ?? '');
 
     const { mutateAsync: saveDashboard } = useUpdateDashboard(
         dashboard?.uuid,
@@ -211,21 +202,7 @@ const DashboardCapture: FC = () => {
                 summary,
                 hasImages: false,
             });
-            if (!agentUuid) {
-                // No agent list yet: open a new chat with the prompt ready.
-                agentDispatch(
-                    openDefaultAgentPanel({
-                        pendingContext: {
-                            dashboardUuid,
-                            chartUuid: chartUuids[0],
-                        },
-                        pendingPrompt: prompt,
-                    }),
-                );
-                return;
-            }
             void sendToAgent({
-                agentUuid,
                 prompt,
                 context: [
                     { type: 'dashboard', dashboardUuid },
@@ -240,7 +217,7 @@ const DashboardCapture: FC = () => {
                 });
             });
         },
-        [agentDispatch, agentUuid, sendToAgent, showToastError],
+        [sendToAgent, showToastError],
     );
 
     const handleCapture = useCallback(

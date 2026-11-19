@@ -753,6 +753,11 @@ import {
     redactThreadToolResults,
 } from './embedDebugRedaction';
 import {
+    isOutsideAgentSpaces,
+    OUTSIDE_AGENT_SPACES_NOTE,
+    spaceScopedPinnedUuid,
+} from './pinnedOutsideAgentSpaces';
+import {
     responseMatchesPromptInputRequestGate,
     runPromptInputRequestClassification,
     shouldClassifyPromptInputRequestForUpdate,
@@ -8795,11 +8800,14 @@ export class AiAgentService extends BaseService {
             deferCurrentVerifiedExamples = false,
             enableFastDecisions = true,
             aiCreditCheck,
+            flagPinnedOutsideAgentSpaces = true,
         }: {
             agentUuid: string;
             threadUuid: string;
             promptUuid?: string;
             aiCreditCheck: AiCreditCheck | null;
+            /** Off for embeds, whose space limits come from the token, not the agent. */
+            flagPinnedOutsideAgentSpaces?: boolean;
             retrieveRelevantArtifacts?: boolean;
             enableFastDecisions?: boolean;
             /** Look up the prompt's verified examples without blocking fast decisions on them. */
@@ -8993,6 +9001,9 @@ export class AiAgentService extends BaseService {
                 agentCredentialUuid: agent.providerCredentialUuid,
             })),
             threadUuid: prompt.threadUuid,
+            agentScope: flagPinnedOutsideAgentSpaces
+                ? { user, spaceAccess: agent.spaceAccess }
+                : null,
         };
         // Fast decisions only need the conversation; the example lookup embeds the
         // prompt, so it starts now and the agent awaits it only if it runs.
@@ -9281,6 +9292,7 @@ export class AiAgentService extends BaseService {
                 deferCurrentVerifiedExamples: true,
                 enableFastDecisions,
                 aiCreditCheck: { isEmbedViewer: runtimeOptions !== undefined },
+                flagPinnedOutsideAgentSpaces: runtimeOptions === undefined,
                 onPromptResolved: (promptUuid, responseState) => {
                     trackedPromptUuid = promptUuid;
                     this.trackStreamPrompt(promptUuid, responseState);
@@ -10125,6 +10137,7 @@ export class AiAgentService extends BaseService {
                         ? execution.runUuid
                         : null,
                 aiCreditCheck,
+                flagPinnedOutsideAgentSpaces: !aiCreditCheck?.isEmbedViewer,
                 onPromptResolved: (uuid) => {
                     resolvedPromptUuid = uuid;
                 },
@@ -13154,6 +13167,8 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
         context: AiPromptContext,
         options: {
             threadFiles?: Map<string, { content: string; path: string }>;
+            /** Pinned items the agent's space limits keep it from reading. */
+            outsideAgentSpaces?: ReadonlySet<string>;
         } = {},
     ): UserModelMessage | null {
         if (context.length === 0) return null;
@@ -13163,7 +13178,7 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
         let inlineBudget = AI_THREAD_FILE_INLINE_BUDGET_BYTES;
         const inlinedFiles: { path: string; content: string }[] = [];
 
-        const lines = context.map((item) => {
+        const describeItem = (item: AiPromptContextItem): string => {
             switch (item.type) {
                 case 'chart': {
                     const name = item.displayName ?? '(name unavailable)';
@@ -13375,6 +13390,17 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                         'Unknown AiPromptContextItem type',
                     );
             }
+        };
+        const lines = context.map((item) => {
+            const line = describeItem(item);
+            const pinnedUuid = spaceScopedPinnedUuid(item);
+            if (!pinnedUuid || !options.outsideAgentSpaces?.has(pinnedUuid)) {
+                return line;
+            }
+            const [headline, ...rest] = line.split('\n');
+            return [`${headline}${OUTSIDE_AGENT_SPACES_NOTE}`, ...rest].join(
+                '\n',
+            );
         });
 
         // A per-message random tag name means file content cannot close the
@@ -13698,6 +13724,75 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         }
     }
 
+    // The user attached these, so naming them as out of reach reveals nothing
+    // they cannot already see. Items the user cannot open are left unflagged.
+    private async findPinnedOutsideAgentSpaces(
+        contextMap: Map<string, AiPromptContext>,
+        projectUuid: string,
+        agentScope: { user: SessionUser; spaceAccess: string[] } | null,
+    ): Promise<Set<string>> {
+        if (!agentScope || agentScope.spaceAccess.length === 0) {
+            return new Set();
+        }
+        const { user, spaceAccess } = agentScope;
+        const items = new Map<string, AiPromptContextItem>();
+        for (const context of contextMap.values()) {
+            for (const item of context) {
+                const uuid = spaceScopedPinnedUuid(item);
+                if (uuid) items.set(uuid, item);
+            }
+        }
+        const spaceUuidOf = async (
+            item: AiPromptContextItem,
+        ): Promise<string | null | undefined> => {
+            switch (item.type) {
+                case 'dashboard':
+                    return (
+                        await this.dashboardService.getByIdOrSlug(
+                            user,
+                            item.dashboardUuid,
+                            { projectUuid },
+                        )
+                    ).spaceUuid;
+                case 'chart':
+                    return (
+                        await this.savedChartService.get(
+                            item.chartUuid,
+                            fromSession(user),
+                            { projectUuid },
+                        )
+                    ).spaceUuid;
+                case 'data_app': {
+                    const app = await this.appModel.findAppByUuid(item.appUuid);
+                    if (
+                        !app ||
+                        app.project_uuid !== projectUuid ||
+                        !(await this.appGenerateService.canViewApp(user, app))
+                    ) {
+                        return undefined;
+                    }
+                    return app.space_uuid;
+                }
+                default:
+                    return undefined;
+            }
+        };
+        const outside = await Promise.all(
+            [...items].map(async ([uuid, item]) => {
+                try {
+                    const spaceUuid = await spaceUuidOf(item);
+                    return spaceUuid !== undefined &&
+                        isOutsideAgentSpaces(spaceAccess, spaceUuid)
+                        ? uuid
+                        : null;
+                } catch {
+                    return null;
+                }
+            }),
+        );
+        return new Set(outside.filter((uuid): uuid is string => uuid !== null));
+    }
+
     // Only files the thread owns are readable; a pinned row can only reference
     // a file claimed by this thread, so the thread lookup is the boundary.
     private async getThreadFiles(
@@ -13735,6 +13830,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             currentPromptExamples?: CurrentPromptExamples;
             pendingRejectedSqlApprovalResults?: Parameters<StoreToolResultsFn>[0];
             threadUuid: string;
+            /** The answering agent's space limits, to flag pinned items it cannot read. */
+            agentScope?: { user: SessionUser; spaceAccess: string[] } | null;
         },
     ): Promise<ModelMessage[]> {
         const currentPromptExamples = options.currentPromptExamples ?? {
@@ -13745,10 +13842,14 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         );
         const contextMap =
             await this.aiAgentModel.getContextForPromptUuids(promptUuids);
-        const threadFiles = await this.getThreadFiles(
-            options.threadUuid,
-            contextMap,
-        );
+        const [threadFiles, outsideAgentSpaces] = await Promise.all([
+            this.getThreadFiles(options.threadUuid, contextMap),
+            this.findPinnedOutsideAgentSpaces(
+                contextMap,
+                options.projectUuid,
+                options.agentScope ?? null,
+            ),
+        ]);
 
         const messagesWithToolCalls = await Promise.all(
             threadMessages.map(async (message, index) => {
@@ -13765,7 +13866,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 const pinnedContextMessage =
                     AiAgentService.createPinnedContextMessage(
                         contextMap.get(message.ai_prompt_uuid) ?? [],
-                        { threadFiles },
+                        { threadFiles, outsideAgentSpaces },
                     );
                 if (pinnedContextMessage) {
                     messages.push(pinnedContextMessage);

@@ -1,4 +1,8 @@
-import { FeatureFlags, isAppVersionInProgress } from '@lightdash/common';
+import {
+    DATA_APP_VIZ_TEMPLATE,
+    FeatureFlags,
+    isAppVersionInProgress,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -66,8 +70,7 @@ export default function AppPreviewTest() {
     // Same check the agent launcher uses before it shows itself.
     const canUseAgents = useProjectAiAgentButtonVisibility(projectUuid);
     const defaultAgent = useDefaultAiAgent(projectUuid);
-    const captureAgentUuid =
-        defaultAgent.agent?.uuid ?? defaultAgent.agents[0]?.uuid ?? null;
+    const hasCaptureAgent = defaultAgent.agents.length > 0;
 
     // Always fetch app to get creator info + latest ready version when needed.
     // The backend enforces space-aware view permissions and will 403 if the
@@ -244,7 +247,7 @@ export default function AppPreviewTest() {
     const captureAvailable = canCaptureOnAppView({
         flagEnabled: captureFlag.data?.enabled === true,
         canUseAgents,
-        hasAgent: captureAgentUuid !== null,
+        hasAgent: hasCaptureAgent,
         hasPreview: Boolean(token && version !== undefined && !isFullscreen),
     });
     const getCaptureRegion = useCallback(
@@ -560,12 +563,18 @@ export default function AppPreviewTest() {
                 ref={previewBodyRef}
                 className={classes.previewBody}
             >
-                {captureAvailable && captureAgentUuid && (
+                {captureAvailable && (
                     <AppViewCapture
                         ref={captureRef}
                         projectUuid={projectUuid}
+                        // The server refuses chart types as attachments.
+                        attachedAppUuid={
+                            !firstPage ||
+                            firstPage.template === DATA_APP_VIZ_TEMPLATE
+                                ? null
+                                : firstPage.appUuid
+                        }
                         appName={appName}
-                        agentUuid={captureAgentUuid}
                         getRegion={getCaptureRegion}
                         onRecordingChange={setIsCaptureRecording}
                     />
