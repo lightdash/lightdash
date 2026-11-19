@@ -46,6 +46,7 @@ import RefreshDbtButton from '../../RefreshDbtButton';
 import SaveChartButton from '../SaveChartButton';
 import { useExplorerResultsData } from '../VisualizationCard/useExplorerResultsData';
 import classes from './ExplorerHeader.module.css';
+import { ExplorerHistoryButtons } from './ExplorerHistoryButtons';
 import QueryWarnings from './QueryWarnings';
 
 const getBackButtonLabelKey = (
@@ -299,6 +300,7 @@ const ExplorerHeader: FC = memo(() => {
                             </div>
                         </Tooltip>
                     )}
+                <ExplorerHistoryButtons />
                 <RefreshButton size="xs" />
             </Group>
         </Group>

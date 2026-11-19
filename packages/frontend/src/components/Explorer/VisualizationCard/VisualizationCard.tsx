@@ -46,6 +46,7 @@ import {
     selectMetricQuery,
     selectParameters,
     selectPivotConfig,
+    selectHistoryRevision,
     selectSavedChart,
     selectSorts,
     selectTableCalculationsMetadata,
@@ -155,6 +156,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
 
     // Get savedChart from Redux
     const savedChart = useExplorerSelector(selectSavedChart);
+    const historyRevision = useExplorerSelector(selectHistoryRevision);
 
     // Authoring opens the builder modal from inside this card's provider
     // tree, so the modal's config column shares the chart's viz context.
@@ -492,6 +494,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
         <ErrorBoundary>
             <ConnectedVisualizationProvider
                 key={savedChart?.uuid}
+                chartConfigRevision={historyRevision}
                 minimal={minimal}
                 initialPivotDimensions={pivotConfig?.columns}
                 initialPivotRows={pivotConfig?.rows}

@@ -53,6 +53,7 @@ import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import { derived } from '../../utils/changeOrigin';
 import LoadingChart from '../common/LoadingChart';
 import MantineIcon from '../common/MantineIcon';
 import { DefaultSkeleton } from '../DashboardTiles/TileBase/LoadingSkeletonOverlay';
@@ -314,7 +315,10 @@ const DataAppVizRenderer: FC<Props> = ({
         ) {
             return;
         }
-        dataAppVizChartConfig.setDataAppVizVersion(readyMetadata.version);
+        // Following the latest build is not an edit
+        derived(() =>
+            dataAppVizChartConfig.setDataAppVizVersion(readyMetadata.version),
+        );
     }, [
         config,
         embedToken,
