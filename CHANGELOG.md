@@ -1,3 +1,10 @@
+# [3.328.0](https://github.com/lightdash/lightdash/compare/3.327.4...3.328.0) (2026-11-19)
+
+
+### Features
+
+* **semantic-studio:** review a draft in the Code tab's overview ([#32943](https://github.com/lightdash/lightdash/issues/32943)) ([a900b8d](https://github.com/lightdash/lightdash/commit/a900b8d2bfe53ee2d23a52062c4547fbd9d0eba4))
+
 ## [3.327.4](https://github.com/lightdash/lightdash/compare/3.327.3...3.327.4) (2026-11-19)
 
 
