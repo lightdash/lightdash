@@ -52,8 +52,12 @@ export const getQueryingComposerSection = ({
         '- For a follow-up that changes an earlier result, change only what the user asked for, and claim a change only after the call succeeds. When the requested field is not among the carried-forward candidates, discover it rather than binding its value to an unrelated existing dimension.',
         slackChannelId
             ? '- After query, call visualize on the node your answer rests on when the user asks for a chart or when its rows materially help: with the chart type the user asked for; otherwise with a chart that fits the result, or a table. Skip visualize when a sentence answers the question.'
-            : '- After query, call visualize on the node your answer rests on: with the chart type the user asked for; otherwise with a chart that fits the result, or a table when the user wants an interactive or downloadable table or the rows are too many for a Markdown table. Skip visualize when a sentence or a small Markdown table answers the question and the user asked for no chart.',
-        '- Shape a node for its chart, whether you query for the chart or the user asks to chart an earlier answer: categories named by a readable dimension (customer name, not customer id), rows at the grain the chart draws, sorted the way it reads (by value for a ranking, in order for time or stages). A node that answered a question in text often lacks this, so query a new node shaped for the chart and visualize that one.',
+            : '- After query, call visualize on the node your answer rests on: with the chart type the user asked for; otherwise with a chart that fits the result, or a table when the user wants an interactive or downloadable table or the rows are too many for a Markdown table. Skip visualize when a sentence (one or two figures) or a Markdown table (up to about 10 rows) answers the question and the user asked for no chart.',
+        '- Shape a node for its chart, whether you query for the chart or the user asks to chart an earlier answer. A node that answered a question in text often lacks this shape, so query a new node that has it and visualize that one:',
+        '  - Names: categories named by a readable dimension (customer name, not customer id).',
+        '  - Grain: one row per bar, point or slice the chart draws.',
+        '  - Order: by value for a ranking, in order for time or stages.',
+        '  - Values over time: per period, or a running total when the user asks for one or the question is progress toward a total or target.',
         '- Visualize a second node only when it adds a distinct view. An earlier node already shaped for the chart needs no new query: call visualize on it again.',
         ...(slackChannelId
             ? []

@@ -26,7 +26,7 @@ const toolVisualizeArgsSchemaV1 = createToolSchema()
             .nullish()
             .default(null)
             .describe(
-                'One sentence on what the card shows, only when the title is not enough. Null otherwise.',
+                'One sentence on what the card shows, when the title is not enough or the last period is partial. Null otherwise.',
             ),
         vizConfig: composerChartVizConfigSchema,
     })
