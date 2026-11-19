@@ -1,3 +1,10 @@
+## [3.327.2](https://github.com/lightdash/lightdash/compare/3.327.1...3.327.2) (2026-11-19)
+
+
+### Bug Fixes
+
+* improve input handling in request logging ([#32942](https://github.com/lightdash/lightdash/issues/32942)) ([41c887f](https://github.com/lightdash/lightdash/commit/41c887f256bb958a87972119aa3bc9d3d6d1b665))
+
 ## [3.327.1](https://github.com/lightdash/lightdash/compare/3.327.0...3.327.1) (2026-11-19)
 
 
