@@ -1,3 +1,10 @@
+## [3.327.4](https://github.com/lightdash/lightdash/compare/3.327.3...3.327.4) (2026-11-19)
+
+
+### Bug Fixes
+
+* **ai:** accept null on tool inputs the model leaves unused ([#32852](https://github.com/lightdash/lightdash/issues/32852)) ([73f31c3](https://github.com/lightdash/lightdash/commit/73f31c3809cafadd6cdc3e991f3d0a02d33de709))
+
 ## [3.327.3](https://github.com/lightdash/lightdash/compare/3.327.2...3.327.3) (2026-11-19)
 
 
