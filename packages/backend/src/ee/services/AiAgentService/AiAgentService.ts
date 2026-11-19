@@ -521,6 +521,7 @@ import {
     type DocumentEditResolution,
 } from '../ai/decisions/documentEdit';
 import { composeInstantReply } from '../ai/decisions/instantReplies';
+import { getPreviousAnswer } from '../ai/decisions/previousAnswer';
 import { classifyResponseSignals } from '../ai/decisions/responseSignals';
 import { selectVerifiedAnswers } from '../ai/decisions/verifiedAnswers';
 import {
@@ -17478,6 +17479,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                               prompt: prompt.prompt,
                               instructions: agentSettings.instruction,
                               conversation: decisionHistory.slice(-3),
+                              previousAnswer:
+                                  getPreviousAnswer(decisionHistory),
                               context: chartTurn?.intentContext ?? null,
                           })
                         : null);

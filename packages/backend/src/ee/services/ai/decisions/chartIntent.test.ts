@@ -1647,6 +1647,7 @@ describe('decideTurn', () => {
             prompt: 'how many orders so far?',
             instructions: null,
             conversation: [],
+            previousAnswer: null,
             context: null,
         });
         expect(decision).toEqual({
@@ -1675,6 +1676,7 @@ describe('decideTurn', () => {
                 prompt: 'perfect, thanks!',
                 instructions: null,
                 conversation: [],
+                previousAnswer: null,
                 context: null,
             });
         expect(
@@ -1706,6 +1708,47 @@ describe('decideTurn', () => {
         ).toBeNull();
     });
 
+    it('shows JEV the end of the previous answer on every turn', async () => {
+        const evaluate = vi.fn().mockResolvedValue({ simple: noul(0.1) });
+        await decideTurn({
+            decisions: { evaluate },
+            prompt: 'yes',
+            instructions: null,
+            conversation: [],
+            previousAnswer: {
+                text: 'Want me to break it down by payment method?',
+                askedUser: false,
+            },
+            context: null,
+        });
+        expect(evaluate.mock.calls[0][0].state).toEqual({
+            prompt: 'yes',
+            instructions: null,
+            previousAnswer: 'Want me to break it down by payment method?',
+        });
+    });
+
+    it('never answers instantly when the user is answering an askUser question', async () => {
+        const { decision } = await decideTurn({
+            decisions: {
+                evaluate: vi.fn().mockResolvedValue({
+                    simple: noul(0.1),
+                    instantReply: choice('acknowledgement'),
+                    englishPrompt: noul(0.95),
+                }),
+            },
+            prompt: 'Yes',
+            instructions: null,
+            conversation: [],
+            previousAnswer: {
+                text: 'Should I include refunds?',
+                askedUser: true,
+            },
+            context: null,
+        });
+        expect(decision.instantReply).toBeNull();
+    });
+
     it('never answers instantly when the turn is a chart edit', async () => {
         const { decision } = await decideTurn({
             decisions: {
@@ -1725,6 +1768,7 @@ describe('decideTurn', () => {
             prompt: 'great, as a line',
             instructions: null,
             conversation: [],
+            previousAnswer: null,
             context: buildChartIntentContext({
                 filterRules: [],
                 prompt: 'great, as a line',
@@ -1750,6 +1794,7 @@ describe('decideTurn', () => {
             prompt: 'as a line',
             instructions: null,
             conversation: [],
+            previousAnswer: null,
             context: buildChartIntentContext({
                 filterRules: [],
                 prompt: 'as a line',
@@ -1800,6 +1845,7 @@ describe('decideTurn', () => {
             prompt: 'stacked 100% bars',
             instructions: null,
             conversation: [],
+            previousAnswer: null,
             context: buildChartIntentContext({
                 filterRules: [],
                 prompt: 'stacked 100% bars',
@@ -1832,6 +1878,7 @@ describe('decideTurn', () => {
             prompt: 'as bars',
             instructions: null,
             conversation: [],
+            previousAnswer: null,
             context: buildChartIntentContext({
                 filterRules: [],
                 prompt: 'as bars',
@@ -1855,6 +1902,7 @@ describe('decideTurn', () => {
             prompt: 'as a line',
             instructions: null,
             conversation: [],
+            previousAnswer: null,
             context: buildChartIntentContext({
                 filterRules: [],
                 prompt: 'as a line',
