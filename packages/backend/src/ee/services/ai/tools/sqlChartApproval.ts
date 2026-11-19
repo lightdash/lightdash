@@ -72,9 +72,7 @@ const getSqlChartApproveSql =
 
 type SqlChartToolName = 'createContent' | 'editContent';
 
-export type GetComposerChartEditSqlFn = (
-    args: unknown,
-) => Promise<string | null>;
+export type GetComposerChartSqlFn = (args: unknown) => Promise<string | null>;
 
 type ToolOutput = { result: string; metadata?: Record<string, unknown> };
 
@@ -82,8 +80,8 @@ type ToolOutput = { result: string; metadata?: Record<string, unknown> };
 export const createSqlChartGate = (
     sqlChartSaving: SqlChartSaving,
     toolName: SqlChartToolName,
-    // A composer chart edit's new SQL depends on the stored chart, so the server works it out.
-    getComposerChartEditSql: GetComposerChartEditSqlFn | null = null,
+    // The SQL a composer chart call saves: an edit's depends on the stored chart, so the server works it out.
+    getComposerChartSql: GetComposerChartSqlFn | null = null,
 ) => {
     const approvalGate =
         sqlChartSaving.mode === 'thread_approval'
@@ -100,9 +98,7 @@ export const createSqlChartGate = (
     /** The SQL a call asks to save; null when the call does not gate on it. */
     const getGatedSql = async (args: unknown): Promise<string | null> => {
         if (isComposerChartContentArgs(args)) {
-            return getComposerChartEditSql
-                ? getComposerChartEditSql(args)
-                : null;
+            return getComposerChartSql ? getComposerChartSql(args) : null;
         }
         return isSqlApprovalToolCall(toolName, args)
             ? getSqlApprovalSql(args)
@@ -159,7 +155,7 @@ export const createSqlChartGate = (
             const isComposerChart = isComposerChartContentArgs(args);
             const askedSql = askedComposerSql.get(toolCallId);
             askedComposerSql.delete(toolCallId);
-            // For a composer chart, the service asks only when the edit adds warehouse SQL.
+            // For a composer chart, the service asks only for warehouse SQL the call adds.
             const call =
                 (isSqlChart || isComposerChart) && approvalGate
                     ? await approvalGate.forToolCall(toolCallId, {

@@ -724,7 +724,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
     },
   },
   {
-    "description": "Create a dashboard, chart or SQL chart from its JSON; the developing-in-lightdash skill has the shapes. Save into a space whose canEdit is true in findContent or listContent results; a write to any other space is refused. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them.",
+    "description": "Create a dashboard, chart, SQL chart or composer chart from its JSON; the developing-in-lightdash skill has the shapes. Save into a space whose canEdit is true in findContent or listContent results; a write to any other space is refused. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them. A composer chart (type composer_chart) is saved onto an existing dashboard, from a query node (from: "node") or from full pipeline and chart JSON (from: "json"); the composer-chart-reference skill resource has both shapes and when each needs SQL approval.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -970,6 +970,319 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
               ],
               "type": "object",
             },
+            {
+              "additionalProperties": false,
+              "description": "Composer chart built from a query node.",
+              "properties": {
+                "dashboardSlug": {
+                  "description": "The existing dashboard the chart belongs to.",
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "from": {
+                  "const": "node",
+                  "type": "string",
+                },
+                "name": {
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "nodeId": {
+                  "description": "A node from a successful query call.",
+                  "type": "string",
+                },
+                "sessionId": {
+                  "description": "The query result's sessionId; null in an agent conversation.",
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "vizConfig": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "groupBy": {
+                          "default": null,
+                          "description": "Columns that split y into one series per value. A reader tells about 6 series apart at a glance, so prefer a coarser split when the choice is yours and keep a split the user asked for. bar/line/area/scatter only. Must not include x.",
+                          "items": {
+                            "description": "A result column reference of the presented node",
+                            "type": "string",
+                          },
+                          "type": [
+                            "array",
+                            "null",
+                          ],
+                        },
+                        "horizontal": {
+                          "default": null,
+                          "description": "bar only: draw bars horizontally, for long labels or more than about 12 categories.",
+                          "type": [
+                            "boolean",
+                            "null",
+                          ],
+                        },
+                        "labels": {
+                          "additionalProperties": false,
+                          "default": null,
+                          "description": "Axis titles. big_number uses labels.y as its label.",
+                          "properties": {
+                            "x": {
+                              "default": null,
+                              "type": [
+                                "string",
+                                "null",
+                              ],
+                            },
+                            "y": {
+                              "default": null,
+                              "type": [
+                                "string",
+                                "null",
+                              ],
+                            },
+                            "y2": {
+                              "default": null,
+                              "type": [
+                                "string",
+                                "null",
+                              ],
+                            },
+                          },
+                          "type": [
+                            "object",
+                            "null",
+                          ],
+                        },
+                        "stack": {
+                          "default": null,
+                          "description": "bar: stack series on top of each other, for parts that add up to a total (sums and counts; averages, ratios and distinct counts sit side by side). area always stacks. Ignored elsewhere.",
+                          "type": [
+                            "boolean",
+                            "null",
+                          ],
+                        },
+                        "type": {
+                          "description": "Chart type, chosen by what the reader does with the result:
+- bar: compare or rank categories.
+- line: follow change over time or another ordered x.
+- table: read exact values across several columns, or more rows than a chart can label.
+- area: a filled line, for one total over time or the parts that add up to it.
+- pie: 2 to 6 non-negative parts of one whole; more parts read better as a bar.
+- scatter: how two measures relate, one point per entity.
+- funnel: ordered stages of one process.
+- big_number: one value as a card, when the user asks for the card or wants to save it; a figure otherwise goes in the answer text.
+A custom chart type is chosen the same way: by its own description first, then as the built-in type it most resembles.",
+                          "enum": [
+                            "table",
+                            "big_number",
+                            "bar",
+                            "line",
+                            "area",
+                            "scatter",
+                            "pie",
+                            "funnel",
+                          ],
+                          "type": "string",
+                        },
+                        "x": {
+                          "default": null,
+                          "description": "Category or time column. bar/line/area/scatter/pie/funnel. null for table/big_number, or to use the first non-numeric column.",
+                          "type": [
+                            "string",
+                            "null",
+                          ],
+                        },
+                        "y": {
+                          "default": null,
+                          "description": "Value columns. big_number, pie and funnel use y[0]. null to use every numeric column not on x or groupBy.",
+                          "items": {
+                            "description": "A result column reference of the presented node",
+                            "type": "string",
+                          },
+                          "type": [
+                            "array",
+                            "null",
+                          ],
+                        },
+                        "y2": {
+                          "default": null,
+                          "description": "Column on a secondary (right) y axis. bar/line/area (drawn as a line on area). Must not be in y.",
+                          "type": [
+                            "string",
+                            "null",
+                          ],
+                        },
+                      },
+                      "required": [
+                        "type",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "customChartTypeSlug": {
+                          "description": "Slug of the custom chart type.",
+                          "type": "string",
+                        },
+                        "fieldMapping": {
+                          "additionalProperties": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                              },
+                              {
+                                "items": {
+                                  "description": "A result column reference of the presented node",
+                                  "type": "string",
+                                },
+                                "type": "array",
+                              },
+                            ],
+                            "description": "A result column reference of the presented node",
+                          },
+                          "description": "Binds each slot of the type, by slot name, to a column, or ordered columns for a multiple slot. The slot's kind sets the column's role: a metric slot is measured, a series slot splits the chart into one series per value, and a dimension or column slot groups, so a numeric column there is grouped, not measured. A measure split by series goes in a metric slot.",
+                          "type": "object",
+                        },
+                        "options": {
+                          "additionalProperties": {
+                            "anyOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "colors": {
+                                    "items": {
+                                      "type": "string",
+                                    },
+                                    "maxItems": 5,
+                                    "minItems": 2,
+                                    "type": "array",
+                                  },
+                                  "max": {
+                                    "anyOf": [
+                                      {
+                                        "type": "number",
+                                      },
+                                      {
+                                        "const": "auto",
+                                        "type": "string",
+                                      },
+                                    ],
+                                  },
+                                  "min": {
+                                    "anyOf": [
+                                      {
+                                        "type": "number",
+                                      },
+                                      {
+                                        "const": "auto",
+                                        "type": "string",
+                                      },
+                                    ],
+                                  },
+                                },
+                                "required": [
+                                  "colors",
+                                  "min",
+                                  "max",
+                                ],
+                                "type": "object",
+                              },
+                              {
+                                "type": "string",
+                              },
+                              {
+                                "type": "number",
+                              },
+                              {
+                                "type": "boolean",
+                              },
+                            ],
+                          },
+                          "default": null,
+                          "description": "Values for the type's options; null for defaults.",
+                          "type": [
+                            "object",
+                            "null",
+                          ],
+                        },
+                        "type": {
+                          "const": "custom",
+                          "description": "Renders one of this project's custom chart types.",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "type",
+                        "customChartTypeSlug",
+                        "fieldMapping",
+                      ],
+                      "type": "object",
+                    },
+                  ],
+                },
+              },
+              "required": [
+                "from",
+                "dashboardSlug",
+                "name",
+                "description",
+                "nodeId",
+                "sessionId",
+                "vizConfig",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": {},
+              "description": "Composer chart from full pipeline and chart JSON.",
+              "properties": {
+                "chart": {
+                  "additionalProperties": {},
+                  "type": "object",
+                },
+                "dashboardSlug": {
+                  "description": "The existing dashboard the chart belongs to.",
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "from": {
+                  "const": "json",
+                  "type": "string",
+                },
+                "name": {
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "pipeline": {
+                  "additionalProperties": {},
+                  "type": "object",
+                },
+              },
+              "required": [
+                "from",
+                "dashboardSlug",
+                "name",
+                "description",
+                "pipeline",
+                "chart",
+              ],
+              "type": "object",
+            },
           ],
         },
         "type": {
@@ -978,6 +1291,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
             "dashboard",
             "chart",
             "sql_chart",
+            "composer_chart",
           ],
           "type": "string",
         },
@@ -1191,6 +1505,55 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                     },
                     "type": {
                       "const": "sql_chart",
+                      "type": "string",
+                    },
+                    "uuid": {
+                      "description": "UUID of the created content.",
+                      "type": "string",
+                    },
+                    "warnings": {
+                      "description": "Non-fatal problems with the created content, e.g. metricQuery dimensions the chart does not use.",
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "type",
+                    "href",
+                    "uuid",
+                    "slug",
+                    "name",
+                    "content",
+                    "warnings",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "content": {
+                      "additionalProperties": {},
+                      "description": "The persisted content as code, as shown in \`result\`.",
+                      "propertyNames": {
+                        "type": "string",
+                      },
+                      "type": "object",
+                    },
+                    "href": {
+                      "description": "Canonical link to the created content.",
+                      "type": "string",
+                    },
+                    "name": {
+                      "type": "string",
+                    },
+                    "slug": {
+                      "description": "Final persisted slug; may differ from the requested slug when it was already taken.",
+                      "type": "string",
+                    },
+                    "type": {
+                      "const": "composer_chart",
                       "type": "string",
                     },
                     "uuid": {

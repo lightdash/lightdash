@@ -149,6 +149,16 @@ const getComposerApprovalSql = (queries: unknown[]): string | null => {
     return sqlNodes.length > 0 ? sqlNodes.join('\n\n') : null;
 };
 
+/** Warehouse SQL a composer chart create writes as JSON; one from a query node writes none. */
+const getComposerCreateApprovalSql = (toolArgs: unknown): string | null =>
+    isRecord(toolArgs) &&
+    isRecord(toolArgs.content) &&
+    toolArgs.content.from === 'json' &&
+    isRecord(toolArgs.content.pipeline) &&
+    Array.isArray(toolArgs.content.pipeline.nodes)
+        ? getComposerApprovalSql(toolArgs.content.pipeline.nodes)
+        : null;
+
 /**
  * Composer gates only with warehouse SQL nodes; content tools only when they
  * run or save new SQL: a SQL content query, creating a SQL chart, or editing
@@ -172,7 +182,11 @@ export const isSqlApprovalToolCall = (
         case 'runContentQuery':
             return getContentQuerySql(toolArgs) !== null;
         case 'createContent':
-            return isSqlChartContentArgs(toolArgs);
+            return (
+                isSqlChartContentArgs(toolArgs) ||
+                (isComposerChartContentArgs(toolArgs) &&
+                    getComposerCreateApprovalSql(toolArgs) !== null)
+            );
         case 'editContent':
             return (
                 (isSqlChartContentArgs(toolArgs) &&
@@ -188,6 +202,12 @@ export const isSqlApprovalToolCall = (
 /** The SQL a pending approval asks the user to accept; null when the call carries none. */
 export const getSqlApprovalSql = (toolArgs: unknown): string | null => {
     if (!isRecord(toolArgs)) return null;
+    // Only the SQL a composer chart saves counts; any other sql field it carries is ignored.
+    if (isComposerChartContentArgs(toolArgs)) {
+        return isRecord(toolArgs.content)
+            ? getComposerCreateApprovalSql(toolArgs)
+            : getComposerChartApprovalSql(toolArgs.patch);
+    }
     if (typeof toolArgs.sql === 'string') return toolArgs.sql;
     if (Array.isArray(toolArgs.queries)) {
         return getComposerApprovalSql(toolArgs.queries);
@@ -199,9 +219,6 @@ export const getSqlApprovalSql = (toolArgs: unknown): string | null => {
         typeof toolArgs.content.sql === 'string'
     ) {
         return toolArgs.content.sql;
-    }
-    if (isComposerChartContentArgs(toolArgs)) {
-        return getComposerChartApprovalSql(toolArgs.patch);
     }
     return getPatchedSql(toolArgs.patch);
 };

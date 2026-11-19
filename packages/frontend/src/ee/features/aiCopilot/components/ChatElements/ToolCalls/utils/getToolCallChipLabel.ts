@@ -44,7 +44,7 @@ type ToolEditContentArgs = {
 };
 
 type ToolCreateContentArgs = {
-    content?: { slug?: string };
+    content?: { slug?: string; name?: string };
 };
 
 type ToolCallChipLabelFn = (toolArgs: object) => string | null;
@@ -164,7 +164,7 @@ const CHIP_LABEL_BY_TOOL: Partial<Record<ToolName, ToolCallChipLabelFn>> = {
     },
     createContent: (toolArgs) => {
         const args = toolArgs as ToolCreateContentArgs;
-        return args.content?.slug ?? null;
+        return args.content?.slug ?? args.content?.name ?? null;
     },
     createScheduledDelivery: (toolArgs) => {
         const args = toolArgs as { name?: string };

@@ -32,6 +32,8 @@ import {
     ChartType,
     ComposerChart,
     ComposerChartAsCode,
+    ComposerStoredChart,
+    ComposerStoredChartAsCode,
     ContentAsCodeType,
     ContentSlugRenameRequest,
     ContentType,
@@ -3660,6 +3662,20 @@ export class CoderService extends BaseService {
         };
     }
 
+    /** A composer chart file's chart as stored: its custom chart type bound by uuid and version. */
+    async toStoredComposerChart(
+        projectUuid: string,
+        chart: ComposerStoredChartAsCode,
+    ): Promise<ComposerStoredChart> {
+        return {
+            ...chart,
+            chartConfig: await this.resolveDataAppVizBinding(
+                projectUuid,
+                chart.chartConfig,
+            ),
+        };
+    }
+
     /**
      * An unchanged file writes nothing and needs only create:ContentAsCode. A
      * new or changed one runs every composer chart write check.
@@ -3722,13 +3738,7 @@ export class CoderService extends BaseService {
                 { featureFlagId: FeatureFlags.ComposerCharts },
             );
         }
-        const chart = {
-            ...file.chart,
-            chartConfig: await this.resolveDataAppVizBinding(
-                projectUuid,
-                file.chart.chartConfig,
-            ),
-        };
+        const chart = await this.toStoredComposerChart(projectUuid, file.chart);
 
         const [dashboard] = live
             ? []

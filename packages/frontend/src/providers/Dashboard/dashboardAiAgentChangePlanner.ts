@@ -119,13 +119,24 @@ export const planDashboardAiAgentChanges = ({
                 actions.push({ type: 'refreshChart', chart, focusTile: true });
                 break;
             }
-            case 'composer_chart':
-                actions.push({
-                    type: 'refreshChart',
-                    chart: { type: 'composer_chart', slug: contentSlug },
-                    focusTile: true,
-                });
+            case 'composer_chart': {
+                const chart: DashboardAiAgentChartRef = {
+                    type: 'composer_chart',
+                    slug: contentSlug,
+                };
+                // A create adds a tile, so the dashboard reloads to show it.
+                if (part.toolName === 'createContent') {
+                    if (getTargetDashboardSlug(part) === currentDashboardSlug) {
+                        actions.push({
+                            type: 'refreshDashboard',
+                            focusChart: chart,
+                        });
+                    }
+                    break;
+                }
+                actions.push({ type: 'refreshChart', chart, focusTile: true });
                 break;
+            }
             case 'dashboard': {
                 if (contentSlug !== currentDashboardSlug) break;
 
@@ -138,7 +149,10 @@ export const planDashboardAiAgentChanges = ({
             case 'document':
                 break;
             default:
-                return assertUnreachable(part.toolArgs, 'Unknown content type');
+                return assertUnreachable(
+                    part.toolArgs.type,
+                    'Unknown content type',
+                );
         }
     }
 
