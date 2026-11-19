@@ -9,7 +9,11 @@ import {
 import { githubIntegration } from '.';
 import { connectLiveSource } from '../../liveSource.mock';
 import { type LiveHttpResponse } from '../../types';
-import { GITHUB_MAX_QUERY_ROWS, GITHUB_STATS_RETRY_DELAYS_MS } from './run';
+import {
+    GITHUB_LIST_MAX_PAGES,
+    GITHUB_MAX_QUERY_ROWS,
+    GITHUB_STATS_RETRY_DELAYS_MS,
+} from './run';
 
 const response = (
     body: unknown,
@@ -241,6 +245,207 @@ const STATS = [
         weeks: [{ w: week('2026-10-18'), a: 0, d: 0, c: 1 }],
     },
 ];
+
+/** A pull request as the pulls list returns it: merged_at on top, no comment count. */
+const pull = (number: number, createdAt: string) => {
+    const {
+        comments,
+        pull_request: pullRequest,
+        ...rest
+    } = item(number, {
+        created_at: `${createdAt}T09:00:00Z`,
+    });
+    return { ...rest, merged_at: pullRequest.merged_at };
+};
+
+const createdIn = (start: string, end: string) => ({
+    column: 'created_at',
+    op: 'between',
+    start,
+    end,
+});
+
+describe('githubIntegration list', () => {
+    it('lists pull requests newest first, stopping past the Created range', async () => {
+        const { source, send } = connect(
+            response([
+                pull(3, '2026-11-05'),
+                pull(2, '2026-10-20'),
+                pull(1, '2026-09-30'),
+            ]),
+        );
+
+        const result = await run(source, {
+            kind: 'list',
+            type: 'pr',
+            filters: [createdIn('2026-10-01', '2026-10-31')],
+            columns: ['number', 'state', 'merged_at'],
+        });
+
+        expect(send).toHaveBeenCalledTimes(1);
+        expect(send).toHaveBeenCalledWith({
+            method: 'GET',
+            path: '/repos/lightdash/lightdash/pulls',
+            query: {
+                state: 'all',
+                sort: 'created',
+                direction: 'desc',
+                per_page: '100',
+                page: '1',
+            },
+            body: undefined,
+        });
+        expect(result.rows).toEqual([
+            { number: 2, state: 'merged', merged_at: '2026-10-03' },
+        ]);
+        expect(result.hasMoreRows).toBe(false);
+    });
+
+    it('counts every item in range, over as many pages as it takes', async () => {
+        const firstPage = Array.from({ length: 100 }, (_, i) =>
+            pull(300 - i, '2025-06-10'),
+        );
+        const { source, send } = connect(
+            response(firstPage),
+            response([pull(200, '2025-06-02'), pull(199, '2025-05-31')]),
+        );
+
+        const result = await run(source, {
+            kind: 'list',
+            type: 'pr',
+            filters: [createdIn('2025-06-01', '2025-06-30')],
+            columns: ['total_count'],
+        });
+
+        expect(send).toHaveBeenCalledTimes(2);
+        expect(send.mock.calls[1][0].query.page).toBe('2');
+        expect(result.rows).toEqual([{ total_count: 101 }]);
+    });
+
+    it('reads issues from the issue list, narrowed there and without pull requests', async () => {
+        const { source, send } = connect(
+            response([
+                item(9, { pull_request: undefined, state_reason: 'completed' }),
+                item(8),
+            ]),
+        );
+
+        const result = await run(source, {
+            kind: 'list',
+            type: 'issue',
+            filters: [
+                { column: 'author', op: 'eq', value: 'octocat' },
+                { column: 'labels', op: 'eq', value: 'bug' },
+                {
+                    column: 'closed_at',
+                    op: 'between',
+                    start: '2026-10-01',
+                    end: '2026-10-31',
+                },
+            ],
+            columns: ['number', 'comments', 'state_reason'],
+        });
+
+        expect(send.mock.calls[0][0]).toMatchObject({
+            path: '/repos/lightdash/lightdash/issues',
+            query: {
+                state: 'all',
+                sort: 'updated',
+                direction: 'desc',
+                since: '2026-10-01T00:00:00Z',
+                creator: 'octocat',
+                labels: 'bug',
+            },
+        });
+        expect(result.rows).toEqual([
+            { number: 9, comments: 2, state_reason: 'completed' },
+        ]);
+    });
+
+    it('reads pull request comments from the issue list', async () => {
+        const { source, send } = connect(
+            response([item(5), item(4, { pull_request: undefined })]),
+        );
+
+        const result = await run(source, {
+            kind: 'list',
+            type: 'pr',
+            filters: [{ column: 'comments', op: 'gt', value: 1 }],
+            columns: ['number', 'comments'],
+        });
+
+        expect(send.mock.calls[0][0].path).toBe(
+            '/repos/lightdash/lightdash/issues',
+        );
+        expect(result.rows).toEqual([{ number: 5, comments: 2 }]);
+    });
+
+    it('applies filters the list cannot on each page', async () => {
+        const { source } = connect(
+            response([
+                item(3, { user: { login: 'bot' } }),
+                item(2, { pull_request: { merged_at: null }, draft: true }),
+                item(1, { pull_request: { merged_at: null } }),
+            ]),
+        );
+
+        const result = await run(source, {
+            kind: 'list',
+            type: 'pr',
+            filters: [
+                { column: 'author', op: 'neq', value: 'bot' },
+                { column: 'state', op: 'eq', value: 'closed' },
+                { column: 'draft', op: 'eq', value: false },
+            ],
+            columns: ['number'],
+        });
+
+        expect(result.rows).toEqual([{ number: 1 }]);
+    });
+
+    it('stops at one row past the limit', async () => {
+        const { source, send } = connect(
+            response(
+                Array.from({ length: 100 }, (_, i) =>
+                    pull(100 - i, '2026-10-01'),
+                ),
+            ),
+        );
+
+        const result = await run(
+            source,
+            { kind: 'list', type: 'pr', filters: [], columns: ['number'] },
+            5,
+        );
+
+        expect(send).toHaveBeenCalledTimes(1);
+        expect(result.rows).toHaveLength(5);
+        expect(result.hasMoreRows).toBe(true);
+    });
+
+    it('refuses a range with more items than one query lists', async () => {
+        const { source, send } = connect();
+        send.mockResolvedValue(
+            response(
+                Array.from({ length: 100 }, (_, i) =>
+                    pull(i + 1, '2025-06-10'),
+                ),
+            ),
+        );
+
+        await expect(
+            run(source, {
+                kind: 'list',
+                type: 'pr',
+                filters: [createdIn('2024-01-01', '2025-12-31')],
+                columns: ['total_count'],
+            }),
+        ).rejects.toThrow(
+            'This GitHub query reads more than 5,000 pull requests, the most one query lists. Filter Created or Updated to a shorter, more recent range.',
+        );
+        expect(send).toHaveBeenCalledTimes(GITHUB_LIST_MAX_PAGES);
+    });
+});
 
 describe('githubIntegration contributors', () => {
     afterEach(() => {

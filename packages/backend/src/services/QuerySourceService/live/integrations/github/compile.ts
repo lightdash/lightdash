@@ -14,7 +14,7 @@ import {
     type LiveCompiledRequest,
 } from '../../explores/definition';
 import { getLiveDateRange, toAbsoluteDateRange } from '../../query/dateRange';
-import { type GithubRequest } from './run';
+import { type GithubListFilter, type GithubRequest } from './run';
 
 /** The first day GitHub can have anything on, for open-ended date filters. */
 const GITHUB_EARLIEST_DATE = '2008-01-01';
@@ -26,11 +26,15 @@ const SEARCH_DATE_QUALIFIERS: Record<string, string> = {
     merged_at: 'merged',
 };
 
-const SEARCH_SORTS: Record<string, 'created' | 'updated' | 'comments'> = {
+// GitHub's comment sort counts review comments too, so the Comments column
+// comes back out of order; comments are sorted here instead
+const SERVER_SORTS: Record<string, 'created' | 'updated'> = {
     created_at: 'created',
     updated_at: 'updated',
-    comments: 'comments',
 };
+
+/** Filters only search can apply: word matches. Everything else is listed. */
+const SEARCH_ONLY_FILTERS = new Set(['title', 'search']);
 
 const PULL_REQUEST_STATES: Record<string, string> = {
     open: 'is:open',
@@ -136,8 +140,8 @@ const toQualifier = (
     }
 };
 
-/** Search sorts created, updated and comments; any other order is ours. */
-const toSearchSort = (
+/** GitHub sorts created and updated; any other order is ours. */
+const toServerSort = (
     sorts: SortField[],
     apiName: (fieldId: string) => string,
 ) => {
@@ -146,7 +150,7 @@ const toSearchSort = (
         return { localSorts: [] };
     }
     const sort =
-        others.length === 0 ? SEARCH_SORTS[apiName(first.fieldId)] : undefined;
+        others.length === 0 ? SERVER_SORTS[apiName(first.fieldId)] : undefined;
     return sort
         ? {
               sort,
@@ -184,7 +188,7 @@ const compileSearch = ({
         };
         return { query: JSON.stringify(request), localSorts: [] };
     }
-    const { localSorts, ...sort } = toSearchSort(metricQuery.sorts, apiName);
+    const { localSorts, ...sort } = toServerSort(metricQuery.sorts, apiName);
     const request: GithubRequest = {
         kind: 'search',
         type,
@@ -193,6 +197,125 @@ const compileSearch = ({
             GithubRequest,
             { kind: 'search' }
         >['columns'],
+        ...sort,
+    };
+    return { query: JSON.stringify(request), localSorts };
+};
+
+/** One list filter per rule. Expects a query that passed the shared check. */
+const toListFilter = (
+    apiName: string,
+    rule: FilterRule,
+    { type, today }: { type: 'pr' | 'issue'; today: string },
+): GithubListFilter => {
+    const [value] = rule.values ?? [];
+    const op = rule.operator === FilterOperator.NOT_EQUALS ? 'neq' : 'eq';
+    switch (apiName) {
+        case 'created_at':
+        case 'updated_at':
+        case 'closed_at':
+        case 'merged_at': {
+            const { startDate, endDate } = toAbsoluteDateRange(
+                getLiveDateRange({
+                    rule,
+                    defaultDays: 30,
+                    today,
+                    earliestDate: GITHUB_EARLIEST_DATE,
+                }),
+                today,
+            );
+            return {
+                column: apiName,
+                op: 'between',
+                start: startDate,
+                end: endDate,
+            };
+        }
+        case 'author':
+        case 'assignee':
+        case 'labels':
+            return { column: apiName, op, value: String(value).trim() };
+        case 'state':
+            lookUp(
+                type === 'pr' ? PULL_REQUEST_STATES : ISSUE_STATES,
+                value,
+                'State',
+            );
+            return { column: 'state', op: 'eq', value: String(value) };
+        case 'state_reason':
+            lookUp(STATE_REASONS, value, 'State reason');
+            return { column: 'state_reason', op: 'eq', value: String(value) };
+        case 'draft':
+            return {
+                column: 'draft',
+                op: 'eq',
+                value: String(value) === 'true',
+            };
+        case 'comments': {
+            const count = Number(value);
+            if (!Number.isInteger(count) || count < 0) {
+                throw new ParameterError('Comments must be a whole number.');
+            }
+            if (rule.operator === FilterOperator.GREATER_THAN) {
+                return { column: 'comments', op: 'gt', value: count };
+            }
+            return rule.operator === FilterOperator.LESS_THAN
+                ? { column: 'comments', op: 'lt', value: count }
+                : { column: 'comments', op: 'eq', value: count };
+        }
+        default:
+            throw new ParameterError(
+                `"${rule.target.fieldId}" can't be filtered on GitHub.`,
+            );
+    }
+};
+
+type SearchColumns = Extract<GithubRequest, { kind: 'list' }>['columns'];
+
+/**
+ * Pull requests and issues come from the REST lists, which cover the whole
+ * history. Word filters need search, whose index misses older items.
+ */
+const compileIssues = ({
+    explore,
+    metricQuery,
+    type,
+    today,
+}: {
+    explore: Explore;
+    metricQuery: MetricQuery;
+    type: 'pr' | 'issue';
+    today: string;
+}): LiveCompiledRequest => {
+    const apiSource = getLiveExplore(explore);
+    const apiName = (fieldId: string) => getApiName(apiSource, fieldId);
+    const rules = getActiveFilterRules(metricQuery.filters.dimensions);
+    if (
+        rules.some((rule) =>
+            SEARCH_ONLY_FILTERS.has(apiName(rule.target.fieldId)),
+        )
+    ) {
+        return compileSearch({ explore, metricQuery, type, today });
+    }
+    const filters = rules.map((rule) =>
+        toListFilter(apiName(rule.target.fieldId), rule, { type, today }),
+    );
+    // Count with a dimension is refused by the shared check
+    if (metricQuery.metrics.length > 0) {
+        const request: GithubRequest = {
+            kind: 'list',
+            type,
+            filters,
+            columns: ['total_count'],
+        };
+        return { query: JSON.stringify(request), localSorts: [] };
+    }
+    const { localSorts, ...sort } = toServerSort(metricQuery.sorts, apiName);
+    const request: GithubRequest = {
+        kind: 'list',
+        type,
+        filters,
+        columns: metricQuery.dimensions.map(apiName) as SearchColumns,
         ...sort,
     };
     return { query: JSON.stringify(request), localSorts };
@@ -248,7 +371,8 @@ const compileContributors = ({
 
 /**
  * Compiles a metric query on a GitHub explore: pull requests and issues
- * become one search, contributors one statistics read. `today` is in UTC,
+ * become one list read (one search when a word filter needs it),
+ * contributors one statistics read. `today` is in UTC,
  * the time zone GitHub reports in.
  */
 export const compileGithubQuery = ({
@@ -263,9 +387,9 @@ export const compileGithubQuery = ({
     const definition = getLiveDefinitionName(explore);
     switch (definition) {
         case 'pull_requests':
-            return compileSearch({ explore, metricQuery, type: 'pr', today });
+            return compileIssues({ explore, metricQuery, type: 'pr', today });
         case 'issues':
-            return compileSearch({
+            return compileIssues({
                 explore,
                 metricQuery,
                 type: 'issue',

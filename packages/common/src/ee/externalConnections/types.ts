@@ -133,6 +133,13 @@ export const GITHUB_SEARCH_PATH = '/search/issues';
 export const getGithubContributorsPath = (owner: string, repo: string) =>
     `/repos/${owner}/${repo}/stats/contributors`;
 
+export const getGithubPullsPath = (owner: string, repo: string) =>
+    `/repos/${owner}/${repo}/pulls`;
+
+/** Lists issues and pull requests both; a pull request has `pull_request`. */
+export const getGithubIssuesPath = (owner: string, repo: string) =>
+    `/repos/${owner}/${repo}/issues`;
+
 export const PYLON_ORIGIN = 'https://api.usepylon.com';
 export const PYLON_ISSUES_SEARCH_PATH = '/issues/search';
 export const PYLON_ACCOUNTS_SEARCH_PATH = '/accounts/search';

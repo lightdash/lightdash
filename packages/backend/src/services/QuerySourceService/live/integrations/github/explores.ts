@@ -68,7 +68,7 @@ const SEARCH_COUNT: LiveMetricDefinition = {
     apiName: 'total_count',
     label: 'Count',
     description:
-        'How many match the filters, from the total GitHub reports for the search.',
+        'How many match the filters, counted from the listed items (or the search total with a Title or Search text filter).',
     type: MetricType.NUMBER,
     filterOperators: [],
     aggregation: { aggregation: 'additive' },
@@ -87,7 +87,7 @@ const searchDimensions = (noun: string): LiveDimensionDefinition[] => [
         'Title',
         DimensionType.STRING,
         GITHUB_TEXT_FILTERS,
-        `The ${noun} title. Filters match whole words.`,
+        `The ${noun} title. Filters match whole words through GitHub search, which can miss older items.`,
     ),
     dimension(
         'url',
@@ -132,7 +132,7 @@ const searchDimensions = (noun: string): LiveDimensionDefinition[] => [
         'Search text',
         DimensionType.STRING,
         GITHUB_TEXT_FILTERS,
-        'Filter only: words in the title or description. Matches whole words. Empty when selected.',
+        'Filter only: words in the title or description. Matches whole words through GitHub search, which can miss older items. Empty when selected.',
     ),
 ];
 
@@ -166,7 +166,7 @@ export const GITHUB_PULL_REQUESTS_EXPLORE: LiveExploreDefinition = {
     name: 'pull_requests',
     label: 'Pull requests',
     description:
-        'Pull requests of one GitHub repository, read live from GitHub search. Count is the total for the filters; listing reads at most 1,000 pull requests.',
+        "Pull requests of one GitHub repository, read live from GitHub's pull request list, newest first. One query reads at most 5,000 pull requests, so filter Created or Updated on a busy repository. Title and Search text filters use GitHub search instead, which reads at most 1,000 and can miss older pull requests.",
     dimensions: PULL_REQUEST_DIMENSIONS,
     metrics: [SEARCH_COUNT],
     maxDimensions: null,
@@ -197,7 +197,7 @@ export const GITHUB_ISSUES_EXPLORE: LiveExploreDefinition = {
     name: 'issues',
     label: 'Issues',
     description:
-        'Issues of one GitHub repository, without pull requests, read live from GitHub search. Count is the total for the filters; listing reads at most 1,000 issues.',
+        "Issues of one GitHub repository, without pull requests, read live from GitHub's issue list, newest first. One query reads at most 5,000 issues and pull requests, so filter Created or Updated on a busy repository. Title and Search text filters use GitHub search instead, which reads at most 1,000 and can miss older issues.",
     dimensions: ISSUE_DIMENSIONS,
     metrics: [SEARCH_COUNT],
     maxDimensions: null,
