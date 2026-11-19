@@ -14,6 +14,7 @@ export const VoiceDesignTour: FC<{ surface: VoiceDesignSurface }> = ({
         <GuidedTour
             steps={voiceDesignTourSteps(surface)}
             opened={isOpen}
+            tracking={null}
             onClose={closeTour}
         />
     );
