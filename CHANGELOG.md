@@ -1,3 +1,16 @@
+# [3.334.0](https://github.com/lightdash/lightdash/compare/3.333.0...3.334.0) (2026-11-19)
+
+
+### Bug Fixes
+
+* align dbt project environment settings ([#32966](https://github.com/lightdash/lightdash/issues/32966)) ([a128d8a](https://github.com/lightdash/lightdash/commit/a128d8a9c1a384fa9710e9e8441abcbf463839b9))
+* **frontend:** pass tracking={null} to VoiceDesignTour GuidedTour ([#32969](https://github.com/lightdash/lightdash/issues/32969)) ([91e777a](https://github.com/lightdash/lightdash/commit/91e777a67cdd141ad0c23758b84ada070c57661b))
+
+
+### Features
+
+* **data-apps:** track saved app state usage ([#32962](https://github.com/lightdash/lightdash/issues/32962)) ([94e08fe](https://github.com/lightdash/lightdash/commit/94e08fe3704009068172973938c267db48a68503))
+
 # [3.333.0](https://github.com/lightdash/lightdash/compare/3.332.1...3.333.0) (2026-11-19)
 
 
