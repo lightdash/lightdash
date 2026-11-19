@@ -32,7 +32,6 @@ export const RunMeta: FC<{ run: StudioRun; startedAt: string | null }> = ({
     run,
     startedAt,
 }) => {
-    const pr = (n: string | null) => (n ? ` #${n}` : '');
     switch (run.kind) {
         case 'draft':
             return <>Proposed, not saved yet</>;
@@ -51,7 +50,7 @@ export const RunMeta: FC<{ run: StudioRun; startedAt: string | null }> = ({
         case 'in_review':
             return (
                 <>
-                    In review{pr(run.pullRequestNumber)}
+                    In review
                     {run.checks === 'running'
                         ? ' · checks running'
                         : run.checks === 'passed'
@@ -60,14 +59,9 @@ export const RunMeta: FC<{ run: StudioRun; startedAt: string | null }> = ({
                 </>
             );
         case 'ready':
-            return <>Ready to merge{pr(run.pullRequestNumber)}</>;
+            return <>Ready to publish</>;
         case 'failing':
-            return (
-                <>
-                    {run.reason}
-                    {pr(run.pullRequestNumber)}
-                </>
-            );
+            return <>{run.reason}</>;
         default:
             return assertUnreachable(run, 'Unknown run');
     }

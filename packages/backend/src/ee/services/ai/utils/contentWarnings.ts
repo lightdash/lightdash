@@ -3,6 +3,7 @@ import {
     ChartType,
     getUnusedDimensions,
     type ChartAsCode,
+    type ComposerChartAsCode,
     type DashboardAsCode,
     type McpDocumentRead,
     type SqlChartAsCode,
@@ -12,6 +13,7 @@ export type ContentWithWarnings =
     | { type: 'dashboard'; content: DashboardAsCode }
     | { type: 'chart'; content: ChartAsCode }
     | { type: 'sql_chart'; content: SqlChartAsCode }
+    | { type: 'composer_chart'; content: ComposerChartAsCode }
     | { type: 'document'; content: McpDocumentRead };
 
 export const getChartContentWarnings = (content: ChartAsCode): string[] => {
@@ -42,6 +44,7 @@ export const getContentWarnings = (content: ContentWithWarnings): string[] => {
     switch (content.type) {
         case 'dashboard':
         case 'sql_chart':
+        case 'composer_chart':
         case 'document':
             return [];
         case 'chart':

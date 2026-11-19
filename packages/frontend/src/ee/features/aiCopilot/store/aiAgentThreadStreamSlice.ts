@@ -110,6 +110,7 @@ export interface AiAgentThreadStreamingState {
     content: string;
     parts: StreamPart[];
     connection: AiAgentThreadStreamConnection;
+    wasInterrupted: boolean;
     toolCalls: ToolCall[];
     reasoning: Reasoning[];
     decidedToolCallIds: string[];
@@ -145,6 +146,7 @@ const initialThread: Omit<
     content: '',
     parts: [],
     connection: { status: 'streaming' },
+    wasInterrupted: false,
     toolCalls: [],
     reasoning: [],
     decidedToolCallIds: [],
@@ -261,9 +263,10 @@ export const aiAgentThreadStreamSlice = createSlice({
             state,
             action: PayloadAction<{ threadUuid: string }>,
         ) => {
-            const streamingThread = state[action.payload.threadUuid];
-            if (streamingThread?.connection.status === 'streaming') {
-                streamingThread.connection = { status: 'recovering' };
+            const stream = state[action.payload.threadUuid];
+            if (stream?.connection.status === 'streaming') {
+                stream.connection = { status: 'recovering' };
+                stream.wasInterrupted = true;
             }
         },
         markStreamPolling: (

@@ -10,6 +10,7 @@ import {
     type LightdashModelMetric,
     type LightdashModelWithSource,
 } from '../types/lightdashModel';
+import { stringifyKeepingFormat } from './keepYamlFormat';
 import { validateModelDocument } from './LightdashModelEditor';
 
 type MetricFragments = Record<string, Partial<LightdashModelMetric>>;
@@ -274,7 +275,7 @@ export const setModelJoinRelationships = ({
             }
         },
     );
-    return doc.toString();
+    return stringifyKeepingFormat(contents, doc);
 };
 
 const findPartPath = (model: LightdashModel, path: string): YamlPath | null => {
@@ -339,7 +340,11 @@ export const removeModelParts = ({
     });
     if (changes.length === 0) return { contents, changes, refusals };
     validateModelDocument(doc, filename);
-    return { contents: doc.toString(), changes, refusals };
+    return {
+        contents: stringifyKeepingFormat(contents, doc),
+        changes,
+        refusals,
+    };
 };
 
 /** Why a definition cannot be written as given, or null when it can. */
@@ -590,6 +595,9 @@ export const applyModelFragment = ({
     if (changes.length === 0) return { contents, changes, refusals };
 
     validateModelDocument(doc, filename);
-    // Whole-document toString reflows hand-written YAML; use node-range edits for files people format.
-    return { contents: doc.toString(), changes, refusals };
+    return {
+        contents: stringifyKeepingFormat(contents, doc),
+        changes,
+        refusals,
+    };
 };

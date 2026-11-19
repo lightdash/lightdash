@@ -28,6 +28,7 @@ import {
 } from '../../../hooks/useGeoJsonProperties';
 import { useMapEditorActions } from '../../../hooks/useMapChartConfig';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { derived } from '../../../utils/changeOrigin';
 import FieldSelect from '../../common/FieldSelect';
 import {
     useVisualizationInputs,
@@ -180,9 +181,13 @@ export const Layout: FC = memo(() => {
         }
         const autoField = findLocationField(itemsMap, mapType);
         if (autoField) {
-            autoFillAreaLocation(
-                autoField,
-                mapType === MapChartLocation.USA ? 'code' : 'ISO3166-1-Alpha-3',
+            derived(() =>
+                autoFillAreaLocation(
+                    autoField,
+                    mapType === MapChartLocation.USA
+                        ? 'code'
+                        : 'ISO3166-1-Alpha-3',
+                ),
             );
         }
     }, [
@@ -225,11 +230,8 @@ export const Layout: FC = memo(() => {
             locationFieldLabel,
         );
 
-        if (matchedProperty) {
-            setGeoJsonPropertyKey(matchedProperty);
-        } else if (suggestedProperty) {
-            setGeoJsonPropertyKey(suggestedProperty);
-        }
+        const autoKey = matchedProperty || suggestedProperty;
+        if (autoKey) derived(() => setGeoJsonPropertyKey(autoKey));
     }, [
         mapType,
         geoJsonPropertyKey,

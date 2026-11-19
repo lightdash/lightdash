@@ -21,7 +21,7 @@ import {
     IconNotes,
     type Icon as TablerIconType,
 } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useContext, useState, type FC } from 'react';
 import { AiMarkdown } from '../../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { type ComposerQueryNodeStatus } from '../../../../../../features/composerCharts/lineage/composerNodeStatus';
@@ -33,6 +33,7 @@ import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { DiscoverFieldsTrace, type TraceEntry } from './DiscoverFieldsTrace';
 import styles from './LiveActivityCard.module.css';
 import { parseAgentStep } from './parseAgentStep';
+import { QuietCardsContext } from './quietCards';
 import { type SqlApprovalThread } from './SqlApprovalActions';
 import { ToolCallChip } from './ToolCallChip';
 import { ToolCallIcon } from './ToolCallIcon';
@@ -688,6 +689,7 @@ export const LiveActivityCard: FC<Props> = ({
     reasoning,
 }) => {
     const getUiString = useUiStrings();
+    const quiet = useContext(QuietCardsContext);
     const latestGroup =
         toolGroups.length > 0 ? toolGroups[toolGroups.length - 1] : undefined;
     const pendingApprovalIds = approval?.pendingToolCallIds ?? [];
@@ -707,11 +709,14 @@ export const LiveActivityCard: FC<Props> = ({
     const isComposerQueryGroup =
         latestGroup !== undefined &&
         isComposerQueryToolName(latestGroup.toolName);
+    // A narrow panel lists the steps while they run and folds them to one line once done.
     const defaultExpanded =
         hasPendingApproval ||
-        (!approvalDecided &&
-            (latestGroup?.toolName === 'runSql' ||
-                (isActive && isComposerQueryGroup)));
+        (quiet
+            ? isActive
+            : !approvalDecided &&
+              (latestGroup?.toolName === 'runSql' ||
+                  (isActive && isComposerQueryGroup)));
     const expandKey = `${latestGroup?.keyId ?? ''}:${latestGroup?.toolName ?? ''}:${
         isComposerQueryGroup ? isActive : ''
     }:${approvalDecided}`;
@@ -769,7 +774,8 @@ export const LiveActivityCard: FC<Props> = ({
         latestAwaitingApproval;
     const showBody = expanded && (hasExpandableBody || latestNeedsExpandedBody);
     // While a step runs, earlier steps show only once the user opens the card.
-    const earlierOpen = latest === null || userExpanded === true;
+    const earlierOpen =
+        latest === null || userExpanded === true || (quiet && isActive);
     const stepLabels = getActivityStepLabels({ totalCalls }, getUiString);
     const composerProgress =
         latest && isActive && isComposerQueryToolName(latest.toolName)

@@ -87,7 +87,8 @@ export const AiRouterInstructionsEditor: FC<Props> = ({
                 role: 'textbox',
             },
         },
-        onUpdate: ({ editor: ed }) => onChange(ed.getText()),
+        onUpdate: ({ editor: ed }) =>
+            onChange(ed.getText({ blockSeparator: '\n' })),
     });
 
     const focusEditor = useCallback(() => editor?.commands.focus(), [editor]);

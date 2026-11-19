@@ -4,7 +4,8 @@ import chartAsCodeSchema from './json/chart-as-code-1.0.json';
 
 export type ChartAsCodeContentType =
     | ContentAsCodeType.CHART
-    | ContentAsCodeType.SQL_CHART;
+    | ContentAsCodeType.SQL_CHART
+    | ContentAsCodeType.COMPOSER_CHART;
 
 // One chart shape plus the shared `$defs`, so validation errors skip the
 // if/then/else wrapper error the whole-file schema adds.
@@ -17,6 +18,8 @@ export const getChartAsCodeBranchSchema = (
             return { $schema, ...$defs.ChartAsCode, $defs };
         case ContentAsCodeType.SQL_CHART:
             return { $schema, ...$defs.SqlChartAsCode, $defs };
+        case ContentAsCodeType.COMPOSER_CHART:
+            return { $schema, ...$defs.ComposerChartAsCode, $defs };
         default:
             return assertUnreachable(
                 contentType,

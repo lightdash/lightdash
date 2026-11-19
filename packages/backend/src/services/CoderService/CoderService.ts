@@ -32,6 +32,8 @@ import {
     ChartType,
     ComposerChart,
     ComposerChartAsCode,
+    ComposerStoredChart,
+    ComposerStoredChartAsCode,
     ContentAsCodeType,
     ContentSlugRenameRequest,
     ContentType,
@@ -3234,7 +3236,7 @@ export class CoderService extends BaseService {
     async getCurrentContentVersionBySlug(
         user: SessionUser,
         projectUuid: string,
-        type: 'dashboard' | 'chart' | 'sql_chart',
+        type: 'dashboard' | 'chart' | 'sql_chart' | 'composer_chart',
         slug: string,
     ): Promise<{ contentUuid: string; versionUuid: string | null }> {
         const { name: projectName, organizationUuid } =
@@ -3308,6 +3310,22 @@ export class CoderService extends BaseService {
                     contentUuid: sqlChart.saved_sql_uuid,
                     versionUuid: sqlChart.saved_sql_version_uuid,
                 };
+            }
+            case 'composer_chart': {
+                const identity =
+                    await this.composerChartModel.findIdentityBySlug(
+                        projectUuid,
+                        slug,
+                    );
+                if (!identity || identity.deleted) {
+                    throw new NotFoundError(
+                        `Composer chart with slug "${slug}" not found`,
+                    );
+                }
+                const { versionUuid } = await this.composerChartModel.get(
+                    identity.uuid,
+                );
+                return { contentUuid: identity.uuid, versionUuid };
             }
             default:
                 return assertUnreachable(type, 'Invalid content type');
@@ -3573,6 +3591,34 @@ export class CoderService extends BaseService {
             projectUuid,
             'You are not allowed to download composer charts',
         );
+        return this.findComposerChartsAsCode(
+            account,
+            projectUuid,
+            slugs,
+            offset,
+        );
+    }
+
+    /** Slug-list read for AI/MCP read_content: no export gate; view through the chart's dashboard still applies. */
+    async getComposerChartsForRead(
+        account: RegisteredAccount,
+        projectUuid: string,
+        slugs: string[],
+    ): Promise<ApiComposerChartAsCodeListResponse['results']> {
+        return this.findComposerChartsAsCode(
+            account,
+            projectUuid,
+            slugs,
+            undefined,
+        );
+    }
+
+    private async findComposerChartsAsCode(
+        account: RegisteredAccount,
+        projectUuid: string,
+        slugs: string[] | undefined,
+        offset: number | undefined,
+    ): Promise<ApiComposerChartAsCodeListResponse['results']> {
         const charts = await this.composerChartModel.findForCode(
             projectUuid,
             slugs,
@@ -3616,6 +3662,20 @@ export class CoderService extends BaseService {
         };
     }
 
+    /** A composer chart file's chart as stored: its custom chart type bound by uuid and version. */
+    async toStoredComposerChart(
+        projectUuid: string,
+        chart: ComposerStoredChartAsCode,
+    ): Promise<ComposerStoredChart> {
+        return {
+            ...chart,
+            chartConfig: await this.resolveDataAppVizBinding(
+                projectUuid,
+                chart.chartConfig,
+            ),
+        };
+    }
+
     /**
      * An unchanged file writes nothing and needs only create:ContentAsCode. A
      * new or changed one runs every composer chart write check.
@@ -3628,13 +3688,21 @@ export class CoderService extends BaseService {
         file: ComposerChartAsCode,
         options: Pick<
             UpsertContentAsCodeOptions,
-            'skipSpaceCreate' | 'publicSpaceCreate' | 'spaceNames'
+            | 'skipSpaceCreate'
+            | 'publicSpaceCreate'
+            | 'spaceNames'
+            | 'authorization'
         > = {},
     ): Promise<ApiComposerChartAsCodeUpsertResponse['results']> {
         const project = await this.projectModel.get(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
         const { allowSpaceCreate } = CoderService.checkContentAsCodeWriteAccess(
-            { auditedAbility, project, slug },
+            {
+                auditedAbility,
+                project,
+                slug,
+                authorization: options.authorization,
+            },
         );
         if (file.contentType !== ContentAsCodeType.COMPOSER_CHART) {
             throw new ParameterError(
@@ -3670,13 +3738,7 @@ export class CoderService extends BaseService {
                 { featureFlagId: FeatureFlags.ComposerCharts },
             );
         }
-        const chart = {
-            ...file.chart,
-            chartConfig: await this.resolveDataAppVizBinding(
-                projectUuid,
-                file.chart.chartConfig,
-            ),
-        };
+        const chart = await this.toStoredComposerChart(projectUuid, file.chart);
 
         const [dashboard] = live
             ? []

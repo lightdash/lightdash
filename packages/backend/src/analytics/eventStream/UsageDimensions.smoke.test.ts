@@ -309,9 +309,13 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     CREATE TABLE dashboard_tile_data_apps (dashboard_version_id integer, app_uuid uuid);
                     CREATE TABLE content_verification (content_uuid uuid, project_uuid uuid, content_type text);
                     CREATE TABLE scheduler (enabled boolean, deleted_at timestamp, project_uuid uuid, saved_chart_uuid uuid, saved_sql_uuid uuid, dashboard_uuid uuid, app_uuid uuid);
-                    CREATE TABLE ai_agent (ai_agent_uuid uuid PRIMARY KEY, organization_uuid uuid, name text);
+                    CREATE TABLE ai_agent (ai_agent_uuid uuid PRIMARY KEY, organization_uuid uuid, name text, project_uuid uuid);
+                    CREATE TABLE ai_eval (ai_eval_uuid uuid PRIMARY KEY, agent_uuid uuid, title text);
+                    CREATE TABLE ai_eval_run (ai_eval_run_uuid uuid PRIMARY KEY, ai_eval_uuid uuid, status text, created_at timestamp);
+                    CREATE TABLE ai_eval_run_result (ai_eval_run_result_uuid uuid PRIMARY KEY, ai_eval_run_uuid uuid, status text, error_message text);
+                    CREATE TABLE ai_eval_run_result_assessment (ai_eval_run_result_uuid uuid, passed boolean, reason text);
                     CREATE TABLE organizations (organization_id integer PRIMARY KEY, organization_uuid uuid UNIQUE);
-                    CREATE TABLE projects (project_id integer PRIMARY KEY, project_uuid uuid UNIQUE, organization_id integer, name text);
+                    CREATE TABLE projects (project_id integer PRIMARY KEY, project_uuid uuid UNIQUE, organization_id integer, name text, project_type text DEFAULT 'DEFAULT', provisioning_source text);
                     CREATE TABLE spaces (space_id integer PRIMARY KEY, space_uuid uuid UNIQUE, project_id integer, name text, deleted_at timestamp);
                     CREATE TABLE dashboards (dashboard_id integer PRIMARY KEY, dashboard_uuid uuid UNIQUE, space_id integer, name text, slug text, deleted_at timestamp, created_at timestamp DEFAULT CURRENT_TIMESTAMP, owner_user_uuid uuid);
                     CREATE TABLE saved_queries (saved_query_id integer PRIMARY KEY, saved_query_uuid uuid UNIQUE, project_uuid uuid, space_id integer, dashboard_uuid uuid, name text, slug text, last_version_chart_kind text, deleted_at timestamp, created_at timestamp DEFAULT CURRENT_TIMESTAMP);
@@ -329,16 +333,31 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     { organization_id: 1, organization_uuid: org },
                     { organization_id: 2, organization_uuid: otherOrg },
                 ]);
-                await fixture('projects').insert({
-                    project_id: 1,
-                    project_uuid: project,
-                    organization_id: 1,
-                });
+                await fixture('projects').insert([
+                    {
+                        project_id: 1,
+                        project_uuid: project,
+                        organization_id: 1,
+                    },
+                    {
+                        project_id: 2,
+                        project_uuid: randomUUID(),
+                        organization_id: 1,
+                        provisioning_source: 'analytics',
+                    },
+                    {
+                        project_id: 3,
+                        project_uuid: randomUUID(),
+                        organization_id: 2,
+                        provisioning_source: 'analytics',
+                    },
+                ]);
                 await fixture('ai_agent').insert([
                     {
                         ai_agent_uuid: agent,
                         organization_uuid: org,
                         name: 'Sales analyst',
+                        project_uuid: project,
                     },
                     {
                         ai_agent_uuid: otherAgent,
@@ -347,9 +366,31 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     },
                 ]);
                 await db.raw(
-                    `INSERT INTO ai_agent SELECT md5('agent-' || n)::uuid, ?::uuid, 'Agent ' || n FROM generate_series(1, 1001) n`,
+                    `INSERT INTO ai_agent (ai_agent_uuid, organization_uuid, name) SELECT md5('agent-' || n)::uuid, ?::uuid, 'Agent ' || n FROM generate_series(1, 1001) n`,
                     [org],
                 );
+                await db.raw(
+                    `INSERT INTO ai_eval VALUES
+                        (md5('sales eval')::uuid, ?, 'Sales eval'),
+                        (md5('external eval')::uuid, ?, 'Other tenant eval');`,
+                    [agent, otherAgent],
+                );
+                await db.raw(`
+                    INSERT INTO ai_eval_run VALUES
+                        (md5('run 1')::uuid, md5('sales eval')::uuid, 'completed', '2025-12-20'),
+                        (md5('run 2')::uuid, md5('sales eval')::uuid, 'failed', '2025-12-21'),
+                        (md5('run 3')::uuid, md5('sales eval')::uuid, 'running', '2025-12-22'),
+                        (md5('external run')::uuid, md5('external eval')::uuid, 'completed', '2025-12-20');
+                    INSERT INTO ai_eval_run_result VALUES
+                        (md5('dual verdict')::uuid, md5('run 1')::uuid, 'completed', NULL),
+                        (md5('unassessed')::uuid, md5('run 2')::uuid, 'completed', NULL),
+                        (md5('result error')::uuid, md5('run 2')::uuid, 'failed', 'do not export this'),
+                        (md5('external result')::uuid, md5('external run')::uuid, 'completed', NULL);
+                    INSERT INTO ai_eval_run_result_assessment VALUES
+                        (md5('dual verdict')::uuid, true, 'do not export this'),
+                        (md5('dual verdict')::uuid, false, NULL),
+                        (md5('external result')::uuid, true, NULL);
+                `);
                 await fixture('spaces').insert({
                     space_id: 1,
                     space_uuid: randomUUID(),
@@ -529,7 +570,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     }).run(new Date('2026-01-02'));
                 const summary = await run();
                 expect(summary.dimensions).toEqual({
-                    refreshed: 14,
+                    refreshed: 16,
                     failed: 0,
                 });
                 const source = createS3AnalyticsSourceResolver({
@@ -596,6 +637,47 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                 const peopleExplore = createAnalyticsExplores().find(
                     (e) => e.name === 'people_adoption',
                 )!;
+                const evalExplore = createAnalyticsExplores().find(
+                    ({ name }) => name === 'agent_evaluation_runs',
+                )!;
+                const evalSql = sql(
+                    ['agent_evaluation_runs_run_status'],
+                    evalExplore,
+                    [
+                        'agent_evaluation_runs_total_runs',
+                        'agent_evaluation_runs_pass_rate',
+                        'agent_evaluation_runs_unassessed_results',
+                        'agent_evaluation_runs_execution_errors',
+                    ],
+                );
+                expect((await reader.runQuery(evalSql)).rows).toEqual(
+                    expect.arrayContaining([
+                        {
+                            agent_evaluation_runs_run_status: 'completed',
+                            agent_evaluation_runs_total_runs: '1',
+                            agent_evaluation_runs_pass_rate: 0.5,
+                            agent_evaluation_runs_unassessed_results: '0',
+                            agent_evaluation_runs_execution_errors: '0',
+                        },
+                        {
+                            agent_evaluation_runs_run_status: 'failed',
+                            agent_evaluation_runs_total_runs: '1',
+                            agent_evaluation_runs_pass_rate: null,
+                            agent_evaluation_runs_unassessed_results: '1',
+                            agent_evaluation_runs_execution_errors: '1',
+                        },
+                    ]),
+                );
+                expect((await reader.runQuery(evalSql)).rows).toHaveLength(2);
+                expect(
+                    (
+                        await reader.runQuery(
+                            'SELECT DISTINCT evaluation_name, project_id FROM lightdash_agent_evaluation_runs',
+                        )
+                    ).rows,
+                ).toEqual([
+                    { evaluation_name: 'Sales eval', project_id: project },
+                ]);
                 const peopleQuery = sql([], peopleExplore, [
                     'people_adoption_eligible_people',
                     'people_adoption_people_without_observed_activity',
@@ -886,7 +968,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     ).ETag,
                 ).toBe(originalPeopleHistory.ETag);
                 expect((await run()).dimensions).toEqual({
-                    refreshed: 14,
+                    refreshed: 16,
                     failed: 0,
                 });
                 await fixture('ai_agent')
@@ -908,7 +990,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     .where('email', 'alias@example.com')
                     .update({ is_primary: true });
                 expect((await run()).dimensions).toEqual({
-                    refreshed: 14,
+                    refreshed: 16,
                     failed: 0,
                 });
                 expect(

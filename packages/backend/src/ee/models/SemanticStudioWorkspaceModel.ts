@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
+import { ProjectModelDraftChangesTableName } from '../../database/entities/projectModelDraftChanges';
 import { UserTableName } from '../../database/entities/users';
 import {
     AiThreadTableName,
@@ -26,6 +27,7 @@ type WorkspaceRow = DbSemanticStudioWorkspace & {
     first_name: string | null;
     last_name: string | null;
     latest_pr_url: string | null;
+    published_live: boolean;
 };
 
 export type StudioThread = {
@@ -38,6 +40,9 @@ type Owner = { projectUuid: string; userUuid: string };
 
 const latestPullRequestUrl = (workspaceAlias: string) =>
     `(SELECT r.pr_url FROM ${AiWritebackRunTableName} r WHERE r.ai_thread_uuid = ${workspaceAlias}.ai_thread_uuid AND r.pr_url IS NOT NULL ORDER BY r.created_at DESC LIMIT 1)`;
+
+const publishedLive = (workspaceAlias: string) =>
+    `EXISTS (SELECT 1 FROM ${ProjectModelDraftChangesTableName} d WHERE d.workspace_uuid = ${workspaceAlias}.semantic_studio_workspace_uuid AND d.status = 'applied' AND d.applied_change_set_uuid IS NOT NULL)`;
 
 // Two switches at once would otherwise both pass the deactivate step and trip the one-active index.
 export const lockStudioWorkspaceOwner = (
@@ -80,6 +85,7 @@ const toWorkspace = (
         createdAt: row.created_at,
         updatedAt: row.updated_at,
         finishedAt: row.finished_at,
+        publishedLive: row.published_live,
     };
 };
 
@@ -108,6 +114,7 @@ export class SemanticStudioWorkspaceModel {
                 'u.first_name',
                 'u.last_name',
                 trx.raw(`${latestPullRequestUrl('w')} AS latest_pr_url`),
+                trx.raw(`${publishedLive('w')} AS published_live`),
             );
     }
 
@@ -383,6 +390,8 @@ export class SemanticStudioWorkspaceModel {
         projectUuid: string,
         url: string,
         state: SemanticStudioWorkspacePullRequestState,
+        /** Whether a state other than open ends the workspace; false keeps one whose draft is still there. */
+        finishes: boolean,
     ): Promise<void> {
         const now = this.database.fn.now();
         await this.database(SemanticStudioWorkspacesTableName)
@@ -402,7 +411,7 @@ export class SemanticStudioWorkspaceModel {
                 pull_request_url: url,
                 pull_request_state: state,
                 updated_at: now,
-                ...(state !== 'open'
+                ...(state !== 'open' && finishes
                     ? { is_active: false, finished_at: now }
                     : {}),
             });

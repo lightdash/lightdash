@@ -4,9 +4,12 @@ import {
     AiAccessRefusedError,
     AnyType,
     assertUnreachable,
+    DBT_SAVE_CARD_REPLY,
+    describeSemanticLayerProposals,
     Explore,
     getErrorMessage,
     isSqlApprovalToolCall,
+    toolProposeSemanticLayerChangeOutputSchema,
     type AiDeepResearchBudget,
     type AiDeepResearchExecutionContextSnapshot,
     type CustomChartTypeLibrary,
@@ -128,6 +131,7 @@ import {
     renderCandidateBlock,
     selectCandidateFields,
 } from '../tools/grepFieldsIndex';
+import { getGrepWarehouseColumns } from '../tools/grepWarehouseColumns';
 import { getIterateDataApp } from '../tools/iterateDataApp';
 import { getListContent } from '../tools/listContent';
 import { getListDataAppConnections } from '../tools/listDataAppConnections';
@@ -150,6 +154,7 @@ import {
     canRunContentQuerySql,
     getRunContentQuery,
 } from '../tools/runContentQuery';
+import { getRunMetricQuery } from '../tools/runMetricQuery';
 import { getRunQuery } from '../tools/runQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
@@ -1341,6 +1346,72 @@ export const getDocumentWriteFastResponse = (
     return `Saved [${name || 'the document'}](${toAbsoluteHref(siteUrl, metadata.href)}).`;
 };
 
+/** A Studio turn that ends on its card with nothing written keeps one line saying what changed, so the reply is never blank. */
+export const withStudioCardReply = (
+    reply: string,
+    steps: ReadonlyArray<FastChartStep>,
+): string => {
+    if (reply.trim()) return reply;
+    const proposals = steps
+        .flatMap((step) => step.toolResults)
+        .flatMap(({ toolName, output }) => {
+            if (toolName !== 'proposeSemanticLayerChange') return [];
+            const parsed =
+                toolProposeSemanticLayerChangeOutputSchema.safeParse(output);
+            return parsed.success &&
+                parsed.data.metadata.status === 'success' &&
+                parsed.data.metadata.draftChangeUuid !== null
+                ? [parsed.data.metadata]
+                : [];
+        });
+    return proposals.length > 0
+        ? describeSemanticLayerProposals(proposals)
+        : reply;
+};
+
+/** A Studio turn ends on its card: once a change joined the draft cleanly, or a save started, there is nothing left to say. */
+export const getStudioCardResponse = (
+    steps: ReadonlyArray<FastChartStep>,
+): string | null => {
+    const last = steps.at(-1);
+    if (!last) return null;
+    const proposals = last.toolResults.flatMap(({ toolName, output }) => {
+        if (toolName !== 'proposeSemanticLayerChange') return [];
+        const parsed =
+            toolProposeSemanticLayerChangeOutputSchema.safeParse(output);
+        return parsed.success && parsed.data.metadata.status === 'success'
+            ? [parsed.data.metadata]
+            : [];
+    });
+    if (proposals.length > 0) {
+        // A failed model or advice means the agent still has work to do this turn.
+        const isClean = proposals.every(
+            ({ draftChangeUuid, models, needsFollowUp }) =>
+                draftChangeUuid !== null &&
+                !needsFollowUp &&
+                models.every(({ status }) => status !== 'failed'),
+        );
+        return isClean ? describeSemanticLayerProposals(proposals) : null;
+    }
+    // Only Studio's save takes a script; the main chat's keeps its own reply.
+    const studioSaves = new Set(
+        last.toolCalls
+            .filter(
+                ({ toolName, input }) =>
+                    toolName === 'editDbtProject' &&
+                    !!input &&
+                    typeof input === 'object' &&
+                    'script' in input,
+            )
+            .map(({ toolCallId }) => toolCallId),
+    );
+    const isSaving = last.toolResults.some(
+        ({ toolCallId, output }) =>
+            studioSaves.has(toolCallId) && !isErrorToolResult(output),
+    );
+    return isSaving ? DBT_SAVE_CARD_REPLY : null;
+};
+
 const getTurnFastResponse = (
     enableDataAnswerFastResponse: boolean,
     turnIntent: TurnIntent | null | undefined,
@@ -1350,6 +1421,8 @@ const getTurnFastResponse = (
     // Asking ends the turn on any intent; the questions are its reply.
     const askUserResponse = getAskUserResponse(steps);
     if (askUserResponse !== null) return askUserResponse;
+    const studioCardResponse = getStudioCardResponse(steps);
+    if (studioCardResponse !== null) return studioCardResponse;
     if (enableDataAnswerFastResponse && turnIntent === 'data_answer')
         return getDataAnswerFastResponse(steps);
     if (turnIntent === 'chart_from_previous')
@@ -2014,6 +2087,7 @@ export const getAgentTools = (
         editContent: () =>
             getEditContent({
                 editContent: dependencies.editContent,
+                prepareComposerChartEdit: dependencies.prepareComposerChartEdit,
                 siteUrl: args.siteUrl,
                 documentsEnabled,
                 chartsEnabled: args.enableContentTools,
@@ -2048,6 +2122,8 @@ export const getAgentTools = (
                 getSavedChart: dependencies.getSavedChart,
                 runSqlChartQuery: queryDependencies.runSqlChartQuery,
                 getSqlChart: dependencies.getSqlChart,
+                runComposerChartQuery: queryDependencies.runComposerChartQuery,
+                getComposerChart: dependencies.getComposerChart,
                 validateContent: dependencies.validateContent,
                 maxLimit: args.maxQueryLimit,
                 maxContextRows: args.maxContextRows,
@@ -2190,11 +2266,19 @@ export const getAgentTools = (
             getProposeSemanticLayerChange({
                 proposeSemanticLayerChange:
                     dependencies.proposeSemanticLayerChange,
+                canRunMetrics: loadout.toolNames.has('runMetricQuery'),
             }),
         listChanges: () => getListChanges(dependencies.listChanges),
         readSemanticModel: () =>
             getReadSemanticModel({
                 readSemanticModel: dependencies.readSemanticModel,
+            }),
+        runMetricQuery: () =>
+            getRunMetricQuery({
+                agentContext,
+                getExplore: dependencies.getDraftExplore,
+                runAsyncQuery: dependencies.runDraftQuery,
+                maxLimit: args.maxQueryLimit,
             }),
         syncDbtProject: () =>
             getSyncDbtProject({
@@ -2328,6 +2412,10 @@ export const getAgentTools = (
         describeWarehouseTable: () =>
             getDescribeWarehouseTable({
                 describeWarehouseTable: dependencies.describeWarehouseTable,
+            }),
+        grepWarehouseColumns: () =>
+            getGrepWarehouseColumns({
+                listWarehouseColumns: dependencies.listWarehouseColumns,
             }),
         loadSkill: () => {
             const listed = new Set(
@@ -2726,6 +2814,7 @@ export const getAgentMessages = (
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
         semanticStudioCodeMode: args.semanticStudioCodeMode,
+        semanticStudioQueriesDraft: loadout.toolNames.has('runMetricQuery'),
         slackLinksOnly: args.slackLinksOnly,
         enableComposerPythonNodes: args.enableComposerQueries,
         liveSources: args.liveSources,
@@ -3969,8 +4058,10 @@ const runStreamAgentResponse = async ({
                           ) ?? modelResponse),
                     steps,
                 );
-                const completeResponse =
-                    agentContext.responseBlocks.render(responseText);
+                const completeResponse = withStudioCardReply(
+                    agentContext.responseBlocks.render(responseText),
+                    steps,
+                );
 
                 const stepCapReached = steps.length >= args.execution.maxSteps;
 

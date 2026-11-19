@@ -68,5 +68,6 @@ export const workspaceOf = (
     createdAt: new Date(0),
     updatedAt: new Date(0),
     finishedAt: null,
+    publishedLive: false,
     ...overrides,
 });

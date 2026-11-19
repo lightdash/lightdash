@@ -292,6 +292,7 @@ import {
     validateMergeQuery,
     VizAggregationOptions,
     VizColumn,
+    WarehouseCatalog,
     WarehouseClient,
     WarehouseConnection,
     WarehouseConnectionError,
@@ -704,6 +705,11 @@ const withGitBranch = (
 };
 
 const gzipAsync = promisify(gzip);
+
+// Reading columns table by table costs one warehouse request each.
+const MAX_TABLES_READ_ONE_BY_ONE = 500;
+
+type WarehouseTableRef = { database: string; schema: string; table: string };
 
 type TestProjectAdapterCredentials =
     | { kind: 'submitted_resolved'; credentials: CreateWarehouseCredentials }
@@ -15515,6 +15521,86 @@ export class ProjectService
                         }),
                 ]);
                 return { ...fields, partitioning, warehouseType };
+            },
+        );
+    }
+
+    /**
+     * The columns of many tables the caller has already been allowed to list,
+     * read a schema at a time where the warehouse can, and table by table for a
+     * bounded number of them where it cannot. Says which tables it read.
+     */
+    async getWarehouseColumns(
+        user: SessionUser,
+        projectUuid: string,
+        queryContext: QueryExecutionContext,
+        tables: WarehouseTableRef[],
+        querySurface?: QuerySurface,
+    ): Promise<{ catalog: WarehouseCatalog; tables: WarehouseTableRef[] }> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('SqlRunner', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.assertConnectionDiscovery(user, projectUuid);
+        return this.warehouseClientFactory.withWarehouseClient(
+            {
+                kind: 'binding',
+                projectUuid,
+                binding: { kind: 'connection', warehouseConnectionUuid: null },
+            },
+            connectionContextFromUser(
+                { userUuid: user.userUuid, isRegisteredUser: true },
+                {
+                    organizationUuid,
+                    queryContext,
+                    surface:
+                        querySurface === undefined
+                            ? undefined
+                            : connectionSurfaceFromQuerySurface(
+                                  querySurface,
+                                  queryContext,
+                              ),
+                },
+            ),
+            async ({ warehouseClient }) => {
+                if (warehouseClient.getSchemaColumns) {
+                    const schemas = uniqBy(
+                        tables.map(({ database, schema }) => ({
+                            database,
+                            schema,
+                        })),
+                        ({ database, schema }) => `${database}.${schema}`,
+                    );
+                    try {
+                        const catalog =
+                            await warehouseClient.getSchemaColumns(schemas);
+                        // A read that names tables differently from the listing would look like no columns anywhere.
+                        if (
+                            tables.some(
+                                ({ database, schema, table }) =>
+                                    catalog[database]?.[schema]?.[table],
+                            )
+                        ) {
+                            return { catalog, tables };
+                        }
+                    } catch (error) {
+                        this.logger.warn(
+                            `Reading columns by schema failed, reading by table instead: ${getErrorMessage(error)}`,
+                        );
+                    }
+                }
+                const read = tables.slice(0, MAX_TABLES_READ_ONE_BY_ONE);
+                return {
+                    catalog: await warehouseClient.getCatalog(read),
+                    tables: read,
+                };
             },
         );
     }

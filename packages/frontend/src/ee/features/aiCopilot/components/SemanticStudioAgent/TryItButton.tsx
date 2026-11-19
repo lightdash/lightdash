@@ -14,10 +14,7 @@ import {
     pinDevelopmentView,
     useDevelopmentView,
 } from '../../../../../features/semanticStudio/developmentView';
-import {
-    useStudioPullRequest,
-    type StudioPullRequest,
-} from './useStudioPullRequest';
+import { type StudioPullRequest } from './useStudioPullRequest';
 
 // Explore loads only when something is tried, not with every pull request card.
 const TryItModal = lazy(() =>
@@ -26,17 +23,16 @@ const TryItModal = lazy(() =>
     })),
 );
 
-/** Primary where it is the next step, beside Merge; quiet on a chat card. */
-type Look = 'primary' | 'quiet';
+/** Primary while it is the next step; secondary once the draft can be published. */
+type Look = 'primary' | 'secondary';
 
 const buttonProps = (look: Look) =>
-    look === 'primary'
-        ? {
-              size: 'xs',
-              variant: 'filled',
-              leftSection: <MantineIcon icon={IconPlayerPlay} size={12} />,
-          }
-        : { size: 'compact-xs', variant: 'default' };
+    ({
+        size: 'xs',
+        variant: look === 'primary' ? 'filled' : 'subtle',
+        color: look === 'primary' ? undefined : 'gray',
+        leftSection: <MantineIcon icon={IconPlayerPlay} size={12} />,
+    }) as const;
 
 const HINT =
     'Opens Explore over this page with your changes. Only you see them until they are merged.';
@@ -111,19 +107,4 @@ export const TryItButton: FC<{
             ) : null}
         </>
     );
-};
-
-/** Try it on a pull request card in the chat, for the pull request Studio is working on. */
-export const PullRequestCardTryIt: FC<{
-    projectUuid: string;
-    prUrl: string;
-}> = ({ projectUuid, prUrl }) => {
-    const pullRequest = useStudioPullRequest(projectUuid);
-    return pullRequest?.isOpen && pullRequest.prUrl === prUrl ? (
-        <TryItButton
-            projectUuid={projectUuid}
-            pullRequest={pullRequest}
-            look="quiet"
-        />
-    ) : null;
 };

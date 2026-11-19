@@ -216,3 +216,9 @@ export const useCheckOut = (projectUuid: string) => {
     };
     return { checkOut, createChange, isBusy, isError: action.isError };
 };
+
+/** The open pull request the checked-out draft was already sent as, which sending again updates; null without one. */
+export const useDraftPullRequest = (): string | null => {
+    const pullRequest = useStudioCheckout().shown?.workspace?.pullRequest;
+    return pullRequest?.state === 'open' ? pullRequest.url : null;
+};

@@ -48,7 +48,7 @@ describe('StudioCheckoutPicker', () => {
     it('checks out B from A, keeps A until B has loaded, then goes back to Published', async () => {
         const user = userEvent.setup();
         const { rerender } = renderWithProviders(picker(on(A)));
-        expect(trigger()).toHaveTextContent('Draft: Change A');
+        expect(trigger()).toHaveAccessibleName('Draft: Change A');
 
         await user.click(trigger());
         await user.click(

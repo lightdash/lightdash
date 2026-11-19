@@ -25,6 +25,7 @@ import {
     type LightdashError,
     type Project,
     type SaveSemanticStudioSourceRequest,
+    type SemanticLayerBlocker,
     type SemanticLayerDraft,
     type SemanticLayerDraftApplyResult,
     type SemanticLayerDraftedModels,
@@ -70,6 +71,7 @@ import {
     type ProjectModelDocument,
     type ProjectModelDocumentModel,
     type StoredDraftChange,
+    type WorkspaceDraftOwner,
 } from '../../models/ProjectModelDocumentModel';
 import { type SemanticStudioWorkspaceModel } from '../../models/SemanticStudioWorkspaceModel';
 import { getWritebackConnectionSupport } from '../AiAgentService/writebackConnection';
@@ -177,7 +179,11 @@ export type SemanticStudioServiceArguments = {
     >;
     repoModels: Pick<
         RepoModelSource,
-        'isInstalled' | 'load' | 'openPullRequest' | 'getPullRequestState'
+        | 'isInstalled'
+        | 'load'
+        | 'openPullRequest'
+        | 'updatePullRequest'
+        | 'getPullRequestState'
     >;
     savedChartModel: Pick<SavedChartModel, 'analyzeFieldImpact'>;
     jobModel: Pick<JobModel, 'findLatestCompileStatus'>;
@@ -191,6 +197,7 @@ export type SemanticStudioServiceArguments = {
         | 'saveWithScript'
         | 'findPullRequestBranch'
         | 'mergePullRequest'
+        | 'scheduleCompileAfterMerge'
     >;
     workspaceModel: Pick<
         SemanticStudioWorkspaceModel,
@@ -309,7 +316,11 @@ const assertSourcePath = (path: string) => {
 
 const MAX_PULL_REQUEST_REFRESHES = 5;
 const PULL_REQUEST_REFRESH_MS = 55_000;
+const MERGE_RETRIES = 3;
+const MERGE_RETRY_MS = 2_000;
 const RECENT_WORKSPACE_MS = 14 * 24 * 60 * 60 * 1000;
+
+type Blocker = { reason: SemanticLayerBlocker; error: LightdashError };
 
 export class SemanticStudioService extends BaseService {
     private readonly featureFlagModel: SemanticStudioServiceArguments['featureFlagModel'];
@@ -371,7 +382,7 @@ export class SemanticStudioService extends BaseService {
     private async findAccessBlocker(
         user: SessionUser,
         project: ModelProject,
-    ): Promise<LightdashError | null> {
+    ): Promise<Blocker | null> {
         if (
             this.createAuditedAbility(user).cannot(
                 'manage',
@@ -388,9 +399,12 @@ export class SemanticStudioService extends BaseService {
                 }),
             )
         ) {
-            return new ForbiddenError(
-                'User does not have permission to deploy to this project',
-            );
+            return {
+                reason: 'no_access',
+                error: new ForbiddenError(
+                    'User does not have permission to deploy to this project',
+                ),
+            };
         }
         const { enabled } = await this.featureFlagModel.get({
             user: {
@@ -401,14 +415,17 @@ export class SemanticStudioService extends BaseService {
         });
         return enabled
             ? null
-            : new ForbiddenError('This feature is not enabled');
+            : {
+                  reason: 'no_access',
+                  error: new ForbiddenError('This feature is not enabled'),
+              };
     }
 
     /** A write to the project's repository needs what any write to it needs. */
     private findSourceBlocker(
         user: SessionUser,
         project: ModelProject,
-    ): LightdashError | null {
+    ): Blocker | null {
         return this.createAuditedAbility(user).cannot(
             'manage',
             subject('SourceCode', {
@@ -417,9 +434,12 @@ export class SemanticStudioService extends BaseService {
                 isProtectedBranch: false,
             }),
         )
-            ? new ForbiddenError(
-                  "User does not have permission to change this project's repository",
-              )
+            ? {
+                  reason: 'no_repository_access',
+                  error: new ForbiddenError(
+                      "User does not have permission to change this project's repository",
+                  ),
+              }
             : null;
     }
 
@@ -427,7 +447,7 @@ export class SemanticStudioService extends BaseService {
     private async findBlocker(
         user: SessionUser,
         project: ModelProject,
-    ): Promise<LightdashError | null> {
+    ): Promise<Blocker | null> {
         const blocker = await this.findAccessBlocker(user, project);
         if (blocker) return blocker;
         if (project.dbtConnection.type === DbtProjectType.NONE) return null;
@@ -435,22 +455,76 @@ export class SemanticStudioService extends BaseService {
             keepsModelsInGithub(project.dbtConnection) &&
             !resolveRepoConnection(project.dbtConnection)
         ) {
-            return new ParameterError(
-                'Models in a repository can only be changed here when the connection uses the GitHub App on github.com',
-            );
+            return {
+                reason: 'unsupported_connection',
+                error: new ParameterError(
+                    'Models in a repository can only be changed here when the connection uses the GitHub App on github.com',
+                ),
+            };
         }
         if (!resolveRepoConnection(project.dbtConnection)) {
-            return new ParameterError(
-                'A draft is kept for a project without a dbt connection, or one that keeps its models in GitHub',
-            );
+            return {
+                reason: 'unsupported_connection',
+                error: new ParameterError(
+                    'A draft is kept for a project without a dbt connection, or one that keeps its models in GitHub',
+                ),
+            };
         }
         const sourceBlocker = this.findSourceBlocker(user, project);
         if (sourceBlocker) return sourceBlocker;
         return (await this.repoModels.isInstalled(project.organizationUuid))
             ? null
-            : new ParameterError(
-                  'The GitHub App must be installed to change models that live in a repository',
-              );
+            : {
+                  reason: 'github_app_missing',
+                  error: new ParameterError(
+                      'The GitHub App must be installed to change models that live in a repository',
+                  ),
+              };
+    }
+
+    /** Why this person cannot have the agent edit this dbt project's repository, or null when they can. */
+    private async findDbtProjectBlocker(
+        user: SessionUser,
+        project: ModelProject,
+    ): Promise<SemanticLayerBlocker | null> {
+        const access = await this.findAccessBlocker(user, project);
+        if (access) return access.reason;
+        // A preview is a look at a pull request's branch, not a place to start another.
+        if (project.type === ProjectType.PREVIEW) return 'preview_project';
+        if (
+            !getWritebackConnectionSupport(project.dbtConnection).editDbtProject
+        )
+            return 'unsupported_connection';
+        return this.findSourceBlocker(user, project)?.reason ?? null;
+    }
+
+    /** A project with no repository whose models were deployed from outside has nothing here to change. */
+    private async findOutsideModelsBlocker(
+        project: ModelProject,
+    ): Promise<SemanticLayerBlocker | null> {
+        if (project.dbtConnection.type !== DbtProjectType.NONE) return null;
+        const stored = await this.projectModelDocumentModel.findDocuments(
+            project.projectUuid,
+        );
+        return (await this.hasModelsFromElsewhere(project.projectUuid, {
+            stored,
+            repo: null,
+        }))
+            ? 'models_from_outside'
+            : null;
+    }
+
+    /** The status as the Studio page shows it: also off, with its reason, when the models were deployed from outside. */
+    async getPageStatus(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<SemanticLayerStatus> {
+        const status = await this.getStatus(user, projectUuid);
+        if (!status.enabled || status.appliesAs !== 'live') return status;
+        const blocker = await this.findOutsideModelsBlocker(
+            await this.projectModel.get(projectUuid),
+        );
+        return blocker ? { ...status, enabled: false, blocker } : status;
     }
 
     /** Whether this person can change this project's models here, and what applying a draft would do. */
@@ -465,19 +539,17 @@ export class SemanticStudioService extends BaseService {
             !keepsModelsInGithub(dbtConnection)
         ) {
             // A dbt project keeps no draft: the agent edits the repository in a pull request.
+            const reason = await this.findDbtProjectBlocker(user, project);
             return {
-                enabled:
-                    // A preview is a look at a pull request's branch, not a place to start another.
-                    project.type !== ProjectType.PREVIEW &&
-                    getWritebackConnectionSupport(dbtConnection)
-                        .editDbtProject &&
-                    (await this.findAccessBlocker(user, project)) === null &&
-                    this.findSourceBlocker(user, project) === null,
+                enabled: reason === null,
+                blocker: reason,
                 appliesAs: 'dbt_pull_request',
             };
         }
+        const blocker = await this.findBlocker(user, project);
         return {
-            enabled: (await this.findBlocker(user, project)) === null,
+            enabled: blocker === null,
+            blocker: blocker?.reason ?? null,
             appliesAs: keepsModelsInGithub(dbtConnection)
                 ? 'pull_request'
                 : 'live',
@@ -522,7 +594,7 @@ export class SemanticStudioService extends BaseService {
             user,
             await this.projectModel.get(projectUuid),
         );
-        if (blocker) throw blocker;
+        if (blocker) throw blocker.error;
     }
 
     async canEditModels(
@@ -534,20 +606,25 @@ export class SemanticStudioService extends BaseService {
     }
 
     /** Explores deployed from a repository or the CLI would be replaced by the first model written here. */
-    private async assertNoModelsFromElsewhere(
+    /** Whether the project's models came from a deploy outside the server, with nothing kept here to change. */
+    private async hasModelsFromElsewhere(
         projectUuid: string,
         { stored, repo }: Pick<LoadedDraft, 'stored' | 'repo'>,
-    ): Promise<void> {
+    ): Promise<boolean> {
         // A repository is where its project's explores are meant to come from.
-        if (repo || stored.length > 0) return;
+        if (repo || stored.length > 0) return false;
         const summaries =
             await this.projectModel.getAllExploreSummaries(projectUuid);
-        if (
-            summaries.some(
-                ({ type }) =>
-                    type === undefined || type === ExploreType.DEFAULT,
-            )
-        ) {
+        return summaries.some(
+            ({ type }) => type === undefined || type === ExploreType.DEFAULT,
+        );
+    }
+
+    private async assertNoModelsFromElsewhere(
+        projectUuid: string,
+        draft: Pick<LoadedDraft, 'stored' | 'repo'>,
+    ): Promise<void> {
+        if (await this.hasModelsFromElsewhere(projectUuid, draft)) {
             throw new ParameterError(
                 'This project already has models deployed from outside the server; they cannot be changed here yet',
             );
@@ -1112,6 +1189,32 @@ export class SemanticStudioService extends BaseService {
         });
     }
 
+    /** The compile of a checked-out dbt draft's branch; one that has a pull request and was never compiled starts now, so nobody has to ask. */
+    private async findOrStartBranchCompile(
+        user: SessionUser,
+        { workspaceUuid, projectUuid, pullRequest }: SemanticStudioWorkspace,
+    ) {
+        const compile =
+            await this.workspaceModel.findBranchCompile(workspaceUuid);
+        if (
+            compile ||
+            !pullRequest ||
+            pullRequest.state === 'merged' ||
+            pullRequest.state === 'closed'
+        ) {
+            return compile;
+        }
+        try {
+            await this.requestBranchCompile(user, projectUuid, workspaceUuid);
+        } catch (error) {
+            this.logger.warn(
+                `SemanticStudio: could not start the compile of workspace ${workspaceUuid}: ${getErrorMessage(error)}`,
+            );
+            return null;
+        }
+        return this.workspaceModel.findBranchCompile(workspaceUuid);
+    }
+
     /** The change this person has checked out, which the whole app shows them; null on what is published or without Studio. */
     async getCheckout(
         user: SessionUser,
@@ -1126,9 +1229,7 @@ export class SemanticStudioService extends BaseService {
         if (!active) return null;
         const compile =
             status.appliesAs === 'dbt_pull_request'
-                ? await this.workspaceModel.findBranchCompile(
-                      active.workspaceUuid,
-                  )
+                ? await this.findOrStartBranchCompile(user, active)
                 : null;
         return {
             workspaceUuid: active.workspaceUuid,
@@ -1882,7 +1983,7 @@ export class SemanticStudioService extends BaseService {
     ): Promise<void> {
         const project = await this.projectModel.get(projectUuid);
         const blocker = await this.findBlocker(user, project);
-        if (blocker) throw blocker;
+        if (blocker) throw blocker.error;
         if (!this.canValidate(user, project)) {
             throw new ForbiddenError(
                 'User does not have permission to validate this project',
@@ -2076,11 +2177,12 @@ export class SemanticStudioService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         model: string | null,
+        merge: boolean = false,
     ): Promise<SemanticLayerDraftApplyResult> {
         await this.assertCanEditModels(user, projectUuid);
         // Requests that arrive together on this server share one publish; one that lands elsewhere waits on the lock, then finds nothing left to publish.
         const owner = await this.findDraftOwner(projectUuid, user.userUuid);
-        const key = `${projectUuid}:${user.userUuid}:${owner.workspaceUuid}:${model ?? ''}`;
+        const key = `${projectUuid}:${user.userUuid}:${owner.workspaceUuid}:${model ?? ''}:${merge}`;
         const running = this.publishing.get(key);
         if (running) return running;
         const publish = (async () => {
@@ -2093,10 +2195,62 @@ export class SemanticStudioService extends BaseService {
             }
             // What is left of the draft now sits on different live models.
             await this.queueDraftImpactCheckAfterChange(user, owner);
-            return result;
+            return merge && result.pullRequestUrl
+                ? {
+                      ...result,
+                      merge: await this.mergeDraftPullRequest(
+                          user,
+                          projectUuid,
+                          result.pullRequestUrl,
+                      ),
+                  }
+                : result;
         })().finally(() => this.publishing.delete(key));
         this.publishing.set(key, publish);
         return publish;
+    }
+
+    /** Merges the pull request a draft was just sent as; a refusal leaves it open for review and says why. */
+    private async mergeDraftPullRequest(
+        user: SessionUser,
+        projectUuid: string,
+        prUrl: string,
+    ): Promise<NonNullable<SemanticLayerDraftApplyResult['merge']>> {
+        const merge = async (triesLeft: number): Promise<boolean> => {
+            try {
+                return (
+                    await this.aiWritebackService.mergePullRequest({
+                        user,
+                        projectUuid,
+                        prUrl,
+                    })
+                ).merged;
+            } catch (error) {
+                // Right after a commit the repository has not worked out yet whether the pull request can merge.
+                if (
+                    triesLeft === 0 ||
+                    !/not mergeable/i.test(getErrorMessage(error))
+                ) {
+                    throw error;
+                }
+                await new Promise((resolve) => {
+                    setTimeout(resolve, MERGE_RETRY_MS);
+                });
+                return merge(triesLeft - 1);
+            }
+        };
+        try {
+            if (!(await merge(MERGE_RETRIES))) {
+                return {
+                    merged: false,
+                    reason: 'The repository did not merge it.',
+                };
+            }
+            await this.recordPullRequestState(projectUuid, prUrl, 'merged');
+            return { merged: true };
+        } catch (error) {
+            return { merged: false, reason: getErrorMessage(error) };
+        }
     }
 
     private applyDraftOnce(
@@ -2121,6 +2275,7 @@ export class SemanticStudioService extends BaseService {
                     exploreCount: null,
                     failures: unmergeable,
                     pullRequestUrl: null,
+                    merge: null,
                 };
             }
             // Publishing would put this person's version in place of one they have not looked at.
@@ -2141,6 +2296,7 @@ export class SemanticStudioService extends BaseService {
                     exploreCount: null,
                     failures: contested,
                     pullRequestUrl: null,
+                    merge: null,
                 };
             }
             const check = await this.checker.check(
@@ -2157,6 +2313,7 @@ export class SemanticStudioService extends BaseService {
                         error,
                     })),
                     pullRequestUrl: null,
+                    merge: null,
                 };
             }
             const drafts = {
@@ -2177,16 +2334,39 @@ export class SemanticStudioService extends BaseService {
                     exploreCount: null,
                     failures: [],
                     pullRequestUrl: null,
+                    merge: null,
                 };
             }
             if (draft.repo) {
+                if (model !== null) {
+                    throw new ParameterError(
+                        'A draft of models kept in a repository is sent whole, as one pull request',
+                    );
+                }
                 // The repository deploys the models once the pull request merges, so nothing goes live here.
-                const { url } = await this.repoModels.openPullRequest({
+                const sent = {
                     organizationUuid: draft.organizationUuid,
                     models: draft.repo,
                     writes: check.writes,
                     ...describePullRequest(draft.results.flat()),
-                });
+                };
+                const open = await this.findOpenDraftPullRequest(user, owner);
+                const { url } =
+                    (open &&
+                        (await this.repoModels.updatePullRequest({
+                            ...sent,
+                            prUrl: open,
+                        }))) ||
+                    (await this.repoModels.openPullRequest(sent));
+                // A workspace keeps its draft while the pull request is open, so it can still be read, tried and added to.
+                if (owner.workspaceUuid !== null) {
+                    return {
+                        exploreCount: null,
+                        failures: [],
+                        pullRequestUrl: url,
+                        merge: null,
+                    };
+                }
                 let settled = 0;
                 try {
                     settled =
@@ -2209,6 +2389,7 @@ export class SemanticStudioService extends BaseService {
                     exploreCount: null,
                     failures: [],
                     pullRequestUrl: url,
+                    merge: null,
                 };
             }
             const exploreCount = await this.commitDocuments(user, owner, {
@@ -2224,7 +2405,12 @@ export class SemanticStudioService extends BaseService {
                     drafts,
                 },
             });
-            return { exploreCount, failures: [], pullRequestUrl: null };
+            return {
+                exploreCount,
+                failures: [],
+                pullRequestUrl: null,
+                merge: null,
+            };
         });
     }
 
@@ -2386,6 +2572,24 @@ export class SemanticStudioService extends BaseService {
             }
             throw error;
         }
+    }
+
+    /** The pull request this draft's workspace was already sent as, while it is still open. */
+    private async findOpenDraftPullRequest(
+        user: SessionUser,
+        { workspaceUuid }: DraftOwner,
+    ): Promise<string | null> {
+        if (workspaceUuid === null) return null;
+        const workspace = await this.workspaceModel.find(
+            workspaceUuid,
+            user.userUuid,
+        );
+        const pullRequest = workspace?.pullRequest ?? null;
+        return pullRequest &&
+            pullRequest.state !== 'merged' &&
+            pullRequest.state !== 'closed'
+            ? pullRequest.url
+            : null;
     }
 
     /** A draft that went live finishes its workspace; one sent as a pull request waits on that. */
@@ -2678,6 +2882,13 @@ export class SemanticStudioService extends BaseService {
                     );
                     changed = true;
                     await this.retireDbtTryOut(user, projectUuid, prUrl);
+                    // Merged outside the app, so nothing has refreshed the project with it yet.
+                    if (state === 'merged') {
+                        await this.aiWritebackService.scheduleCompileAfterMerge(
+                            user,
+                            projectUuid,
+                        );
+                    }
                 }
             } catch (error) {
                 this.logger.warn(
@@ -2845,16 +3056,66 @@ export class SemanticStudioService extends BaseService {
         await this.workspaceModel.deleteFinishedBranchCompiles(projectUuid);
     }
 
-    /** Records a pull request's state as its provider reported it to someone allowed to ask. */
+    /**
+     * Records a pull request's state as its provider reported it to someone allowed to ask. A draft sent as that
+     * pull request is settled by its merge, and kept when it closes, so the work can be sent again or discarded.
+     */
     async recordPullRequestState(
         projectUuid: string,
         prUrl: string,
         state: SemanticStudioWorkspacePullRequestState,
     ): Promise<void> {
+        const drafted =
+            state === 'open'
+                ? []
+                : await this.findDraftsSentAs(projectUuid, prUrl);
+        if (state === 'merged') {
+            await Promise.all(
+                drafted.map(({ owner, changeUuids }) =>
+                    this.projectModelDocumentModel.updateDraftChangeStatus({
+                        ...owner,
+                        drafts: { changeUuids, model: null },
+                        status: 'applied',
+                        pullRequestUrl: prUrl,
+                    }),
+                ),
+            );
+        }
         await this.workspaceModel.recordPullRequestState(
             projectUuid,
             prUrl,
             state,
+            // A closed pull request with a draft behind it leaves the workspace open.
+            state === 'merged' || drafted.length === 0,
         );
+    }
+
+    /** The unfinished workspaces whose draft was sent as this pull request, with what is still in each draft. */
+    private async findDraftsSentAs(
+        projectUuid: string,
+        prUrl: string,
+    ): Promise<{ owner: WorkspaceDraftOwner; changeUuids: string[] }[]> {
+        const workspaces = (
+            await this.workspaceModel.findInProject(projectUuid, '')
+        ).filter(
+            ({ finishedAt, pullRequest }) =>
+                !finishedAt && pullRequest?.url === prUrl,
+        );
+        const drafts = await Promise.all(
+            workspaces.map(async ({ workspaceUuid, owner: { userUuid } }) => {
+                const owner = { projectUuid, userUuid, workspaceUuid };
+                const changes =
+                    await this.projectModelDocumentModel.findWorkspaceDraftChanges(
+                        owner,
+                    );
+                return {
+                    owner,
+                    changeUuids: changes.map(
+                        ({ draftChangeUuid }) => draftChangeUuid,
+                    ),
+                };
+            }),
+        );
+        return drafts.filter(({ changeUuids }) => changeUuids.length > 0);
     }
 }

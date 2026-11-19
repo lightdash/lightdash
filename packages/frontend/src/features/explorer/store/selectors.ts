@@ -19,17 +19,20 @@ import {
     type ParametersValuesMap,
 } from '@lightdash/common';
 import { createSelector } from '@reduxjs/toolkit';
-import type { ExplorerStoreState } from '.';
 import {
     ExplorerSection,
     type MapExtent,
 } from '../../../providers/Explorer/types';
 import { cleanConfig } from '../../../providers/Explorer/utils';
+import type { ExplorerRootState } from './history';
 
 const EMPTY_METRIC_OVERRIDES: MetricOverrides = {};
 const EMPTY_PARAMETERS: ParametersValuesMap = {};
 
 // Base selectors
+// Selectors read the explorer alone, so they also take a state without history
+type ExplorerStoreState = Pick<ExplorerRootState, 'explorer'>;
+
 const selectExplorerState = (state: ExplorerStoreState) => state.explorer;
 
 // Unsaved chart version for rendering

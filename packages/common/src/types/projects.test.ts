@@ -159,6 +159,29 @@ describe('dbt environment variable validation', () => {
         );
     });
 
+    test('rejects reserved configuration keys without blocking customer variables', () => {
+        expect(
+            getInvalidDbtEnvironmentVariableKeys([
+                { key: 'OPENSSL_CONF', value: 'unused' },
+                { key: 'OPENSSL_MODULES', value: 'unused' },
+                { key: 'DBT_ENV_SECRET_TOKEN', value: 'example' },
+            ]),
+        ).toEqual(['OPENSSL_CONF', 'OPENSSL_MODULES']);
+    });
+
+    test('filters reserved configuration keys from saved project settings', () => {
+        expect(
+            buildSafeDbtEnvironmentVariables([
+                { key: 'OPENSSL_CONF', value: 'unused' },
+                { key: 'OPENSSL_MODULES', value: 'unused' },
+                { key: 'DBT_ENV_SECRET_TOKEN', value: 'example' },
+            ]),
+        ).toEqual({
+            environment: { DBT_ENV_SECRET_TOKEN: 'example' },
+            blockedKeys: ['OPENSSL_CONF', 'OPENSSL_MODULES'],
+        });
+    });
+
     test('blocks variables that relocate where dbt, python or git read code and config from', () => {
         [
             'HOME',

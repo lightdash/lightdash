@@ -47,7 +47,6 @@ describeOrSkip.concurrent('agent integration tests', () => {
             apiKey: process.env.OPENAI_API_KEY!,
             modelName: 'gpt-5.4',
             embeddingModelName: 'text-embedding-3-small',
-            zeroDataRetention: false,
             useChatCompletions: false,
             customHeaders: {},
             supportsStreaming: true,

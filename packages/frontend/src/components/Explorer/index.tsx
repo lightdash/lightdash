@@ -15,6 +15,7 @@ import {
 } from 'react';
 import {
     explorerActions,
+    explorerHistoryActions,
     selectAdditionalMetricModal,
     selectColumnOrder,
     selectDimensions,
@@ -46,6 +47,7 @@ import { useExplorerQuery } from '../../hooks/useExplorerQuery';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { Can } from '../../providers/Ability';
 import useFullscreen from '../../providers/Fullscreen/useFullscreen';
+import { derived } from '../../utils/changeOrigin';
 import ScreenshotReadyIndicator from '../common/ScreenshotReadyIndicator';
 import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
@@ -116,6 +118,12 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
             useExplorerSelector(selectPeriodOverPeriodComparisonModal);
 
         const dispatch = useExplorerDispatch();
+
+        // A merge's sources and joins live outside the store, where no undo step reaches
+        const isMerging = useMergeSafe()?.isMerging ?? false;
+        useEffect(() => {
+            dispatch(explorerHistoryActions.setSuspended(isMerging));
+        }, [isMerging, dispatch]);
         // The empty state takes a first field dropped anywhere on it
         const pickFieldsDrop = useFieldDrop(useAddDroppedFieldToQuery());
 
@@ -190,7 +198,9 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
             if (lastSeededTableRef.current === tableName) return;
             if (sorts.length === 0 && !defaultSort) return;
             if (sorts.length === 0 && defaultSort) {
-                dispatch(explorerActions.setSortFields([defaultSort]));
+                derived(() =>
+                    dispatch(explorerActions.setSortFields([defaultSort])),
+                );
             }
             lastSeededTableRef.current = tableName;
         }, [tableName, sorts.length, defaultSort, dispatch]);
@@ -258,10 +268,13 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
                 Object.keys(parameters).length === 0
             ) {
                 hasSeededParams.current = true;
-                Object.entries(explore.savedParameterValues).forEach(
-                    ([key, value]) => {
+                const savedValues = Object.entries(
+                    explore.savedParameterValues,
+                );
+                derived(() =>
+                    savedValues.forEach(([key, value]) => {
                         dispatch(explorerActions.setParameter({ key, value }));
-                    },
+                    }),
                 );
             }
         }, [explore, parameters, dispatch]);

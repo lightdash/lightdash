@@ -6,9 +6,10 @@ Read only what the claims need.
 
 - PR: `gh pr view <pr> --json title,body,url,author,headRefOid,files,commits,comments`, `gh pr diff <pr>`, `gh pr checks <pr>`.
   Review the head.
-  Several PRs form one stack, bottom first.
+  Several PRs (a stack): review each on its own at its own head, bottom first, reading the PRs below as existing code; each gets its own verdict and saved file.
 - Local: include committed, staged, unstaged and untracked changes against the base, not just `<base>...HEAD`.
   Record base and head, with a working-tree diff checksum when uncommitted.
+- Yoda: `version` from SKILL.md's frontmatter.
 - Claim: PR description and Linear ticket found in title, branch or body; find the Linear twin of a mirrored GitHub issue.
   A commit subject suffices if it names the change.
   Record material ambiguity for Verdict.
@@ -45,11 +46,11 @@ Keep [coverage-drop diffs](testing.md#coverage-drop-diff) in standalone json mod
 Build the canonical [review JSON](formats/json.md), then render with [text](formats/text.md), [HTML](formats/html.md) or [GitHub](formats/github.md) if requested.
 The schema defines all review fields and ordering.
 
-Each finding is one small paragraph (~70 words).
+Each finding is at most 25 words and two sentences, naming at most three identifiers: the problem with its concrete case, then the fix.
 Keep the strongest evidence and drop the rest.
 
 ```md
-The Joins tab shows the published model, not the editor's draft. Fields renders the draft, but `JoinDiagram` builds from the published explore, so a drafted join appears in Fields and not in Joins. Pass the draft's explore, or label the tab as published.
+A drafted join shows in Fields but not Joins, because `JoinDiagram` reads the published explore. Pass it the draft's explore.
 ```
 
 ## Verdict
@@ -57,6 +58,17 @@ The Joins tab shows the published model, not the editor's draft. Fields renders 
 Request changes if the claim is unclear, any Fix remains, or triage's Too big condition is paired with an unverified Fix-level risk.
 Approve with notes for Heads-ups alone; approve otherwise.
 Name the reviewed head sha.
+
+## Save
+
+Save every review's JSON, whatever the format, to `~/.yoda/reviews/<repo>-<target>-<head>.json` in the user's home directory, wherever yoda runs.
+
+- `<repo>`: the repository name without its owner (`lightdash`).
+- `<target>`: `pr-<number>` or `branch-<branch name>` with `/` as `-`.
+- `<head>`: the 7-character head sha, plus `-dirty-<first 4 of the diff checksum>` when uncommitted.
+
+Before reviewing, look for the file: an existing one is that exact code's review, so reuse it unless a new review is asked for.
+Explain and triage are not saved.
 
 ## Re-review
 

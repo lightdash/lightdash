@@ -55,7 +55,6 @@ const AgentPage = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const isEmbed = useIsEmbedded();
-    useEmitEmbedAgentContentEvents({ projectUuid, agentUuid });
     const canManageAgents = useAiAgentPermission({
         action: 'manage',
         projectUuid,
@@ -79,6 +78,12 @@ const AgentPage = () => {
         agentUuid,
         threadUuid,
     );
+    useEmitEmbedAgentContentEvents({
+        projectUuid,
+        agentUuid,
+        threadUuid,
+        thread,
+    });
 
     const { addItem: addDockItem } = useLauncherDock(projectUuid);
     const { track } = useTracking();
@@ -90,11 +95,14 @@ const AgentPage = () => {
     const [isMemoriesModalOpen, setIsMemoriesModalOpen] = useState(false);
     const memoryEnabled = useAiAgentMemoryEnabled();
 
-    const { shouldShow: shouldShowMemoryTour, closeTour: closeMemoryTour } =
-        useOnboardingTour({
-            tour: 'memoryTour',
-            enabled: memoryEnabled && !isEmbed,
-        });
+    const {
+        shouldShow: shouldShowMemoryTour,
+        closeTour: closeMemoryTour,
+        tracking: memoryTourTracking,
+    } = useOnboardingTour({
+        tour: 'memoryTour',
+        enabled: memoryEnabled && !isEmbed,
+    });
     // The tour is only worth showing once the user has something to look at
     const { data: myMemories } = useMyAiAgentMemories({
         projectUuid,
@@ -137,18 +145,21 @@ const AgentPage = () => {
             } else {
                 const chartUuid = searchParams.get('chartUuid');
                 const sqlChartUuid = searchParams.get('sqlChartUuid');
+                const composerChartUuid = searchParams.get('composerChartUuid');
                 const dashboardUuid = searchParams.get('dashboardUuid');
                 const dataAppUuid = searchParams.get('dataAppUuid');
                 const documentUuid = searchParams.get('documentUuid');
                 const pendingContext =
                     chartUuid ||
                     sqlChartUuid ||
+                    composerChartUuid ||
                     dashboardUuid ||
                     dataAppUuid ||
                     documentUuid
                         ? {
                               chartUuid: chartUuid ?? undefined,
                               sqlChartUuid: sqlChartUuid ?? undefined,
+                              composerChartUuid: composerChartUuid ?? undefined,
                               dashboardUuid: dashboardUuid ?? undefined,
                               dataAppUuid: dataAppUuid ?? undefined,
                               documentUuid: documentUuid ?? undefined,
@@ -355,6 +366,7 @@ const AgentPage = () => {
             <GuidedTour
                 steps={MEMORY_TOUR_STEPS}
                 opened={shouldShowMemoryTour && hasMemories}
+                tracking={memoryTourTracking}
                 onClose={closeMemoryTour}
                 onStepChange={(stepIndex) =>
                     setIsMemoriesModalOpen(stepIndex === 1)

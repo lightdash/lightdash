@@ -11,9 +11,18 @@ export type SemanticLayerApplyMode =
     | 'pull_request'
     | 'dbt_pull_request';
 
+export type SemanticLayerBlocker =
+    | 'no_access'
+    | 'unsupported_connection'
+    | 'no_repository_access'
+    | 'github_app_missing'
+    | 'models_from_outside'
+    | 'preview_project';
+
 export type SemanticLayerStatus = {
     /** Whether this person can change this project's models from Semantic Studio. */
     enabled: boolean;
+    blocker: SemanticLayerBlocker | null;
     /** How a change lands: `live` applies a draft here, `pull_request` sends a draft to the project's repository, and `dbt_pull_request` has the agent edit the dbt project in a pull request, with no draft. */
     appliesAs: SemanticLayerApplyMode;
 };
@@ -235,6 +244,8 @@ export type SemanticLayerDraftApplyResult = {
     failures: { model: string; error: string }[];
     /** The pull request the draft was sent as, for a project whose models live in a repository; null otherwise. */
     pullRequestUrl: string | null;
+    /** Whether that pull request merged when publishing asked for it, and why not; null when no merge was asked. */
+    merge: { merged: true } | { merged: false; reason: string } | null;
 };
 
 export type ApiSemanticLayerDraftApplyResponse =
@@ -341,6 +352,8 @@ export type SemanticStudioWorkspace = {
     createdAt: Date;
     updatedAt: Date;
     finishedAt: Date | null;
+    /** Whether any of its draft went live here, without a pull request. */
+    publishedLive: boolean;
 };
 
 export type SemanticStudioWorkspaces = {

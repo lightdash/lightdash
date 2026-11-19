@@ -1474,8 +1474,6 @@ export const getAiConfig = () => ({
                   availableModels: getArrayFromCommaSeparatedList(
                       'OPENAI_AVAILABLE_MODELS',
                   ),
-                  zeroDataRetention:
-                      process.env.OPENAI_ZERO_DATA_RETENTION === 'true',
                   useChatCompletions:
                       process.env.OPENAI_USE_CHAT_COMPLETIONS === 'true',
                   customHeaders: getProviderCustomHeaders(

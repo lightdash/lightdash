@@ -49,6 +49,7 @@ import { useExploreWarehouseConnection } from '../../../hooks/useExploreWarehous
 import { useAddFilter } from '../../../hooks/useFilters';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { ExplorerSection } from '../../../providers/Explorer/types';
+import { derived } from '../../../utils/changeOrigin';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import { COLLAPSABLE_CARD_ACTION_ICON_PROPS } from '../../common/CollapsableCard/constants';
 import FiltersForm from '../../common/Filters';
@@ -217,15 +218,17 @@ const QueryAFiltersCard: FC = memo(() => {
                     data,
                 );
             setHasDefaultFiltersApplied(true);
-            setFilters({
-                metrics: undefined,
-                tableCalculations: undefined,
-                dimensions: overrideFilterGroupWithFilterRules(
-                    processedFilters.dimensions,
-                    reducedRules,
-                    undefined,
-                ),
-            });
+            derived(() =>
+                setFilters({
+                    metrics: undefined,
+                    tableCalculations: undefined,
+                    dimensions: overrideFilterGroupWithFilterRules(
+                        processedFilters.dimensions,
+                        reducedRules,
+                        undefined,
+                    ),
+                }),
+            );
         }
     }, [
         hasDefaultFiltersApplied,

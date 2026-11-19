@@ -10,7 +10,11 @@ import Ajv, { type ErrorObject, type ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
 import { compact, get, set, uniq } from 'es-toolkit/compat';
 
-export type AiAgentValidatedContentType = 'dashboard' | 'chart' | 'sql_chart';
+export type AiAgentValidatedContentType =
+    | 'dashboard'
+    | 'chart'
+    | 'sql_chart'
+    | 'composer_chart';
 
 type ContentType = AiAgentValidatedContentType;
 
@@ -45,6 +49,16 @@ const BANNED_PATHS: Record<
             reason: 'connection cannot be edited with editContent',
         },
     ],
+    composer_chart: [
+        { path: '/slug', reason: 'slug is read-only' },
+        { path: '/contentType', reason: 'contentType is read-only' },
+        {
+            path: '/dashboardSlug',
+            reason: 'a composer chart stays on its dashboard',
+        },
+        { path: '/updatedAt', reason: 'updatedAt is read-only' },
+        { path: '/downloadedAt', reason: 'downloadedAt is read-only' },
+    ],
     dashboard: [
         { path: '/slug', reason: 'slug is read-only' },
         { path: '/updatedAt', reason: 'updatedAt is read-only' },
@@ -60,6 +74,7 @@ const BANNED_PATHS: Record<
 const TIMESTAMP_FIELDS: Record<ContentType, string[]> = {
     chart: ['/updatedAt', '/downloadedAt', '/verification/verifiedAt'],
     sql_chart: ['/updatedAt', '/downloadedAt'],
+    composer_chart: ['/updatedAt', '/downloadedAt'],
     dashboard: ['/updatedAt', '/downloadedAt', '/verification/verifiedAt'],
 };
 
@@ -69,6 +84,7 @@ const CREATE_REJECTED_PROPERTIES: Record<
 > = {
     chart: [],
     dashboard: [],
+    composer_chart: [],
     sql_chart: [
         {
             property: 'connection',
@@ -88,6 +104,7 @@ const CONTENT_LABELS: Record<ContentType, string> = {
     chart: 'chart',
     dashboard: 'dashboard',
     sql_chart: 'SQL chart',
+    composer_chart: 'composer chart',
 };
 
 const CHART_CONFIG_SUPPORTED_TYPES = [
@@ -214,6 +231,8 @@ export class AiAgentContentValidation {
                 return validators.chart;
             case 'sql_chart':
                 return validators.sql_chart;
+            case 'composer_chart':
+                return validators.composer_chart;
             case 'dashboard':
                 return validators.dashboard;
             default:
@@ -233,6 +252,9 @@ export class AiAgentContentValidation {
             dashboard: this.ajv.compile(dashboardAsCodeSchema),
             sql_chart: this.ajv.compile(
                 getChartAsCodeBranchSchema(ContentAsCodeType.SQL_CHART),
+            ),
+            composer_chart: this.ajv.compile(
+                getChartAsCodeBranchSchema(ContentAsCodeType.COMPOSER_CHART),
             ),
         };
 

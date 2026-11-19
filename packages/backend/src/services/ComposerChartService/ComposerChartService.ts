@@ -77,8 +77,9 @@ type ComposerChartServiceArguments = {
     >;
 };
 
-/** Where a bound run is recorded in query history: a dashboard view, a scheduled delivery or a dashboard CSV export. */
+/** Where a bound run is recorded in query history: a dashboard view, a scheduled delivery, a dashboard CSV export or an AI agent. */
 export type ComposerChartRunContext =
+    | QueryExecutionContext.AI
     | QueryExecutionContext.DASHBOARD
     | QueryExecutionContext.SCHEDULED_DELIVERY
     | QueryExecutionContext.CSV;
@@ -256,6 +257,41 @@ export class ComposerChartService extends BaseService {
         return enabled;
     }
 
+    private assertCanUpdateDashboard(
+        account: RegisteredAccount,
+        dashboardAccess: Awaited<
+            ReturnType<ComposerChartService['getDashboardAccess']>
+        >,
+        dashboardUuid: string,
+    ) {
+        if (
+            this.createAuditedAbility(account).cannot(
+                'update',
+                subject('Dashboard', {
+                    ...dashboardAccess,
+                    metadata: { dashboardUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have permission to update this dashboard",
+            );
+        }
+    }
+
+    /** The dashboard check a write runs, for a caller that must refuse before reading the dashboard's charts. */
+    async preflightDashboard(
+        account: RegisteredAccount,
+        projectUuid: string,
+        dashboardUuid: string,
+    ): Promise<void> {
+        this.assertCanUpdateDashboard(
+            account,
+            await this.getDashboardAccess(account, projectUuid, dashboardUuid),
+            dashboardUuid,
+        );
+    }
+
     /** The checks every submitted write runs; returns the documents to store. */
     private async authorizeWrite(
         account: RegisteredAccount,
@@ -281,19 +317,11 @@ export class ComposerChartService extends BaseService {
         ) {
             throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
         }
-        if (
-            this.createAuditedAbility(account).cannot(
-                'update',
-                subject('Dashboard', {
-                    ...dashboardAccess,
-                    metadata: { dashboardUuid: data.dashboardUuid },
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                "You don't have permission to update this dashboard",
-            );
-        }
+        this.assertCanUpdateDashboard(
+            account,
+            dashboardAccess,
+            data.dashboardUuid,
+        );
         await this.assertCanWritePipeline(account, dashboardAccess, pipeline);
         const chart = await this.pinCustomChartType(projectUuid, input);
         return { pipeline, chart };
@@ -305,8 +333,17 @@ export class ComposerChartService extends BaseService {
         project: ProjectSubject,
         data: Pick<CreateComposerChart, 'pipeline' | 'chart'>,
     ): Promise<void> {
-        const pipeline = parseComposerPipeline(data.pipeline);
         const input = parseComposerChartInput(data.chart);
+        await this.preflightPipeline(account, project, data.pipeline);
+        await this.pinCustomChartType(project.projectUuid, input);
+    }
+
+    /** The pipeline checks alone, so a caller can refuse before asking anyone to approve its SQL. */
+    async preflightPipeline(
+        account: RegisteredAccount,
+        project: ProjectSubject,
+        pipeline: unknown,
+    ): Promise<void> {
         if (
             !(await this.isEnabled({
                 userUuid: account.user.userUuid,
@@ -315,8 +352,20 @@ export class ComposerChartService extends BaseService {
         ) {
             throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
         }
-        await this.assertCanWritePipeline(account, project, pipeline);
-        await this.pinCustomChartType(project.projectUuid, input);
+        await this.assertCanWritePipeline(
+            account,
+            project,
+            parseComposerPipeline(pipeline),
+        );
+    }
+
+    /** Every check a create runs, so a caller can refuse before asking anyone to approve its SQL. */
+    async preflightCreate(
+        account: RegisteredAccount,
+        projectUuid: string,
+        data: Pick<CreateComposerChart, 'dashboardUuid' | 'pipeline' | 'chart'>,
+    ): Promise<void> {
+        await this.authorizeWrite(account, projectUuid, data);
     }
 
     /** A rollback makes a stored pipeline current again, so it passes the checks a write does. */
@@ -667,8 +716,58 @@ export class ComposerChartService extends BaseService {
         body: ComposerChartRunRequest,
         context: ComposerChartRunContext,
     ): Promise<ComposerChartRunResults> {
-        Sentry.setTag('lightdash.chartKind', 'composer');
         const request = parseComposerChartRunRequest(body);
+        return this.runOnTile(account, projectUuid, composerChartUuid, {
+            dashboardUuid: request.dashboardUuid,
+            tileUuid: request.tileUuid,
+            invalidateCache: request.invalidateCache,
+            context,
+            dashboardState: {
+                type: 'request',
+                dashboardFilters: request.dashboardFilters,
+                parameters: request.parameters,
+                excludedParameterKeys: request.excludedParameterKeys,
+            },
+        });
+    }
+
+    /** As the tile runs on its dashboard opened unchanged: saved filters and parameter controls, resolved here. */
+    async runWithSavedDashboardState(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+        tile: Pick<
+            ComposerChartRunRequest,
+            'dashboardUuid' | 'tileUuid' | 'invalidateCache'
+        >,
+    ): Promise<ComposerChartRunResults> {
+        return this.runOnTile(account, projectUuid, composerChartUuid, {
+            ...tile,
+            context: QueryExecutionContext.AI,
+            dashboardState: { type: 'saved' },
+        });
+    }
+
+    private async runOnTile(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+        request: Pick<
+            ComposerChartRunRequest,
+            'dashboardUuid' | 'tileUuid' | 'invalidateCache'
+        > & {
+            context: ComposerChartRunContext;
+            dashboardState:
+                | ({ type: 'request' } & Pick<
+                      ComposerChartRunRequest,
+                      | 'dashboardFilters'
+                      | 'parameters'
+                      | 'excludedParameterKeys'
+                  >)
+                | { type: 'saved' };
+        },
+    ): Promise<ComposerChartRunResults> {
+        Sentry.setTag('lightdash.chartKind', 'composer');
         const { organizationUuid, dashboardUuid } = await this.assertCanView(
             account,
             projectUuid,
@@ -681,10 +780,11 @@ export class ComposerChartService extends BaseService {
         if (!enabled) {
             throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
         }
-        const { tiles } = await this.dashboardModel.getByIdOrSlug(
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
             dashboardUuid,
             { projectUuid },
         );
+        const { tiles } = dashboard;
         const shown = tiles.some(
             (tile) =>
                 tile.uuid === request.tileUuid &&
@@ -709,12 +809,16 @@ export class ComposerChartService extends BaseService {
                 organizationUuid,
                 dashboardUuid,
                 tileUuid: request.tileUuid,
-                dashboardFilters: request.dashboardFilters,
                 chartSavedValues: getComposerSavedParameterValues(
                     chart.pipeline.nodes,
                 ),
-                parameters: request.parameters,
-                excludedParameterKeys: request.excludedParameterKeys,
+                ...(request.dashboardState.type === 'request'
+                    ? request.dashboardState
+                    : {
+                          dashboardFilters: dashboard.filters,
+                          parameters: undefined,
+                          excludedParameterKeys: undefined,
+                      }),
             });
         const filtered = applyDashboardFiltersToComposerNodes({
             tileUuid: request.tileUuid,
@@ -755,7 +859,7 @@ export class ComposerChartService extends BaseService {
                     account,
                     projectUuid,
                     binding,
-                    context,
+                    context: request.context,
                     invalidateCache: request.invalidateCache,
                 }),
         );
