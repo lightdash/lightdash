@@ -1,4 +1,4 @@
-import { Button } from '@mantine/core';
+import { Button, Skeleton } from '@mantine/core';
 import { IconCreditCard, IconExternalLink } from '@tabler/icons-react';
 import Callout from '../../components/common/Callout';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -7,38 +7,57 @@ import { SettingsCard } from '../../components/common/Settings/SettingsCard';
 import { SettingsPage } from '../../components/common/Settings/SettingsPage';
 import { useOpenBillingPortal } from '../features/billing/useOpenBillingPortal';
 
+const BillingPortalContent = () => {
+    const { open, isOpening, isLoading, isAvailable, isNotConfigured } =
+        useOpenBillingPortal();
+
+    if (isLoading) return <Skeleton h={88} radius="md" />;
+
+    if (isNotConfigured) {
+        return (
+            <Callout variant="info" title="Billing portal not set up">
+                No billing account is linked to this organization yet. Contact
+                support to get access.
+            </Callout>
+        );
+    }
+
+    if (!isAvailable) {
+        return (
+            <Callout variant="warning" title="Billing portal unavailable">
+                The billing portal is not available right now. Contact support
+                to get access.
+            </Callout>
+        );
+    }
+
+    return (
+        <SettingsCard>
+            <SettingRow
+                icon={IconCreditCard}
+                title="Billing portal"
+                description="Update payment methods, change your billing address or email, and view invoices. The portal opens in a new tab."
+                control={
+                    <Button
+                        loading={isOpening}
+                        onClick={() => void open()}
+                        rightSection={<MantineIcon icon={IconExternalLink} />}
+                    >
+                        Open billing portal
+                    </Button>
+                }
+            />
+        </SettingsCard>
+    );
+};
+
 export default function Billing() {
-    const { open, isOpening, isNotConfigured } = useOpenBillingPortal();
     return (
         <SettingsPage
             title="Billing"
             description="Manage how your organization pays for its plan."
         >
-            {isNotConfigured ? (
-                <Callout variant="info" title="Billing portal not set up">
-                    No billing account is linked to this organization yet.
-                    Contact support to get access.
-                </Callout>
-            ) : (
-                <SettingsCard>
-                    <SettingRow
-                        icon={IconCreditCard}
-                        title="Billing portal"
-                        description="Update payment methods, change your billing address or email, and view invoices. The portal opens in a new tab."
-                        control={
-                            <Button
-                                loading={isOpening}
-                                onClick={() => void open()}
-                                rightSection={
-                                    <MantineIcon icon={IconExternalLink} />
-                                }
-                            >
-                                Open billing portal
-                            </Button>
-                        }
-                    />
-                </SettingsCard>
-            )}
+            <BillingPortalContent />
         </SettingsPage>
     );
 }
