@@ -94,6 +94,10 @@
     transform: translateY(rem(-2px));
 }
 
+.dockExtras {
+    display: contents;
+}
+
 .dockIconTab {
     width: rem(28px);
     height: rem(28px);

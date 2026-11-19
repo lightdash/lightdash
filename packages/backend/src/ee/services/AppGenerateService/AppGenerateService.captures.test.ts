@@ -63,11 +63,12 @@ type VersionRow = NonNullable<Awaited<ReturnType<AppModelFake['getVersion']>>>;
 const buildService = ({
     storedCapturesChoice = null,
     capturesEnabledOnInstance = true,
-    voiceDesignEnabled = true,
+    voiceDesignFlags = ['builder'],
 }: {
     storedCapturesChoice?: boolean | null;
     capturesEnabledOnInstance?: boolean;
-    voiceDesignEnabled?: boolean;
+    /** Which Voice Design flags are on: the builder's, the dashboard's. */
+    voiceDesignFlags?: Array<'builder' | 'dashboard'>;
 } = {}) => {
     const captures = { stored: storedCapturesChoice };
     const appRow = {
@@ -131,12 +132,17 @@ const buildService = ({
         userModel: {} as never,
         appModel: appModel as never,
         featureFlagModel: {
-            get: async ({ featureFlagId }: { featureFlagId: string }) => ({
-                enabled:
-                    featureFlagId === FeatureFlags.DataAppCapture
-                        ? voiceDesignEnabled
-                        : true,
-            }),
+            get: async ({ featureFlagId }: { featureFlagId: string }) => {
+                if (featureFlagId === FeatureFlags.DataAppCapture) {
+                    return { enabled: voiceDesignFlags.includes('builder') };
+                }
+                if (featureFlagId === FeatureFlags.DashboardCapture) {
+                    return {
+                        enabled: voiceDesignFlags.includes('dashboard'),
+                    };
+                }
+                return { enabled: true };
+            },
         } as never,
         organizationSettingsModel: {} as never,
         organizationDesignModel: {} as never,
@@ -386,20 +392,23 @@ describe('AppGenerateService Voice Design transcription', () => {
         };
     };
 
-    it('refuses before reading the audio while the flag is off', async () => {
-        const { service } = buildService({ voiceDesignEnabled: false });
+    it('refuses before reading the audio while both flags are off', async () => {
+        const { service } = buildService({ voiceDesignFlags: [] });
         const { result, bodyWasRead } = transcribe(service);
 
         await expect(result).rejects.toThrow(ForbiddenError);
         expect(bodyWasRead()).toBe(false);
     });
 
-    it('passes the flag check while the flag is on', async () => {
-        const { service } = buildService();
+    it.each([[['builder' as const]], [['dashboard' as const]]])(
+        'passes the flag check while %s is on',
+        async (voiceDesignFlags) => {
+            const { service } = buildService({ voiceDesignFlags });
 
-        // No transcription provider is configured in this test.
-        await expect(transcribe(service).result).rejects.toThrow(
-            MissingConfigError,
-        );
-    });
+            // No transcription provider is configured in this test.
+            await expect(transcribe(service).result).rejects.toThrow(
+                MissingConfigError,
+            );
+        },
+    );
 });

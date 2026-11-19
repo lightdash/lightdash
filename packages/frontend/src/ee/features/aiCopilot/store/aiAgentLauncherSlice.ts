@@ -56,6 +56,8 @@ export interface AiAgentLauncherState {
     activeThreadId: string | null;
     activeAgentUuid: LauncherActiveAgentUuid | null;
     pendingContext: LauncherPendingContext | null;
+    /** A prompt to send as soon as the new-thread panel is ready. */
+    pendingPrompt: string | null;
     currentDashboard: LauncherCurrentDashboard | null;
     currentDataApp: LauncherCurrentDataApp | null;
     currentDocument: LauncherCurrentDocument | null;
@@ -68,6 +70,7 @@ const initialState: AiAgentLauncherState = {
     activeThreadId: null,
     activeAgentUuid: null,
     pendingContext: null,
+    pendingPrompt: null,
     currentDashboard: null,
     currentDataApp: null,
     currentDocument: null,
@@ -102,6 +105,7 @@ export const aiAgentLauncherSlice = createSlice({
             state,
             action: PayloadAction<{
                 pendingContext?: LauncherPendingContext | null;
+                pendingPrompt?: string | null;
             }>,
         ) => {
             state.mode = 'panel-open';
@@ -109,6 +113,10 @@ export const aiAgentLauncherSlice = createSlice({
             state.activeThreadId = null;
             state.activeAgentUuid = null;
             state.pendingContext = action.payload.pendingContext ?? null;
+            state.pendingPrompt = action.payload.pendingPrompt ?? null;
+        },
+        clearPendingPrompt: (state) => {
+            state.pendingPrompt = null;
         },
         setActiveAgent: (
             state,
@@ -175,6 +183,7 @@ export const aiAgentLauncherSlice = createSlice({
 });
 
 export const {
+    clearPendingPrompt,
     openPanel,
     openAnalysisPanel,
     openDefaultAgentPanel,

@@ -128,6 +128,16 @@ describe('Permissions-Policy on the app page', () => {
         server = null;
     });
 
+    it('allows the microphone on the page when only the dashboard flag is on', async () => {
+        server = await startServer({
+            user: signedInUser,
+            getFlag: flagsOn([FeatureFlags.DashboardCapture]),
+        });
+
+        const response = await server.get('/');
+        expect(response.header('permissions-policy')).toBe(ALLOWED);
+    });
+
     it('allows the microphone on the page when the organisation has Voice Design on', async () => {
         server = await startServer({
             user: signedInUser,

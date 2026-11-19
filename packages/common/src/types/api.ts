@@ -67,6 +67,7 @@ import type {
     ApiAppendInstructionResponse,
     ApiAppImageUploadResponse,
     ApiAppThumbnailUrlResponse,
+    ApiCaptureRouteResponse,
     ApiCaptureTranscriptResponse,
     ApiCloneAiAgentThreadShareResponse,
     ApiCreateEvaluationResponse,
@@ -1830,6 +1831,7 @@ type ApiResults =
     | ApiAiReviewNotificationSettingsResponse['results']
     | ApiAiRouterResponse['results']
     | ApiAiRouterRouteResponse['results']
+    | ApiCaptureRouteResponse['results']
     | ApiAiRouterInstructionResponse['results']
     | ApiAiRouterDecisionCommitResponse['results']
     | ApiAiRouterDecisionListResponse['results']

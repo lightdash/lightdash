@@ -21,6 +21,7 @@ import {
     type LauncherSelectedAgent,
 } from './launcherAgentSelection';
 import { useLauncherAnalysisAdapter } from './launcherAnalysisAdapter';
+import { LAUNCHER_DOCK_EXTRAS_ID } from './launcherDockExtras';
 import { useLauncherDock } from './useLauncherDock';
 
 type Props = {
@@ -151,6 +152,8 @@ export const LauncherDock: FC<Props> = ({
                     <MantineIcon icon={IconSparkles} size={16} />
                 </Box>
             )}
+            {/* Other features place their own dock buttons here. */}
+            <span id={LAUNCHER_DOCK_EXTRAS_ID} className={styles.dockExtras} />
             {selectedAgent && (
                 <Box
                     component="button"
