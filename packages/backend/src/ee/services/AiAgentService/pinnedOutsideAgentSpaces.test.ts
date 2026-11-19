@@ -1,4 +1,5 @@
 import {
+    agentsReachingPinnedSpaces,
     isOutsideAgentSpaces,
     spaceScopedPinnedUuid,
 } from './pinnedOutsideAgentSpaces';
@@ -34,5 +35,39 @@ describe('spaceScopedPinnedUuid', () => {
                 isPersonal: false,
             }),
         ).toBe('app-1');
+    });
+});
+
+describe('agentsReachingPinnedSpaces', () => {
+    const open = { uuid: 'open', spaceAccess: [] };
+    const sales = { uuid: 'sales', spaceAccess: ['space-sales'] };
+    const both = { uuid: 'both', spaceAccess: ['space-sales', 'space-ops'] };
+
+    it('keeps agents that may use every pinned space', () => {
+        expect(
+            agentsReachingPinnedSpaces(
+                [open, sales, both],
+                ['space-sales', 'space-ops'],
+            ),
+        ).toEqual([open, both]);
+    });
+
+    it('keeps space-limited agents away from personal content', () => {
+        expect(agentsReachingPinnedSpaces([open, sales], [null])).toEqual([
+            open,
+        ]);
+    });
+
+    it('keeps every agent when none can reach the pinned spaces', () => {
+        expect(agentsReachingPinnedSpaces([sales], ['space-ops'])).toEqual([
+            sales,
+        ]);
+    });
+
+    it('keeps every agent when nothing space-scoped is pinned', () => {
+        expect(agentsReachingPinnedSpaces([open, sales], [])).toEqual([
+            open,
+            sales,
+        ]);
     });
 });

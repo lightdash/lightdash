@@ -262,6 +262,11 @@
     min-width: 0;
 }
 
+.waitingPrompt {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
 .candidateContent {
     display: flex;
     align-items: center;
