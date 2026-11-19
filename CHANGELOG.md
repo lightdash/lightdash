@@ -1,3 +1,12 @@
+# [3.340.0](https://github.com/lightdash/lightdash/compare/3.339.0...3.340.0) (2026-11-19)
+
+
+### Features
+
+* **apps:** start Voice Design with the hotkey from inside the app preview ([#32926](https://github.com/lightdash/lightdash/issues/32926)) ([3c3c274](https://github.com/lightdash/lightdash/commit/3c3c27411881aa5cd80655207089559f42cdd989))
+* **apps:** Voice Design on the published data app page ([#32928](https://github.com/lightdash/lightdash/issues/32928)) ([7411caa](https://github.com/lightdash/lightdash/commit/7411caa19c1508d7b4c9288b0856358977180bac))
+* **dashboards:** Voice Design on dashboards ([#32927](https://github.com/lightdash/lightdash/issues/32927)) ([8d77989](https://github.com/lightdash/lightdash/commit/8d779899ebb24c02658606b55aaae24facc1e387))
+
 # [3.339.0](https://github.com/lightdash/lightdash/compare/3.338.1...3.339.0) (2026-11-19)
 
 
