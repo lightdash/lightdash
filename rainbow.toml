@@ -112,6 +112,10 @@ EMAIL_SMTP_SECURE = "false"
 EMAIL_SMTP_USE_AUTH = "false"
 EMAIL_SMTP_ALLOW_INVALID_CERT = "true"
 EMAIL_SMTP_SENDER_NAME = "Lightdash"
+# Preview only, never merge: read chart types from a registry served inside the guest.
+LIGHTDASH_CHART_REGISTRY_URL = "http://127.0.0.1:8099"
+LIGHTDASH_CHART_REGISTRY_ALLOW_INSECURE = "true"
+LIGHTDASH_CHART_REGISTRY_ALLOW_PRIVATE_HOSTS = "true"
 EMAIL_SMTP_SENDER_EMAIL = "noreply@lightdash.local"
 # PR mode implies this (docs/preview-feature-flags.md); kept explicit so a
 # later mode change cannot silently drop the flag-management API.
