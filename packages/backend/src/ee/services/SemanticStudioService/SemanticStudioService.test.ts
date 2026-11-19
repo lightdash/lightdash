@@ -1080,6 +1080,188 @@ describe('SemanticStudioService', () => {
         });
     });
 
+    describe('saving a hand edit of a model to the draft', () => {
+        const ordersWithRevenue = `type: model
+name: orders
+label: Orders
+sql_from: public.orders
+dimensions:
+  - name: amount
+    type: number
+    sql: \${TABLE}.amount
+    metrics:
+      revenue:
+        type: sum
+  - name: customer_id
+    type: number
+    sql: \${TABLE}.customer_id
+`;
+
+        const save = (
+            context: ReturnType<typeof setup>,
+            content: string,
+            base = orders,
+        ) =>
+            context.service.saveDraftModel(deployer, PROJECT_UUID, 'orders', {
+                base,
+                content,
+            });
+
+        it('saves the edit as a draft change named after the model, with no question behind it', async () => {
+            const context = setup();
+            const saved = await save(context, ordersWithRevenue);
+            expect(saved).toMatchObject({
+                status: 'saved',
+                draftChangeUuid: 'draft-1',
+                startedChange: { name: 'Edit Orders' },
+            });
+            expect(context.drafts[0].promptUuid).toBeNull();
+            expect(context.drafts[0].models[0].yaml).toContain('revenue');
+            expect(context.upsert).not.toHaveBeenCalled();
+            const read = await context.service.readDraftedModel(
+                deployer,
+                PROJECT_UUID,
+                'orders',
+            );
+            expect(read.inDraft).toBe(true);
+            expect(read.content).toContain('revenue');
+            expect(read.content).toContain('label: Orders');
+        });
+
+        it('is built on by a later agent change, not undone by it', async () => {
+            const context = setup();
+            await save(context, ordersWithRevenue);
+            const proposal = await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel('description: Every order\n')],
+                null,
+                null,
+            );
+            expect(proposal.diffs[0].contentAfter).toContain('revenue');
+            expect(proposal.diffs[0].contentAfter).toContain('label: Orders');
+            expect(proposal.diffs[0].contentAfter).toContain('Every order');
+        });
+
+        it('removes and renames parts, giving a name up and taking it again in one edit', async () => {
+            const context = setup({
+                stored: [{ name: 'orders', content: ordersWithRevenue }],
+            });
+            const edited = `type: model
+name: orders
+sql_from: public.orders
+dimensions:
+  - name: order_amount
+    type: number
+    sql: \${TABLE}.amount
+    metrics:
+      revenue:
+        type: sum
+`;
+            const saved = await save(context, edited, ordersWithRevenue);
+            expect(saved.status).toBe('saved');
+            const read = await context.service.readDraftedModel(
+                deployer,
+                PROJECT_UUID,
+                'orders',
+            );
+            expect(read.content).toContain('order_amount');
+            expect(read.content).not.toContain('customer_id');
+            expect(read.content).not.toContain('label');
+        });
+
+        it('refuses an edit started from a version the draft has moved on from', async () => {
+            const context = setup();
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel('label: Orders\n')],
+                null,
+                null,
+            );
+            const saved = await save(context, ordersWithRevenue);
+            expect(saved).toEqual({
+                status: 'failed',
+                error: expect.stringContaining('changed since you started'),
+            });
+            expect(context.drafts).toHaveLength(1);
+        });
+
+        it('refuses a change to who can see a field, and saves nothing', async () => {
+            const context = setup();
+            const saved = await save(
+                context,
+                orders.replace(
+                    '  - name: customer_id\n',
+                    '  - name: customer_id\n    required_attributes:\n      team: sales\n',
+                ),
+            );
+            expect(saved).toEqual({
+                status: 'failed',
+                error: 'dimensions.customer_id.required_attributes changes who can see it, which cannot be changed here.',
+            });
+            expect(context.drafts).toEqual([]);
+        });
+
+        it('refuses showing a hidden field', async () => {
+            const hidden = orders.replace(
+                '  - name: customer_id\n',
+                '  - name: customer_id\n    hidden: true\n',
+            );
+            const context = setup({
+                stored: [{ name: 'orders', content: hidden }],
+            });
+            const saved = await save(context, orders, hidden);
+            expect(saved).toEqual({
+                status: 'failed',
+                error: 'dimensions.customer_id.hidden changes who can see it, which cannot be changed here.',
+            });
+            expect(context.drafts).toEqual([]);
+        });
+
+        it('refuses renaming the model', async () => {
+            const saved = await save(
+                setup(),
+                orders.replace('name: orders', 'name: purchases'),
+            );
+            expect(saved).toEqual({
+                status: 'failed',
+                error: expect.stringContaining('stays orders'),
+            });
+        });
+
+        it('says so when the edit changes nothing the model means', async () => {
+            const context = setup();
+            const saved = await save(context, `# A comment\n${orders}`);
+            expect(saved).toEqual({
+                status: 'failed',
+                error: 'This edit changes nothing the model means.',
+            });
+            expect(context.drafts).toEqual([]);
+        });
+
+        it('fails YAML that is not a model', async () => {
+            const saved = await save(setup(), 'dimensions: nope\n');
+            expect(saved.status).toBe('failed');
+        });
+
+        it('keeps an edit the warehouse rejects out of the draft', async () => {
+            const context = setup({ rejectSql: 'orders' });
+            const saved = await save(context, ordersWithRevenue);
+            expect(saved.status).toBe('failed');
+            expect(context.drafts).toEqual([]);
+        });
+
+        it('refuses someone who cannot change the models', async () => {
+            await expect(
+                setup().service.saveDraftModel(viewer, PROJECT_UUID, 'orders', {
+                    base: orders,
+                    content: ordersWithRevenue,
+                }),
+            ).rejects.toThrow();
+        });
+    });
+
     describe('reading the draft', () => {
         it('replays it on what is live, with the compiled explore', async () => {
             const context = setup();

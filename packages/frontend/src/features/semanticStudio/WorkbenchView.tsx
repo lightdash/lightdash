@@ -846,6 +846,12 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             ? null
             : `This draft's pull request is ${changeOnPage.state}, so it can no longer be edited.`;
     })();
+    // Why a model's code on a project that keeps a draft is read and not edited, or null when it can be.
+    const codeReadOnlyReason = !canEditModels
+        ? "You don't have permission to change this project's models."
+        : routeWorkspace && !routeWorkspace.isMine
+          ? `Only ${routeWorkspace.owner.name} can edit this draft.`
+          : null;
     const sourcesTarget: SourcesTarget = {
         projectUuid: view.project.id,
         prUrl: sourcesPrUrl,
@@ -1146,6 +1152,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         projectUuid={view.project.id}
                         modelName={file}
                         fieldName={searchParams.get(FIELD_PARAM)}
+                        readOnlyReason={codeReadOnlyReason}
                     />
                 ) : storedError ? (
                     <EmptyState
