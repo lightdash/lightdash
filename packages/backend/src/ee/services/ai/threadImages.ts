@@ -64,21 +64,16 @@ const reencode = (
                 ),
             );
         case 'webp':
-            return firstWithinLimit([
-                ...(isLosslessWebp(source.bytes)
-                    ? [
-                          () =>
-                              upright
-                                  .clone()
-                                  .webp({ lossless: true })
-                                  .toBuffer(),
-                      ]
-                    : []),
-                ...LOSSY_QUALITIES.map(
-                    (quality) => () =>
-                        upright.clone().webp({ quality }).toBuffer(),
-                ),
-            ]);
+            // A lossless source is never swapped for a lossy copy: when its
+            // re-encode is too large the upload is refused, as with PNG.
+            return isLosslessWebp(source.bytes)
+                ? upright.clone().webp({ lossless: true }).toBuffer()
+                : firstWithinLimit(
+                      LOSSY_QUALITIES.map(
+                          (quality) => () =>
+                              upright.clone().webp({ quality }).toBuffer(),
+                      ),
+                  );
         default:
             return assertUnreachable(source.format, 'Unknown image format');
     }

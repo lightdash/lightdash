@@ -23,6 +23,8 @@ export type AiThreadFileWithContent =
           uploadedAt: Date | null;
       });
 
+export const IMAGE_ATTACHMENT_LIMIT_MESSAGE = `Image attachment limit reached: up to ${AI_THREAD_IMAGES_MAX_PER_PROMPT} images per message, ${AI_THREAD_IMAGES_MAX_PER_THREAD} images and ${AI_THREAD_IMAGES_MAX_THREAD_BYTES / (1024 * 1024)} MiB per conversation.`;
+
 const UNCLAIMED_TTL_INTERVAL = `${AI_THREAD_FILE_UNCLAIMED_TTL_HOURS} hours`;
 
 const toAiThreadFile = (
@@ -228,9 +230,7 @@ export class AiThreadFileModel {
                 bytes + Number(budget?.bytes ?? 0) >
                     AI_THREAD_IMAGES_MAX_THREAD_BYTES
             ) {
-                throw new ParameterError(
-                    `Image attachment limit reached: up to ${AI_THREAD_IMAGES_MAX_PER_PROMPT} images per message, ${AI_THREAD_IMAGES_MAX_PER_THREAD} images and ${AI_THREAD_IMAGES_MAX_THREAD_BYTES / (1024 * 1024)} MiB per conversation.`,
-                );
+                throw new ParameterError(IMAGE_ATTACHMENT_LIMIT_MESSAGE);
             }
         }
         return this.claimable(trx)

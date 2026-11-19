@@ -12,6 +12,7 @@ import {
     AI_THREAD_FILE_INLINE_BUDGET_BYTES,
     AI_THREAD_FILE_MOUNT_PATH,
     AI_THREAD_IMAGES_MAX_PER_PROMPT,
+    AI_THREAD_IMAGES_MAX_THREAD_BYTES,
     AI_USER_THREAD_CREATED_FROM,
     AiAccessRefusal,
     AiAccessRefusalAction,
@@ -439,7 +440,10 @@ import {
     AiDeepResearchRunModel,
     type AiDeepResearchRunContextRow,
 } from '../../models/AiDeepResearchRunModel';
-import type { AiThreadFileModel } from '../../models/AiThreadFileModel';
+import {
+    IMAGE_ATTACHMENT_LIMIT_MESSAGE,
+    type AiThreadFileModel,
+} from '../../models/AiThreadFileModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { ExternalSourceModel } from '../../models/ExternalSourceModel';
 import { McpToolCallModel } from '../../models/McpToolCallModel';
@@ -567,6 +571,7 @@ import {
 import { RepoFs } from '../ai/repoFs/RepoFs';
 import type { AiAgentSkill as ServedSkill } from '../ai/skills/types';
 import {
+    assertNoImagesInBattleMode,
     resolveThreadImages,
     threadImagesWithoutBytes,
     withoutFileParts,
@@ -1709,6 +1714,15 @@ export class AiAgentService extends BaseService {
                 'One or more attached files are unavailable. Remove them and upload again.',
             );
         }
+        // Refused here so a first message that can never fit does not leave
+        // an empty conversation behind.
+        const imageBytes = claimable.reduce(
+            (total, file) =>
+                file.kind === 'image' ? total + file.sizeBytes : total,
+            0,
+        );
+        if (imageBytes > AI_THREAD_IMAGES_MAX_THREAD_BYTES)
+            throw new ParameterError(IMAGE_ATTACHMENT_LIMIT_MESSAGE);
     }
 
     private async validatePromptContextAccess(
@@ -5999,6 +6013,7 @@ export class AiAgentService extends BaseService {
             : null;
 
         if (body.battleProfile) {
+            assertNoImagesInBattleMode(context);
             const battleMode = await this.featureFlagService.get({
                 user,
                 featureFlagId: FeatureFlags.AiAgentBattleMode,
@@ -6256,6 +6271,7 @@ export class AiAgentService extends BaseService {
             body.context,
             runtimeOptions?.spaceAccess,
         );
+        if (thread.battleProfile) assertNoImagesInBattleMode(context);
 
         const modelConfig = await this.resolvePromptModelConfig({
             organizationUuid,

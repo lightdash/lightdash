@@ -1,4 +1,5 @@
 import {
+    AI_THREAD_IMAGES_MAX_THREAD_BYTES,
     FeatureFlags,
     ForbiddenError,
     NotFoundError,
@@ -73,6 +74,7 @@ type ThreadFile = {
     ownerUuid: string;
     threadUuid: string | null;
     kind?: 'text' | 'image';
+    sizeBytes?: number;
 };
 
 const buildService = (
@@ -109,7 +111,11 @@ const buildService = (
                                 f.ownerUuid === args.userUuid &&
                                 f.threadUuid === null,
                         )
-                        .map((f) => ({ uuid: f.uuid, kind: f.kind ?? 'text' })),
+                        .map((f) => ({
+                            uuid: f.uuid,
+                            kind: f.kind ?? 'text',
+                            sizeBytes: f.sizeBytes ?? 1,
+                        })),
             ),
         findForThread: vi.fn(),
     };
@@ -557,6 +563,8 @@ describe('validatePromptContextAccess for composer charts', () => {
             'Composer charts are not available in embedded AI',
         );
     });
+});
+
 describe('validatePromptContextAccess for images', () => {
     const ownImage: ThreadFile = {
         uuid: 'image-own',
@@ -581,6 +589,30 @@ describe('validatePromptContextAccess for images', () => {
         });
         featureFlagService.get.mockResolvedValue({ enabled: false });
         await expect(validate(context)).rejects.toThrow(ForbiddenError);
+    });
+
+    it('refuses images that together can never fit in one conversation', async () => {
+        const half = AI_THREAD_IMAGES_MAX_THREAD_BYTES / 2;
+        const images: ThreadFile[] = ['a', 'b', 'c'].map((name) => ({
+            ...ownImage,
+            uuid: `image-${name}`,
+            sizeBytes: half,
+        }));
+        const { validate } = buildService([], [], {
+            imagesEnabled: true,
+            threadFiles: images,
+        });
+        const asContext = (files: ThreadFile[]): AiPromptContextInput =>
+            files.map((file) => ({
+                type: 'thread_image',
+                fileUuid: file.uuid,
+            }));
+        await expect(
+            validate(asContext(images.slice(0, 2))),
+        ).resolves.toHaveLength(2);
+        await expect(validate(asContext(images))).rejects.toThrow(
+            /Image attachment limit reached/,
+        );
     });
 
     it('cannot smuggle an image through the ungated text context kind', async () => {

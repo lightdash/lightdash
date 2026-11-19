@@ -10,6 +10,7 @@ import sharp from 'sharp';
 import { type FileStorageClient } from '../../../clients/FileStorage/FileStorageClient';
 import { type AiThreadFileWithContent } from '../../models/AiThreadFileModel';
 import {
+    assertNoImagesInBattleMode,
     resolveThreadImages,
     threadImagesWithoutBytes,
     withoutFileParts,
@@ -293,4 +294,18 @@ test('images can be marked unavailable without reading any bytes', async () => {
         ['image-1', { status: 'omitted' }],
     ]);
     expect(storage.getFileStream).not.toHaveBeenCalled();
+});
+
+test('battle mode refuses image context and allows everything else', () => {
+    expect(() =>
+        assertNoImagesInBattleMode([
+            { type: 'thread_image', fileUuid: 'image-1' },
+        ]),
+    ).toThrow(ParameterError);
+    expect(() =>
+        assertNoImagesInBattleMode([
+            { type: 'thread_file', fileUuid: 'file-1' },
+        ]),
+    ).not.toThrow();
+    expect(() => assertNoImagesInBattleMode(undefined)).not.toThrow();
 });

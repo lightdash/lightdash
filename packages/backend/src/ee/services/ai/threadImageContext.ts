@@ -3,13 +3,23 @@ import {
     AI_THREAD_IMAGES_MAX_PER_THREAD,
     AI_THREAD_IMAGES_MAX_THREAD_BYTES,
     NotFoundError,
+    ParameterError,
     type AiPromptContext,
+    type AiPromptContextInput,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { type FilePart, type ModelMessage } from 'ai';
 import { addAbortSignal } from 'node:stream';
 import { type FileStorageClient } from '../../../clients/FileStorage/FileStorageClient';
 import { type AiThreadFileWithContent } from '../../models/AiThreadFileModel';
+
+/** Battle mode sends one prompt to several models; images are not sent there. */
+export const assertNoImagesInBattleMode = (
+    context: AiPromptContextInput | undefined,
+): void => {
+    if (context?.some((item) => item.type === 'thread_image'))
+        throw new ParameterError('Images are not available in battle mode');
+};
 
 export type ResolvedThreadImage =
     | { status: 'available'; part: FilePart }

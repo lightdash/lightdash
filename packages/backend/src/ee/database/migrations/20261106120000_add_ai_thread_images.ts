@@ -111,12 +111,29 @@ export async function up(knex: Knex): Promise<void> {
 
 export async function down(knex: Knex): Promise<void> {
     await withSession(knex, async ({ schema, query, run }) => {
+        // The emptiness check and the drop are one locked step: an upload that
+        // recorded its object after a separate check would lose its only
+        // cleanup record. Once the ledger is gone, uploads fail before storing.
         if (await schema().hasTable(ImageObjectTable)) {
-            const object = await query(ImageObjectTable).first('storage_key');
-            if (object !== undefined) {
-                throw new Error(
-                    'irreversible: image objects must be cleaned up before removing their ledger',
+            await run('BEGIN');
+            try {
+                await run(
+                    `LOCK TABLE ai_thread_image_object IN ACCESS EXCLUSIVE MODE`,
                 );
+                const object =
+                    await query(ImageObjectTable).first('storage_key');
+                if (object !== undefined) {
+                    throw new Error(
+                        'irreversible: image objects must be cleaned up before removing their ledger',
+                    );
+                }
+                await run(`ALTER TABLE ai_thread_file
+                    DROP CONSTRAINT IF EXISTS ai_thread_file_image_object_fk`);
+                await run(`DROP TABLE ai_thread_image_object`);
+                await run('COMMIT');
+            } catch (error) {
+                await run('ROLLBACK');
+                throw error;
             }
         }
         await run(`ALTER TABLE ai_thread_file
@@ -135,6 +152,5 @@ export async function down(knex: Knex): Promise<void> {
                 table.dropColumn('kind');
             });
         }
-        await schema().dropTableIfExists(ImageObjectTable);
     });
 }
