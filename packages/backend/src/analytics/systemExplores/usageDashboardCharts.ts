@@ -595,7 +595,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'sortable-pivot-table',
-            minVersion: '0.13.1',
+            minVersion: '0.14.1',
             fieldMapping: {
                 rowDimension: 'agent_requests_user_name',
                 rowDimension2: 'agent_requests_agent_name',
@@ -603,6 +603,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             },
             optionValues: {
                 defaultCollapsed: 'collapsed',
+                initialSort: 'firstValue',
                 decimalPlaces: 0,
                 density: 'compact',
             },
