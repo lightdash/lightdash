@@ -834,6 +834,27 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                   : null) ??
               openedPrUrl);
     const sourcesPrUrl = isOnLive ? null : changePrUrl;
+    // Whose change the page shows decides whether its code can be edited, and whether your chat's proposal belongs on it.
+    const sourcesOwnerReason = ((): string | null => {
+        if (!opensInSources) return null;
+        if (!changeOnPage?.isMine) {
+            return `Only ${shownWorkspace?.owner.name ?? 'its owner'} can edit this draft.`;
+        }
+        return changeOnPage.isOpen
+            ? null
+            : `This draft's pull request is ${changeOnPage.state}, so it can no longer be edited.`;
+    })();
+    // A save by the agent commits over a hand save to the same file, so they take turns.
+    const sourcesReadOnlyReason =
+        saving && !isOnLive
+            ? 'The agent is saving. You can edit when it finishes.'
+            : sourcesOwnerReason;
+    // Why a model's code on a project that keeps a draft is read and not edited, or null when it can be.
+    const codeReadOnlyReason = !canEditModels
+        ? "You don't have permission to change this project's models."
+        : routeWorkspace && !routeWorkspace.isMine
+          ? `Only ${routeWorkspace.owner.name} can edit this draft.`
+          : null;
     const sourcesTarget: SourcesTarget = {
         projectUuid: view.project.id,
         prUrl: sourcesPrUrl,
@@ -841,21 +862,22 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             sourcesPrUrl && sourcesPrUrl === pullRequest?.prUrl
                 ? pullRequest.revision
                 : null,
-        // On live a save starts a change of its own, not one for the last conversation.
-        threadUuid: isOnLive ? null : (storedThread?.threadUuid ?? null),
+        // On Published a save starts a draft of its own, not one for the last conversation.
+        threadUuid: isOnMyChange ? (storedThread?.threadUuid ?? null) : null,
         newChangeAgentUuid:
-            isOnLive || !storedThread ? (studioAgent?.uuid ?? null) : null,
+            !isOnMyChange || !storedThread ? (studioAgent?.uuid ?? null) : null,
         changeName: sourcesPrUrl
             ? (changeName ??
               `Draft #${pullRequestNumberOf(sourcesPrUrl) ?? ''}`)
             : null,
-        canEdit:
-            !opensInSources || (!!changeOnPage?.isMine && changeOnPage.isOpen),
+        canEdit: sourcesReadOnlyReason === null,
+        readOnlyReason: sourcesReadOnlyReason,
     };
     // Your chat's proposal belongs to its own change, not to whichever one is open.
     const shownProposal =
         hasProposal &&
-        sourcesTarget.canEdit &&
+        // While the agent saves the code is read only, and what it is saving is still shown.
+        sourcesOwnerReason === null &&
         (!shownWorkspace ||
             shownWorkspace.threadUuid === storedThread?.threadUuid)
             ? proposal
@@ -1136,6 +1158,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         projectUuid={view.project.id}
                         modelName={file}
                         fieldName={searchParams.get(FIELD_PARAM)}
+                        readOnlyReason={codeReadOnlyReason}
                     />
                 ) : storedError ? (
                     <EmptyState
