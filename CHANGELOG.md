@@ -1,3 +1,10 @@
+## [3.330.1](https://github.com/lightdash/lightdash/compare/3.330.0...3.330.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **ai-router:** keep line breaks stable when saving instructions ([#32957](https://github.com/lightdash/lightdash/issues/32957)) ([1e1f1cd](https://github.com/lightdash/lightdash/commit/1e1f1cd7a94a6bf7b2dd5a8f9310a8c43ec3b537))
+
 # [3.330.0](https://github.com/lightdash/lightdash/compare/3.329.1...3.330.0) (2026-11-19)
 
 
