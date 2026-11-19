@@ -16,7 +16,7 @@ type Props = {
 
 export const DashboardEditTour: FC<Props> = memo(
     ({ onExampleChangesToggle }) => {
-        const { shouldShow, closeTour } = useOnboardingTour({
+        const { shouldShow, closeTour, tracking } = useOnboardingTour({
             tour: 'dashboardEditTour',
         });
         usePinnedShortcutHints(shouldShow);
@@ -35,6 +35,7 @@ export const DashboardEditTour: FC<Props> = memo(
             <GuidedTour
                 steps={DASHBOARD_EDIT_TOUR_STEPS}
                 opened={shouldShow}
+                tracking={tracking}
                 onClose={handleClose}
                 onStepChange={handleStepChange}
             />

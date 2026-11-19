@@ -90,11 +90,14 @@ const AgentPage = () => {
     const [isMemoriesModalOpen, setIsMemoriesModalOpen] = useState(false);
     const memoryEnabled = useAiAgentMemoryEnabled();
 
-    const { shouldShow: shouldShowMemoryTour, closeTour: closeMemoryTour } =
-        useOnboardingTour({
-            tour: 'memoryTour',
-            enabled: memoryEnabled && !isEmbed,
-        });
+    const {
+        shouldShow: shouldShowMemoryTour,
+        closeTour: closeMemoryTour,
+        tracking: memoryTourTracking,
+    } = useOnboardingTour({
+        tour: 'memoryTour',
+        enabled: memoryEnabled && !isEmbed,
+    });
     // The tour is only worth showing once the user has something to look at
     const { data: myMemories } = useMyAiAgentMemories({
         projectUuid,
@@ -355,6 +358,7 @@ const AgentPage = () => {
             <GuidedTour
                 steps={MEMORY_TOUR_STEPS}
                 opened={shouldShowMemoryTour && hasMemories}
+                tracking={memoryTourTracking}
                 onClose={closeMemoryTour}
                 onStepChange={(stepIndex) =>
                     setIsMemoriesModalOpen(stepIndex === 1)
