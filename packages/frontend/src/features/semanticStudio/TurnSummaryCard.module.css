@@ -3,7 +3,23 @@
 }
 
 .section {
-    padding: 6px var(--mantine-spacing-xs);
+    padding: var(--mantine-spacing-xs);
+}
+
+/* What changed, what to check and whether it is safe read as one block, with no rules between them. */
+.body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-xs);
+    padding: var(--mantine-spacing-xs) 0;
+}
+
+.body:empty {
+    display: none;
+}
+
+.line {
+    padding: 0 var(--mantine-spacing-xs);
 }
 
 .card > * + * {
@@ -18,12 +34,8 @@
     text-decoration: line-through;
 }
 
-.model {
-    padding-bottom: 4px;
-}
-
 .modelName {
-    padding: 6px var(--mantine-spacing-xs) 2px;
+    padding: 0 var(--mantine-spacing-xs) 2px;
 }
 
 .row {
@@ -32,7 +44,9 @@
     column-gap: 6px;
     align-items: center;
     width: 100%;
-    padding: 3px var(--mantine-spacing-xs);
+    /* Sits under its model's name, past the model's icon. */
+    padding: 3px var(--mantine-spacing-xs) 3px
+        calc(var(--mantine-spacing-xs) + 20px);
 }
 
 .row:hover,
@@ -72,7 +86,26 @@
 }
 
 .issue {
-    padding: 3px var(--mantine-spacing-xs);
+    padding: 3px var(--mantine-spacing-xs) 3px
+        calc(var(--mantine-spacing-xs) + 20px);
+}
+
+/* What the agent offers to do next: each line is sent as the person's message. */
+.options {
+    padding: 4px 0;
+}
+
+.option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 4px var(--mantine-spacing-xs);
+}
+
+.option:hover,
+.option:focus-visible {
+    background: var(--mantine-color-default-hover);
 }
 
 .icon {
@@ -91,7 +124,7 @@
     align-items: center;
     gap: 6px;
     width: 100%;
-    padding: 6px var(--mantine-spacing-xs);
+    padding: var(--mantine-spacing-xs);
 }
 
 .fold:hover,

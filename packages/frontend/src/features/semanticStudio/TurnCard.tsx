@@ -1,6 +1,5 @@
 import {
     Box,
-    Button,
     Group,
     Loader,
     Paper,
@@ -13,6 +12,7 @@ import {
 import {
     IconChevronDown,
     IconChevronRight,
+    IconCornerDownRight,
     IconTable,
 } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
@@ -167,155 +167,165 @@ export const TurnCard: FC<{
             )}
             {isOpen ? (
                 <>
-                    {groups.map(({ model, title, subtitle, rows, issues }) =>
-                        rows.length === 0 &&
-                        issues.length === 0 &&
-                        !subtitle ? null : (
-                            <Box key={model} className={classes.model}>
-                                <Group
-                                    gap={6}
-                                    wrap="nowrap"
-                                    className={classes.modelName}
+                    <Box className={classes.body}>
+                        {groups.map(
+                            ({ model, title, subtitle, rows, issues }) =>
+                                rows.length === 0 &&
+                                issues.length === 0 &&
+                                !subtitle ? null : (
+                                    <Box key={model} className={classes.model}>
+                                        <Group
+                                            gap={6}
+                                            wrap="nowrap"
+                                            className={classes.modelName}
+                                        >
+                                            <MantineIcon
+                                                icon={IconTable}
+                                                size={14}
+                                                color="dimmed"
+                                            />
+                                            <Text
+                                                fz="xs"
+                                                fw={500}
+                                                truncate
+                                                title={model}
+                                            >
+                                                {title}
+                                                {subtitle ? (
+                                                    <Text
+                                                        span
+                                                        inherit
+                                                        fw={400}
+                                                        c="dimmed"
+                                                    >
+                                                        {` · ${subtitle}`}
+                                                    </Text>
+                                                ) : null}
+                                            </Text>
+                                        </Group>
+                                        {rows.map((row) => (
+                                            <Row key={row.id} row={row} />
+                                        ))}
+                                        {issues.map(({ kind, detail }) => (
+                                            <Group
+                                                key={`${kind}|${detail}`}
+                                                className={classes.issue}
+                                                gap={6}
+                                                wrap="nowrap"
+                                                align="flex-start"
+                                            >
+                                                <MantineIcon
+                                                    icon={
+                                                        ISSUE_KINDS[kind].icon
+                                                    }
+                                                    size={14}
+                                                    color={
+                                                        ISSUE_KINDS[kind].color
+                                                    }
+                                                />
+                                                {/* A warehouse error runs long; its start says what went wrong and the rest is on hover. */}
+                                                <Text
+                                                    fz="xs"
+                                                    fw={500}
+                                                    flex={1}
+                                                    miw={0}
+                                                    className={classes.wrap}
+                                                    lineClamp={
+                                                        kind === 'failed'
+                                                            ? 2
+                                                            : undefined
+                                                    }
+                                                    title={
+                                                        kind === 'failed'
+                                                            ? detail
+                                                            : undefined
+                                                    }
+                                                >
+                                                    {ISSUE_KINDS[kind].label}
+                                                    <Text
+                                                        span
+                                                        fz="xs"
+                                                        fw={400}
+                                                        c="dimmed"
+                                                    >
+                                                        {` · ${detail}`}
+                                                    </Text>
+                                                </Text>
+                                            </Group>
+                                        ))}
+                                    </Box>
+                                ),
+                        )}
+                        {note ? (
+                            <Text
+                                className={classes.line}
+                                fz="xs"
+                                lineClamp={3}
+                                title={note}
+                            >
+                                <Text span inherit fw={500}>
+                                    Check
+                                </Text>
+                                <Text span inherit c="dimmed">
+                                    {` · ${note}`}
+                                </Text>
+                            </Text>
+                        ) : null}
+                        {safety && safety.state !== 'done' ? (
+                            <Group
+                                className={classes.line}
+                                gap={6}
+                                wrap="nowrap"
+                                align="flex-start"
+                            >
+                                <Box className={classes.icon}>
+                                    <TaskIcon state={safety.state} />
+                                </Box>
+                                <Text
+                                    fz="xs"
+                                    flex={1}
+                                    miw={0}
+                                    className={classes.wrap}
+                                >
+                                    {safety.text}
+                                    {safety.why ? (
+                                        <Text span fz="xs" c="dimmed">
+                                            {` · ${safety.why}`}
+                                        </Text>
+                                    ) : null}
+                                </Text>
+                            </Group>
+                        ) : null}
+                    </Box>
+                    {isLatest && onAsk && options.length > 0 ? (
+                        <Box className={classes.options}>
+                            {options.map((option) => (
+                                <UnstyledButton
+                                    key={option}
+                                    className={classes.option}
+                                    title={option}
+                                    onClick={() => onAsk(option)}
                                 >
                                     <MantineIcon
-                                        icon={IconTable}
+                                        icon={IconCornerDownRight}
                                         size={14}
                                         color="dimmed"
                                     />
-                                    <Text
-                                        fz="xs"
-                                        fw={500}
-                                        truncate
-                                        title={model}
-                                    >
-                                        {title}
-                                        {subtitle ? (
-                                            <Text
-                                                span
-                                                inherit
-                                                fw={400}
-                                                c="dimmed"
-                                            >
-                                                {` · ${subtitle}`}
-                                            </Text>
-                                        ) : null}
+                                    <Text span fz="xs" truncate>
+                                        {option}
                                     </Text>
-                                </Group>
-                                {rows.map((row) => (
-                                    <Row key={row.id} row={row} />
-                                ))}
-                                {issues.map(({ kind, detail }) => (
-                                    <Group
-                                        key={`${kind}|${detail}`}
-                                        className={classes.issue}
-                                        gap={6}
-                                        wrap="nowrap"
-                                        align="flex-start"
-                                    >
-                                        <MantineIcon
-                                            icon={ISSUE_KINDS[kind].icon}
-                                            size={14}
-                                            color={ISSUE_KINDS[kind].color}
-                                        />
-                                        {/* A warehouse error runs long; its start says what went wrong and the rest is on hover. */}
-                                        <Text
-                                            fz="xs"
-                                            fw={500}
-                                            flex={1}
-                                            miw={0}
-                                            className={classes.wrap}
-                                            lineClamp={
-                                                kind === 'failed'
-                                                    ? 2
-                                                    : undefined
-                                            }
-                                            title={
-                                                kind === 'failed'
-                                                    ? detail
-                                                    : undefined
-                                            }
-                                        >
-                                            {ISSUE_KINDS[kind].label}
-                                            <Text
-                                                span
-                                                fz="xs"
-                                                fw={400}
-                                                c="dimmed"
-                                            >
-                                                {` · ${detail}`}
-                                            </Text>
-                                        </Text>
-                                    </Group>
-                                ))}
-                            </Box>
-                        ),
-                    )}
-                    {note ? (
-                        <Text
-                            className={classes.section}
-                            fz="xs"
-                            c="dimmed"
-                            lineClamp={3}
-                            title={note}
-                        >
-                            {note}
-                        </Text>
+                                </UnstyledButton>
+                            ))}
+                        </Box>
                     ) : null}
-                    {safety && safety.state !== 'done' ? (
+                    {isLatest && actions.some(Boolean) ? (
                         <Group
                             className={classes.section}
-                            gap={6}
-                            wrap="nowrap"
-                            align="flex-start"
-                        >
-                            <Box className={classes.icon}>
-                                <TaskIcon state={safety.state} />
-                            </Box>
-                            <Text
-                                fz="xs"
-                                flex={1}
-                                miw={0}
-                                className={classes.wrap}
-                            >
-                                {safety.text}
-                                {safety.why ? (
-                                    <Text span fz="xs" c="dimmed">
-                                        {` · ${safety.why}`}
-                                    </Text>
-                                ) : null}
-                            </Text>
-                        </Group>
-                    ) : null}
-                    {isLatest &&
-                    (actions.some(Boolean) || options.length > 0) ? (
-                        <Group
-                            className={classes.section}
-                            gap={4}
-                            justify="space-between"
+                            gap="xs"
+                            justify="flex-end"
                             wrap="wrap"
                         >
-                            <Group gap={4} wrap="wrap" miw={0}>
-                                {onAsk
-                                    ? options.map((option) => (
-                                          <Button
-                                              key={option}
-                                              size="compact-xs"
-                                              variant="light"
-                                              color="gray"
-                                              maw="100%"
-                                              title={option}
-                                              onClick={() => onAsk(option)}
-                                          >
-                                              <Text span inherit truncate>
-                                                  {option}
-                                              </Text>
-                                          </Button>
-                                      ))
-                                    : null}
-                            </Group>
-                            <Group gap={4} wrap="nowrap" ml="auto">
-                                {actions}
-                            </Group>
+                            {actions}
                         </Group>
                     ) : null}
                     {children}

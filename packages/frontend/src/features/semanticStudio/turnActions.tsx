@@ -26,7 +26,7 @@ export const draftActions = ({
     <Button
         key="view"
         size="compact-xs"
-        variant="subtle"
+        variant="default"
         color="gray"
         component={Link}
         to={reviewTo}

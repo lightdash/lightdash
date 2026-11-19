@@ -431,7 +431,11 @@ export const TurnSummaryCard: FC<{
                     change: field.change,
                     kind: KIND_LABELS[field.kind],
                     icon: <FieldChangeIcon field={field} />,
-                    label: field.label,
+                    // A join to a model this turn touched reads by that model's name.
+                    label:
+                        (field.kind === 'join'
+                            ? groups.find((g) => g.model === field.name)?.title
+                            : undefined) ?? field.label,
                     // How it is defined waits on hover and in the review; the card names what changed.
                     detail: null,
                     title: [field.name, field.detail]
