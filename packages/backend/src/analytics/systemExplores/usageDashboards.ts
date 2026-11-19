@@ -12,6 +12,7 @@ import {
 import { adoptionChartSpecs, adoptionDashboardSpec } from './adoptionDashboard';
 import { analyticsColorPalette } from './analyticsColorPalette';
 import { embedChartSpecs, embedDashboardSpec } from './embedDashboard';
+import { homeChartSpecs, homeDashboardSpec } from './homeDashboard';
 import type { LibraryChartBinding } from './libraryCharts';
 import { peopleNoActivityChartSpecs } from './peopleNoActivityCharts';
 import { usageActivityOriginSql } from './usageActivityOrigin';
@@ -399,9 +400,11 @@ const dashboardSpecs = [
     ...usageDashboardSpecs,
     adoptionDashboardSpec,
     embedDashboardSpec,
+    homeDashboardSpec,
 ];
 
 const allChartSpecs: UsageChartSpec[] = [
+    ...homeChartSpecs,
     ...usageChartSpecs,
     ...adoptionChartSpecs,
     ...embedChartSpecs,
@@ -461,20 +464,22 @@ export const buildUsageDashboards = (
             });
             let y = 0;
             for (const section of tab.sections) {
-                const noteHeight = section.caption
-                    ? 1
-                    : (section.noteHeight ?? 2);
-                dashboard.tiles.push(
-                    note(
-                        tab.key,
-                        y,
-                        noteHeight,
-                        section.caption
-                            ? section.description
-                            : `### ${section.title}\n\n${section.description}`,
-                    ),
-                );
-                y += noteHeight;
+                if (section.note !== false) {
+                    const noteHeight = section.caption
+                        ? 1
+                        : (section.noteHeight ?? 2);
+                    dashboard.tiles.push(
+                        note(
+                            tab.key,
+                            y,
+                            noteHeight,
+                            section.caption
+                                ? section.description
+                                : `### ${section.title}\n\n${section.description}`,
+                        ),
+                    );
+                    y += noteHeight;
+                }
                 const sectionCharts = section.charts.map((key) => {
                     const definition = allChartSpecs.find(
                         (item) => item.key === key,

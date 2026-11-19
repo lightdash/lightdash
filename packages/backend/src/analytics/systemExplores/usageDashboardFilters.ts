@@ -25,6 +25,11 @@ const dateFieldOfTable: Record<string, string> = {
     agent_requests: 'requested_at_day',
 };
 
+// A chart of a table that describes the present can still count what was created in the period
+const dateFieldOfChart: Record<string, string> = {
+    'lightdash-analytics-home-content-created': 'created_at_day',
+};
+
 const tableOf = (chart: ChartAsCode) =>
     tableOfModel[chart.metricQuery.exploreName] ??
     chart.metricQuery.exploreName;
@@ -37,6 +42,8 @@ const setsOwnPeriod = (chart: ChartAsCode) =>
 
 const dateTarget = (chart: ChartAsCode): Target | false => {
     const tableName = tableOf(chart);
+    const ownField = dateFieldOfChart[chart.slug];
+    if (ownField) return { fieldId: `${tableName}_${ownField}`, tableName };
     if (tablesWithoutPeriod.includes(tableName) || setsOwnPeriod(chart))
         return false;
     return {
