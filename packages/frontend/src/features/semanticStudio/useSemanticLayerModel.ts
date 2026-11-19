@@ -370,6 +370,9 @@ const useWrite = <TResult extends ApiResponse['results'], TInput>({
                 [
                     [DRAFT_KEY, projectUuid],
                     [DRAFT_STATE_KEY, projectUuid],
+                    // Sending a draft gives its workspace a pull request, and publishing ends it.
+                    [WORKSPACES_KEY, projectUuid],
+                    [CHECKOUT_KEY, projectUuid],
                     // Explore reads the checked-out draft, on this page or any other.
                     ['tables'],
                     ...(changesLive

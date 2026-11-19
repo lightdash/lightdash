@@ -1367,6 +1367,19 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             };
         }
         if (isMerged) return { step: 'live', update: goingLive };
+        // A draft sent as a pull request is in review, and still a draft that can be added to.
+        if (
+            keepsDraft &&
+            !isLookingAtChange &&
+            shownWorkspace?.pullRequest?.state === 'open'
+        ) {
+            return {
+                step: 'in_review',
+                pullRequestNumber: pullRequestNumberOf(
+                    shownWorkspace.pullRequest.url,
+                ),
+            };
+        }
         if (
             hasProposal ||
             (keepsDraft &&

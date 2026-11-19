@@ -68,6 +68,7 @@ import {
     useSemanticLayerDraft,
     useSemanticLayerDraftImpact,
 } from './useSemanticLayerModel';
+import { useDraftPullRequest } from './useStudioCheckout';
 
 /** How many models of the draft, or the one named, still have a part to choose between. */
 const countConflicts = (
@@ -185,7 +186,9 @@ const ApplyModal: FC<{
         (entry) => model === null || entry.model === model,
     );
     const models = scoped.length === 1 ? '1 model' : `${scoped.length} models`;
-    const confirmLabel = asPullRequest ? 'Open pull request' : 'Publish';
+    const sent = useDraftPullRequest() !== null;
+    const sendLabel = sent ? 'Update pull request' : 'Open pull request';
+    const confirmLabel = asPullRequest ? sendLabel : 'Publish';
     // Applying never waits for the check: an unchecked draft is applied knowingly, like one that breaks something.
     const isRisky =
         impact.data?.status !== 'done' || impact.data.breaks.length > 0;
@@ -194,9 +197,7 @@ const ApplyModal: FC<{
             opened
             onClose={onClose}
             icon={asPullRequest ? IconGitPullRequest : IconWorldUpload}
-            title={
-                asPullRequest ? 'Open a pull request' : 'Publish to everyone'
-            }
+            title={asPullRequest ? sendLabel : 'Publish to everyone'}
             subtitle={
                 mode === 'pull_request'
                     ? `${models} ${scoped.length === 1 ? 'goes' : 'go'} to your repository. Nothing is published until it merges.`
@@ -236,7 +237,9 @@ const ApplyModal: FC<{
                                     showToastSuccess({
                                         title: merge?.merged
                                             ? 'Published'
-                                            : 'Pull request opened',
+                                            : sent
+                                              ? 'Pull request updated'
+                                              : 'Pull request opened',
                                         subtitle: merge?.merged
                                             ? 'Everyone sees it once the project refreshes.'
                                             : undefined,
@@ -436,6 +439,10 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const [isTrying, setIsTrying] = useState(false);
     const discard = useDiscardSemanticLayerDraft(projectUuid);
     const asPullRequest = usePublishMode(projectUuid) === 'pull_request';
+    const sendLabel =
+        useDraftPullRequest() !== null
+            ? 'Update pull request'
+            : 'Open pull request';
     const impact = useSemanticLayerDraftImpact(projectUuid, null);
     const check = useCheckSemanticLayerDraftImpact(projectUuid);
     const isEmpty = !draft || draft.changes.length === 0;
@@ -525,7 +532,7 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                                 if (!blocked) setPublishing(true);
                             }}
                         >
-                            {asPullRequest ? 'Open pull request' : 'Publish'}
+                            {asPullRequest ? sendLabel : 'Publish'}
                         </Button>
                     </Tooltip>
                 ) : null}
@@ -644,6 +651,7 @@ export const DraftReview: FC<DraftReviewProps> = ({
     draft,
     onAskAgent,
 }) => {
+    const publishesHere = usePublishMode(projectUuid) === 'live';
     const impact = useSemanticLayerDraftImpact(projectUuid, null);
     // A check that is running or found something is worth reading; one not yet run is asked for from the menu.
     const showsImpact =
@@ -723,7 +731,7 @@ export const DraftReview: FC<DraftReviewProps> = ({
                                         )}
                                     </Badge>
                                 ) : null}
-                                {draft.models.length > 1 ? (
+                                {draft.models.length > 1 && publishesHere ? (
                                     <DraftActions
                                         projectUuid={projectUuid}
                                         draft={draft}

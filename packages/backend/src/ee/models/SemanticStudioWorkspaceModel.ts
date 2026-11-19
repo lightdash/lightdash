@@ -390,6 +390,8 @@ export class SemanticStudioWorkspaceModel {
         projectUuid: string,
         url: string,
         state: SemanticStudioWorkspacePullRequestState,
+        /** Whether a state other than open ends the workspace; false keeps one whose draft is still there. */
+        finishes: boolean,
     ): Promise<void> {
         const now = this.database.fn.now();
         await this.database(SemanticStudioWorkspacesTableName)
@@ -409,7 +411,7 @@ export class SemanticStudioWorkspaceModel {
                 pull_request_url: url,
                 pull_request_state: state,
                 updated_at: now,
-                ...(state !== 'open'
+                ...(state !== 'open' && finishes
                     ? { is_active: false, finished_at: now }
                     : {}),
             });
