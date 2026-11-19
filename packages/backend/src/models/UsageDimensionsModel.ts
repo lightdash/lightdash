@@ -3,6 +3,12 @@ import type { Knex } from 'knex';
 import type { UsageDimensionName } from '../analytics/eventStream/usageDimensions';
 import { isStatementTimeout } from '../database/errors';
 import {
+    AiEvalRunResultAssessmentTableName,
+    AiEvalRunResultTableName,
+    AiEvalRunTableName,
+    AiEvalTableName,
+} from '../ee/database/entities/aiEvals';
+import {
     usageContentInventoryQuery,
     usageContentTypes,
 } from './usageContentInventory';
@@ -261,6 +267,51 @@ export class UsageDimensionsModel {
                         ),
                     );
                 yield* this.readPages(agents, 'a.ai_agent_uuid');
+                return;
+            }
+            case 'agent_evaluation_runs': {
+                const runs = this.database(`${AiEvalRunTableName} as run`)
+                    .join(
+                        `${AiEvalTableName} as evaluation`,
+                        'evaluation.ai_eval_uuid',
+                        'run.ai_eval_uuid',
+                    )
+                    .join(
+                        'ai_agent as agent',
+                        'agent.ai_agent_uuid',
+                        'evaluation.agent_uuid',
+                    )
+                    .where('agent.organization_uuid', orgUuid)
+                    .whereIn('run.status', ['completed', 'failed'])
+                    .joinRaw(`CROSS JOIN LATERAL (
+                        SELECT
+                            COUNT(*) FILTER (WHERE assessment.passed) AS passed_count,
+                            COUNT(*) FILTER (WHERE NOT assessment.passed) AS failed_count,
+                            COUNT(*) FILTER (WHERE result.status = 'completed' AND assessment.passed IS NULL) AS unassessed_count,
+                            COUNT(DISTINCT result.ai_eval_run_result_uuid) FILTER (WHERE result.status = 'failed') AS execution_error_count
+                        FROM ${AiEvalRunResultTableName} AS result
+                        LEFT JOIN ${AiEvalRunResultAssessmentTableName} AS assessment
+                            ON assessment.ai_eval_run_result_uuid = result.ai_eval_run_result_uuid
+                        WHERE result.ai_eval_run_uuid = run.ai_eval_run_uuid
+                    ) AS counts`)
+                    .select(
+                        this.database.raw(`json_build_object(
+                        'org_id', agent.organization_uuid,
+                        'project_id', agent.project_uuid,
+                        'agent_id', agent.ai_agent_uuid,
+                        'agent_name', agent.name,
+                        'evaluation_id', evaluation.ai_eval_uuid,
+                        'evaluation_name', evaluation.title,
+                        'run_id', run.ai_eval_run_uuid,
+                        'run_status', run.status,
+                        'event_ts', run.created_at,
+                        'passed_count', counts.passed_count,
+                        'failed_count', counts.failed_count,
+                        'unassessed_count', counts.unassessed_count,
+                        'execution_error_count', counts.execution_error_count
+                    )::text AS json`),
+                    );
+                yield* this.readPages(runs, 'run.ai_eval_run_uuid');
                 return;
             }
             case 'charts': {
