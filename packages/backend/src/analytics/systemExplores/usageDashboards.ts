@@ -19,6 +19,7 @@ import type { LibraryChartBinding } from './libraryCharts';
 import { noteRows } from './noteLayout';
 import { peopleChartSpecs, peopleDashboardSpec } from './peopleDashboard';
 import { peopleNoActivityChartSpecs } from './peopleNoActivityCharts';
+import { toolsChartSpecs, toolsDashboardSpec } from './toolsDashboard';
 import { usageActivityOriginSql } from './usageActivityOrigin';
 import { usageChartSpecs } from './usageDashboardCharts';
 import { usageDashboardSpecs } from './usageDashboardDefinitions';
@@ -466,6 +467,7 @@ const dashboardSpecs = [
     peopleDashboardSpec,
     contentDashboardSpec,
     dataAppsDashboardSpec,
+    toolsDashboardSpec,
     adoptionDashboardSpec,
     embedDashboardSpec,
     homeDashboardSpec,
@@ -477,6 +479,7 @@ const allChartSpecs: UsageChartSpec[] = [
     ...peopleChartSpecs,
     ...contentChartSpecs,
     ...dataAppsChartSpecs,
+    ...toolsChartSpecs,
     ...adoptionChartSpecs,
     ...embedChartSpecs,
     ...peopleNoActivityChartSpecs,

@@ -686,67 +686,6 @@ export const usageChartSpecs: UsageChartSpec[] = [
         },
     },
     {
-        key: 'export-audit-actor-content-and-outcome',
-        name: 'Exports by user, content and outcome',
-        description:
-            'Downloads of results only. A blank content link means the content is unknown, not that there was none.',
-        explore: 'export_events',
-        dimensions: [
-            'export_events_user_name',
-            'export_events_chart_name',
-            'export_events_dashboard_name',
-            'export_events_format',
-            'export_events_event_name',
-            'export_events_user_id',
-            'export_events_chart_id',
-            'export_events_dashboard_id',
-        ],
-        metrics: [
-            'export_events_total_events',
-            'export_events_total_downloads',
-            'export_events_total_csv_downloads',
-        ],
-        limit: 50,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'export_events_total_events',
-            },
-        ],
-    },
-    {
-        key: 'mcp-users-clients-tools-and-error-rates',
-        name: 'MCP tool calls by user, client and tool',
-        description: 'Latency is in milliseconds.',
-        explore: 'tool_activity',
-        dimensions: [
-            'tool_activity_user_name',
-            'tool_activity_user_id',
-            'tool_activity_actor_type',
-            'tool_activity_client_name',
-            'tool_activity_tool_name',
-        ],
-        metrics: [
-            'tool_activity_total_calls',
-            'tool_activity_failed_calls',
-            'tool_activity_error_rate',
-            'tool_activity_p90_duration_ms',
-        ],
-        limit: 40,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'tool_activity_total_calls',
-            },
-        ],
-        filters: [
-            {
-                field: 'tool_activity_source',
-                values: ['mcp'],
-            },
-        ],
-    },
-    {
         key: 'query-failures-affected-people',
         name: 'Query failures by users affected',
         description:

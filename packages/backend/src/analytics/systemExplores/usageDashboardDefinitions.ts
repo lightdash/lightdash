@@ -197,37 +197,6 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
         ],
     },
     {
-        key: 'lightdash-analytics-tools',
-        name: 'Tools & operations',
-        description: 'MCP tool usage, exports and outcomes.',
-        tabs: [
-            {
-                key: 'mcp',
-                name: 'MCP tools',
-                sections: [
-                    {
-                        title: 'Tool usage',
-                        description:
-                            'Tool calls by user, client and tool, including service accounts. Error rates leave out calls whose outcome is unknown.',
-                        charts: ['mcp-users-clients-tools-and-error-rates'],
-                    },
-                ],
-            },
-            {
-                key: 'exports',
-                name: 'Exports',
-                sections: [
-                    {
-                        title: 'Export activity',
-                        description:
-                            'Recorded downloads, with who downloaded and the content it came from where known. This does not show who received the file afterwards or how it was used.',
-                        charts: ['export-audit-actor-content-and-outcome'],
-                    },
-                ],
-            },
-        ],
-    },
-    {
         key: 'lightdash-analytics-agent-evaluations',
         name: 'Agent evaluations',
         description: 'Evaluation quality over time, by agent and evaluation.',
