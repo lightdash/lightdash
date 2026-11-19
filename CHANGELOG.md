@@ -1,3 +1,10 @@
+# [3.341.0](https://github.com/lightdash/lightdash/compare/3.340.1...3.341.0) (2026-11-19)
+
+
+### Features
+
+* **dashboards:** edit heading tiles inline ([#32976](https://github.com/lightdash/lightdash/issues/32976)) ([0dcd124](https://github.com/lightdash/lightdash/commit/0dcd1245aee1ff831f0a25e4af2516b17061fc73))
+
 ## [3.340.1](https://github.com/lightdash/lightdash/compare/3.340.0...3.340.1) (2026-11-19)
 
 
