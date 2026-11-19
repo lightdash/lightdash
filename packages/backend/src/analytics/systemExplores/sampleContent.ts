@@ -89,13 +89,23 @@ const chart = (
                       eChartsConfig: {
                           showAxisTicks: false,
                           legend: { show: metrics.length > 1 },
-                          xAxis: [{ name: '', inverse: isBar }],
+                          // A blank name falls back to the raw field label.
+                          xAxis: [
+                              {
+                                  name:
+                                      dimension === 'event_ts_day' ? 'Day' : '',
+                                  inverse: isBar,
+                              },
+                          ],
                           yAxis: [{ name: options.axisLabel ?? '', min: '0' }],
                           series: metrics.map((field, index) => ({
                               type: isBar
                                   ? CartesianSeriesType.BAR
                                   : CartesianSeriesType.LINE,
-                              name: options.seriesNames?.[index] ?? name,
+                              name:
+                                  options.seriesNames?.[index] ??
+                                  options.axisLabel ??
+                                  name,
                               color:
                                   options.colors?.[index] ??
                                   analyticsColorPalette.colors[0],
@@ -330,7 +340,7 @@ const aiUsageContent = {
             'event_ts_day',
             {
                 colors: ['#7950F2'],
-                axisLabel: 'Calls',
+                axisLabel: 'AI calls',
                 description: '',
                 libraryChart: {
                     slug: 'customizable-cartesian-chart',
@@ -345,6 +355,8 @@ const aiUsageContent = {
                         stack: 'normal',
                         xAxisType: 'time',
                         xTimeFormat: '{MMM} {d}',
+                        xName: 'Day',
+                        yName: 'AI calls',
                     },
                     query: {
                         dimensions: ['ai_usage_event_ts_day', 'ai_usage_model'],
@@ -385,6 +397,8 @@ const aiUsageContent = {
                         stack: 'normal',
                         xAxisType: 'time',
                         xTimeFormat: '{MMM} {d}',
+                        xName: 'Day',
+                        yName: 'Tokens',
                     },
                     query: {
                         dimensions: ['ai_usage_event_ts_day', 'ai_usage_model'],
@@ -425,7 +439,7 @@ const aiUsageContent = {
             {
                 visualization: 'bar',
                 colors: ['#339AF0'],
-                axisLabel: 'Calls',
+                axisLabel: 'AI calls',
                 description:
                     'Top 10 models by AI calls in the selected period. Compare with tokens by model to tell frequent calls from token-heavy calls.',
             },
@@ -701,6 +715,8 @@ export const analyticsSampleDashboards = [
                             stack: 'normal',
                             xAxisType: 'time',
                             xTimeFormat: '{MMM} {d}',
+                            xName: 'Day',
+                            yName: 'Queries',
                             splitTopN: 6,
                         },
                         query: {
@@ -775,7 +791,7 @@ export const analyticsSampleDashboards = [
                     extraMetrics: ['p90_warehouse_execution_time_ms'],
                     seriesNames: ['Average', 'P90'],
                     colors: ['#12B886', '#F59F00'],
-                    axisLabel: 'Milliseconds',
+                    axisLabel: 'Warehouse time (ms)',
                     description:
                         'Average and P90 warehouse execution time per day, in milliseconds. Queries with no timing are left out. This is warehouse time only, not end-to-end response time.',
                 },

@@ -655,6 +655,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 m3: 'agent_requests_negative_feedback_rate',
             },
             optionValues: {
+                xName: 'Agent',
+                yName: 'Agent requests',
+                yRightName: 'Share rated and negative feedback rate',
                 seriesType: 'bar',
                 m2Type: 'scatter',
                 m3Type: 'scatter',
@@ -693,6 +696,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 m2: 'agent_requests_completion_rate',
             },
             optionValues: {
+                xName: 'Day',
+                yName: 'Agent requests',
+                yRightName: 'Completion rate',
                 seriesType: 'bar',
                 m2Type: 'line',
                 dualAxis: true,
@@ -755,7 +761,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 xAxisType: 'category',
                 showSymbols: true,
                 xName: 'Retries',
-                yName: 'Requests',
+                yName: 'Agent requests',
                 yRightName: 'Average latency (ms)',
             },
             query: {
@@ -804,6 +810,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 splitBy: 'ai_usage_model',
             },
             optionValues: {
+                xName: 'Person',
+                yName: 'Tokens',
                 seriesType: 'bar',
                 stack: 'normal',
                 xAxisType: 'category',
@@ -1345,6 +1353,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 m1: 'agent_requests_total_request_tokens',
             },
             optionValues: {
+                xName: 'Outcome',
+                yName: 'Tokens linked to requests',
                 seriesType: 'bar',
                 stack: 'normal',
                 xAxisType: 'category',
@@ -1438,6 +1448,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 m2: 'query_events_p95_response_time_ms',
             },
             optionValues: {
+                xName: 'Dashboard',
                 seriesType: 'bar',
                 m2Type: 'scatter',
                 dualAxis: true,

@@ -22,6 +22,7 @@ import type {
     AnalyticsContentBundle,
     UsageChartSpec,
 } from './usageDashboardTypes';
+import { usageFieldLabels } from './usageFieldLabels';
 
 const withContentLinks = (chart: ChartAsCode): ChartAsCode => {
     if (chart.chartConfig.type !== ChartType.TABLE) return chart;
@@ -200,7 +201,18 @@ const withUserActivityLabels = (chart: ChartAsCode): ChartAsCode => {
     };
 };
 
+// A chart's own labels, over the shared plain names for the fields it uses.
+const fieldLabelsOf = (spec: UsageChartSpec): Record<string, string> => ({
+    ...Object.fromEntries(
+        [...spec.dimensions, ...spec.metrics].flatMap((field) =>
+            usageFieldLabels[field] ? [[field, usageFieldLabels[field]]] : [],
+        ),
+    ),
+    ...spec.fieldLabels,
+});
+
 const chartConfig = (spec: UsageChartSpec): ChartAsCode['chartConfig'] => {
+    const labels = fieldLabelsOf(spec);
     const [metric] = spec.metrics;
     const [dimension] = spec.dimensions;
     if (spec.visualization === 'number') {
@@ -241,10 +253,15 @@ const chartConfig = (spec: UsageChartSpec): ChartAsCode['chartConfig'] => {
                 },
                 eChartsConfig: {
                     showAxisTicks: false,
+                    // An unnamed axis falls back to the raw field label.
+                    ...(labels[xField]
+                        ? { xAxis: [{ name: labels[xField] }] }
+                        : {}),
+                    ...(yFields.length === 1 && labels[yFields[0]]
+                        ? { yAxis: [{ name: labels[yFields[0]] }] }
+                        : {}),
                     series: yFields.map((field, index) => ({
-                        ...(spec.fieldLabels?.[field]
-                            ? { name: spec.fieldLabels[field] }
-                            : {}),
+                        ...(labels[field] ? { name: labels[field] } : {}),
                         type: seriesType,
                         color: analyticsColorPalette.colors[index % 2],
                         showSymbol: true,
@@ -268,9 +285,10 @@ const chartConfig = (spec: UsageChartSpec): ChartAsCode['chartConfig'] => {
                         .map((field) => [field, { visible: false }]),
                 ),
                 ...Object.fromEntries(
-                    Object.entries(spec.fieldLabels ?? {}).map(
-                        ([field, name]) => [field, { name }],
-                    ),
+                    Object.entries(labels).map(([field, name]) => [
+                        field,
+                        { name },
+                    ]),
                 ),
             },
         },

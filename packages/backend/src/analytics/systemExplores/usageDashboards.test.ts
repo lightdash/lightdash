@@ -1577,6 +1577,60 @@ describe('built-in usage dashboards', () => {
 });
 
 describe('display fixes', () => {
+    it('names columns, legends and axes in plain words on Agents & AI and Queries', () => {
+        const bySlug = (slug: string) =>
+            charts.find((item) => item.slug === slug)!;
+        const retries = bySlug(
+            'lightdash-analytics-overview-agent-retries-latency-and-consumption',
+        );
+        if (retries.chartConfig.type !== ChartType.TABLE)
+            throw new Error('Expected table');
+        expect(retries.chartConfig.config?.columns).toMatchObject({
+            agent_requests_retry_count: { name: 'Retries' },
+            agent_requests_total_requests: { name: 'Agent requests' },
+            agent_requests_total_retry_overhead_ms: {
+                name: 'Time on failed attempts (ms)',
+            },
+            agent_requests_average_request_latency_ms: {
+                name: 'Average latency (ms)',
+            },
+            agent_requests_total_request_tokens: { name: 'Tokens' },
+        });
+        const completion = bySlug(
+            'lightdash-analytics-overview-agent-requests-and-completion-by-day',
+        );
+        if (completion.chartConfig.type !== ChartType.CARTESIAN)
+            throw new Error('Expected cartesian');
+        const completionConfig = completion.chartConfig.config?.eChartsConfig;
+        expect(completionConfig?.xAxis?.[0].name).toBe('Day');
+        expect(completionConfig?.yAxis?.[0].name).toBe('Agent requests');
+        expect(completionConfig?.series?.[0].name).toBe('Agent requests');
+        const slow = bySlug(
+            'lightdash-analytics-query-activity-slow-dashboards-tail-latency-and-demand',
+        );
+        if (slow.chartConfig.type !== ChartType.TABLE)
+            throw new Error('Expected table');
+        expect(slow.chartConfig.config?.columns).toMatchObject({
+            query_events_dashboard_name: { name: 'Dashboard' },
+            query_events_total_queries: { name: 'Queries' },
+            query_events_p95_response_time_ms: {
+                name: 'P95 response time (ms)',
+            },
+        });
+        // A blank axis name would fall back to the raw field label.
+        const daily = bySlug(
+            'lightdash-analytics-query-activity-queries-by-day',
+        );
+        if (daily.chartConfig.type !== ChartType.CARTESIAN)
+            throw new Error('Expected cartesian');
+        expect(daily.chartConfig.config?.eChartsConfig?.xAxis?.[0].name).toBe(
+            'Day',
+        );
+        expect(
+            analyticsLibraryChartBindings.get(daily.slug)?.optionValues,
+        ).toMatchObject({ xName: 'Day', yName: 'Queries' });
+    });
+
     it('queries one row for the newest day on the latest-day cards', () => {
         [
             'lightdash-analytics-overview-ai-users',
@@ -1633,7 +1687,7 @@ describe('display fixes', () => {
             )?.optionValues,
         ).toMatchObject({
             xName: 'Retries',
-            yName: 'Requests',
+            yName: 'Agent requests',
             yRightName: 'Average latency (ms)',
         });
     });
