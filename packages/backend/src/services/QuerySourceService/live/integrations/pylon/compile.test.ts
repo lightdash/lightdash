@@ -9,7 +9,7 @@ import {
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { pylonIntegration } from '.';
-import { compileLiveMetricQuery } from '../../explores/build';
+import { compileLiveMetricQuery, toLiveResult } from '../../explores/build';
 import {
     buildLiveExplore,
     type LiveExploreDefinition,
@@ -336,5 +336,87 @@ describe('compilePylonQuery accounts and contacts', () => {
             columns: ['name', 'account_name'],
         });
         expect(localSorts).toEqual(sorts);
+    });
+});
+
+describe('compilePylonQuery issue metrics', () => {
+    const compiledFor = (metricQuery: MetricQuery) =>
+        compileLiveMetricQuery({
+            explore: ISSUES,
+            metricQuery,
+            timezone: 'UTC',
+            now: new Date('2026-11-17T12:00:00Z'),
+        });
+
+    it('reads each metric column once, next to the dimensions, without a sort', () => {
+        const compiled = compiledFor(
+            query('pylon_issues', {
+                dimensions: [issue('created_at_week')],
+                metrics: [
+                    issue('count'),
+                    issue('average_first_response_minutes'),
+                    issue('median_first_response_minutes'),
+                    issue('median_resolution_hours'),
+                    issue('average_csat_score'),
+                ],
+            }),
+        );
+        const request = JSON.parse(compiled.query);
+        expect(request.columns).toEqual([
+            'created_at_week',
+            'first_response_minutes',
+            'resolution_hours',
+            'csat_score',
+        ]);
+        expect(request).not.toHaveProperty('sort');
+        expect(request.filters).toEqual([LAST_30_DAYS]);
+        expect(compiled.requestLimit).toBe(PYLON_MAX_QUERY_ROWS);
+    });
+
+    it('works out each metric per group from the issues read', () => {
+        const metricQuery = query('pylon_issues', {
+            dimensions: [issue('state')],
+            metrics: [
+                issue('count'),
+                issue('average_first_response_minutes'),
+                issue('median_resolution_hours'),
+            ],
+            sorts: [{ fieldId: issue('state'), descending: false }],
+        });
+        const { rows } = toLiveResult({
+            compiled: compiledFor(metricQuery),
+            rows: [
+                {
+                    state: 'closed',
+                    first_response_minutes: 10,
+                    resolution_hours: 4,
+                },
+                {
+                    state: 'closed',
+                    first_response_minutes: 20,
+                    resolution_hours: 1,
+                },
+                {
+                    state: 'new',
+                    first_response_minutes: null,
+                    resolution_hours: null,
+                },
+            ],
+            fields: {},
+        });
+        expect(rows).toEqual([
+            {
+                [issue('state')]: 'closed',
+                [issue('count')]: 2,
+                [issue('average_first_response_minutes')]: 15,
+                [issue('median_resolution_hours')]: 2.5,
+            },
+            {
+                [issue('state')]: 'new',
+                [issue('count')]: 1,
+                [issue('average_first_response_minutes')]: null,
+                [issue('median_resolution_hours')]: null,
+            },
+        ]);
     });
 });

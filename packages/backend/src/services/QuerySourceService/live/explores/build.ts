@@ -490,25 +490,54 @@ export const assertLiveResultComplete = ({
     }
 };
 
+const toNumbers = (records: Record<string, unknown>[], column: string) =>
+    records.flatMap((record) => {
+        const value = record[column];
+        return typeof value === 'number' && Number.isFinite(value)
+            ? [value]
+            : [];
+    });
+
 const aggregate = (
-    { type }: LiveLocalAggregate,
+    definition: LiveLocalAggregate,
     records: Record<string, unknown>[],
-): unknown => {
-    switch (type) {
+): number | null => {
+    switch (definition.type) {
         case 'count':
             return records.length;
+        case 'average': {
+            const values = toNumbers(records, definition.column);
+            return values.length === 0
+                ? null
+                : values.reduce((sum, value) => sum + value, 0) / values.length;
+        }
+        case 'median': {
+            const values = toNumbers(records, definition.column).sort(
+                (left, right) => left - right,
+            );
+            if (values.length === 0) {
+                return null;
+            }
+            const middle = Math.floor(values.length / 2);
+            return values.length % 2 === 1
+                ? values[middle]
+                : (values[middle - 1] + values[middle]) / 2;
+        }
         default:
-            return assertUnreachable(type, 'Unknown local aggregate');
+            return assertUnreachable(definition, 'Unknown local aggregate');
     }
 };
 
 /**
- * Groups records keyed by field id on every column but the aggregates, and
- * works out each aggregate per group. With no dimension, every record is
- * one group, so a count of nothing read is 0.
+ * Groups records by their dimension values, keyed by field id, and works out
+ * each aggregate per group from the records' own columns. With no
+ * dimension, every record is one group, so a count of nothing read is 0.
  */
 export const groupLiveRows = (
-    rows: Record<string, unknown>[],
+    rows: {
+        values: Record<FieldId, unknown>;
+        record: Record<string, unknown>;
+    }[],
     {
         dimensions,
         aggregates,
@@ -517,11 +546,13 @@ export const groupLiveRows = (
         aggregates: Record<FieldId, LiveLocalAggregate>;
     },
 ): Record<string, unknown>[] => {
-    const groups = new Map<string, Record<string, unknown>[]>(
+    const groups = new Map<string, typeof rows>(
         dimensions.length === 0 ? [['', rows]] : [],
     );
     (dimensions.length === 0 ? [] : rows).forEach((row) => {
-        const key = JSON.stringify(dimensions.map((fieldId) => row[fieldId]));
+        const key = JSON.stringify(
+            dimensions.map((fieldId) => row.values[fieldId]),
+        );
         const group = groups.get(key);
         if (group) {
             group.push(row);
@@ -529,17 +560,20 @@ export const groupLiveRows = (
             groups.set(key, [row]);
         }
     });
-    return [...groups.values()].map((records) => ({
+    return [...groups.values()].map((group) => ({
         ...Object.fromEntries(
             dimensions.map((fieldId) => [
                 fieldId,
-                records[0]?.[fieldId] ?? null,
+                group[0]?.values[fieldId] ?? null,
             ]),
         ),
         ...Object.fromEntries(
             Object.entries(aggregates).map(([fieldId, definition]) => [
                 fieldId,
-                aggregate(definition, records),
+                aggregate(
+                    definition,
+                    group.map(({ record }) => record),
+                ),
             ]),
         ),
     }));
@@ -576,10 +610,16 @@ export const toLiveResult = ({
         ),
     );
     const resultRows = compiled.grouping
-        ? groupLiveRows(readRows, {
-              dimensions: columnEntries.map(([, fieldId]) => fieldId),
-              aggregates,
-          })
+        ? groupLiveRows(
+              readRows.map((values, index) => ({
+                  values,
+                  record: rows[index],
+              })),
+              {
+                  dimensions: columnEntries.map(([, fieldId]) => fieldId),
+                  aggregates,
+              },
+          )
         : readRows;
     const columns: ResultColumns = Object.fromEntries(
         [

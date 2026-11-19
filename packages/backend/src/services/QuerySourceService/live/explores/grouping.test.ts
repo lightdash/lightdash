@@ -254,13 +254,18 @@ test('a list without Count is not grouped', () => {
 });
 
 describe('groupLiveRows', () => {
+    const row = (values: Record<string, unknown>, record = {}) => ({
+        values,
+        record,
+    });
+
     test('groups by every dimension together', () => {
         expect(
             groupLiveRows(
                 [
-                    { a: 1, b: 'x' },
-                    { a: 1, b: 'y' },
-                    { a: 1, b: 'x' },
+                    row({ a: 1, b: 'x' }),
+                    row({ a: 1, b: 'y' }),
+                    row({ a: 1, b: 'x' }),
                 ],
                 {
                     dimensions: ['a', 'b'],
@@ -271,5 +276,40 @@ describe('groupLiveRows', () => {
             { a: 1, b: 'x', n: 2 },
             { a: 1, b: 'y', n: 1 },
         ]);
+    });
+
+    test('averages and medians skip empty values, and are empty with none', () => {
+        const aggregates = {
+            mean: { type: 'average' as const, column: 'minutes' },
+            median: { type: 'median' as const, column: 'minutes' },
+        };
+        expect(
+            groupLiveRows(
+                [
+                    row({}, { minutes: 1 }),
+                    row({}, { minutes: null }),
+                    row({}, { minutes: 3 }),
+                    row({}, { minutes: 10 }),
+                    row({}, { minutes: 2 }),
+                ],
+                { dimensions: [], aggregates },
+            ),
+        ).toEqual([{ mean: 4, median: 2.5 }]);
+        expect(
+            groupLiveRows(
+                [
+                    row({}, { minutes: 5 }),
+                    row({}, { minutes: 1 }),
+                    row({}, { minutes: 4 }),
+                ],
+                { dimensions: [], aggregates },
+            ),
+        ).toEqual([{ mean: 10 / 3, median: 4 }]);
+        expect(
+            groupLiveRows([row({}, { minutes: null })], {
+                dimensions: [],
+                aggregates,
+            }),
+        ).toEqual([{ mean: null, median: null }]);
     });
 });

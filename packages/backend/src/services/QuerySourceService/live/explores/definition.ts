@@ -66,8 +66,13 @@ export type LiveMetricDefinition = ApiSourceFieldDefinition & {
     computed?: LiveLocalAggregate;
 };
 
-/** How a metric is worked out from records read one row each. */
-export type LiveLocalAggregate = { type: 'count' };
+/**
+ * How a metric is worked out from records read one row each. An average or
+ * median skips records whose `column` is empty, and is empty when all are.
+ */
+export type LiveLocalAggregate =
+    | { type: 'count' }
+    | { type: 'average' | 'median'; column: string };
 
 /** One explore of an integration's semantic layer, written by hand or found by a scan. */
 export type LiveExploreDefinition = {

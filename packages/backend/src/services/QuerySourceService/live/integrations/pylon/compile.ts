@@ -291,8 +291,16 @@ export const compilePylonQuery = ({
         metricQuery,
     );
     if (metricQuery.metrics.length > 0) {
-        // Every record is read and grouped here, so the API's order is moot
-        const columns = metricQuery.dimensions.map(apiName);
+        // Every record is read and grouped here, so the API's order is moot.
+        // Metrics read their own column of each record.
+        const columns = [
+            ...new Set([
+                ...metricQuery.dimensions.map(apiName),
+                ...Object.values(localAggregates).flatMap((aggregate) =>
+                    aggregate.type === 'count' ? [] : [aggregate.column],
+                ),
+            ]),
+        ];
         const request: PylonRequest = {
             kind,
             filters,
