@@ -403,7 +403,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
 
     return (
         <div ref={containerRef} className={styles.tileWrapper}>
-            {containerHovered && isEditMode && !minimal && (
+            {containerHovered && isEditMode && !minimal && !focusedActions && (
                 <Paper
                     className={styles.dragHandleIcon}
                     pos="absolute"
@@ -417,7 +417,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 </Paper>
             )}
 
-            {isSelected && (
+            {isSelected && !focusedActions && (
                 <TileSelectionToolbar
                     tileUuid={tile.uuid}
                     width={tile.w}
@@ -467,6 +467,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 data-with-edit-mode={isEditMode}
                 data-selected={isSelected || undefined}
                 data-has-error={hasError}
+                data-inline-editable={
+                    (isEditMode && tile.type === DashboardTileTypes.HEADING) ||
+                    undefined
+                }
+                data-content-focused={focusedActions ? true : undefined}
                 data-with-shadow={!isEditMode && !transparent}
                 h="100%"
                 p={transparent ? 0 : 'md'}

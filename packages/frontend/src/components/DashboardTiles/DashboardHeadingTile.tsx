@@ -63,8 +63,13 @@ const DashboardHeadingTile: FC<Props> = (props) => {
     );
     useEffect(() => {
         if (!isTextFocusPending) return;
-        inputRef.current?.focus();
-        inputRef.current?.select();
+        const startEditing = () => {
+            inputRef.current?.focus();
+            inputRef.current?.select();
+        };
+        startEditing();
+        // Again once the menu that added the tile has closed and given focus back
+        requestAnimationFrame(startEditing);
         dispatch(dashboardEditActions.focusTileText(null));
     }, [isTextFocusPending, dispatch]);
 
