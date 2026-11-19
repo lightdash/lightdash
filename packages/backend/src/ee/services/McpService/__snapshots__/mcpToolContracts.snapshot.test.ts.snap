@@ -2642,6 +2642,89 @@ A custom chart type is chosen the same way: by its own description first, then a
       "title": "Route agent",
     },
     {
+      "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+      },
+      "description": "Open the Lightdash app beside the conversation so the user and you can work in it together. Pass a Lightdash URL from another tool (an Explore, chart or dashboard link) to open that page, or omit it to open the Lightdash home page.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "url": {
+            "description": "A Lightdash URL or path on this Lightdash site, for example an exploreUrl from run_metric_query.",
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+      "name": "open_lightdash",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "result": {
+            "additionalProperties": false,
+            "properties": {
+              "url": {
+                "description": "The Lightdash page that is open.",
+                "type": "string",
+              },
+            },
+            "required": [
+              "url",
+            ],
+            "type": "object",
+          },
+        },
+        "required": [
+          "result",
+        ],
+        "type": "object",
+      },
+      "title": "Open Lightdash",
+    },
+    {
+      "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+      },
+      "description": "Used by the Lightdash view to sign the user in to the page it shows. Do not call it directly.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "url": {
+            "description": "The Lightdash page to open after sign-in.",
+            "type": "string",
+          },
+        },
+        "required": [
+          "url",
+        ],
+        "type": "object",
+      },
+      "name": "get_lightdash_app_sign_in_url",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "signInUrl": {
+            "type": "string",
+          },
+        },
+        "required": [
+          "signInUrl",
+        ],
+        "type": "object",
+      },
+      "title": "Get Lightdash app sign-in URL",
+    },
+    {
       "agentName": "runQuery",
       "annotations": {
         "destructiveHint": false,

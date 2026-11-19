@@ -23,6 +23,8 @@ export const MCP_TOOL_SCOPE_MAP: Readonly<Record<string, 'read' | 'write'>> = {
     query: 'read',
     render_chart: 'read',
     get_custom_chart_type_frame: 'read',
+    open_lightdash: 'read',
+    get_lightdash_app_sign_in_url: 'read',
     run_sql: 'read',
     get_query_result: 'read',
     search_field_values: 'read',

@@ -6,8 +6,9 @@ export default defineConfig({
     build: {
         target: 'esnext',
         outDir: 'dist',
+        emptyOutDir: false,
         rolldownOptions: {
-            input: 'chart-app.html',
+            input: process.env.MCP_APP_ENTRY ?? 'chart-app.html',
         },
     },
 });

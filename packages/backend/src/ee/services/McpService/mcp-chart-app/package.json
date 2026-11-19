@@ -4,7 +4,7 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "vite build"
+        "build": "vite build && MCP_APP_ENTRY=lightdash-app.html vite build"
     },
     "dependencies": {
         "@lightdash/common": "workspace:*",

@@ -173,6 +173,7 @@ import { getOAuthScopeContext } from '../../../auth/oauthScopes/scopedAbility';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { type AgentActionLogModel } from '../../../models/AgentActionLogModel';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
+import type { HeadlessBrowserLoginGrantModel } from '../../../models/HeadlessBrowserLoginGrantModel';
 import { McpContextModel } from '../../../models/McpContextModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../../models/SearchModel';
@@ -290,6 +291,14 @@ import {
     RESOURCE_MIME_TYPE,
 } from './mcpAppHelpers';
 import { toMetaContentSecurityPolicy } from './mcpCustomChartFrameHtml';
+import {
+    buildLightdashAppSignInUrl,
+    getClaudeSandboxDomain,
+    MCP_LIGHTDASH_APP_RESOURCE_URI,
+    mcpLightdashAppSignInTool,
+    mcpOpenLightdashTool,
+    resolveLightdashAppUrl,
+} from './mcpLightdashApp';
 import { isProjectAllowedForMcp } from './mcpProjectAccess';
 
 export enum McpToolName {
@@ -314,6 +323,8 @@ export enum McpToolName {
     QUERY = 'query',
     RENDER_CHART = 'render_chart',
     GET_CUSTOM_CHART_TYPE_FRAME = 'get_custom_chart_type_frame',
+    OPEN_LIGHTDASH = 'open_lightdash',
+    GET_LIGHTDASH_APP_SIGN_IN_URL = 'get_lightdash_app_sign_in_url',
     RUN_SQL = 'run_sql',
     GET_QUERY_RESULT = 'get_query_result',
     SEARCH_FIELD_VALUES = 'search_field_values',
@@ -342,6 +353,8 @@ const projectIndependentMcpToolNames = new Set<string>([
     McpToolName.LIST_SKILLS,
     McpToolName.READ_SKILL,
     McpToolName.READ_SKILL_RESOURCE,
+    McpToolName.OPEN_LIGHTDASH,
+    McpToolName.GET_LIGHTDASH_APP_SIGN_IN_URL,
 ]);
 const knownMcpToolNames = new Set<string>(Object.values(McpToolName));
 
@@ -608,6 +621,10 @@ type McpServiceArguments = {
     aiAgentSkillService: AiAgentSkillService;
     aiRouterService: AiRouterService;
     aiWritebackService: AiWritebackService;
+    lightdashAppLoginGrantModel: Pick<
+        HeadlessBrowserLoginGrantModel,
+        'createLoginGrant'
+    >;
 };
 
 export type McpPinnedAgent = Pick<
@@ -778,6 +795,8 @@ export class McpService extends BaseService {
 
     private aiWritebackService: AiWritebackService;
 
+    private lightdashAppLoginGrantModel: McpServiceArguments['lightdashAppLoginGrantModel'];
+
     private mcpServer: McpServer;
 
     constructor({
@@ -804,6 +823,7 @@ export class McpService extends BaseService {
         aiAgentSkillService,
         aiRouterService,
         aiWritebackService,
+        lightdashAppLoginGrantModel,
     }: McpServiceArguments) {
         super();
         this.agentActionLogModel = agentActionLogModel;
@@ -829,6 +849,7 @@ export class McpService extends BaseService {
         this.aiAgentSkillService = aiAgentSkillService;
         this.aiRouterService = aiRouterService;
         this.aiWritebackService = aiWritebackService;
+        this.lightdashAppLoginGrantModel = lightdashAppLoginGrantModel;
         try {
             this.mcpServer = this.buildMcpServer({
                 pinnedAgent: null,
@@ -2231,6 +2252,142 @@ export class McpService extends BaseService {
                 },
             },
         };
+    }
+
+    private registerLightdashApp(): void {
+        registerAppResource(
+            this.mcpServer,
+            MCP_LIGHTDASH_APP_RESOURCE_URI,
+            MCP_LIGHTDASH_APP_RESOURCE_URI,
+            { mimeType: RESOURCE_MIME_TYPE },
+            async () => {
+                const html = await fs.readFile(
+                    path.join(
+                        __dirname,
+                        'mcp-chart-app',
+                        'dist',
+                        'lightdash-app.html',
+                    ),
+                    'utf-8',
+                );
+                const { siteUrl } = this.lightdashConfig;
+                return {
+                    contents: [
+                        {
+                            uri: MCP_LIGHTDASH_APP_RESOURCE_URI,
+                            mimeType: RESOURCE_MIME_TYPE,
+                            text: html,
+                            _meta: {
+                                ui: {
+                                    preferredDisplayMode: 'fullscreen',
+                                    prefersBorder: false,
+                                    domain: getClaudeSandboxDomain(
+                                        new URL('/api/v1/mcp', siteUrl).href,
+                                    ),
+                                    csp: {
+                                        frameDomains: [new URL(siteUrl).origin],
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                };
+            },
+        );
+
+        registerAppTool(
+            this.mcpServer,
+            mcpOpenLightdashTool.name,
+            {
+                title: mcpOpenLightdashTool.title,
+                description: mcpOpenLightdashTool.description,
+                inputSchema: mcpOpenLightdashTool.inputSchema.shape,
+                outputSchema: mcpOpenLightdashTool.outputSchema.shape,
+                annotations: mcpOpenLightdashTool.annotations,
+                _meta: { ui: { resourceUri: MCP_LIGHTDASH_APP_RESOURCE_URI } },
+            },
+            this.wrapToolCallback(
+                mcpOpenLightdashTool.name,
+                async (
+                    args: z.infer<typeof mcpOpenLightdashTool.inputSchema>,
+                ) => {
+                    const url = resolveLightdashAppUrl(
+                        args.url,
+                        this.lightdashConfig.siteUrl,
+                    );
+                    if (url === null) {
+                        return {
+                            content: [
+                                {
+                                    type: 'text' as const,
+                                    text: `Lightdash can open only pages on ${this.lightdashConfig.siteUrl}. Pass a URL or path on that site.`,
+                                },
+                            ],
+                            isError: true,
+                        };
+                    }
+                    return {
+                        content: [
+                            {
+                                type: 'text' as const,
+                                text: `Opened ${url} in the Lightdash view beside the conversation.`,
+                            },
+                        ],
+                        structuredContent: { result: { url } },
+                    };
+                },
+            ),
+        );
+
+        registerAppTool(
+            this.mcpServer,
+            mcpLightdashAppSignInTool.name,
+            {
+                title: mcpLightdashAppSignInTool.title,
+                description: mcpLightdashAppSignInTool.description,
+                inputSchema: mcpLightdashAppSignInTool.inputSchema.shape,
+                outputSchema: mcpLightdashAppSignInTool.outputSchema.shape,
+                annotations: mcpLightdashAppSignInTool.annotations,
+                _meta: { ui: { visibility: ['app'] } },
+            },
+            this.wrapToolCallback(
+                mcpLightdashAppSignInTool.name,
+                async (
+                    args: z.infer<typeof mcpLightdashAppSignInTool.inputSchema>,
+                    extra,
+                ) => {
+                    const { siteUrl } = this.lightdashConfig;
+                    const url = resolveLightdashAppUrl(args.url, siteUrl);
+                    if (url === null) {
+                        throw new ForbiddenError(
+                            'The Lightdash view can open only pages on this site',
+                        );
+                    }
+                    const { user } = McpService.getAccount(
+                        getMcpContext(extra),
+                    );
+                    const token =
+                        await this.lightdashAppLoginGrantModel.createLoginGrant(
+                            user.userUuid,
+                        );
+                    return {
+                        content: [
+                            {
+                                type: 'text' as const,
+                                text: 'Sign-in URL ready.',
+                            },
+                        ],
+                        structuredContent: {
+                            signInUrl: buildLightdashAppSignInUrl({
+                                siteUrl,
+                                token,
+                                url,
+                            }),
+                        },
+                    };
+                },
+            ),
+        );
     }
 
     private registerGetCustomChartTypeFrameTool(): void {
@@ -4559,6 +4716,8 @@ export class McpService extends BaseService {
                 };
             },
         );
+
+        this.registerLightdashApp();
 
         // Register chart app resource for the MCP App UI
         const chartResourceUri = 'ui://render-chart/chart.html';

@@ -1,0 +1,54 @@
+html,
+body {
+    margin: 0;
+    height: 100%;
+    font-family: var(--font-sans, system-ui, sans-serif);
+    color: var(--color-text-primary, light-dark(#1f2328, #e6e6e6));
+    background: var(--color-background-primary, light-dark(#ffffff, #1f1f1f));
+}
+
+html[data-display-mode='inline'],
+html[data-display-mode='inline'] body {
+    height: 640px;
+}
+
+#lightdash-frame {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    box-sizing: border-box;
+    padding: var(--safe-area-top, 0) var(--safe-area-right, 0)
+        var(--safe-area-bottom, 0) var(--safe-area-left, 0);
+}
+
+#status {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    height: 100%;
+    padding: 24px;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+#status[hidden] {
+    display: none;
+}
+
+#status p {
+    margin: 0;
+    color: var(--color-text-secondary, light-dark(#59636e, #a0a0a0));
+}
+
+#open-btn {
+    font: inherit;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border-primary, light-dark(#d0d7de, #444));
+    background: var(--color-background-secondary, light-dark(#f6f8fa, #2a2a2a));
+    color: inherit;
+    cursor: pointer;
+}
