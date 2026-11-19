@@ -2624,7 +2624,7 @@ const INSTANT_REPLY_QUESTIONS: Record<string, DecisionQuestion> = {
             "Is `prompt` one of these small follow-ups about the previous answer, needing no new analysis? `previousAnswer` is the end of the agent's last reply, if any.",
         criteria: {
             acknowledgement:
-                'Only thanks or a reaction that closes the topic; it asks for nothing',
+                'Only thanks or a reaction that closes the topic; it asks for nothing and answers no offer, suggestion or question in `previousAnswer`',
             show_query: 'Asks to see the query or SQL behind the current chart',
             download_help:
                 'Asks how to download or export the current data or chart',
@@ -2749,7 +2749,6 @@ export const decideTurn = async ({
                 (decisionProbability(answers.simple) ?? 0) >=
                     CHART_INTENT_THRESHOLDS.simpleDataAnswer,
             chart,
-            // A prompt answering an askUser question is never a small follow-up.
             instantReply: previousAnswer?.askedUser
                 ? null
                 : instantReplyOf(answers, chart),
