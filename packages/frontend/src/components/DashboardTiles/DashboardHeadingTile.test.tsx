@@ -83,6 +83,18 @@ describe('DashboardHeadingTile inline editing', () => {
         expect(input).toHaveValue('Revenue');
     });
 
+    it('ignores keys pressed while an IME composition is open', () => {
+        const onEdit = renderTile();
+        const input = editHeading('売上');
+        fireEvent.keyDown(input, { key: 'Escape', isComposing: true });
+        fireEvent.blur(input);
+
+        expect(onEdit).toHaveBeenCalledWith({
+            ...tile,
+            properties: { ...tile.properties, text: '売上' },
+        });
+    });
+
     it('does not save an empty heading', () => {
         const onEdit = renderTile();
         const input = editHeading('   ');

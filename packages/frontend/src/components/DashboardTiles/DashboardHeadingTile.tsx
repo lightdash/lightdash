@@ -75,6 +75,8 @@ const DashboardHeadingTile: FC<Props> = (props) => {
 
     const handleKeyDown = useCallback(
         (event: KeyboardEvent<HTMLTextAreaElement>) => {
+            // Enter that confirms an IME composition is not the end of the edit
+            if (event.nativeEvent.isComposing) return;
             if (event.key === 'Enter') {
                 event.preventDefault();
                 event.currentTarget.blur();
