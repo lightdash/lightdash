@@ -1,4 +1,6 @@
+import type { ServerResponse } from 'http';
 import type { Readable } from 'stream';
+import { pipeline } from 'stream/promises';
 
 /**
  * Destroys an S3 GetObject body and the HTTP response behind it.
@@ -15,5 +17,21 @@ export function destroyS3Body(body: Readable, error?: Error): void {
     body.destroy(error);
     if (source && typeof source.destroy === 'function' && !source.destroyed) {
         source.destroy(error);
+    }
+}
+
+/**
+ * Streams a body to an HTTP response. Unlike `body.pipe(res)`, the body is
+ * destroyed when the client disconnects, so its S3 socket is released. A
+ * failed stream resets the connection, as nothing can follow a partial body.
+ */
+export async function pipeS3BodyToResponse(
+    body: Readable,
+    res: ServerResponse,
+): Promise<void> {
+    try {
+        await pipeline(body, res);
+    } catch {
+        destroyS3Body(body);
     }
 }
