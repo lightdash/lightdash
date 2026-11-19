@@ -479,11 +479,6 @@ export const TurnSummaryCard: FC<{
                 }),
             )}
             safety={safety}
-            note={
-                isDraft
-                    ? (proposals.findLast(({ note }) => note)?.note ?? null)
-                    : null
-            }
             isLatest={isLatest}
             actions={actions}
             isGone={phase.kind === 'gone'}

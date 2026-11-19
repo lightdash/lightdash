@@ -584,6 +584,17 @@ const AssistantBubbleContent: FC<{
                 part.toolResult === null,
         );
 
+    // A turn still working says nothing of an attempt that failed: it may yet land the change.
+    const showsTurnSummary =
+        semanticLayerProposals.length > 0 &&
+        !isProposing &&
+        !(
+            isStreaming &&
+            semanticLayerProposals.every(
+                ({ draftChangeUuid }) => !draftChangeUuid,
+            )
+        );
+
     // General coding-agent (editRepo) PR card metadata — resolved the same way
     // as editDbtProject (persisted result, then live streaming part), but kept
     // separate since it has no preview / post-merge migration.
@@ -983,32 +994,32 @@ const AssistantBubbleContent: FC<{
                 streamParts={streamingState?.parts}
             />
             {quietCards && isProposing ? <TurnCardSkeleton /> : null}
-            {quietCards && semanticLayerProposals.length > 0 ? (
-                <AiMarkdownErrorBoundary
-                    fallback={
-                        <Text fz="sm">
-                            {describeSemanticLayerProposals(
-                                semanticLayerProposals,
-                            )}
-                        </Text>
-                    }
-                >
-                    <TurnSummaryCard
-                        projectUuid={projectUuid}
-                        proposals={semanticLayerProposals}
-                        onAsk={askStudio}
-                        isLatest={isLastMessage}
-                    />
-                </AiMarkdownErrorBoundary>
-            ) : (
-                semanticLayerProposals.map((proposal, index) => (
-                    <SemanticLayerProposalCard
-                        key={index}
-                        projectUuid={projectUuid}
-                        proposal={proposal}
-                    />
-                ))
-            )}
+            {quietCards
+                ? showsTurnSummary && (
+                      <AiMarkdownErrorBoundary
+                          fallback={
+                              <Text fz="sm">
+                                  {describeSemanticLayerProposals(
+                                      semanticLayerProposals,
+                                  )}
+                              </Text>
+                          }
+                      >
+                          <TurnSummaryCard
+                              projectUuid={projectUuid}
+                              proposals={semanticLayerProposals}
+                              onAsk={askStudio}
+                              isLatest={isLastMessage}
+                          />
+                      </AiMarkdownErrorBoundary>
+                  )
+                : semanticLayerProposals.map((proposal, index) => (
+                      <SemanticLayerProposalCard
+                          key={index}
+                          projectUuid={projectUuid}
+                          proposal={proposal}
+                      />
+                  ))}
             {editDbtProjectResult && (
                 <AiEditDbtProjectToolCall
                     metadata={editDbtProjectResult.metadata}

@@ -303,6 +303,18 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const [askedPrompt, setAskedPrompt] = useState<string | null>(null);
     const agentAvailable = hasChat && !!studioAgent;
     const hasDraft = (draft?.changes.length ?? 0) > 0;
+    const { data: workspaces } = useStudioWorkspaces(view.project.id);
+    const openPullRequests = useMemo(
+        () =>
+            new Set(
+                [...(workspaces?.mine ?? []), ...(workspaces?.recent ?? [])]
+                    .filter(({ pullRequest }) => pullRequest?.state === 'open')
+                    .flatMap(({ pullRequest }) =>
+                        pullRequest ? [pullRequest.url] : [],
+                    ),
+            ),
+        [workspaces],
+    );
     const draftMarks = useMemo<DraftMarks>(
         () => ({
             labels: new Map(
@@ -325,8 +337,18 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     ],
                 ),
             ),
+            inReview: new Map(
+                (draft?.settled ?? []).flatMap(
+                    ({ status, pullRequestUrl, models }): [string, string][] =>
+                        status === 'applied' &&
+                        pullRequestUrl &&
+                        openPullRequests.has(pullRequestUrl)
+                            ? models.map((model) => [model, pullRequestUrl])
+                            : [],
+                ),
+            ),
         }),
-        [checkedOutDraft, draft],
+        [checkedOutDraft, draft, openPullRequests],
     );
     // With nothing live, what the draft adds is the page.
     const isBuildingFirstModel = isEmpty && hasDraft;
@@ -362,7 +384,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             ),
         [checkedOutDraft],
     );
-    const { data: workspaces } = useStudioWorkspaces(view.project.id);
     const [storedThread, setStoredThread] = useStoredStudioThread(
         view.project.id,
     );

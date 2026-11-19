@@ -1,5 +1,6 @@
 import {
     Anchor,
+    Badge,
     Box,
     Breadcrumbs,
     Center,
@@ -7,10 +8,13 @@ import {
     Loader,
     Text,
     Title,
+    Tooltip,
 } from '@mantine/core';
+import { IconGitPullRequest } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useContext, useEffect, useMemo, useRef, type FC } from 'react';
 import { useNavigate } from 'react-router';
+import MantineIcon from '../../components/common/MantineIcon';
 import { LiveSourceBetaBadge } from '../externalConnections/liveSources/LiveSourceBetaBadge';
 import { DraftMarksContext } from './draftMarks';
 import { useExternalSourceActions } from './externalSources/externalSourceActions';
@@ -52,7 +56,7 @@ import {
     SettingsLink,
 } from './shared';
 import { useAddToStudioChat, startStudioChatRefDrag } from './studioChatRefs';
-import { getSemanticStudioUrl } from './urls';
+import { getSemanticStudioUrl, pullRequestNumberOf } from './urls';
 import { useExploreFields } from './useExploreFields';
 import {
     useSemanticLayerDraft,
@@ -71,7 +75,7 @@ const ChildrenList: FC<{
     onOpen: (node: TreeNode) => void;
 }> = ({ view, nodes, onOpen }) => {
     const parentRef = useRef<HTMLDivElement>(null);
-    const { kinds } = useContext(DraftMarksContext);
+    const { kinds, inReview } = useContext(DraftMarksContext);
     const virtualizer = useVirtualizer({
         count: nodes.length,
         getScrollElement: () => parentRef.current,
@@ -114,6 +118,10 @@ const ChildrenList: FC<{
                             node.ref.type === 'explore'
                                 ? kinds.get(node.ref.exploreId)
                                 : undefined;
+                        const pullRequestUrl =
+                            node.ref.type === 'explore'
+                                ? inReview.get(node.ref.exploreId)
+                                : undefined;
                         return (
                             <Box
                                 key={node.key}
@@ -145,6 +153,34 @@ const ChildrenList: FC<{
                                         >
                                             {CHANGE_KIND_LABELS[kind]}
                                         </Text>
+                                    ) : null}
+                                    {pullRequestUrl ? (
+                                        <Tooltip label="Your changes to this model are in an open pull request. Not published yet.">
+                                            <Badge
+                                                flex="none"
+                                                color="blue"
+                                                component="a"
+                                                href={pullRequestUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={
+                                                            IconGitPullRequest
+                                                        }
+                                                        size={12}
+                                                    />
+                                                }
+                                                onClick={(event) =>
+                                                    event.stopPropagation()
+                                                }
+                                            >
+                                                In review #
+                                                {pullRequestNumberOf(
+                                                    pullRequestUrl,
+                                                )}
+                                            </Badge>
+                                        </Tooltip>
                                     ) : null}
                                 </Group>
                                 {describe ? (

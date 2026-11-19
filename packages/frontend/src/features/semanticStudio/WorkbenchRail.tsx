@@ -45,7 +45,13 @@ const DraftMarker: FC<{ model: string; isMine: boolean }> = ({
 }) => {
     const marks = useContext(DraftMarksContext);
     const others = marks.others.get(model) ?? [];
-    if (!isMine && others.length === 0) return null;
+    if (!isMine && others.length === 0) {
+        return marks.inReview.has(model) ? (
+            <Tooltip label="Your changes to this model are in an open pull request. Not published yet.">
+                <Box className={classes.draftDot} data-review />
+            </Tooltip>
+        ) : null;
+    }
     const whose = [...(isMine ? ['you'] : []), ...others].join(', ');
     const kind = isMine ? marks.kinds.get(model) : undefined;
     return (

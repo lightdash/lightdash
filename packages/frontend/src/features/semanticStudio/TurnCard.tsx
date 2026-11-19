@@ -12,7 +12,6 @@ import {
     IconCheck,
     IconChevronDown,
     IconChevronRight,
-    IconInfoCircle,
     IconTable,
 } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
@@ -110,16 +109,19 @@ const ModelStep: FC<{ group: TurnGroup }> = ({
         title={title}
         hint={model}
         aside={
-            <Group gap={4} wrap="nowrap" flex="none">
-                <MantineIcon
-                    icon={IconCheck}
-                    size={12}
-                    color={CHANGE_COLORS[change]}
-                />
-                <Text fz="xs" c="dimmed">
-                    {CHANGE_KIND_LABELS[change]}
-                </Text>
-            </Group>
+            // A model with only issues did not change.
+            rows.length === 0 && subtitle === null ? null : (
+                <Group gap={4} wrap="nowrap" flex="none">
+                    <MantineIcon
+                        icon={IconCheck}
+                        size={12}
+                        color={CHANGE_COLORS[change]}
+                    />
+                    <Text fz="xs" c="dimmed">
+                        {CHANGE_KIND_LABELS[change]}
+                    </Text>
+                </Group>
+            )
         }
     >
         {subtitle ? (
@@ -190,7 +192,6 @@ export const TurnCard: FC<{
     headerAction: ReactNode;
     groups: TurnGroup[];
     safety: Safety | null;
-    note: string | null;
     /** Only the latest turn's card is open and offers anything; earlier ones fold to their header. */
     isLatest: boolean;
     actions: ReactNode[];
@@ -203,7 +204,6 @@ export const TurnCard: FC<{
     headerAction,
     groups,
     safety,
-    note,
     isLatest,
     actions,
     isGone,
@@ -219,7 +219,11 @@ export const TurnCard: FC<{
     const tally = (['new', 'changed', 'removed'] as const)
         .map((change) => ({
             change,
-            count: shown.filter((group) => group.change === change).length,
+            count: shown.filter(
+                (group) =>
+                    group.change === change &&
+                    (group.rows.length > 0 || group.subtitle !== null),
+            ).length,
         }))
         .filter(({ count }) => count > 0);
     return (
@@ -269,27 +273,11 @@ export const TurnCard: FC<{
                     />
                 </UnstyledButton>
             )}
-            {isOpen && (shown.length > 0 || note || needsCheck) ? (
+            {isOpen && (shown.length > 0 || needsCheck) ? (
                 <Box className={classes.steps}>
                     {shown.map((group) => (
                         <ModelStep key={group.model} group={group} />
                     ))}
-                    {note ? (
-                        <Step
-                            icon={
-                                <MantineIcon
-                                    icon={IconInfoCircle}
-                                    size={14}
-                                    color="yellow"
-                                />
-                            }
-                            title="Confirm before you publish"
-                        >
-                            <Text fz="xs" c="dimmed" lineClamp={4} title={note}>
-                                {note}
-                            </Text>
-                        </Step>
-                    ) : null}
                     {safety && needsCheck ? (
                         <Step
                             icon={<TaskIcon state={safety.state} />}

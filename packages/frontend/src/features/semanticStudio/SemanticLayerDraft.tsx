@@ -35,6 +35,7 @@ import {
     PIERRE_POOL_OPTIONS,
 } from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
 import { TryIt } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/TryItButton';
+import { useStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProject } from '../../hooks/useProject';
 import { ChangeDiff } from './ChangeDiff';
@@ -433,6 +434,7 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const [isPreviewing, setIsPreviewing] = useDevelopmentView();
     const [isTrying, setIsTrying] = useState(false);
     const discard = useDiscardSemanticLayerDraft(projectUuid);
+    const { startNewThread } = useStudioAgent(projectUuid);
     const asPullRequest = usePublishMode(projectUuid) === 'pull_request';
     const sendLabel =
         useDraftPullRequest() !== null
@@ -587,6 +589,8 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                             discard.mutate(null, {
                                 onSuccess: () => {
                                     setDiscarding(false);
+                                    // The chat that built the draft goes with it; it stays one step back.
+                                    startNewThread();
                                 },
                             })
                         }

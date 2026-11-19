@@ -285,6 +285,11 @@
     background: var(--mantine-color-red-6);
 }
 
+/* Sent as a pull request that is still open. */
+.draftDot[data-review] {
+    background: var(--mantine-color-blue-6);
+}
+
 /* What the draft does to a model, beside its name in a list. */
 .changeTag {
     flex: none;

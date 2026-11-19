@@ -232,6 +232,8 @@ export type SemanticLayerSettledDraftChange = {
     status: 'applied' | 'discarded' | 'undone';
     /** The pull request an applied change was sent as; null when it went live on the server. */
     pullRequestUrl: string | null;
+    /** The models the change touched. */
+    models: string[];
 };
 
 export type SemanticLayerDraft = {
