@@ -1063,7 +1063,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                         },
                         "stack": {
                           "default": null,
-                          "description": "bar: stack series on top of each other, for parts that add up to a total (sums and counts; averages, ratios and distinct counts sit side by side). area always stacks. Ignored elsewhere.",
+                          "description": "bar: stack series (several y columns, or a groupBy split) on top of each other, for parts that add up to a total (sums and counts; averages, ratios and distinct counts sit side by side). area always stacks. Ignored elsewhere.",
                           "type": [
                             "boolean",
                             "null",
@@ -1102,7 +1102,7 @@ A custom chart type is chosen the same way: by its own description first, then a
                         },
                         "y": {
                           "default": null,
-                          "description": "Value columns. big_number, pie and funnel use y[0]. null to use every numeric column not on x or groupBy.",
+                          "description": "Value columns, one series each on bar/line/area/scatter. big_number, pie and funnel use y[0]. null to use every numeric column not on x or groupBy.",
                           "items": {
                             "description": "A result column reference of the presented node",
                             "type": "string",
@@ -18285,7 +18285,7 @@ A node reads only the rows its references returned, so a referenced result that 
 
 A duckdb node that only reshapes another duckdb node's result (adds a column, filters, renames, re-sorts) belongs in that node's SQL: write one duckdb node over the original's references, under a new node id if the original is from an earlier call. Each duckdb step waits for the one it reads.
 
-Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.",
+Earlier nodes: a node id names one node for the whole thread. A node reads a node from an earlier call by its node id in "references", or "sources" for a merge, without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -19796,7 +19796,7 @@ Pie and series-split charts return readability notes when they have many slices 
                 },
                 "stack": {
                   "default": null,
-                  "description": "bar: stack series on top of each other, for parts that add up to a total (sums and counts; averages, ratios and distinct counts sit side by side). area always stacks. Ignored elsewhere.",
+                  "description": "bar: stack series (several y columns, or a groupBy split) on top of each other, for parts that add up to a total (sums and counts; averages, ratios and distinct counts sit side by side). area always stacks. Ignored elsewhere.",
                   "type": [
                     "boolean",
                     "null",
@@ -19835,7 +19835,7 @@ A custom chart type is chosen the same way: by its own description first, then a
                 },
                 "y": {
                   "default": null,
-                  "description": "Value columns. big_number, pie and funnel use y[0]. null to use every numeric column not on x or groupBy.",
+                  "description": "Value columns, one series each on bar/line/area/scatter. big_number, pie and funnel use y[0]. null to use every numeric column not on x or groupBy.",
                   "items": {
                     "description": "A result column reference of the presented node",
                     "type": "string",
@@ -26526,14 +26526,15 @@ When string dimension metadata has \`caseSensitiveFilters\`, \`true\` means stri
 - Compute everything over a merge's columns in its table calculations: ratios across sources, year on year, shares of total, lags, conditional labels. They keep the result governed.
 - When a merge is refused, fix the merge: narrow a source with a filter, raise its limit, or add the missing join key. If you answer another way instead, your answer says so and why.
 - Combine results any other way with a duckdb node: a join key that has to be computed or truncated to a shared grain, a union, or filtering and aggregating after the join.
-- Compute a metric the explore lacks as a custom metric on its semanticLayer node, and a metric in an earlier period as a period comparison there. The warehouse computes them in the same query, so the user gets the answer sooner and over every row.
+- Compute a metric the explore lacks as a custom metric on its semanticLayer node, with a filter when it covers only some rows (completed orders among all orders), and a metric in an earlier period as a period comparison there. The warehouse computes them in the same query, so the user gets the answer sooner and over every row.
 - Compute what neither a metric query nor a merge calculation expresses in a duckdb node: over one semanticLayer node's results, arithmetic across metrics, % of total, the change between a metric and its period comparison, running totals, moving averages and ranking; over any node, aggregates of aggregated metrics, top N per group, cohort comparisons and reshaping.
 - Build an answer that takes several queries, or a computation over their results, as one pipeline in one query call, whose terminal node is the result that answers the question.
-- For a follow-up that changes an earlier result, change only what the user asked for, and claim a change only after the call succeeds. When the requested field is not among the carried-forward candidates, discover it rather than binding its value to an unrelated existing dimension.
+- When a follow-up needs a new query, plan its pipeline as for a first question: the fewest nodes from source to result, counting the earlier nodes it reads, and among such plans the one that reads earlier nodes unchanged.
+- For a follow-up that changes an earlier result, change only what the user asked for and keep the rest: metrics, filters, period, grouping, sort, chart type and the rows shown, zero and small values included. Claim a change only after the call succeeds. When the requested field is not among the carried-forward candidates, discover it rather than binding its value to an unrelated existing dimension.
 - After query, call visualize on the node your answer rests on: with the chart type the user asked for; otherwise with a chart that fits the result, or a table when the user wants an interactive or downloadable table or the rows are too many for a Markdown table. Skip visualize when a sentence (a handful of figures) or a Markdown table (up to about 10 rows) answers the question and the user asked for no chart.
 - Shape a node for its chart, whether you query for the chart or the user asks to chart an earlier answer. A node that answered a question in text often lacks this shape, so query a new node that has it and visualize that one:
   - Names: categories named by a readable dimension (customer name, not customer id).
-  - Grain: one row per bar, point or slice the chart draws.
+  - Grain: one row per category, period, stage or point, and per series when a column splits them. Series as separate value columns, or as one column to group by, are both shaped for a bar, line or area chart.
   - Order: by value for a ranking, in order for time or stages.
   - Values over time: per period, or a running total when the user asks for one or the question is progress toward a total or target.
 - Visualize a second node only when it adds a distinct view. An earlier node already shaped for the chart needs no new query: call visualize on it again.
