@@ -411,7 +411,10 @@ export const expressWinstonMiddleware: express.RequestHandler =
         winstonInstance: winstonLogger,
         level: 'http',
         msg: (req, res) =>
-            `${req.method} ${sanitizeRequestUrl(req.url)} ${res.statusCode} - ${(res as typeof res & { responseTime?: number }).responseTime} ms`,
+            `${req.method} ${sanitizeRequestUrl(req.url)} ${res.statusCode} - ${(res as typeof res & { responseTime?: number }).responseTime} ms`.replace(
+                /[{}]/g,
+                encodeURIComponent,
+            ),
         colorize: false,
         meta: true,
         metaField: null, // on root of log
