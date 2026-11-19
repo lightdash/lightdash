@@ -43,8 +43,8 @@ export const getDescribeWarehouseTable = ({
                     warehouseType,
                 } = await describeWarehouseTable({
                     table,
-                    schema: schema ?? undefined,
-                    database: database ?? undefined,
+                    schema: schema ?? null,
+                    database: database ?? null,
                 });
 
                 const qualifiedName = [

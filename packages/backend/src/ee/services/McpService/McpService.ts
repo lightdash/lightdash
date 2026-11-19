@@ -3524,10 +3524,10 @@ export class McpService extends BaseService {
                     sqlChartSaving: { mode: 'client_approved' },
                 });
                 // Clients send null for the one of these they leave unused
-                const patch = args.patch ?? undefined;
-                const documentEdit = args.documentEdit ?? undefined;
+                const patch = args.patch ?? null;
+                const documentEdit = args.documentEdit ?? null;
                 if (args.type === 'document') {
-                    if (patch !== undefined || documentEdit === undefined) {
+                    if (patch !== null || documentEdit === null) {
                         throw new ParameterError(
                             'Documents require documentEdit instead of patch',
                         );
@@ -3544,7 +3544,7 @@ export class McpService extends BaseService {
                         args.agentUuid,
                     );
                 }
-                if (documentEdit !== undefined || patch === undefined) {
+                if (documentEdit !== null || patch === null) {
                     throw new ParameterError(
                         'Charts and dashboards require patch instead of documentEdit',
                     );
