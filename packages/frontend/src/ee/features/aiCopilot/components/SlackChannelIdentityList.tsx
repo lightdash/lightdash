@@ -16,11 +16,13 @@ const SERVICE_ACCOUNT_INFO =
 const INSTALLER_WARNING =
     'Everyone who asks here gets the permissions of the person who installed the Slack app. Turn on the AI Agents OAuth requirement in the Slack settings so each person uses their own permissions.';
 
+type SlackChannelIntegration = Required<AiAgentIntegration>;
+
 type Props = {
-    integrations: AiAgentIntegration[];
+    integrations: SlackChannelIntegration[];
     canManageServiceAccounts: boolean;
     requireOAuth: boolean;
-    onChange: (integrations: AiAgentIntegration[]) => void;
+    onChange: (integrations: SlackChannelIntegration[]) => void;
 };
 
 export const SlackChannelIdentityList: FC<Props> = ({

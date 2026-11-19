@@ -215,7 +215,10 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             const values = {
                 name: agent.name,
                 description: agent.description,
-                integrations: agent.integrations,
+                integrations: agent.integrations.map((integration) => ({
+                    ...integration,
+                    serviceAccountUuid: integration.serviceAccountUuid ?? null,
+                })),
                 tags: agent.tags && agent.tags.length > 0 ? agent.tags : null,
                 instruction: agent.instruction,
                 imageUrl: agent.imageUrl,

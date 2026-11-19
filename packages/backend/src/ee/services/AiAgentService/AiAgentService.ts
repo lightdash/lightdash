@@ -207,7 +207,6 @@ import {
     type AgentWorkMarker,
     type AiAgentEditDbtProjectPipelineJobPayload,
     type AiAgentIntegration,
-    type AiAgentIntegrationInput,
     type AiAgentModelConfig,
     type AiAgentNodeCitationPipeline,
     type AiAgentSkill,
@@ -6402,12 +6401,15 @@ export class AiAgentService extends BaseService {
     private async assertSlackServiceAccountChangesAllowed(
         user: SessionUser,
         organizationUuid: string,
-        integrations: AiAgentIntegrationInput[] | undefined,
+        integrations: AiAgentIntegration[] | undefined,
         currentIntegrations: AiAgentIntegration[],
     ): Promise<void> {
         if (!integrations) return;
         const current = new Map(
-            currentIntegrations.map((i) => [i.channelId, i.serviceAccountUuid]),
+            currentIntegrations.map((i) => [
+                i.channelId,
+                i.serviceAccountUuid ?? null,
+            ]),
         );
         const added = integrations.flatMap((integration) => {
             const next =

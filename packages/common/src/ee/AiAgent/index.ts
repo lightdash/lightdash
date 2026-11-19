@@ -143,16 +143,13 @@ export type AiAgentMcpServerToolUpdate = Pick<
 export type AiAgentIntegration = {
     type: 'slack';
     channelId: string;
-    /** Service account the agent answers as in this channel; null means the person asking. */
-    serviceAccountUuid: string | null;
+    /**
+     * Service account whose permissions this channel uses; null means each
+     * person's own. Always returned; optional on input, where omitting it
+     * keeps the channel's current value.
+     */
+    serviceAccountUuid?: string | null;
 };
-
-/** Omitting `serviceAccountUuid` on update keeps the channel's current value. */
-export type AiAgentIntegrationInput = Pick<
-    AiAgentIntegration,
-    'type' | 'channelId'
-> &
-    Partial<Pick<AiAgentIntegration, 'serviceAccountUuid'>>;
 
 const aiAgentUserAccessDetailSchema = z.object({
     userUuid: z.string(),
@@ -177,7 +174,7 @@ export const baseAgentSchema = z.object({
         z.object({
             type: z.literal('slack'),
             channelId: z.string(),
-            serviceAccountUuid: z.string().nullable(),
+            serviceAccountUuid: z.string().nullable().optional(),
         }),
     ),
 
@@ -693,6 +690,7 @@ export type ApiAiAgentSummaryResponse = {
 export type ApiCreateAiAgent = Pick<
     AiAgent,
     | 'projectUuid'
+    | 'integrations'
     | 'tags'
     | 'name'
     | 'description'
@@ -705,7 +703,6 @@ export type ApiCreateAiAgent = Pick<
     | 'enableSelfImprovement'
     | 'version'
 > & {
-    integrations: AiAgentIntegrationInput[];
     enableContentTools?: boolean;
     enableUserContext?: boolean;
     enableSqlMode?: boolean;
@@ -722,6 +719,7 @@ export type ApiUpdateAiAgent = Partial<
     Pick<
         AiAgent,
         | 'projectUuid'
+        | 'integrations'
         | 'tags'
         | 'name'
         | 'description'
@@ -740,7 +738,6 @@ export type ApiUpdateAiAgent = Partial<
     >
 > & {
     uuid: string;
-    integrations?: AiAgentIntegrationInput[];
     enableSqlMode?: boolean;
     enableSqlAutoApproval?: boolean;
     enableComposerQueries?: boolean;
