@@ -1,28 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.332.0",
-  "previousVersion": "3.331.0",
-  "releaseDate": "2026-11-19T11:54:25.422Z",
+  "version": "3.332.1",
+  "previousVersion": "3.332.0",
+  "releaseDate": "2026-11-19T12:10:13.224Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20261119120000_add_service_account_to_ai_agent_slack_integration.ts",
-        "edition": "ee",
-        "tables": [
-          "ai_agent_slack_integration",
-          "service_accounts"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

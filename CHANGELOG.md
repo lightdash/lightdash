@@ -1,3 +1,10 @@
+## [3.332.1](https://github.com/lightdash/lightdash/compare/3.332.0...3.332.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **semantic-studio:** open Try it on a checked-out draft, fill the overview pane, quiet the card and offer changes as a choice ([#32964](https://github.com/lightdash/lightdash/issues/32964)) ([679f9c4](https://github.com/lightdash/lightdash/commit/679f9c46554697a73628c26b0e9eac4594e032e8))
+
 # [3.332.0](https://github.com/lightdash/lightdash/compare/3.331.0...3.332.0) (2026-11-19)
 
 
