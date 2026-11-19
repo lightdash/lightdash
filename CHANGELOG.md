@@ -1,3 +1,17 @@
+# [3.336.0](https://github.com/lightdash/lightdash/compare/3.335.0...3.336.0) (2026-11-19)
+
+
+### Features
+
+* **composer-charts:** export image from dashboard composer tile ([#32970](https://github.com/lightdash/lightdash/issues/32970)) ([a7c7f28](https://github.com/lightdash/lightdash/commit/a7c7f281db70d4cc9190f75fcb83e1f110eb0a16))
+
+# [3.335.0](https://github.com/lightdash/lightdash/compare/3.334.0...3.335.0) (2026-11-19)
+
+
+### Features
+
+* **explorer:** undo and redo while building a chart ([#32959](https://github.com/lightdash/lightdash/issues/32959)) ([e9d1ca8](https://github.com/lightdash/lightdash/commit/e9d1ca8ea4c9c30d9bbc2e72792138e8018b894f))
+
 # [3.334.0](https://github.com/lightdash/lightdash/compare/3.333.0...3.334.0) (2026-11-19)
 
 
