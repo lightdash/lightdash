@@ -62,7 +62,12 @@ export const ResultsTable = ({
         paddingBottom,
         columnWindow,
         columnCount,
-    } = useVirtualTable({ ...data, isCompact });
+    } = useVirtualTable({
+        ...data,
+        isCompact,
+        columnTypes,
+        sortConfig: onTHClick ? thSortConfig : undefined,
+    });
     const renderedColumnCount = columnWindow?.slots.length ?? columnCount;
 
     const renderHeader = (index: number) => {
