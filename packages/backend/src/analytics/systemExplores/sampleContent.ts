@@ -487,7 +487,7 @@ export const analyticsSampleDashboards = [
                 {
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
-                        minVersion: '0.7.0',
+                        minVersion: '0.7.1',
                         fieldMapping: {
                             value: 'query_events_total_queries',
                             sparklineMetric: 'query_events_total_queries',
@@ -525,7 +525,7 @@ export const analyticsSampleDashboards = [
                 {
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
-                        minVersion: '0.7.0',
+                        minVersion: '0.7.1',
                         fieldMapping: {
                             value: 'query_events_unique_users',
                             sparklineMetric: 'query_events_unique_users',
@@ -565,7 +565,7 @@ export const analyticsSampleDashboards = [
                 {
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
-                        minVersion: '0.7.0',
+                        minVersion: '0.7.1',
                         fieldMapping: {
                             value: 'query_events_avg_warehouse_execution_time_ms',
                             sparklineMetric:
@@ -608,7 +608,7 @@ export const analyticsSampleDashboards = [
                 {
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
-                        minVersion: '0.7.0',
+                        minVersion: '0.7.1',
                         fieldMapping: {
                             value: 'query_events_p90_warehouse_execution_time_ms',
                             sparklineMetric:

@@ -567,7 +567,7 @@ describe('legacyLibraryChartBindings', () => {
             analyticsLibraryChartBindings.get(`${prefix}${key}`);
         expect(queryBinding('queries')).toMatchObject({
             slug: 'big-number-with-sparkline-trend',
-            minVersion: '0.7.0',
+            minVersion: '0.7.1',
             optionValues: {
                 valueAggregation: 'sum',
                 colorSparklineByTrend: false,
@@ -580,7 +580,7 @@ describe('legacyLibraryChartBindings', () => {
             (key) => {
                 expect(queryBinding(key)).toMatchObject({
                     slug: 'big-number-with-sparkline-trend',
-                    minVersion: '0.7.0',
+                    minVersion: '0.7.1',
                     optionValues: {
                         valueAggregation: 'latest',
                         showComparison: false,
