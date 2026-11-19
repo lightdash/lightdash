@@ -12,6 +12,7 @@ import {
 } from '@mantine/core';
 import { IconPencil } from '@tabler/icons-react';
 import {
+    useContext,
     useEffect,
     useRef,
     useState,
@@ -20,6 +21,7 @@ import {
 } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import styles from './AskUserQuestionCard.module.css';
+import { QuietCardsContext } from './ToolCalls/quietCards';
 
 const isTypingTarget = (target: EventTarget) =>
     target instanceof HTMLElement &&
@@ -59,6 +61,8 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
     const isLast = index === questions.length - 1;
     const current = answers[index];
     const canAdvance = getAnswerText(current) !== '';
+    // A lone question is already the reply above the card, so a narrow chat shows the choices only.
+    const isBare = useContext(QuietCardsContext) && questions.length === 1;
 
     // Focus the card so number keys pick options without a click first.
     const cardRef = useRef<HTMLDivElement>(null);
@@ -197,26 +201,37 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
             className={styles.card}
         >
             <Stack gap="xs" p="xs">
-                <Group justify="space-between" wrap="nowrap" px="xs" pt="xxs">
-                    <Text fz="xs" fw={500} c="dimmed">
-                        {question.header}
-                    </Text>
-                    {questions.length > 1 && (
-                        <Text fz="xs" c="dimmed">
-                            {index + 1} of {questions.length}
+                {isBare ? null : (
+                    <Group
+                        justify="space-between"
+                        wrap="nowrap"
+                        px="xs"
+                        pt="xxs"
+                    >
+                        <Text fz="xs" fw={500} c="dimmed">
+                            {question.header}
                         </Text>
-                    )}
-                </Group>
-                <Box px="xs">
-                    <Text fz="sm" fw={500}>
-                        {question.question}
-                    </Text>
-                    {question.multiSelect && (
-                        <Text fz="xs" c="dimmed">
-                            Select all that apply
-                        </Text>
-                    )}
-                </Box>
+                        {questions.length > 1 && (
+                            <Text fz="xs" c="dimmed">
+                                {index + 1} of {questions.length}
+                            </Text>
+                        )}
+                    </Group>
+                )}
+                {isBare && !question.multiSelect ? null : (
+                    <Box px="xs">
+                        {isBare ? null : (
+                            <Text fz="sm" fw={500}>
+                                {question.question}
+                            </Text>
+                        )}
+                        {question.multiSelect && (
+                            <Text fz="xs" c="dimmed">
+                                Select all that apply
+                            </Text>
+                        )}
+                    </Box>
+                )}
                 <Stack gap="xxs">
                     {question.multiSelect ? (
                         <Checkbox.Group
@@ -243,9 +258,12 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
                     wrap="nowrap"
                     className={styles.footer}
                 >
-                    <Text fz="xs" c="dimmed" className={styles.keyHint}>
-                        1–{question.options.length} to pick, Enter to continue
-                    </Text>
+                    {isBare ? null : (
+                        <Text fz="xs" c="dimmed" className={styles.keyHint}>
+                            1–{question.options.length} to pick, Enter to
+                            continue
+                        </Text>
+                    )}
                     <Group gap="xs" wrap="nowrap" ml="auto">
                         {index > 0 && (
                             <Button
