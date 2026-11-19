@@ -94,12 +94,14 @@ export type VisualizationProviderProps = {
         e: EchartsSeriesClickEvent,
         series: EChartsSeries[],
     ) => void;
+    onAxisSort?: (fieldId: string) => void;
     onChartTypeChange?: (value: ChartType) => void;
     onChartConfigChange?: (value: ChartConfig) => void;
     onPivotDimensionsChange?: (value: string[] | undefined) => void;
     onPivotRowsChange?: (value: string[] | undefined) => void;
     savedChartUuid?: string;
     savedChartReference?: SavedChartReference;
+    hasUnpublishedChanges?: boolean;
     dashboardFilters?: DashboardFilters;
     invalidateCache?: boolean;
     colorPalette: string[];
@@ -248,12 +250,14 @@ const VisualizationProvider: FC<
     chartConfig,
     onChartConfigChange,
     onSeriesContextMenu,
+    onAxisSort,
     onChartTypeChange,
     onPivotDimensionsChange,
     onPivotRowsChange,
     children,
     savedChartUuid,
     savedChartReference,
+    hasUnpublishedChanges = false,
     dashboardFilters,
     invalidateCache,
     colorPalette,
@@ -307,6 +311,10 @@ const VisualizationProvider: FC<
             onSeriesContextMenu?.(e, series),
     );
     const hasSeriesContextMenu = onSeriesContextMenu !== undefined;
+    const stableOnAxisSort = useStableCallback((fieldId: string) =>
+        onAxisSort?.(fieldId),
+    );
+    const hasAxisSort = onAxisSort !== undefined;
 
     const { colorMappings } = useChartColorMappings();
     const theme = useMantineTheme();
@@ -466,6 +474,7 @@ const VisualizationProvider: FC<
             invalidateCache,
             savedChartUuid,
             savedChartReference,
+            hasUnpublishedChanges,
             isDashboard,
             isEditMode,
             embeddedDashboardInteractivity,
@@ -491,6 +500,7 @@ const VisualizationProvider: FC<
             invalidateCache,
             savedChartUuid,
             savedChartReference,
+            hasUnpublishedChanges,
             isDashboard,
             isEditMode,
             embeddedDashboardInteractivity,
@@ -512,6 +522,7 @@ const VisualizationProvider: FC<
             onSeriesContextMenu: hasSeriesContextMenu
                 ? stableOnSeriesContextMenu
                 : undefined,
+            onAxisSort: hasAxisSort ? stableOnAxisSort : undefined,
             setChartType,
             setPivotDimensions,
             setPivotRows,
@@ -523,6 +534,8 @@ const VisualizationProvider: FC<
             setCartesianType,
             hasSeriesContextMenu,
             stableOnSeriesContextMenu,
+            hasAxisSort,
+            stableOnAxisSort,
             setChartType,
             setPivotDimensions,
             setPivotRows,

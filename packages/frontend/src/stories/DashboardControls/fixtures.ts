@@ -4,6 +4,7 @@ import {
     DimensionType,
     FieldType,
     FilterOperator,
+    QueryHistoryStatus,
     getItemId,
     UnitOfTime,
     type ApiError,
@@ -11,7 +12,7 @@ import {
     type DateZoomControl,
     type DashboardFilterRule,
     type DashboardTab,
-    type FieldValueSearchResult,
+    type ApiExecuteAsyncFieldValueSearchResults,
     type DashboardFilterableField,
     type DashboardFilters,
     type DashboardTile,
@@ -429,17 +430,35 @@ const VALUES_BY_FIELD: Record<string, string[]> = {
 // Suggestions for this field fail, to show the picker's error and retry
 const FAILING_FIELD_ID = getItemId(fields.city);
 
-const FIELD_SEARCH_URL = /^\/projects\/[^/]+\/field\/([^/]+)\/search$/;
+const FIELD_VALUES_URL = /^\/projects\/[^/]+\/query\/field-values$/;
+const QUERY_RESULTS_URL = /^\/projects\/[^/]+\/query\/([^/]+)$/;
+const VALUE_COLUMN = 'value';
 
-type FieldSearchBody = { search: string; parameters: ParametersValuesMap };
+// The values each started search answers with, read back by its query uuid
+const fieldValueQueries = new Map<string, string[]>();
+
+type FieldSearchBody = {
+    fieldId: string;
+    search: string;
+    parameters: ParametersValuesMap;
+};
+
+const EMPTY_SEARCH: FieldSearchBody = {
+    fieldId: '',
+    search: '',
+    parameters: {},
+};
 
 const readBody = (body: LightdashApiProps['body']): FieldSearchBody => {
-    if (typeof body !== 'string') return { search: '', parameters: {} };
+    if (typeof body !== 'string') return EMPTY_SEARCH;
     try {
         const parsed: unknown = JSON.parse(body);
-        if (typeof parsed !== 'object' || parsed === null)
-            return { search: '', parameters: {} };
+        if (typeof parsed !== 'object' || parsed === null) return EMPTY_SEARCH;
         return {
+            fieldId:
+                'fieldId' in parsed && typeof parsed.fieldId === 'string'
+                    ? parsed.fieldId
+                    : '',
             search:
                 'search' in parsed && typeof parsed.search === 'string'
                     ? parsed.search
@@ -452,7 +471,7 @@ const readBody = (body: LightdashApiProps['body']): FieldSearchBody => {
                     : {},
         };
     } catch {
-        return { search: '', parameters: {} };
+        return EMPTY_SEARCH;
     }
 };
 
@@ -494,24 +513,38 @@ const answer = async (props: LightdashApiProps): Promise<unknown> => {
             name: 'Jaffle shop',
             useProjectTimezoneInFilters: false,
         };
-    const fieldSearch = FIELD_SEARCH_URL.exec(props.url);
-    if (fieldSearch) {
-        const fieldId = fieldSearch[1];
-        const body = readBody(props.body);
-        fieldSearchRequests.push({ fieldId, parameters: body.parameters });
+    if (FIELD_VALUES_URL.test(props.url)) {
+        const { fieldId, search, parameters } = readBody(props.body);
+        fieldSearchRequests.push({ fieldId, parameters });
         await delay(300);
         if (fieldId === FAILING_FIELD_ID) throw warehouseError;
-        const search = body.search.toLowerCase();
-        const results = (VALUES_BY_FIELD[fieldId] ?? []).filter((value) =>
-            value.toLowerCase().includes(search),
+        const queryUuid = `field-values-${fieldValueQueries.size}`;
+        fieldValueQueries.set(
+            queryUuid,
+            (VALUES_BY_FIELD[fieldId] ?? []).filter((value) =>
+                value.toLowerCase().includes(search.toLowerCase()),
+            ),
         );
         return {
-            search,
-            results,
-            cached: true,
-            refreshedAt: new Date(),
-        } satisfies FieldValueSearchResult<string>;
+            queryUuid,
+            cacheMetadata: { cacheHit: true },
+            valueFieldId: VALUE_COLUMN,
+            labelFieldId: null,
+        } satisfies ApiExecuteAsyncFieldValueSearchResults;
     }
+    const queryResults = QUERY_RESULTS_URL.exec(props.url);
+    if (queryResults && props.method === 'GET')
+        // Only what the value search reads from a ready results page
+        return {
+            status: QueryHistoryStatus.READY,
+            queryUuid: queryResults[1],
+            columns: {},
+            rows: (fieldValueQueries.get(queryResults[1]) ?? []).map(
+                (value) => ({
+                    [VALUE_COLUMN]: { value: { raw: value, formatted: value } },
+                }),
+            ),
+        };
     throw new Error(`Not stubbed in this story: ${props.method} ${props.url}`);
 };
 

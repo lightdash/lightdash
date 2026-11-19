@@ -1,7 +1,9 @@
 import {
     DashboardControlRefKind,
+    DashboardTileTypes,
     FilterOperator,
     type DashboardFilterRule,
+    type DashboardTile,
     type DashboardFilters,
     type DashboardParameterControl,
 } from '@lightdash/common';
@@ -26,6 +28,7 @@ import {
     selectDashboardParameterDefinitions,
     selectDashboardParameterReferences,
     selectDashboardWideParameterValues,
+    selectIsDateZoomRefusedOnAllChartTiles,
     selectMissingParametersByTile,
     selectMissingRequiredParameters,
     selectOrderedControls,
@@ -531,6 +534,70 @@ describe('parameter picks reaching shared-key controls', () => {
                 }),
             ),
         ).toEqual([{ week_start: 'monday' }, { week_start: 'sunday' }]);
+    });
+});
+
+describe('selectIsDateZoomRefusedOnAllChartTiles', () => {
+    const tile = (uuid: string, type: DashboardTileTypes) =>
+        ({ uuid, type, properties: {} }) as DashboardTile;
+    const stateWithTiles = (
+        tiles: DashboardTile[],
+        dateZoomRefusedByTileUuid: Record<string, boolean>,
+    ): DashboardStoreState => {
+        const state = stateWith({});
+        return {
+            ...state,
+            edit: { ...state.edit, tiles },
+            dateZoom: { ...state.dateZoom, dateZoomRefusedByTileUuid },
+        };
+    };
+
+    it('is true when every chart tile keeps its saved grain', () => {
+        expect(
+            selectIsDateZoomRefusedOnAllChartTiles(
+                stateWithTiles(
+                    [
+                        tile('live', DashboardTileTypes.SAVED_CHART),
+                        tile('note', DashboardTileTypes.MARKDOWN),
+                    ],
+                    { live: true },
+                ),
+            ),
+        ).toBe(true);
+    });
+
+    it('is false while a chart tile zooms or has not reported', () => {
+        const tiles = [
+            tile('live', DashboardTileTypes.SAVED_CHART),
+            tile('warehouse', DashboardTileTypes.SAVED_CHART),
+        ];
+        expect(
+            selectIsDateZoomRefusedOnAllChartTiles(
+                stateWithTiles(tiles, { live: true, warehouse: false }),
+            ),
+        ).toBe(false);
+        expect(
+            selectIsDateZoomRefusedOnAllChartTiles(
+                stateWithTiles(tiles, { live: true }),
+            ),
+        ).toBe(false);
+    });
+
+    it('is false with a SQL chart tile or no chart tiles', () => {
+        expect(
+            selectIsDateZoomRefusedOnAllChartTiles(
+                stateWithTiles(
+                    [
+                        tile('live', DashboardTileTypes.SAVED_CHART),
+                        tile('sql', DashboardTileTypes.SQL_CHART),
+                    ],
+                    { live: true },
+                ),
+            ),
+        ).toBe(false);
+        expect(
+            selectIsDateZoomRefusedOnAllChartTiles(stateWithTiles([], {})),
+        ).toBe(false);
     });
 });
 

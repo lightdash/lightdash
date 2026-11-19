@@ -1,5 +1,7 @@
 import {
+    HTML_SANITIZE_MARKDOWN_TILE_RULES,
     MARKDOWN_TILE_CLASS,
+    sanitizeHtml,
     type DashboardMarkdownTile,
 } from '@lightdash/common';
 import { Box, Menu, useMantineColorScheme } from '@mantine/core';
@@ -37,6 +39,10 @@ const MarkdownTile: FC<Props> = (props) => {
         },
         isEditMode,
     } = props;
+    const sanitizedContent = useMemo(
+        () => sanitizeHtml(content, HTML_SANITIZE_MARKDOWN_TILE_RULES),
+        [content],
+    );
 
     const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
     const showComments = useDashboardContext(
@@ -116,7 +122,7 @@ const MarkdownTile: FC<Props> = (props) => {
                 <div data-color-mode={colorScheme}>
                     <MarkdownPreview
                         className={MARKDOWN_TILE_CLASS}
-                        source={content}
+                        source={sanitizedContent}
                         rehypePlugins={[
                             [rehypeExternalLinks, { target: '_blank' }],
                         ]}

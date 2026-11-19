@@ -30,6 +30,14 @@ import { clsx } from 'clsx';
 import { useMemo, useState, type FC } from 'react';
 import CodeBlock from '../../../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
+import { useCanViewAiAgentSql } from '../../../../../../../features/composerCharts/hooks/useCanViewAiAgentSql';
+import {
+    useComposerNodeStatusLabel,
+    type ComposerQueryNodeStatus,
+} from '../../../../../../../features/composerCharts/lineage/composerNodeStatus';
+import { summarizeMergeNode } from '../../../../../../../features/composerCharts/lineage/mergeNodeSummary';
+import { RepeatsValuesBadge } from '../../../../../../../features/composerCharts/lineage/MergeStepParts';
+import { useMergeNodeCopy } from '../../../../../../../features/composerCharts/lineage/useMergeNodeCopy';
 import {
     useApiSourceExploreConnectionUuid,
     useLiveSourceExplore,
@@ -38,14 +46,6 @@ import { getLiveSource } from '../../../../../../../features/externalConnections
 import { LiveSourceIcon } from '../../../../../../../features/externalConnections/liveSources/LiveSourceIcon';
 import { useLiveSourceConnection } from '../../../../../../../features/externalConnections/liveSources/useLiveSourceConnection';
 import { useUiStrings } from '../../../../../../providers/Embed/useUiStrings';
-import { useCanViewAiAgentSql } from '../../../../hooks/useCanViewAiAgentSql';
-import {
-    useComposerNodeStatusLabel,
-    type ComposerQueryNodeStatus,
-} from '../../composerNodeStatus';
-import { summarizeMergeNode } from '../../composerPipeline/mergeNodeSummary';
-import { RepeatsValuesBadge } from '../../composerPipeline/MergeStepParts';
-import { useMergeNodeCopy } from '../../composerPipeline/useMergeNodeCopy';
 import shimmerStyles from '../../shimmer.module.css';
 import {
     SqlApprovalActions,

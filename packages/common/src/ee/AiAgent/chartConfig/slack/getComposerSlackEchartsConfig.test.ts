@@ -144,8 +144,8 @@ const composerEcharts = async (vizConfig: ComposerStoredChartVizConfig) =>
     );
 
 const statusRevenueRows = [
-    { composer_result_status: 'done', composer_result_revenue: 10 },
-    { composer_result_status: 'open', composer_result_revenue: 20 },
+    { status: 'done', revenue: 10 },
+    { status: 'open', revenue: 20 },
 ];
 
 describe('getComposerSlackEchartsConfig', () => {
@@ -161,13 +161,13 @@ describe('getComposerSlackEchartsConfig', () => {
             await runQueryEcharts(
                 vizConfig,
                 {
-                    dimensions: ['composer_result_status'],
-                    metrics: ['composer_result_revenue'],
+                    dimensions: ['status'],
+                    metrics: ['revenue'],
                 },
                 {
                     defaultVizType: 'bar',
-                    xAxisDimension: 'composer_result_status',
-                    yAxisMetrics: ['composer_result_revenue'],
+                    xAxisDimension: 'status',
+                    yAxisMetrics: ['revenue'],
                     xAxisType: 'category',
                     stackBars: true,
                     xAxisLabel: 'Status',
@@ -189,13 +189,13 @@ describe('getComposerSlackEchartsConfig', () => {
             await runQueryEcharts(
                 vizConfig,
                 {
-                    dimensions: ['composer_result_status'],
-                    metrics: ['composer_result_revenue'],
+                    dimensions: ['status'],
+                    metrics: ['revenue'],
                 },
                 {
                     defaultVizType: 'horizontal',
-                    xAxisDimension: 'composer_result_status',
-                    yAxisMetrics: ['composer_result_revenue'],
+                    xAxisDimension: 'status',
+                    yAxisMetrics: ['revenue'],
                     xAxisType: 'category',
                 },
                 statusRevenueRows,
@@ -215,28 +215,22 @@ describe('getComposerSlackEchartsConfig', () => {
             await runQueryEcharts(
                 vizConfig,
                 {
-                    dimensions: [
-                        'composer_result_orders_month',
-                        'composer_result_status',
-                    ],
-                    metrics: [
-                        'composer_result_revenue',
-                        'composer_result_order_count',
-                    ],
+                    dimensions: ['orders_month', 'status'],
+                    metrics: ['revenue', 'order_count'],
                 },
                 {
                     defaultVizType: 'line',
-                    xAxisDimension: 'composer_result_orders_month',
-                    yAxisMetrics: ['composer_result_revenue'],
-                    groupBy: ['composer_result_status'],
+                    xAxisDimension: 'orders_month',
+                    yAxisMetrics: ['revenue'],
+                    groupBy: ['status'],
                     xAxisType: 'time',
-                    secondaryYAxisMetric: 'composer_result_order_count',
+                    secondaryYAxisMetric: 'order_count',
                 },
                 rows.map((row) => ({
-                    composer_result_orders_month: row.orders_month,
-                    composer_result_status: row.status,
-                    composer_result_revenue: row.revenue,
-                    composer_result_order_count: row.order_count,
+                    orders_month: row.orders_month,
+                    status: row.status,
+                    revenue: row.revenue,
+                    order_count: row.order_count,
                 })),
             ),
         );
@@ -253,19 +247,19 @@ describe('getComposerSlackEchartsConfig', () => {
             await runQueryEcharts(
                 vizConfig,
                 {
-                    dimensions: ['composer_result_orders_month'],
-                    metrics: ['composer_result_revenue'],
+                    dimensions: ['orders_month'],
+                    metrics: ['revenue'],
                 },
                 {
                     defaultVizType: 'line',
-                    xAxisDimension: 'composer_result_orders_month',
-                    yAxisMetrics: ['composer_result_revenue'],
+                    xAxisDimension: 'orders_month',
+                    yAxisMetrics: ['revenue'],
                     xAxisType: 'time',
                     lineType: 'area',
                 },
                 rows.map((row) => ({
-                    composer_result_orders_month: row.orders_month,
-                    composer_result_revenue: row.revenue,
+                    orders_month: row.orders_month,
+                    revenue: row.revenue,
                 })),
             ),
         );
@@ -284,13 +278,13 @@ describe('getComposerSlackEchartsConfig', () => {
             await runQueryEcharts(
                 vizConfig,
                 {
-                    dimensions: ['composer_result_status'],
-                    metrics: ['composer_result_revenue'],
+                    dimensions: ['status'],
+                    metrics: ['revenue'],
                 },
                 {
                     defaultVizType,
-                    xAxisDimension: 'composer_result_status',
-                    yAxisMetrics: ['composer_result_revenue'],
+                    xAxisDimension: 'status',
+                    yAxisMetrics: ['revenue'],
                     xAxisType: 'category',
                 },
                 statusRevenueRows,

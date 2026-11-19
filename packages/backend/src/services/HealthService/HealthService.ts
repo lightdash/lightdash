@@ -299,8 +299,7 @@ export class HealthService extends BaseService {
             ),
             hasExtendedUsageAnalytics:
                 this.lightdashConfig.extendedUsageAnalytics.enabled,
-            hasCacheAutocompleResults:
-                this.lightdashConfig.results.autocompleteEnabled,
+            hasCacheAutocompleResults: false,
             appearance: {
                 overrideColorPalette:
                     this.lightdashConfig.appearance.overrideColorPalette,
@@ -338,6 +337,9 @@ export class HealthService extends BaseService {
                     this.lightdashConfig.ai.copilot.threadDumpEnabled,
                 fastDecisionsEnabled:
                     !!this.lightdashConfig.ai.decisions.apiKey,
+                // Same provider config transcribeCapture reads.
+                voiceTranscriptionAvailable:
+                    !!this.lightdashConfig.ai.copilot.providers.openai?.apiKey,
             },
             echarts6: {
                 enabled: false,
@@ -351,6 +353,9 @@ export class HealthService extends BaseService {
             },
             dashboardComments: {
                 enabled: this.lightdashConfig.dashboardComments.enabled,
+            },
+            mergeQueryAuthoring: {
+                enabled: this.lightdashConfig.mergeQueryAuthoring.enabled,
             },
             preAggregates: {
                 enabled: preAggregatesEnabled,

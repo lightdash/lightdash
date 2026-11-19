@@ -19,6 +19,7 @@ import {
     type AiDeepResearchWorkerTaskInput,
     type AiSemanticChartArtifactConfig,
     type ApiConnectorType,
+    type StudioChangeSummary,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
@@ -59,6 +60,7 @@ import {
     FindCustomChartTypesFn,
     FindExploresFn,
     GenerateDataAppFn,
+    GetComposerChartFn,
     GetDashboardChartsFn,
     GetExploreFn,
     GetKnowledgeDocumentContentFn,
@@ -85,6 +87,7 @@ import {
     ListWarehouseTablesFn,
     ListWorkstreamsFn,
     LoadAgentSkillFn,
+    PrepareComposerChartEditFn,
     ProposeSemanticLayerChangeFn,
     ReadAttachmentsFn,
     ReadContentFn,
@@ -97,6 +100,7 @@ import {
     ResolveCustomChartTypeFn,
     ResolveUrlFn,
     RunAsyncQueryFn,
+    RunComposerChartQueryFn,
     RunComposerQueriesFn,
     RunSavedChartQueryFn,
     RunSqlChartQueryFn,
@@ -245,6 +249,15 @@ export type AiAgentDeepResearchRunContext = {
     hasReport: boolean;
 };
 
+export type CustomSqlPermissions = {
+    // manage:CustomSql, and SQL mode on so the SQL chart gate allows saves.
+    canSaveSqlCharts: boolean;
+    // manage:CustomFields: custom SQL dimensions and hand-written custom metrics.
+    canAuthorCustomSqlFields: boolean;
+    // manage:CustomSqlTableCalculations.
+    canAuthorSqlTableCalculations: boolean;
+};
+
 export type AiAgentArgs = AnyAiModel & {
     decisions?: AiDecisionClient;
     decisionUsage?: AiDecisionUsage;
@@ -314,15 +327,19 @@ export type AiAgentArgs = AnyAiModel & {
     // The thread owns at least one attached document, so readAttachments is
     // registered.
     enableReadAttachments: boolean;
+    // The thread has at least one pinned conversation, so readPinnedThread is registered.
+    enableReadPinnedThread: boolean;
     // A web app thread whose UI renders askUser questions, so the tool is offered.
     enableAskUser: boolean;
     enableFilterExpressions: boolean;
     // dbt project root within the repo (from project_sub_path); '.' = repo root,
-    // null when repo discovery is off or the project is not git-backed.
+    // null when repo discovery is off or there is no /dbt mount.
     repoFsRoot: string | null;
     // Whether the repo host has server-side code search (GitHub yes, GitLab no).
     // Drives whether the prompt tells the agent to use `search`.
     repoFsSupportsCodeSearch: boolean;
+    // Semantic Studio saves changes with a code mode script instead of the sandbox.
+    semanticStudioCodeMode: boolean;
     canRunSql: boolean;
     // Whether the composer query tool is the query path: composer flags, data
     // access and the agent's enableComposerQueries opt-in.
@@ -337,6 +354,8 @@ export type AiAgentArgs = AnyAiModel & {
     // Gates createScheduledDelivery the same way, so a role without
     // create:ScheduledDeliveries keeps content tools but loses scheduling.
     canCreateScheduledDeliveries: boolean;
+    // Prompt wording only: the content tools prompt warns about each one that is false.
+    customSqlPermissions: CustomSqlPermissions;
     autoApproveSql: boolean;
     autoApproveSqlUserUuid: string | null;
     // When the modern Slack streaming card is driving progress, tools render
@@ -416,6 +435,7 @@ export type AiAgentDependencies = {
     readContent: ReadContentFn;
     resolveUrl: ResolveUrlFn;
     editContent: EditContentFn;
+    prepareComposerChartEdit: PrepareComposerChartEditFn;
     recordSqlChartRefusal?: (
         action: 'create' | 'update',
         reasonCode: string,
@@ -435,6 +455,7 @@ export type AiAgentDependencies = {
     runAsyncQuery: RunAsyncQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;
     runSqlChartQuery: RunSqlChartQueryFn;
+    runComposerChartQuery: RunComposerChartQueryFn;
     runSqlJob: RunSqlJobFn;
     runComposerQueries: RunComposerQueriesFn;
     listWarehouseTables: ListWarehouseTablesFn;
@@ -445,6 +466,7 @@ export type AiAgentDependencies = {
     readAttachments: ReadAttachmentsFn;
     getSavedChart: GetSavedChartFn;
     getSqlChart: GetSqlChartFn;
+    getComposerChart: GetComposerChartFn;
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;
     deferSlackVisualization?: import('./aiAgentDependencies').DeferSlackVisualizationFn;
@@ -474,6 +496,7 @@ export type AiAgentDependencies = {
     editDbtProject: EditDbtProjectFn;
     editProjectContext: EditProjectContextFn;
     proposeSemanticLayerChange: ProposeSemanticLayerChangeFn;
+    listChanges: () => Promise<StudioChangeSummary[]>;
     readSemanticModel: ReadSemanticModelFn;
     syncDbtProject: SyncDbtProjectFn;
     exploreRepo: ExploreRepoFn;

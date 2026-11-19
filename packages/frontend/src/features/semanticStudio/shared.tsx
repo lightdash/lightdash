@@ -2,14 +2,7 @@
  * Building blocks for Semantic Layer: the field table, the details modals,
  * search results and the small controls around them.
  */
-import {
-    DbtProjectType,
-    DimensionType,
-    FieldType,
-    MetricType,
-    type Field as LightdashField,
-    type WarehouseTypes,
-} from '@lightdash/common';
+import { DbtProjectType, type WarehouseTypes } from '@lightdash/common';
 import {
     Autocomplete,
     Box,
@@ -37,6 +30,7 @@ import {
     IconFileSpreadsheet,
     IconFileTypeCsv,
     IconFolder,
+    IconGripVertical,
     IconLock,
     IconPlus,
     IconSearch,
@@ -56,13 +50,13 @@ import {
     useMemo,
     useRef,
     useState,
+    type DragEvent,
     type FC,
     type KeyboardEvent,
     type MouseEvent,
     type ReactNode,
 } from 'react';
 import { Link } from 'react-router';
-import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import { ItemDetailMarkdown } from '../../components/Explorer/ExploreTree/TableTree/ItemDetailPreview';
 import dbtLogo from '../../components/ProjectConnection/ProjectConnectFlow/Assets/dbt.svg';
@@ -76,6 +70,7 @@ import googleSheetsLogo from '../../svgs/google-sheets.svg';
 import { useUpdateLiveSourceFields } from '../externalConnections/hooks/useLiveSourceFields';
 import { useExternalSourceActions } from './externalSources/externalSourceActions';
 import { isSameDraft, toFieldChange, toFieldDraft } from './fieldDraft';
+import { KindTypeIcon } from './KindTypeIcon';
 import { useLiveSourceActions } from './liveSources/liveSourceActions';
 import {
     getExplore,
@@ -95,6 +90,8 @@ import {
 import { CHANGE_KIND_LABELS } from './modelCode';
 import { SemanticLayerPreview } from './SemanticLayerPreview';
 import classes from './shared.module.css';
+import { startStudioChatRefDrag, useAddToStudioChat } from './studioChatRefs';
+import { STUDIO_STARTERS } from './studioStarters';
 import { useCanEditSemanticLayer } from './useSemanticLayerModel';
 import {
     type FieldDraft,
@@ -167,41 +164,6 @@ const KindIcon: FC<{ kind: Kind; size?: number }> = ({ kind, size = 16 }) => (
     <MantineIcon icon={KIND_ICONS[kind]} size={size} color="dimmed" />
 );
 
-const isDimensionType = (type: string): type is DimensionType =>
-    Object.values<string>(DimensionType).includes(type);
-const isMetricType = (type: string): type is MetricType =>
-    Object.values<string>(MetricType).includes(type);
-
-/** The explorer's field icon, from a field kind and type. */
-const KindTypeIcon: FC<{
-    fieldKind: FieldKind;
-    type: string;
-    name: string;
-    size?: 'md' | 'lg';
-}> = ({ fieldKind, type, name, size = 'md' }) => (
-    <FieldIcon
-        size={size}
-        item={
-            {
-                fieldType:
-                    fieldKind === 'metric'
-                        ? FieldType.METRIC
-                        : FieldType.DIMENSION,
-                type:
-                    fieldKind === 'metric'
-                        ? isMetricType(type)
-                            ? type
-                            : MetricType.NUMBER
-                        : isDimensionType(type)
-                          ? type
-                          : DimensionType.STRING,
-                name,
-                label: name,
-            } as LightdashField
-        }
-    />
-);
-
 const FieldTypeIcon: FC<{ field: Field; size?: 'md' | 'lg' }> = ({
     field,
     size = 'md',
@@ -243,7 +205,14 @@ export const NodeIcon: FC<{
         case 'explore': {
             const explore = getExplore(project, nodeRef.exploreId);
             const source = getSource(project, explore.sourceId);
-            return source.type === 'dbt' ? (
+            // A live source with several explores shows its logo on the
+            // source row above; a single-explore source is its explore
+            const isUnderLiveSource =
+                source.type === 'live' &&
+                project.explores.filter(
+                    ({ sourceId }) => sourceId === source.id,
+                ).length > 1;
+            return source.type === 'dbt' || isUnderLiveSource ? (
                 <MantineIcon icon={IconTable} size={size} color="dimmed" />
             ) : (
                 <SourceLogo source={source} size={size} />
@@ -511,71 +480,97 @@ const FieldRow = memo<{
     joined: boolean;
     unsaved: boolean;
     onOpen: (field: Field) => void;
-}>(({ field, index, top, selected, tabStop, joined, unsaved, onOpen }) => {
-    const summary = summaryOf(field.description);
-    return (
-        <Box className={classes.fieldItem} top={top}>
-            <Box
-                className={classes.fieldRow}
-                data-selected={selected}
-                data-off={!field.inUse || field.draftState === 'removed'}
-                data-field-index={index}
-                data-field-id={field.id}
-                role="row"
-                aria-selected={selected}
-                tabIndex={tabStop ? 0 : -1}
-                onClick={() => onOpen(field)}
-            >
-                <Group gap={8} wrap="nowrap" className={classes.fieldName}>
-                    <Box flex="none" display="flex">
-                        <FieldTypeIcon field={field} />
-                    </Box>
+    onDragStart: (event: DragEvent, field: Field) => void;
+}>(
+    ({
+        field,
+        index,
+        top,
+        selected,
+        tabStop,
+        joined,
+        unsaved,
+        onOpen,
+        onDragStart,
+    }) => {
+        const canDrag = useAddToStudioChat() !== null;
+        const summary = summaryOf(field.description);
+        return (
+            <Box className={classes.fieldItem} top={top}>
+                <Box
+                    className={classes.fieldRow}
+                    data-selected={selected}
+                    data-off={!field.inUse || field.draftState === 'removed'}
+                    data-field-index={index}
+                    data-field-id={field.id}
+                    role="row"
+                    aria-selected={selected}
+                    tabIndex={tabStop ? 0 : -1}
+                    draggable={canDrag}
+                    onDragStart={(event) => onDragStart(event, field)}
+                    onClick={() => onOpen(field)}
+                >
+                    {canDrag ? (
+                        <Box className={classes.dragGrip} aria-hidden>
+                            <MantineIcon icon={IconGripVertical} size={12} />
+                        </Box>
+                    ) : null}
+                    <Group gap={8} wrap="nowrap" className={classes.fieldName}>
+                        <Box flex="none" display="flex">
+                            <FieldTypeIcon field={field} />
+                        </Box>
+                        <Text
+                            truncate
+                            className={classes.fieldLabel}
+                            title={field.label}
+                        >
+                            {field.label}
+                        </Text>
+                        {joined ? (
+                            <Text truncate className={classes.fieldTable}>
+                                {field.table}
+                            </Text>
+                        ) : null}
+                        {unsaved ? (
+                            <Text className={classes.fieldUnsaved}>
+                                Unsaved
+                            </Text>
+                        ) : null}
+                        {field.draftState ? (
+                            <Text
+                                className={classes.fieldUnsaved}
+                                data-change={field.draftState}
+                            >
+                                {CHANGE_KIND_LABELS[field.draftState]}
+                            </Text>
+                        ) : null}
+                        {field.visibleTo ? (
+                            <Tooltip
+                                label={`Only people with ${field.visibleTo}`}
+                                openDelay={300}
+                            >
+                                <Box flex="none" display="flex">
+                                    <MantineIcon
+                                        icon={IconLock}
+                                        size={12}
+                                        color="dimmed"
+                                    />
+                                </Box>
+                            </Tooltip>
+                        ) : null}
+                    </Group>
                     <Text
                         truncate
-                        className={classes.fieldLabel}
-                        title={field.label}
+                        className={classes.fieldDescription}
+                        title={summary || undefined}
                     >
-                        {field.label}
+                        {summary}
                     </Text>
-                    {joined ? (
-                        <Text truncate className={classes.fieldTable}>
-                            {field.table}
-                        </Text>
-                    ) : null}
-                    {unsaved ? (
-                        <Text className={classes.fieldUnsaved}>Unsaved</Text>
-                    ) : null}
-                    {field.draftState ? (
-                        <Text className={classes.fieldUnsaved}>
-                            {CHANGE_KIND_LABELS[field.draftState]}
-                        </Text>
-                    ) : null}
-                    {field.visibleTo ? (
-                        <Tooltip
-                            label={`Only people with ${field.visibleTo}`}
-                            openDelay={300}
-                        >
-                            <Box flex="none" display="flex">
-                                <MantineIcon
-                                    icon={IconLock}
-                                    size={12}
-                                    color="dimmed"
-                                />
-                            </Box>
-                        </Tooltip>
-                    ) : null}
-                </Group>
-                <Text
-                    truncate
-                    className={classes.fieldDescription}
-                    title={summary || undefined}
-                >
-                    {summary}
-                </Text>
+                </Box>
             </Box>
-        </Box>
-    );
-});
+        );
+    },
+);
 
 export const FieldList: FC<{
     view: ViewModel;
@@ -630,6 +625,19 @@ export const FieldList: FC<{
         setActiveFieldId(field.id);
         onOpenRef.current(field);
     }, []);
+    const dragRow = useCallback(
+        (event: DragEvent, field: Field) =>
+            startStudioChatRefDrag(event.dataTransfer, {
+                modelName: explore.id,
+                fieldName: field.id,
+                modelLabel: explore.label,
+                fieldLabel: field.label,
+                fieldKind: field.fieldKind,
+                fieldType: field.type,
+                code: null,
+            }),
+        [explore.id, explore.label],
+    );
     const selectedIndex = fields.findIndex(({ id }) => id === activeFieldId);
     const tabStop = selectedIndex < 0 ? 0 : selectedIndex;
     // Arriving on an open field (a link, back, reload): show its row.
@@ -783,6 +791,7 @@ export const FieldList: FC<{
                                     joined={field.table !== explore.name}
                                     unsaved={!!view.getDraft(explore, field)}
                                     onOpen={openRow}
+                                    onDragStart={dragRow}
                                 />
                             );
                         })}
@@ -1107,24 +1116,33 @@ export const FieldDetailModal: FC<{
     /** Opens the YAML that defines it; null when there is none to show. */
     onViewCode: (() => void) | null;
 }> = ({ view, explore, field, groups, onClose, onViewCode }) => {
+    const addToChat = useAddToStudioChat();
     const source = getSource(view.project, explore.sourceId);
     const saved = toFieldDraft(field);
-    // Drafts live in the view, so closing without saving keeps them.
-    const draft = view.getDraft(explore, field) ?? saved;
-    const isSaved = (next: FieldDraft) => isSameDraft(next, saved);
-    const setDraft = (next: FieldDraft) =>
-        view.setDraft(explore, field, isSaved(next) ? null : next);
+    // Typed here and handed to the view on close: the view keeps it, and typing does not render the whole page.
+    const [draft, setDraft] = useState(
+        () => view.getDraft(explore, field) ?? saved,
+    );
+    // What was just saved counts as saved before the field is read again.
+    const [committed, setCommitted] = useState<FieldDraft | null>(null);
+    const isSaved = (next: FieldDraft) =>
+        isSameDraft(next, saved) ||
+        (committed !== null && isSameDraft(next, committed));
+    const keep = useRef(() => {});
+    keep.current = () =>
+        view.setDraft(explore, field, isSaved(draft) ? null : draft);
+    useEffect(() => () => keep.current(), []);
     const canEdit = view.canEditFields(explore);
     const isLive = source.kind === 'live';
     const dirty = !isSaved(draft);
-    const discard = () => view.setDraft(explore, field, null);
+    const discard = () => setDraft(committed ?? saved);
     const update = useUpdateLiveSourceFields({
         projectUuid: view.project.id,
         connectionUuid: source.connectionUuid ?? '',
     });
     const save = () => {
         update.mutate([toFieldChange(field.name, draft, saved)], {
-            onSuccess: discard,
+            onSuccess: () => setCommitted(draft),
         });
     };
     const facts = [
@@ -1147,16 +1165,42 @@ export const FieldDetailModal: FC<{
                     Only project admins can edit live data source fields
                 </Text>
             </Group>
-        ) : onViewCode ? (
-            <Button
-                size="xs"
-                variant="subtle"
-                color="gray"
-                className={classes.pressable}
-                onClick={onViewCode}
-            >
-                View code
-            </Button>
+        ) : onViewCode || addToChat ? (
+            <Group gap={4} wrap="nowrap">
+                {onViewCode ? (
+                    <Button
+                        size="xs"
+                        variant="subtle"
+                        color="gray"
+                        className={classes.pressable}
+                        onClick={onViewCode}
+                    >
+                        View code
+                    </Button>
+                ) : null}
+                {addToChat ? (
+                    <Button
+                        size="xs"
+                        variant="subtle"
+                        color="gray"
+                        className={classes.pressable}
+                        onClick={() => {
+                            addToChat({
+                                modelName: explore.id,
+                                fieldName: field.id,
+                                modelLabel: explore.label,
+                                fieldLabel: field.label,
+                                fieldKind: field.fieldKind,
+                                fieldType: field.type,
+                                code: null,
+                            });
+                            onClose();
+                        }}
+                    >
+                        Ask in chat
+                    </Button>
+                ) : null}
+            </Group>
         ) : null;
 
     return (
@@ -1638,11 +1682,52 @@ const StartFromLiveSource: FC<{ view: ViewModel }> = ({ view }) => {
 };
 
 /** A warehouse with nothing modelled yet: what a semantic layer is, and the way in. */
+const FirstRequest: FC<{ onAsk: (prompt: string) => void }> = ({ onAsk }) => {
+    const [request, setRequest] = useState('');
+    const ask = () => {
+        if (request.trim()) onAsk(request.trim());
+    };
+    return (
+        <Stack gap="sm" w="100%" maw={520}>
+            <Box className={classes.firstRequest}>
+                <Textarea
+                    variant="unstyled"
+                    autosize
+                    minRows={2}
+                    maxRows={6}
+                    autoFocus
+                    placeholder="What should I build first?"
+                    value={request}
+                    onChange={(event) => setRequest(event.currentTarget.value)}
+                    onKeyDown={getHotkeyHandler([['Enter', ask]])}
+                />
+                <Group justify="flex-end">
+                    <Button size="xs" disabled={!request.trim()} onClick={ask}>
+                        Ask
+                    </Button>
+                </Group>
+            </Box>
+            <Group gap="xs" justify="center">
+                {STUDIO_STARTERS.map(({ label, prompt }) => (
+                    <Button
+                        key={label}
+                        size="xs"
+                        variant="default"
+                        onClick={() => onAsk(prompt)}
+                    >
+                        {label}
+                    </Button>
+                ))}
+            </Group>
+        </Stack>
+    );
+};
+
 export const BuildFirstModel: FC<{
     view: ViewModel;
     /** Left out while the chat is already open beside this. */
-    onGetStarted: (() => void) | null;
-}> = ({ view, onGetStarted }) => {
+    onAsk: ((prompt: string) => void) | null;
+}> = ({ view, onAsk }) => {
     const { data: project } = useProject(view.project.id);
     return (
         <Box className={classes.starter}>
@@ -1661,9 +1746,7 @@ export const BuildFirstModel: FC<{
                         answer calculates them the same way.
                     </Text>
                 </Stack>
-                {onGetStarted ? (
-                    <Button onClick={onGetStarted}>Get started</Button>
-                ) : null}
+                {onAsk ? <FirstRequest onAsk={onAsk} /> : null}
                 <StartFromLiveSource view={view} />
             </Stack>
         </Box>

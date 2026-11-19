@@ -18,6 +18,10 @@
     padding: 6px var(--mantine-spacing-xs);
 }
 
+.progress {
+    padding: 6px var(--mantine-spacing-xs);
+}
+
 .issueDetail {
     overflow-wrap: anywhere;
 }

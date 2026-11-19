@@ -2,21 +2,25 @@ import { z } from 'zod';
 import type { ChartAsCode } from '../../../../types/coder';
 import { type ToolDescriptionContext } from '../defineTool';
 import { toolErrorStructuredContentSchema } from '../outputMetadata';
+import { composerChartVizConfigSchema } from './composerChartVizConfigSchema';
 import { toolNameFor } from './discoveryToolNames';
 
 export const SQL_CHART_CREATE_GUIDANCE =
     'A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them.';
 
+export const COMPOSER_CHART_CREATE_GUIDANCE =
+    'A composer chart (type composer_chart) is saved onto an existing dashboard, from a query node (from: "node") or from full pipeline and chart JSON (from: "json"); the composer-chart-reference skill resource has both shapes and when each needs SQL approval.';
+
 export const TOOL_CREATE_CONTENT_DESCRIPTION = ({
     runtime,
 }: ToolDescriptionContext): string =>
-    `Create a dashboard, chart or SQL chart from its JSON; the developing-in-lightdash skill has the shapes. Save into a space whose canEdit is true in ${toolNameFor(
+    `Create a dashboard, chart, SQL chart or composer chart from its JSON; the developing-in-lightdash skill has the shapes. Save into a space whose canEdit is true in ${toolNameFor(
         'findContent',
         runtime,
     )} or ${toolNameFor(
         'listContent',
         runtime,
-    )} results; a write to any other space is refused. ${SQL_CHART_CREATE_GUIDANCE}`;
+    )} results; a write to any other space is refused. ${SQL_CHART_CREATE_GUIDANCE} ${COMPOSER_CHART_CREATE_GUIDANCE}`;
 
 type RequiredMetricQueryKeys = keyof Omit<
     ChartAsCode['metricQuery'],
@@ -97,9 +101,52 @@ export const toolSqlChartAsCodeSchema = baseContentSchema
     .passthrough()
     .describe('Full SQL chart JSON to create.');
 
+const composerChartOwnerShape = {
+    dashboardSlug: z
+        .string()
+        .min(1)
+        .describe('The existing dashboard the chart belongs to.'),
+    name: z.string().min(1),
+    description: z.string().nullable(),
+};
+
+export const toolComposerChartFromNodeSchema = z
+    .strictObject({
+        from: z.literal('node'),
+        ...composerChartOwnerShape,
+        nodeId: z.string().describe('A node from a successful query call.'),
+        sessionId: z
+            .string()
+            .nullable()
+            .describe(
+                "The query result's sessionId; null in an agent conversation.",
+            ),
+        vizConfig: composerChartVizConfigSchema,
+    })
+    .describe('Composer chart built from a query node.');
+
+export type ToolComposerChartFromNode = z.infer<
+    typeof toolComposerChartFromNodeSchema
+>;
+
+export const toolComposerChartAsCodeContentSchema = z
+    .object({
+        from: z.literal('json'),
+        ...composerChartOwnerShape,
+        pipeline: z.record(z.string(), z.unknown()),
+        chart: z.record(z.string(), z.unknown()),
+    })
+    // Accepts a readContent composer_chart result as it is; its slug is not kept.
+    .passthrough()
+    .describe('Composer chart from full pipeline and chart JSON.');
+
+export type ToolComposerChartAsCodeContent = z.infer<
+    typeof toolComposerChartAsCodeContentSchema
+>;
+
 export const toolCreateContentArgsSchema = z.object({
     type: z
-        .enum(['dashboard', 'chart', 'sql_chart'])
+        .enum(['dashboard', 'chart', 'sql_chart', 'composer_chart'])
         .describe('Type of Lightdash content to create.'),
     content: z.union([
         baseContentSchema
@@ -125,6 +172,8 @@ export const toolCreateContentArgsSchema = z.object({
             .passthrough()
             .describe('Full Chart JSON to create.'),
         toolSqlChartAsCodeSchema,
+        toolComposerChartFromNodeSchema,
+        toolComposerChartAsCodeContentSchema,
     ]),
 });
 
@@ -132,6 +181,8 @@ export type ToolCreateContentArgs = z.infer<typeof toolCreateContentArgsSchema>;
 
 const toolCreateContentMetadataSchema = z.discriminatedUnion('status', [
     z.object({ status: z.literal('error') }),
+    // The user rejected, or never answered, the SQL chart's approval.
+    z.object({ status: z.enum(['rejected', 'timeout']) }),
     z.object({
         status: z.literal('success'),
         slug: z.string(),
@@ -167,6 +218,7 @@ export const toolCreateContentStructuredContentSchema = z.discriminatedUnion(
         z.object({ type: z.literal('dashboard'), ...createdContentShape }),
         z.object({ type: z.literal('chart'), ...createdContentShape }),
         z.object({ type: z.literal('sql_chart'), ...createdContentShape }),
+        z.object({ type: z.literal('composer_chart'), ...createdContentShape }),
         z.object({
             type: z.literal('document'),
             ...createdContentShape,

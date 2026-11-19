@@ -1,8 +1,13 @@
 import {
+    assertUnreachable,
     isValuelessDashboardFilterRule,
+    type DashboardFilterableField,
     type DashboardFilterRule,
+    type DashboardTile,
+    type UnmetFilterRequirement,
 } from '@lightdash/common';
 import { getConditionalRuleLabelFromItem } from '../../../components/common/Filters/FilterInputs/utils';
+import { doesFilterApplyToAnyTile } from '../FilterConfiguration/utils';
 import { type SelectableFilter } from './FilterSelect';
 import { type DashboardFilterFieldResolver } from './useDashboardFilterField';
 
@@ -12,6 +17,39 @@ export {
     isRequirementRuleSatisfied,
     type FilterRequirementRule,
 } from '@lightdash/common';
+
+/**
+ * Whether a requirement reaches any of the tiles, e.g. a tab's. A member
+ * without `tileTargets` applies everywhere, otherwise it must apply to one.
+ */
+export const doesFilterRequirementApplyToTiles = (
+    members: DashboardFilterRule[],
+    tiles: DashboardTile[],
+    filterableFieldsByTileUuid:
+        | Record<string, DashboardFilterableField[]>
+        | undefined,
+): boolean =>
+    members.some(
+        (member) =>
+            !member.tileTargets ||
+            doesFilterApplyToAnyTile(member, tiles, filterableFieldsByTileUuid),
+    );
+
+export const getUnmetFilterRequirementMembers = (
+    requirement: UnmetFilterRequirement,
+): DashboardFilterRule[] => {
+    switch (requirement.type) {
+        case 'single':
+            return [requirement.filter];
+        case 'group':
+            return requirement.filters;
+        default:
+            return assertUnreachable(
+                requirement,
+                'Unknown filter requirement type',
+            );
+    }
+};
 
 /**
  * Why a dashboard filter can't be added to a filter rule; null when it is

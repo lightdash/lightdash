@@ -30,6 +30,7 @@ import {
     MetricType,
     PivotConfiguration,
     quoteFieldReference,
+    resolveAdditionalMetricsSql,
     TableCalculation,
     TableCalculationTemplate,
     type WarehouseSqlBuilder,
@@ -41,7 +42,6 @@ import {
 } from '@lightdash/formula';
 import { mapAdapterToFormulaDialect } from './formulaDialectMapper';
 import { compileTableCalculationFromTemplate } from './tableCalculationTemplateQueryCompiler';
-import { resolveAdditionalMetricsSql } from './utils/embedCompiledSql';
 import { getDimensionFromId } from './utils/QueryBuilder/utils';
 
 const formatFormulaError = (displayName: string, error: unknown): string => {

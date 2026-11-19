@@ -3519,22 +3519,23 @@ export class McpService extends BaseService {
                 );
 
                 const editContentTool = getEditContent({
+                    prepareComposerChartEdit: null,
                     editContent: toolsRuntime.editContent,
                     siteUrl: this.lightdashConfig.siteUrl,
                     sqlChartSaving: { mode: 'client_approved' },
                 });
+                // Clients send null for the one of these they leave unused
+                const patch = args.patch ?? null;
+                const documentEdit = args.documentEdit ?? null;
                 if (args.type === 'document') {
-                    if (
-                        args.patch !== undefined ||
-                        args.documentEdit === undefined
-                    ) {
+                    if (patch !== null || documentEdit === null) {
                         throw new ParameterError(
                             'Documents require documentEdit instead of patch',
                         );
                     }
                     const document = await toolsRuntime.editDocumentContent(
                         args.slug,
-                        args.documentEdit,
+                        documentEdit,
                     );
                     return this.buildScopedResponse(
                         ctx,
@@ -3544,16 +3545,13 @@ export class McpService extends BaseService {
                         args.agentUuid,
                     );
                 }
-                if (
-                    args.documentEdit !== undefined ||
-                    args.patch === undefined
-                ) {
+                if (documentEdit !== null || patch === null) {
                     throw new ParameterError(
                         'Charts and dashboards require patch instead of documentEdit',
                     );
                 }
                 const result = await editContentTool.execute!(
-                    { ...argsWithProject, type: args.type, patch: args.patch },
+                    { ...argsWithProject, type: args.type, patch },
                     {
                         toolCallId: '',
                         context: {},
@@ -4347,6 +4345,10 @@ export class McpService extends BaseService {
                         ? {
                               projectUuid: activeProject.projectUuid,
                               projectName: activeProject.name,
+                              type: activeProject.type,
+                              isPinned: Boolean(
+                                  ctx.authInfo?.extra.headerProjectUuid,
+                              ),
                               selectedTags:
                                   metadata.projectUuid === activeProjectUuid
                                       ? metadata.tags

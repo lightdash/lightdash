@@ -8,6 +8,10 @@ import {
 import { Group, Menu, Text } from '@mantine/core';
 import { IconFilter, IconFilterX } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
+import {
+    getLiveSourceSupportedOperators,
+    useApiSourceExplore,
+} from '../../features/externalConnections/liveSources/apiSourceExplore';
 import { useFilters } from '../../hooks/useFilters';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
@@ -35,7 +39,11 @@ type Props = {
  */
 const QuickFilterMenuItems: FC<Props> = ({ item, value, onAddFilter }) => {
     const { addFilter: defaultAddFilter } = useFilters();
-    const { resolvedTimezone } = useMetricQueryDataContext();
+    const { resolvedTimezone, tableName } = useMetricQueryDataContext();
+    const supportedOperators = getLiveSourceSupportedOperators(
+        useApiSourceExplore(tableName),
+        item,
+    );
     const { track } = useTracking();
 
     const handleFilterByValue = useCallback(
@@ -75,25 +83,31 @@ const QuickFilterMenuItems: FC<Props> = ({ item, value, onAddFilter }) => {
                         operator: FilterOperator.NOT_EQUALS,
                     },
                 ] as const
-            ).map(({ label, icon, operator }) => (
-                <Menu.Item
-                    key={operator}
-                    leftSection={<MantineIcon icon={icon} />}
-                    onClick={() => handleFilterByValue(operator)}
-                >
-                    <Group gap={4} wrap="nowrap">
-                        <Text span>{label}</Text>
-                        <TruncatedText
-                            inline
-                            fw="bold"
-                            fz="inherit"
-                            maxWidth={MAX_FILTER_VALUE_WIDTH}
-                        >
-                            {value.formatted}
-                        </TruncatedText>
-                    </Group>
-                </Menu.Item>
-            ))}
+            )
+                .filter(
+                    ({ operator }) =>
+                        !supportedOperators ||
+                        supportedOperators.includes(operator),
+                )
+                .map(({ label, icon, operator }) => (
+                    <Menu.Item
+                        key={operator}
+                        leftSection={<MantineIcon icon={icon} />}
+                        onClick={() => handleFilterByValue(operator)}
+                    >
+                        <Group gap={4} wrap="nowrap">
+                            <Text span>{label}</Text>
+                            <TruncatedText
+                                inline
+                                fw="bold"
+                                fz="inherit"
+                                maxWidth={MAX_FILTER_VALUE_WIDTH}
+                            >
+                                {value.formatted}
+                            </TruncatedText>
+                        </Group>
+                    </Menu.Item>
+                ))}
         </>
     );
 };

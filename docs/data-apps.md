@@ -128,7 +128,7 @@ The hosting Lightdash page is the app's only route to data. The SDK inside the i
 `postMessage`; the host validates each against a small allowlist (run a metric query, run a saved chart live, poll
 results, underlying data, scheduled exports, current user, external fetch through a linked connection, saved app
 state) and executes it with the viewer's own session. The same channel carries capability announces (an SDK feature manifest, screenshot
-and lineage availability), URL state sync, the host colour scheme, cache invalidation and the screenshot round trip.
+and lineage availability), URL state sync, app events for the embedding page, the host colour scheme, cache invalidation and the screenshot round trip.
 Unknown routes are rejected.
 
 ### What the host provides
@@ -145,6 +145,10 @@ Unknown routes are rejected.
   (`useSharedAppState`). Writes carry the version last read and conflict instead of overwriting. Embedded viewers
   read shared values and never write. Caps: 64 KB per value, 200 keys per app per scope, 1,000 history versions
   per key.
+- **Events to the embedding page** — in an embed, the app can call `emitEvent(name, payload)` and the host relays
+  it to the page embedding Lightdash as a `lightdash:appEvent` event, through the embed event system (allowed
+  `targetOrigin`, rate limits). The payload is JSON capped at 64 KB; the host fixes the outer event type. Outside
+  an embed the call is dropped.
 - **Host colour scheme** — the app follows the host's light/dark mode through a handshake; capture surfaces force
   light.
 - **Thumbnails** — one per ready version, captured automatically when a build becomes ready or by hand from the running app. An app's card shows its latest ready version's thumbnail.

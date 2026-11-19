@@ -149,6 +149,7 @@ export const BaseResponse: HealthState = {
         isAmbientAiEnabled: false,
         threadDumpEnabled: false,
         fastDecisionsEnabled: false,
+        voiceTranscriptionAvailable: true,
     },
     echarts6: {
         enabled: false,
@@ -164,6 +165,9 @@ export const BaseResponse: HealthState = {
         enabled: false,
     },
     dashboardComments: {
+        enabled: true,
+    },
+    mergeQueryAuthoring: {
         enabled: true,
     },
     preAggregates: {

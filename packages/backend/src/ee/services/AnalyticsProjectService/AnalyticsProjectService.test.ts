@@ -1,22 +1,29 @@
+import { Ability } from '@casl/ability';
 import {
     ConflictError,
     ContentType,
     ForbiddenError,
     NotFoundError,
+    PossibleAbilities,
 } from '@lightdash/common';
+import { type Knex } from 'knex';
 import { UsageHistoryBackfill } from '../../../analytics/eventStream/UsageHistoryBackfill';
 import {
     analyticsContentAsCode,
     analyticsDefaultSpace,
 } from '../../../analytics/systemExplores/sampleContent';
+import { fromSession } from '../../../auth/account';
+import { ANALYTICS_DATA_APP_SNAPSHOT_TYPE } from '../../../models/ContentAsCodeSnapshotModel';
 import * as analyticsExplores from '../../../services/ProjectService/analyticsProject/createAnalyticsExplores';
 import {
     user as baseUser,
     defaultProject,
 } from '../../../services/ProjectService/ProjectService.mock';
+import { type AppGenerateService } from '../AppGenerateService/AppGenerateService';
 import { getAnalyticsContentHash } from './analyticsContentHash';
 import { analyticsHomepage } from './analyticsHomepage';
 import { AnalyticsProjectService } from './AnalyticsProjectService';
+import { managedAdoptionAppSlug } from './managedAdoptionApp';
 
 describe('AnalyticsProjectService', () => {
     const user = {
@@ -31,7 +38,10 @@ describe('AnalyticsProjectService', () => {
         slug: 'lightdash-analytics-1',
         provisioningSource: 'analytics',
         createdAt: new Date('2026-09-10T00:00:00Z'),
+        organizationUuid: user.organizationUuid,
     };
+    const track = vi.fn();
+    const getProjectSummary = vi.fn();
     const getAllByOrganizationUuid = vi.fn();
     const saveExploresToCache = vi.fn();
     const getAnalyticsModelCounts = vi.fn();
@@ -50,12 +60,21 @@ describe('AnalyticsProjectService', () => {
                 .length,
         }));
     const assertAnalyticsProjectAdministration = vi.fn();
+    const assertAnalyticsProjectAccess = vi.fn();
     const ensureAnalyticsProject = vi.fn();
     const deleteProject = vi.fn();
     const invalidateSessionUserCache = vi.fn();
     const lock = vi.fn();
     const upsertChart = vi.fn();
     const upsertDashboard = vi.fn();
+    const getOrCreateSpace = vi.fn();
+    const dataAppsEnabledFor = vi.fn();
+    const importAppCode = vi.fn<AppGenerateService['importAppCode']>();
+    const restoreApp = vi.fn();
+    const getAppIncludingDeleted = vi.fn();
+    const getLatestVersion = vi.fn();
+    const getVersion = vi.fn();
+    const hasAppSlug = vi.fn();
     const findAllAgents = vi.fn();
     const getIsCopilotEnabled = vi.fn();
     const createAgent = vi.fn();
@@ -82,6 +101,18 @@ describe('AnalyticsProjectService', () => {
     );
     const findProcessingStatus = vi.fn();
     const service = new AnalyticsProjectService({
+        analytics: { track },
+        appModel: {
+            getAppIncludingDeleted,
+            getLatestVersion,
+            getVersion,
+            hasAppSlug,
+        },
+        getAppGenerateService: () => ({
+            dataAppsEnabledFor,
+            importAppCode,
+            restoreApp,
+        }),
         aiAgentModel: { findAllAgents },
         getAiAgentService: () => ({ getIsCopilotEnabled, createAgent }),
         lightdashConfig: {
@@ -101,13 +132,14 @@ describe('AnalyticsProjectService', () => {
         contentAsCodeSnapshotModel: { get: getSnapshot, upsert: saveSnapshot },
         organizationMemberProfileModel: { getOrganizationAdmins },
         usageDimensionsModel: { getOrganizations },
-        coderService: { upsertChart, upsertDashboard },
+        coderService: { getOrCreateSpace, upsertChart, upsertDashboard },
         contentVerificationModel: { getByContentUuids: getVerifications },
         dashboardModel: { find: findDashboard, getByIdOrSlug: getDashboard },
         projectHomepageModel: { createPublishedDefaultIfAbsent },
         savedChartModel: { get: getChart, find: findCharts },
         spaceModel: { get: getSpace, find: findSpaces },
         projectModel: {
+            getSummary: getProjectSummary,
             getAllByOrganizationUuid,
             saveExploresToCache,
             getAnalyticsModelCounts,
@@ -122,6 +154,7 @@ describe('AnalyticsProjectService', () => {
         projectService: {
             isAnalyticsProjectEnabled,
             assertAnalyticsProjectAdministration,
+            assertAnalyticsProjectAccess,
             ensureAnalyticsProject,
             delete: deleteProject,
         },
@@ -132,7 +165,9 @@ describe('AnalyticsProjectService', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
         vi.resetAllMocks();
+        getProjectSummary.mockResolvedValue(analyticsProject);
         getIsCopilotEnabled.mockResolvedValue(false);
+        dataAppsEnabledFor.mockResolvedValue(false);
         findAllAgents.mockResolvedValue([]);
         getSnapshot.mockResolvedValue({ snapshotHash: hash });
         isAnalyticsProjectEnabled.mockReturnValue(true);
@@ -170,6 +205,152 @@ describe('AnalyticsProjectService', () => {
             defaultProject,
             analyticsProject,
         ]);
+    });
+
+    describe('visit tracking', () => {
+        it('tracks settings visits with server-derived identity', async () => {
+            await service.trackView(fromSession(user), {
+                source: 'settings',
+                projectUuid: analyticsProject.projectUuid,
+            });
+            expect(assertAnalyticsProjectAdministration).toHaveBeenCalled();
+            expect(track).toHaveBeenCalledWith({
+                event: 'analytics_project.viewed',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: user.organizationUuid,
+                    projectId: analyticsProject.projectUuid,
+                    source: 'settings',
+                },
+            });
+        });
+
+        it('tracks settings before the analytics project exists', async () => {
+            await service.trackView(fromSession(user), {
+                source: 'settings',
+                projectUuid: null,
+            });
+            expect(getProjectSummary).not.toHaveBeenCalled();
+            expect(track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    properties: {
+                        organizationId: user.organizationUuid,
+                        projectId: null,
+                        source: 'settings',
+                    },
+                }),
+            );
+        });
+
+        it.each(['homepage', 'project'] as const)(
+            'tracks %s visits with project view access',
+            async (source) => {
+                const account = fromSession(user);
+                await service.trackView(account, {
+                    source,
+                    projectUuid: analyticsProject.projectUuid,
+                });
+                expect(assertAnalyticsProjectAccess).toHaveBeenCalledWith(
+                    account,
+                    analyticsProject,
+                );
+                expect(
+                    assertAnalyticsProjectAdministration,
+                ).not.toHaveBeenCalled();
+                expect(track).toHaveBeenCalledWith({
+                    event: 'analytics_project.viewed',
+                    userId: user.userUuid,
+                    properties: {
+                        organizationId: user.organizationUuid,
+                        projectId: analyticsProject.projectUuid,
+                        source,
+                    },
+                });
+            },
+        );
+
+        it('rejects settings visits without administration access', async () => {
+            assertAnalyticsProjectAdministration.mockRejectedValue(
+                new ForbiddenError(),
+            );
+            await expect(
+                service.trackView(fromSession(user), {
+                    source: 'settings',
+                    projectUuid: null,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(track).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            { ...analyticsProject, organizationUuid: 'another-org' },
+            { ...analyticsProject, provisioningSource: null },
+        ])('rejects a project outside managed analytics', async (project) => {
+            getProjectSummary.mockResolvedValue(project);
+            await expect(
+                service.trackView(fromSession(user), {
+                    source: 'homepage',
+                    projectUuid: project.projectUuid,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(track).not.toHaveBeenCalled();
+        });
+
+        it('rejects visits without project view access', async () => {
+            await expect(
+                service.trackView(
+                    fromSession({
+                        ...user,
+                        ability: new Ability<PossibleAbilities>([]),
+                    }),
+                    {
+                        source: 'project',
+                        projectUuid: analyticsProject.projectUuid,
+                    },
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(track).not.toHaveBeenCalled();
+        });
+
+        it('rejects visits without managed analytics access', async () => {
+            assertAnalyticsProjectAccess.mockRejectedValue(
+                new ForbiddenError(),
+            );
+            await expect(
+                service.trackView(fromSession(user), {
+                    source: 'homepage',
+                    projectUuid: analyticsProject.projectUuid,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(track).not.toHaveBeenCalled();
+        });
+
+        it('rejects visits without an organization', async () => {
+            await expect(
+                service.trackView(fromSession(baseUser), {
+                    source: 'settings',
+                    projectUuid: null,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(track).not.toHaveBeenCalled();
+        });
+
+        it('does not fail a visit when tracking throws', async () => {
+            track.mockImplementation(() => {
+                throw new Error('Tracking unavailable');
+            });
+            await expect(
+                service.trackView(fromSession(user), {
+                    source: 'settings',
+                    projectUuid: null,
+                }),
+            ).resolves.toBeUndefined();
+        });
+
+        it('does not track status polling as a visit', async () => {
+            await service.getStatus(user);
+            expect(track).not.toHaveBeenCalled();
+        });
     });
 
     describe('automatic synchronization', () => {
@@ -230,6 +411,7 @@ describe('AnalyticsProjectService', () => {
                 expect.objectContaining({ userUuid: user.userUuid }),
             );
             expect(assertAnalyticsProjectAdministration).toHaveBeenCalled();
+            expect(track).not.toHaveBeenCalled();
         });
 
         it('skips unchanged content and still detects definition-only changes', async () => {
@@ -289,6 +471,139 @@ describe('AnalyticsProjectService', () => {
                 }),
                 { autoProvisioned: true },
             );
+        });
+
+        describe('managed Adoption app', () => {
+            const { projectUuid } = analyticsProject;
+            const appUuid = '3306fcce-45d0-4812-96c6-c13bff22658d';
+            const app = { app_id: appUuid, slug: managedAdoptionAppSlug };
+            const trx = {} as Knex.Transaction;
+            let appSnapshot:
+                | { snapshot: object; snapshotHash: string }
+                | undefined;
+
+            beforeEach(() => {
+                appSnapshot = undefined;
+                dataAppsEnabledFor.mockResolvedValue(true);
+                getOrCreateSpace.mockResolvedValue({
+                    space: { uuid: 'default-space' },
+                });
+                findDashboard.mockResolvedValue(
+                    analyticsContentAsCode.map(({ dashboard }) => ({
+                        uuid: dashboard.slug,
+                    })),
+                );
+                getSnapshot.mockImplementation(async (_project, type) =>
+                    type === ANALYTICS_DATA_APP_SNAPSHOT_TYPE
+                        ? appSnapshot
+                        : { snapshotHash: hash },
+                );
+                saveSnapshot.mockImplementation(async (row) => {
+                    if (row.contentType === ANALYTICS_DATA_APP_SNAPSHOT_TYPE)
+                        appSnapshot = row;
+                });
+                importAppCode.mockImplementation(
+                    async (_user, _project, _body, managedImport) => {
+                        await managedImport?.onNewAppVersionCreated?.(
+                            trx,
+                            'version-uuid',
+                            appUuid,
+                        );
+                        return {
+                            appUuid,
+                            version: 1,
+                            action: 'create',
+                            slug: managedAdoptionAppSlug,
+                            warnings: [],
+                        };
+                    },
+                );
+            });
+
+            it('installs through nightly sync and skips an existing managed build', async () => {
+                const background = configured();
+                await background.syncContent({ organizationUuid: 'org' });
+                expect(upsertDashboard).not.toHaveBeenCalled();
+                expect(importAppCode).toHaveBeenCalledExactlyOnceWith(
+                    expect.objectContaining({ userUuid: user.userUuid }),
+                    projectUuid,
+                    expect.objectContaining({
+                        code: expect.objectContaining({
+                            manifest: expect.objectContaining({
+                                slug: managedAdoptionAppSlug,
+                            }),
+                        }),
+                        spaceUuid: 'default-space',
+                    }),
+                    expect.objectContaining({ expectedAppUuid: null }),
+                );
+                expect(saveSnapshot).toHaveBeenCalledExactlyOnceWith(
+                    expect.objectContaining({
+                        projectUuid,
+                        contentType: ANALYTICS_DATA_APP_SNAPSHOT_TYPE,
+                        slug: managedAdoptionAppSlug,
+                        snapshot: { appUuid, version: 1 },
+                    }),
+                    trx,
+                );
+                expect(lock).toHaveBeenCalledWith('org');
+
+                getAppIncludingDeleted.mockResolvedValue(app);
+                getLatestVersion.mockResolvedValue({
+                    status: 'pending',
+                    version: 1,
+                });
+                await background.syncContent({ organizationUuid: 'org' });
+                expect(importAppCode).toHaveBeenCalledOnce();
+
+                getLatestVersion.mockResolvedValue({
+                    status: 'ready',
+                    version: 1,
+                });
+                await background.syncContent({ organizationUuid: 'org' });
+                expect(importAppCode).toHaveBeenCalledOnce();
+            });
+
+            it('retries a failed managed build without moving the existing app', async () => {
+                const background = configured();
+                await background.syncContent({ organizationUuid: 'org' });
+                getAppIncludingDeleted.mockResolvedValue(app);
+                getLatestVersion.mockResolvedValue({
+                    status: 'error',
+                    version: 1,
+                });
+                importAppCode.mockResolvedValueOnce({
+                    appUuid,
+                    version: 2,
+                    action: 'append',
+                    slug: managedAdoptionAppSlug,
+                    warnings: [],
+                });
+
+                await background.syncContent({ organizationUuid: 'org' });
+
+                expect(upsertDashboard).not.toHaveBeenCalled();
+                expect(getOrCreateSpace).toHaveBeenCalledOnce();
+                expect(importAppCode).toHaveBeenLastCalledWith(
+                    expect.objectContaining({ userUuid: user.userUuid }),
+                    projectUuid,
+                    expect.objectContaining({ spaceUuid: undefined }),
+                    expect.objectContaining({ expectedAppUuid: appUuid }),
+                );
+                expect(appSnapshot?.snapshot).toEqual({ appUuid, version: 2 });
+            });
+
+            it('leaves a slug held by a custom app alone', async () => {
+                hasAppSlug.mockResolvedValue(true);
+                await configured().syncContent({ organizationUuid: 'org' });
+                expect(hasAppSlug).toHaveBeenCalledWith(
+                    projectUuid,
+                    managedAdoptionAppSlug,
+                );
+                expect(importAppCode).not.toHaveBeenCalled();
+                expect(getOrCreateSpace).not.toHaveBeenCalled();
+                expect(saveSnapshot).not.toHaveBeenCalled();
+            });
         });
 
         it.each([

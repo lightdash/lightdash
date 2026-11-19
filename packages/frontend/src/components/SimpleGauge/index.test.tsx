@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { getGaugeSizes } from '@lightdash/visualization/editor';
 import { act, cleanup, render } from '@testing-library/react';
 import { type ECharts } from 'echarts';

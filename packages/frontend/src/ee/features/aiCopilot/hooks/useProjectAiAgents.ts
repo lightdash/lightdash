@@ -1101,6 +1101,22 @@ const toOptimisticContextItem = (
                 builtIn: false,
                 displayName: null,
             };
+        case 'sql_chart':
+            return {
+                type: 'sql_chart',
+                sqlChartUuid: item.sqlChartUuid,
+                sqlChartSlug: item.sqlChartSlug,
+                displayName: null,
+                pinnedVersionUuid: null,
+            };
+        case 'composer_chart':
+            return {
+                type: 'composer_chart',
+                composerChartUuid: item.composerChartUuid,
+                composerChartSlug: item.composerChartSlug,
+                displayName: null,
+                pinnedVersionUuid: null,
+            };
         // System-only pins are seeded by the remediation flow or the thread
         // restore endpoint, never optimistically attached from the UI.
         case 'proposed_change':
@@ -2178,6 +2194,48 @@ export const useUpdateArtifactVersionSavedSql = (
         onError: ({ error }) => {
             showToastApiError({
                 title: 'Failed to link saved SQL chart',
+                apiError: error,
+            });
+        },
+    });
+};
+
+export const useUpdateArtifactVersionSavedComposerChart = (
+    projectUuid: string,
+    agentUuid: string,
+    artifactUuid: string,
+    versionUuid: string,
+) => {
+    const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiSuccessEmpty,
+        ApiError,
+        { savedComposerChartUuid: string }
+    >({
+        mutationFn: ({ savedComposerChartUuid }) =>
+            lightdashApi<ApiSuccessEmpty>({
+                url: `/projects/${projectUuid}/aiAgents/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}/savedComposerChart`,
+                method: 'PATCH',
+                body: JSON.stringify({ savedComposerChartUuid }),
+            }),
+        // Returned so the caller waits until the answer shows it is saved.
+        onSuccess: () =>
+            queryClient.invalidateQueries({
+                queryKey: [
+                    AI_AGENT_ARTIFACT_KEY,
+                    projectUuid,
+                    agentUuid,
+                    artifactUuid,
+                    'version',
+                    versionUuid,
+                ],
+            }),
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Chart saved, but the answer could not link to it',
                 apiError: error,
             });
         },

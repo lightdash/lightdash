@@ -7,12 +7,10 @@ import {
     getShadowedReservedNames,
     isDashboardControlOrder,
     mergeDashboardCustomMetrics,
-    normalizeDateZoomConfig,
     removeDateZoomTileTargets,
     ChartType,
     ContentType,
     DashboardTileTypes,
-    DateGranularity,
     FeatureFlags,
     type AdditionalMetric,
     type DashboardFilterRule,
@@ -41,6 +39,7 @@ import {
 import { v4 as uuid4 } from 'uuid';
 import styles from '../components/common/Dashboard/Dashboard.module.css';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
+import { scrollToDashboardTileWhenMounted } from '../components/common/Dashboard/scrollToDashboardTile';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import MantineModal from '../components/common/MantineModal';
@@ -113,14 +112,16 @@ import {
     useRequiredFiltersNote,
 } from '../features/dashboard/store';
 import TileQueryQueueProvider from '../features/dashboard/tileQueryQueue/TileQueryQueueProvider';
-import { ControlsSidebarPage } from '../features/dashboardControls/ControlsSidebarPage';
+import { ControlsEditorPage } from '../features/dashboardControls/ControlsEditorPage';
 import { DashboardHeaderGuard } from '../features/dashboardControls/DashboardHeaderGuard';
+import { useControlDraftResets } from '../features/dashboardControls/useControlDraftResets';
 import { type EditFiltersVisibility } from '../features/dashboardFilters/EditFiltersVisibilityControl';
 import { getDimensionFiltersToSave } from '../features/dashboardFilters/FilterConfiguration/utils';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import DashboardTabs from '../features/dashboardTabs';
 import { ACTUAL_SIZE_ZOOM } from '../features/dashboardTabs/canvasZoomUtils';
 import { useFitToScreen } from '../features/dashboardTabs/useFitToScreen';
+import { MERGE_URL_PARAM } from '../features/mergeQuery/context/mergeUrlState';
 import { isLeavingTrainingCopy } from '../features/scopeTours/trainingCopy';
 import {
     appendNewTilesToBottom,
@@ -308,6 +309,7 @@ const Dashboard: FC = () => {
         (c) => c.setHasParameterOrderChanged,
     );
     const dashboardDispatch = useDashboardDispatch();
+    const { resetControlDrafts } = useControlDraftResets();
     const controlSections = useDashboardSelector(selectControlSections);
     const haveControlSectionsChanged = useDashboardSelector(
         selectHaveControlSectionsChanged,
@@ -319,18 +321,12 @@ const Dashboard: FC = () => {
     const haveDateZoomGranularitiesChanged = useDashboardSelector(
         selectHaveDateZoomGranularitiesChanged,
     );
-    const setDateZoomGranularities = useDashboardContext(
-        (c) => c.setDateZoomGranularities,
-    );
     const setHaveDateZoomGranularitiesChanged = useDashboardContext(
         (c) => c.setHaveDateZoomGranularitiesChanged,
     );
     const defaultDateZoomGranularity = useDefaultDateZoomGranularity();
     const hasDefaultDateZoomGranularityChanged = useDashboardSelector(
         selectHasDefaultDateZoomGranularityChanged,
-    );
-    const setDefaultDateZoomGranularity = useDashboardContext(
-        (c) => c.setDefaultDateZoomGranularity,
     );
     const setHasDefaultDateZoomGranularityChanged = useDashboardContext(
         (c) => c.setHasDefaultDateZoomGranularityChanged,
@@ -770,39 +766,7 @@ const Dashboard: FC = () => {
         setPinnedParameters(dashboard.config?.pinnedParameters ?? []);
         setHavePinnedParametersChanged(false);
         setHasParameterOrderChanged(false);
-        dashboardDispatch(
-            dashboardEditActions.setHaveControlSectionsChanged(false),
-        );
-        dashboardDispatch(
-            dashboardParametersActions.setHaveParameterControlsChanged(false),
-        );
-        dashboardDispatch(
-            dashboardEditActions.syncControlSections(
-                dashboard.config?.controlSections ?? [],
-            ),
-        );
-        dashboardDispatch(
-            dashboardEditActions.setHasControlOrderChanged(false),
-        );
-        dashboardDispatch(
-            dashboardEditActions.syncControlOrder(
-                isDashboardControlOrder(dashboard.config?.controlOrder)
-                    ? dashboard.config.controlOrder
-                    : undefined,
-            ),
-        );
-        setDateZoomGranularities(
-            dashboard.config?.dateZoomGranularities ??
-                Object.values(DateGranularity),
-        );
-        setHaveDateZoomGranularitiesChanged(false);
-        setDefaultDateZoomGranularity(
-            dashboard.config?.defaultDateZoomGranularity,
-        );
-        setHasDefaultDateZoomGranularityChanged(false);
-        setDateZoomConfig(normalizeDateZoomConfig(dashboard.config));
-        setHasDateZoomConfigChanged(false);
-        setRequiredFiltersNote(undefined);
+        resetControlDrafts(dashboard.config);
 
         if (dashboardTabs.length > 0) {
             void navigate(
@@ -833,15 +797,8 @@ const Dashboard: FC = () => {
         setSavedParameters,
         setPinnedParameters,
         setHavePinnedParametersChanged,
-        setDateZoomGranularities,
-        setHaveDateZoomGranularitiesChanged,
-        setDefaultDateZoomGranularity,
-        setHasDefaultDateZoomGranularityChanged,
-        setDateZoomConfig,
-        setHasDateZoomConfigChanged,
         setHasParameterOrderChanged,
-        setRequiredFiltersNote,
-        dashboardDispatch,
+        resetControlDrafts,
     ]);
 
     const handleMoveDashboardToSpace = useCallback(
@@ -1138,7 +1095,7 @@ const Dashboard: FC = () => {
     const isDashboardControlsEnabled =
         dashboardControlsFlag.data?.enabled === true;
     const DashboardPage = isDashboardControlsEnabled
-        ? ControlsSidebarPage
+        ? ControlsEditorPage
         : Page;
     const dashboardCustomMetricsFlag = useServerFeatureFlag(
         FeatureFlags.DashboardCustomMetrics,
@@ -1162,6 +1119,7 @@ const Dashboard: FC = () => {
                 (params) => {
                     params.set(EDIT_CHART_SEARCH_PARAM, chartUuid);
                     params.delete(CREATE_SAVED_CHART_VERSION_SEARCH_PARAM);
+                    params.delete(MERGE_URL_PARAM);
                     return params;
                 },
                 { replace: true },
@@ -1174,6 +1132,7 @@ const Dashboard: FC = () => {
             (params) => {
                 params.delete(EDIT_CHART_SEARCH_PARAM);
                 params.delete(CREATE_SAVED_CHART_VERSION_SEARCH_PARAM);
+                params.delete(MERGE_URL_PARAM);
                 return params;
             },
             { replace: true },
@@ -1207,6 +1166,19 @@ const Dashboard: FC = () => {
         isEditMode && editErgonomicsFlag.data?.enabled === true
             ? editFiltersVisibility
             : null;
+    const isEditErgonomicsEnabled = editErgonomicsFlag.data?.enabled === true;
+    const handleAddTilesFromToolbar = useCallback(
+        async (tiles: IDashboard['tiles'][number][]) => {
+            await handleAddTiles(tiles);
+            const [first] = tiles;
+            if (!first) return;
+            scrollToDashboardTileWhenMounted(first.uuid);
+            if (isEditErgonomicsEnabled) {
+                dashboardDispatch(dashboardEditActions.selectTile(first.uuid));
+            }
+        },
+        [handleAddTiles, isEditErgonomicsEnabled, dashboardDispatch],
+    );
 
     // With the flag on, dashboards always fit and viewers get no toggle
     const fitToScreenDefaultFlag = useServerFeatureFlag(
@@ -1393,7 +1365,7 @@ const Dashboard: FC = () => {
             // New uuid means a brand-new chart; an existing tile refreshes
             // itself via the update mutation's query cache reset.
             if (chart.uuid !== chartToEdit?.uuid) {
-                void handleAddTiles([
+                void handleAddTilesFromToolbar([
                     {
                         uuid: uuid4(),
                         type: DashboardTileTypes.SAVED_CHART,
@@ -1418,7 +1390,7 @@ const Dashboard: FC = () => {
         [
             chartToEdit,
             closeChartEditor,
-            handleAddTiles,
+            handleAddTilesFromToolbar,
             activeTab?.uuid,
             dashboardCustomMetrics,
             setDashboardCustomMetrics,
@@ -1632,7 +1604,7 @@ const Dashboard: FC = () => {
                 : null,
         onEditFiltersVisibilityChange: setEditFiltersVisibility,
         hasDashboardChanged,
-        onAddTiles: handleAddTiles,
+        onAddTiles: handleAddTilesFromToolbar,
         onNewChart:
             isChartEditorEnabled && isEditMode ? handleOpenNewChart : undefined,
         onSaveDashboard: () => {

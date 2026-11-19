@@ -164,6 +164,7 @@ describe('Document chart query boundary', () => {
         'parameters',
         'userAttributeOverrides',
         'documentQueryContext',
+        'authority',
         'documentSource',
     ])(
         'rejects a caller-supplied %s even when generated validation strips it',

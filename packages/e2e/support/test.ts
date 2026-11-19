@@ -21,6 +21,7 @@ export * from './api';
 export * from './ui';
 export * from './cli';
 export * from './env';
+export * from './composer';
 
 type RequestOptions = Parameters<APIRequestContext['fetch']>[1];
 
@@ -95,6 +96,30 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
                     'homepage-v2-default-notice-closed',
                     'true',
                 );
+            });
+            // The dashboard edit tour dims the page and swallows clicks
+            await context.route('**/api/v1/user/onboarding', async (route) => {
+                if (route.request().method() !== 'GET') {
+                    await route.fallback();
+                    return;
+                }
+                const response = await route.fetch();
+                const body: {
+                    results: { completedTours: Record<string, boolean> };
+                } = await response.json();
+                await route.fulfill({
+                    response,
+                    json: {
+                        ...body,
+                        results: {
+                            ...body.results,
+                            completedTours: {
+                                ...body.results.completedTours,
+                                dashboardEditTour: true,
+                            },
+                        },
+                    },
+                });
             });
             await use();
         },

@@ -1,4 +1,3 @@
-import { Tooltip } from '@mantine/core';
 import { IconCirclePlus } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
@@ -7,24 +6,18 @@ import { SidebarButton } from './SidebarButton';
 
 type Props = {
     to: string;
-    isCollapsed: boolean;
 };
 
-export const NewThreadButton: FC<Props> = ({ to, isCollapsed }) => (
-    <Tooltip label="New thread" disabled={!isCollapsed} position="right">
-        <SidebarButton
-            aria-label="New thread"
-            leftSection={<MantineIcon icon={IconCirclePlus} />}
-            component={Link}
-            to={to}
-            size="xs"
-            fz="sm"
-            {...(!isCollapsed && {
-                fullWidth: true,
-                justify: 'flex-start',
-            })}
-        >
-            {isCollapsed ? '' : 'New thread'}
-        </SidebarButton>
-    </Tooltip>
+export const NewThreadButton: FC<Props> = ({ to }) => (
+    <SidebarButton
+        leftSection={<MantineIcon icon={IconCirclePlus} />}
+        component={Link}
+        to={to}
+        size="xs"
+        fz="sm"
+        fullWidth
+        justify="flex-start"
+    >
+        New thread
+    </SidebarButton>
 );

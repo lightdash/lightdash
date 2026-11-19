@@ -337,11 +337,13 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
             {
                 path: 'deep-research/:runUuid',
                 lazy: async () => {
-                    const DeepResearchReportPage = await loadLazyRouteDefault(
-                        './pages/AiAgents/DeepResearchReportPage',
-                        () => import('./pages/AiAgents/DeepResearchReportPage'),
-                    );
-                    return { Component: DeepResearchReportPage };
+                    const DeepResearchRunRedirectPage =
+                        await loadLazyRouteDefault(
+                            './pages/AiAgents/DeepResearchRunRedirectPage',
+                            () =>
+                                import('./pages/AiAgents/DeepResearchRunRedirectPage'),
+                        );
+                    return { Component: DeepResearchRunRedirectPage };
                 },
             },
             {

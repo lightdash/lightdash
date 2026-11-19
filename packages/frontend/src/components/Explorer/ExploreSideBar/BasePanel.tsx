@@ -135,10 +135,12 @@ const BasePanel = ({ onExploreClick, shouldHideExplore }: Props) => {
         customUngroupedExplores,
         sortedPreAggregateExplores,
         sortedExternalSourceExplores,
+        sortedLiveSourceExplores,
     ] = useMemo(() => {
         if (!filteredExplores) {
             return [
                 [],
+                [] as SummaryExplore[],
                 [] as SummaryExplore[],
                 [] as SummaryExplore[],
                 [] as SummaryExplore[],
@@ -150,12 +152,15 @@ const BasePanel = ({ onExploreClick, shouldHideExplore }: Props) => {
         const customExplores: SummaryExplore[] = [];
         const preAggregateExplores: SummaryExplore[] = [];
         const externalSourceExplores: SummaryExplore[] = [];
+        const liveSourceExplores: SummaryExplore[] = [];
 
         for (const explore of filteredExplores) {
             if (explore.type === ExploreType.PRE_AGGREGATE) {
                 preAggregateExplores.push(explore);
             } else if (explore.type === ExploreType.EXTERNAL_SOURCE) {
                 externalSourceExplores.push(explore);
+            } else if (explore.type === ExploreType.API_SOURCE) {
+                liveSourceExplores.push(explore);
             } else if (exploreHasGroups(explore)) {
                 groupedExplores.push(explore);
             } else if (explore.type === ExploreType.VIRTUAL) {
@@ -172,6 +177,7 @@ const BasePanel = ({ onExploreClick, shouldHideExplore }: Props) => {
         defaultExplores.sort((a, b) => a.label.localeCompare(b.label));
         customExplores.sort((a, b) => a.label.localeCompare(b.label));
         externalSourceExplores.sort((a, b) => a.label.localeCompare(b.label));
+        liveSourceExplores.sort((a, b) => a.label.localeCompare(b.label));
         preAggregateExplores.sort((a, b) =>
             (getPreAggregateName(a) ?? '').localeCompare(
                 getPreAggregateName(b) ?? '',
@@ -184,6 +190,7 @@ const BasePanel = ({ onExploreClick, shouldHideExplore }: Props) => {
             customExplores,
             preAggregateExplores,
             externalSourceExplores,
+            liveSourceExplores,
         ];
     }, [filteredExplores, tableGroupDetails]);
 
@@ -299,6 +306,7 @@ const BasePanel = ({ onExploreClick, shouldHideExplore }: Props) => {
                             externalSourceExplores={
                                 sortedExternalSourceExplores
                             }
+                            liveSourceExplores={sortedLiveSourceExplores}
                             searchQuery={debouncedSearch}
                             connections={connections}
                             onExploreClick={handleExploreClick}

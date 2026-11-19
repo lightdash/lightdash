@@ -9,7 +9,8 @@ import {
 } from '@lightdash/common';
 import { createHash } from 'node:crypto';
 import { buildAccount } from '../../../auth/account/account.mock';
-import { GOOGLE_TOKEN_URL } from '../../../services/QuerySourceService/api/google/googleSignIn';
+import { GOOGLE_TOKEN_URL } from '../../../services/QuerySourceService/live/integrations/google/signIn';
+import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
 import * as secureFetchModule from '../../../utils/secureFetch/secureFetch';
 import { ExternalConnectionService } from './ExternalConnectionService';
 import { OAuthAuthorizationCodeTokenClient } from './OAuthAuthorizationCodeTokenClient';
@@ -111,6 +112,7 @@ const buildService = ({
         ),
         findByUuid: vi.fn().mockResolvedValue(connection),
         getProjectOrganizationUuid: vi.fn().mockResolvedValue('org-1'),
+        purgeLiveSourceCache: vi.fn().mockResolvedValue(undefined),
         getDecryptedSecret: vi.fn(async () => storedSecret),
         updateSecretLocked: vi.fn(
             async (
@@ -304,7 +306,7 @@ describe('Google sign-in for live sources', () => {
         });
     });
 
-    it('keeps the Source ID the admin typed when one site is readable', async () => {
+    it('keeps the explore prefix the admin typed when one site is readable', async () => {
         const { service, externalConnectionModel } = buildService();
         mockSecureFetch.mockResolvedValueOnce(
             sitesResponse(['sc-domain:lightdash.com', 'siteOwner']),
@@ -321,7 +323,7 @@ describe('Google sign-in for live sources', () => {
         ).toEqual(['web_events']);
     });
 
-    it('keeps the Source ID the admin typed through the site picker', async () => {
+    it('keeps the explore prefix the admin typed through the site picker', async () => {
         const { service, externalConnectionModel } = buildService();
         mockSecureFetch.mockResolvedValueOnce(
             sitesResponse(
@@ -479,19 +481,12 @@ describe('Google sign-in for live sources', () => {
             }),
         );
 
-        const connector = await service.getApiConnector(
-            account,
-            'proj-1',
-            'conn-1',
-        );
-        const result = await connector.execute({
-            payload: {
-                kind: 'query',
-                query: JSON.stringify({
-                    startDate: '2026-10-01',
-                    endDate: '2026-10-28',
-                }),
-            },
+        const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
+        const result = await runLiveRequest(source, {
+            query: JSON.stringify({
+                startDate: '2026-10-01',
+                endDate: '2026-10-28',
+            }),
             limit: 10,
         });
 

@@ -1,4 +1,5 @@
 import {
+    allowsOptionalUserCredentials,
     BigqueryAuthenticationType,
     buildSafeDbtEnvironmentVariables,
     DbtVersionOptionLatest,
@@ -21,6 +22,7 @@ import {
     PROJECT_DBT_SOURCE_NAME_PATTERN,
     ProjectType,
     resolveDbtVersion,
+    SnowflakeAuthenticationType,
     SupportedDbtVersions,
     validateProjectDbtSourceName,
     WarehouseTypes,
@@ -32,7 +34,84 @@ import {
     type CreateWarehouseCredentials,
     type CreateWarehouseCredentialsWithOptionalSecrets,
     type DuckdbAnalyticsCredentials,
+    type WarehouseCredentials,
 } from './projects';
+
+describe('allowsOptionalUserCredentials', () => {
+    const snowflake: WarehouseCredentials = {
+        type: WarehouseTypes.SNOWFLAKE,
+        account: 'account',
+        database: 'database',
+        warehouse: 'warehouse',
+        schema: 'schema',
+    };
+    const bigquery: WarehouseCredentials = {
+        type: WarehouseTypes.BIGQUERY,
+        project: 'project',
+        dataset: 'dataset',
+        timeoutSeconds: undefined,
+        priority: undefined,
+        retries: undefined,
+        location: undefined,
+        maximumBytesBilled: undefined,
+    };
+
+    test.each<[string, WarehouseCredentials | undefined, boolean]>([
+        ['undefined credentials', undefined, false],
+        ['Snowflake without the opt-in', snowflake, false],
+        [
+            'Snowflake with the opt-in off',
+            { ...snowflake, allowUserCredentials: false },
+            false,
+        ],
+        [
+            'Snowflake with the opt-in',
+            { ...snowflake, allowUserCredentials: true },
+            true,
+        ],
+        ['BigQuery without the opt-in', bigquery, false],
+        [
+            'BigQuery with the opt-in',
+            { ...bigquery, allowUserCredentials: true },
+            true,
+        ],
+        [
+            'Databricks',
+            {
+                type: WarehouseTypes.DATABRICKS,
+                database: 'database',
+                serverHostName: 'host',
+                httpPath: 'path',
+            },
+            true,
+        ],
+        [
+            'Trino',
+            {
+                type: WarehouseTypes.TRINO,
+                host: 'host',
+                port: 443,
+                dbname: 'dbname',
+                schema: 'schema',
+                http_scheme: 'https',
+            },
+            true,
+        ],
+        [
+            'Postgres',
+            {
+                type: WarehouseTypes.POSTGRES,
+                host: 'host',
+                port: 5432,
+                dbname: 'dbname',
+                schema: 'schema',
+            },
+            false,
+        ],
+    ])('%s', (_name, credentials, expected) => {
+        expect(allowsOptionalUserCredentials(credentials)).toBe(expected);
+    });
+});
 
 describe('project dbt source name validation', () => {
     test.each([
@@ -78,6 +157,29 @@ describe('dbt environment variable validation', () => {
         expect(getDbtEnvironmentVariableKeyError('LD_PRELOAD')).toContain(
             'cannot be used',
         );
+    });
+
+    test('rejects reserved configuration keys without blocking customer variables', () => {
+        expect(
+            getInvalidDbtEnvironmentVariableKeys([
+                { key: 'OPENSSL_CONF', value: 'unused' },
+                { key: 'OPENSSL_MODULES', value: 'unused' },
+                { key: 'DBT_ENV_SECRET_TOKEN', value: 'example' },
+            ]),
+        ).toEqual(['OPENSSL_CONF', 'OPENSSL_MODULES']);
+    });
+
+    test('filters reserved configuration keys from saved project settings', () => {
+        expect(
+            buildSafeDbtEnvironmentVariables([
+                { key: 'OPENSSL_CONF', value: 'unused' },
+                { key: 'OPENSSL_MODULES', value: 'unused' },
+                { key: 'DBT_ENV_SECRET_TOKEN', value: 'example' },
+            ]),
+        ).toEqual({
+            environment: { DBT_ENV_SECRET_TOKEN: 'example' },
+            blockedKeys: ['OPENSSL_CONF', 'OPENSSL_MODULES'],
+        });
     });
 
     test('blocks variables that relocate where dbt, python or git read code and config from', () => {
@@ -190,6 +292,55 @@ describe('normalizeWarehouseCredentials', () => {
 });
 
 describe('mergeWarehouseCredentials', () => {
+    describe('Snowflake preview on a different warehouse', () => {
+        const parent: CreateSnowflakeCredentials = {
+            type: WarehouseTypes.SNOWFLAKE,
+            account: 'account',
+            user: 'service_user',
+            password: 'parent-password',
+            database: 'PROD',
+            warehouse: 'PROD_WH',
+            schema: 'analytics',
+            queryTag: 'parent-tag',
+            requireUserCredentials: true,
+        };
+        const preview: CreateSnowflakeCredentials = {
+            type: WarehouseTypes.SNOWFLAKE,
+            account: 'account',
+            user: 'developer',
+            privateKey: 'developer-key',
+            authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
+            role: 'DEVELOPER',
+            database: 'DEV',
+            warehouse: 'dev_wh',
+            schema: 'dbt_developer',
+        };
+
+        test('uses the preview credentials as-is by default', () => {
+            expect(mergeWarehouseCredentials(parent, preview)).toEqual(preview);
+        });
+
+        test('keeps the parent policy when inheriting across warehouses', () => {
+            const merged = mergeWarehouseCredentials(parent, preview, {
+                inheritAcrossSnowflakeWarehouses: true,
+            });
+            expect(merged).toEqual({
+                ...preview,
+                queryTag: 'parent-tag',
+                requireUserCredentials: true,
+            });
+        });
+
+        test('does not loosen a preview that already requires user credentials', () => {
+            const merged = mergeWarehouseCredentials(
+                { ...parent, requireUserCredentials: false },
+                { ...preview, requireUserCredentials: true },
+                { inheritAcrossSnowflakeWarehouses: true },
+            );
+            expect(merged.requireUserCredentials).toBe(true);
+        });
+    });
+
     test.each([undefined, false, true])(
         'preserves or overrides the BigQuery personal credential opt-in (%s)',
         (allowUserCredentials) => {
@@ -212,6 +363,36 @@ describe('mergeWarehouseCredentials', () => {
             const preview: CreateBigqueryCredentials = {
                 ...connection,
                 dataset: 'preview',
+                ...(allowUserCredentials === undefined
+                    ? {}
+                    : { allowUserCredentials }),
+            };
+
+            expect(
+                mergeWarehouseCredentials(base, preview).allowUserCredentials,
+            ).toBe(allowUserCredentials ?? true);
+        },
+    );
+
+    test.each([undefined, false, true])(
+        'preserves or overrides the Snowflake personal credential opt-in (%s)',
+        (allowUserCredentials) => {
+            const connection: CreateSnowflakeCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'account',
+                user: 'user',
+                password: 'password',
+                database: 'database',
+                warehouse: 'warehouse',
+                schema: 'schema',
+            };
+            const base: CreateSnowflakeCredentials = {
+                ...connection,
+                allowUserCredentials: true,
+            };
+            const preview: CreateSnowflakeCredentials = {
+                ...connection,
+                schema: 'preview',
                 ...(allowUserCredentials === undefined
                     ? {}
                     : { allowUserCredentials }),

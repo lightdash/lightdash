@@ -3116,7 +3116,12 @@ export const getStackTotalSeries = (
     valueAxisMaxes?: (number | undefined)[],
     parameters?: ParametersValuesMap,
 ) => {
-    const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
+    // Only stacked series have a total. Series with no stack would otherwise
+    // all be grouped under the key "undefined" and get one total between them.
+    const seriesGroupedByStack = groupBy(
+        seriesWithStack.filter((series) => !!series.stack),
+        'stack',
+    );
     return Object.entries(seriesGroupedByStack).reduce<EChartsSeries[]>(
         (acc, [stack, series]) => {
             // A series can land at index 0 without a `stackLabel` config (e.g.

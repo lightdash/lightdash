@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { ChartType } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

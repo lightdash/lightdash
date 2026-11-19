@@ -84,7 +84,7 @@ import {
 } from '../CoderService/handlers/contentConnections';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import type { ProjectService } from '../ProjectService/ProjectService';
-import { assertApiSourceQuery } from '../QuerySourceService/api/apiSourceExplore';
+import { assertLiveQuery } from '../QuerySourceService/live/explores/definition';
 import type {
     AccessTarget,
     SpacePermissionService,
@@ -1659,7 +1659,7 @@ export class DocumentService extends BaseService {
         // Live data source charts run on their integration, not as SQL.
         if (explore.type === ExploreType.API_SOURCE) {
             try {
-                assertApiSourceQuery(explore, metricQuery);
+                assertLiveQuery(explore, metricQuery);
             } catch (error) {
                 throw new ParameterError(
                     `Invalid chart "${chartId}": ${getErrorMessage(error)}`,

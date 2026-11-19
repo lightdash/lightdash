@@ -5,10 +5,11 @@ import type {
     UserOnboardingTour,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { type LightdashApi } from '../api';
 import { isScopeTourRunning } from '../features/scopeTours/isScopeTourRunning';
 import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
+import { type TourTracking } from './useTourTracking';
 
 const USER_ONBOARDING_QUERY_KEY = 'user-onboarding';
 
@@ -44,6 +45,8 @@ type UseOnboardingTourResult = {
     shouldShow: boolean;
     /** Close the tour and persist the seen-flag server-side. */
     closeTour: () => void;
+    /** The tour's analytics identity. */
+    tracking: TourTracking;
 };
 
 /**
@@ -92,7 +95,10 @@ export const useOnboardingTour = ({
         mutate(tour);
     }, [mutate, tour]);
 
+    const tracking = useMemo(() => ({ tour }), [tour]);
+
     return {
+        tracking,
         isCompleted,
         shouldShow:
             enabled &&

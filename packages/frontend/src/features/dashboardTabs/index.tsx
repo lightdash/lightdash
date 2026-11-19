@@ -1,9 +1,8 @@
 import {
-    assertUnreachable,
     copyDateZoomTileTargets,
+    DashboardTileTypes,
     FeatureFlags,
     getDefaultStartOfWeek,
-    type DashboardFilterRule,
     type DashboardTab,
     type DashboardTile,
     type Dashboard as IDashboard,
@@ -53,13 +52,16 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import {
+    dashboardEditActions,
     selectCanvasBackground,
     selectCanvasZoom,
     selectDashboardFilters,
     selectDashboardTabs,
     selectDateZoomGranularity,
+    selectIsDateZoomRefusedOnAllChartTiles,
     selectIsDateZoomDisabled,
     useDashboardDateZoomConfig,
+    useDashboardDispatch,
     useDashboardSelector,
     useDashboardTemporaryFilters,
     useDashboardUnmetFilterRequirements,
@@ -71,11 +73,15 @@ import { useParameterEditorSelector } from '../dashboardControls/useParameterEdi
 import addFilterClasses from '../dashboardFilters/AddFilterButton.module.css';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { type EditFiltersVisibility } from '../dashboardFilters/EditFiltersVisibilityControl';
-import { doesFilterApplyToTile } from '../dashboardFilters/FilterConfiguration/utils';
 import GuidedFilterSetupOverlay from '../dashboardFilters/FilterRequirements/GuidedFilterSetupOverlay';
+import {
+    doesFilterRequirementApplyToTiles,
+    getUnmetFilterRequirementMembers,
+} from '../dashboardFilters/FilterRequirements/utils';
 import { getDateZoomSummaryLabel } from '../dateZoom/utils';
 import ErrorBoundary from '../errorBoundary/ErrorBoundary';
 import { AddTabModal } from './AddTabModal';
+import { CanvasAddTile } from './CanvasAddTile';
 import { TabDeleteModal } from './DeleteTabModal';
 import DuplicateTabModal from './DuplicateTabModal';
 import { TabEditModal } from './EditTabModal';
@@ -86,12 +92,19 @@ import {
     resolveDropOverlaps,
     getRowInsertion,
     getGapFill,
+    getLayoutOnScreen,
     getPointerCell,
     getPointerPosition,
+    isClick,
     hasLayoutChanged,
     countResizedItems,
     withGridItem,
+    getSnapDwellRemaining,
+    getSnapRest,
     getSnapTarget,
+    type GridSlot,
+    type SnapPlacement,
+    type SnapRest,
     GRID_DESKTOP_COLS,
     EDIT_RESIZE_HANDLES,
     DEFAULT_RESIZE_HANDLES,
@@ -101,9 +114,11 @@ import {
     FINE_GRID_SCALE,
     FIT_TO_SCREEN_GRID_BOTTOM_PADDING,
     getDashboardLayouts,
+    getLayoutToSaveAfterEdit,
     type DashboardLayouts,
     getResponsiveGridLayoutProps,
     getRowHeightForScale,
+    matchesSavedLayout,
 } from './gridUtils';
 import { ResponsiveGridLayout } from './ResponsiveGridLayout';
 import DraggableTab from './Tab';
@@ -329,6 +344,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     onParameterReorder,
 }) => {
     const gridWrapperRef = useRef<HTMLDivElement>(null);
+    const dashboardDispatch = useDashboardDispatch();
     const mergedGridWrapperRef = useMergedRef(gridWrapperRef, gridContainerRef);
     const { showToastError } = useToaster();
     const { health } = useApp();
@@ -376,6 +392,18 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const showGridLines =
         isEditErgonomicsEnabled || (isEditMode && isInteracting);
 
+    const homeRowsRef = useRef(
+        new Map<string, { tabUuid: string | null | undefined; y: number }>(),
+    );
+    useEffect(() => {
+        if (!isEditMode) homeRowsRef.current.clear();
+    }, [isEditMode]);
+
+    const [gridRedraw, setGridRedraw] = useState<{
+        tileUuid: string;
+        layouts: DashboardLayouts;
+    } | null>(null);
+
     const handleUpdateTilesWithScaling = useCallback(
         async (layout: Layout[]) => {
             const unscaledLayout = convertLayoutToBaseCoordinates(
@@ -390,11 +418,24 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const { start: startAutoScroll, stop: stopAutoScroll } =
         useAutoScrollOnDrag();
 
+    const snapRestRef = useRef<SnapRest | null>(null);
+    const shownSnapRef = useRef<SnapPlacement | null>(null);
+    const snapDwellTimerRef = useRef<number | null>(null);
+    const clearSnapDwell = useCallback(() => {
+        if (snapDwellTimerRef.current === null) return;
+        window.clearTimeout(snapDwellTimerRef.current);
+        snapDwellTimerRef.current = null;
+    }, []);
+    useEffect(() => clearSnapDwell, [clearSnapDwell]);
+
     const endInteraction = useCallback(() => {
         stopAutoScroll();
+        clearSnapDwell();
+        snapRestRef.current = null;
+        shownSnapRef.current = null;
         setIsInteracting(false);
         setShadowSnapped(false);
-    }, [stopAutoScroll, setShadowSnapped]);
+    }, [stopAutoScroll, clearSnapDwell, setShadowSnapped]);
     const handleInteractionStart = useCallback<ItemCallback>(
         (_layout, _before, _after, _placeholder, _event, node) => {
             if (isEditErgonomicsEnabled) pinGridItem(node);
@@ -414,6 +455,44 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         },
         [startAutoScroll, endInteraction, isEditErgonomicsEnabled],
     );
+    // A press on a tile's drag area that goes nowhere picks the tile
+    const handleDragStart = useCallback<ItemCallback>(
+        (layout, before, after, placeholder, event, node) => {
+            handleInteractionStart(
+                layout,
+                before,
+                after,
+                placeholder,
+                event,
+                node,
+            );
+            const pressed = getPointerPosition(event);
+            if (!isEditErgonomicsEnabled || !pressed) return;
+            const release = new AbortController();
+            const handleRelease = (released: MouseEvent | TouchEvent) => {
+                release.abort();
+                const pointer = getPointerPosition(released);
+                if (pointer && isClick(pressed, pointer)) {
+                    dashboardDispatch(dashboardEditActions.selectTile(after.i));
+                }
+            };
+            window.addEventListener('mouseup', handleRelease, {
+                signal: release.signal,
+            });
+            window.addEventListener('touchend', handleRelease, {
+                signal: release.signal,
+            });
+            window.addEventListener('touchcancel', () => release.abort(), {
+                signal: release.signal,
+            });
+        },
+        [handleInteractionStart, isEditErgonomicsEnabled, dashboardDispatch],
+    );
+    useEffect(() => {
+        if (!isEditErgonomicsEnabled) {
+            dashboardDispatch(dashboardEditActions.selectTile(null));
+        }
+    }, [isEditErgonomicsEnabled, dashboardDispatch]);
     // The grid reports its whole layout on every stop, with stored overlaps
     // pushed apart, so a gesture that changed nothing must not apply it
     const applyDrop = useCallback(
@@ -432,15 +511,75 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         },
         [endInteraction, handleUpdateTilesWithScaling, isEditErgonomicsEnabled],
     );
+    const settlePushedDrop = useCallback(
+        (layout: Layout[], before: Layout, after: Layout) => {
+            endInteraction();
+            const tiles = dashboardTiles ?? [];
+            const homeRows = homeRowsRef.current;
+            tiles.forEach((tile) => {
+                const homeRow = homeRows.get(tile.uuid);
+                if (!homeRow || homeRow.tabUuid !== tile.tabUuid) {
+                    homeRows.set(tile.uuid, {
+                        tabUuid: tile.tabUuid,
+                        y: tile.y,
+                    });
+                }
+            });
+            const previous = new Map(
+                tiles.map(({ uuid, x, y, w, h }) => [
+                    uuid,
+                    { i: uuid, x, y, w, h },
+                ]),
+            );
+            const layoutToSave = getLayoutToSaveAfterEdit({
+                layout,
+                before,
+                after,
+                gridScale,
+                previous,
+                home: new Map(
+                    [...homeRows].map(([tileUuid, { y }]) => [tileUuid, y]),
+                ),
+            });
+            if (layoutToSave) {
+                const edited = layoutToSave.find((item) => item.i === after.i);
+                if (edited) {
+                    homeRows.set(edited.i, {
+                        tabUuid: tiles.find((tile) => tile.uuid === edited.i)
+                            ?.tabUuid,
+                        y: edited.y,
+                    });
+                }
+                void handleUpdateTiles(layoutToSave);
+                return;
+            }
+            if (
+                !matchesSavedLayout(
+                    convertLayoutToBaseCoordinates(layout, gridScale),
+                    previous,
+                )
+            ) {
+                setGridRedraw({
+                    tileUuid: after.i,
+                    layouts: { lg: layout, md: layout, sm: layout, xs: layout },
+                });
+                requestAnimationFrame(() => setGridRedraw(null));
+            }
+        },
+        [dashboardTiles, endInteraction, gridScale, handleUpdateTiles],
+    );
     const handleResizeStop = useCallback<ItemCallback>(
-        (layout, before, after) =>
+        (layout, before, after) => {
+            if (!isEditErgonomicsEnabled) {
+                settlePushedDrop(layout, before, after);
+                return;
+            }
             applyDrop(
                 withGridItem(layout, before),
-                isEditErgonomicsEnabled
-                    ? resolveDropOverlaps(layout, [after.i])
-                    : layout,
-            ),
-        [applyDrop, isEditErgonomicsEnabled],
+                resolveDropOverlaps(layout, [after.i], gridScale),
+            );
+        },
+        [applyDrop, gridScale, isEditErgonomicsEnabled, settlePushedDrop],
     );
     // A slot beside the tile under the pointer, else the empty space under it
     const getDragSnap = useCallback(
@@ -478,9 +617,48 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         },
         [isEditErgonomicsEnabled, gridScale],
     );
+    // A snap waits for the pointer to rest, so a tile can be dropped as it is
+    const getRestedSnap = useCallback<
+        (...args: Parameters<typeof getDragSnap>) => SnapPlacement | null
+    >(
+        (layout, before, event, node) => {
+            clearSnapDwell();
+            const pointer = getPointerPosition(event);
+            const snap = getDragSnap(layout, before, event, node);
+            if (!snap || !pointer) {
+                snapRestRef.current = null;
+                return null;
+            }
+            const now = performance.now();
+            const rest = getSnapRest({
+                previous: snapRestRef.current,
+                slot: snap.slot,
+                pointer,
+                now,
+            });
+            snapRestRef.current = rest;
+            const remaining = getSnapDwellRemaining(rest, now);
+            if (remaining === 0) return snap;
+            // A resting pointer reports no moves, so the grid is sent one
+            snapDwellTimerRef.current = window.setTimeout(
+                () =>
+                    document.dispatchEvent(
+                        new MouseEvent('mousemove', {
+                            bubbles: true,
+                            clientX: pointer.clientX,
+                            clientY: pointer.clientY,
+                        }),
+                    ),
+                remaining,
+            );
+            return null;
+        },
+        [clearSnapDwell, getDragSnap],
+    );
     const handleDrag = useCallback<ItemCallback>(
         (layout, before, _after, placeholder, event, node) => {
-            const snap = getDragSnap(layout, before, event, node);
+            const snap = getRestedSnap(layout, before, event, node);
+            shownSnapRef.current = snap;
             setShadowSnapped(snap !== null);
             // The grid draws the shadow from this object after the callback
             if (snap) {
@@ -488,11 +666,12 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                 Object.assign(placeholder, { x, y, w, h });
             }
         },
-        [getDragSnap, setShadowSnapped],
+        [getRestedSnap, setShadowSnapped],
     );
     const handleDragStop = useCallback<ItemCallback>(
         (layout, before, after, placeholder, event, node) => {
-            const snap = getDragSnap(layout, before, event, node);
+            // The drop lands where the shadow last showed it would
+            const snap = shownSnapRef.current;
             if (!snap) {
                 handleResizeStop(
                     layout,
@@ -510,7 +689,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             Object.assign(after, { x, y, w, h });
             applyDrop(withGridItem(layout, before), snap.layout);
         },
-        [getDragSnap, handleResizeStop, applyDrop],
+        [handleResizeStop, applyDrop],
     );
     const handleWidthChange = useCallback(
         (cw: number) => setGridWidth(cw),
@@ -553,6 +732,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const isDateZoomDisabled = useDashboardSelector(selectIsDateZoomDisabled);
     const getUiString = useUiStrings();
     const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
+    const isDateZoomRefusedOnAllChartTiles = useDashboardSelector(
+        selectIsDateZoomRefusedOnAllChartTiles,
+    );
     const dashboardTemporaryFilters = useDashboardTemporaryFilters();
 
     // filters bar state
@@ -697,15 +879,58 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const layoutsByTab = useMemo(() => {
         const map = new Map<string, DashboardLayouts>();
         for (const [tabUuid, tiles] of tilesByTab) {
-            map.set(tabUuid, getDashboardLayouts(tiles, isEditMode, gridScale));
+            map.set(
+                tabUuid,
+                gridRedraw &&
+                    tiles.some((tile) => tile.uuid === gridRedraw.tileUuid)
+                    ? gridRedraw.layouts
+                    : getDashboardLayouts(tiles, isEditMode, gridScale),
+            );
         }
         return map;
-    }, [tilesByTab, isEditMode, gridScale]);
+    }, [tilesByTab, isEditMode, gridScale, gridRedraw]);
 
     // Layouts for non-tabbed dashboards (single grid with all tiles)
     const allTilesLayouts = useMemo(
-        () => getDashboardLayouts(visibleTiles ?? [], isEditMode, gridScale),
-        [visibleTiles, isEditMode, gridScale],
+        () =>
+            gridRedraw && !tabsEnabled
+                ? gridRedraw.layouts
+                : getDashboardLayouts(
+                      visibleTiles ?? [],
+                      isEditMode,
+                      gridScale,
+                  ),
+        [visibleTiles, isEditMode, gridScale, gridRedraw, tabsEnabled],
+    );
+
+    const activeLayout =
+        (tabsEnabled
+            ? activeTab && layoutsByTab.get(activeTab.uuid)
+            : allTilesLayouts
+        )?.lg ?? EMPTY_LAYOUTS.lg;
+
+    const activeLayoutOnScreen = useMemo(
+        () => getLayoutOnScreen(activeLayout),
+        [activeLayout],
+    );
+
+    const handleAddTilesToSlot = useCallback(
+        (tiles: IDashboard['tiles'][number][], slot: GridSlot) => {
+            void handleAddTiles(tiles);
+            const [first] = tiles;
+            if (!first) return;
+            // A heading stays one line tall at the top of the space it lands in
+            const placement =
+                first.type === DashboardTileTypes.HEADING
+                    ? { ...slot, h: Math.min(first.h, slot.h) }
+                    : slot;
+            setDashboardTiles((current) =>
+                current?.map((tile) =>
+                    tile.uuid === first.uuid ? { ...tile, ...placement } : tile,
+                ),
+            );
+        },
+        [handleAddTiles, setDashboardTiles],
     );
 
     const gridLineStyles = useGridStyles({
@@ -714,58 +939,32 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         rowHeight: unzoomedGridProps.rowHeight,
     });
 
-    // Compute whether there are unmet filter requirements that apply to the current tab
-    // Note: We use doesFilterApplyToTile because getTabUuidsForFilterRules from common
-    // skips disabled filters, but required filters ARE disabled until a value is set
+    const canvasStyles = useMemo(
+        () =>
+            gridLineStyles && {
+                ...gridLineStyles,
+                '--canvas-bottom-pad': `${dashboardGridBottomPadding}px`,
+            },
+        [gridLineStyles, dashboardGridBottomPadding],
+    );
+
+    // Not getTabUuidsForFilterRules from common: it skips disabled filters,
+    // and required filters are disabled until a value is set
     const hasUnmetFilterRequirementsForCurrentTab = useMemo(() => {
-        if (unmetFilterRequirements.length === 0) {
-            return false;
-        }
-
-        // If no tabs or single tab, any unmet requirement locks the dashboard
-        if (!tabsEnabled) {
-            return true;
-        }
-
-        const doesFilterApplyToCurrentTab = (
-            filterRule: DashboardFilterRule,
-        ) => {
-            // If no tileTargets configuration, filter applies to all tiles
-            // So it applies to the current tab
-            if (!filterRule.tileTargets) {
-                return true;
-            }
-
-            // Check if any tile on the current tab is targeted by this filter
-            return (
-                dashboardTiles?.some((tile) => {
-                    if (tile.tabUuid !== activeTab?.uuid) return false;
-
-                    return doesFilterApplyToTile(
-                        filterRule,
-                        tile,
-                        filterableFieldsByTileUuid,
-                    );
-                }) ?? false
-            );
-        };
-
-        return unmetFilterRequirements.some((requirement) => {
-            switch (requirement.type) {
-                case 'single':
-                    return doesFilterApplyToCurrentTab(requirement.filter);
-                case 'group':
-                    // A group applies to a tab if any member applies to it
-                    return requirement.filters.some(
-                        doesFilterApplyToCurrentTab,
-                    );
-                default:
-                    return assertUnreachable(
-                        requirement,
-                        'Unknown filter requirement type',
-                    );
-            }
-        });
+        const activeTabTiles =
+            dashboardTiles?.filter(
+                (tile) => tile.tabUuid === activeTab?.uuid,
+            ) ?? [];
+        return unmetFilterRequirements.some(
+            (requirement) =>
+                // If no tabs or single tab, any unmet requirement locks the dashboard
+                !tabsEnabled ||
+                doesFilterRequirementApplyToTiles(
+                    getUnmetFilterRequirementMembers(requirement),
+                    activeTabTiles,
+                    filterableFieldsByTileUuid,
+                ),
+        );
     }, [
         unmetFilterRequirements,
         tabsEnabled,
@@ -848,6 +1047,12 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const currentTabHasTiles = !!dashboardTiles?.some((tile) =>
         isActiveTile(tile),
     );
+    const isCanvasFilled =
+        isEditErgonomicsEnabled && !!hasDashboardTiles && currentTabHasTiles;
+    // An empty tab shows its empty state, not a strip of grid above it
+    const isGridDrawn = isEditErgonomicsEnabled
+        ? isCanvasFilled
+        : showGridLines;
 
     const handleChangeTab = useCallback(
         (tab: DashboardTab) => {
@@ -1301,7 +1506,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                 totalParametersCount
                                             }
                                             dateZoomLabel={
-                                                isDateZoomDisabled
+                                                isDateZoomDisabled ||
+                                                isDateZoomRefusedOnAllChartTiles
                                                     ? null
                                                     : isDashboardControlsEnabled &&
                                                         !dateZoomGranularity
@@ -1381,12 +1587,16 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                         />
                     )}
 
-                    <Group grow pb={dashboardGridBottomPadding} px="xs">
+                    <Group
+                        grow
+                        pb={isCanvasFilled ? 0 : dashboardGridBottomPadding}
+                        px="xs"
+                    >
                         <div
                             ref={mergedGridWrapperRef}
                             className={[
                                 styles.tabGridContainer,
-                                showGridLines ? styles.gridLines : undefined,
+                                isGridDrawn ? styles.gridLines : undefined,
                                 isInteracting
                                     ? styles.gridInteracting
                                     : undefined,
@@ -1413,8 +1623,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     ? canvasBackground
                                     : undefined
                             }
+                            data-fill-window={isCanvasFilled || undefined}
                             // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
-                            style={showGridLines ? gridLineStyles : undefined}
+                            style={isGridDrawn ? canvasStyles : undefined}
                         >
                             {tabsEnabled
                                 ? visibleTabs
@@ -1454,9 +1665,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                   }
                                                   gridProps={gridProps}
                                                   dashboardTabs={dashboardTabs}
-                                                  onDragStart={
-                                                      handleInteractionStart
-                                                  }
+                                                  onDragStart={handleDragStart}
                                                   onDrag={handleDrag}
                                                   onDragStop={handleDragStop}
                                                   onResizeStart={
@@ -1482,9 +1691,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                           <ResponsiveGridLayout
                                               key={gridProps.cols.lg}
                                               {...gridProps}
-                                              onDragStart={
-                                                  handleInteractionStart
-                                              }
+                                              onDragStart={handleDragStart}
                                               onDrag={handleDrag}
                                               onDragStop={handleDragStop}
                                               onResizeStart={
@@ -1531,6 +1738,20 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                           </ResponsiveGridLayout>
                                       </ErrorBoundary>
                                   )}
+                            {isCanvasFilled && (
+                                <CanvasAddTile
+                                    canvasRef={gridWrapperRef}
+                                    layout={activeLayoutOnScreen}
+                                    gridScale={gridScale}
+                                    isEnabled={
+                                        !isInteracting && settleMode === null
+                                    }
+                                    activeTabUuid={activeTab?.uuid}
+                                    dashboardTabs={dashboardTabs}
+                                    onNewChart={onNewChart}
+                                    onAddTilesToSlot={handleAddTilesToSlot}
+                                />
+                            )}
                         </div>
                     </Group>
                     {(!hasDashboardTiles || !currentTabHasTiles) && (

@@ -11,6 +11,8 @@ import useToaster from '../toaster/useToaster';
 export type FavoriteMutationVariables = {
     contentType: ContentType;
     contentUuid: string;
+    /** State the star shows while the request is pending; not sent. */
+    isFavorite?: boolean;
 };
 
 const toggleFavorite = async (

@@ -11,6 +11,7 @@ import {
     COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
     ContentType,
     CustomDimensionType,
+    DashboardTileTypes,
     DATA_APP_VIZ_TEMPLATE,
     DimensionType,
     Explore,
@@ -48,6 +49,7 @@ import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import { fromSession } from '../../../auth/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { singleRouteProjectModelMethods } from '../../../models/ProjectModel/ProjectModel.mock';
 import { isAlreadyReported } from '../../../sentry/aiAgentErrors';
@@ -145,6 +147,7 @@ const makeService = ({
     dashboardService = {},
     savedChartService = {},
     savedSqlService = {},
+    composerChartService = {},
     asyncQueryService = {},
     coderService = {},
     aiAgentContentValidation = {},
@@ -186,6 +189,7 @@ const makeService = ({
     dashboardService?: Record<string, unknown>;
     savedChartService?: Record<string, unknown>;
     savedSqlService?: Record<string, unknown> | SavedSqlService;
+    composerChartService?: Record<string, unknown>;
     asyncQueryService?: Record<string, unknown>;
     coderService?: Record<string, unknown>;
     aiAgentContentValidation?:
@@ -274,6 +278,7 @@ const makeService = ({
         dashboardService,
         savedChartService,
         savedSqlService,
+        composerChartService,
         coderService,
         contentService,
         aiAgentContentValidation,
@@ -394,7 +399,19 @@ describe('AiAgentToolsService', () => {
                 .fn()
                 .mockResolvedValue(executionStats);
             const service = makeService({
-                explores: { orders: makeExplore({ name: 'orders' }) },
+                explores: {
+                    orders: makeExplore({
+                        name: 'orders',
+                        dimensions: {
+                            status: {
+                                fieldType: FieldType.DIMENSION,
+                                type: DimensionType.STRING,
+                                name: 'status',
+                                table: 'orders',
+                            },
+                        },
+                    }),
+                },
                 searchFieldUniqueValues,
                 asyncQueryService: {
                     executeAsyncSqlQuery,
@@ -1033,6 +1050,7 @@ describe('AiAgentToolsService', () => {
                 runtime.describeWarehouseTable({
                     table: 'customer_order_payments',
                     schema: 'jaffle',
+                    database: null,
                 }),
             ).rejects.toThrow(
                 'reads from catalog `postgres3`, which is explicitly excluded',
@@ -1160,7 +1178,11 @@ describe('AiAgentToolsService', () => {
             });
             const runtime = service.createRuntime(makeRuntimeContext());
 
-            await runtime.describeWarehouseTable({ table: 'orders' });
+            await runtime.describeWarehouseTable({
+                table: 'orders',
+                schema: null,
+                database: null,
+            });
 
             expect(describeWarehouseTable).toHaveBeenCalledWith(
                 user,
@@ -1310,82 +1332,14 @@ describe('AiAgentToolsService', () => {
             project_uuid: projectUuid,
             created_by_user_uuid: userUuid,
             prompt: 'Why did revenue fall?',
-            result_markdown: '# Revenue report',
-            content_size_bytes: 16,
             created_at: new Date('2026-07-29T10:00:00.000Z'),
             updated_at: new Date('2026-07-29T10:05:00.000Z'),
         };
-
-        it('lists report-bearing runs as virtual thread documents', async () => {
-            const service = makeService({
-                aiAgentDocumentModel: {
-                    findAllForAgent: vi.fn().mockResolvedValue([]),
-                },
-                aiDeepResearchRunModel: {
-                    findReportSummariesByThreadScoped: vi
-                        .fn()
-                        .mockResolvedValue([run]),
-                    findByThreadScoped: vi.fn().mockResolvedValue([]),
-                },
-            });
-            const runtime = service.createRuntime(
-                makeRuntimeContext({
-                    agentUuid: 'agent-uuid',
-                    threadUuid: 'thread-uuid',
-                }),
-            );
-
-            await expect(runtime.listKnowledgeDocuments()).resolves.toEqual([
-                expect.objectContaining({
-                    uuid: 'run-uuid',
-                    name: 'Why did revenue fall?',
-                    mimeType: 'text/markdown',
-                    alwaysIncludeInContext: false,
-                }),
-            ]);
-        });
-
-        it('reads report Markdown only from the current user and thread scope', async () => {
-            const findReportByUuidThreadScoped = vi.fn().mockResolvedValue(run);
-            const service = makeService({
-                aiAgentDocumentModel: {
-                    getContentForAgent: vi.fn().mockResolvedValue(undefined),
-                },
-                aiDeepResearchRunModel: {
-                    findReportByUuidThreadScoped,
-                },
-            });
-            const runtime = service.createRuntime(
-                makeRuntimeContext({
-                    agentUuid: 'agent-uuid',
-                    threadUuid: 'thread-uuid',
-                }),
-            );
-
-            await expect(
-                runtime.getKnowledgeDocumentContent({
-                    documentUuid: 'run-uuid',
-                }),
-            ).resolves.toEqual({
-                uuid: 'run-uuid',
-                name: 'Why did revenue fall?',
-                mimeType: 'text/markdown',
-                content: '# Revenue report',
-            });
-            expect(findReportByUuidThreadScoped).toHaveBeenCalledWith({
-                aiDeepResearchRunUuid: 'run-uuid',
-                aiThreadUuid: 'thread-uuid',
-                organizationUuid,
-                projectUuid,
-                createdByUserUuid: userUuid,
-            });
-        });
 
         const publishedRun = {
             ...run,
             ai_deep_research_run_uuid: 'published-run',
             prompt_uuid: 'prompt-uuid',
-            result_markdown: null,
         };
         const publishedDocument = {
             documentUuid: '3f1d9a52-1d1c-4b7e-9a51-0d8c2f6e7a10',
@@ -1411,12 +1365,6 @@ describe('AiAgentToolsService', () => {
                 getContentForAgent: vi.fn().mockResolvedValue(undefined),
             },
             aiDeepResearchRunModel: {
-                findReportSummariesByThreadScoped: vi
-                    .fn()
-                    .mockResolvedValue([]),
-                findReportByUuidThreadScoped: vi
-                    .fn()
-                    .mockResolvedValue(undefined),
                 findByThreadScoped: vi.fn().mockResolvedValue([publishedRun]),
             },
             aiAgentModel: {
@@ -1527,9 +1475,6 @@ describe('AiAgentToolsService', () => {
                     getContentForAgent: vi.fn().mockResolvedValue(undefined),
                 },
                 aiDeepResearchRunModel: {
-                    findReportByUuidThreadScoped: vi
-                        .fn()
-                        .mockResolvedValue(undefined),
                     findByThreadScoped: vi.fn().mockResolvedValue([]),
                 },
             });
@@ -1625,7 +1570,17 @@ describe('AiAgentToolsService', () => {
         const service = makeService({
             explores: {
                 posthog_events: {
-                    ...makeExplore({ name: 'posthog_events' }),
+                    ...makeExplore({
+                        name: 'posthog_events',
+                        dimensions: {
+                            event: {
+                                fieldType: FieldType.DIMENSION,
+                                type: DimensionType.STRING,
+                                name: 'event',
+                                table: 'posthog_events',
+                            },
+                        },
+                    }),
                     type: ExploreType.API_SOURCE,
                 },
             },
@@ -2361,6 +2316,86 @@ describe('AiAgentToolsService', () => {
         expect(searchFieldUniqueValues).not.toHaveBeenCalled();
     });
 
+    it.each([
+        ['an explore outside the agent tags', 'payments', 'payments_method'],
+        ['a field outside the agent tags', 'orders', 'orders_email'],
+        ['a field that does not exist', 'orders', 'orders_hidden'],
+    ])(
+        'does not search agent field values for %s',
+        async (_case, table, fieldId) => {
+            const searchFieldUniqueValues = vi.fn();
+            const searchFieldValuesAndWait = vi.fn();
+            const dimension = (name: string, tags?: string[]) => ({
+                fieldType: FieldType.DIMENSION,
+                type: DimensionType.STRING,
+                name,
+                table: name === 'method' ? 'payments' : 'orders',
+                tags,
+            });
+            const service = makeService({
+                explores: {
+                    orders: makeExplore({
+                        name: 'orders',
+                        dimensions: {
+                            status: dimension('status', ['ai']),
+                            email: dimension('email', ['internal']),
+                        },
+                    }),
+                    payments: makeExplore({
+                        name: 'payments',
+                        tags: ['internal'],
+                        dimensions: { method: dimension('method') },
+                    }),
+                },
+                searchFieldUniqueValues,
+                asyncQueryService: { searchFieldValuesAndWait },
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ source: 'ai_agent', tags: ['ai'] }),
+            );
+
+            await expect(
+                runtime.searchFieldValues({ table, fieldId, query: 'x' }),
+            ).rejects.toThrow(NotFoundError);
+            expect(searchFieldUniqueValues).not.toHaveBeenCalled();
+            expect(searchFieldValuesAndWait).not.toHaveBeenCalled();
+        },
+    );
+
+    it('searches agent field values for a field inside the agent tags', async () => {
+        const searchFieldUniqueValues = vi
+            .fn()
+            .mockResolvedValue({ results: ['shipped'] });
+        const service = makeService({
+            explores: {
+                orders: makeExplore({
+                    name: 'orders',
+                    dimensions: {
+                        status: {
+                            fieldType: FieldType.DIMENSION,
+                            type: DimensionType.STRING,
+                            name: 'status',
+                            table: 'orders',
+                            tags: ['ai'],
+                        },
+                    },
+                }),
+            },
+            searchFieldUniqueValues,
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ source: 'ai_agent', tags: ['ai'] }),
+        );
+
+        await expect(
+            runtime.searchFieldValues({
+                table: 'orders',
+                fieldId: 'orders_status',
+                query: 'ship',
+            }),
+        ).resolves.toEqual(['shipped']);
+    });
+
     it('does not read content outside the scoped agent spaces', async () => {
         const dashboardService = { getByIdOrSlug: vi.fn() };
         const service = makeService({
@@ -2618,6 +2653,377 @@ describe('AiAgentToolsService', () => {
         expect(executeDashboardChartQueryAndGetResults).not.toHaveBeenCalled();
     });
 
+    describe('saved chart queries for a tag-scoped agent', () => {
+        const dimension = (name: string, tags: string[]) => ({
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.STRING,
+            name,
+            table: 'orders',
+            tags,
+        });
+        const explores = {
+            orders: makeExplore({
+                name: 'orders',
+                dimensions: {
+                    status: dimension('status', ['ai']),
+                    email: dimension('email', ['internal']),
+                },
+            }),
+            payments: makeExplore({ name: 'payments', tags: ['internal'] }),
+        };
+        const chartOn = (exploreName: string, dimensions: string[]) => ({
+            uuid: 'chart-uuid',
+            spaceUuid: 'space-uuid',
+            metricQuery: { exploreName, dimensions, metrics: [] },
+        });
+        const setup = (savedChart: ReturnType<typeof chartOn>) => {
+            const executeSavedChartQueryAndGetResults = vi
+                .fn()
+                .mockResolvedValue({ rows: [] });
+            const executeDashboardChartQueryAndGetResults = vi
+                .fn()
+                .mockResolvedValue({ rows: [] });
+            const service = makeService({
+                explores,
+                savedChartService: {
+                    get: vi.fn().mockResolvedValue(savedChart),
+                },
+                dashboardService: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue({
+                        uuid: 'dashboard-uuid',
+                        spaceUuid: 'space-uuid',
+                        filters: {
+                            dimensions: [],
+                            metrics: [],
+                            tableCalculations: [],
+                        },
+                        config: { isDateZoomDisabled: true },
+                        tiles: [
+                            {
+                                uuid: 'tile-uuid',
+                                type: DashboardTileTypes.SAVED_CHART,
+                                properties: { savedChartUuid: 'chart-uuid' },
+                            },
+                        ],
+                    }),
+                },
+                asyncQueryService: {
+                    executeSavedChartQueryAndGetResults,
+                    executeDashboardChartQueryAndGetResults,
+                },
+            });
+            return {
+                runtime: service.createRuntime(
+                    makeRuntimeContext({ tags: ['ai'] }),
+                ),
+                executeSavedChartQueryAndGetResults,
+                executeDashboardChartQueryAndGetResults,
+            };
+        };
+
+        describe.each([
+            ['a chart', null],
+            ['a dashboard chart', 'dashboard'],
+        ])('%s', (_source, dashboardSlug) => {
+            it.each([
+                ['an explore outside the agent tags', chartOn('payments', [])],
+                [
+                    'a field outside the agent tags',
+                    chartOn('orders', ['orders_status', 'orders_email']),
+                ],
+            ])('does not run on %s', async (_case, savedChart) => {
+                const {
+                    runtime,
+                    executeSavedChartQueryAndGetResults,
+                    executeDashboardChartQueryAndGetResults,
+                } = setup(savedChart);
+
+                await expect(
+                    runtime.runSavedChartQuery({
+                        chartUuid: 'chart-uuid',
+                        dashboardSlug,
+                        limit: 100,
+                    }),
+                ).rejects.toThrow(NotFoundError);
+                expect(
+                    executeSavedChartQueryAndGetResults,
+                ).not.toHaveBeenCalled();
+                expect(
+                    executeDashboardChartQueryAndGetResults,
+                ).not.toHaveBeenCalled();
+            });
+
+            it('runs on fields inside the agent tags', async () => {
+                const { runtime } = setup(chartOn('orders', ['orders_status']));
+
+                await expect(
+                    runtime.runSavedChartQuery({
+                        chartUuid: 'chart-uuid',
+                        dashboardSlug,
+                        limit: 100,
+                    }),
+                ).resolves.toEqual({ rows: [] });
+            });
+        });
+    });
+
+    describe('date zoom on a dashboard chart query', () => {
+        const zoomControls = {
+            controls: [
+                { uuid: 'zoom-1', name: 'Revenue zoom', granularity: 'Day' },
+            ],
+            tileTargets: {
+                'tile-1': {
+                    controlUuid: 'zoom-1',
+                    fieldId: 'orders_date',
+                    tableName: 'orders',
+                },
+            },
+        };
+        const zoomConfig = {
+            isDateZoomDisabled: false,
+            defaultDateZoomGranularity: 'Month',
+            dateZoomConfig: zoomControls,
+        };
+        const tableChart = {
+            chartConfig: { type: 'table' },
+            metricQuery: { exploreName: 'orders' },
+        };
+        const runDashboardChart = async ({
+            chartUuid,
+            config = zoomConfig,
+            threadOverrides,
+            savedChart = tableChart,
+        }: {
+            chartUuid: string;
+            config?: Record<string, unknown>;
+            // Undefined: the runtime has no thread
+            threadOverrides?: Record<string, unknown> | null;
+            savedChart?: Record<string, unknown>;
+        }) => {
+            const executeDashboardChartQueryAndGetResults = vi
+                .fn()
+                .mockResolvedValue({ rows: [] });
+            const getSavedChart = vi.fn().mockResolvedValue(savedChart);
+            const findThreadDashboardRuntimeOverrides = vi
+                .fn()
+                .mockResolvedValue(threadOverrides ?? null);
+            const service = makeService({
+                dashboardService: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue({
+                        uuid: 'dashboard-uuid',
+                        spaceUuid: 'allowed-space-uuid',
+                        filters: {
+                            dimensions: [],
+                            metrics: [],
+                            tableCalculations: [],
+                        },
+                        config,
+                        tiles: ['chart-1', 'chart-2'].map((uuid, index) => ({
+                            uuid: `tile-${index + 1}`,
+                            type: DashboardTileTypes.SAVED_CHART,
+                            properties: { savedChartUuid: uuid },
+                        })),
+                    }),
+                },
+                savedChartModel: { get: getSavedChart },
+                projectService: {
+                    getExplore: vi.fn().mockResolvedValue(
+                        makeExplore({
+                            name: 'orders',
+                            dimensions: {
+                                date: {
+                                    name: 'date',
+                                    table: 'orders',
+                                    type: DimensionType.DATE,
+                                },
+                            },
+                        }),
+                    ),
+                },
+                aiAgentModel: { findThreadDashboardRuntimeOverrides },
+                asyncQueryService: { executeDashboardChartQueryAndGetResults },
+            });
+            await service
+                .createRuntime(
+                    makeRuntimeContext(
+                        threadOverrides === undefined
+                            ? {}
+                            : { threadUuid: 'thread-uuid' },
+                    ),
+                )
+                .runSavedChartQuery({
+                    chartUuid,
+                    dashboardSlug: 'dashboard',
+                    limit: 100,
+                });
+            const [queryArgs] =
+                executeDashboardChartQueryAndGetResults.mock.calls[0];
+            return {
+                dateZoom: queryArgs.dateZoom,
+                queryArgs,
+                getSavedChart,
+                findThreadDashboardRuntimeOverrides,
+            };
+        };
+        const zoomPick = (isViewerPick?: boolean) => ({
+            uuid: 'zoom-1',
+            name: 'Revenue zoom',
+            granularity: 'Year',
+            tiles: [],
+            ...(isViewerPick === undefined ? {} : { isViewerPick }),
+        });
+        const picks = {
+            dateZoom: { granularity: 'Week' },
+            dateZoomControls: [zoomPick(true)],
+        };
+
+        it.each([
+            {
+                name: "the viewer's dashboard-wide pick on a tile following no control",
+                chartUuid: 'chart-2',
+                threadOverrides: picks,
+                expected: { granularity: 'Week' },
+            },
+            {
+                name: "the viewer's pick on the named zoom the tile follows",
+                chartUuid: 'chart-1',
+                threadOverrides: picks,
+                expected: { granularity: 'Year', xAxisFieldId: 'orders_date' },
+            },
+            {
+                name: 'the saved grain of a named zoom whose stored grain was not a pick, as the saved one may have changed since',
+                chartUuid: 'chart-1',
+                threadOverrides: { dateZoomControls: [zoomPick(false)] },
+                expected: { granularity: 'Day', xAxisFieldId: 'orders_date' },
+            },
+            {
+                name: 'the saved grain of a named zoom stored before picks were marked',
+                chartUuid: 'chart-1',
+                threadOverrides: { dateZoomControls: [zoomPick()] },
+                expected: { granularity: 'Day', xAxisFieldId: 'orders_date' },
+            },
+            {
+                name: 'no zoom once the viewer cleared the dashboard-wide one',
+                chartUuid: 'chart-2',
+                threadOverrides: { dateZoom: null },
+                expected: undefined,
+            },
+            {
+                name: 'the saved default when the thread state says nothing about date zoom',
+                chartUuid: 'chart-2',
+                threadOverrides: { activeTab: { uuid: 'tab', name: 'Tab' } },
+                expected: { granularity: 'Month' },
+            },
+            {
+                name: 'the saved grain of the named zoom when the thread has no view state',
+                chartUuid: 'chart-1',
+                threadOverrides: null,
+                expected: { granularity: 'Day', xAxisFieldId: 'orders_date' },
+            },
+            {
+                name: 'the saved default grain without a thread',
+                chartUuid: 'chart-2',
+                threadOverrides: undefined,
+                expected: { granularity: 'Month' },
+            },
+            {
+                name: 'no zoom for a saved default on a dashboard with date zoom disabled',
+                chartUuid: 'chart-2',
+                config: { ...zoomConfig, isDateZoomDisabled: true },
+                threadOverrides: undefined,
+                expected: undefined,
+            },
+            {
+                name: "the viewer's pick on a dashboard that saves no zoom",
+                chartUuid: 'chart-2',
+                config: { isDateZoomDisabled: false },
+                threadOverrides: { dateZoom: { granularity: 'Week' } },
+                expected: { granularity: 'Week' },
+            },
+            {
+                name: 'the dashboard-wide grain to a tile whose named zoom no longer exists',
+                chartUuid: 'chart-1',
+                config: {
+                    ...zoomConfig,
+                    dateZoomConfig: { ...zoomControls, controls: [] },
+                },
+                threadOverrides: undefined,
+                expected: { granularity: 'Month' },
+            },
+        ])(
+            'applies $name',
+            async ({ chartUuid, config, threadOverrides, expected }) => {
+                const { dateZoom } = await runDashboardChart({
+                    chartUuid,
+                    config,
+                    threadOverrides,
+                });
+                expect(dateZoom).toEqual(expected);
+            },
+        );
+
+        it('applies the grain alone, with no chart load, to a tile whose named zoom targets no field', async () => {
+            const { dateZoom, queryArgs, getSavedChart } =
+                await runDashboardChart({
+                    chartUuid: 'chart-1',
+                    config: {
+                        ...zoomConfig,
+                        dateZoomConfig: {
+                            ...zoomControls,
+                            tileTargets: {
+                                'tile-1': {
+                                    controlUuid: 'zoom-1',
+                                    fieldId: null,
+                                    tableName: null,
+                                },
+                            },
+                        },
+                    },
+                });
+            expect(dateZoom).toEqual({ granularity: 'Day' });
+            expect(getSavedChart).not.toHaveBeenCalled();
+            expect(queryArgs).not.toHaveProperty('preloadedSavedChart');
+        });
+
+        it('targets the time x-axis of a cartesian chart and hands the loaded chart to the query', async () => {
+            const savedChart = {
+                chartConfig: {
+                    type: 'cartesian',
+                    config: {
+                        layout: { xField: 'orders_date' },
+                        eChartsConfig: {},
+                    },
+                },
+                metricQuery: { exploreName: 'orders' },
+            };
+            const { dateZoom, queryArgs, getSavedChart } =
+                await runDashboardChart({ chartUuid: 'chart-2', savedChart });
+            expect(dateZoom).toEqual({
+                granularity: 'Month',
+                xAxisFieldId: 'orders_date',
+            });
+            expect(getSavedChart).toHaveBeenCalledOnce();
+            expect(queryArgs.preloadedSavedChart).toBe(savedChart);
+        });
+
+        it('reads nothing extra for a dashboard with no zoom and no thread', async () => {
+            const {
+                dateZoom,
+                queryArgs,
+                getSavedChart,
+                findThreadDashboardRuntimeOverrides,
+            } = await runDashboardChart({
+                chartUuid: 'chart-2',
+                config: { isDateZoomDisabled: false },
+            });
+            expect(dateZoom).toBeUndefined();
+            expect(queryArgs).not.toHaveProperty('dateZoom');
+            expect(findThreadDashboardRuntimeOverrides).not.toHaveBeenCalled();
+            expect(getSavedChart).not.toHaveBeenCalled();
+        });
+    });
+
     it('does not create content outside the scoped agent spaces', async () => {
         const upsertDashboard = vi.fn();
         const service = makeService({
@@ -2746,6 +3152,48 @@ describe('AiAgentToolsService', () => {
                 ],
             }),
         ).resolves.toBeDefined();
+    });
+
+    it('names the actual type instead of editing a SQL chart as a chart', async () => {
+        const upsertChart = vi.fn();
+        const upsertSqlChart = vi.fn();
+        const service = makeService({
+            coderService: {
+                getChartsForRead: vi.fn().mockResolvedValue({ charts: [] }),
+                getDashboardsForRead: vi
+                    .fn()
+                    .mockResolvedValue({ dashboards: [] }),
+                getSqlChartsForRead: vi.fn().mockResolvedValue({
+                    sqlCharts: [
+                        {
+                            slug: 'orders-by-status',
+                            spaceSlug: 'allowed-space',
+                        },
+                    ],
+                }),
+                upsertChart,
+                upsertSqlChart,
+            },
+            savedSqlService: {
+                assertCanViewSqlChartBySlug: vi
+                    .fn()
+                    .mockResolvedValue(undefined),
+            },
+            aiAgentContentValidation: { validatePatch: vi.fn() },
+        });
+        const runtime = service.createRuntime(makeRuntimeContext());
+
+        await expect(
+            runtime.editContent({
+                slug: 'orders-by-status',
+                type: 'chart',
+                patch: [{ op: 'replace', path: '/name', value: 'Orders' }],
+            }),
+        ).rejects.toThrow(
+            'No chart "orders-by-status" could be edited; "orders-by-status" is a sql_chart. Edit it with type sql_chart.',
+        );
+        expect(upsertChart).not.toHaveBeenCalled();
+        expect(upsertSqlChart).not.toHaveBeenCalled();
     });
 
     describe('agent merge authoring', () => {
@@ -2999,6 +3447,600 @@ describe('AiAgentToolsService', () => {
             expect(upsertChart.mock.calls[0][3]).toMatchObject({
                 merge: { join: 'inner' },
             });
+        });
+    });
+
+    describe('composer charts', () => {
+        const composerChartAsCode = {
+            contentType: 'composer_chart',
+            version: 1,
+            slug: 'revenue-vs-target',
+            name: 'Revenue vs target',
+            description: null,
+            dashboardSlug: 'sales',
+            spaceSlug: 'allowed-space',
+            pipeline: { schemaVersion: 1, terminalNodeId: 'joined', nodes: [] },
+            chart: { schemaVersion: 1, columns: [] },
+        };
+        const composerTile = {
+            uuid: 'tile-uuid',
+            type: 'composer_chart',
+            properties: {
+                composerChartUuid: 'composer-chart-uuid',
+                chartName: 'Revenue vs target',
+                chartSlug: 'revenue-vs-target',
+            },
+        };
+        const salesDashboard = {
+            uuid: 'dashboard-uuid',
+            slug: 'sales',
+            spaceUuid: 'allowed-space-uuid',
+            filters: { dimensions: [], metrics: [], tableCalculations: [] },
+            tiles: [composerTile],
+        };
+        const storedComposerChart = {
+            uuid: 'composer-chart-uuid',
+            slug: 'revenue-vs-target',
+            name: 'Revenue vs target',
+            pipeline: { terminalNodeId: 'joined', nodes: [] },
+        };
+        const makeComposerService = ({
+            spaceModel,
+            flagEnabled = true,
+            getComposerChartsForRead = vi.fn().mockResolvedValue({
+                composerCharts: [composerChartAsCode],
+            }),
+        }: {
+            spaceModel?: Record<string, unknown>;
+            flagEnabled?: boolean;
+            getComposerChartsForRead?: import('vitest').Mock;
+        } = {}) => {
+            const run = vi.fn().mockResolvedValue({
+                queries: [
+                    {
+                        nodeId: 'orders',
+                        sourceType: 'semantic_layer',
+                        queryUuid: 'orders-query',
+                    },
+                    {
+                        nodeId: 'joined',
+                        sourceType: 'sql',
+                        queryUuid: 'joined-query',
+                    },
+                ],
+            });
+            const getAsyncQueryResults = vi.fn().mockResolvedValue({
+                status: QueryHistoryStatus.READY,
+                columns: { month: {}, revenue: {} },
+                rows: [{ month: '2026-01', revenue: 120 }],
+            });
+            const service = makeService({
+                spaceModel,
+                coderService: { getComposerChartsForRead },
+                dashboardService: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue(salesDashboard),
+                },
+                composerChartService: {
+                    get: vi.fn().mockResolvedValue(storedComposerChart),
+                    isEnabled: vi.fn().mockResolvedValue(flagEnabled),
+                    runWithSavedDashboardState: run,
+                },
+                asyncQueryService: {
+                    getAsyncQueryResults,
+                    getQueryExecutionStats: vi.fn().mockResolvedValue(null),
+                },
+            });
+            return { service, run, getAsyncQueryResults };
+        };
+
+        it('reads a composer chart as code, linked to its dashboard', async () => {
+            const { service } = makeComposerService();
+
+            const read = await service
+                .createRuntime(makeRuntimeContext())
+                .readContent({
+                    type: 'composer_chart',
+                    slug: 'revenue-vs-target',
+                });
+
+            expect(read).toEqual({
+                type: 'composer_chart',
+                content: composerChartAsCode,
+                href: `/projects/${projectUuid}/dashboards/dashboard-uuid/view#dashboard-link`,
+            });
+        });
+
+        it('hides a composer chart whose dashboard is outside the agent spaces', async () => {
+            const { service } = makeComposerService({
+                spaceModel: {
+                    hasSpaceWithPathAndUuids: vi.fn().mockResolvedValue(false),
+                },
+            });
+
+            await expect(
+                service
+                    .createRuntime(
+                        makeRuntimeContext({ spaceAccess: ['other-space'] }),
+                    )
+                    .readContent({
+                        type: 'composer_chart',
+                        slug: 'revenue-vs-target',
+                    }),
+            ).rejects.toThrow(NotFoundError);
+        });
+
+        it('reports composer charts as not found with the composer charts flag off', async () => {
+            const { service, run } = makeComposerService({
+                flagEnabled: false,
+            });
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            await expect(
+                runtime.readContent({
+                    type: 'composer_chart',
+                    slug: 'revenue-vs-target',
+                }),
+            ).rejects.toThrow(NotFoundError);
+            await expect(
+                runtime.runComposerChartQuery({
+                    chartSlug: 'revenue-vs-target',
+                    dashboardSlug: 'sales',
+                }),
+            ).rejects.toThrow(NotFoundError);
+            expect(run).not.toHaveBeenCalled();
+        });
+
+        it('reports a slug no composer chart has as not found', async () => {
+            const { service } = makeComposerService({
+                getComposerChartsForRead: vi
+                    .fn()
+                    .mockResolvedValue({ composerCharts: [] }),
+            });
+
+            await expect(
+                service
+                    .createRuntime(makeRuntimeContext())
+                    .readContent({ type: 'composer_chart', slug: 'orders' }),
+            ).rejects.toThrow(NotFoundError);
+        });
+
+        it('runs a composer chart on its dashboard tile with the saved dashboard state and returns its final node rows', async () => {
+            const { service, run, getAsyncQueryResults } =
+                makeComposerService();
+
+            const result = await service
+                .createRuntime(makeRuntimeContext())
+                .runComposerChartQuery({
+                    chartSlug: 'revenue-vs-target',
+                    dashboardSlug: 'sales',
+                });
+
+            expect(run).toHaveBeenCalledExactlyOnceWith(
+                account,
+                projectUuid,
+                'composer-chart-uuid',
+                {
+                    dashboardUuid: 'dashboard-uuid',
+                    tileUuid: 'tile-uuid',
+                    invalidateCache: false,
+                },
+            );
+            expect(getAsyncQueryResults).toHaveBeenCalledWith(
+                expect.objectContaining({ queryUuid: 'joined-query' }),
+            );
+            expect(result).toMatchObject({
+                rows: [{ month: '2026-01', revenue: 120 }],
+                columns: ['month', 'revenue'],
+                composerChart: {
+                    uuid: 'composer-chart-uuid',
+                    terminalNodeId: 'joined',
+                },
+            });
+        });
+
+        it('refuses to run a composer chart its dashboard does not show', async () => {
+            const { service, run } = makeComposerService();
+
+            await expect(
+                service
+                    .createRuntime(makeRuntimeContext())
+                    .runComposerChartQuery({
+                        chartSlug: 'another-chart',
+                        dashboardSlug: 'sales',
+                    }),
+            ).rejects.toThrow(NotFoundError);
+            expect(run).not.toHaveBeenCalled();
+        });
+
+        it('refuses to run a composer chart on a dashboard outside the agent spaces', async () => {
+            const { service, run } = makeComposerService();
+
+            await expect(
+                service
+                    .createRuntime(
+                        makeRuntimeContext({ spaceAccess: ['other-space'] }),
+                    )
+                    .runComposerChartQuery({
+                        chartSlug: 'revenue-vs-target',
+                        dashboardSlug: 'sales',
+                    }),
+            ).rejects.toThrow(NotFoundError);
+            expect(run).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('composer chart edits', () => {
+        const ordersSql = 'select status, count(*) as n from orders group by 1';
+        const editableChart = {
+            contentType: 'composer_chart',
+            version: 1,
+            slug: 'orders-by-status',
+            name: 'Orders by status',
+            description: null,
+            dashboardSlug: 'ops',
+            spaceSlug: 'jaffle',
+            pipeline: {
+                schemaVersion: 1,
+                terminalNodeId: 'orders',
+                nodes: [
+                    {
+                        sourceType: 'sql',
+                        nodeId: 'orders',
+                        title: 'Orders',
+                        sql: ordersSql,
+                    },
+                ],
+            },
+            chart: {
+                schemaVersion: 1,
+                columns: [
+                    { reference: 'status', fieldType: 'dimension' },
+                    { reference: 'n', fieldType: 'metric' },
+                ],
+                chartConfig: { type: 'table' },
+                pivotConfig: null,
+                tableConfig: { columnOrder: ['status', 'n'] },
+            },
+        };
+        const opsDashboard = {
+            uuid: 'ops-uuid',
+            slug: 'ops',
+            spaceUuid: 'jaffle-uuid',
+            tiles: [],
+        };
+        const renameChart = [
+            { op: 'replace', path: '/name', value: 'Orders by state' },
+        ];
+        const changeSql = [
+            {
+                op: 'replace',
+                path: '/pipeline/nodes/0/sql',
+                value: 'select status from orders',
+            },
+        ];
+
+        const makeEditService = ({
+            flagEnabled = true,
+            preflightPipeline = vi.fn().mockResolvedValue(undefined),
+            threadBinding = null,
+            boundDashboardSlug = 'ops',
+            readOnlySpaceUuids = [],
+        }: {
+            flagEnabled?: boolean;
+            preflightPipeline?: import('vitest').Mock;
+            threadBinding?: AiAgentToolsRuntimeContext['threadBinding'];
+            boundDashboardSlug?: string;
+            readOnlySpaceUuids?: string[];
+        } = {}) => {
+            let version = 1;
+            const upsertComposerChart = vi.fn(async () => {
+                version += 1;
+                return {
+                    action: 'update',
+                    composerChartUuid: 'composer-chart-uuid',
+                };
+            });
+            const upsertChart = vi.fn();
+            const service = makeService({
+                coderService: {
+                    getComposerChartsForRead: vi.fn(async () => ({
+                        composerCharts: [editableChart],
+                    })),
+                    getChartsForRead: vi.fn(async () => ({
+                        charts: [{ slug: 'orders-by-status' }],
+                    })),
+                    getCurrentContentVersionBySlug: vi.fn(async () => ({
+                        contentUuid: 'composer-chart-uuid',
+                        versionUuid: `version-${version}`,
+                    })),
+                    upsertComposerChart,
+                    upsertChart,
+                },
+                dashboardService: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue(opsDashboard),
+                },
+                dashboardModel: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue({
+                        uuid: 'bound-uuid',
+                        slug: boundDashboardSlug,
+                    }),
+                },
+                composerChartService: {
+                    isEnabled: vi.fn().mockResolvedValue(flagEnabled),
+                    preflightPipeline,
+                },
+                aiAgentContentValidation: new AiAgentContentValidation(),
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({
+                    threadBinding,
+                    readOnlySpaceUuids,
+                    spaceAccess:
+                        readOnlySpaceUuids.length > 0 ? ['jaffle-uuid'] : null,
+                }),
+            );
+            const editElsewhere = () => {
+                version += 1;
+            };
+            return { runtime, upsertComposerChart, upsertChart, editElsewhere };
+        };
+
+        it('saves an edit without SQL changes in place as a new version, asking for no approval', async () => {
+            const { runtime, upsertComposerChart } = makeEditService();
+            const approveSql = vi.fn();
+
+            const edited = await runtime.editContent({
+                type: 'composer_chart',
+                slug: 'orders-by-status',
+                patch: renameChart,
+                approveSql,
+            });
+
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertComposerChart).toHaveBeenCalledExactlyOnceWith(
+                user,
+                account,
+                projectUuid,
+                'orders-by-status',
+                expect.objectContaining({ name: 'Orders by state' }),
+                { authorization: 'space_access' },
+            );
+            expect(edited).toMatchObject({
+                type: 'composer_chart',
+                uuid: 'composer-chart-uuid',
+                versionUuids: { before: 'version-1', after: 'version-2' },
+            });
+        });
+
+        it('asks no approval for a DuckDB node, which never reaches the warehouse', async () => {
+            const { runtime, upsertComposerChart } = makeEditService();
+            const approveSql = vi.fn();
+            const addDuckdbNode = [
+                {
+                    op: 'add',
+                    path: '/pipeline/nodes/-',
+                    value: {
+                        sourceType: 'duckdb',
+                        nodeId: 'top',
+                        title: 'Top orders',
+                        sql: 'select * from orders limit 5',
+                        references: ['orders'],
+                    },
+                },
+                {
+                    op: 'replace',
+                    path: '/pipeline/terminalNodeId',
+                    value: 'top',
+                },
+            ];
+
+            await expect(
+                runtime.prepareComposerChartEdit({
+                    slug: 'orders-by-status',
+                    patch: addDuckdbNode,
+                }),
+            ).resolves.toEqual({ approvalSql: null });
+            await runtime.editContent({
+                type: 'composer_chart',
+                slug: 'orders-by-status',
+                patch: addDuckdbNode,
+                approveSql,
+            });
+
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertComposerChart).toHaveBeenCalledOnce();
+        });
+
+        it('waits for approval of new warehouse SQL before saving', async () => {
+            const { runtime, upsertComposerChart } = makeEditService();
+            const approveSql = vi.fn(async () => {
+                expect(upsertComposerChart).not.toHaveBeenCalled();
+            });
+
+            await runtime.editContent({
+                type: 'composer_chart',
+                slug: 'orders-by-status',
+                patch: changeSql,
+                approveSql,
+            });
+
+            expect(approveSql).toHaveBeenCalledExactlyOnceWith({
+                sql: '-- orders\nselect status from orders',
+                chartName: 'Orders by status',
+                sqlChanged: true,
+            });
+            expect(upsertComposerChart).toHaveBeenCalledOnce();
+        });
+
+        it('saves nothing when the new SQL is rejected', async () => {
+            const { runtime, upsertComposerChart } = makeEditService();
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: changeSql,
+                    approveSql: vi.fn().mockRejectedValue(new Error('no')),
+                }),
+            ).rejects.toThrow('no');
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+        });
+
+        it('refuses new SQL without SQL mode', async () => {
+            const { runtime, upsertComposerChart } = makeEditService();
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: changeSql,
+                    approveSql: null,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+        });
+
+        it('refuses SQL it cannot preview, such as SQL copied from another field', async () => {
+            const { runtime, upsertComposerChart } = makeEditService();
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: [
+                        {
+                            op: 'copy',
+                            from: '/name',
+                            path: '/pipeline/nodes/0/sql',
+                        },
+                    ],
+                    approveSql: vi.fn(),
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+        });
+
+        it('refuses an editor who cannot write the new pipeline before asking for approval', async () => {
+            const { runtime, upsertComposerChart } = makeEditService({
+                preflightPipeline: vi
+                    .fn()
+                    .mockRejectedValue(
+                        new ForbiddenError('You cannot write SQL nodes'),
+                    ),
+            });
+            const approveSql = vi.fn();
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: changeSql,
+                    approveSql,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+        });
+
+        it('saves nothing when the chart changed while approval waited', async () => {
+            const { runtime, upsertComposerChart, editElsewhere } =
+                makeEditService();
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: changeSql,
+                    approveSql: vi.fn(async () => editElsewhere()),
+                }),
+            ).rejects.toThrow('changed while this edit waited');
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+        });
+
+        it('refuses a chart whose dashboard is in a read-only agent space', async () => {
+            const { runtime, upsertComposerChart } = makeEditService({
+                readOnlySpaceUuids: ['jaffle-uuid'],
+            });
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: renameChart,
+                    approveSql: vi.fn(),
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+        });
+
+        it('refuses with the composer charts flag off', async () => {
+            const { runtime, upsertComposerChart } = makeEditService({
+                flagEnabled: false,
+            });
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: renameChart,
+                    approveSql: vi.fn(),
+                }),
+            ).rejects.toThrow(NotFoundError);
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+        });
+
+        it("refuses another dashboard's chart in a thread bound to a dashboard", async () => {
+            const { runtime, upsertComposerChart } = makeEditService({
+                threadBinding: {
+                    type: 'dashboard',
+                    dashboardUuid: 'bound-uuid',
+                },
+                boundDashboardSlug: 'sales',
+            });
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: renameChart,
+                    approveSql: vi.fn(),
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+        });
+
+        it('refuses moving a composer chart to another dashboard', async () => {
+            const { runtime } = makeEditService();
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: [
+                        {
+                            op: 'replace',
+                            path: '/dashboardSlug',
+                            value: 'sales',
+                        },
+                    ],
+                    approveSql: vi.fn(),
+                }),
+            ).rejects.toThrow(ParameterError);
+        });
+
+        it('edits the composer chart when a classic chart shares its slug', async () => {
+            const { runtime, upsertComposerChart, upsertChart } =
+                makeEditService();
+
+            await runtime.editContent({
+                type: 'composer_chart',
+                slug: 'orders-by-status',
+                patch: renameChart,
+                approveSql: vi.fn(),
+            });
+
+            expect(upsertComposerChart).toHaveBeenCalledOnce();
+            expect(upsertChart).not.toHaveBeenCalled();
         });
     });
 
@@ -3913,6 +4955,290 @@ describe('AiAgentToolsService', () => {
             ).rejects.toBeInstanceOf(ForbiddenError);
             expect(get).not.toHaveBeenCalled();
         });
+    });
+});
+
+describe('AiAgentToolsService createContent composer_chart', () => {
+    const tabs = [
+        { uuid: 'second-tab', name: 'Second', order: 1 },
+        { uuid: 'first-tab', name: 'First', order: 0 },
+    ];
+    const salesDashboard = {
+        uuid: 'sales-uuid',
+        slug: 'sales',
+        spaceUuid: 'jaffle-uuid',
+        filters: { dimensions: [], metrics: [], tableCalculations: [] },
+        tabs,
+        tiles: [
+            { uuid: 'a', tabUuid: 'first-tab', x: 0, y: 0, w: 15, h: 9 },
+            { uuid: 'b', tabUuid: 'second-tab', x: 0, y: 0, w: 15, h: 30 },
+        ],
+    };
+    const rawNode = {
+        sourceType: 'sql',
+        nodeId: 'raw',
+        title: 'Orders',
+        sql: 'select status, amount from orders',
+        limit: 500,
+    };
+    const shapedNode = {
+        sourceType: 'duckdb',
+        nodeId: 'shaped',
+        title: 'Amount by status',
+        sql: 'select status, sum(amount) as amount from raw group by 1',
+        references: ['raw'],
+        limit: 500,
+    };
+    const fromNode = {
+        from: 'node' as const,
+        dashboardSlug: 'sales',
+        name: 'Amount by status',
+        description: null,
+        nodeId: 'shaped',
+        sessionId: null,
+        vizConfig: {
+            type: 'bar' as const,
+            x: 'status',
+            y: ['amount'],
+            groupBy: null,
+            stack: null,
+            horizontal: null,
+            y2: null,
+            labels: null,
+        },
+    };
+    const fromJson = {
+        from: 'json' as const,
+        dashboardSlug: 'sales',
+        name: 'Amount by status',
+        description: null,
+        pipeline: { schemaVersion: 1, terminalNodeId: 'raw', nodes: [rawNode] },
+        chart: { chartConfig: { type: 'table' } },
+    };
+
+    const makeCreateService = ({
+        threadBinding = null,
+        boundDashboardSlug = 'ops',
+        source = 'ai_agent',
+        sessionOwned = true,
+    }: {
+        threadBinding?: AiAgentToolsRuntimeContext['threadBinding'];
+        boundDashboardSlug?: string;
+        source?: 'ai_agent' | 'mcp';
+        sessionOwned?: boolean;
+    } = {}) => {
+        const create = vi.fn().mockResolvedValue({
+            uuid: 'composer-chart-uuid',
+            slug: 'amount-by-status',
+            name: 'Amount by status',
+        });
+        const update = vi.fn().mockResolvedValue(salesDashboard);
+        const getDashboard = vi.fn().mockResolvedValue(salesDashboard);
+        const preflightCreate = vi.fn().mockResolvedValue(undefined);
+        const listComposerQueryNodes = vi
+            .fn()
+            .mockResolvedValue([rawNode, shapedNode]);
+        // Columns stored when query ran the node, so saving runs nothing.
+        const findComposerQueryNodeColumns = vi.fn().mockResolvedValue([
+            { reference: 'status', type: 'string' },
+            { reference: 'amount', type: 'number' },
+        ]);
+        const service = makeService({
+            dashboardService: {
+                getByIdOrSlug: vi.fn().mockResolvedValue(salesDashboard),
+                update,
+            },
+            dashboardModel: {
+                getByIdOrSlug: vi.fn(async (uuidOrSlug: string) =>
+                    uuidOrSlug === 'bound-uuid'
+                        ? { uuid: 'bound-uuid', slug: boundDashboardSlug }
+                        : getDashboard(),
+                ),
+            },
+            coderService: {
+                toStoredComposerChart: vi.fn(async (_project, chart) => chart),
+                getComposerChartsForRead: vi.fn(async () => ({
+                    composerCharts: [
+                        {
+                            slug: 'amount-by-status',
+                            dashboardSlug: 'sales',
+                            spaceSlug: 'jaffle',
+                        },
+                    ],
+                })),
+            },
+            composerChartService: {
+                isEnabled: vi.fn().mockResolvedValue(true),
+                preflightCreate,
+                create,
+            },
+            aiAgentModel: {
+                listComposerQueryNodes,
+                findComposerQueryNodeColumns,
+                useComposerSession: vi.fn().mockResolvedValue(sessionOwned),
+            },
+        });
+        const runtime =
+            source === 'mcp'
+                ? service.createRuntime(
+                      makeRuntimeContext({ source: 'mcp', threadBinding }),
+                  )
+                : service.createRuntime(
+                      makeRuntimeContext({
+                          threadBinding,
+                          threadUuid: 'thread-uuid',
+                      }),
+                  );
+        return {
+            runtime,
+            create,
+            update,
+            getDashboard,
+            preflightCreate,
+            listComposerQueryNodes,
+        };
+    };
+
+    it('saves a query node with the nodes it reads, then adds its tile below the first tab, asking no approval', async () => {
+        const { runtime, create, update } = makeCreateService();
+        const approveSql = vi.fn();
+
+        const created = await runtime.createContent({
+            type: 'composer_chart',
+            content: fromNode,
+            approveSql,
+        });
+
+        const [, , saved] = create.mock.calls[0];
+        expect(saved).toMatchObject({
+            dashboardUuid: 'sales-uuid',
+            name: 'Amount by status',
+            pipeline: { terminalNodeId: 'shaped' },
+        });
+        expect(
+            saved.pipeline.nodes.map(
+                ({ nodeId }: { nodeId: string }) => nodeId,
+            ),
+        ).toEqual(['raw', 'shaped']);
+        expect(approveSql).not.toHaveBeenCalled();
+        const [, dashboardUuid, { tiles }] = update.mock.calls[0];
+        expect(dashboardUuid).toBe('sales-uuid');
+        expect(tiles[2]).toMatchObject({
+            type: 'composer_chart',
+            tabUuid: 'first-tab',
+            y: 9,
+            properties: {
+                composerChartUuid: 'composer-chart-uuid',
+                title: 'Amount by status',
+            },
+        });
+        expect(created).toMatchObject({
+            type: 'composer_chart',
+            uuid: 'composer-chart-uuid',
+        });
+        expect(created.href).toContain('/dashboards/sales-uuid/view');
+    });
+
+    it('approves the warehouse SQL of full JSON after every write check, then adds its tile to the layout as it is then', async () => {
+        const { runtime, create, update, getDashboard, preflightCreate } =
+            makeCreateService();
+        const tileAddedWhileWaiting = {
+            uuid: 'c',
+            tabUuid: 'first-tab',
+            x: 0,
+            y: 9,
+            w: 15,
+            h: 6,
+        };
+        const approveSql = vi.fn(async () => {
+            expect(preflightCreate).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.anything(),
+                expect.objectContaining({ dashboardUuid: 'sales-uuid' }),
+            );
+            expect(create).not.toHaveBeenCalled();
+            getDashboard.mockResolvedValue({
+                ...salesDashboard,
+                tiles: [...salesDashboard.tiles, tileAddedWhileWaiting],
+            });
+        });
+
+        await runtime.createContent({
+            type: 'composer_chart',
+            content: fromJson,
+            approveSql,
+        });
+
+        expect(approveSql).toHaveBeenCalledWith({
+            sql: '-- raw\nselect status, amount from orders',
+            chartName: 'Amount by status',
+            sqlChanged: true,
+        });
+        expect(create).toHaveBeenCalled();
+        const [, , { tiles }] = update.mock.calls[0];
+        expect(tiles.map(({ uuid }: { uuid: string }) => uuid)).toContain('c');
+        expect(tiles.at(-1)).toMatchObject({ tabUuid: 'first-tab', y: 15 });
+    });
+
+    it('refuses full JSON with warehouse SQL without SQL mode', async () => {
+        const { runtime, create } = makeCreateService();
+
+        await expect(
+            runtime.createContent({
+                type: 'composer_chart',
+                content: fromJson,
+                approveSql: null,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(create).not.toHaveBeenCalled();
+    });
+
+    it('refuses another dashboard in a thread bound to a dashboard', async () => {
+        const { runtime, create, update } = makeCreateService({
+            threadBinding: { type: 'dashboard', dashboardUuid: 'bound-uuid' },
+        });
+
+        await expect(
+            runtime.createContent({
+                type: 'composer_chart',
+                content: fromNode,
+                approveSql: vi.fn(),
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(create).not.toHaveBeenCalled();
+        expect(update).not.toHaveBeenCalled();
+    });
+
+    it('saves to the bound dashboard when it is named by uuid', async () => {
+        const { runtime, create } = makeCreateService({
+            threadBinding: { type: 'dashboard', dashboardUuid: 'bound-uuid' },
+            boundDashboardSlug: 'sales',
+        });
+
+        await runtime.createContent({
+            type: 'composer_chart',
+            content: { ...fromNode, dashboardSlug: 'sales-uuid' },
+            approveSql: vi.fn(),
+        });
+
+        expect(create).toHaveBeenCalled();
+    });
+
+    it('reads MCP nodes only from a query session the caller owns', async () => {
+        const { runtime, create, listComposerQueryNodes } = makeCreateService({
+            source: 'mcp',
+            sessionOwned: false,
+        });
+
+        await expect(
+            runtime.createContent({
+                type: 'composer_chart',
+                content: { ...fromNode, sessionId: 'someone-elses' },
+                approveSql: vi.fn(),
+            }),
+        ).rejects.toThrow(/belongs to another user or project/);
+        expect(listComposerQueryNodes).not.toHaveBeenCalled();
+        expect(create).not.toHaveBeenCalled();
     });
 });
 
@@ -7507,6 +8833,7 @@ describe.each(agentActionTestCases)(
                     ),
                 });
                 const coderService = new CoderService({
+                    lightdashConfig: lightdashConfigMock,
                     savedChartModel: model,
                     dashboardModel: model,
                     promoteService,

@@ -1,0 +1,5 @@
+interface:
+  display_name: "Yoda"
+  short_description: "Review Lightdash PRs through lenses"
+policy:
+  allow_implicit_invocation: false

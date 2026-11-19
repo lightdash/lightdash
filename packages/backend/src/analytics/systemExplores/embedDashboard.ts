@@ -218,8 +218,7 @@ export const embedChartSpecs: UsageChartSpec[] = [
 export const embedDashboardSpec: UsageDashboardSpec = {
     key: dashboardKey,
     name: 'Embed',
-    description:
-        'Observed embedded-dashboard loads, external viewers and query health. Updated nightly. Tenant attribution, billing reconciliation and a complete embed dependency inventory are not included.',
+    description: 'Embedded dashboards, viewers and query health.',
     filters: {
         dimensions: [
             {

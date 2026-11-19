@@ -81,6 +81,14 @@ import {
     DashboardTileCommentsTableName,
 } from '../database/entities/comments';
 import {
+    ComposerChartsTable,
+    ComposerChartsTableName,
+    ComposerChartVersionsTable,
+    ComposerChartVersionsTableName,
+    DashboardTileComposerChartsTable,
+    DashboardTileComposerChartsTableName,
+} from '../database/entities/composerCharts';
+import {
     ContentAsCodeSnapshotsTableName,
     ContentAsCodeSnapshotTable,
 } from '../database/entities/contentAsCodeSnapshots';
@@ -820,6 +828,14 @@ import {
     ScimRequestLogTable,
 } from '../ee/database/entities/scimRequestLogs';
 import {
+    SemanticStudioBranchCompilesTable,
+    SemanticStudioBranchCompilesTableName,
+} from '../ee/database/entities/semanticStudioBranchCompiles';
+import {
+    SemanticStudioWorkspacesTable,
+    SemanticStudioWorkspacesTableName,
+} from '../ee/database/entities/semanticStudioWorkspaces';
+import {
     ServiceAccountsTableName,
     ServiceAccountTable,
 } from '../ee/database/entities/serviceAccounts';
@@ -899,6 +915,9 @@ declare module 'knex/types/tables' {
         [DashboardTileMarkdownsTableName]: DashboardTileMarkdownsTable;
         [DashboardTileHeadingsTableName]: DashboardTileHeadingsTable;
         [DashboardTileDataAppsTableName]: DashboardTileDataAppsTable;
+        [DashboardTileComposerChartsTableName]: DashboardTileComposerChartsTable;
+        [ComposerChartsTableName]: ComposerChartsTable;
+        [ComposerChartVersionsTableName]: ComposerChartVersionsTable;
         [OnboardingTableName]: OnboardingTable;
         [OpenIdIdentitiesTableName]: OpenIdIdentitiesTable;
         [OrganizationMembershipsTableName]: OrganizationMembershipsTable;
@@ -993,6 +1012,8 @@ declare module 'knex/types/tables' {
         [ProjectModelChangeSetsTableName]: ProjectModelChangeSetsTable;
         [ProjectModelRevisionsTableName]: ProjectModelRevisionsTable;
         [ProjectModelDraftChangesTableName]: ProjectModelDraftChangesTable;
+        [SemanticStudioWorkspacesTableName]: SemanticStudioWorkspacesTable;
+        [SemanticStudioBranchCompilesTableName]: SemanticStudioBranchCompilesTable;
         [ProjectModelDraftImpactsTableName]: ProjectModelDraftImpactsTable;
         [AiAgentTableName]: AiAgentTable;
         [AiAgentDocumentTableName]: AiAgentDocumentTable;

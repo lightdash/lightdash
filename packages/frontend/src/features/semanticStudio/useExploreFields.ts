@@ -150,7 +150,11 @@ export const useExploreFields = ({
         source.kind === 'live' && canManageLive
             ? source.connectionUuid
             : undefined;
-    const compiled = useExploreByProjectUuid(explore.name, projectUuid);
+    const isAdded = draft?.contentBefore === null;
+    // A model the change adds has no live explore to read.
+    const compiled = useExploreByProjectUuid(explore.name, projectUuid, {
+        enabled: !isAdded,
+    });
     const live = useLiveSourceFields({
         projectUuid,
         connectionUuid: liveConnection ?? '',
@@ -159,9 +163,19 @@ export const useExploreFields = ({
 
     const fields = useMemo((): Field[] | undefined => {
         if (liveConnection) {
-            return live.data
-                ? live.data.fields.map((field) =>
-                      fromLive(field, live.data.exploreName, explore.label),
+            if (!live.data) return undefined;
+            // The live fields cover the source's first explore; any other
+            // explore of the source shows its compiled fields
+            if (live.data.exploreName === explore.name) {
+                return live.data.fields.map((field) =>
+                    fromLive(field, live.data.exploreName, explore.label),
+                );
+            }
+        }
+        if (isAdded) {
+            return draft.explore
+                ? compiledFields(draft.explore).map(
+                      (field): Field => ({ ...field, draftState: 'new' }),
                   )
                 : undefined;
         }
@@ -169,7 +183,15 @@ export const useExploreFields = ({
         return draft
             ? draftedFields(compiled.data, draft)
             : compiledFields(compiled.data);
-    }, [liveConnection, live.data, compiled.data, explore.label, draft]);
+    }, [
+        liveConnection,
+        live.data,
+        compiled.data,
+        explore.name,
+        explore.label,
+        draft,
+        isAdded,
+    ]);
 
     const details = useMemo((): ExploreDetails | undefined => {
         if (!compiled.data) return undefined;
@@ -183,7 +205,10 @@ export const useExploreFields = ({
         };
     }, [compiled.data]);
 
-    const query = liveConnection ? live : compiled;
+    const query =
+        liveConnection && (!live.data || live.data.exploreName === explore.name)
+            ? live
+            : compiled;
     return {
         fields,
         details,

@@ -265,7 +265,8 @@ function getUploadType(
 
     if (
         data?.contentType === ContentAsCodeType.CHART ||
-        data?.contentType === ContentAsCodeType.SQL_CHART
+        data?.contentType === ContentAsCodeType.SQL_CHART ||
+        data?.contentType === ContentAsCodeType.COMPOSER_CHART
     ) {
         return 'chart';
     }

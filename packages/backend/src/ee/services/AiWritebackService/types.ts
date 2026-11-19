@@ -354,4 +354,6 @@ export type AiWritebackRunArgs = {
      */
     onProgress?: (message: string) => void;
     aiWritebackRunUuid?: string;
+    /** Semantic Studio only: continue the thread's open pull request even when no sandbox made it, such as one a script opened. */
+    continuesThreadPullRequest?: boolean;
 };

@@ -5,6 +5,7 @@ import {
 import {
     ActionIcon,
     Box,
+    Button,
     Group,
     Paper,
     Text,
@@ -13,24 +14,27 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
-    IconAlertTriangle,
     IconArrowsDiagonal,
     IconArrowsDiagonalMinimize2,
     IconArrowUpRight,
     IconGitPullRequest,
-    IconInfoCircle,
-    IconMinus,
     IconTable,
     IconTrash,
-    type Icon,
 } from '@tabler/icons-react';
 import { useEffect, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
 import MantineIcon from '../../components/common/MantineIcon';
 import { ChangeDiff } from './ChangeDiff';
-import { describeModelChange, summarizeModelChanges } from './modelCode';
+import {
+    describeModelChange,
+    DRAFT_PARAM,
+    DRAFT_REVIEW,
+    summarizeModelChanges,
+} from './modelCode';
+import { ISSUE_KINDS, listProposalIssues, type Issue } from './proposalIssues';
 import classes from './SemanticLayerProposalCard.module.css';
+import { Task } from './TaskRow';
 import { getSemanticStudioUrl } from './urls';
 import {
     useDiscardDraftChange,
@@ -136,18 +140,6 @@ const ModelSection: FC<{
     );
 };
 
-const ISSUE_KINDS = {
-    failed: { icon: IconAlertTriangle, color: 'red', label: 'Not added' },
-    skipped: { icon: IconMinus, color: 'gray', label: 'Left out' },
-    note: { icon: IconInfoCircle, color: 'orange', label: 'Confirm' },
-} satisfies Record<string, { icon: Icon; color: string; label: string }>;
-
-type Issue = {
-    kind: keyof typeof ISSUE_KINDS;
-    model: string;
-    detail: string;
-};
-
 /** One thing about a proposal that did not go as asked, under the model it is about. */
 const IssueRow: FC<{ issue: Issue }> = ({ issue: { kind, model, detail } }) => {
     const { icon, color, label } = ISSUE_KINDS[kind];
@@ -210,30 +202,10 @@ export const SemanticLayerProposalCard: FC<{
     }, [isUnknown, refresh]);
     // A model the proposal changes nothing on has no section of its own; what was left out says why.
     const passed = proposal.models.filter(({ status }) => status === 'ready');
-    const issues: Issue[] = proposal.models.flatMap(
-        ({ model, error, refusals, notes }) => [
-            ...(error
-                ? [{ kind: 'failed' as const, model, detail: error }]
-                : []),
-            ...refusals.map(({ path, reason }) => ({
-                kind: 'skipped' as const,
-                model,
-                detail: `${path}: ${reason.replaceAll('_', ' ')}`,
-            })),
-            ...(notes ?? []).map((detail) => ({
-                kind: 'note' as const,
-                model,
-                detail,
-            })),
-        ],
-    );
+    const issues = listProposalIssues(proposal);
     const settledLabel =
         settled && (pullRequestUrl ? 'Pull request' : STATUS_LABELS[settled]);
-    const status = settledLabel
-        ? settledLabel
-        : inDraft
-          ? 'In development'
-          : null;
+    const status = settledLabel ? settledLabel : inDraft ? 'Draft' : null;
     const getActions = (model: string) => {
         if (inDraft && draftChangeUuid) {
             return (
@@ -302,6 +274,28 @@ export const SemanticLayerProposalCard: FC<{
                     issue={issue}
                 />
             ))}
+            {inDraft ? (
+                <Group
+                    className={`${classes.section} ${classes.progress}`}
+                    gap="sm"
+                    justify="space-between"
+                    wrap="wrap"
+                >
+                    <Group gap="sm" wrap="wrap">
+                        <Task state="done" label="In your draft" />
+                        <Task state="todo" label="Review" />
+                        <Task state="todo" label="Publish" />
+                    </Group>
+                    <Button
+                        size="compact-xs"
+                        variant="default"
+                        component={Link}
+                        to={`${getSemanticStudioUrl(projectUuid, { ref: null })}?${DRAFT_PARAM}=${DRAFT_REVIEW}`}
+                    >
+                        View changes
+                    </Button>
+                </Group>
+            ) : null}
         </Paper>
     );
 };

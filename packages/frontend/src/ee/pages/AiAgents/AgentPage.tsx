@@ -67,7 +67,7 @@ const AgentPage = () => {
     });
 
     const [isAgentSidebarCollapsed, setIsAgentSidebarCollapsed] =
-        useState(false);
+        useState(true);
 
     const { data: agent, isLoading: isLoadingAgent } = useAiAgent(
         projectUuid!,
@@ -90,11 +90,14 @@ const AgentPage = () => {
     const [isMemoriesModalOpen, setIsMemoriesModalOpen] = useState(false);
     const memoryEnabled = useAiAgentMemoryEnabled();
 
-    const { shouldShow: shouldShowMemoryTour, closeTour: closeMemoryTour } =
-        useOnboardingTour({
-            tour: 'memoryTour',
-            enabled: memoryEnabled && !isEmbed,
-        });
+    const {
+        shouldShow: shouldShowMemoryTour,
+        closeTour: closeMemoryTour,
+        tracking: memoryTourTracking,
+    } = useOnboardingTour({
+        tour: 'memoryTour',
+        enabled: memoryEnabled && !isEmbed,
+    });
     // The tour is only worth showing once the user has something to look at
     const { data: myMemories } = useMyAiAgentMemories({
         projectUuid,
@@ -136,13 +139,22 @@ const AgentPage = () => {
                 );
             } else {
                 const chartUuid = searchParams.get('chartUuid');
+                const sqlChartUuid = searchParams.get('sqlChartUuid');
+                const composerChartUuid = searchParams.get('composerChartUuid');
                 const dashboardUuid = searchParams.get('dashboardUuid');
                 const dataAppUuid = searchParams.get('dataAppUuid');
                 const documentUuid = searchParams.get('documentUuid');
                 const pendingContext =
-                    chartUuid || dashboardUuid || dataAppUuid || documentUuid
+                    chartUuid ||
+                    sqlChartUuid ||
+                    composerChartUuid ||
+                    dashboardUuid ||
+                    dataAppUuid ||
+                    documentUuid
                         ? {
                               chartUuid: chartUuid ?? undefined,
+                              sqlChartUuid: sqlChartUuid ?? undefined,
+                              composerChartUuid: composerChartUuid ?? undefined,
                               dashboardUuid: dashboardUuid ?? undefined,
                               dataAppUuid: dataAppUuid ?? undefined,
                               documentUuid: documentUuid ?? undefined,
@@ -235,18 +247,15 @@ const AgentPage = () => {
         ? `/projects/${projectUuid}/ai-agents/${agent.uuid}/edit`
         : undefined;
 
+    const newThreadHref = `/projects/${projectUuid}/ai-agents/${agent.uuid}/threads`;
+
     return (
         <AiAgentPageLayout
             isEmbed={isEmbed}
             setIsAgentSidebarCollapsed={setIsAgentSidebarCollapsed}
             isAgentSidebarCollapsed={isAgentSidebarCollapsed}
             SidebarHeader={
-                isEmbed ? undefined : (
-                    <NewThreadButton
-                        to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/threads`}
-                        isCollapsed={isAgentSidebarCollapsed}
-                    />
-                )
+                isEmbed ? undefined : <NewThreadButton to={newThreadHref} />
             }
             Sidebar={
                 isEmbed ? undefined : (
@@ -254,7 +263,6 @@ const AgentPage = () => {
                         agent={agent}
                         projectUuid={projectUuid!}
                         threadUuid={threadUuid}
-                        isAgentSidebarCollapsed={isAgentSidebarCollapsed}
                     />
                 )
             }
@@ -284,6 +292,11 @@ const AgentPage = () => {
                         }
                         onMinimize={() => handleMinimize()}
                         settingsHref={agentSettingsHref}
+                        newThreadHref={
+                            isAgentSidebarCollapsed && threadUuid
+                                ? newThreadHref
+                                : undefined
+                        }
                     />
                 ) : undefined
             }
@@ -348,6 +361,7 @@ const AgentPage = () => {
             <GuidedTour
                 steps={MEMORY_TOUR_STEPS}
                 opened={shouldShowMemoryTour && hasMemories}
+                tracking={memoryTourTracking}
                 onClose={closeMemoryTour}
                 onStepChange={(stepIndex) =>
                     setIsMemoriesModalOpen(stepIndex === 1)

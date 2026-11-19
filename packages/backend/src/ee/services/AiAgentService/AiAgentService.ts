@@ -118,9 +118,12 @@ import {
     getAiAgentSkillListingText,
     getAppDisplayName,
     getComposerChartStage,
+    getComposerChartStageNodeId,
+    getComposerNodeSorts,
     getComposerSlackEchartsConfig,
     getComposerSlackRunQueryChart,
     getDataAppVizChartFromArtifact,
+    getEmbedThreadOwnerIdentifier,
     getEmbedWriteSpaceUuids,
     getErrorMessage,
     getFields,
@@ -181,7 +184,9 @@ import {
     QuerySourceType,
     QuerySurface,
     ReadinessScore,
+    serializeDashboardDateZoomControlsForAiContext,
     serializeDashboardFiltersForAiContext,
+    serializeDashboardTileParametersForAiContext,
     ShareUrl,
     SlackPrompt,
     sleep,
@@ -201,6 +206,7 @@ import {
     type AgentToolName,
     type AgentWorkMarker,
     type AiAgentEditDbtProjectPipelineJobPayload,
+    type AiAgentIntegration,
     type AiAgentModelConfig,
     type AiAgentNodeCitationPipeline,
     type AiAgentSkill,
@@ -364,9 +370,11 @@ import {
 } from '../../../services/AiAccessService/agentExecutionContext';
 import { type AgentResultReadDecision } from '../../../services/AiAccessService/AiAccessService';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
+import { REQUEST_AUTHORITY } from '../../../services/AsyncQueryService/types';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
 import { CoderService } from '../../../services/CoderService/CoderService';
+import { type ComposerChartService } from '../../../services/ComposerChartService/ComposerChartService';
 import { ContentService } from '../../../services/ContentService/ContentService';
 import { DashboardService } from '../../../services/DashboardService/DashboardService';
 import { DocumentService } from '../../../services/DocumentService/DocumentService';
@@ -375,12 +383,13 @@ import { GithubAppService } from '../../../services/GithubAppService/GithubAppSe
 import { PersistentDownloadFileService } from '../../../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import {
-    describeApiSourceTarget,
-    getApiSourceExploreNames,
+    describeLiveTarget,
     getLegacyLiveSourceName,
-} from '../../../services/QuerySourceService/api/apiSourceExplores';
+    getLiveExploreNames,
+} from '../../../services/QuerySourceService/live/explores/build';
 import { type QuerySourceService } from '../../../services/QuerySourceService/QuerySourceService';
 import { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
+import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { SearchService } from '../../../services/SearchService/SearchService';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
@@ -548,6 +557,7 @@ import {
 import { createGitlabRepoSource } from '../ai/repoFs/gitlabRepoSource';
 import {
     DBT_MOUNT,
+    hasDbtMount,
     MountingRepoFileSystem,
 } from '../ai/repoFs/mountingRepoFileSystem';
 import { RepoFs } from '../ai/repoFs/RepoFs';
@@ -683,6 +693,10 @@ import {
     toSlackImageChartBlocks,
     type SlackChartBlocks,
 } from '../ai/utils/slackNativeCharts';
+import {
+    checkSlackServiceAccountChannel,
+    SLACK_SERVICE_ACCOUNT_REFUSAL_TEXT,
+} from '../ai/utils/slackServiceAccountChannel';
 import {
     getSlackTableBlocks,
     splitSlackDataMessage,
@@ -977,6 +991,8 @@ type EmbedAiAgentRuntimeOptions = {
     writeSpaceUuids: string[];
     // The host application's id for the viewer, when its token carries one.
     externalUserId: string | null;
+    // Owns the threads this token starts: its threadOwnershipIdentifier, else the viewer.
+    threadOwnerIdentifier: string | null;
     threadScope: EmbedThreadScope;
     spaceAccess: string[];
     // Source spaces the agent may read but not write to.
@@ -1056,6 +1072,8 @@ type AiAgentServiceDependencies = {
     dashboardService: DashboardService;
     documentService: DocumentService;
     savedChartService: SavedChartService;
+    savedSqlService: SavedSqlService;
+    composerChartService: Pick<ComposerChartService, 'get' | 'isEnabled'>;
     contentService: ContentService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
     aiCreditService: Pick<AiCreditService, 'assertAiCreditsAvailable'>;
@@ -1425,6 +1443,13 @@ export class AiAgentService extends BaseService {
 
     private readonly documentService: DocumentService;
 
+    private readonly savedSqlService: SavedSqlService;
+
+    private readonly composerChartService: Pick<
+        ComposerChartService,
+        'get' | 'isEnabled'
+    >;
+
     private readonly savedChartService: SavedChartService;
 
     private readonly contentService: ContentService;
@@ -1665,7 +1690,7 @@ export class AiAgentService extends BaseService {
                     key = `preview_environment:${item.previewProjectUuid}`;
                     break;
                 case 'semantic_model':
-                    key = `semantic_model:${item.modelName}`;
+                    key = `semantic_model:${item.modelName}:${item.fieldName ?? ''}`;
                     break;
                 case 'data_app_element':
                     key = dataAppElementContextKey(item);
@@ -1681,6 +1706,12 @@ export class AiAgentService extends BaseService {
                     break;
                 case 'document':
                     key = `document:${item.documentUuid}`;
+                    break;
+                case 'sql_chart':
+                    key = `sql_chart:${item.sqlChartUuid}`;
+                    break;
+                case 'composer_chart':
+                    key = `composer_chart:${item.composerChartUuid}`;
                     break;
                 case 'design':
                     key = designContextKey(item.designUuid);
@@ -1926,6 +1957,48 @@ export class AiAgentService extends BaseService {
                     );
                 }
 
+                if (item.type === 'sql_chart') {
+                    // Checks project and space access for this user.
+                    const sqlChart = await this.savedSqlService.getSqlChart(
+                        user,
+                        agent.projectUuid,
+                        item.sqlChartUuid,
+                    );
+                    if (
+                        allowedSpaces &&
+                        !allowedSpaces.has(sqlChart.space.uuid)
+                    ) {
+                        throw new ForbiddenError(
+                            'Pinned SQL chart is outside the embedded space',
+                        );
+                    }
+                    return;
+                }
+
+                if (item.type === 'composer_chart') {
+                    // Composer charts do not draw in embeds.
+                    if (allowedSpaces) {
+                        throw new ForbiddenError(
+                            'Composer charts are not available in embedded AI',
+                        );
+                    }
+                    if (
+                        !(await this.composerChartService.isEnabled({
+                            userUuid: user.userUuid,
+                            organizationUuid: agent.organizationUuid,
+                        }))
+                    ) {
+                        throw new NotFoundError('Composer chart not found');
+                    }
+                    // Checks view through the chart's dashboard.
+                    await this.composerChartService.get(
+                        fromSession(user),
+                        agent.projectUuid,
+                        item.composerChartUuid,
+                    );
+                    return;
+                }
+
                 if (item.type === 'document') {
                     // Checks project and space access for this user.
                     const document = await this.documentService.get(
@@ -2128,6 +2201,8 @@ export class AiAgentService extends BaseService {
         this.coderService = dependencies.coderService;
         this.dashboardService = dependencies.dashboardService;
         this.documentService = dependencies.documentService;
+        this.savedSqlService = dependencies.savedSqlService;
+        this.composerChartService = dependencies.composerChartService;
         this.savedChartService = dependencies.savedChartService;
         this.contentService = dependencies.contentService;
         this.prometheusMetrics = dependencies.prometheusMetrics;
@@ -2301,8 +2376,9 @@ export class AiAgentService extends BaseService {
                           prompt.createdByUserUuid,
                           prompt.organizationUuid,
                       );
-            agent = await this.getAgent(
+            agent = await this.getAgentForSlackPrompt(
                 user,
+                prompt,
                 prompt.agentUuid,
                 prompt.projectUuid,
             );
@@ -3487,8 +3563,9 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        const workstreams = await this.aiWritebackService.listWorkstreams({
+        const { workstreams } = await this.aiWritebackService.listWorkstreams({
             aiThreadUuid: threadUuid,
+            projectUuid: agent.projectUuid,
             repoTarget: null,
         });
         if (workstreams.length === 0) {
@@ -3564,6 +3641,9 @@ export class AiAgentService extends BaseService {
         const chartSpaceUuids = getEmbedActorChartSpaceUuids(account);
         const externalUserId =
             account.authentication.data.user?.externalId || null;
+        const threadOwnerIdentifier = getEmbedThreadOwnerIdentifier(
+            account.authentication.data,
+        );
         const isReadOnly = isEmbedReadOnlyAiAgentToken(
             account.authentication.data,
         );
@@ -3583,12 +3663,19 @@ export class AiAgentService extends BaseService {
 
         let threadScope: EmbedThreadScope;
         if (!isReadOnly) {
-            threadScope = { type: 'writeSpaces', writeSpaceUuids };
-        } else if (externalUserId !== null) {
-            threadScope = { type: 'externalUser', externalUserId };
+            threadScope = {
+                type: 'writeSpaces',
+                writeSpaceUuids,
+                ownerIdentifier: threadOwnerIdentifier,
+            };
+        } else if (threadOwnerIdentifier !== null) {
+            threadScope = {
+                type: 'owner',
+                ownerIdentifier: threadOwnerIdentifier,
+            };
         } else {
             throw new ForbiddenError(
-                'Embed tokens without write spaces must include user.externalId',
+                'Embed tokens without write spaces must include user.externalId or content.threadOwnershipIdentifier',
             );
         }
 
@@ -3598,6 +3685,7 @@ export class AiAgentService extends BaseService {
             runtimeOptions: {
                 writeSpaceUuids,
                 externalUserId,
+                threadOwnerIdentifier,
                 threadScope,
                 spaceAccess: chartSpaceUuids,
                 readOnlySpaceUuids: chartSpaceUuids.filter(
@@ -5864,7 +5952,7 @@ export class AiAgentService extends BaseService {
             createdFrom: body.createdFrom ?? createdFrom,
             agentUuid,
             embedSpaceUuids: runtimeOptions?.writeSpaceUuids,
-            embedExternalUserId: runtimeOptions?.externalUserId ?? null,
+            embedOwnerIdentifier: runtimeOptions?.threadOwnerIdentifier ?? null,
             battleProfile: body.battleProfile ?? null,
             binding,
             threadContext,
@@ -6343,6 +6431,54 @@ export class AiAgentService extends BaseService {
         }
     }
 
+    // Answering as a service account in a channel lets anyone there act above
+    // their own role, so only org admins may set or change it.
+    private async assertSlackServiceAccountChangesAllowed(
+        user: SessionUser,
+        organizationUuid: string,
+        integrations: AiAgentIntegration[] | undefined,
+        currentIntegrations: AiAgentIntegration[],
+    ): Promise<void> {
+        if (!integrations) return;
+        const current = new Map(
+            currentIntegrations.map((i) => [
+                i.channelId,
+                i.serviceAccountUuid ?? null,
+            ]),
+        );
+        const added = integrations.flatMap((integration) => {
+            const next =
+                integration.serviceAccountUuid === undefined
+                    ? (current.get(integration.channelId) ?? null)
+                    : integration.serviceAccountUuid;
+            return next !== null && next !== current.get(integration.channelId)
+                ? [next]
+                : [];
+        });
+        if (added.length === 0) return;
+
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Only organization admins can set a service account for a Slack channel',
+            );
+        }
+        const uniqueAdded = [...new Set(added)];
+        const usable = await this.aiAgentModel.findUsableServiceAccountUuids(
+            organizationUuid,
+            uniqueAdded,
+        );
+        if (usable.length !== uniqueAdded.length) {
+            throw new ParameterError(
+                'Service account not found in this organization',
+            );
+        }
+    }
+
     public async createAgent(
         user: SessionUser,
         body: ApiCreateAiAgent,
@@ -6374,6 +6510,12 @@ export class AiAgentService extends BaseService {
             throw new ForbiddenError();
         }
         await this.assertAgentStaysInsideTraining(body.projectUuid, body);
+        await this.assertSlackServiceAccountChangesAllowed(
+            user,
+            organizationUuid,
+            body.integrations,
+            [],
+        );
 
         if (body.threadRetentionHours != null) {
             await this.validateThreadRetentionUpdate(
@@ -8106,6 +8248,12 @@ export class AiAgentService extends BaseService {
         await this.assertAgentStaysInsideTraining(
             body.projectUuid ?? agent.projectUuid,
             body,
+        );
+        await this.assertSlackServiceAccountChangesAllowed(
+            user,
+            organizationUuid,
+            body.integrations,
+            agent.integrations,
         );
 
         const nextEnableDataAccess =
@@ -10403,6 +10551,9 @@ export class AiAgentService extends BaseService {
             }))
         )
             return 'agent_unavailable';
+        // Results an agent produced while Data Access was on stop being
+        // readable as that agent once Data Access is off.
+        if (!agent.enableDataAccess) return 'data_access_off';
         return 'allowed';
     }
 
@@ -10429,10 +10580,13 @@ export class AiAgentService extends BaseService {
             prompt.agentUuid !== agent.uuid ||
             prompt.projectUuid !== projectUuid ||
             prompt.organizationUuid !== user.organizationUuid ||
-            prompt.threadUuid !== artifact.threadUuid ||
-            !agent.enableDataAccess
+            prompt.threadUuid !== artifact.threadUuid
         )
             throw new ForbiddenError('Artifact results are unavailable');
+        // A metadata-only agent never runs data queries, so no agent produced
+        // these results. The owner runs and reads the chart as themselves,
+        // under their own access, like any other person opening it.
+        if (!agent.enableDataAccess) return { kind: 'person', authMethod };
         const surface =
             querySurfaceFromPrompt(prompt) === QuerySurface.SLACK
                 ? AgentActorSurface.SLACK_AGENT
@@ -10701,12 +10855,23 @@ export class AiAgentService extends BaseService {
                           vizConfig.dataAppVizVersion ?? undefined,
                       )
                     : null;
-            const nodeIds = new Set(queries.map(({ nodeId }) => nodeId));
-            let nodeId = 'chart_stage';
-            while (nodeIds.has(nodeId)) nodeId = `_${nodeId}`;
+            const nodeId = getComposerChartStageNodeId(
+                queries.flatMap((query) =>
+                    query.nodeId ? [query.nodeId] : [],
+                ),
+            );
+            const terminal = queries.find(
+                (query) => query.nodeId === terminalNodeId,
+            );
+            if (!terminal) {
+                throw new Error(
+                    `No query for terminal node "${terminalNodeId}"`,
+                );
+            }
             const query = getComposerChartStage({
                 vizConfig,
                 customChartTypeSlots: slots ?? [],
+                sorts: getComposerNodeSorts(terminal),
                 nodeId,
                 source: terminalNodeId,
             });
@@ -10899,6 +11064,7 @@ export class AiAgentService extends BaseService {
                         runtimeOptions?.userAttributeOverrides ?? {},
                     invalidateCache: false,
                     plans: {},
+                    authority: REQUEST_AUTHORITY,
                     // Re-renders stay unattributed: prompt ids mark tool runs only.
                     aiAttribution: null,
                 });
@@ -11588,6 +11754,7 @@ export class AiAgentService extends BaseService {
                             runtimeOptions?.userAttributeOverrides ?? {},
                         invalidateCache: false,
                         plans: {},
+                        authority: REQUEST_AUTHORITY,
                         // Re-renders stay unattributed: prompt ids mark tool runs only.
                         aiAttribution: null,
                     },
@@ -11706,6 +11873,7 @@ export class AiAgentService extends BaseService {
         } & (
             | { savedDashboardUuid: string | null }
             | { savedSqlUuid: string | null }
+            | { savedComposerChartUuid: string | null }
         ),
     ): Promise<void> {
         const { organizationUuid } = user;
@@ -11768,6 +11936,19 @@ export class AiAgentService extends BaseService {
         ) {
             throw new NotFoundError(
                 `Saved SQL chart not found in project: ${update.savedSqlUuid}`,
+            );
+        }
+
+        if (
+            'savedComposerChartUuid' in update &&
+            update.savedComposerChartUuid !== null &&
+            !(await this.aiAgentModel.isComposerChartInProject(
+                update.savedComposerChartUuid,
+                agent.projectUuid,
+            ))
+        ) {
+            throw new NotFoundError(
+                `Composer chart not found in project: ${update.savedComposerChartUuid}`,
             );
         }
 
@@ -12321,7 +12502,7 @@ export class AiAgentService extends BaseService {
                               connectionUuid: externalConnectionUuid,
                               name,
                               connector: apiSource.connector,
-                              exploreNames: getApiSourceExploreNames(
+                              exploreNames: getLiveExploreNames(
                                   apiSource.connector,
                                   liveSourceName ??
                                       getLegacyLiveSourceName(
@@ -12329,7 +12510,7 @@ export class AiAgentService extends BaseService {
                                           externalConnectionUuid,
                                       ),
                               ),
-                              target: describeApiSourceTarget(
+                              target: describeLiveTarget(
                                   apiSource,
                                   origin,
                                   targetLabel ?? null,
@@ -12761,7 +12942,7 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
     }
 
     static createDeepResearchRunContext(
-        runs: AiDeepResearchRunContextRow[],
+        runs: Array<AiDeepResearchRunContextRow & { has_report: boolean }>,
         latestProgressEvents: DbAiDeepResearchEvent[],
         now = new Date(),
     ): AiAgentDeepResearchRunContext[] {
@@ -12801,9 +12982,9 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
         });
     }
 
-    static selectDeepResearchContextRuns(
-        runs: AiDeepResearchRunContextRow[],
-    ): AiDeepResearchRunContextRow[] {
+    static selectDeepResearchContextRuns<T extends AiDeepResearchRunContextRow>(
+        runs: T[],
+    ): T[] {
         const activeRuns = runs.filter(
             ({ status }) => !isAiDeepResearchRunTerminal(status),
         );
@@ -13023,11 +13204,17 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                             `  Active tab: "${overrides.activeTab.name}"`,
                         );
                     }
+                    // With named zooms the dashboard-wide one needs its own name
+                    const dateZoomLabel = overrides.dateZoomControls
+                        ? 'default date zoom'
+                        : 'date zoom';
                     // Stated explicitly so a reset replaces overrides from earlier turns.
                     const savedState = [
                         !overrides.dashboardFilters && 'filters',
-                        !overrides.dashboardParameters && 'parameter values',
-                        overrides.dateZoom === undefined && 'date zoom',
+                        !overrides.dashboardParameters &&
+                            !overrides.tileParameters &&
+                            'parameter values',
+                        overrides.dateZoom === undefined && dateZoomLabel,
                     ].filter((label): label is string => !!label);
                     if (savedState.length > 0) {
                         overrideLines.push(
@@ -13046,7 +13233,17 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                     }
                     if (overrides.dateZoom !== undefined) {
                         overrideLines.push(
-                            `  Date zoom: ${JSON.stringify(overrides.dateZoom)}`,
+                            `  ${overrides.dateZoomControls ? 'Default date zoom' : 'Date zoom'}: ${JSON.stringify(overrides.dateZoom)}`,
+                        );
+                    }
+                    if (overrides.tileParameters) {
+                        overrideLines.push(
+                            `  Parameter values by tile: ${JSON.stringify(serializeDashboardTileParametersForAiContext(overrides.tileParameters))}`,
+                        );
+                    }
+                    if (overrides.dateZoomControls) {
+                        overrideLines.push(
+                            `  Named date zooms, each setting the grain of its own tiles; the other tiles follow the default date zoom: ${JSON.stringify(serializeDashboardDateZoomControlsForAiContext(overrides.dateZoomControls))}`,
                         );
                     }
                     return overrideLines.length > 0
@@ -13126,8 +13323,8 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                 }
                 case 'semantic_model':
                     return item.fieldName
-                        ? `- The person has field "${item.fieldName}" of model "${item.modelName}" open.`
-                        : `- The person has model "${item.modelName}" open.`;
+                        ? `- The person is looking at field "${item.fieldName}" of model "${item.modelName}".`
+                        : `- The person is looking at model "${item.modelName}".`;
                 case 'preview_environment': {
                     const name = item.projectName
                         ? ` (${item.projectName})`
@@ -13139,6 +13336,17 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                     const name = item.displayName ?? '(name unavailable)';
                     const slugText = item.appSlug ?? '(slug unavailable)';
                     return `- Data app "${name}" (dataAppSlug: ${slugText})`;
+                }
+                case 'composer_chart': {
+                    const name = item.displayName ?? '(name unavailable)';
+                    const slugText =
+                        item.composerChartSlug ?? '(slug unavailable)';
+                    return `- Composer chart "${name}" (composerChartSlug: ${slugText}) — the dashboard composer chart the user asked about. When the user says "this" or asks for a change without naming content, they mean this chart. Read it with readContent (type composer_chart, slug) before answering or editing, check its rows with runContentQuery (source dashboardChart, chartType composer_chart, its dashboard's slug), and save changes with editContent (type composer_chart).`;
+                }
+                case 'sql_chart': {
+                    const name = item.displayName ?? '(name unavailable)';
+                    const slugText = item.sqlChartSlug ?? '(slug unavailable)';
+                    return `- SQL chart "${name}" (sqlChartSlug: ${slugText}) — the SQL chart the user asked about. When the user says "this" or asks for a change without naming content, they mean this chart. Read it with readContent (type sql_chart, slug) before answering or editing, and save changes with editContent (type sql_chart).`;
                 }
                 case 'document': {
                     const name = item.displayName ?? '(name unavailable)';
@@ -13843,8 +14051,12 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             toolResultReady = true;
 
             let result: AiWritebackRunResult;
+            let changedModels: string[] | null = null;
             try {
                 const runArgs = {
+                    ...(prompt.threadCreatedFrom === 'semantic_studio'
+                        ? { continuesThreadPullRequest: true }
+                        : {}),
                     agentPermissionsApply: true,
                     user,
                     projectUuid,
@@ -13860,13 +14072,58 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 result = await wrapSentryTransaction(
                     'AiAgent.editDbtProject',
                     {},
-                    () =>
-                        writebackGuard
+                    async () => {
+                        if (payload.script) {
+                            const saved =
+                                await this.aiWritebackService.saveWithScript(
+                                    runArgs,
+                                    payload.script,
+                                    {
+                                        dryRun: false,
+                                        assertPublishAllowed,
+                                        checkDbt: (change) =>
+                                            this.semanticStudioService.checkDbtScriptChange(
+                                                user,
+                                                projectUuid,
+                                                change,
+                                                { checkQueries: false },
+                                            ),
+                                    },
+                                );
+                            if (saved?.status === 'saved') {
+                                changedModels = saved.changedModels;
+                                if (saved.explores !== null) {
+                                    await this.semanticStudioService
+                                        .saveDbtScriptTryOut(
+                                            user,
+                                            projectUuid,
+                                            prompt.threadUuid,
+                                            {
+                                                prUrl: saved.result.prUrl,
+                                                explores: saved.explores,
+                                            },
+                                        )
+                                        .catch((error: unknown) => {
+                                            Logger.warn(
+                                                `AiAgent.runEditDbtProjectPipeline: failed to keep the try-out of run ${aiWritebackRunUuid}: ${getErrorMessage(error)}`,
+                                            );
+                                        });
+                                }
+                                return saved.result;
+                            }
+                            if (saved?.status === 'script_failed') {
+                                throw new ParameterError(
+                                    `The script did not run, so nothing was saved: ${saved.error}`,
+                                );
+                            }
+                        }
+                        return writebackGuard
                             ? this.aiWritebackService.run(
                                   runArgs,
                                   writebackGuard.assert,
                               )
-                            : this.aiWritebackService.run(runArgs),
+                            : this.aiWritebackService.run(runArgs);
+                    },
                 );
             } catch (error) {
                 if (writebackGuard?.getFailure()) {
@@ -13975,27 +14232,18 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     });
             }
 
-            const isBitbucketPullRequest =
-                result.prUrl?.startsWith('https://bitbucket.org/') === true;
-            let previewUrl: string | null = null;
             if (
                 result.prUrl &&
-                !isBitbucketPullRequest &&
-                !suppressWritebackPreview &&
-                !reviewRemediation
+                result.commitSha &&
+                prompt.threadCreatedFrom === 'semantic_studio'
             ) {
-                const preview =
-                    await this.writebackPreviewService.createPreviewForPullRequest(
-                        {
-                            user,
-                            projectUuid,
-                            prUrl: result.prUrl,
-                            ...(assertPublishAllowed
-                                ? { assertPublishAllowed }
-                                : {}),
-                        },
-                    );
-                previewUrl = preview?.previewUrl ?? null;
+                await this.semanticStudioService
+                    .queueBranchCompile(user, projectUuid, result.prUrl)
+                    .catch((error: unknown) => {
+                        Logger.warn(
+                            `AiAgent.runEditDbtProjectPipeline: failed to queue a compile of run ${aiWritebackRunUuid}: ${getErrorMessage(error)}`,
+                        );
+                    });
             }
 
             const target = `Lightdash project "${result.projectName}" (repository ${result.repository})`;
@@ -14009,28 +14257,67 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 base = `Ran against ${target} but made no file changes, so no pull request was opened.\n\nAgent summary:\n${result.output}`;
             }
 
-            let toolResult = base;
-            if (result.prUrl && previewUrl) {
-                toolResult += `\n\nA Lightdash preview environment was created from the pull request's branch: ${previewUrl} — include this link in your reply so the user can review the change in Lightdash before merging. Explores may take a minute to appear while the preview compiles.`;
-            }
+            const storeResult = (
+                previewUrl: string | null,
+                previewPendingSince: string | null,
+            ) =>
+                this.aiAgentModel.updateToolResult(promptUuid, toolCallId, {
+                    result: previewUrl
+                        ? `${base}\n\nA Lightdash preview environment was created from the pull request's branch: ${previewUrl} — include this link in your reply so the user can review the change in Lightdash before merging. Explores may take a minute to appear while the preview compiles.`
+                        : base,
+                    metadata: {
+                        status: 'success',
+                        prUrl: result.prUrl ?? null,
+                        prAction: result.prAction ?? null,
+                        commitSha: result.commitSha ?? null,
+                        additions: result.additions ?? null,
+                        deletions: result.deletions ?? null,
+                        previewUrl,
+                        previewPendingSince,
+                        steps: result.steps,
+                        changedModels,
+                        needsDbtSourceSelection:
+                            result.needsDbtSourceSelection ?? null,
+                        dbtSourceOptions: result.dbtSourceOptions ?? null,
+                    },
+                });
 
-            if (assertPublishAllowed) await assertPublishAllowed();
-            await this.aiAgentModel.updateToolResult(promptUuid, toolCallId, {
-                result: toolResult,
-                metadata: {
-                    status: 'success',
-                    prUrl: result.prUrl ?? null,
-                    prAction: result.prAction ?? null,
-                    commitSha: result.commitSha ?? null,
-                    additions: result.additions ?? null,
-                    deletions: result.deletions ?? null,
-                    previewUrl: previewUrl ?? null,
-                    steps: result.steps,
-                    needsDbtSourceSelection:
-                        result.needsDbtSourceSelection ?? null,
-                    dbtSourceOptions: result.dbtSourceOptions ?? null,
-                },
-            });
+            const isBitbucketPullRequest =
+                result.prUrl?.startsWith('https://bitbucket.org/') === true;
+            let previewUrl: string | null = null;
+            try {
+                if (
+                    result.prUrl &&
+                    !isBitbucketPullRequest &&
+                    !suppressWritebackPreview &&
+                    !reviewRemediation
+                ) {
+                    // Studio shows the pull request now; building its preview can take a minute.
+                    if (prompt.threadCreatedFrom === 'semantic_studio') {
+                        if (assertPublishAllowed) await assertPublishAllowed();
+                        await storeResult(null, new Date().toISOString());
+                        toolResultWritten = true;
+                    }
+                    const preview =
+                        await this.writebackPreviewService.createPreviewForPullRequest(
+                            {
+                                user,
+                                projectUuid,
+                                prUrl: result.prUrl,
+                                ...(assertPublishAllowed
+                                    ? { assertPublishAllowed }
+                                    : {}),
+                            },
+                        );
+                    previewUrl = preview?.previewUrl ?? null;
+                }
+                if (assertPublishAllowed) await assertPublishAllowed();
+            } catch (error) {
+                // The pull request stays recorded; only waiting on its preview ends.
+                if (toolResultWritten) await storeResult(null, null);
+                throw error;
+            }
+            await storeResult(previewUrl, null);
             toolResultWritten = true;
 
             // Deliver the PR card to Slack now that the tool result is final — the
@@ -14925,6 +15212,37 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     'editDbtProject requires a tool call id (progressId)',
                 );
             }
+            let { script } = args;
+            if (script) {
+                // Run it once now so a broken script goes back to the model instead of failing in the background.
+                const checked = await this.aiWritebackService.saveWithScript(
+                    {
+                        agentPermissionsApply: true,
+                        user,
+                        projectUuid,
+                        prompt: writebackPrompt,
+                        dbtSourceUuid: options?.dbtSourceUuid,
+                        prUrl: args.prUrl,
+                        startNewPullRequest: args.startNewPullRequest ?? false,
+                        aiThreadUuid: prompt.threadUuid,
+                        source,
+                    },
+                    script,
+                    {
+                        dryRun: true,
+                        assertPublishAllowed: null,
+                        checkDbt: (change) =>
+                            this.semanticStudioService.checkDbtScriptChange(
+                                user,
+                                projectUuid,
+                                change,
+                                { checkQueries: true },
+                            ),
+                    },
+                );
+                if (checked?.status === 'script_failed') return checked;
+                if (checked === null) script = null;
+            }
             const { aiWritebackRunUuid } =
                 await this.aiWritebackService.createPendingRun({
                     user,
@@ -14958,9 +15276,14 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 prUrl: args.prUrl,
                 startNewPullRequest: args.startNewPullRequest ?? null,
                 suppressWritebackPreview: options?.suppressWritebackPreview,
+                script,
             });
 
-            return { aiWritebackRunUuid };
+            return {
+                status: 'started',
+                aiWritebackRunUuid,
+                inSandbox: !script,
+            };
         };
 
         // Read-only repo access for the exploreRepo tool, exposed as ONE virtual
@@ -15132,16 +15455,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         const getMountFs = () => {
             if (!mountFsPromise) {
                 mountFsPromise = (async () => {
-                    // /dbt is mountable when the project's dbt repo is on a
-                    // host the VFS can read read-only (GitHub or GitLab); other
-                    // connection types have no repo source.
                     const project = await this.projectModel.get(projectUuid);
-                    const hasDbtMount =
-                        project.dbtConnection.type === DbtProjectType.GITHUB ||
-                        project.dbtConnection.type === DbtProjectType.GITLAB;
                     return MountingRepoFileSystem.create({
                         listRepos: listAuthorizedRepos,
-                        hasDbtMount,
+                        hasDbtMount: hasDbtMount(project.dbtConnection),
                         buildDbtRepoFs,
                         buildRepoFs,
                         searchOwner: async (owner, query) => {
@@ -15280,13 +15597,21 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
 
         const proposeSemanticLayerChange: ProposeSemanticLayerChangeFn = (
             models,
+            changeName,
         ) =>
             this.semanticStudioService.proposeDraftChange(
                 user,
                 projectUuid,
                 models,
-                prompt.promptUuid,
+                {
+                    promptUuid: prompt.promptUuid,
+                    threadUuid: prompt.threadUuid,
+                },
+                changeName,
             );
+
+        const listChanges = () =>
+            this.semanticStudioService.listChanges(user, projectUuid);
 
         const readSemanticModel: ReadSemanticModelFn = (name) =>
             this.semanticStudioService.readDraftedModel(
@@ -15323,6 +15648,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         const listWorkstreams: ListWorkstreamsFn = async ({ repoTarget }) =>
             this.aiWritebackService.listWorkstreams({
                 aiThreadUuid: prompt.threadUuid,
+                projectUuid,
                 repoTarget,
             });
 
@@ -15367,6 +15693,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             listDataAppConnections: toolsRuntime.listDataAppConnections,
             resolveUrl: toolsRuntime.resolveUrl,
             editContent: toolsRuntime.editContent,
+            prepareComposerChartEdit: toolsRuntime.prepareComposerChartEdit,
             createContent: toolsRuntime.createContent,
             recordSqlChartRefusal: toolsRuntime.recordSqlChartRefusal,
             createScheduledDelivery: toolsRuntime.createScheduledDelivery,
@@ -15387,6 +15714,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             runAsyncQuery: toolsRuntime.runAsyncQuery,
             runSavedChartQuery: toolsRuntime.runSavedChartQuery,
             runSqlChartQuery: toolsRuntime.runSqlChartQuery,
+            runComposerChartQuery: toolsRuntime.runComposerChartQuery,
             runSqlJob: toolsRuntime.runSqlJob,
             runComposerQueries: toolsRuntime.runComposerQueries,
             listWarehouseTables: toolsRuntime.listWarehouseTables,
@@ -15396,6 +15724,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 toolsRuntime.getKnowledgeDocumentContent,
             getSavedChart: toolsRuntime.getSavedChart,
             getSqlChart: toolsRuntime.getSqlChart,
+            getComposerChart: toolsRuntime.getComposerChart,
             sendFile,
             deferSlackVisualization,
             exportCustomChartTypeImage,
@@ -15420,6 +15749,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             editDbtProject,
             editProjectContext,
             proposeSemanticLayerChange,
+            listChanges,
             readSemanticModel,
             exploreRepo,
             readAttachments,
@@ -17347,16 +17677,17 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 const enableSqlMode =
                     options.enableSqlMode ?? agentSettings.enableSqlMode;
 
-                // Permission-sensitive tools need the prompt actor to be the real
-                // sender. Web prompts always are; Slack prompts are only trusted when
-                // Slack OAuth is required, otherwise the actor is the workspace
-                // installer.
+                // Permission-sensitive tools need a deliberate prompt actor. Web
+                // prompts always have one; Slack prompts only when Slack OAuth is
+                // required or the channel answers as its configured service
+                // account. Otherwise the actor is the workspace installer.
                 let hasTrustedPromptUserIdentity = true;
                 let slackLinksOnly = false;
                 if (isSlackPrompt(prompt) && user.organizationUuid) {
                     const slackSettings = slackInstallation;
                     hasTrustedPromptUserIdentity =
-                        !!slackSettings?.aiRequireOAuth;
+                        !!slackSettings?.aiRequireOAuth ||
+                        (await this.isSlackChannelServiceAccountPrompt(prompt));
                     slackLinksOnly = !!slackSettings?.aiLinksOnly;
                 }
                 const promptProject = await this.projectModel.get(
@@ -17426,6 +17757,22 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     this.createAuditedAbility(user).can(
                         'create',
                         subject('ScheduledDeliveries', {
+                            organizationUuid: promptProject.organizationUuid,
+                            projectUuid: promptProject.projectUuid,
+                        }),
+                    );
+
+                // The scopes the content services check before saving or running custom SQL.
+                const canManageCustomSql = (
+                    subjectName:
+                        | 'CustomSql'
+                        | 'CustomFields'
+                        | 'CustomSqlTableCalculations',
+                ) =>
+                    hasTrustedPromptUserIdentity &&
+                    this.createAuditedAbility(user).can(
+                        'manage',
+                        subject(subjectName, {
                             organizationUuid: promptProject.organizationUuid,
                             projectUuid: promptProject.projectUuid,
                         }),
@@ -17508,11 +17855,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     AiAgentService.selectDeepResearchContextRuns(
                         threadDeepResearchRuns.map((run) => ({
                             ...run,
-                            has_report:
-                                run.has_report ||
-                                researchDocuments.has(
-                                    run.ai_deep_research_run_uuid,
-                                ),
+                            has_report: researchDocuments.has(
+                                run.ai_deep_research_run_uuid,
+                            ),
                         })),
                     );
                 const latestDeepResearchProgress =
@@ -17569,6 +17914,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                           promptProject.projectUuid,
                       )
                     : null;
+                // Studio saves a dbt change with a script wherever Studio itself is on for the person.
+                const semanticStudioCodeMode =
+                    semanticStudioStatus?.appliesAs === 'dbt_pull_request' &&
+                    semanticStudioStatus.enabled;
                 const semanticStudioDrafts =
                     semanticStudioStatus !== null &&
                     semanticStudioStatus.enabled &&
@@ -17579,6 +17928,20 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         `Disabling editDbtProject for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
                     );
                 }
+                // Same manage:SourceCode check the writeback service enforces.
+                if (
+                    aiWritebackEnabled &&
+                    !this.createAuditedAbility(user).can(
+                        'manage',
+                        subject('SourceCode', {
+                            organizationUuid: promptProject.organizationUuid,
+                            projectUuid: promptProject.projectUuid,
+                            isProtectedBranch: false,
+                        }),
+                    )
+                ) {
+                    aiWritebackEnabled = false;
+                }
                 const writebackConnectionSupport =
                     getWritebackConnectionSupport(promptProject.dbtConnection);
                 if (
@@ -17588,12 +17951,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     aiWritebackEnabled = false;
                 }
 
-                // On a dbt project Semantic Studio proposes first: the pull request tools join only the turn the person asks for one.
                 if (
                     semanticStudioStatus !== null &&
-                    (!semanticStudioStatus.enabled ||
-                        (!semanticStudioDrafts &&
-                            !options.toolHints?.includes('editDbtProject')))
+                    !semanticStudioStatus.enabled
                 ) {
                     aiWritebackEnabled = false;
                 }
@@ -17654,22 +18014,28 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                             prompt.threadUuid,
                         )
                     ).length > 0;
+                const pinnedThreadUuids =
+                    await this.aiAgentModel.findPinnedThreadContextUuids(
+                        prompt.threadUuid,
+                    );
 
-                const repoDiscoveryEnabled = hasTrustedPromptUserIdentity;
-                if (!repoDiscoveryEnabled) {
+                if (!hasTrustedPromptUserIdentity) {
                     this.logger.info(
                         `Disabling repo discovery for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
                     );
                 }
+                const repoDiscoveryEnabled =
+                    hasTrustedPromptUserIdentity &&
+                    (await this.aiWritebackService.canReadSourceCode({
+                        user,
+                        projectUuid: promptProject.projectUuid,
+                    }));
 
-                // The dbt project's root within the repo, so the prompt can point the
-                // exploreRepo agent at it (instead of hardcoding "dbt/"). Derived from
-                // the connection's project_sub_path: '.' = repo root, else a
-                // subdirectory. null when repo discovery is off or not git-backed.
+                // The /dbt mount's repository subdirectory, for the prompt; null without the mount.
                 let repoFsRoot: string | null = null;
                 if (
                     repoDiscoveryEnabled &&
-                    'project_sub_path' in promptProject.dbtConnection
+                    hasDbtMount(promptProject.dbtConnection)
                 ) {
                     const raw = (
                         promptProject.dbtConnection.project_sub_path ?? ''
@@ -17730,6 +18096,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     listDataAppConnections,
                     resolveUrl,
                     editContent,
+                    prepareComposerChartEdit,
                     createContent,
                     recordSqlChartRefusal,
                     createScheduledDelivery,
@@ -17750,6 +18117,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     runAsyncQuery,
                     runSavedChartQuery,
                     runSqlChartQuery,
+                    runComposerChartQuery,
                     runSqlJob,
                     runComposerQueries,
                     listWarehouseTables,
@@ -17758,6 +18126,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     getKnowledgeDocumentContent,
                     getSavedChart,
                     getSqlChart,
+                    getComposerChart,
                     sendFile,
                     deferSlackVisualization,
                     exportCustomChartTypeImage,
@@ -17774,6 +18143,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     editDbtProject,
                     editProjectContext,
                     proposeSemanticLayerChange,
+                    listChanges,
                     readSemanticModel,
                     exploreRepo,
                     readAttachments,
@@ -18072,9 +18442,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     enableEditProjectContext: isReviewRemediationWorkThread,
                     isSemanticStudioThread,
                     semanticStudioDrafts,
+                    semanticStudioCodeMode,
                     writebackAttribution,
                     enableRepoDiscovery: repoDiscoveryEnabled,
                     enableReadAttachments: threadHasAttachments,
+                    enableReadPinnedThread: pinnedThreadUuids.length > 0,
                     enableAskUser,
                     enableFilterExpressions: filterExpressionsEnabled,
                     repoFsRoot,
@@ -18084,6 +18456,15 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     liveSources,
                     canCreateDashboards,
                     canCreateScheduledDeliveries,
+                    customSqlPermissions: {
+                        canSaveSqlCharts:
+                            canRunSql && canManageCustomSql('CustomSql'),
+                        canAuthorCustomSqlFields:
+                            canManageCustomSql('CustomFields'),
+                        canAuthorSqlTableCalculations: canManageCustomSql(
+                            'CustomSqlTableCalculations',
+                        ),
+                    },
                     autoApproveSql:
                         (options.autoApproveSql ?? false) ||
                         agentSettings.enableSqlAutoApproval,
@@ -18220,6 +18601,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     listDataAppConnections,
                     resolveUrl,
                     editContent,
+                    prepareComposerChartEdit,
                     createContent,
                     recordSqlChartRefusal,
                     createScheduledDelivery,
@@ -18238,6 +18620,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     runAsyncQuery,
                     runSavedChartQuery,
                     runSqlChartQuery,
+                    runComposerChartQuery,
                     runSqlJob,
                     runComposerQueries,
                     listWarehouseTables,
@@ -18247,11 +18630,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     // Only conversations pinned as context on this thread are
                     // readable — the pin is the capability grant.
                     readPinnedThread: async ({ threadUuid }) => {
-                        const pinnedThreadUuids =
+                        const currentPinnedThreadUuids =
                             await this.aiAgentModel.findPinnedThreadContextUuids(
                                 prompt.threadUuid,
                             );
-                        if (!pinnedThreadUuids.includes(threadUuid)) {
+                        if (!currentPinnedThreadUuids.includes(threadUuid)) {
                             throw new ForbiddenError(
                                 'This conversation is not attached as context on this thread',
                             );
@@ -18269,6 +18652,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     },
                     getSavedChart,
                     getSqlChart,
+                    getComposerChart,
                     getPrompt,
                     sendFile,
                     deferSlackVisualization,
@@ -18286,6 +18670,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     editDbtProject,
                     editProjectContext,
                     proposeSemanticLayerChange,
+                    listChanges,
                     readSemanticModel,
                     exploreRepo,
                     readAttachments,
@@ -19322,6 +19707,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             agent,
             response,
         });
+        const serviceAccountBlocks =
+            await this.getSlackServiceAccountContextBlocks(slackPrompt);
 
         return {
             blocks: [
@@ -19335,11 +19722,44 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     accessRefusal,
                     this.lightdashConfig.siteUrl,
                 ),
+                ...serviceAccountBlocks,
                 ...feedbackBlocks,
                 ...historyBlocks,
             ],
             chartBlocks,
         };
+    }
+
+    private async getSlackServiceAccountContextBlocks(
+        slackPrompt: SlackPrompt,
+    ): Promise<KnownBlock[]> {
+        const serviceAccount =
+            await this.aiAgentModel.findSlackChannelServiceAccount({
+                organizationUuid: slackPrompt.organizationUuid,
+                slackChannelId: slackPrompt.slackChannelId,
+            });
+        if (
+            serviceAccount === null ||
+            serviceAccount.serviceAccountUserUuid !==
+                slackPrompt.createdByUserUuid
+        ) {
+            return [];
+        }
+        const name = serviceAccount.name
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        return [
+            {
+                type: 'context',
+                elements: [
+                    {
+                        type: 'mrkdwn',
+                        text: `:robot_face: Ran with *${name}*'s permissions · Asked by <@${slackPrompt.slackUserId}>`,
+                    },
+                ],
+            },
+        ];
     }
 
     private getAgentThreadUrl(
@@ -20222,6 +20642,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     return 'Inspecting the project files...';
                 case 'proposeSemanticLayerChange':
                     return 'Checking the change...';
+                case 'listChanges':
+                    return 'Listing your changes...';
                 case 'readSemanticModel':
                     return 'Reading the model...';
                 case 'closePullRequest':
@@ -20867,7 +21289,12 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             }
 
             if (thread.agentUuid) {
-                agent = await this.getAgent(user, thread.agentUuid);
+                agent = await this.getAgentForSlackPrompt(
+                    user,
+                    slackPrompt,
+                    thread.agentUuid,
+                    undefined,
+                );
             }
 
             const installation =
@@ -23534,6 +23961,110 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         }
     }
 
+    private async resolveSlackChannelServiceAccountActor({
+        organizationUuid,
+        teamId,
+        enterpriseId,
+        channelId,
+        slackUserId,
+        threadTs,
+        client,
+    }: {
+        organizationUuid: string;
+        teamId: string;
+        enterpriseId: string | null;
+        channelId: string;
+        slackUserId: string;
+        threadTs: string | null;
+        client: WebClient;
+    }): Promise<{ userUuid: string } | 'refused' | null> {
+        const serviceAccount =
+            await this.aiAgentModel.findSlackChannelServiceAccount({
+                organizationUuid,
+                slackChannelId: channelId,
+            });
+        if (!serviceAccount) return null;
+
+        const refusal = serviceAccount.isExpired
+            ? 'expired_service_account'
+            : await checkSlackServiceAccountChannel({
+                  client,
+                  channelId,
+                  slackUserId,
+                  teamId,
+                  enterpriseId,
+              });
+        Logger.info('AI agent Slack service account check', {
+            event: 'ai_agent.slack_service_account',
+            organizationUuid,
+            slackUserId,
+            channelId,
+            serviceAccountUuid: serviceAccount.serviceAccountUuid,
+            result: refusal ?? 'allowed',
+        });
+        if (refusal) {
+            await client.chat.postEphemeral({
+                channel: channelId,
+                user: slackUserId,
+                ...(threadTs ? { thread_ts: threadTs } : {}),
+                text: SLACK_SERVICE_ACCOUNT_REFUSAL_TEXT[refusal],
+            });
+            return 'refused';
+        }
+        return { userUuid: serviceAccount.serviceAccountUserUuid };
+    }
+
+    private async isSlackChannelServiceAccountPrompt(
+        prompt: SlackPrompt,
+    ): Promise<boolean> {
+        const serviceAccount =
+            await this.aiAgentModel.findSlackChannelServiceAccount({
+                organizationUuid: prompt.organizationUuid,
+                slackChannelId: prompt.slackChannelId,
+            });
+        return (
+            serviceAccount !== null &&
+            !serviceAccount.isExpired &&
+            serviceAccount.serviceAccountUserUuid === prompt.createdByUserUuid
+        );
+    }
+
+    // The admin's channel mapping grants the service account this agent, so the
+    // agent's own user and group access lists don't apply to it.
+    private async getAgentForSlackPrompt(
+        user: SessionUser,
+        prompt: SlackPrompt,
+        agentUuid: string,
+        projectUuid: string | undefined,
+    ): Promise<AiAgent> {
+        const serviceAccount =
+            await this.aiAgentModel.findSlackChannelServiceAccount({
+                organizationUuid: prompt.organizationUuid,
+                slackChannelId: prompt.slackChannelId,
+            });
+        if (
+            serviceAccount === null ||
+            serviceAccount.isExpired ||
+            serviceAccount.serviceAccountUserUuid !==
+                prompt.createdByUserUuid ||
+            serviceAccount.agentUuid !== agentUuid
+        ) {
+            return this.getAgent(user, agentUuid, projectUuid);
+        }
+        if (!(await this.getIsCopilotEnabled(user))) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid: prompt.organizationUuid,
+            agentUuid,
+            projectUuid,
+        });
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+        return agent;
+    }
+
     private async handleAiAgentAuth(
         slackSettings: { aiRequireOAuth?: boolean },
         {
@@ -24082,18 +24613,36 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             return;
         }
 
-        const authResult = await this.handleAiAgentAuth(
-            slackSettings,
-            {
-                userId: event.user,
-                teamId,
-                threadTs: event.thread_ts || event.ts, // Use event.ts for new messages to create a thread
-                channelId: event.channel,
-                messageId: event.ts,
-                organizationUuid,
-            },
-            client,
-        );
+        const channelServiceAccount =
+            slackSettings.aiMultiAgentChannelId === event.channel
+                ? null
+                : await this.resolveSlackChannelServiceAccountActor({
+                      organizationUuid,
+                      teamId,
+                      enterpriseId: context.enterpriseId ?? null,
+                      channelId: event.channel,
+                      slackUserId: event.user,
+                      threadTs: event.thread_ts ?? null,
+                      client,
+                  });
+        if (channelServiceAccount === 'refused') {
+            return;
+        }
+
+        const authResult =
+            channelServiceAccount ??
+            (await this.handleAiAgentAuth(
+                slackSettings,
+                {
+                    userId: event.user,
+                    teamId,
+                    threadTs: event.thread_ts || event.ts, // Use event.ts for new messages to create a thread
+                    channelId: event.channel,
+                    messageId: event.ts,
+                    organizationUuid,
+                },
+                client,
+            ));
 
         if (!authResult) {
             return;
@@ -24266,8 +24815,14 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 throw new Error('No agent selected - this should not happen');
             }
 
-            // Verify access for the selected agent
-            await this.verifyAgentAccess(agentConfig, userUuid, slackSettings);
+            // The admin's channel mapping is the grant for service account channels.
+            if (!channelServiceAccount) {
+                await this.verifyAgentAccess(
+                    agentConfig,
+                    userUuid,
+                    slackSettings,
+                );
+            }
 
             if (event.thread_ts) {
                 const aiThreadAccessConsent =

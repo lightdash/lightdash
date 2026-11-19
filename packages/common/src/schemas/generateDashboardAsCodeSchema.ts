@@ -291,6 +291,13 @@ const applyDashboardTileCompatibilityRules = (
             toObject(variantProperties.properties),
             nextDefs,
         );
+        if (schemaName === 'DashboardChartTileAsCode') {
+            // Older dashboard files can still carry this derived flag.
+            tilePropertiesSchema.properties = {
+                ...toObject(tilePropertiesSchema.properties),
+                belongsToDashboard: { type: 'boolean' },
+            };
+        }
         tilePropertiesSchema.additionalProperties = false;
         variantProperties.properties = tilePropertiesSchema;
 

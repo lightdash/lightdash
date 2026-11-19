@@ -3,8 +3,11 @@ import {
     documentAsCodeSchema,
     documentCreateContentArgsSchema,
     documentCreateContentToolDefinition,
+    getSqlApprovalSql,
     mcpCreateContentArgsSchema,
     mcpCreateContentToolDefinition,
+    toolComposerChartAsCodeContentSchema,
+    toolComposerChartFromNodeSchema,
     toolCreateContentArgsSchema,
     toolSqlChartAsCodeSchema,
     type SqlChartAsCode,
@@ -12,13 +15,13 @@ import {
     type ToolCreateContentStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import { z } from 'zod';
 import type { CreateContentFn } from '../types/aiAgentDependencies';
 import { toAbsoluteHref } from '../utils/absoluteHref';
 import type { ArtifactChartExportAccess } from '../utils/artifactChartAsCode';
 import { getContentWarnings } from '../utils/contentWarnings';
 import { resolveDocumentConversationTags } from '../utils/documentConversationTags';
 import {
-    toolFailure,
     type ExecuteStructuredToolResult,
     type ExecuteToolErrorResult,
 } from '../utils/structuredToolResult';
@@ -27,7 +30,9 @@ import { toolErrorOutput } from '../utils/toolErrorHandler';
 import {
     approveClientSql,
     SqlNotApprovedError,
+    sqlNotApprovedOutput,
     type ApproveSqlFn,
+    type SqlNotApprovedOutput,
 } from './sqlApprovals';
 import { createSqlChartGate, type SqlChartSaving } from './sqlChartApproval';
 
@@ -48,7 +53,8 @@ type ExecuteCreateContentResult =
           ToolCreateContentStructuredContent,
           Extract<ToolCreateContentOutput['metadata'], { status: 'success' }>
       >
-    | ExecuteToolErrorResult;
+    | ExecuteToolErrorResult
+    | SqlNotApprovedOutput;
 
 const toolDefinition = createContentToolDefinition.for('agent');
 
@@ -126,12 +132,18 @@ export const getCreateContent = ({
     chartsEnabled = true,
     artifacts,
 }: Dependencies) => {
-    const sqlChartGate = createSqlChartGate(sqlChartSaving, 'createContent');
+    // A composer chart create carries any SQL in the call itself.
+    const sqlChartGate = createSqlChartGate(
+        sqlChartSaving,
+        'createContent',
+        async (args) => getSqlApprovalSql(args),
+    );
     const variant = getToolVariant(documentsEnabled, chartsEnabled);
 
     const getCreateArgs = async (
         args: { type: string; content: unknown },
-        approveSql: ApproveSqlFn,
+        // Null when the thread does not gate the call.
+        approveSql: ApproveSqlFn | null,
     ): Promise<Parameters<CreateContentFn>[0]> => {
         switch (args.type) {
             case 'document':
@@ -148,7 +160,21 @@ export const getCreateContent = ({
                     content: toolSqlChartAsCodeSchema.parse(
                         args.content,
                     ) as SqlChartAsCode,
-                    approveSql,
+                    approveSql: approveSql ?? approveClientSql,
+                };
+            case 'composer_chart':
+                return {
+                    type: 'composer_chart',
+                    content: z
+                        .discriminatedUnion('from', [
+                            toolComposerChartFromNodeSchema,
+                            toolComposerChartAsCodeContentSchema,
+                        ])
+                        .parse(args.content),
+                    approveSql:
+                        sqlChartSaving.mode === 'client_approved'
+                            ? approveClientSql
+                            : approveSql,
                 };
             default:
                 return args as Parameters<CreateContentFn>[0];
@@ -170,10 +196,7 @@ export const getCreateContent = ({
                 try {
                     variant.schema.parse(args);
                     const result = await createContent(
-                        await getCreateArgs(
-                            args,
-                            approveSql ?? approveClientSql,
-                        ),
+                        await getCreateArgs(args, approveSql),
                     );
                     const created = toCreatedContent(
                         result,
@@ -207,11 +230,11 @@ export const getCreateContent = ({
                     };
                 } catch (error) {
                     if (error instanceof SqlNotApprovedError) {
-                        return toolFailure(error.message);
+                        return sqlNotApprovedOutput(error);
                     }
                     return toolErrorOutput(
                         error,
-                        `Error creating ${type} "${content.slug}". Content was not created.`,
+                        `Error creating ${type} "${'slug' in content ? content.slug : content.name}". Content was not created.`,
                     );
                 }
             };

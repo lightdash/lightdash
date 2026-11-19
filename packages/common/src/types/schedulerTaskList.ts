@@ -155,6 +155,8 @@ export type AiAgentEditDbtProjectPipelineJobPayload = TraceTaskBase & {
     prUrl: string | null;
     startNewPullRequest: boolean | null;
     suppressWritebackPreview?: boolean;
+    // A code mode script to save instead of a sandbox run; absent on jobs queued before it existed.
+    script?: string | null;
 };
 
 export type AiAgentMemoryDistillJobPayload = TraceTaskBase & {
@@ -200,8 +202,15 @@ export type SyncAnalyticsContentPayload = Partial<TraceTaskBase> & {
     organizationUuid: string;
 };
 
+/** Compiles a Semantic Studio change's branch; only a compile for the latest request is kept. */
+export type CompileSemanticStudioBranchPayload = TraceTaskBase & {
+    workspaceUuid: string;
+    compileRequestUuid: string;
+};
+
 export const EE_SCHEDULER_TASKS = {
     CHECK_SEMANTIC_LAYER_DRAFT_IMPACT: 'checkSemanticLayerDraftImpact',
+    COMPILE_SEMANTIC_STUDIO_BRANCH: 'compileSemanticStudioBranch',
     RECONCILE_ANALYTICS_CONTENT: 'reconcileAnalyticsContent',
     SYNC_ANALYTICS_CONTENT: 'syncAnalyticsContent',
     SLACK_AI_PROMPT: 'slackAiPrompt',
@@ -239,7 +248,6 @@ export const EE_SCHEDULER_TASKS = {
     CLEAN_RATE_COUNTERS: 'cleanRateCounters',
     REBUILD_OUTDATED_API_SOURCE_EXPLORES: 'rebuildOutdatedApiSourceExplores',
     CLEAN_DATA_APP_ANALYSES: 'cleanDataAppAnalyses',
-    CLEAN_AI_DEEP_RESEARCH_REPORTS: 'cleanAiDeepResearchReports',
     CLEAN_AI_AGENT_THREADS: 'cleanAiAgentThreads',
     CLEAN_SCIM_REQUEST_LOGS: 'cleanScimRequestLogs',
     CLEAN_APP_STATE_HISTORY: 'cleanAppStateHistory',
@@ -318,6 +326,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT]: ReconcileAnalyticsContentPayload;
     [SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT]: SyncAnalyticsContentPayload;
     [SCHEDULER_TASKS.CHECK_SEMANTIC_LAYER_DRAFT_IMPACT]: TraceTaskBase;
+    [SCHEDULER_TASKS.COMPILE_SEMANTIC_STUDIO_BRANCH]: CompileSemanticStudioBranchPayload;
     [SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY]: ScheduledDeliveryPayload;
     // Legacy individual notification tasks (deprecated)
     [SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION]: SlackNotificationPayload;
@@ -398,7 +407,6 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_RATE_COUNTERS]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_DATA_APP_ANALYSES]: TraceTaskBase;
-    [SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_AI_AGENT_THREADS]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_SCIM_REQUEST_LOGS]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_APP_STATE_HISTORY]: TraceTaskBase;
@@ -426,6 +434,7 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT]: ReconcileAnalyticsContentPayload;
     [EE_SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT]: SyncAnalyticsContentPayload;
     [EE_SCHEDULER_TASKS.CHECK_SEMANTIC_LAYER_DRAFT_IMPACT]: TraceTaskBase;
+    [EE_SCHEDULER_TASKS.COMPILE_SEMANTIC_STUDIO_BRANCH]: CompileSemanticStudioBranchPayload;
     [EE_SCHEDULER_TASKS.SLACK_AI_PROMPT]: SlackPromptJobPayload;
     [EE_SCHEDULER_TASKS.SLACK_AI_ARTIFACT_IMAGES]: SlackPromptJobPayload;
     [EE_SCHEDULER_TASKS.SWEEP_SLACK_AI_ARTIFACT_IMAGES]: TraceTaskBase;
@@ -457,7 +466,6 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.CLEAN_RATE_COUNTERS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.CLEAN_DATA_APP_ANALYSES]: TraceTaskBase;
-    [EE_SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.CLEAN_AI_AGENT_THREADS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.CLEAN_SCIM_REQUEST_LOGS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.CLEAN_APP_STATE_HISTORY]: TraceTaskBase;

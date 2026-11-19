@@ -29,12 +29,12 @@ import {
     isFilterHiddenOnTab,
     useFilterTabPlacement,
 } from '../dashboardFilters/ActiveFilters/useFilterTabPlacement';
+import { isPlaceholderRule } from './editorState';
 import { FilterPill, type FilterPillKind } from './FilterPill';
 import { BarDroppable, PillDraggable } from './PillDraggable';
 import { isRuleInSection } from './sections';
-import { isPlaceholderRule } from './sidebarState';
 import { TemporaryFilterPills } from './TemporaryFilterPills';
-import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useControlsEditorSelector } from './useControlsEditor';
 
 type Props = {
     activeTabUuid: string | undefined;
@@ -64,17 +64,17 @@ export const FilterPills: FC<Props> = ({
     ruleIds,
     withExtras = true,
 }) => {
-    const editingFilterId = useControlsSidebarSelector(
+    const editingFilterId = useControlsEditorSelector(
         (c) => c.editing?.filterId ?? null,
     );
-    const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
-    const removeFilterById = useControlsSidebarSelector(
+    const isEditorOpen = useControlsEditorSelector((c) => c.isEditorOpen);
+    const removeFilterById = useControlsEditorSelector(
         (c) => c.removeFilterById,
     );
-    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
+    const isViewer = useControlsEditorSelector((c) => c.isViewer);
     // A new filter with its field picked: only in the draft until Apply
-    const newRule = useControlsSidebarSelector((c) =>
-        c.isSidebarOpen && c.isNew && !c.isPlaceholder ? c.editingRule : null,
+    const newRule = useControlsEditorSelector((c) =>
+        c.isEditorOpen && c.isNew && !c.isPlaceholder ? c.editingRule : null,
     );
     // Its pill shows the dashboard as it is, so it is in effect only after Apply
     const newPillRule = useMemo(
@@ -160,7 +160,7 @@ export const FilterPills: FC<Props> = ({
             // The shipped pills for a deleted or hidden field: no editor
             return (
                 <UnresolvedFilter
-                    isEditMode={!isViewer && !isSidebarOpen}
+                    isEditMode={!isViewer && !isEditorOpen}
                     filterRule={filter}
                     onRemove={() => removeFilterById(filter.id)}
                 />
@@ -176,7 +176,7 @@ export const FilterPills: FC<Props> = ({
                 isSelected={isSelected}
                 isDisabled={!areFieldsLoaded && !filter.target.isSqlColumn}
                 isDraft={kind === 'editor' && isDraft(filter, group)}
-                isSidebarOpen={isSidebarOpen}
+                isEditorOpen={isEditorOpen}
                 activeTabUuid={activeTabUuid}
                 hasTabs={hasTabs}
                 dashboardUuid={dashboardUuid}
@@ -203,7 +203,7 @@ export const FilterPills: FC<Props> = ({
                 id={filter.id}
                 isInBarContext={sectionId !== undefined}
                 isDisabled={
-                    isSidebarOpen ||
+                    isEditorOpen ||
                     (!areFieldsLoaded && !filter.target.isSqlColumn)
                 }
             >

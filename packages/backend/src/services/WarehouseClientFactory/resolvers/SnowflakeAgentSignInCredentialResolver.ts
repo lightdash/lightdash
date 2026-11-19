@@ -207,6 +207,7 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
             refreshToken: refreshed.tokens.refreshToken,
             requireAgentSession: true,
             requireUserCredentials: false,
+            allowUserCredentials: false,
         };
         const assurances: AiAssurance[] = [
             { kind: 'agent_session_active' },

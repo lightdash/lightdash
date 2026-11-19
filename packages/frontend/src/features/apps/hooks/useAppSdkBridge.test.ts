@@ -129,6 +129,7 @@ function renderBridge(
     onQueryEvent: (event: QueryEvent) => void,
     previewToken = PREVIEW_TOKEN,
     dataAppVizMode = false,
+    onNewerVersion?: () => void,
 ) {
     const iframeRef = {
         current: { contentWindow: window } as unknown as HTMLIFrameElement,
@@ -143,6 +144,7 @@ function renderBridge(
             previewToken,
             onQueryEvent,
             dataAppVizMode,
+            onNewerVersion,
         }),
     );
 }
@@ -673,6 +675,53 @@ describe('useAppSdkBridge', () => {
         });
     });
 
+    it('tells the host when a query is refused because a newer app version is ready', async () => {
+        const events: QueryEvent[] = [];
+        const onNewerVersion = vi.fn();
+        renderBridge(
+            (e) => events.push(e),
+            PREVIEW_TOKEN,
+            false,
+            onNewerVersion,
+        );
+
+        mockFetchNonOk(
+            {
+                status: 'error',
+                error: {
+                    message: 'This data app has a newer version.',
+                    data: { code: 'data_app_newer_version' },
+                },
+            },
+            403,
+        );
+        postMetricQuery();
+
+        await vi.waitFor(() => expect(events).toHaveLength(2));
+        expect(onNewerVersion).toHaveBeenCalledTimes(1);
+        expect(events[1]).toMatchObject({ id: POST_ID, status: 'error' });
+    });
+
+    it('does not report a newer version for other refused queries', async () => {
+        const events: QueryEvent[] = [];
+        const onNewerVersion = vi.fn();
+        renderBridge(
+            (e) => events.push(e),
+            PREVIEW_TOKEN,
+            false,
+            onNewerVersion,
+        );
+
+        mockFetchNonOk(
+            { status: 'error', error: { message: 'Forbidden', data: {} } },
+            403,
+        );
+        postMetricQuery();
+
+        await vi.waitFor(() => expect(events).toHaveLength(2));
+        expect(onNewerVersion).not.toHaveBeenCalled();
+    });
+
     it('emits a terminal error event when the metric-query POST fetch throws', async () => {
         const events: QueryEvent[] = [];
         renderBridge((e) => events.push(e));
@@ -1173,6 +1222,137 @@ describe('url-state-change routing', () => {
         });
 
         expect(onUrlStateChange).not.toHaveBeenCalled();
+    });
+});
+
+describe('app-event routing', () => {
+    const dispatchEmbedEvent = vi.fn();
+
+    beforeEach(() => {
+        vi.stubGlobal('fetch', vi.fn());
+        vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        mockUseEmbed.mockReturnValue({
+            embedToken: 'embed-jwt',
+            projectUuid: PROJECT_UUID,
+            dispatchEmbedEvent,
+        } as ReturnType<typeof mockUseEmbed>);
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.restoreAllMocks();
+        dispatchEmbedEvent.mockReset();
+        mockUseEmbed.mockReturnValue({
+            embedToken: undefined,
+            projectUuid: undefined,
+        });
+    });
+
+    function renderAppEventBridge() {
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge({
+                colorScheme: 'light',
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
+            }),
+        );
+    }
+
+    it('relays a valid event under the fixed appEvent type', () => {
+        renderAppEventBridge();
+
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:app-event',
+            name: 'import-confirmed',
+            payload: { planId: 'p1' },
+        });
+
+        expect(dispatchEmbedEvent).toHaveBeenCalledWith('appEvent', {
+            name: 'import-confirmed',
+            payload: { planId: 'p1' },
+        });
+    });
+
+    it('relays a missing payload as null', () => {
+        renderAppEventBridge();
+
+        dispatchFetchMessage({ type: 'lightdash:sdk:app-event', name: 'done' });
+
+        expect(dispatchEmbedEvent).toHaveBeenCalledWith('appEvent', {
+            name: 'done',
+            payload: null,
+        });
+    });
+
+    it('drops events with an invalid name', () => {
+        renderAppEventBridge();
+
+        for (const name of [undefined, 42, '', '   ', 'x'.repeat(101)]) {
+            dispatchFetchMessage({ type: 'lightdash:sdk:app-event', name });
+        }
+
+        expect(dispatchEmbedEvent).not.toHaveBeenCalled();
+    });
+
+    it('drops payloads over the serialized size cap', () => {
+        renderAppEventBridge();
+
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:app-event',
+            name: 'big',
+            payload: { blob: 'x'.repeat(64 * 1024) },
+        });
+
+        expect(dispatchEmbedEvent).not.toHaveBeenCalled();
+    });
+
+    it('counts the cap in UTF-8 bytes, not characters', () => {
+        renderAppEventBridge();
+
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:app-event',
+            name: 'unicode',
+            payload: '界'.repeat(30000),
+        });
+
+        expect(dispatchEmbedEvent).not.toHaveBeenCalled();
+    });
+
+    it('relays the JSON form, dropping binary data the size check cannot see', () => {
+        renderAppEventBridge();
+
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:app-event',
+            name: 'binary',
+            payload: { blob: new ArrayBuffer(1024 * 1024), keep: 1 },
+        });
+
+        expect(dispatchEmbedEvent).toHaveBeenCalledWith('appEvent', {
+            name: 'binary',
+            payload: { blob: {}, keep: 1 },
+        });
+    });
+
+    it('does not relay outside an embed', () => {
+        mockUseEmbed.mockReturnValue({
+            embedToken: undefined,
+            projectUuid: undefined,
+            dispatchEmbedEvent,
+        } as ReturnType<typeof mockUseEmbed>);
+        renderAppEventBridge();
+
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:app-event',
+            name: 'import-confirmed',
+        });
+
+        expect(dispatchEmbedEvent).not.toHaveBeenCalled();
     });
 });
 

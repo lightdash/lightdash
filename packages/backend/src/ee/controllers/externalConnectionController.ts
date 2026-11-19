@@ -18,6 +18,7 @@ import {
     type ApiTestExternalConnectionConfigRequest,
     type ApiTestExternalConnectionRequest,
     type ApiTestExternalConnectionResponse,
+    type ApiUpdateLiveSourceCacheRequest,
     type ApiUpdateLiveSourceFieldsRequest,
     type CreateExternalConnection,
     type ExternalConnection,
@@ -308,6 +309,68 @@ export class ExternalConnectionController extends BaseController {
         );
         this.setStatus(200);
         return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Set how long a live data source's results answer the same query for
+     * everyone, in seconds. Null uses its integration's default.
+     * @summary Update live data source freshness
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('external-connections/{connectionUuid}/cache')
+    @OperationId('updateLiveSourceCache')
+    async updateLiveSourceCache(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+        @Body() body: ApiUpdateLiveSourceCacheRequest,
+    ): Promise<ApiExternalConnectionResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().updateLiveSourceCache(
+                req.account,
+                projectUuid,
+                connectionUuid,
+                body,
+            ),
+        };
+    }
+
+    /**
+     * Stop reusing a live data source's stored results, so the next query
+     * from anyone calls the integration
+     * @summary Purge live data source cache
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('external-connections/{connectionUuid}/cache/purge')
+    @OperationId('purgeLiveSourceCache')
+    async purgeLiveSourceCache(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+    ): Promise<ApiExternalConnectionResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().purgeLiveSourceCache(
+                req.account,
+                projectUuid,
+                connectionUuid,
+            ),
+        };
     }
 
     /**

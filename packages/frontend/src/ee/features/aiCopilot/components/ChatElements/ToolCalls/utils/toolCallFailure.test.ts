@@ -1,9 +1,9 @@
 import { type AiAgentToolResult } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
-    formatToolErrorMessage,
-    getToolCallFailure,
+    isToolCallFailed,
     isToolCallSettled,
+    isToolCallUnapproved,
 } from './toolCallFailure';
 import { type ToolCallSummary } from './types';
 
@@ -31,67 +31,47 @@ const persistedResult = (
         : { ...base, metadata: { status: 'error' } };
 };
 
-describe('formatToolErrorMessage', () => {
-    it('prefers the fenced error over the wrapper text', () => {
-        expect(
-            formatToolErrorMessage(
-                'Error running composer queries.\n\n```\nrelation "marketing.ad_spend" does not exist\n```\n\nTry again if you believe the error can be resolved.',
-            ),
-        ).toBe('relation "marketing.ad_spend" does not exist');
-    });
-
-    it('drops the retry hint and markdown from plain errors', () => {
-        expect(
-            formatToolErrorMessage(
-                'Column **amount** not found. Try again if you believe the error can be resolved.',
-            ),
-        ).toBe('Column amount not found.');
-    });
-});
-
-describe('getToolCallFailure', () => {
+describe('isToolCallFailed', () => {
     it('reads a persisted error result', () => {
         expect(
-            getToolCallFailure(call, [persistedResult('error', 'Timeout')]),
-        ).toEqual({ toolCallId: 'call-1', message: 'Timeout' });
+            isToolCallFailed(call, [persistedResult('error', 'Timeout')]),
+        ).toBe(true);
     });
 
-    it('treats timed-out and rejected SQL as failures', () => {
+    it('treats unapproved SQL as neither a failure nor a success', () => {
         const live = (status: string): ToolCallSummary => ({
             ...call,
             isPreliminary: false,
             toolOutput: { result: `Approval ${status}`, metadata: { status } },
         });
-        expect(getToolCallFailure(live('timeout'))?.message).toBe(
-            'Approval timeout',
-        );
-        expect(getToolCallFailure(live('rejected'))?.message).toBe(
-            'Approval rejected',
-        );
+        for (const status of ['rejected', 'timeout']) {
+            expect(isToolCallFailed(live(status))).toBe(false);
+            expect(isToolCallUnapproved(live(status))).toBe(true);
+        }
     });
 
     it('ignores successful results', () => {
-        expect(
-            getToolCallFailure(call, [persistedResult('success', 'ok')]),
-        ).toBeNull();
+        expect(isToolCallFailed(call, [persistedResult('success', 'ok')])).toBe(
+            false,
+        );
     });
 
     it('reads a final live error output but not a preliminary one', () => {
         const output = { result: 'Bad SQL', metadata: { status: 'error' } };
         expect(
-            getToolCallFailure({
+            isToolCallFailed({
                 ...call,
                 toolOutput: output,
                 isPreliminary: false,
             }),
-        ).toEqual({ toolCallId: 'call-1', message: 'Bad SQL' });
+        ).toBe(true);
         expect(
-            getToolCallFailure({
+            isToolCallFailed({
                 ...call,
                 toolOutput: output,
                 isPreliminary: true,
             }),
-        ).toBeNull();
+        ).toBe(false);
     });
 });
 

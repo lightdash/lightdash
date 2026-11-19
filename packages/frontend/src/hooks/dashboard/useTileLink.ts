@@ -2,15 +2,12 @@ import { type DashboardTile } from '@lightdash/common';
 import { useClipboard } from '@mantine/hooks';
 import { useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { scrollToDashboardTile } from '../../components/common/Dashboard/scrollToDashboardTile';
+import { scrollToDashboardTileWhenMounted } from '../../components/common/Dashboard/scrollToDashboardTile';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useToaster from '../toaster/useToaster';
 import { useOptionalProjectRoute } from '../useProjectRoute';
 
 const HIGHLIGHT_TILE_SEARCH_PARAM = 'highlightTile';
-
-/** Tiles on a lazily mounted tab can take a while to appear after navigation */
-const WAIT_FOR_TILE_TIMEOUT_MS = 10_000;
 
 /** In-app path that opens the dashboard on the tile's tab and highlights the tile. */
 export const getTileLinkPath = ({
@@ -105,17 +102,7 @@ export const useHighlightedTile = ({ enabled }: { enabled: boolean }) => {
     useEffect(() => {
         if (!enabled || !highlightTileUuid || hasHighlightedRef.current) return;
 
-        const startedAt = Date.now();
-        let frame: number;
-
-        const highlightTile = () => {
-            if (!scrollToDashboardTile(highlightTileUuid)) {
-                if (Date.now() - startedAt < WAIT_FOR_TILE_TIMEOUT_MS) {
-                    frame = requestAnimationFrame(highlightTile);
-                }
-                return;
-            }
-
+        return scrollToDashboardTileWhenMounted(highlightTileUuid, () => {
             hasHighlightedRef.current = true;
             const searchParams = new URLSearchParams(search);
             searchParams.delete(HIGHLIGHT_TILE_SEARCH_PARAM);
@@ -123,10 +110,7 @@ export const useHighlightedTile = ({ enabled }: { enabled: boolean }) => {
                 { pathname, search: searchParams.toString() },
                 { replace: true },
             );
-        };
-
-        frame = requestAnimationFrame(highlightTile);
-        return () => cancelAnimationFrame(frame);
+        });
     }, [enabled, highlightTileUuid, navigate, pathname, search]);
 
     return { highlightTileUuid };

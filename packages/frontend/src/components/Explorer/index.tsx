@@ -3,7 +3,7 @@ import {
     getExploreParameterDefinitions,
     getReferencedParameterDefinitions,
 } from '@lightdash/common';
-import { Stack } from '@mantine/core';
+import { Group, Stack } from '@mantine/core';
 import {
     memo,
     useCallback,
@@ -19,6 +19,7 @@ import {
     selectColumnOrder,
     selectDimensions,
     selectFormatModal,
+    selectHasSelectedFields,
     selectIsChartTypeAuthoring,
     selectIsEditMode,
     selectMetricQuery,
@@ -55,10 +56,15 @@ import { CustomDimensionModal } from './CustomDimensionModal';
 import { CustomMetricModal } from './CustomMetricModal';
 import classes from './Explorer.module.css';
 import ExplorerHeader from './ExplorerHeader';
+import { useAddDroppedFieldToQuery, useFieldDrop } from './fieldDrag';
 import FiltersCard from './FiltersCard/FiltersCard';
 import { FormatModal } from './FormatModal';
 import ParametersCard from './ParametersCard/ParametersCard';
 import { PeriodOverPeriodComparisonModal } from './PeriodOverPeriodComparisonModal/PeriodOverPeriodComparisonModal';
+import {
+    EmptyStateNoColumns,
+    NoTableSelected,
+} from './ResultsCard/ExplorerResultsNonIdealStates';
 import ResultsCard from './ResultsCard/ResultsCard';
 import SqlCard from './SqlCard/SqlCard';
 import VisualizationCard from './VisualizationCard/VisualizationCard';
@@ -74,6 +80,7 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
         const columnOrder = useExplorerSelector(selectColumnOrder);
         const sorts = useExplorerSelector(selectSorts);
         const metricQuery = useExplorerSelector(selectMetricQuery);
+        const hasSelectedFields = useExplorerSelector(selectHasSelectedFields);
         const isEditMode = useExplorerSelector(selectIsEditMode);
         const showQueryBuilder = isEditMode || !chartView;
         const showMinimalChart = chartView && !isEditMode;
@@ -109,6 +116,8 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
             useExplorerSelector(selectPeriodOverPeriodComparisonModal);
 
         const dispatch = useExplorerDispatch();
+        // The empty state takes a first field dropped anywhere on it
+        const pickFieldsDrop = useFieldDrop(useAddDroppedFieldToQuery());
 
         const projectUuid = useProjectUuid();
 
@@ -263,6 +272,21 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
         // whole viewport
         const { isFullscreen } = useFullscreen();
 
+        // Nothing to filter, chart or query until a table is picked
+        const showLanding =
+            !tableName &&
+            !isEditMode &&
+            !chartView &&
+            !savedChart &&
+            !isAuthoring;
+
+        // One prompt for the whole page until a field is selected
+        const showPickFields =
+            !hasSelectedFields &&
+            showQueryBuilder &&
+            !isFullscreen &&
+            !isAuthoring;
+
         return (
             <MetricQueryDataProvider
                 tableName={tableName}
@@ -299,39 +323,63 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
                             />
                         )}
 
-                    {!isFullscreen && showQueryBuilder && <FiltersCard />}
-
-                    {/* The card also hosts the authoring modal, which needs
-                        its visualization context. The chart itself pauses
-                        while the type is authored so it doesn't render twice. */}
-                    <VisualizationCard
-                        projectUuid={projectUuid}
-                        renderVisualization={!isAuthoring}
-                        onScreenshotReady={handleScreenshotReady}
-                        onScreenshotError={handleScreenshotError}
-                        minimal={showMinimalChart}
-                    />
-
-                    {!isFullscreen && showQueryBuilder && (
+                    {showLanding ? (
+                        <Group className={classes.landing} justify="center">
+                            <NoTableSelected />
+                        </Group>
+                    ) : (
                         <>
-                            <ResultsCard />
+                            {!isFullscreen && showQueryBuilder && (
+                                <FiltersCard />
+                            )}
 
-                            <Can
-                                I="manage"
-                                this={subject('Explore', {
-                                    organizationUuid: org?.organizationUuid,
-                                    projectUuid,
-                                })}
-                            >
-                                {!!projectUuid && (
-                                    <SqlCard
-                                        projectUuid={projectUuid}
-                                        warehouseConnectionUuid={
-                                            explore?.warehouseConnectionUuid
-                                        }
-                                    />
-                                )}
-                            </Can>
+                            {/* The card also hosts the authoring modal, which needs
+                            its visualization context. The chart itself pauses
+                            while the type is authored so it doesn't render twice. */}
+                            <VisualizationCard
+                                projectUuid={projectUuid}
+                                renderVisualization={!isAuthoring}
+                                onScreenshotReady={handleScreenshotReady}
+                                onScreenshotError={handleScreenshotError}
+                                minimal={showMinimalChart}
+                            />
+
+                            {!isFullscreen && showQueryBuilder && (
+                                <>
+                                    <ResultsCard />
+
+                                    <Can
+                                        I="manage"
+                                        this={subject('Explore', {
+                                            organizationUuid:
+                                                org?.organizationUuid,
+                                            projectUuid,
+                                        })}
+                                    >
+                                        {!!projectUuid && (
+                                            <SqlCard
+                                                projectUuid={projectUuid}
+                                                warehouseConnectionUuid={
+                                                    explore?.warehouseConnectionUuid
+                                                }
+                                            />
+                                        )}
+                                    </Can>
+                                </>
+                            )}
+
+                            {showPickFields && (
+                                <Group
+                                    className={classes.landing}
+                                    justify="center"
+                                    data-drop-active={
+                                        pickFieldsDrop.isOver || undefined
+                                    }
+                                    {...pickFieldsDrop.dropProps}
+                                >
+                                    <EmptyStateNoColumns />
+                                </Group>
+                            )}
                         </>
                     )}
                 </Stack>

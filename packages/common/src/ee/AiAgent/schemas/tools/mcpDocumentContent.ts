@@ -3,6 +3,7 @@ import type { DocumentChartContent } from '../../../../types/document';
 import { type ToolDescriptionContext } from '../defineTool';
 import { toolNameFor } from './discoveryToolNames';
 import {
+    COMPOSER_CHART_CREATE_GUIDANCE,
     SQL_CHART_CREATE_GUIDANCE,
     toolChartAsCodeMetricQuerySchema,
     toolCreateContentArgsSchema,
@@ -193,7 +194,7 @@ const getDocumentCreateGuidance = ({
 export const MCP_CREATE_CONTENT_DESCRIPTION = (
     context: ToolDescriptionContext,
 ): string =>
-    `Create a dashboard, chart, SQL chart or Document from its JSON; the developing-in-lightdash skill has the chart and dashboard shapes. ${SQL_CHART_CREATE_GUIDANCE} ${getDocumentCreateGuidance(context)}`;
+    `Create a dashboard, chart, SQL chart, composer chart or Document from its JSON; the developing-in-lightdash skill has the chart and dashboard shapes. ${SQL_CHART_CREATE_GUIDANCE} ${COMPOSER_CHART_CREATE_GUIDANCE} ${getDocumentCreateGuidance(context)}`;
 
 /** For an actor who can save Documents but not charts or dashboards. */
 export const DOCUMENT_CREATE_CONTENT_DESCRIPTION = (
@@ -201,7 +202,7 @@ export const DOCUMENT_CREATE_CONTENT_DESCRIPTION = (
 ): string =>
     `Create a Document from its JSON. ${getDocumentCreateGuidance(context)}`;
 
-export const MCP_READ_CONTENT_DESCRIPTION = `Read a dashboard, chart, SQL chart, data app or Document by its slug. ${READ_CONTENT_SHARED_DESCRIPTION} A Document returns Markdown where each chart is a short tag (id, title, type, explore), plus the latest version UUID that edits need; pass chartId to read one chart in full. A tag marked unsupported is a chart from a newer version: keep its tag unchanged when editing.`;
+export const MCP_READ_CONTENT_DESCRIPTION = `Read a dashboard, chart, SQL chart, composer chart, data app or Document by its slug. ${READ_CONTENT_SHARED_DESCRIPTION} A Document returns Markdown where each chart is a short tag (id, title, type, explore), plus the latest version UUID that edits need; pass chartId to read one chart in full. A tag marked unsupported is a chart from a newer version: keep its tag unchanged when editing.`;
 
 export const MCP_EDIT_CONTENT_DESCRIPTION = (
     context: ToolDescriptionContext,
@@ -215,7 +216,13 @@ export const DOCUMENT_EDIT_CONTENT_DESCRIPTION = ({
     `Edit a Document with documentEdit against the latest version ${toolNameFor('readContent', runtime)} returned. A Document in a Space can be edited only when that Space shows canEdit true in ${toolNameFor('findContent', runtime)} or ${toolNameFor('listContent', runtime)} results.`;
 
 export const mcpCreateContentArgsSchema = toolCreateContentArgsSchema.extend({
-    type: z.enum(['dashboard', 'chart', 'sql_chart', 'document']),
+    type: z.enum([
+        'dashboard',
+        'chart',
+        'sql_chart',
+        'composer_chart',
+        'document',
+    ]),
     content: z.union([
         documentAsCodeSchema,
         toolCreateContentArgsSchema.shape.content,
@@ -230,7 +237,14 @@ export const documentCreateContentArgsSchema = z.object({
 });
 
 export const mcpReadContentArgsSchema = toolReadContentArgsSchema.extend({
-    type: z.enum(['dashboard', 'chart', 'sql_chart', 'data_app', 'document']),
+    type: z.enum([
+        'dashboard',
+        'chart',
+        'sql_chart',
+        'composer_chart',
+        'data_app',
+        'document',
+    ]),
     chartId: z
         .string()
         .min(1)
@@ -241,10 +255,16 @@ export const mcpReadContentArgsSchema = toolReadContentArgsSchema.extend({
 });
 
 export const mcpEditContentArgsSchema = toolEditContentArgsSchema.extend({
-    type: z.enum(['dashboard', 'chart', 'sql_chart', 'document']),
-    patch: toolEditContentArgsSchema.shape.patch.optional(),
+    type: z.enum([
+        'dashboard',
+        'chart',
+        'sql_chart',
+        'composer_chart',
+        'document',
+    ]),
+    patch: toolEditContentArgsSchema.shape.patch.nullish(),
     documentEdit: mcpDocumentEditSchema
-        .optional()
+        .nullish()
         .describe(
             'A Document edit: replace the Markdown (content), patch one chart (chart), or update metadata (metadata).',
         ),

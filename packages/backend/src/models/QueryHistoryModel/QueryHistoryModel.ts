@@ -43,7 +43,9 @@ import {
     DbQueryHistory,
     DbQueryHistoryUpdate,
     QueryHistoryCacheOutcome,
-    queryHistoryRequestColumnSql,
+    queryHistoryExploreNameSql,
+    queryHistoryRequestColumnJsonSql,
+    queryHistoryRequestUuidSql,
     QueryHistoryTableName,
 } from '../../database/entities/queryHistory';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
@@ -164,6 +166,15 @@ export function getQueryHistoryRequestColumns(
             null,
         metric_query_explore_name: metricQuery?.exploreName ?? null,
     };
+}
+
+export class QueryPollingTimeoutError extends Error {
+    readonly timeoutMs: number;
+
+    constructor(timeoutMs: number) {
+        super(`Query polling timed out after ${timeoutMs}ms`);
+        this.timeoutMs = timeoutMs;
+    }
 }
 
 export class QueryHistoryModel {
@@ -426,29 +437,6 @@ export class QueryHistoryModel {
                 this.database.raw(
                     "jsonb_set(request_parameters, '{resultMessageQuery}', ?::jsonb, true)",
                     [JSON.stringify(messageQuery)],
-                ),
-            );
-    }
-
-    async recordResultResearchRun(
-        queryUuid: string,
-        projectUuid: string,
-        accountId: string,
-        runUuid: string,
-    ): Promise<void> {
-        await this.database(QueryHistoryTableName)
-            .where('query_uuid', queryUuid)
-            .andWhere('project_uuid', projectUuid)
-            .andWhere((query) => {
-                void query
-                    .whereRaw('created_by_user_uuid::text = ?', [accountId])
-                    .orWhere('created_by_account', accountId);
-            })
-            .update(
-                'request_parameters',
-                this.database.raw(
-                    "jsonb_set(request_parameters, '{resultResearchRunUuid}', ?::jsonb, true)",
-                    [JSON.stringify(runUuid)],
                 ),
             );
     }
@@ -746,17 +734,29 @@ export class QueryHistoryModel {
         content: CachedResultsContent,
         createdSince: Date,
     ): Promise<number> {
-        const contentColumn = queryHistoryRequestColumnSql(
-            QueryHistoryTableName,
+        const column =
             content.type === 'chart'
                 ? 'request_chart_uuid'
-                : 'request_dashboard_uuid',
-        );
+                : 'request_dashboard_uuid';
+        // Filled rows are matched on the copied column, so charts read only the covering index.
         const contentCacheKeys = this.database(QueryHistoryTableName)
-            .distinct('cache_key')
+            .select('cache_key')
             .where('project_uuid', projectUuid)
             .andWhere('created_at', '>', createdSince)
-            .whereRaw(`${contentColumn} = ANY(?)`, [content.identifiers]);
+            .whereNotNull('metric_query_explore_name')
+            .whereRaw(`${column} = ANY(?)`, [content.identifiers])
+            .union((unfilled) => {
+                void unfilled
+                    .select('cache_key')
+                    .from(QueryHistoryTableName)
+                    .where('project_uuid', projectUuid)
+                    .andWhere('created_at', '>', createdSince)
+                    .whereNull('metric_query_explore_name')
+                    .whereRaw(
+                        `${queryHistoryRequestColumnJsonSql(QueryHistoryTableName, column)} = ANY(?)`,
+                        [content.identifiers],
+                    );
+            });
         return this.invalidateCachedResultsByCacheKeys(
             projectUuid,
             contentCacheKeys,
@@ -1054,7 +1054,7 @@ export class QueryHistoryModel {
         const poll = async (backoffMs: number): Promise<QueryHistory> => {
             abortSignal?.throwIfAborted();
             if (Date.now() - startTime > timeoutMs) {
-                throw new Error(`Query polling timed out after ${timeoutMs}ms`);
+                throw new QueryPollingTimeoutError(timeoutMs);
             }
 
             const queryHistory = await getQueryHistory();
@@ -1180,21 +1180,21 @@ export class QueryHistoryModel {
             .leftJoin(SavedChartsTableName, function joinRequestChart() {
                 this.on(
                     database.raw(
-                        `${SavedChartsTableName}.saved_query_uuid::text = ${queryHistoryRequestColumnSql(QueryHistoryTableName, 'request_chart_uuid')}`,
+                        `${SavedChartsTableName}.saved_query_uuid = ${queryHistoryRequestUuidSql(QueryHistoryTableName, 'request_chart_uuid')}`,
                     ),
                 );
             })
             .leftJoin(SavedSqlTableName, function joinRequestSqlChart() {
                 this.on(
                     database.raw(
-                        `${SavedSqlTableName}.saved_sql_uuid::text = ${queryHistoryRequestColumnSql(QueryHistoryTableName, 'request_saved_sql_uuid')}`,
+                        `${SavedSqlTableName}.saved_sql_uuid = ${queryHistoryRequestUuidSql(QueryHistoryTableName, 'request_saved_sql_uuid')}`,
                     ),
                 );
             })
             .leftJoin(DashboardsTableName, function joinRequestDashboard() {
                 this.on(
                     database.raw(
-                        `${DashboardsTableName}.dashboard_uuid::text = ${queryHistoryRequestColumnSql(QueryHistoryTableName, 'request_dashboard_uuid')}`,
+                        `${DashboardsTableName}.dashboard_uuid = ${queryHistoryRequestUuidSql(QueryHistoryTableName, 'request_dashboard_uuid')}`,
                     ),
                 );
             })
@@ -1256,7 +1256,7 @@ export class QueryHistoryModel {
                         searchPattern,
                     )
                     .orWhereRaw(
-                        `${QueryHistoryTableName}.metric_query->>'exploreName' ilike ?`,
+                        `${queryHistoryExploreNameSql(QueryHistoryTableName)} ilike ?`,
                         [searchPattern],
                     )
                     .orWhereRaw(

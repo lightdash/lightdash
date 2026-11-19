@@ -10,13 +10,95 @@
     outline: none;
 }
 
-.option {
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
-    transition:
-        border-color 120ms ease,
-        background-color 120ms ease;
+.optionRow,
+.ownAnswerRow {
+    /* Height of the label's first line (Text fz="sm"). */
+    --first-line: calc(
+        var(--mantine-font-size-sm) * var(--mantine-line-height-sm)
+    );
+
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr) 20px;
+    column-gap: var(--mantine-spacing-xs);
+    align-items: start;
+    padding: var(--mantine-spacing-xs);
+    border: 1px solid transparent;
+    border-radius: var(--mantine-radius-md);
 }
 
-.option[data-checked] {
-    border-color: var(--mantine-primary-color-filled);
+/* Half strength, so a hovered row never reads as a picked one. */
+.optionRow:hover,
+.ownAnswerRow:hover {
+    background-color: color-mix(
+        in srgb,
+        var(--mantine-color-default-hover) 50%,
+        transparent
+    );
+}
+
+.optionRow[data-checked] {
+    background-color: var(--mantine-color-default-hover);
+}
+
+.ownAnswerRow {
+    cursor: text;
+}
+
+/* The input inside is unstyled, so the row carries its focus border. */
+.ownAnswerRow:focus-within {
+    border-color: var(--mantine-color-ldGray-5);
+}
+
+/* Radio, checkbox or pencil, centred on the label's first line. */
+.optionMark {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: var(--first-line);
+}
+
+/* The dot and the tick appear at once; Mantine slides and fades them in. */
+.optionMark * {
+    transition: none;
+}
+
+/* The number key that picks the option. */
+.optionKey {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin-top: calc((var(--first-line) - 20px) / 2);
+    border-radius: var(--mantine-radius-sm);
+    background-color: var(--mantine-color-ldGray-1);
+    color: var(--mantine-color-dimmed);
+    font-size: var(--mantine-font-size-xs);
+    line-height: 1;
+}
+
+/* On a filled row the key lifts to the surface colour so it stays visible. */
+.optionRow:hover .optionKey,
+.optionRow[data-checked] .optionKey {
+    background-color: var(--mantine-color-body);
+}
+
+.ownAnswerInput {
+    min-height: var(--first-line);
+    padding: 0;
+    border-width: 0;
+    line-height: var(--first-line);
+}
+
+.footer {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0;
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+/* Number keys need a keyboard. */
+@media (hover: none) {
+    .keyHint {
+        display: none;
+    }
 }

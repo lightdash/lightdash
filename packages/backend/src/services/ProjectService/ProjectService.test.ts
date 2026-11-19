@@ -46,6 +46,7 @@ import {
     getItemId,
     getModelsFromManifest,
     getPreAggregateExploreName,
+    getUserAbilityBuilder,
     isAiAccessQueryContext,
     JobStatusType,
     JobStepStatusType,
@@ -67,6 +68,7 @@ import {
     PersonSignInProvider,
     PreAggregateMissReason,
     PreviewWarehouseSignInExpiredError,
+    ProjectMemberRole,
     ProjectType,
     QueryExecutionContext,
     QuerySurface,
@@ -256,7 +258,7 @@ import {
 import { CatalogService } from '../CatalogService/CatalogService';
 import { DeployService } from '../DeployService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
-import { buildApiSourceExplores } from '../QuerySourceService/api/apiSourceExplores';
+import { buildLiveExplores } from '../QuerySourceService/live/explores/build';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
 import { buildAiServiceAccountCredentials } from '../WarehouseClientFactory/aiServiceAccountCredentialResolvers';
@@ -972,7 +974,6 @@ describe('ProjectService', () => {
                     results: {
                         ...lightdashConfigWithGoogleOAuthMock.results,
                         cacheEnabled: true,
-                        autocompleteEnabled: true,
                     },
                 });
                 vi.mocked(configured.featureFlagModel.get).mockImplementation(
@@ -1500,6 +1501,7 @@ describe('ProjectService', () => {
                     expect(enterprise).toHaveBeenCalledExactlyOnceWith({
                         organizationUuid: 'organization-uuid',
                         projectUuid: 'copy',
+                        spaceUuid: 'training-space',
                         createdByUserUuid: 'creator',
                     });
                     expect(reported).not.toHaveBeenCalled();
@@ -1512,7 +1514,9 @@ describe('ProjectService', () => {
                     await expect(
                         seedAll(createLearnService(enterprise)),
                     ).resolves.toBeUndefined();
-                    expect(enterprise).toHaveBeenCalledTimes(1);
+                    expect(enterprise).toHaveBeenCalledExactlyOnceWith(
+                        expect.objectContaining({ spaceUuid: null }),
+                    );
                     expect(reported).toHaveBeenCalledExactlyOnceWith(failure);
                 });
 
@@ -3682,6 +3686,163 @@ describe('ProjectService', () => {
         );
     });
 
+    describe('optional Snowflake personal credentials on save', () => {
+        const refusal =
+            'Personal credentials can only be optional when the connection stores shared credentials.';
+        const savedConnection = {
+            type: WarehouseTypes.SNOWFLAKE as const,
+            account: 'account',
+            user: 'person',
+            privateKey: 'private-key',
+            database: 'analytics',
+            warehouse: 'warehouse',
+            schema: 'public',
+            authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
+            allowUserCredentials: true,
+        };
+        const savedProject = {
+            ...projectWithSensitiveFields,
+            warehouseConnection: savedConnection,
+        };
+        const withoutSharedCredentials = {
+            type: WarehouseTypes.SNOWFLAKE as const,
+            account: 'account',
+            user: '',
+            database: 'analytics',
+            warehouse: 'warehouse',
+            schema: 'public',
+            authenticationType: SnowflakeAuthenticationType.NONE,
+        };
+        const creator = {
+            ...user,
+            organizationUuid: projectWithSensitiveFields.organizationUuid,
+            organizationName: 'Organization',
+            organizationCreatedAt: new Date(),
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'all', action: 'manage' },
+            ]),
+        };
+        const newProject = {
+            name: 'New project',
+            type: ProjectType.DEFAULT,
+            dbtVersion: DefaultSupportedDbtVersion,
+            dbtConnection: { type: DbtProjectType.NONE as const },
+        };
+        const update = {
+            updateWarehouseCredentials: (
+                warehouseConnection: CreateWarehouseCredentials,
+            ) =>
+                service.updateWarehouseCredentials(
+                    savedProject.projectUuid,
+                    developerAccount,
+                    { warehouseConnection },
+                ),
+            updateAndScheduleAsyncWork: (
+                warehouseConnection: CreateWarehouseCredentials,
+            ) =>
+                service.updateAndScheduleAsyncWork(
+                    savedProject.projectUuid,
+                    developerAccount,
+                    {
+                        name: savedProject.name,
+                        dbtConnection: { type: DbtProjectType.NONE },
+                        dbtVersion: savedProject.dbtVersion,
+                        warehouseConnection,
+                    },
+                    RequestMethod.WEB_APP,
+                ),
+        };
+
+        beforeEach(() => {
+            projectModel.update.mockClear();
+            projectModel.createWithOptionalCredentials.mockClear();
+            projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                savedProject,
+            );
+        });
+        afterEach(() => {
+            projectModel.getWithSensitiveFields.mockReset();
+            projectModel.getWithSensitiveFields.mockImplementation(
+                async () => projectWithSensitiveFields,
+            );
+        });
+
+        describe.each([
+            'updateWarehouseCredentials',
+            'updateAndScheduleAsyncWork',
+        ] as const)('%s', (method) => {
+            test('rejects removing the shared credentials while the stored opt-in is kept', async () => {
+                const save = update[method](withoutSharedCredentials);
+                await expect(save).rejects.toThrow(ParameterError);
+                await expect(save).rejects.toThrow(refusal);
+                expect(projectModel.update).not.toHaveBeenCalled();
+            });
+
+            test('saves when the opt-in is turned off in the same request', async () => {
+                await update[method]({
+                    ...withoutSharedCredentials,
+                    allowUserCredentials: false,
+                });
+                expect(projectModel.update).toHaveBeenCalledWith(
+                    savedProject.projectUuid,
+                    expect.objectContaining({
+                        warehouseConnection: expect.objectContaining({
+                            authenticationType:
+                                SnowflakeAuthenticationType.NONE,
+                            allowUserCredentials: false,
+                        }),
+                    }),
+                    expect.anything(),
+                );
+            });
+        });
+
+        test('rejects creating a project with the opt-in and no shared credentials', async () => {
+            const creation = service.createWithoutCompile(
+                creator,
+                {
+                    ...newProject,
+                    warehouseConnection: {
+                        ...withoutSharedCredentials,
+                        allowUserCredentials: true,
+                    },
+                },
+                RequestMethod.WEB_APP,
+            );
+            await expect(creation).rejects.toThrow(ParameterError);
+            await expect(creation).rejects.toThrow(refusal);
+            expect(
+                projectModel.createWithOptionalCredentials,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('rejects a preview that inherits the opt-in from its upstream project', async () => {
+            const upstream = vi
+                .spyOn(projectModel, 'getWarehouseCredentialsForBinding')
+                .mockResolvedValue(savedConnection);
+            try {
+                const creation = service.createWithoutCompile(
+                    creator,
+                    {
+                        ...newProject,
+                        type: ProjectType.PREVIEW,
+                        upstreamProjectUuid: savedProject.projectUuid,
+                        warehouseConnection: withoutSharedCredentials,
+                    },
+                    RequestMethod.CLI,
+                );
+                await expect(creation).rejects.toThrow(ParameterError);
+                await expect(creation).rejects.toThrow(refusal);
+                expect(upstream).toHaveBeenCalled();
+                expect(
+                    projectModel.createWithOptionalCredentials,
+                ).not.toHaveBeenCalled();
+            } finally {
+                upstream.mockRestore();
+            }
+        });
+    });
+
     describe('ensurePlaygroundProject', () => {
         const organizationUuid = 'organization-uuid';
         const ensureAs = async (ability: SessionUser['ability']) => {
@@ -3879,6 +4040,124 @@ describe('ProjectService', () => {
         createWithoutCompileSpy.mockRestore();
         scheduleCompileProjectSpy.mockRestore();
     });
+
+    test.each([
+        { flagEnabled: false, requireUserCredentials: undefined },
+        { flagEnabled: true, requireUserCredentials: true },
+    ])(
+        'CLI preview on a different Snowflake warehouse requires user credentials only when inheriting across warehouses ($flagEnabled)',
+        async ({ flagEnabled, requireUserCredentials }) => {
+            const upstreamProjectUuid = 'upstream-project-uuid';
+            const developer: CreateSnowflakeCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                authenticationType: SnowflakeAuthenticationType.PASSWORD,
+                account: 'account',
+                user: 'developer',
+                password: 'developer-password',
+                database: 'DEV',
+                warehouse: 'DEV_WH',
+                schema: 'dbt_developer',
+            };
+            const featureFlagModel = {
+                get: vi.fn(
+                    async ({ featureFlagId }: { featureFlagId: string }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            flagEnabled &&
+                            featureFlagId ===
+                                FeatureFlags.PreviewInheritsAcrossWarehouses,
+                    }),
+                ),
+            };
+            const previewService = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+                {
+                    featureFlagModel:
+                        featureFlagModel as unknown as FeatureFlagModel,
+                },
+            );
+            const previewUser: SessionUser = {
+                ...user,
+                organizationUuid: projectWithSensitiveFields.organizationUuid,
+                organizationName: 'Test organization',
+                organizationCreatedAt: new Date(),
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: 'create' },
+                ]),
+            };
+            const spies = [
+                vi
+                    .spyOn(
+                        previewService as unknown as {
+                            validateProjectCreationPermissions: () => Promise<true>;
+                        },
+                        'validateProjectCreationPermissions',
+                    )
+                    .mockResolvedValue(true),
+                vi
+                    .spyOn(previewService, 'getPreviewExpiresAt')
+                    .mockResolvedValue(null),
+                vi
+                    .spyOn(previewService, 'copyUserAccessOnPreview')
+                    .mockResolvedValue(),
+                vi
+                    .spyOn(projectModel, 'getWarehouseCredentialsForBinding')
+                    .mockResolvedValue({
+                        ...developer,
+                        user: 'service_user',
+                        password: 'parent-password',
+                        database: 'PROD',
+                        warehouse: 'PROD_WH',
+                        schema: 'analytics',
+                        requireUserCredentials: true,
+                    }),
+            ];
+            projectModel.createWithOptionalCredentials.mockClear();
+            projectModel.createWithOptionalCredentials.mockResolvedValueOnce(
+                'created-preview-project-uuid',
+            );
+
+            try {
+                await previewService.createWithoutCompile(
+                    previewUser,
+                    {
+                        name: 'Preview on a development warehouse',
+                        type: ProjectType.PREVIEW,
+                        dbtConnection: { type: DbtProjectType.NONE },
+                        warehouseConnection: developer,
+                        upstreamProjectUuid,
+                        copyContent: false,
+                        dbtVersion: projectWithSensitiveFields.dbtVersion,
+                    },
+                    RequestMethod.CLI,
+                );
+
+                const created = (
+                    projectModel.createWithOptionalCredentials.mock
+                        .calls as unknown as [
+                        string,
+                        string,
+                        { warehouseConnection?: CreateWarehouseCredentials },
+                    ][]
+                )[0][2].warehouseConnection;
+                expect(created).toMatchObject(developer);
+                expect(created?.requireUserCredentials).toBe(
+                    requireUserCredentials,
+                );
+                if (flagEnabled) {
+                    expect(featureFlagModel.get).toHaveBeenCalledWith({
+                        user: {
+                            organizationUuid: previewUser.organizationUuid,
+                        },
+                        featureFlagId:
+                            FeatureFlags.PreviewInheritsAcrossWarehouses,
+                    });
+                }
+            } finally {
+                spies.forEach((spy) => spy.mockRestore());
+            }
+        },
+    );
 
     test.each([RequestMethod.WEB_APP, RequestMethod.CLI])(
         'copies additional dbt sources when creating a preview through %s',
@@ -4430,6 +4709,243 @@ describe('ProjectService', () => {
             expect(projectModel.delete).toHaveBeenNthCalledWith(1, 'copy-1');
             expect(projectModel.delete).toHaveBeenNthCalledWith(2, 'copy-2');
             expect(projectModel.delete).toHaveBeenNthCalledWith(3, 'copy-3');
+        });
+    });
+
+    describe('updatePreviewExpiresAt', () => {
+        const ORG_UUID = 'preview-org';
+        const CREATOR_UUID = 'preview-creator';
+        const OTHER_USER_UUID = 'other-user';
+        const UPSTREAM_UUID = 'upstream-project';
+        const PREVIEW_UUID = 'preview-project';
+        const SELF_ROLE_UUID = '55555555-5555-4555-a555-555555555555';
+        const selfPreviewScopes = [
+            'view:Project',
+            'create:Job',
+            'manage:CompileProject',
+            'create:Project@preview',
+            'update:Project@self',
+        ];
+        const previewSummary = (overrides: Partial<ProjectSummary> = {}) =>
+            ({
+                name: 'Preview',
+                projectUuid: PREVIEW_UUID,
+                slug: 'preview',
+                organizationUuid: ORG_UUID,
+                type: ProjectType.PREVIEW,
+                upstreamProjectUuid: UPSTREAM_UUID,
+                createdByUserUuid: CREATOR_UUID,
+                provisioningSource: null,
+                ...overrides,
+            }) as ProjectSummary;
+        const sessionUserWith = ({
+            userUuid = CREATOR_UUID,
+            role = OrganizationMemberRole.MEMBER,
+            roleUuid,
+            projectProfiles = [],
+        }: {
+            userUuid?: string;
+            role?: OrganizationMemberRole;
+            roleUuid?: string;
+            projectProfiles?: {
+                projectUuid: string;
+                role: ProjectMemberRole;
+                roleUuid?: string;
+            }[];
+        }): SessionUser => ({
+            ...user,
+            userUuid,
+            role,
+            organizationUuid: ORG_UUID,
+            organizationName: 'Preview org',
+            organizationCreatedAt: new Date(),
+            ability: getUserAbilityBuilder({
+                user: { role, organizationUuid: ORG_UUID, userUuid, roleUuid },
+                projectProfiles: projectProfiles.map((profile) => ({
+                    ...profile,
+                    roleUuid: profile.roleUuid,
+                    userUuid,
+                })),
+                permissionsConfig: {
+                    pat: { enabled: false, allowedOrgRoles: [] },
+                },
+                customRoleScopes: { [SELF_ROLE_UUID]: selfPreviewScopes },
+                customRolesEnabled: true,
+            }).builder.build(),
+        });
+        const updateExpiresAt = vi.fn(async () => undefined);
+        const previewService = (summary: ProjectSummary) =>
+            getMockedProjectService(lightdashConfigWithGoogleOAuthMock, {
+                projectModel: {
+                    ...projectModel,
+                    getSummary: vi.fn(async () => summary),
+                    getPreviewExpirationSettings: vi.fn(async () => ({
+                        defaultPreviewExpirationHours: 24,
+                        maxPreviewExpirationHours: null,
+                    })),
+                    updateExpiresAt,
+                } as unknown as ProjectModel,
+            });
+
+        beforeEach(() => {
+            updateExpiresAt.mockClear();
+        });
+
+        test.each([
+            ['an org-level custom role', { roleUuid: SELF_ROLE_UUID }],
+            [
+                'a custom role on the upstream project',
+                {
+                    projectProfiles: [
+                        {
+                            projectUuid: UPSTREAM_UUID,
+                            role: ProjectMemberRole.VIEWER,
+                            roleUuid: SELF_ROLE_UUID,
+                        },
+                    ],
+                },
+            ],
+        ])(
+            'lets a non-admin creator with update:Project@self refresh their preview via %s',
+            async (_, args) => {
+                await expect(
+                    previewService(previewSummary()).updatePreviewExpiresAt(
+                        sessionUserWith(args),
+                        PREVIEW_UUID,
+                    ),
+                ).resolves.toMatchObject({ projectUuid: PREVIEW_UUID });
+                expect(updateExpiresAt).toHaveBeenCalledWith(
+                    PREVIEW_UUID,
+                    expect.any(Date),
+                );
+            },
+        );
+
+        test('lets an org admin refresh a preview someone else created', async () => {
+            await expect(
+                previewService(previewSummary()).updatePreviewExpiresAt(
+                    sessionUserWith({
+                        userUuid: OTHER_USER_UUID,
+                        role: OrganizationMemberRole.ADMIN,
+                    }),
+                    PREVIEW_UUID,
+                ),
+            ).resolves.toMatchObject({ projectUuid: PREVIEW_UUID });
+        });
+
+        test.each([
+            [
+                'a non-creator with update:Project@self',
+                previewSummary({ createdByUserUuid: OTHER_USER_UUID }),
+                { roleUuid: SELF_ROLE_UUID },
+            ],
+            [
+                'a creator whose preview is in another organization',
+                previewSummary({ organizationUuid: 'other-org' }),
+                { roleUuid: SELF_ROLE_UUID },
+            ],
+            [
+                'a creator whose role is on a different upstream project',
+                previewSummary(),
+                {
+                    projectProfiles: [
+                        {
+                            projectUuid: 'other-upstream',
+                            role: ProjectMemberRole.VIEWER,
+                            roleUuid: SELF_ROLE_UUID,
+                        },
+                    ],
+                },
+            ],
+            [
+                'an org viewer who created the preview',
+                previewSummary(),
+                { role: OrganizationMemberRole.VIEWER },
+            ],
+            [
+                'an org member who created the preview',
+                previewSummary(),
+                { role: OrganizationMemberRole.MEMBER },
+            ],
+        ])('denies %s', async (_, summary, args) => {
+            await expect(
+                previewService(summary).updatePreviewExpiresAt(
+                    sessionUserWith(args),
+                    PREVIEW_UUID,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(updateExpiresAt).not.toHaveBeenCalled();
+        });
+
+        describe('PATCH project on the same preview', () => {
+            const postgres: CreateWarehouseCredentials = {
+                type: WarehouseTypes.POSTGRES,
+                host: 'localhost',
+                port: 5432,
+                user: 'postgres',
+                password: 'postgres',
+                dbname: 'analytics',
+                schema: 'public',
+            };
+            const savedPreview = (createdByUserUuid = CREATOR_UUID) => ({
+                ...projectWithSensitiveFields,
+                warehouseConnection: postgres,
+                organizationUuid: ORG_UUID,
+                projectUuid: PREVIEW_UUID,
+                type: ProjectType.PREVIEW,
+                upstreamProjectUuid: UPSTREAM_UUID,
+                createdByUserUuid,
+            });
+            const updateData = (): UpdateProject => ({
+                name: projectWithSensitiveFields.name,
+                dbtVersion: projectWithSensitiveFields.dbtVersion,
+                dbtConnection: projectWithSensitiveFields.dbtConnection,
+                warehouseConnection: postgres,
+            });
+
+            beforeEach(() => {
+                projectModel.update.mockClear();
+                jobModel.create.mockClear();
+            });
+
+            test('lets a non-admin creator with update:Project@self start the refresh', async () => {
+                projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                    savedPreview(),
+                );
+                await expect(
+                    getMockedProjectService(
+                        lightdashConfigWithGoogleOAuthMock,
+                    ).updateAndScheduleAsyncWork(
+                        PREVIEW_UUID,
+                        fromSession(
+                            sessionUserWith({ roleUuid: SELF_ROLE_UUID }),
+                        ),
+                        updateData(),
+                        RequestMethod.WEB_APP,
+                    ),
+                ).resolves.toMatchObject({ jobUuid: expect.any(String) });
+                expect(jobModel.create).toHaveBeenCalledOnce();
+            });
+
+            test('denies a non-admin with update:Project@self on a preview someone else created', async () => {
+                projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                    savedPreview(OTHER_USER_UUID),
+                );
+                await expect(
+                    getMockedProjectService(
+                        lightdashConfigWithGoogleOAuthMock,
+                    ).updateAndScheduleAsyncWork(
+                        PREVIEW_UUID,
+                        fromSession(
+                            sessionUserWith({ roleUuid: SELF_ROLE_UUID }),
+                        ),
+                        updateData(),
+                        RequestMethod.WEB_APP,
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+                expect(projectModel.update).not.toHaveBeenCalled();
+                expect(jobModel.create).not.toHaveBeenCalled();
+            });
         });
     });
 
@@ -6074,7 +6590,6 @@ describe('ProjectService', () => {
                     results: {
                         ...lightdashConfigWithGoogleOAuthMock.results,
                         cacheEnabled: false,
-                        autocompleteEnabled: false,
                     },
                 },
                 {
@@ -6384,13 +6899,15 @@ describe('ProjectService', () => {
             async (_name, cached, results, queryCount) => {
                 const { configured, client } = setup();
                 Object.assign(configured, {
-                    lightdashConfig: {
-                        ...lightdashConfigWithGoogleOAuthMock,
-                        results: {
-                            ...lightdashConfigWithGoogleOAuthMock.results,
-                            autocompleteEnabled: true,
+                    projectModel: withResultsCacheConfig(
+                        projectModel as unknown as ProjectModel,
+                        {
+                            results: {
+                                ...lightdashConfigWithGoogleOAuthMock.results,
+                                cacheEnabled: true,
+                            },
                         },
-                    },
+                    ),
                     s3CacheClient: {
                         getIfFresh: vi.fn(async () => cached),
                         uploadResults: vi.fn(async () => undefined),
@@ -7861,6 +8378,156 @@ describe('ProjectService', () => {
 
             test('uses the shared connection for embedded users', async () => {
                 expect(await getCredentials(false)).toEqual({
+                    ...projectCredentials,
+                    userWarehouseCredentialsUuid: undefined,
+                });
+                expect(findPersonalCredentials).not.toHaveBeenCalled();
+            });
+        });
+
+        describe('optional Snowflake user credentials', () => {
+            const projectCredentials: CreateSnowflakeCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                authenticationType: SnowflakeAuthenticationType.PASSWORD,
+                account: 'shared-account',
+                user: 'shared_user',
+                password: 'shared-password',
+                database: 'analytics',
+                warehouse: 'shared-warehouse',
+                schema: 'public',
+                requireUserCredentials: false,
+                allowUserCredentials: true,
+            };
+            const personalCredentials = {
+                uuid: 'personal-snowflake-credentials',
+                expiresAt: null,
+                credentials: {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    user: 'personal_user',
+                    password: 'personal-password',
+                },
+            } satisfies UserWarehouseCredentialsWithSecrets;
+            const findPersonalCredentials =
+                vi.fn<
+                    UserWarehouseCredentialsModel['findForProjectWithSecrets']
+                >();
+            const getCredentials = (
+                person: {
+                    isRegisteredUser: boolean;
+                    isServiceAccount: boolean;
+                } = { isRegisteredUser: true, isServiceAccount: false },
+            ) =>
+                (
+                    service as unknown as {
+                        getWarehouseCredentials: (args: {
+                            projectUuid: string;
+                            userId: string;
+                            isRegisteredUser: boolean;
+                            isServiceAccount: boolean;
+                            binding: { kind: 'original' };
+                        }) => Promise<CreateWarehouseCredentials>;
+                    }
+                ).getWarehouseCredentials({
+                    projectUuid,
+                    userId: sessionAccount.user.id,
+                    ...person,
+                    binding: { kind: 'original' },
+                });
+
+            beforeEach(() => {
+                findPersonalCredentials.mockReset();
+                findPersonalCredentials.mockResolvedValue(undefined);
+                vi.mocked(
+                    projectModel.getWarehouseCredentialsForProject,
+                ).mockResolvedValue(projectCredentials);
+                (
+                    service as unknown as {
+                        userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
+                    }
+                ).userWarehouseCredentialsModel.findForProjectWithSecrets =
+                    findPersonalCredentials;
+            });
+
+            test.each([undefined, false])(
+                'uses the shared connection when personal credentials are not enabled (%s)',
+                async (allowUserCredentials) => {
+                    const sharedCredentials = {
+                        ...projectCredentials,
+                        allowUserCredentials,
+                    };
+                    vi.mocked(
+                        projectModel.getWarehouseCredentialsForProject,
+                    ).mockResolvedValueOnce(sharedCredentials);
+                    findPersonalCredentials.mockResolvedValue(
+                        personalCredentials,
+                    );
+
+                    expect(await getCredentials()).toEqual({
+                        ...sharedCredentials,
+                        userWarehouseCredentialsUuid: undefined,
+                    });
+                    expect(findPersonalCredentials).not.toHaveBeenCalled();
+                },
+            );
+
+            test('uses the shared connection when no personal credentials exist', async () => {
+                expect(await getCredentials()).toEqual({
+                    ...projectCredentials,
+                    userWarehouseCredentialsUuid: undefined,
+                });
+                expect(findPersonalCredentials).toHaveBeenCalledWith(
+                    projectUuid,
+                    sessionAccount.user.id,
+                    WarehouseTypes.SNOWFLAKE,
+                    { strictPersonalOverlay: false },
+                );
+            });
+
+            test('uses personal credentials when they exist', async () => {
+                findPersonalCredentials.mockResolvedValue(personalCredentials);
+
+                expect(await getCredentials()).toEqual(
+                    expect.objectContaining({
+                        account: 'shared-account',
+                        warehouse: 'shared-warehouse',
+                        user: 'personal_user',
+                        password: 'personal-password',
+                        userWarehouseCredentialsUuid: personalCredentials.uuid,
+                    }),
+                );
+            });
+
+            test('does not silently fall back when personal credentials are invalid', async () => {
+                findPersonalCredentials.mockRejectedValue(
+                    new SnowflakeTokenError('Please reauthenticate'),
+                );
+
+                await expect(getCredentials()).rejects.toThrow(
+                    SnowflakeTokenError,
+                );
+            });
+
+            test('uses the shared connection for service accounts without personal credentials', async () => {
+                expect(
+                    await getCredentials({
+                        isRegisteredUser: true,
+                        isServiceAccount: true,
+                    }),
+                ).toEqual({
+                    ...projectCredentials,
+                    userWarehouseCredentialsUuid: undefined,
+                });
+            });
+
+            test('uses the shared connection for embedded users', async () => {
+                findPersonalCredentials.mockResolvedValue(personalCredentials);
+
+                expect(
+                    await getCredentials({
+                        isRegisteredUser: false,
+                        isServiceAccount: false,
+                    }),
+                ).toEqual({
                     ...projectCredentials,
                     userWarehouseCredentialsUuid: undefined,
                 });
@@ -10450,7 +11117,7 @@ describe('ProjectService', () => {
                     ...lightdashConfigWithGoogleOAuthMock,
                     results: {
                         ...lightdashConfigWithGoogleOAuthMock.results,
-                        autocompleteEnabled: true,
+                        cacheEnabled: true,
                     },
                 });
                 flaggedService.warehouseClientFactory.warehouseClients = {};
@@ -10505,6 +11172,78 @@ describe('ProjectService', () => {
                     }),
                 );
                 expect(getIfFresh).toHaveBeenCalledTimes(usesCache ? 1 : 0);
+                expect(uploadResults).toHaveBeenCalledTimes(usesCache ? 1 : 0);
+            },
+        );
+
+        test.each([
+            [true, true],
+            [false, false],
+        ])(
+            'autocomplete cache with project results cache %s',
+            async (projectCacheEnabled, usesCache) => {
+                const configured = getMockedProjectService(
+                    lightdashConfigWithGoogleOAuthMock,
+                );
+                configured.warehouseClientFactory.warehouseClients = {};
+                vi.mocked(configured.featureFlagModel.get).mockImplementation(
+                    async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: false,
+                    }),
+                );
+                const defaultSettings =
+                    await projectModel.getResultsCacheSettings(projectUuid);
+                const getResultsCacheSettings = vi
+                    .spyOn(projectModel, 'getResultsCacheSettings')
+                    .mockResolvedValue({
+                        ...defaultSettings,
+                        cacheEnabled: projectCacheEnabled,
+                    });
+                const getIfFresh = vi.fn(async () => undefined);
+                const uploadResults = vi.fn(async () => undefined);
+                Object.assign(configured, {
+                    s3CacheClient: { getIfFresh, uploadResults },
+                });
+                vi.spyOn(
+                    configured.warehouseClientFactory,
+                    'resolveLoadedCredentials',
+                ).mockResolvedValue({
+                    ...warehouseClientMock.credentials,
+                    userWarehouseCredentialsUuid: undefined,
+                });
+                vi.mocked(
+                    projectModel.getWarehouseClientFromCredentials,
+                ).mockImplementation(() => ({
+                    ...warehouseClientMock,
+                    runQuery: vi.fn(async () => resultsWith1Row),
+                }));
+
+                try {
+                    await configured.searchFieldUniqueValues(
+                        fromSession({
+                            ...user,
+                            organizationUuid: projectSummary.organizationUuid,
+                        }),
+                        projectUuid,
+                        'a',
+                        'a_dim1',
+                        'test',
+                        10,
+                        undefined,
+                        false,
+                    );
+                } finally {
+                    getResultsCacheSettings.mockRestore();
+                }
+
+                expect(getIfFresh).toHaveBeenCalledTimes(usesCache ? 1 : 0);
+                if (usesCache) {
+                    expect(getIfFresh).toHaveBeenCalledWith(
+                        expect.any(String),
+                        86400,
+                    );
+                }
                 expect(uploadResults).toHaveBeenCalledTimes(usesCache ? 1 : 0);
             },
         );
@@ -10741,7 +11480,7 @@ describe('ProjectService', () => {
                 ...lightdashConfigWithGoogleOAuthMock,
                 results: {
                     ...lightdashConfigWithGoogleOAuthMock.results,
-                    autocompleteEnabled: true,
+                    cacheEnabled: true,
                     cacheStateTimeSeconds: 86400,
                 },
             });
@@ -10826,7 +11565,7 @@ describe('ProjectService', () => {
                 ...lightdashConfigWithGoogleOAuthMock,
                 results: {
                     ...lightdashConfigWithGoogleOAuthMock.results,
-                    autocompleteEnabled: true,
+                    cacheEnabled: true,
                     cacheStateTimeSeconds: 86400,
                 },
             });
@@ -14673,6 +15412,7 @@ describe('ProjectService', () => {
         const projectWithSnowflakeAuth = (
             authenticationType: SnowflakeAuthenticationType,
             requireUserCredentials?: boolean,
+            allowUserCredentials?: boolean,
         ): UpdateProject => ({
             name: 'test-project',
             dbtConnection: { type: DbtProjectType.NONE },
@@ -14686,6 +15426,7 @@ describe('ProjectService', () => {
                 schema: 'test-schema',
                 authenticationType,
                 requireUserCredentials,
+                allowUserCredentials,
             },
         });
 
@@ -14714,6 +15455,32 @@ describe('ProjectService', () => {
                 service.validateConfigSecrets(
                     projectWithSnowflakeAuth(
                         SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+                        true,
+                    ),
+                ),
+            ).not.toThrowError();
+        });
+
+        it('rejects optional personal credentials without shared Snowflake credentials', () => {
+            expect(() =>
+                service.validateConfigSecrets(
+                    projectWithSnowflakeAuth(
+                        SnowflakeAuthenticationType.NONE,
+                        false,
+                        true,
+                    ),
+                ),
+            ).toThrowError(
+                'Personal credentials can only be optional when the connection stores shared credentials.',
+            );
+        });
+
+        it('allows optional personal credentials without shared Snowflake credentials when user credentials are required', () => {
+            expect(() =>
+                service.validateConfigSecrets(
+                    projectWithSnowflakeAuth(
+                        SnowflakeAuthenticationType.NONE,
+                        true,
                         true,
                     ),
                 ),
@@ -19411,6 +20178,146 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
             }),
         ).rejects.toThrow(CustomSqlQueryForbiddenError);
     });
+
+    describe('getCustomMetricsNeedingPermission', () => {
+        const metricsNeedingPermission = (
+            caller: ReturnType<typeof buildAccount>,
+            sql: string,
+            savedAdditionalMetrics: ReturnType<typeof additionalMetric> = [],
+        ) =>
+            service.getCustomMetricsNeedingPermission({
+                account: caller,
+                projectUuid,
+                exploreName,
+                additionalMetrics: additionalMetric(sql),
+                savedAdditionalMetrics,
+            });
+        const savedOnViewableChart = (table = 'a') =>
+            savedChartModel.findCustomSqlProvenance.mockResolvedValue({
+                tableCalculations: [],
+                customSqlDimensions: [],
+                additionalMetrics: [
+                    { sql: metricSubquerySql, table, spaceUuid },
+                ],
+            });
+
+        it('allows SQL the chart already saved, without loading the explore', async () => {
+            const getExplore = spyExplore();
+
+            await expect(
+                metricsNeedingPermission(
+                    noScopeAccount,
+                    metricSubquerySql,
+                    additionalMetric(metricSubquerySql),
+                ),
+            ).resolves.toEqual([]);
+            expect(getExplore).not.toHaveBeenCalled();
+            expect(
+                savedChartModel.findCustomSqlProvenance,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('allows a metric whose SQL is a modelled field, without a saved chart lookup', async () => {
+            spyExplore();
+
+            await expect(
+                metricsNeedingPermission(noScopeAccount, fieldRefSql),
+            ).resolves.toEqual([]);
+            expect(
+                savedChartModel.findCustomSqlProvenance,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('allows SQL saved on a chart the user can view in the same explore', async () => {
+            spyExplore();
+            savedOnViewableChart();
+
+            await expect(
+                metricsNeedingPermission(noScopeAccount, metricSubquerySql),
+            ).resolves.toEqual([]);
+            expect(
+                savedChartModel.findCustomSqlProvenance,
+            ).toHaveBeenCalledWith({
+                projectUuid,
+                exploreName,
+                tableCalculationSqls: [],
+                customSqlDimensions: [],
+                additionalMetrics: [{ sql: metricSubquerySql, table: 'a' }],
+            });
+        });
+
+        it('returns SQL that no chart holds', async () => {
+            spyExplore();
+
+            await expect(
+                metricsNeedingPermission(noScopeAccount, metricSubquerySql),
+            ).resolves.toEqual(additionalMetric(metricSubquerySql));
+        });
+
+        it('returns SQL changed from what the chart saved', async () => {
+            spyExplore();
+
+            await expect(
+                metricsNeedingPermission(
+                    noScopeAccount,
+                    metricSubquerySql,
+                    additionalMetric('(SELECT 1)'),
+                ),
+            ).resolves.toEqual(additionalMetric(metricSubquerySql));
+        });
+
+        it('returns SQL saved only on a chart the user cannot view', async () => {
+            spyExplore();
+            savedOnViewableChart();
+
+            await expect(
+                metricsNeedingPermission(restrictedAccount, metricSubquerySql),
+            ).resolves.toEqual(additionalMetric(metricSubquerySql));
+        });
+
+        it('returns SQL saved on a viewable chart under another table', async () => {
+            spyExplore();
+            savedOnViewableChart('b');
+
+            await expect(
+                metricsNeedingPermission(noScopeAccount, metricSubquerySql),
+            ).resolves.toEqual(additionalMetric(metricSubquerySql));
+        });
+
+        it('never looks up saved charts for an embed account', async () => {
+            spyExplore();
+            savedOnViewableChart();
+
+            await expect(
+                metricsNeedingPermission(jwtAccount, metricSubquerySql),
+            ).resolves.toEqual(additionalMetric(metricSubquerySql));
+            expect(
+                savedChartModel.findCustomSqlProvenance,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('still allows SQL on a viewable chart when the explore is missing', async () => {
+            vi.spyOn(service, 'getExplore')
+                .mockClear()
+                .mockRejectedValue(new NotFoundError('Explore not found'));
+            savedOnViewableChart();
+
+            await expect(
+                metricsNeedingPermission(noScopeAccount, metricSubquerySql),
+            ).resolves.toEqual([]);
+        });
+
+        it('fails when the saved chart lookup fails', async () => {
+            spyExplore();
+            savedChartModel.findCustomSqlProvenance.mockRejectedValue(
+                new Error('database unavailable'),
+            );
+
+            await expect(
+                metricsNeedingPermission(noScopeAccount, metricSubquerySql),
+            ).rejects.toThrow('database unavailable');
+        });
+    });
 });
 
 describe('available filter week boundaries', () => {
@@ -21783,7 +22690,7 @@ describe('ProjectService.compileQueryForResponse', () => {
     });
 
     describe('on a live data source explore', () => {
-        const [apiExplore] = buildApiSourceExplores({
+        const [apiExplore] = buildLiveExplores({
             connectionUuid: '03386598-7a51-45b2-b1f9-5ef55bd09016',
             sourceName: 'ga4_03386598',
             name: 'Marketing site',
@@ -21825,6 +22732,24 @@ describe('ProjectService.compileQueryForResponse', () => {
                 dimensions: [{ name: 'sessionDefaultChannelGroup' }],
                 metrics: [{ name: 'sessions' }],
             });
+        });
+
+        it('refuses a pivoted query, as running it does', async () => {
+            const args = liveArgs(developerAccount);
+            await expect(
+                service.compileQueryForResponse({
+                    ...args,
+                    body: {
+                        ...args.body,
+                        pivotConfiguration: {
+                            indexColumn: undefined,
+                            valuesColumns: [],
+                            groupByColumns: [],
+                            sortBy: undefined,
+                        } as never,
+                    },
+                }),
+            ).rejects.toThrow(ParameterError);
         });
 
         it('hides the request from embeds without the SQL scope', async () => {

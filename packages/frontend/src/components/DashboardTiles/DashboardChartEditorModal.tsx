@@ -78,7 +78,6 @@ type ContentProps = HeaderActionHandlers & {
 const DashboardChartEditorView: FC<
     Pick<
         ContentProps,
-        | 'editChart'
         | 'onExploreSelect'
         | 'onBackToTables'
         | 'onOpenChartPage'
@@ -88,7 +87,6 @@ const DashboardChartEditorView: FC<
         title: string;
     }
 > = ({
-    editChart,
     onExploreSelect,
     onBackToTables,
     onOpenChartPage,
@@ -111,16 +109,14 @@ const DashboardChartEditorView: FC<
             isSidebarOpen
             {...rightSidebarProps}
             withFullHeight
-            withPaddedContent
+            noContentPadding
         >
-            <MergeProvider savedMerge={editChart?.merge ?? null}>
-                <DashboardChartEditorHeaderActions
-                    onOpenChartPage={onOpenChartPage}
-                    onOpenVersionHistory={onOpenVersionHistory}
-                    onDeleted={onDeleted}
-                />
-                <Explorer />
-            </MergeProvider>
+            <DashboardChartEditorHeaderActions
+                onOpenChartPage={onOpenChartPage}
+                onOpenVersionHistory={onOpenVersionHistory}
+                onDeleted={onDeleted}
+            />
+            <Explorer />
         </Page>
     );
 };
@@ -156,19 +152,21 @@ const DashboardChartEditorContent: FC<ContentProps> = ({
 
     return (
         <Provider store={store}>
-            <ExplorerEffects />
-            <UnsavedChangesBridge onDirtyChange={onDirtyChange} />
-            {withUrlSync && <ChartEditorUrlSync />}
-            <SavedChartMetadataBridge chart={chartOnServer} />
-            <DashboardChartEditorView
-                editChart={editChart}
-                onExploreSelect={onExploreSelect}
-                onBackToTables={onBackToTables}
-                onOpenChartPage={onOpenChartPage}
-                onOpenVersionHistory={onOpenVersionHistory}
-                onDeleted={onDeleted}
-                title={data ? data.label : 'Tables'}
-            />
+            {/* The merge context gates the query effects and the sidebar too */}
+            <MergeProvider savedMerge={editChart?.merge ?? null}>
+                <ExplorerEffects />
+                <UnsavedChangesBridge onDirtyChange={onDirtyChange} />
+                {withUrlSync && <ChartEditorUrlSync />}
+                <SavedChartMetadataBridge chart={chartOnServer} />
+                <DashboardChartEditorView
+                    onExploreSelect={onExploreSelect}
+                    onBackToTables={onBackToTables}
+                    onOpenChartPage={onOpenChartPage}
+                    onOpenVersionHistory={onOpenVersionHistory}
+                    onDeleted={onDeleted}
+                    title={data ? data.label : 'Tables'}
+                />
+            </MergeProvider>
         </Provider>
     );
 };

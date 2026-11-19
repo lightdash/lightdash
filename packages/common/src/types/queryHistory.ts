@@ -59,6 +59,14 @@ export type SemanticQueryUsage = {
     references: SemanticFieldReference[];
 };
 
+/** Identifiers for the customer usage store only. */
+export type EmbeddedUsageAttribution = {
+    externalUserId: string | null;
+    tokenFingerprint: string | null;
+    tenantAttribute: string | null;
+    tenantId: string | null;
+};
+
 /** Server-owned attribution persisted with a query for background workers. */
 export type QueryUsageMetadata = {
     startedAtMs: number;
@@ -70,7 +78,10 @@ export type QueryUsageMetadata = {
     appVersion?: number | null;
     dashboardTileId: string | null;
     schedulerId: string | null;
+    /** Set only on a node of a bound composer chart run. */
+    chartKind?: 'composer_chart';
     semanticUsage?: SemanticQueryUsage;
+    embeddedUsage?: EmbeddedUsageAttribution;
     querySurface?: QuerySurface;
 };
 
@@ -110,6 +121,8 @@ export type QueryResultReader = { authMethod: AuthType | null } & (
     | { kind: 'agent'; claim: AgentIdentityClaim }
 );
 
+export type AnalyticsActivityWindow = { start: string; end: string };
+
 export type QueryHistory = {
     agentIdentity: AgentIdentityClaim | null;
     warehouseConnectionUuid?: string | null;
@@ -133,6 +146,7 @@ export type QueryHistory = {
         agentConnectionExecution?: AgentConnectionExecution | null;
         /** Internal metadata, never trusted from request bodies or used in cache keys. */
         queryUsage?: QueryUsageMetadata;
+        analyticsActivityWindow?: AnalyticsActivityWindow;
         aiSignInCredentialUuid?: string;
         resultProducer?: QueryResultProducer;
         resultResearchRunUuid?: string;
@@ -156,6 +170,8 @@ export type QueryHistory = {
         };
         cacheSourceQueryUuid?: string;
         externalSourceReferences?: string[];
+        /** Stamps a node row of a bound composer chart run; readers re-check view on the chart. */
+        composerChartSource?: ComposerChartRunSource;
     };
     /** Resolved parameter values in effect for this execution (request values
      *  merged with defaults). Null on rows written before the column existed. */
@@ -217,4 +233,11 @@ export type DuckdbExecutionSpec = {
     /** Set when the run was served from another run over the same result files. */
     cacheHit: boolean;
     refusal: { kind: 'row_cap' } | null;
+};
+
+/** Dashboard and tile are where the chart was shown, for tracing only. */
+export type ComposerChartRunSource = {
+    composerChartUuid: string;
+    dashboardUuid: string;
+    tileUuid: string;
 };

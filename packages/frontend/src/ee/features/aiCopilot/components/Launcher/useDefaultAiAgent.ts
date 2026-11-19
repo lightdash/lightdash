@@ -51,6 +51,9 @@ export const useDefaultAiAgent = (projectUuid: string | undefined) => {
         agent: getConcreteLauncherAgent(selectedAgent),
         selectedAgent,
         agents: agents ?? [],
+        isLoadingAgents:
+            aiOrganizationSettingsQuery.isInitialLoading ||
+            agentsQuery.isInitialLoading,
         agentsUpdatedAt: agentsQuery.dataUpdatedAt,
         isResolving,
     };

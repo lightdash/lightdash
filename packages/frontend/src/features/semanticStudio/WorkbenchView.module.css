@@ -1,18 +1,12 @@
-/*
- * Layering: the page canvas (--ld-color-page) holds the chat and one panel on
- * the body colour; the rail and page live inside that panel. Tree and row
- * navigation never animate.
- */
+/* Flat to the page edges: the chat and the workbench split by a line, not cards. Tree and row navigation never animate. */
 .shell {
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas: 'workspace agent';
-    gap: var(--mantine-spacing-xs);
     height: 100%;
     min-height: 0;
-    padding: var(--mantine-spacing-xs);
-    background: var(--ld-color-page);
+    background: var(--mantine-color-body);
 }
 
 .shell[data-no-chat='true'] {
@@ -20,7 +14,11 @@
     grid-template-areas: 'workspace';
 }
 
-/* Two cards on the canvas: the chat, and everything it changes. */
+/* Hidden, not unmounted, so the conversation keeps its place when you come back to the change. */
+.shell[data-no-chat='true'] > :not(.workspace) {
+    display: none;
+}
+
 .workspace {
     grid-area: workspace;
     display: flex;
@@ -28,9 +26,6 @@
     min-height: 0;
     min-width: 0;
     overflow: hidden;
-    background: var(--mantine-color-body);
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-lg);
 }
 
 .toolbar {
@@ -38,6 +33,132 @@
     min-height: 44px;
     padding: 6px var(--mantine-spacing-xs);
     border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+/* Where the person is in the workspace: the models, or the changes the conversation made. */
+.crumb {
+    padding: 4px 6px;
+    border-radius: 6px;
+    color: var(--mantine-color-dimmed);
+    font-size: var(--mantine-font-size-sm);
+}
+
+.crumb:hover {
+    background: color-mix(in srgb, var(--mantine-color-text) 5%, transparent);
+}
+
+.crumb[aria-current='page'] {
+    color: var(--mantine-color-text);
+    font-weight: 500;
+}
+
+/* Live and Changes: where you are, never what you have open. */
+.views {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--mantine-color-text) 5%, transparent);
+}
+
+.view {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 7px;
+    font-size: var(--mantine-font-size-sm);
+    color: var(--mantine-color-dimmed);
+    transition:
+        background-color 140ms var(--ease-out),
+        color 140ms var(--ease-out);
+}
+
+.view:hover {
+    color: var(--mantine-color-text);
+}
+
+.view[aria-selected='true'] {
+    background: var(--mantine-color-body);
+    color: var(--mantine-color-text);
+    font-weight: 500;
+    box-shadow:
+        0 0 0 1px var(--mantine-color-default-border),
+        0 1px 2px rgb(0 0 0 / 6%);
+}
+
+.liveDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--mantine-color-green-6);
+    transition: box-shadow 140ms var(--ease-out);
+}
+
+.view[aria-selected='true'] .liveDot {
+    box-shadow: 0 0 0 3px var(--mantine-color-green-light);
+}
+
+.changeHeader {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.back {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-dimmed);
+    transition: color 140ms var(--ease-out);
+}
+
+.back:hover {
+    color: var(--mantine-color-text);
+}
+
+.changeTitleRow {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--mantine-spacing-md);
+}
+
+.changeTitleRow > :last-child {
+    flex: none;
+    margin-left: auto;
+}
+
+.changeTitle {
+    min-width: 0;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+}
+
+.changeMeta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+}
+
+.changeLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-dimmed);
+}
+
+.changeLink:hover {
+    color: var(--mantine-color-text);
 }
 
 .workspaceBody {
@@ -57,6 +178,11 @@
     .workspaceBody:not([data-no-rail='true']) {
         grid-template-columns: 190px minmax(0, 1fr);
     }
+}
+
+/* File names need more room than model names. */
+.workspaceBody[data-sources='true']:not([data-no-rail='true']) {
+    grid-template-columns: clamp(220px, 20vw, 320px) minmax(0, 1fr);
 }
 
 /* Rail */
@@ -151,6 +277,29 @@
     background: var(--mantine-color-yellow-6);
 }
 
+.draftDot[data-change='new'] {
+    background: var(--mantine-color-green-6);
+}
+
+.draftDot[data-change='removed'] {
+    background: var(--mantine-color-red-6);
+}
+
+/* What the draft does to a model, beside its name in a list. */
+.changeTag {
+    flex: none;
+    font-size: 12px;
+    color: var(--mantine-color-yellow-8);
+}
+
+.changeTag[data-change='new'] {
+    color: var(--mantine-color-green-8);
+}
+
+.changeTag[data-change='removed'] {
+    color: var(--mantine-color-red-8);
+}
+
 /* Someone else's work in development: an outline, so it never reads as yours. */
 .draftDot[data-others] {
     background: transparent;
@@ -159,6 +308,22 @@
 
 .fileRow:first-child {
     margin-top: var(--mantine-spacing-xs);
+}
+
+/* The share of a change that adds against the share that removes. */
+.diffBar {
+    display: flex;
+    flex: none;
+    width: 32px;
+    height: 4px;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.railOverview {
+    flex: none;
+    padding: 0 8px var(--mantine-spacing-xs);
+    border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
 .fileRow {
@@ -189,6 +354,32 @@
 
 .fileRow[data-selected='true'] .treeLabel {
     font-weight: 500;
+}
+
+/* A part of the file above it, such as a pre-aggregate. */
+.fileRow[data-part] {
+    padding-left: 28px;
+}
+
+.statusDot {
+    flex: none;
+    width: 6px;
+    height: 6px;
+    margin-left: auto;
+    border-radius: 50%;
+    background: var(--mantine-color-ldGray-4);
+}
+
+.statusDot[data-status='green'] {
+    background: var(--mantine-color-green-filled);
+}
+
+.statusDot[data-status='yellow'] {
+    background: var(--mantine-color-yellow-filled);
+}
+
+.statusDot[data-status='red'] {
+    background: var(--mantine-color-red-filled);
 }
 
 /* Main */
@@ -349,4 +540,133 @@
 .childLabel {
     font-size: 13px;
     font-weight: 500;
+}
+
+.sourceNotice {
+    white-space: pre-wrap;
+}
+
+.sourceCode {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    --diffs-font-size: 12px;
+    --diffs-line-height: 18px;
+}
+
+/* The open file's line counts and unsaved mark, like an editor tab. */
+.sourceCounts {
+    font-variant-numeric: tabular-nums;
+}
+
+.unsavedDot {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--mantine-color-dimmed);
+}
+
+/* The change's files above the tree, like an editor's source control list. */
+.sourceChanges {
+    flex: none;
+    max-height: 40%;
+    overflow-y: auto;
+    padding: 4px 8px 8px;
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.sourceChange {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    width: 100%;
+    height: 28px;
+    padding: 0 8px;
+    border-radius: 6px;
+    line-height: 28px;
+
+    &:hover {
+        background: color-mix(
+            in srgb,
+            var(--mantine-color-text) 3%,
+            transparent
+        );
+    }
+
+    &[data-active] {
+        background: color-mix(
+            in srgb,
+            var(--mantine-color-text) 12%,
+            transparent
+        );
+    }
+}
+
+/* Pierre's tree in the Models rail's look: app font, text colours, 28px rows, quiet hover and selection. */
+.sourceTree {
+    flex: 1;
+    min-height: 0;
+    padding-bottom: 12px;
+    /* Opaque so the middle "…" covers the text it cuts. */
+    --trees-bg: var(--mantine-color-body);
+    --truncate-marker-background-color: var(--mantine-color-body);
+    --trees-bg-muted: color-mix(
+        in srgb,
+        var(--mantine-color-text) 3%,
+        transparent
+    );
+    --trees-fg: var(--mantine-color-text);
+    --trees-fg-muted: var(--mantine-color-dimmed);
+    --trees-font-family: var(--mantine-font-family);
+    --trees-font-size: 13px;
+    --trees-row-height: 28px;
+    --trees-border-radius: 6px;
+    --trees-selected-bg: color-mix(
+        in srgb,
+        var(--mantine-color-text) 12%,
+        transparent
+    );
+    --trees-selected-fg: var(--mantine-color-text);
+    --trees-selected-focused-border-color: transparent;
+    --trees-focus-ring-color: transparent;
+    --trees-indent-guide-bg: transparent;
+    --trees-status-modified: var(--mantine-color-yellow-7);
+    --trees-status-added: var(--mantine-color-green-7);
+}
+
+/* Pins Pierre to the app's colour scheme rather than the system's. */
+.sourceHost {
+    color-scheme: light;
+
+    @mixin dark {
+        color-scheme: dark;
+    }
+}
+
+/* Lets long change names truncate inside the picker's items. */
+.pickerLabel {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The change you are on, after the views: its name and where it stands. */
+.toolbarChange {
+    min-width: 0;
+}
+
+.pickerTitle {
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 600;
+}
+
+.sourceChange > svg {
+    align-self: center;
+}
+
+/* Under the overview, a change's files line up with its label. */
+.sourceChange[data-nested] {
+    padding-left: 28px;
 }

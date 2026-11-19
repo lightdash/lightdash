@@ -6,6 +6,7 @@ import {
     getDashboardFilterRulesForTables,
     getFields,
     getItemId,
+    ProjectType,
     WarehouseTypes,
     type Filters,
     type MetricQuery,
@@ -80,8 +81,12 @@ describe('Content inventory charts', () => {
             { owner_status: 'Not an organization member', is_deleted: true },
             { owner_status: 'Unknown user', owner_id: 'missing-user' },
             { owner_status: 'Unassigned', created_at: null },
-            { owner_status: null, owner_id: null },
-            { project_id: 'other-project', content_type: 'sql_chart' },
+            { owner_status: null, owner_id: null, project_type: null },
+            {
+                project_id: 'other-project',
+                project_type: ProjectType.PREVIEW,
+                content_type: 'sql_chart',
+            },
             { content_type: 'data_app', created_at: '2026-02-01' },
             { content_id: null, owner_status: 'Unassigned' },
         ];
@@ -89,6 +94,7 @@ describe('Content inventory charts', () => {
             const fixture: Record<string, unknown> = {
                 org_id: 'org',
                 project_id: 'project',
+                project_type: ProjectType.DEFAULT,
                 content_type: 'dashboard',
                 content_id: 'shared-id',
                 created_at: '2026-01-01',
@@ -118,6 +124,48 @@ describe('Content inventory charts', () => {
     afterEach(() => {
         db.closeSync();
         instance.closeSync();
+    });
+
+    it('can exclude preview projects from historical counts without dropping legacy rows', async () => {
+        const { query } = compile({
+            exploreName: 'content_inventory',
+            dimensions: ['content_health_project_type'],
+            metrics: ['content_health_total_content'],
+            filters: {
+                dimensions: {
+                    id: 'historical-content',
+                    and: [
+                        {
+                            id: 'date',
+                            target: {
+                                fieldId: 'content_health_created_at_day',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: ['2026-01-01'],
+                        },
+                        {
+                            id: 'project-type',
+                            target: { fieldId: 'content_health_project_type' },
+                            operator: FilterOperator.NOT_EQUALS,
+                            values: [ProjectType.PREVIEW],
+                        },
+                    ],
+                },
+            },
+            sorts: [],
+            limit: 10,
+            tableCalculations: [],
+        });
+        const rows = (await db.runAndReadAll(query)).getRowObjectsJson();
+        expect(rows).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    content_health_project_type: ProjectType.DEFAULT,
+                }),
+                expect.objectContaining({ content_health_project_type: null }),
+            ]),
+        );
+        expect(rows).toHaveLength(2);
     });
 
     it('preserves legacy field IDs and existing chart filters', async () => {

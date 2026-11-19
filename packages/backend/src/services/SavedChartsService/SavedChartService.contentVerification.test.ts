@@ -31,6 +31,7 @@ import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
+import type { ProjectService } from '../ProjectService/ProjectService';
 import { SchedulerService } from '../SchedulerService/SchedulerService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
@@ -148,6 +149,12 @@ const projectModel = {
         projectUuid: 'project-uuid',
     })),
 };
+const projectService = {
+    getCustomMetricsNeedingPermission: vi.fn<
+        ProjectService['getCustomMetricsNeedingPermission']
+    >(async () => []),
+};
+
 const analyticsModel = {
     addChartViewEvent: vi.fn(async () => undefined),
 };
@@ -165,6 +172,7 @@ describe('SavedChartService - Content Verification', () => {
         analytics: analyticsMock,
         lightdashConfig: lightdashConfigMock,
         projectModel: projectModel as unknown as ProjectModel,
+        getProjectService: () => projectService,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         spaceModel: spaceModel as unknown as SpaceModel,
         analyticsModel: analyticsModel as unknown as AnalyticsModel,
@@ -530,6 +538,135 @@ describe('SavedChartService - Content Verification', () => {
             );
 
             expect(savedChartModel.create).not.toHaveBeenCalled();
+        });
+
+        describe('custom metric SQL', () => {
+            const metric = (sql: string) => ({
+                name: 'total',
+                label: 'Total',
+                table: 'orders',
+                type: MetricType.SUM,
+                sql,
+            });
+            const withMetric = (sql: string) => ({
+                ...baseChart.metricQuery,
+                additionalMetrics: [metric(sql)],
+            });
+            const chartEditor = fromSession(
+                {
+                    ...adminUser,
+                    ability: new Ability<PossibleAbilities>([
+                        { subject: 'SavedChart', action: ['view', 'update'] },
+                        { subject: 'VerifiedContent', action: 'manage' },
+                    ]),
+                },
+                'session-cookie',
+            );
+            const savedWithMetric = () =>
+                savedChartModel.get.mockResolvedValueOnce({
+                    ...savedChartData,
+                    metricQuery: {
+                        ...savedChartData.metricQuery,
+                        additionalMetrics: [metric('(SELECT 4242)')],
+                    },
+                } as never);
+            const newVersion = (sql: string) => ({
+                tableName: baseChart.tableName,
+                metricQuery: withMetric(sql),
+                chartConfig: baseChart.chartConfig,
+                tableConfig: baseChart.tableConfig,
+            });
+
+            it('refuses a new chart with custom metrics that need permission', async () => {
+                projectService.getCustomMetricsNeedingPermission.mockResolvedValueOnce(
+                    [metric('(SELECT 4242 + 1)')],
+                );
+                await expect(
+                    service.create(account, 'project-uuid', {
+                        ...baseChart,
+                        metricQuery: withMetric('(SELECT 4242 + 1)'),
+                    }),
+                ).rejects.toThrow(
+                    'Custom metrics written in SQL need permission to manage custom fields: Total',
+                );
+                expect(savedChartModel.create).not.toHaveBeenCalled();
+                expect(
+                    projectService.getCustomMetricsNeedingPermission,
+                ).toHaveBeenCalledWith({
+                    account,
+                    projectUuid: 'project-uuid',
+                    exploreName: 'orders',
+                    additionalMetrics: [metric('(SELECT 4242 + 1)')],
+                    savedAdditionalMetrics: [],
+                });
+            });
+
+            it('saves a new chart when no custom metric needs permission', async () => {
+                await service.create(account, 'project-uuid', {
+                    ...baseChart,
+                    metricQuery: withMetric('(SELECT 4242)'),
+                });
+                expect(savedChartModel.create).toHaveBeenCalled();
+            });
+
+            it('refuses a new version with custom metrics that need permission, against the saved metrics', async () => {
+                savedWithMetric();
+                projectService.getCustomMetricsNeedingPermission.mockResolvedValueOnce(
+                    [metric('(SELECT 4242 + 1)')],
+                );
+                await expect(
+                    service.createVersion(
+                        chartEditor,
+                        'chart-uuid',
+                        newVersion('(SELECT 4242 + 1)'),
+                    ),
+                ).rejects.toThrow(
+                    'Custom metrics written in SQL need permission to manage custom fields: Total',
+                );
+                expect(savedChartModel.createVersion).not.toHaveBeenCalled();
+                expect(
+                    projectService.getCustomMetricsNeedingPermission,
+                ).toHaveBeenCalledWith({
+                    account: chartEditor,
+                    projectUuid: 'project-uuid',
+                    exploreName: 'orders',
+                    additionalMetrics: [metric('(SELECT 4242 + 1)')],
+                    savedAdditionalMetrics: [metric('(SELECT 4242)')],
+                });
+            });
+
+            it('saves a new version when no custom metric needs permission', async () => {
+                savedWithMetric();
+                await service.createVersion(
+                    chartEditor,
+                    'chart-uuid',
+                    newVersion('(SELECT 4242)'),
+                );
+                expect(savedChartModel.createVersion).toHaveBeenCalled();
+            });
+
+            it('skips the check for a user who can manage custom fields', async () => {
+                await service.create(
+                    fromSession(
+                        {
+                            ...chartCreator,
+                            ability: new Ability<PossibleAbilities>([
+                                { subject: 'SavedChart', action: 'create' },
+                                { subject: 'CustomFields', action: 'manage' },
+                            ]),
+                        },
+                        'session-cookie',
+                    ),
+                    'project-uuid',
+                    {
+                        ...baseChart,
+                        metricQuery: withMetric('(SELECT 4242 + 1)'),
+                    },
+                );
+                expect(
+                    projectService.getCustomMetricsNeedingPermission,
+                ).not.toHaveBeenCalled();
+            });
         });
     });
 

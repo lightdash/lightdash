@@ -11,8 +11,10 @@ import type {
     SourceQuery,
     UserAttributeValueMap,
 } from '@lightdash/common';
-import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
-import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
+import type {
+    DuckdbQueryPlan,
+    QueryRunAuthority,
+} from '../AsyncQueryService/types';
 
 export type ScanSchemaArgs = {
     account: Account;
@@ -48,6 +50,7 @@ export type SubmittedSourceQueries = Array<
 >;
 
 export type ValidateSourceQueryArgs = SourceQueryExecutionContext & {
+    authority: QueryRunAuthority;
     account: Account;
     projectUuid: string;
     query: SourceQuery;
@@ -55,7 +58,7 @@ export type ValidateSourceQueryArgs = SourceQueryExecutionContext & {
 };
 
 export type SubmitSourceQueryArgs = SourceQueryExecutionContext & {
-    documentQueryContext?: DocumentQueryContext;
+    authority: QueryRunAuthority;
     account: Account;
     projectUuid: string;
     context: QueryExecutionContext;

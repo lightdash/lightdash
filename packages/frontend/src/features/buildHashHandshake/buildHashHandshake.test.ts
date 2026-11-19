@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { LightdashBuildHashHeader } from '@lightdash/common';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 

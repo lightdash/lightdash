@@ -103,6 +103,7 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         }),
         updateUserName: getUpdateUserName({ updateUserName: noopAsync }),
         editContent: getEditContent({
+            prepareComposerChartEdit: null,
             siteUrl: 'https://app.lightdash.cloud',
             editContent: noop,
         }),
@@ -154,6 +155,7 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         }),
         editDbtProject: getEditDbtProject({
             editDbtProject: noop,
+            acceptsScript: false,
         }),
         editProjectContext: getEditProjectContext({
             editProjectContext: noop,
@@ -174,6 +176,8 @@ const makeAgentTools = (enableFilterExpressions = false) => {
             getSavedChart: noop,
             getSqlChart: noop,
             runSqlChartQuery: noop,
+            getComposerChart: noop,
+            runComposerChartQuery: noop,
             maxLimit: 500,
             maxContextRows: Number.POSITIVE_INFINITY,
             runAsyncQuery: noop,

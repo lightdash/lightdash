@@ -1827,7 +1827,8 @@ export class SchedulerClient {
             {
                 queueName: 'usage-events-compaction',
                 jobKey: `initial-usage-processing:${payload.organizationUuid}`,
-                jobKeyMode: 'unsafe_dedupe',
+                // Recreating the project must revive failed initial processing.
+                jobKeyMode: 'preserve_run_at',
                 maxAttempts: 1,
                 priority: JobPriority.LOW,
             },

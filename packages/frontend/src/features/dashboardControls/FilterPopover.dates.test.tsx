@@ -26,9 +26,9 @@ import {
     selectHaveFiltersChanged,
     type DashboardStore,
 } from '../dashboard/store';
-import { ControlsSidebarProvider } from './ControlsSidebarProvider';
+import { ControlsEditorProvider } from './ControlsEditorProvider';
 import { EditorPopover } from './FilterEditor';
-import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useControlsEditorSelector } from './useControlsEditor';
 
 // A day picked in a date calendar must leave the flag-on editor open with
 // the value set: the real popover, provider and value inputs, with Mantine's
@@ -135,8 +135,8 @@ const setters = (store: DashboardStore) => ({
 
 // The bar's pill: it opens the editor, which anchors on it
 const Pill: FC = () => {
-    const open = useControlsSidebarSelector((c) => c.open);
-    const isOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
+    const open = useControlsEditorSelector((c) => c.open);
+    const isOpen = useControlsEditorSelector((c) => c.isEditorOpen);
     return (
         <EditorPopover isOpen={isOpen}>
             <button
@@ -154,7 +154,7 @@ const Pill: FC = () => {
 const Draft: FC<{ onRule: (rule: DashboardFilterRule | null) => void }> = ({
     onRule,
 }) => {
-    onRule(useControlsSidebarSelector((c) => c.editingRule));
+    onRule(useControlsEditorSelector((c) => c.editingRule));
     return null;
 };
 
@@ -190,7 +190,7 @@ const renderEditor = (savedRule: DashboardFilterRule) => {
     };
     const draft: { current: DashboardFilterRule | null } = { current: null };
     const Harness: FC = () => (
-        <ControlsSidebarProvider>
+        <ControlsEditorProvider>
             <Pill />
             <Draft
                 onRule={(next) => {
@@ -198,7 +198,7 @@ const renderEditor = (savedRule: DashboardFilterRule) => {
                 }}
             />
             <button type="button">Outside</button>
-        </ControlsSidebarProvider>
+        </ControlsEditorProvider>
     );
     renderWithProviders(
         // Mantine's test env renders dropdowns in place; the case under test

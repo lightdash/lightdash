@@ -8,6 +8,7 @@
  *   /semantic-layer/sources/:sourceId/groups/:group/:subgroup/...
  *   /semantic-layer/explores/:exploreId
  *   /semantic-layer/explores/:exploreId/fields/:fieldId
+ *   /semantic-layer/changes/:workspaceUuid
  *
  * Each group level is its own segment, so a group named a/b stays one.
  */
@@ -107,6 +108,20 @@ export const parseSemanticStudioPath = (pathname: string): StudioRoute => {
     return { ref: refOf(segments) };
 };
 
+/** One Studio change: its edits, its chat and where it stands. */
+export const getSemanticStudioWorkspaceUrl = (
+    projectUuid: string,
+    workspaceUuid: string,
+): string =>
+    `/projects/${projectUuid}/semantic-layer/changes/${encodeURIComponent(workspaceUuid)}`;
+
+/** The change a path opens, or null when it opens none; old /workspaces/ links still open theirs. */
+export const parseSemanticStudioWorkspaceUuid = (
+    pathname: string,
+): string | null =>
+    /\/semantic-layer\/(?:changes|workspaces)\/([^/]+)/.exec(pathname)?.[1] ??
+    null;
+
 /** The live data sources page: every source with its usage and controls. */
 export const getSemanticStudioLiveSourcesUrl = (projectUuid: string): string =>
     getSemanticStudioUrl(projectUuid, { ref: { type: 'kind', kind: 'live' } });
@@ -141,3 +156,6 @@ export const getLiveDataSourcesRedirectUrl = (
         : getSemanticStudioLiveSourcesUrl(projectUuid);
     return `${path}${search}`;
 };
+
+export const pullRequestNumberOf = (url: string | null | undefined) =>
+    /\/(\d+)\/?$/.exec(url ?? '')?.[1] ?? null;

@@ -71,6 +71,11 @@ export const queryUsageProperties = (
         parentOperationId: usage?.parentOperationId ?? null,
         initiatingActorType: usage?.actorType ?? null,
         schedulerId: usage?.schedulerId ?? null,
+        // Which chart entity ran the query; not the visualization type
+        chartKind:
+            usage?.chartKind ??
+            (queryTags.chart_uuid ? ('classic_chart' as const) : null),
         semanticUsage: usage?.semanticUsage,
+        ...(usage?.embeddedUsage ? { embeddedUsage: usage.embeddedUsage } : {}),
     };
 };

@@ -1,4 +1,5 @@
 import { createOpenAI } from '@ai-sdk/openai';
+import { wrapLanguageModel } from 'ai';
 import { DEFAULT_OPENAI_BASE_URL } from '../../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../../config/parseConfig';
 import {
@@ -9,6 +10,36 @@ import { ModelPreset } from './presets';
 import { AiModel, ProviderOptionsMap } from './types';
 
 const PROVIDER = 'openai';
+
+// Stored responses make the SDK resend steps by item ID, which ZDR accounts
+// reject. Enforced on the model so callers that skip providerOptions are covered.
+const withStatelessResponses = (
+    model: Parameters<typeof wrapLanguageModel>[0]['model'],
+    supportsReasoning: boolean,
+) =>
+    wrapLanguageModel({
+        model,
+        middleware: {
+            specificationVersion: 'v3',
+            transformParams: async ({ params }) => {
+                const { openai, ...otherProviders } =
+                    params.providerOptions ?? {};
+                return {
+                    ...params,
+                    providerOptions: {
+                        ...otherProviders,
+                        openai: {
+                            ...openai,
+                            store: false,
+                            ...(supportsReasoning && {
+                                include: ['reasoning.encrypted_content'],
+                            }),
+                        },
+                    },
+                };
+            },
+        },
+    });
 
 export const getOpenaiGptmodel = (
     config: NonNullable<
@@ -26,7 +57,7 @@ export const getOpenaiGptmodel = (
 
     const model = config.useChatCompletions
         ? withChatCompletionsDefaults(openai.chat(modelId))
-        : openai(modelId);
+        : withStatelessResponses(openai(modelId), supportsReasoning);
     const extendedReasoningEnabled =
         options?.enableReasoning === true && supportsReasoning;
     const { reasoningEffort: presetReasoningEffort, ...presetProviderOptions } =
@@ -56,15 +87,6 @@ export const getOpenaiGptmodel = (
                 // agent stalls.
                 parallelToolCalls: false,
                 ...reasoningProviderOptions,
-                // OpenAI Zero Data Retention (ZDR) organizations do not persist
-                // reasoning IDs; return encrypted content for stateless follow-ups.
-                // Chat Completions is stateless already and rejects `include`.
-                ...(config.zeroDataRetention &&
-                    supportsReasoning &&
-                    !config.useChatCompletions && {
-                        store: false,
-                        include: ['reasoning.encrypted_content'],
-                    }),
                 ...(!extendedReasoningEnabled &&
                     options?.minimalReasoning &&
                     preset.minimalReasoningProviderOptions),

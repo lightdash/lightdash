@@ -934,9 +934,9 @@ export class SavedChartModel {
     }
 
     /**
-     * A query over one persisted-SQL child table, joined to the owning space
-     * directly or through its dashboard. Callers add the table-specific
-     * `whereIn` + `distinct`.
+     * A query over one persisted-SQL child table at each chart's current version,
+     * joined to the owning space directly or through its dashboard. Callers add
+     * the table-specific `whereIn` + `distinct`.
      */
     private provenanceBaseQuery(
         childTable: string,
@@ -976,12 +976,17 @@ export class SavedChartModel {
             .where(`${SavedChartsTableName}.project_uuid`, projectUuid)
             .where(`${SavedChartVersionsTableName}.explore_name`, exploreName)
             .whereNull(`${SavedChartsTableName}.deleted_at`)
-            .whereNull(`${SpaceTableName}.deleted_at`);
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .whereRaw(
+                `${SavedChartVersionsTableName}.saved_queries_version_id = ${latestSavedChartVersionColumnSql(
+                    'saved_queries_version_id',
+                )}`,
+            );
     }
 
     /**
-     * Finds the spaces of saved charts that already persist the given custom SQL,
-     * scoped to a project + explore. Used to authorize re-running unmodified
+     * Finds the spaces of saved charts whose current version persists the given
+     * custom SQL, scoped to a project + explore. Used to authorize re-running unmodified
      * saved-chart SQL from the ad-hoc query path without granting SQL-authoring
      * scopes. Callers must still check that the returned spaces are viewable.
      *
@@ -1305,6 +1310,10 @@ export class SavedChartModel {
                 targetTimestamp,
             )
             .orderBy(`${SavedChartVersionsTableName}.created_at`, 'desc')
+            .orderBy(
+                `${SavedChartVersionsTableName}.saved_queries_version_id`,
+                'desc',
+            )
             .first();
         return row ? SavedChartModel.convertVersionSummary(row) : undefined;
     }
@@ -3822,35 +3831,32 @@ export class SavedChartModel {
         }
     }
 
-    /**
-     * Rollback a chart to the version that was active at the given timestamp.
-     * Returns undefined if no version existed at that time.
-     */
-    async rollbackToVersionAtTimestamp(
-        savedChartUuid: string,
-        targetTimestamp: Date,
-        user: SessionUser,
-        tx?: Knex,
-        agentIdentity: AgentIdentityClaim | null = null,
-    ): Promise<SavedChartDAO | undefined> {
-        const version = await this.getVersionSummaryAtTimestamp(
-            savedChartUuid,
-            targetTimestamp,
-        );
-        if (!version) {
-            return undefined;
-        }
-        const chartVersion = await this.get(
-            savedChartUuid,
-            version.versionUuid,
-        );
-        return this.createVersion(
-            savedChartUuid,
-            chartVersion,
-            user,
-            tx,
-            undefined,
-            agentIdentity,
-        );
+    async getCurrentVersionUuids(
+        savedChartUuids: UUID[],
+        db: Knex = this.database,
+    ): Promise<Map<UUID, UUID>> {
+        const rows = await db(SavedChartsTableName)
+            .select<{ saved_query_uuid: UUID; version_uuid: UUID }[]>(
+                'saved_query_uuid',
+                db.raw(
+                    `${latestSavedChartVersionColumnSql('saved_queries_version_uuid')} as version_uuid`,
+                ),
+            )
+            .whereIn('saved_query_uuid', savedChartUuids);
+        return new Map(rows.map((r) => [r.saved_query_uuid, r.version_uuid]));
+    }
+
+    /** Like getCurrentVersionUuids, and holds new versions of these charts until the transaction ends. */
+    async lockCurrentVersionUuids(
+        savedChartUuids: UUID[],
+        trx: Knex.Transaction,
+    ): Promise<Map<UUID, UUID>> {
+        await trx(SavedChartsTableName)
+            .select('saved_query_id')
+            .whereIn('saved_query_uuid', savedChartUuids)
+            .orderBy('saved_query_uuid')
+            .forUpdate();
+        // Read after the lock, in a new statement, so it sees versions committed while it waited
+        return this.getCurrentVersionUuids(savedChartUuids, trx);
     }
 }

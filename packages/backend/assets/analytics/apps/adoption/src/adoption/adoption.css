@@ -1,0 +1,523 @@
+/* People map, carried over from the October adoption map */
+.ad-canvas {
+    position: relative;
+    overflow: hidden;
+}
+
+.ad-svg {
+    display: block;
+    overflow: hidden;
+    cursor: grab;
+    touch-action: pan-y;
+    user-select: none;
+}
+
+.ad-svg[data-zoomed] {
+    touch-action: none;
+}
+
+.ad-svg:active {
+    cursor: grabbing;
+}
+
+/* Only moves made from the controls ease; wheel and drag follow the pointer */
+.ad-viewport[data-animated] {
+    transition: transform 200ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ad-viewport[data-animated] {
+        transition: none;
+    }
+}
+
+.ad-circle {
+    fill: var(--ad-circle-fill);
+    stroke: var(--ad-circle-stroke);
+    stroke-width: 1.5px;
+    vector-effect: non-scaling-stroke;
+    cursor: pointer;
+}
+
+.ad-circle:hover,
+.ad-circle[data-hovered] {
+    stroke: var(--ad-circle-hover);
+}
+
+/* People in no team: a dashed outline on the page's colour */
+.ad-circle[data-no-team] {
+    fill: var(--background);
+    stroke: var(--ad-empty-stroke);
+    stroke-width: 2px;
+    stroke-dasharray: 6 5;
+}
+
+.ad-circle[data-highlighted] {
+    stroke: var(--foreground);
+    stroke-width: 2.5px;
+    stroke-dasharray: none;
+}
+
+.ad-circle[data-static] {
+    cursor: inherit;
+}
+
+.ad-dots circle {
+    pointer-events: none;
+    /* A change of colouring fades each dot to its new look after the delay written on it. The fade has a length
+       only while that change runs, so nothing else that changes a dot ever fades */
+    transition-property: fill, fill-opacity, stroke, stroke-width, r;
+    transition-duration: var(--colour-fade, 0ms);
+    transition-timing-function: ease;
+    transition-behavior: allow-discrete;
+}
+
+/* While a change of colouring starts, every mark is blank at once, with no fade; the sweep then brings its new
+   colour in. Set and taken away within the same moment by the sweep. */
+[data-blank] circle,
+[data-blank] .ad-square {
+    fill: transparent !important;
+    stroke: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    transition: none !important;
+}
+
+.ad-dots circle[data-person] {
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.ad-dots circle[data-kind='usage-most'] {
+    fill: var(--ad-most);
+    stroke: var(--ad-most-edge);
+}
+
+.ad-dots circle[data-kind='usage-some'] {
+    fill: var(--ad-some);
+    stroke: var(--ad-some-edge);
+}
+
+.ad-dots circle[data-kind='usage-left'] {
+    fill: var(--ad-left);
+}
+
+/* Never used it: a faint ring in the colouring's own colour, open where every other mark is filled */
+.ad-dots circle[data-kind='usage-never'] {
+    fill: transparent;
+    stroke: var(--ad-none);
+}
+
+.ad-dots circle[data-kind='activity-never'] {
+    fill: transparent;
+    stroke: var(--ad-recent-none);
+}
+
+.ad-dots circle[data-kind='activity-d7'] {
+    fill: var(--ad-recent);
+}
+
+.ad-dots circle[data-kind='activity-d30'] {
+    fill: var(--ad-month);
+}
+
+.ad-dots circle[data-kind='activity-older'] {
+    fill: var(--ad-older);
+    stroke: var(--ad-older-edge);
+}
+
+.ad-dots circle[data-kind='role-admin'] {
+    fill: var(--ad-admin);
+}
+
+.ad-dots circle[data-kind='role-editor'] {
+    fill: var(--ad-editor);
+}
+
+.ad-dots circle[data-kind='role-interactiveViewer'] {
+    fill: var(--ad-interactive);
+}
+
+.ad-dots circle[data-kind='role-viewer'] {
+    fill: var(--background);
+    stroke: var(--ad-viewer);
+}
+
+/* Features: a step for each number of parts used, from faint to full; none is an open ring.
+   Recency: ten steps from the last ten days to ninety or more, fading; never is an open ring. Each step's strength
+   is its --ad-step, shared by dots, bars and the legend. */
+[data-kind='usage-f1'] { --ad-step: 0.25; }
+[data-kind='usage-f2'] { --ad-step: 0.357; }
+[data-kind='usage-f3'] { --ad-step: 0.464; }
+[data-kind='usage-f4'] { --ad-step: 0.571; }
+[data-kind='usage-f5'] { --ad-step: 0.679; }
+[data-kind='usage-f6'] { --ad-step: 0.786; }
+[data-kind='usage-f7'] { --ad-step: 0.893; }
+[data-kind='usage-f8'] { --ad-step: 1; }
+[data-kind='activity-a0'] { --ad-step: 1; }
+[data-kind='activity-a1'] { --ad-step: 0.911; }
+[data-kind='activity-a2'] { --ad-step: 0.822; }
+[data-kind='activity-a3'] { --ad-step: 0.733; }
+[data-kind='activity-a4'] { --ad-step: 0.644; }
+[data-kind='activity-a5'] { --ad-step: 0.556; }
+[data-kind='activity-a6'] { --ad-step: 0.467; }
+[data-kind='activity-a7'] { --ad-step: 0.378; }
+[data-kind='activity-a8'] { --ad-step: 0.289; }
+[data-kind='activity-a9'] { --ad-step: 0.2; }
+
+.ad-dots circle[data-kind^='usage-f']:not([data-kind='usage-f0']) {
+    fill: color-mix(in srgb, var(--ad-most) calc(var(--ad-step) * 100%), transparent);
+}
+
+.ad-dots circle[data-kind='usage-f0'] {
+    fill: transparent;
+    stroke: var(--ad-none);
+}
+
+.ad-dots circle[data-kind^='activity-a'] {
+    fill: color-mix(in srgb, var(--ad-recent) calc(var(--ad-step) * 100%), transparent);
+}
+
+/* A ring around a person who is in another team too, who has a dot there as well */
+.ad-shared {
+    fill: none;
+    stroke: var(--ad-shared-ring);
+    pointer-events: none;
+}
+
+.ad-label {
+    pointer-events: none;
+    paint-order: stroke;
+    stroke: var(--background);
+    stroke-linejoin: round;
+}
+
+.ad-label-name {
+    fill: var(--foreground);
+    font-weight: 600;
+}
+
+.ad-label-detail {
+    fill: var(--muted-foreground);
+}
+
+/* Over the drawing and empty but for the band while the colouring changes; it never takes the pointer */
+.ad-sweep-layer {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+/* A soft white band slanted like the sweep's front, brightening what it passes over in either scheme */
+.ad-sweep-band {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    translate: -50% -50%;
+    background: linear-gradient(
+        to right,
+        transparent,
+        rgb(255 255 255 / 35%),
+        transparent
+    );
+    mix-blend-mode: overlay;
+    pointer-events: none;
+    animation: ad-sweep-across linear forwards;
+}
+
+@keyframes ad-sweep-across {
+    from {
+        transform: translateX(var(--sweep-from)) rotate(var(--sweep-angle));
+    }
+
+    to {
+        transform: translateX(var(--sweep-to)) rotate(var(--sweep-angle));
+    }
+}
+
+.ad-controls {
+    position: absolute;
+    left: 12px;
+    bottom: 12px;
+    display: flex;
+    gap: 4px;
+}
+
+.ad-swatch {
+    display: block;
+    flex-shrink: 0;
+    overflow: visible;
+}
+
+/* Waffle, carried over from the October adoption waffle */
+.ad-waffle {
+    position: relative;
+    overflow: hidden;
+}
+
+.ad-block {
+    position: absolute;
+}
+
+.ad-block[data-dimmed] {
+    opacity: 0.35;
+}
+
+.ad-block-button {
+    position: absolute;
+    inset: 0;
+    border: 0;
+    border-radius: 8px;
+    background-color: var(--ad-circle-fill);
+    box-shadow: inset 0 0 0 1px var(--border);
+    cursor: pointer;
+}
+
+.ad-block-button[data-no-team] {
+    background-color: var(--background);
+    box-shadow: none;
+    border: 2px dashed var(--ad-empty-stroke);
+}
+
+.ad-block-button:hover {
+    box-shadow: inset 0 0 0 1px var(--ad-circle-hover);
+}
+
+.ad-block-button[data-selected] {
+    box-shadow: inset 0 0 0 2px var(--foreground);
+}
+
+.ad-block-button:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+}
+
+.ad-block-header {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    left: 8px;
+    pointer-events: none;
+}
+
+.ad-block-name {
+    overflow: hidden;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ad-block-counts {
+    overflow: hidden;
+    color: var(--muted-foreground);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    line-height: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ad-part {
+    position: absolute;
+    overflow: hidden;
+    border-radius: 4px;
+    background-color: var(--background);
+    box-shadow: inset 0 0 0 1px var(--border);
+    pointer-events: none;
+}
+
+.ad-part-content {
+    position: absolute;
+}
+
+/* One per mark, moved into place. A change of colouring fades it to its new look after the delay written on it */
+.ad-square {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--cell);
+    height: var(--cell);
+    border-radius: 1px;
+    pointer-events: none;
+    transition-property: background-color, box-shadow;
+    transition-duration: var(--colour-fade, 0ms);
+    transition-timing-function: ease;
+}
+
+.ad-square[data-person] {
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.ad-bar {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    border-radius: 2px;
+}
+
+.ad-mark[data-kind='usage-most'] {
+    background-color: var(--ad-most);
+    box-shadow: inset 0 0 0 1px var(--ad-most-edge);
+}
+
+.ad-mark[data-kind='usage-some'] {
+    background-color: var(--ad-some);
+    box-shadow: inset 0 0 0 1px var(--ad-some-edge);
+}
+
+.ad-mark[data-kind='usage-left'] {
+    background-color: var(--ad-left);
+}
+
+.ad-mark[data-kind='usage-never'] {
+    background-color: var(--ad-none);
+}
+
+.ad-mark[data-kind='activity-never'] {
+    background-color: var(--ad-recent-none);
+}
+
+.ad-mark[data-kind='activity-d7'] {
+    background-color: var(--ad-recent);
+}
+
+.ad-mark[data-kind='activity-d30'] {
+    background-color: var(--ad-month);
+}
+
+.ad-mark[data-kind='activity-older'] {
+    background-color: var(--ad-older);
+    box-shadow: inset 0 0 0 1px var(--ad-older-edge);
+}
+
+.ad-mark[data-kind='role-admin'] {
+    background-color: var(--ad-admin);
+}
+
+.ad-mark[data-kind='role-editor'] {
+    background-color: var(--ad-editor);
+}
+
+.ad-mark[data-kind='role-interactiveViewer'] {
+    background-color: var(--ad-interactive);
+}
+
+.ad-mark[data-kind='role-viewer'] {
+    background-color: var(--background);
+    box-shadow: inset 0 0 0 1px var(--ad-viewer);
+}
+
+.ad-mark[data-kind^='usage-f']:not([data-kind='usage-f0']) {
+    background-color: color-mix(in srgb, var(--ad-most) calc(var(--ad-step) * 100%), transparent);
+}
+
+/* The ones that never came, fainter than the faintest step and edged like the open rings on the map */
+.ad-mark[data-kind='usage-f0'] {
+    background-color: color-mix(in srgb, var(--ad-most) 10%, transparent);
+    box-shadow: inset 0 0 0 1px var(--ad-none);
+}
+
+.ad-mark[data-kind^='activity-a'] {
+    background-color: color-mix(in srgb, var(--ad-recent) calc(var(--ad-step) * 100%), transparent);
+}
+
+.ad-mark[data-kind='activity-never'] {
+    background-color: color-mix(in srgb, var(--ad-recent) 10%, transparent);
+    box-shadow: inset 0 0 0 1px var(--ad-recent-none);
+}
+
+/* The legend's fade from see-through to solid, in the colouring's own colour */
+.ad-scale {
+    background: linear-gradient(
+        to right,
+        color-mix(in srgb, var(--scale-colour) 15%, transparent),
+        var(--scale-colour)
+    );
+}
+
+/* The name that follows the pointer over a person */
+.ad-tip {
+    position: fixed;
+    z-index: 50;
+    max-width: 280px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: var(--foreground);
+    color: var(--background);
+    font-size: 12px;
+    line-height: 16px;
+    pointer-events: none;
+    transform: translate(12px, 14px);
+}
+
+.ad-count {
+    font-variant-numeric: tabular-nums;
+}
+
+/* The marks of the detail under the map populate when the colouring changes, each on the timing the colour sweep
+   gives it as it passes down from the map (written on the mark) */
+[data-sweep] {
+    animation: ad-fade-in var(--fade-ms, 380ms) ease var(--fade-delay, 0ms) backwards;
+}
+
+@keyframes ad-fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* A long mark the sweep passes over as one piece: a soft edge moves across it at the sweep's speed, so it fills in
+   smoothly, with nothing in steps */
+[data-sweep-wipe] {
+    -webkit-mask-image: linear-gradient(to right, #000 40%, transparent 60%);
+    mask-image: linear-gradient(to right, #000 40%, transparent 60%);
+    -webkit-mask-size: 250% 100%;
+    mask-size: 250% 100%;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: 0% 0;
+    mask-position: 0% 0;
+    animation: ad-wipe-in var(--wipe-ms, 600ms) linear var(--wipe-delay, 0ms) backwards;
+}
+
+@keyframes ad-wipe-in {
+    from {
+        -webkit-mask-position: 100% 0;
+        mask-position: 100% 0;
+    }
+
+    to {
+        -webkit-mask-position: 0% 0;
+        mask-position: 0% 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-sweep],
+    [data-sweep-wipe] {
+        animation: none;
+    }
+}
+
+/* Fingerprint cells: more of the team, more of the colour */
+.ad-heat {
+    background-color: color-mix(in srgb, var(--ad-heat) calc(var(--share) * 78%), transparent);
+}
+
+/* Small bars and squares in the text colour, strong and faint */
+.ad-ink {
+    background-color: color-mix(in srgb, var(--foreground) 70%, transparent);
+}
+
+.ad-ink-faint {
+    background-color: color-mix(in srgb, var(--foreground) 10%, transparent);
+}

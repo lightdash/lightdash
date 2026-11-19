@@ -1,6 +1,8 @@
 import { Ability } from '@casl/ability';
 import {
+    FeatureFlags,
     ForbiddenError,
+    MissingConfigError,
     NotFoundError,
     ProjectType,
     type SessionUser,
@@ -61,9 +63,11 @@ type VersionRow = NonNullable<Awaited<ReturnType<AppModelFake['getVersion']>>>;
 const buildService = ({
     storedCapturesChoice = null,
     capturesEnabledOnInstance = true,
+    voiceDesignEnabled = true,
 }: {
     storedCapturesChoice?: boolean | null;
     capturesEnabledOnInstance?: boolean;
+    voiceDesignEnabled?: boolean;
 } = {}) => {
     const captures = { stored: storedCapturesChoice };
     const appRow = {
@@ -117,13 +121,23 @@ const buildService = ({
     const service = new AppGenerateService({
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
-        lightdashConfig: { appRuntime: {} } as never,
+        lightdashConfig: {
+            appRuntime: {},
+            ai: { copilot: { providers: {} } },
+        } as never,
         analytics: { track: () => undefined } as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
         userModel: {} as never,
         appModel: appModel as never,
-        featureFlagModel: { get: async () => ({ enabled: true }) } as never,
+        featureFlagModel: {
+            get: async ({ featureFlagId }: { featureFlagId: string }) => ({
+                enabled:
+                    featureFlagId === FeatureFlags.DataAppCapture
+                        ? voiceDesignEnabled
+                        : true,
+            }),
+        } as never,
         organizationSettingsModel: {} as never,
         organizationDesignModel: {} as never,
         pinnedListModel: {} as never,
@@ -152,6 +166,7 @@ const buildService = ({
         } as never,
         coderService: {} as never,
         documentService: {} as never,
+        composerChartService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,
@@ -162,6 +177,7 @@ const buildService = ({
         appRuntimeS3: null,
         appThumbnailClient,
         chartRegistryClient: {} as never,
+        contentDraftModel: {} as never,
         contentVerificationModel: {} as never,
     });
 
@@ -349,5 +365,41 @@ describe('AppGenerateService data app captures switch', () => {
         // gets; the point is that the captures guard let it through.
         await s.attachedImage().catch(() => undefined);
         expect(s.appImageExists).toHaveBeenCalledWith(APP_UUID, IMAGE_ID);
+    });
+});
+
+describe('AppGenerateService Voice Design transcription', () => {
+    const transcribe = (service: AppGenerateService) => {
+        // Apps are available; this test is about the Voice Design flag.
+        vi.spyOn(service, 'isChartStudioAvailable').mockReturnValue(true);
+        const body = Readable.from([Buffer.from('audio')]);
+        const read = vi.spyOn(body, 'read');
+        return {
+            result: service.transcribeCapture(
+                builder,
+                PROJECT_UUID,
+                'audio/webm',
+                body,
+                5,
+            ),
+            bodyWasRead: () => read.mock.calls.length > 0,
+        };
+    };
+
+    it('refuses before reading the audio while the flag is off', async () => {
+        const { service } = buildService({ voiceDesignEnabled: false });
+        const { result, bodyWasRead } = transcribe(service);
+
+        await expect(result).rejects.toThrow(ForbiddenError);
+        expect(bodyWasRead()).toBe(false);
+    });
+
+    it('passes the flag check while the flag is on', async () => {
+        const { service } = buildService();
+
+        // No transcription provider is configured in this test.
+        await expect(transcribe(service).result).rejects.toThrow(
+            MissingConfigError,
+        );
     });
 });

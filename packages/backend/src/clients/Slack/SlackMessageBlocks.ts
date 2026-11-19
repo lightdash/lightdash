@@ -504,6 +504,7 @@ export const getDashboardCsvResultsBlocks = ({
                     switch (f.type) {
                         case PartialFailureType.DASHBOARD_CHART:
                         case PartialFailureType.DASHBOARD_SQL_CHART:
+                        case PartialFailureType.DASHBOARD_COMPOSER_CHART:
                             return `\t• *${sanitizeText(
                                 f.chartName,
                             )}:* ${sanitizeText(f.error)}`;
@@ -546,6 +547,7 @@ export const getDashboardCsvResultsBlocks = ({
                 switch (f.type) {
                     case PartialFailureType.DASHBOARD_CHART:
                     case PartialFailureType.DASHBOARD_SQL_CHART:
+                    case PartialFailureType.DASHBOARD_COMPOSER_CHART:
                         return `\t• ${sanitizeText(
                             f.chartName,
                         )}: ${sanitizeText(f.error)}`;

@@ -1,14 +1,17 @@
 {
     "base": "semantic_studio",
     "addOns": [
+        "askUser",
         "projectContext",
         "sqlCatalog"
     ],
     "toolNames": [
         "analyzeFieldImpact",
+        "askUser",
         "describeWarehouseTable",
         "getMetadata",
         "grepFields",
+        "listChanges",
         "listWarehouseTables",
         "loadProjectContext",
         "proposeSemanticLayerChange",

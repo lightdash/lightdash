@@ -7,201 +7,216 @@ import path from 'path';
 import { readEmbeddedBundle } from './duckdbEmbeddedBundle';
 import { DuckdbWarehouseClient } from './DuckdbWarehouseClient';
 
-describe.sequential('DuckdbWarehouseClient embedded credentials', () => {
-    let dataDirectory: string;
-    let previousDataDirectory: string | undefined;
+describe(
+    'DuckdbWarehouseClient embedded credentials',
+    { concurrent: false },
+    () => {
+        let dataDirectory: string;
+        let previousDataDirectory: string | undefined;
 
-    beforeEach(async () => {
-        previousDataDirectory = process.env.PLAYGROUND_DATA_DIR;
-        dataDirectory = await fs.mkdtemp(
-            path.join(os.tmpdir(), 'lightdash-playground-'),
-        );
-        process.env.PLAYGROUND_DATA_DIR = dataDirectory;
-    });
-
-    afterEach(async () => {
-        if (previousDataDirectory === undefined) {
-            delete process.env.PLAYGROUND_DATA_DIR;
-        } else {
-            process.env.PLAYGROUND_DATA_DIR = previousDataDirectory;
-        }
-        await fs.rm(dataDirectory, { recursive: true, force: true });
-    });
-
-    const embeddedCredentials = (dataset: string) => ({
-        type: WarehouseTypes.DUCKDB as const,
-        connectionType: DuckdbConnectionType.EMBEDDED as const,
-        dataset,
-    });
-
-    const createEmbeddedDatabase = async (dataset: string) => {
-        const databasePath = path.join(dataDirectory, `${dataset}.duckdb`);
-        const instance = await DuckDBInstance.create(databasePath);
-        const connection = await instance.connect();
-        await connection.run('CREATE TABLE sample AS SELECT 1 AS value');
-        await connection.run(
-            'CREATE MACRO csv_sniffer(file_path) AS TABLE (FROM sniff_csv(file_path))',
-        );
-        connection.closeSync();
-        instance.closeSync();
-    };
-
-    it.each(['../etc', 'foo/bar', '/tmp/sample'])(
-        'rejects unsafe dataset identifiers: %s',
-        (dataset) => {
-            expect(
-                () => new DuckdbWarehouseClient(embeddedCredentials(dataset)),
-            ).toThrow(
-                'Embedded DuckDB dataset must contain only lowercase letters, numbers, hyphens, and underscores',
+        beforeEach(async () => {
+            previousDataDirectory = process.env.PLAYGROUND_DATA_DIR;
+            dataDirectory = await fs.mkdtemp(
+                path.join(os.tmpdir(), 'lightdash-playground-'),
             );
-        },
-    );
-
-    it('names the missing dataset and base directory', () => {
-        expect(
-            () => new DuckdbWarehouseClient(embeddedCredentials('missing')),
-        ).toThrow(
-            `Embedded DuckDB dataset "missing" was not found in ${dataDirectory}`,
-        );
-    });
-
-    it('resolves datasets from the server-configured data directory', async () => {
-        const databasePath = path.join(dataDirectory, 'sample.duckdb');
-        const instance = await DuckDBInstance.create(databasePath);
-        instance.closeSync();
-
-        expect(
-            () => new DuckdbWarehouseClient(embeddedCredentials('sample')),
-        ).not.toThrow();
-    });
-
-    it('opens an embedded database read-only', async () => {
-        await createEmbeddedDatabase('sample');
-
-        const client = new DuckdbWarehouseClient(embeddedCredentials('sample'));
-
-        await expect(
-            client.runQuery('SELECT value FROM sample'),
-        ).resolves.toMatchObject({
-            rows: [{ value: 1 }],
+            process.env.PLAYGROUND_DATA_DIR = dataDirectory;
         });
-    });
 
-    it('opens the database of the pinned bundle version', async () => {
-        const writeVersionedBundle = async (
-            directory: string,
-            value: number,
-        ) => {
-            await fs.mkdir(directory, { recursive: true });
-            const databasePath = path.join(directory, 'sample.duckdb');
+        afterEach(async () => {
+            if (previousDataDirectory === undefined) {
+                delete process.env.PLAYGROUND_DATA_DIR;
+            } else {
+                process.env.PLAYGROUND_DATA_DIR = previousDataDirectory;
+            }
+            await fs.rm(dataDirectory, { recursive: true, force: true });
+        });
+
+        const embeddedCredentials = (dataset: string) => ({
+            type: WarehouseTypes.DUCKDB as const,
+            connectionType: DuckdbConnectionType.EMBEDDED as const,
+            dataset,
+        });
+
+        const createEmbeddedDatabase = async (dataset: string) => {
+            const databasePath = path.join(dataDirectory, `${dataset}.duckdb`);
             const instance = await DuckDBInstance.create(databasePath);
             const connection = await instance.connect();
+            await connection.run('CREATE TABLE sample AS SELECT 1 AS value');
             await connection.run(
-                `CREATE TABLE sample AS SELECT ${value} AS value`,
+                'CREATE MACRO csv_sniffer(file_path) AS TABLE (FROM sniff_csv(file_path))',
             );
             connection.closeSync();
             instance.closeSync();
-            const explores = JSON.stringify([value]);
-            await fs.writeFile(path.join(directory, 'explores.json'), explores);
-            const digest = (contents: Buffer | string) =>
-                createHash('sha256').update(contents).digest('hex');
-            await fs.writeFile(
-                path.join(directory, 'SHA256SUMS'),
-                `${digest(explores)}  explores.json\n${digest(
-                    await fs.readFile(databasePath),
-                )}  sample.duckdb\n`,
-            );
-            return readEmbeddedBundle(directory, 'sample')!.version;
         };
-        await writeVersionedBundle(dataDirectory, 2);
-        const previousVersion = await writeVersionedBundle(
-            path.join(dataDirectory, 'previous'),
-            1,
+
+        it.each(['../etc', 'foo/bar', '/tmp/sample'])(
+            'rejects unsafe dataset identifiers: %s',
+            (dataset) => {
+                expect(
+                    () =>
+                        new DuckdbWarehouseClient(embeddedCredentials(dataset)),
+                ).toThrow(
+                    'Embedded DuckDB dataset must contain only lowercase letters, numbers, hyphens, and underscores',
+                );
+            },
         );
 
-        const client = new DuckdbWarehouseClient({
-            ...embeddedCredentials('sample'),
-            bundleVersion: previousVersion,
+        it('names the missing dataset and base directory', () => {
+            expect(
+                () => new DuckdbWarehouseClient(embeddedCredentials('missing')),
+            ).toThrow(
+                `Embedded DuckDB dataset "missing" was not found in ${dataDirectory}`,
+            );
         });
-        await expect(
-            client.runQuery('SELECT value FROM sample'),
-        ).resolves.toMatchObject({ rows: [{ value: 1 }] });
-        expect(
-            () =>
-                new DuckdbWarehouseClient({
-                    ...embeddedCredentials('sample'),
-                    bundleVersion: 'ffffffffffffffff',
-                }),
-        ).toThrow(
-            'Sample data version mismatch: the project uses version ffffffffffffffff',
+
+        it('resolves datasets from the server-configured data directory', async () => {
+            const databasePath = path.join(dataDirectory, 'sample.duckdb');
+            const instance = await DuckDBInstance.create(databasePath);
+            instance.closeSync();
+
+            expect(
+                () => new DuckdbWarehouseClient(embeddedCredentials('sample')),
+            ).not.toThrow();
+        });
+
+        it('opens an embedded database read-only', async () => {
+            await createEmbeddedDatabase('sample');
+
+            const client = new DuckdbWarehouseClient(
+                embeddedCredentials('sample'),
+            );
+
+            await expect(
+                client.runQuery('SELECT value FROM sample'),
+            ).resolves.toMatchObject({
+                rows: [{ value: 1 }],
+            });
+        });
+
+        it('opens the database of the pinned bundle version', async () => {
+            const writeVersionedBundle = async (
+                directory: string,
+                value: number,
+            ) => {
+                await fs.mkdir(directory, { recursive: true });
+                const databasePath = path.join(directory, 'sample.duckdb');
+                const instance = await DuckDBInstance.create(databasePath);
+                const connection = await instance.connect();
+                await connection.run(
+                    `CREATE TABLE sample AS SELECT ${value} AS value`,
+                );
+                connection.closeSync();
+                instance.closeSync();
+                const explores = JSON.stringify([value]);
+                await fs.writeFile(
+                    path.join(directory, 'explores.json'),
+                    explores,
+                );
+                const digest = (contents: Buffer | string) =>
+                    createHash('sha256').update(contents).digest('hex');
+                await fs.writeFile(
+                    path.join(directory, 'SHA256SUMS'),
+                    `${digest(explores)}  explores.json\n${digest(
+                        await fs.readFile(databasePath),
+                    )}  sample.duckdb\n`,
+                );
+                return readEmbeddedBundle(directory, 'sample')!.version;
+            };
+            await writeVersionedBundle(dataDirectory, 2);
+            const previousVersion = await writeVersionedBundle(
+                path.join(dataDirectory, 'previous'),
+                1,
+            );
+
+            const client = new DuckdbWarehouseClient({
+                ...embeddedCredentials('sample'),
+                bundleVersion: previousVersion,
+            });
+            await expect(
+                client.runQuery('SELECT value FROM sample'),
+            ).resolves.toMatchObject({ rows: [{ value: 1 }] });
+            expect(
+                () =>
+                    new DuckdbWarehouseClient({
+                        ...embeddedCredentials('sample'),
+                        bundleVersion: 'ffffffffffffffff',
+                    }),
+            ).toThrow(
+                'Sample data version mismatch: the project uses version ffffffffffffffff',
+            );
+        });
+
+        it('interrupts embedded queries that exceed their execution deadline', async () => {
+            await createEmbeddedDatabase('sample');
+
+            const client = new DuckdbWarehouseClient(
+                embeddedCredentials('sample'),
+                { embeddedQueryTimeoutMs: 50 },
+            );
+
+            await expect(
+                client.runQuery(
+                    'SELECT sum(sqrt(i)) FROM range(1000000000000) values(i)',
+                ),
+            ).rejects.toThrow(
+                'Playground query exceeded the 0.05 second execution limit and was stopped. Try a simpler query.',
+            );
+            await expect(
+                client.runQuery('SELECT 1 AS value'),
+            ).resolves.toMatchObject({ rows: [{ value: 1 }] });
+        });
+
+        it.each([
+            [`SELECT * FROM "read_parquet"('/etc/passwd')`, 'read_parquet'],
+            [
+                `SELECT * FROM parquet_metadata('/etc/passwd')`,
+                'parquet_metadata',
+            ],
+            [`SELECT * FROM csv_sniffer('/etc/passwd')`, 'csv_sniffer'],
+            [`SELECT * FROM sniff_csv('/etc/passwd')`, 'sniff_csv'],
+        ])(
+            'rejects file-reading table functions before execution: %s',
+            async (sql, blockedFunction) => {
+                await createEmbeddedDatabase('sample');
+                const client = new DuckdbWarehouseClient(
+                    embeddedCredentials('sample'),
+                );
+
+                await expect(client.runQuery(sql)).rejects.toThrow(
+                    `SQL validation error: function '${blockedFunction}' is not allowed`,
+                );
+            },
         );
-    });
 
-    it('interrupts embedded queries that exceed their execution deadline', async () => {
-        await createEmbeddedDatabase('sample');
+        it.each([
+            "SELECT '--' AS marker FROM read_csv('/tmp/data.csv')",
+            `SELECT "--" FROM read_csv('/tmp/data.csv')`,
+            "SELECT $$--$$ AS marker FROM read_csv('/tmp/data.csv')",
+        ])(
+            'rejects file functions after comment markers in literals',
+            async (sql) => {
+                await createEmbeddedDatabase('sample');
+                const client = new DuckdbWarehouseClient(
+                    embeddedCredentials('sample'),
+                );
 
-        const client = new DuckdbWarehouseClient(
-            embeddedCredentials('sample'),
-            { embeddedQueryTimeoutMs: 50 },
+                await expect(client.runQuery(sql)).rejects.toThrow(
+                    "SQL validation error: function 'read_csv' is not allowed",
+                );
+            },
         );
 
-        await expect(
-            client.runQuery(
-                'SELECT sum(sqrt(i)) FROM range(1000000000000) values(i)',
-            ),
-        ).rejects.toThrow(
-            'Playground query exceeded the 0.05 second execution limit and was stopped. Try a simpler query.',
-        );
-        await expect(
-            client.runQuery('SELECT 1 AS value'),
-        ).resolves.toMatchObject({ rows: [{ value: 1 }] });
-    });
-
-    it.each([
-        [`SELECT * FROM "read_parquet"('/etc/passwd')`, 'read_parquet'],
-        [`SELECT * FROM parquet_metadata('/etc/passwd')`, 'parquet_metadata'],
-        [`SELECT * FROM csv_sniffer('/etc/passwd')`, 'csv_sniffer'],
-        [`SELECT * FROM sniff_csv('/etc/passwd')`, 'sniff_csv'],
-    ])(
-        'rejects file-reading table functions before execution: %s',
-        async (sql, blockedFunction) => {
+        it('rejects file functions split by block comments', async () => {
             await createEmbeddedDatabase('sample');
             const client = new DuckdbWarehouseClient(
                 embeddedCredentials('sample'),
             );
 
-            await expect(client.runQuery(sql)).rejects.toThrow(
-                `SQL validation error: function '${blockedFunction}' is not allowed`,
-            );
-        },
-    );
-
-    it.each([
-        "SELECT '--' AS marker FROM read_csv('/tmp/data.csv')",
-        `SELECT "--" FROM read_csv('/tmp/data.csv')`,
-        "SELECT $$--$$ AS marker FROM read_csv('/tmp/data.csv')",
-    ])(
-        'rejects file functions after comment markers in literals',
-        async (sql) => {
-            await createEmbeddedDatabase('sample');
-            const client = new DuckdbWarehouseClient(
-                embeddedCredentials('sample'),
-            );
-
-            await expect(client.runQuery(sql)).rejects.toThrow(
+            await expect(
+                client.runQuery("SELECT * FROM read_/**/csv('/tmp/data.csv')"),
+            ).rejects.toThrow(
                 "SQL validation error: function 'read_csv' is not allowed",
             );
-        },
-    );
-
-    it('rejects file functions split by block comments', async () => {
-        await createEmbeddedDatabase('sample');
-        const client = new DuckdbWarehouseClient(embeddedCredentials('sample'));
-
-        await expect(
-            client.runQuery("SELECT * FROM read_/**/csv('/tmp/data.csv')"),
-        ).rejects.toThrow(
-            "SQL validation error: function 'read_csv' is not allowed",
-        );
-    });
-});
+        });
+    },
+);

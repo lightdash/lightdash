@@ -10,6 +10,7 @@ import {
     NotFoundError,
     ParameterError,
     type Account,
+    type ChartParameterReferencesResult,
     type Explore,
     type SavedChartDAO,
     type SavedMergeDefinition,
@@ -179,6 +180,27 @@ const setup = ({ dashboardControlsEnabled = true } = {}) => {
     const dashboardModel = {
         getByIdOrSlug: vi.fn(async () => embeddedDashboard),
     };
+    const composerChartService = {
+        getParameterReferences: vi.fn(
+            async (
+                _account: Account,
+                _projectUuid: string,
+                uuids: string[],
+            ): Promise<Map<string, ChartParameterReferencesResult>> =>
+                new Map(
+                    uuids.map((uuid) => [
+                        uuid,
+                        {
+                            parameterReferences: ['currency'],
+                            parameterDefinitions: {},
+                            chartSavedValues: { currency: 'usd' },
+                            virtualViewSavedValues: {},
+                            error: null,
+                        },
+                    ]),
+                ),
+        ),
+    };
     const service = new DashboardService({
         lightdashConfig: lightdashConfigMock,
         savedChartModel,
@@ -187,6 +209,7 @@ const setup = ({ dashboardControlsEnabled = true } = {}) => {
         projectService,
         dashboardModel,
         featureFlagModel,
+        getComposerChartService: () => composerChartService,
     } as unknown as ConstructorParameters<typeof DashboardService>[0]);
     return {
         service,
@@ -231,6 +254,36 @@ const chartTile = (tileUuid: string, savedChartUuid: string) => ({
 const noSavedValues = { chartSavedValues: {}, virtualViewSavedValues: {} };
 
 describe('DashboardService.getTileParameterReferences', () => {
+    it('lists a composer tile through the composer chart service, beside a saved chart', async () => {
+        const { service } = setup();
+
+        const result = await service.getTileParameterReferences(
+            account,
+            projectUuid,
+            [
+                chartTile('tile-1', 'plain'),
+                {
+                    tileType: DashboardTileTypes.COMPOSER_CHART,
+                    tileUuid: 'composer-tile',
+                    composerChartUuid: 'composer-chart',
+                },
+            ],
+        );
+
+        expect(result[0]).toMatchObject({
+            tileUuid: 'tile-1',
+            parameterReferences: ['orders.region'],
+        });
+        expect(result[1]).toEqual({
+            tileUuid: 'composer-tile',
+            parameterReferences: ['currency'],
+            parameterDefinitions: {},
+            chartSavedValues: { currency: 'usd' },
+            virtualViewSavedValues: {},
+            error: null,
+        });
+    });
+
     it('reads the explore and the chart query, without compiling', async () => {
         const { service, projectService } = setup();
 
@@ -333,6 +386,47 @@ describe('DashboardService.getTileParameterReferences', () => {
             },
             ...noSavedValues,
             error: null,
+        });
+    });
+
+    it("defines a short name by the project parameter, not the model's unprefixed copy", async () => {
+        const { service, projectService } = setup();
+        const projectRegion = { label: 'Project region', type: 'string' };
+        projectService.projectParametersModel.find.mockResolvedValue([
+            { name: 'region', config: projectRegion },
+        ]);
+        projectService.findExplores.mockImplementation(
+            async ({ exploreNames }) =>
+                Object.fromEntries(
+                    exploreNames.map((name) => [
+                        name,
+                        {
+                            ...exploreWithParameters(name, ['region', 'tier']),
+                            parameters: {
+                                region: {
+                                    label: 'Model region',
+                                    default: 'EU',
+                                },
+                                tier: { label: 'Model tier' },
+                            },
+                        },
+                    ]),
+                ),
+        );
+
+        const [result] = await service.getTileParameterReferences(
+            account,
+            projectUuid,
+            [chartTile('tile-1', 'plain')],
+        );
+
+        // Queries resolve a short name against the project first; a model-only name keeps its copy
+        expect(result).toMatchObject({
+            parameterReferences: ['region', 'tier'],
+            parameterDefinitions: {
+                region: projectRegion,
+                tier: { label: 'Model tier' },
+            },
         });
     });
 

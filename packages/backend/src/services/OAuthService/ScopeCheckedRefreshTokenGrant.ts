@@ -12,6 +12,10 @@ export const createScopeCheckedRefreshTokenGrant = (
     resolveMode: (user: OAuth2Server.User) => Promise<OAuthScopeMode | null>,
     resolveStrict: (user: OAuth2Server.User) => Promise<boolean>,
     siteUrl: string,
+    assertMobileAppAccess: (
+        client: OAuth2Server.Client,
+        user: OAuth2Server.User,
+    ) => Promise<void>,
 ) =>
     class ScopeCheckedRefreshTokenGrant extends RefreshTokenGrantType {
         private binding: OAuthTokenBinding;
@@ -48,6 +52,7 @@ export const createScopeCheckedRefreshTokenGrant = (
             client: OAuth2Server.Client,
         ): Promise<OAuth2Server.Token> {
             const token = await super.getRefreshToken(request, client);
+            await assertMobileAppAccess(client, token.user);
             this.binding.sessionExpiresAt = token.sessionExpiresAt ?? null;
             if (
                 this.binding.sessionExpiresAt !== null &&

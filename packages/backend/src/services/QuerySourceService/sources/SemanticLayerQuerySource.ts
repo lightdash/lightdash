@@ -140,7 +140,7 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
         userAttributeOverrides,
         invalidateCache,
         pivotConfiguration,
-        documentQueryContext,
+        authority,
     }: SubmitSourceQueryArgs): Promise<{
         queryUuid: string;
         cacheHit: boolean;
@@ -150,7 +150,7 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
         const metricQuery = metricQueryOfSemanticNode(sourceQuery);
 
         const results = await this.asyncQueryService.executeAsyncMetricQuery({
-            ...(documentQueryContext ? { documentQueryContext } : {}),
+            authority,
             account,
             projectUuid,
             metricQuery,

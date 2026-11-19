@@ -33,6 +33,7 @@ import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconArrowLeft,
     IconCamera,
+    IconMicrophone,
     IconChartBar,
     IconCheck,
     IconDatabase,
@@ -59,6 +60,10 @@ import MantineModal from '../../components/common/MantineModal';
 import { ModelSelector } from '../../components/common/ModelSelector/ModelSelector';
 import { ChartIcon, IconBox } from '../../components/common/ResourceIcon';
 import { getChartIcon } from '../../components/common/ResourceIcon/utils';
+import {
+    VOICE_DESIGN_BUTTON_TOUR_ID,
+    VoiceDesignTour,
+} from '../../ee/features/capture/onboarding';
 import { useChartSummariesV2 } from '../../hooks/useChartSummariesV2';
 import { useInfiniteContent } from '../../hooks/useContent';
 import { useProject } from '../../hooks/useProject';
@@ -108,34 +113,44 @@ export type SelectedConnection = AppVersionExternalConnectionResource;
 const SAMPLE_DATA_TOOLTIP =
     'Include sample data - runs this query and shares up to 10 rows with the app generator so it can see actual values (date ranges, labels, magnitudes). Off by default because rows can be sensitive.';
 
-/**
- * Button that captures a screenshot of the live preview and adds it as an
- * image attachment. Shows a loader while the capture is in flight.
- *
- * Rendered only once the preview is mounted and the iframe SDK has announced
- * screenshot support — an always-present but permanently dead control reads as
- * broken on the compose screen, where no app exists yet.
- */
+/** Attaches a capture of the live preview to the next prompt. */
 export const ScreenshotButton: FC<{
     onClick: () => void;
     disabled: boolean;
-    loading?: boolean;
+    loading: boolean;
 }> = ({ onClick, disabled, loading }) => (
-    <Tooltip
-        label="Capture a screenshot of the preview and attach it"
-        position="top"
-    >
+    <Tooltip label="Attach a screenshot of the preview" position="bottom">
         <ActionIcon
             size="md"
-            radius="xl"
             onClick={onClick}
             disabled={disabled}
             loading={loading}
-            aria-label="Capture screenshot"
+            aria-label="Attach screenshot"
         >
             <MantineIcon icon={IconCamera} size={16} />
         </ActionIcon>
     </Tooltip>
+);
+
+/** Starts a Voice Design recording: draw on the preview while talking. */
+export const CaptureButton: FC<{
+    onClick: () => void;
+    disabled: boolean;
+}> = ({ onClick, disabled }) => (
+    <>
+        <Tooltip label="Voice Design" position="bottom">
+            <ActionIcon
+                size="md"
+                onClick={onClick}
+                disabled={disabled}
+                aria-label="Voice Design"
+                data-tour={VOICE_DESIGN_BUTTON_TOUR_ID}
+            >
+                <MantineIcon icon={IconMicrophone} size={16} />
+            </ActionIcon>
+        </Tooltip>
+        <VoiceDesignTour surface="builder" />
+    </>
 );
 
 type ModelOption = {
@@ -1329,7 +1344,14 @@ export const AttachButton: FC<{
                                 <MantineIcon icon={IconPlus} size={14} />
                             }
                         >
-                            <Text span size="xs" fw={600} lh={1.2} c="inherit">
+                            <Text
+                                span
+                                size="xs"
+                                fw={600}
+                                lh={1.2}
+                                c="inherit"
+                                data-composer-label
+                            >
                                 Attach
                             </Text>
                         </Button>

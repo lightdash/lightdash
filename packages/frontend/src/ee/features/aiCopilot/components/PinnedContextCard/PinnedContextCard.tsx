@@ -13,7 +13,10 @@ import { useEmbedAiAgentDashboardOpener } from '../../hooks/useEmbedAiAgentDashb
 import { useIsAiAgentNavigationDisabled } from '../../hooks/useIsAiAgentNavigationDisabled';
 import { ContentReferenceLink } from '../ChatElements/ContentReferenceLink';
 import {
+    getComposerChartContextItemLabel,
     getDataAppContextItemLabel,
+    getPromptContextItemHref,
+    getSqlChartContextItemLabel,
     getThemeContextItemLabel,
 } from '../ChatElements/contentReferenceUtils';
 import {
@@ -278,6 +281,26 @@ export const PinnedContextCard: FC<Props> = ({
                     {item.displayName ?? item.documentSlug ?? 'Document'}
                 </ContentReferenceLink>
             );
+        case 'sql_chart': {
+            const href = getPromptContextItemHref(item, projectUuid);
+            return (
+                <ContentReferenceLink
+                    kind="sql_chart"
+                    rel="noreferrer"
+                    to={href ?? undefined}
+                    target={href ? '_blank' : undefined}
+                    showArrow={href !== null}
+                >
+                    {getSqlChartContextItemLabel(item)}
+                </ContentReferenceLink>
+            );
+        }
+        case 'composer_chart':
+            return (
+                <ContentReferenceLink kind="composer_chart" showArrow={false}>
+                    {getComposerChartContextItemLabel(item)}
+                </ContentReferenceLink>
+            );
         case 'pull_request':
         case 'proposed_change':
         case 'review_finding':
@@ -290,7 +313,7 @@ export const PinnedContextCard: FC<Props> = ({
             return (
                 <ContentReferenceLink kind="semantic_model" showArrow={false}>
                     {item.fieldName
-                        ? `${item.modelName}.${item.fieldName}`
+                        ? `${item.modelName} / ${item.fieldName.replace(`${item.modelName}_`, '')}`
                         : item.modelName}
                 </ContentReferenceLink>
             );

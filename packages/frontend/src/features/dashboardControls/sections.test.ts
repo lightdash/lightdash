@@ -185,7 +185,7 @@ describe('moveRuleToSection', () => {
 
     it('returns the same filters when nothing moves', () => {
         const unsectioned = filters([rule('d1'), rule('d2', 'a')]);
-        // An unsectioned row dropped on the rail's header
+        // An unsectioned row dropped on the controls bar's header
         expect(
             moveRuleToSection(unsectioned, 'd1', { sectionId: null }, sections),
         ).toBe(unsectioned);

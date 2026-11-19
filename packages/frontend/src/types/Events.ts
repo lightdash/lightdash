@@ -69,6 +69,7 @@ export enum PageName {
     FUNNEL_BUILDER = 'funnel_builder',
     SEMANTIC_STUDIO = 'semantic_studio',
     ROADMAP = 'roadmap',
+    BILLING = 'billing',
     LEARN = 'learn',
     LEARN_WORKSPACE = 'learn_workspace',
 }
@@ -261,6 +262,7 @@ export enum EventName {
     HOMEPAGE_RECOMMENDED_ACTION_RESTORED = 'homepage_recommended_action.restored',
     HOMEPAGE_STARS_MEDIA_CARD_CLICKED = 'homepage_stars_media_card.clicked',
     AGENT_SETUP_PROMPT_COPIED = 'agent_setup_prompt.copied',
+    MOBILE_PITCH_DISMISSED = 'mobile_pitch.dismissed',
     ONBOARDING_DONE_ACTION_CLICKED = 'onboarding_done.action_clicked',
     CREATE_PROJECT_COLUMNS_DEFINED_BUTTON_CLICKED = 'create_project_columns_defined_button.click',
 
@@ -282,4 +284,10 @@ export enum EventName {
     LEARN_WALKTHROUGH_STARTED = 'learn_walkthrough.started',
     LEARN_WALKTHROUGH_COMPLETED = 'learn_walkthrough.completed',
     LEARN_WALKTHROUGH_DISMISSED = 'learn_walkthrough.dismissed',
+    GUIDED_TOUR_STARTED = 'guided_tour.started',
+    GUIDED_TOUR_STEP_VIEWED = 'guided_tour.step_viewed',
+    GUIDED_TOUR_COMPLETED = 'guided_tour.completed',
+    GUIDED_TOUR_DISMISSED = 'guided_tour.dismissed',
+
+    BILLING_PORTAL_BUTTON_CLICKED = 'billing_portal_button.clicked',
 }

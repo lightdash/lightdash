@@ -293,6 +293,7 @@ vi.mock('../MetricQueryData/useMetricQueryDataContext', () => ({
     useMetricQueryDataContext: () => mocks.metricQueryData.current,
 }));
 
+import { ComposerChartRenderTargetContext } from '../../features/chartTypes/composerChartRenderTarget';
 import { DocumentRenderTargetContext } from '../../features/chartTypes/documentRenderTarget/context';
 import {
     RENDER_ACK_FALLBACK_MS,
@@ -911,6 +912,106 @@ describe('DataAppVizRenderer', () => {
             undefined,
         );
     });
+
+    it('renders a composer chart tile through the composer chart, before any saved chart', () => {
+        render(
+            <ComposerChartRenderTargetContext.Provider value="composer-uuid">
+                {rendererElement()}
+            </ComposerChartRenderTargetContext.Provider>,
+        );
+
+        expect(mocks.iframePreview).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                chartContext: { composerChartUuid: 'composer-uuid' },
+            }),
+            undefined,
+        );
+        expect(mocks.renderMetadataHook).toHaveBeenLastCalledWith(
+            'project-uuid',
+            'viz-uuid',
+            expect.objectContaining({ composerChartUuid: 'composer-uuid' }),
+            expect.anything(),
+        );
+    });
+
+    it("renders a saved chart from the viewer's unpublished draft only when the host says so", () => {
+        const view = renderRenderer();
+        expect(mocks.renderMetadataHook.mock.lastCall?.[2]).not.toMatchObject({
+            hasUnpublishedChanges: true,
+        });
+        expect(mocks.iframePreview).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                chartContext: { savedChartUuid: 'saved-chart-uuid' },
+            }),
+            undefined,
+        );
+
+        mocks.vizContextOverrides.current = { hasUnpublishedChanges: true };
+        view.rerender(rendererElement());
+
+        expect(mocks.renderMetadataHook.mock.lastCall?.[2]).toMatchObject({
+            savedChartUuid: 'saved-chart-uuid',
+            hasUnpublishedChanges: true,
+        });
+        expect(mocks.previewTokenHook.mock.lastCall?.[3]).toMatchObject({
+            savedChartUuid: 'saved-chart-uuid',
+            hasUnpublishedChanges: true,
+        });
+        expect(mocks.iframePreview).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                chartContext: {
+                    savedChartUuid: 'saved-chart-uuid',
+                    includeUnpublishedDraft: true,
+                },
+            }),
+            undefined,
+        );
+    });
+
+    it.each<{
+        label: string;
+        chartVersionUuid: string | undefined;
+        embedToken: string | undefined;
+    }>([
+        {
+            label: 'a chart version',
+            chartVersionUuid: 'chart-version-uuid',
+            embedToken: undefined,
+        },
+        {
+            label: 'an embed',
+            chartVersionUuid: undefined,
+            embedToken: 'embed-token',
+        },
+    ])(
+        'never asks external fetches for the draft from $label',
+        ({ chartVersionUuid, embedToken }) => {
+            mocks.vizContextOverrides.current = {
+                hasUnpublishedChanges: true,
+            };
+            mocks.chartVersionUuid.current = chartVersionUuid;
+            mocks.embedToken.current = embedToken;
+
+            renderRenderer();
+
+            expect(mocks.iframePreview).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    chartContext: expect.objectContaining({
+                        savedChartUuid: 'saved-chart-uuid',
+                    }),
+                }),
+                undefined,
+            );
+            expect(mocks.iframePreview).not.toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    chartContext: expect.objectContaining({
+                        includeUnpublishedDraft: true,
+                    }),
+                }),
+                undefined,
+            );
+        },
+    );
 
     it('passes the chart version selected by the host', () => {
         mocks.chartVersionUuid.current = 'chart-version-uuid';

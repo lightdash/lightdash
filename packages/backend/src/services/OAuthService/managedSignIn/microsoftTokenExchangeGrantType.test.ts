@@ -16,6 +16,7 @@ const sessionUser = {
 const client = {
     id: 'lightdash-mobile',
     grants: [],
+    redirectUris: ['com.lightdash.mobile://oauth/callback'],
 } as unknown as OAuth2Server.Client;
 
 const createRequest = (body: Record<string, unknown>) =>
@@ -72,6 +73,26 @@ const validBody = {
 };
 
 describe('MicrosoftTokenExchangeGrantType', () => {
+    it.each([
+        ['a web redirect', ['https://client.example/callback']],
+        ['a loopback redirect', ['http://localhost:8765/callback']],
+        ['no redirect', undefined],
+    ])(
+        'refuses a client with %s before it reads the subject token',
+        async (_label, redirectUris) => {
+            const { grant, exchangeIdToken, saveToken } = createGrant();
+
+            await expect(
+                grant.handle(createRequest(validBody), {
+                    ...client,
+                    redirectUris,
+                } as unknown as OAuth2Server.Client),
+            ).rejects.toMatchObject({ name: 'unauthorized_client' });
+            expect(exchangeIdToken).not.toHaveBeenCalled();
+            expect(saveToken).not.toHaveBeenCalled();
+        },
+    );
+
     it('issues a token for the exchanged user', async () => {
         const { grant, exchangeIdToken, saveToken } = createGrant();
 

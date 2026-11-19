@@ -35,10 +35,24 @@ import {
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useCallback, useState } from 'react';
+import { v4 as uuid4 } from 'uuid';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
+import {
+    dashboardEditActions,
+    selectIsTileSelected,
+    useDashboardDispatch,
+    useDashboardSelector,
+} from '../../../features/dashboard/store';
+import {
+    GRID_DESKTOP_COLS,
+    type GridCell,
+    type PointerPosition,
+} from '../../../features/dashboardTabs/gridUtils';
 import { useCanManageDashboard } from '../../../hooks/dashboard/useCanManageDashboard';
+import { appendNewTilesToBottom } from '../../../hooks/dashboard/useDashboard';
 import { useCopyTileLink } from '../../../hooks/dashboard/useTileLink';
 import { useDelayedHover } from '../../../hooks/useDelayedHover';
+import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import ConnectionBadge from '../../common/ConnectionBadge';
 import { DASHBOARD_TILE_RADIUS } from '../../common/Dashboard/dashboard.constants';
 import { FloatingActionsPill } from '../../common/FloatingActionsPill';
@@ -49,7 +63,9 @@ import MoveTileToTabModal from '../TileForms/MoveTileToTabModal';
 import TileUpdateModal from '../TileForms/TileUpdateModal';
 import LoadingSkeletonOverlay from './LoadingSkeletonOverlay';
 import styles from './TileBase.module.css';
+import { TileCopyPlacement } from './TileCopyPlacement';
 import { TileHeaderPopoverContext } from './tileHeaderPopoverContext';
+import { TileSelectionToolbar } from './TileSelectionToolbar';
 import { type TileBaseProps } from './types';
 
 const TileBase = <T extends Dashboard['tiles'][number]>({
@@ -68,6 +84,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     mobileMenuItems,
     onDelete,
     onEdit,
+    onDuplicate,
     children,
     extraHeaderElement,
     visibleHeaderElement,
@@ -127,6 +144,42 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
 
     const isMarkdownTileTitleEmpty =
         tile.type === DashboardTileTypes.MARKDOWN && !title;
+
+    const isSelected =
+        useDashboardSelector((state) =>
+            selectIsTileSelected(state, tile.uuid),
+        ) && isEditMode;
+    const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
+    const setHaveTilesChanged = useDashboardContext(
+        (c) => c.setHaveTilesChanged,
+    );
+    const dashboardDispatch = useDashboardDispatch();
+    const copyTile = useCallback(
+        (cell: GridCell) => {
+            const uuid = uuid4();
+            setDashboardTiles((currentTiles) =>
+                appendNewTilesToBottom(currentTiles, [{ ...tile, uuid }]),
+            );
+            setHaveTilesChanged(true);
+            dashboardDispatch(
+                dashboardEditActions.placeTile({ uuid, ...cell }),
+            );
+        },
+        [tile, setDashboardTiles, setHaveTilesChanged, dashboardDispatch],
+    );
+    // A copy waiting for the click that puts it down
+    const [copyPlacement, setCopyPlacement] = useState<{
+        gridItem: HTMLElement;
+        pointer: PointerPosition;
+    } | null>(null);
+    const cancelCopy = useCallback(() => setCopyPlacement(null), []);
+    // Tiles that point at saved content only copy when their own tile says how
+    const isSelfContainedTile =
+        tile.type === DashboardTileTypes.MARKDOWN ||
+        tile.type === DashboardTileTypes.HEADING ||
+        tile.type === DashboardTileTypes.LOOM;
+    const duplicateTile =
+        onDuplicate ?? (isSelfContainedTile ? copyTile : null);
 
     const copyTileLink = useCopyTileLink(tile);
     const canCopyTileLink = !minimal && copyTileLink !== null;
@@ -351,6 +404,42 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 </Paper>
             )}
 
+            {isSelected && (
+                <TileSelectionToolbar
+                    tileUuid={tile.uuid}
+                    width={tile.w}
+                    align={
+                        tile.x + tile.w / 2 > GRID_DESKTOP_COLS / 2
+                            ? 'end'
+                            : 'start'
+                    }
+                    side={tile.y === 0 ? 'bottom' : 'top'}
+                    onDuplicate={
+                        duplicateTile &&
+                        ((gridItem, pointer) =>
+                            setCopyPlacement({ gridItem, pointer }))
+                    }
+                    onDelete={() =>
+                        belongsToDashboard
+                            ? setIsDeletingChartThatBelongsToDashboard(true)
+                            : onDelete(tile)
+                    }
+                />
+            )}
+
+            {copyPlacement && duplicateTile && (
+                <TileCopyPlacement
+                    tile={tile}
+                    gridItem={copyPlacement.gridItem}
+                    pointer={copyPlacement.pointer}
+                    onPlace={(cell) => {
+                        setCopyPlacement(null);
+                        duplicateTile(cell);
+                    }}
+                    onCancel={cancelCopy}
+                />
+            )}
+
             <Card
                 className={styles.tileCard}
                 // Walkthrough: a look at the tile while it can still be
@@ -363,6 +452,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 data-tour-docs="explore/dashboards.mdx#add-an-existing-chart:p2:1"
                 data-with-transparent-border={transparent}
                 data-with-edit-mode={isEditMode}
+                data-selected={isSelected || undefined}
                 data-has-error={hasError}
                 data-with-shadow={!isEditMode && !transparent}
                 h="100%"

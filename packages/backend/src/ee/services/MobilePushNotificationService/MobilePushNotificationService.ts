@@ -1,6 +1,7 @@
 import {
     isAiAppThreadCreatedFrom,
     MOBILE_PUSH_LIVE_ACTIVITY_START_MAX_ATTEMPTS,
+    MobileOrgDisabledError,
     NotFoundError,
     ParameterError,
 } from '@lightdash/common';
@@ -148,6 +149,10 @@ export type MobilePushNotificationStore = {
         organizationUuid: string;
         userUuid: string;
     }): Promise<void>;
+    deleteInstallationsWithoutGrant(args: {
+        organizationUuid: string;
+        userUuid: string;
+    }): Promise<void>;
     upsertLiveActivity(activity: UpsertLiveActivity): Promise<void>;
     deleteLiveActivity(args: {
         liveActivityUuid: string;
@@ -223,6 +228,7 @@ type MobilePushNotificationServiceDependencies = {
     };
     analytics: Pick<LightdashAnalytics, 'track'>;
     apnsClient: MobilePushStartApnsClient;
+    isMobileAppAccessEnabled: (organizationUuid: string) => Promise<boolean>;
     now?: () => Date;
 };
 
@@ -284,6 +290,8 @@ export class MobilePushNotificationService {
 
     private readonly apnsClient: MobilePushStartApnsClient;
 
+    private readonly isMobileAppAccessEnabled: MobilePushNotificationServiceDependencies['isMobileAppAccessEnabled'];
+
     private readonly now: () => Date;
 
     constructor(dependencies: MobilePushNotificationServiceDependencies) {
@@ -296,7 +304,41 @@ export class MobilePushNotificationService {
         this.reconciler = dependencies.reconciler;
         this.analytics = dependencies.analytics;
         this.apnsClient = dependencies.apnsClient;
+        this.isMobileAppAccessEnabled = dependencies.isMobileAppAccessEnabled;
         this.now = dependencies.now ?? (() => new Date());
+    }
+
+    async revokeInstallationsWithoutGrant(user: {
+        userUuid: string;
+        organizationUuid: string;
+    }): Promise<void> {
+        try {
+            await this.mobilePushNotificationStore.deleteInstallationsWithoutGrant(
+                {
+                    organizationUuid: user.organizationUuid,
+                    userUuid: user.userUuid,
+                },
+            );
+        } catch (error) {
+            Logger.warn(
+                'Unable to remove mobile push installations of a denied session',
+                { error },
+            );
+        }
+    }
+
+    private async assertMobileAppAccess(user: MobilePushUser): Promise<void> {
+        const { organizationUuid } = user;
+        if (
+            organizationUuid != null &&
+            !(await this.isMobileAppAccessEnabled(organizationUuid))
+        ) {
+            await this.revokeInstallationsWithoutGrant({
+                userUuid: user.userUuid,
+                organizationUuid,
+            });
+            throw new MobileOrgDisabledError(organizationUuid);
+        }
     }
 
     private track(event: MobilePushNotificationEvent): void {
@@ -420,6 +462,7 @@ export class MobilePushNotificationService {
         deviceToken: string;
         oauthClientId: string | null;
     }): Promise<void> {
+        await this.assertMobileAppAccess(args.user);
         if (!this.config.enabled) return;
         validateDeviceToken(args.platform, args.deviceToken);
         const { organizationUuid } = args.user;
@@ -460,6 +503,7 @@ export class MobilePushNotificationService {
         installationUuid: string;
         pushToken: string;
     }): Promise<void> {
+        await this.assertMobileAppAccess(args.user);
         if (!this.config.enabled) {
             throw new NotFoundError('Mobile push registration not found');
         }
@@ -508,6 +552,7 @@ export class MobilePushNotificationService {
         if (!this.config.enabled) return;
         const { organizationUuid } = args.user;
         if (organizationUuid == null) return;
+        if (!(await this.isMobileAppAccessEnabled(organizationUuid))) return;
         const environments = this.getConfiguredEnvironments();
         if (environments.length === 0) return;
         if (
@@ -675,6 +720,18 @@ export class MobilePushNotificationService {
             return;
         }
 
+        if (!(await this.isMobileAppAccessEnabled(attempt.organizationUuid))) {
+            await this.mobilePushNotificationStore.markLiveActivityStartAttempt(
+                {
+                    liveActivityStartAttemptUuid,
+                    status: 'failed',
+                    pushTokenFingerprint: attempt.pushToStartTokenFingerprint,
+                    completedAt: attemptedAt,
+                },
+            );
+            return;
+        }
+
         const prompt = await this.threadStore.findWebAppPrompt(
             attempt.promptUuid,
         );
@@ -808,6 +865,7 @@ export class MobilePushNotificationService {
     }
 
     async registerLiveActivity(args: RegisterLiveActivity): Promise<void> {
+        await this.assertMobileAppAccess(args.user);
         if (!this.config.enabled) return;
         const { organizationUuid } = args.user;
         if (organizationUuid == null) {

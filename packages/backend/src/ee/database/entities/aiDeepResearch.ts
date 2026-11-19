@@ -30,9 +30,6 @@ export type DbAiDeepResearchRun = {
     /** Stable stage where a non-successful run stopped; null on success. */
     failure_stage: AiDeepResearchFailureStage | null;
     entry_point: AiDeepResearchEntryPoint;
-    result_markdown: string | null;
-    report_expires_at: Date | null;
-    report_expired_at: Date | null;
     budget_snapshot: AiDeepResearchBudget;
     execution_context_snapshot: AiDeepResearchExecutionContextSnapshot;
     input_tokens: number | null;
@@ -83,9 +80,6 @@ export type AiDeepResearchRunsTable = Knex.CompositeTableType<
             | 'status'
             | 'terminal_reason'
             | 'failure_stage'
-            | 'result_markdown'
-            | 'report_expires_at'
-            | 'report_expired_at'
             | 'error_message'
             | 'cancellation_requested_at'
             | 'started_at'

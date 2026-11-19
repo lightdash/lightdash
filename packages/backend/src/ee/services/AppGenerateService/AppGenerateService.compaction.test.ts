@@ -132,6 +132,7 @@ function buildService(
         spacePermissionService: {} as never,
         coderService: {} as never,
         documentService: {} as never,
+        composerChartService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,
@@ -142,6 +143,7 @@ function buildService(
         appRuntimeS3: null,
         appThumbnailClient: buildAppThumbnailClientMock(),
         chartRegistryClient: {} as never,
+        contentDraftModel: {} as never,
         contentVerificationModel: {} as never,
     });
 

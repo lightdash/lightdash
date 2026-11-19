@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import { fromSession } from '../../auth/account';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { setupGrantAuthentication } from '../../controllers/authentication/agentConnectionGrants.mock';
 import { allowApiKeyAuthentication } from '../../controllers/authentication/middlewares';
 import {
@@ -66,7 +67,14 @@ const setup = (enabled: boolean, organizationEnabled = enabled) => {
             .mockResolvedValue({ ...summary, chartUuid: chart.uuid }),
         createVersion: vi.fn().mockResolvedValue(chart),
         transaction: vi.fn(async (fn) => fn('transaction')),
-        rollbackToVersionAtTimestamp: vi.fn(),
+        getCurrentVersionUuids: vi.fn(
+            async (uuids: string[]) =>
+                new Map(uuids.map((u) => [u, 'current'])),
+        ),
+        lockCurrentVersionUuids: vi.fn(
+            async (uuids: string[]) =>
+                new Map(uuids.map((u) => [u, 'current'])),
+        ),
     };
     const dashboardModel = {
         getByIdOrSlug: vi.fn().mockResolvedValue(dashboard),
@@ -80,8 +88,10 @@ const setup = (enabled: boolean, organizationEnabled = enabled) => {
             .fn()
             .mockResolvedValue({ ...summary, dashboardUuid: dashboard.uuid }),
         addVersion: vi.fn(),
+        lockForVersioning: vi.fn(),
     };
     const dependencies = {
+        lightdashConfig: lightdashConfigMock,
         featureFlagModel,
         savedChartModel,
         dashboardModel,
@@ -103,11 +113,10 @@ const setup = (enabled: boolean, organizationEnabled = enabled) => {
             typeof SavedChartService
         >[0],
     );
-    const dashboardService = new DashboardService(
-        dependencies as unknown as ConstructorParameters<
-            typeof DashboardService
-        >[0],
-    );
+    const dashboardService = new DashboardService({
+        ...dependencies,
+        savedChartService: chartService,
+    } as unknown as ConstructorParameters<typeof DashboardService>[0]);
     return { chartService, dashboardService, ...dependencies };
 };
 
@@ -166,13 +175,17 @@ describe('version history agent identity', () => {
                 agentIdentityEnabled: true,
             });
             const restore = () =>
-                dashboardService.rollback(user, dashboard.uuid, 'old-version');
+                dashboardService.rollback(
+                    fromSession(user),
+                    dashboard.uuid,
+                    'old-version',
+                );
             if (agent) await agentExecutionContext.run(context, restore);
             else await restore();
             expect(dashboardModel.addVersion).toHaveBeenCalledWith(
                 dashboard.uuid,
                 expect.anything(),
-                user,
+                expect.objectContaining({ userUuid: user.userUuid }),
                 dashboard.projectUuid,
                 'transaction',
                 agent ? context.claim : null,
@@ -191,14 +204,18 @@ describe('version history agent identity', () => {
                 agentIdentityEnabled: true,
             });
             const restore = () =>
-                chartService.rollback(user, chart.uuid, 'old-version');
+                chartService.rollback(
+                    fromSession(user),
+                    chart.uuid,
+                    'old-version',
+                );
             if (agent) await agentExecutionContext.run(context, restore);
             else await restore();
             expect(savedChartModel.createVersion).toHaveBeenCalledWith(
                 chart.uuid,
                 { ...chart, agentIdentity: claim },
-                user,
-                undefined,
+                expect.objectContaining({ userUuid: user.userUuid }),
+                'transaction',
                 expect.anything(),
                 agent ? context.claim : null,
             );
@@ -287,16 +304,19 @@ describe('version history agent identity', () => {
                 agentIdentityEnabled: true,
             });
             const restore = () =>
-                dashboardService.rollback(user, dashboard.uuid, 'old-version');
+                dashboardService.rollback(
+                    fromSession(user),
+                    dashboard.uuid,
+                    'old-version',
+                );
             if (agent) await agentExecutionContext.run(context, restore);
             else await restore();
-            expect(
-                savedChartModel.rollbackToVersionAtTimestamp,
-            ).toHaveBeenCalledWith(
+            expect(savedChartModel.createVersion).toHaveBeenCalledWith(
                 chart.uuid,
-                dashboard.updatedAt,
-                user,
+                expect.anything(),
+                expect.objectContaining({ userUuid: user.userUuid }),
                 'transaction',
+                undefined,
                 agent ? context.claim : null,
             );
         },

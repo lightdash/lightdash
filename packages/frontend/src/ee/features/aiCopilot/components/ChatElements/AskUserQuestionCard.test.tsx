@@ -3,6 +3,7 @@ import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { AskUserQuestionCard } from './AskUserQuestionCard';
+import { QuietCardsContext } from './ToolCalls/quietCards';
 
 const period: AskUserQuestion = {
     header: 'Period',
@@ -35,6 +36,24 @@ const renderCard = (questions: AskUserQuestion[]) => {
 };
 
 describe('AskUserQuestionCard', () => {
+    it('shows only the choices for a lone question in a quiet chat', () => {
+        render(
+            <MantineProvider env="test">
+                <QuietCardsContext.Provider value>
+                    <AskUserQuestionCard
+                        questions={[period]}
+                        onSubmit={vi.fn()}
+                    />
+                </QuietCardsContext.Provider>
+            </MantineProvider>,
+        );
+        expect(screen.queryByText('Which month?')).toBeNull();
+        expect(screen.queryByText('Period')).toBeNull();
+        expect(
+            screen.getByRole('radio', { name: /October 2022/ }),
+        ).toBeInTheDocument();
+    });
+
     it('sends the picked option as the answer', () => {
         const onSubmit = renderCard([period]);
         const submit = screen.getByRole('button', { name: 'Submit answer' });
@@ -74,6 +93,44 @@ describe('AskUserQuestionCard', () => {
 
         expect(
             screen.getByRole('radio', { name: /November 2022/ }),
+        ).not.toBeChecked();
+    });
+
+    it('unpicks the option when an own answer is typed', () => {
+        renderCard([period]);
+        const option = screen.getByRole('radio', { name: /October 2022/ });
+
+        fireEvent.click(option);
+        expect(option).toBeChecked();
+        fireEvent.change(screen.getByLabelText('Your own answer'), {
+            target: { value: 'Q4 2022' },
+        });
+
+        expect(option).not.toBeChecked();
+    });
+
+    it('unpicks a picked option when it is clicked again', () => {
+        renderCard([period]);
+        const option = screen.getByRole('radio', { name: /October 2022/ });
+
+        fireEvent.click(option);
+        fireEvent.click(option);
+
+        expect(option).not.toBeChecked();
+        expect(
+            screen.getByRole('button', { name: 'Submit answer' }),
+        ).toBeDisabled();
+    });
+
+    it('unpicks a picked option when its number key is pressed again', () => {
+        renderCard([period]);
+        const card = document.activeElement as HTMLElement;
+
+        fireEvent.keyDown(card, { key: '2' });
+        fireEvent.keyDown(card, { key: '2' });
+
+        expect(
+            screen.getByRole('radio', { name: /October 2022/ }),
         ).not.toBeChecked();
     });
 

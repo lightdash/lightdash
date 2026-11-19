@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import {
     assertExtraConnectionAuthentication,
+    assertOptionalUserCredentialsHaveSharedCredentials,
     shouldTestExtraCredentials,
 } from './extraConnectionAuthentication';
 import { warehouseConnectionCredentials } from './warehouseConnectionFixtures.mock';
@@ -207,6 +208,114 @@ describe('shouldTestExtraCredentials', () => {
                 } as never,
                 false,
             ),
+        ).not.toThrow();
+    });
+});
+
+describe('assertOptionalUserCredentialsHaveSharedCredentials', () => {
+    const snowflake = credentialsFor(WarehouseTypes.SNOWFLAKE);
+    const withoutSharedCredentials = [
+        SnowflakeAuthenticationType.NONE,
+        SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+    ];
+
+    it.each(
+        withoutSharedCredentials.flatMap((authenticationType) =>
+            [undefined, false].map((requireUserCredentials) => ({
+                authenticationType,
+                requireUserCredentials,
+            })),
+        ),
+    )(
+        'refuses optional personal credentials with $authenticationType authentication (require: $requireUserCredentials)',
+        (overrides) => {
+            const credentials = {
+                ...snowflake,
+                ...overrides,
+                allowUserCredentials: true,
+            };
+            expect(() =>
+                assertOptionalUserCredentialsHaveSharedCredentials(credentials),
+            ).toThrow(ParameterError);
+            expect(() =>
+                assertOptionalUserCredentialsHaveSharedCredentials(credentials),
+            ).toThrow(
+                'Personal credentials can only be optional when the connection stores shared credentials.',
+            );
+            expect(() =>
+                assertExtraConnectionAuthentication(credentials, true),
+            ).toThrow(ParameterError);
+        },
+    );
+
+    it.each(withoutSharedCredentials)(
+        'lets required personal credentials win with %s authentication',
+        (authenticationType) => {
+            expect(() =>
+                assertOptionalUserCredentialsHaveSharedCredentials({
+                    ...snowflake,
+                    authenticationType,
+                    requireUserCredentials: true,
+                    allowUserCredentials: true,
+                }),
+            ).not.toThrow();
+        },
+    );
+
+    it.each(withoutSharedCredentials)(
+        'allows %s authentication without the opt-in',
+        (authenticationType) => {
+            expect(() =>
+                assertOptionalUserCredentialsHaveSharedCredentials({
+                    ...snowflake,
+                    authenticationType,
+                    allowUserCredentials: false,
+                }),
+            ).not.toThrow();
+        },
+    );
+
+    it.each([
+        undefined,
+        SnowflakeAuthenticationType.PASSWORD,
+        SnowflakeAuthenticationType.PRIVATE_KEY,
+        SnowflakeAuthenticationType.SSO,
+    ])('allows the opt-in with %s authentication', (authenticationType) => {
+        const credentials = {
+            ...snowflake,
+            authenticationType,
+            allowUserCredentials: true,
+        };
+        expect(() =>
+            assertOptionalUserCredentialsHaveSharedCredentials(credentials),
+        ).not.toThrow();
+        expect(() =>
+            assertExtraConnectionAuthentication(credentials, true),
+        ).not.toThrow();
+        expect(() =>
+            assertExtraConnectionAuthentication(credentials, false),
+        ).not.toThrow();
+    });
+
+    it('refuses the opt-in on an extra connection without mixed types', () => {
+        expect(() =>
+            assertExtraConnectionAuthentication(
+                {
+                    ...snowflake,
+                    authenticationType: SnowflakeAuthenticationType.NONE,
+                    allowUserCredentials: true,
+                },
+                false,
+            ),
+        ).toThrow(ParameterError);
+    });
+
+    it('ignores other warehouses', () => {
+        expect(() =>
+            assertOptionalUserCredentialsHaveSharedCredentials({
+                ...credentialsFor(WarehouseTypes.BIGQUERY),
+                allowUserCredentials: true,
+            }),
         ).not.toThrow();
     });
 });

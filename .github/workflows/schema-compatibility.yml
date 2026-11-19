@@ -142,7 +142,7 @@ jobs:
       - name: Install dbt 1.12
         run: |
           python -m venv "$RUNNER_TEMP/dbt1.12"
-          "$RUNNER_TEMP/dbt1.12/bin/pip" install "dbt-core==1.12.0" "dbt-postgres~=1.10.0"
+          "$RUNNER_TEMP/dbt1.12/bin/pip" install "dbt-core~=1.12.0" "dbt-postgres~=1.10.0"
           sudo ln -sf "$RUNNER_TEMP/dbt1.12/bin/dbt" /usr/local/bin/dbt1.12
           dbt1.12 --version
       - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
@@ -221,7 +221,7 @@ jobs:
       - name: Install dbt 1.12
         run: |
           python -m venv "$RUNNER_TEMP/dbt1.12"
-          "$RUNNER_TEMP/dbt1.12/bin/pip" install "dbt-core==1.12.0" "dbt-postgres~=1.10.0"
+          "$RUNNER_TEMP/dbt1.12/bin/pip" install "dbt-core~=1.12.0" "dbt-postgres~=1.10.0"
           sudo ln -sf "$RUNNER_TEMP/dbt1.12/bin/dbt" /usr/local/bin/dbt1.12
           dbt1.12 --version
       - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2

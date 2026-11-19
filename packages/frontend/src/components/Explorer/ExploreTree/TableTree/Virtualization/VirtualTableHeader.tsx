@@ -1,12 +1,15 @@
-import { Group, NavLink, Text } from '@mantine/core';
+import { NavLink, Text } from '@mantine/core';
+import { IconArrowsJoin, IconTable } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
+import MantineIcon from '../../../../common/MantineIcon';
 import { TableItemDetailPreview } from '../ItemDetailPreview';
 import type { TableHeaderItem } from './types';
 import classes from './VirtualTableHeader.module.css';
 
 interface VirtualTableHeaderProps {
     item: TableHeaderItem;
+    isJoined: boolean;
     onToggle: () => void;
 }
 
@@ -15,18 +18,11 @@ interface VirtualTableHeaderProps {
  */
 const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
     item,
+    isJoined,
     onToggle,
 }) => {
     const { table, isExpanded } = item.data;
     const [isHover, toggleHover] = useToggle(false);
-
-    // Matches what the tree renders: hidden fields are excluded
-    const fieldCount = useMemo(
-        () =>
-            Object.values(table.dimensions).filter((d) => !d.hidden).length +
-            Object.values(table.metrics).filter((m) => !m.hidden).length,
-        [table.dimensions, table.metrics],
-    );
 
     const tableMetadata = useMemo(
         () => ({
@@ -64,16 +60,9 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
             closePreview={handleMouseLeave}
             tableMetadata={tableMetadata}
         >
-            <Group gap="xs" wrap="nowrap">
-                <Text truncate fz="sm" fw={600}>
-                    {table.label}
-                </Text>
-                {!isExpanded && (
-                    <Text size="xs" c="dimmed" fw={400}>
-                        {fieldCount} {fieldCount === 1 ? 'field' : 'fields'}
-                    </Text>
-                )}
-            </Group>
+            <Text truncate fz="sm" fw={600}>
+                {table.label}
+            </Text>
         </TableItemDetailPreview>
     );
 
@@ -86,6 +75,13 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             label={label}
+            leftSection={
+                <MantineIcon
+                    icon={isJoined ? IconArrowsJoin : IconTable}
+                    size={16}
+                    color="ldGray.6"
+                />
+            }
             className={classes.stickyHeader}
         >
             {[]}

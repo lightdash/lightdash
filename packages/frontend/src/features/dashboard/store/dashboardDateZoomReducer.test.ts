@@ -115,4 +115,25 @@ describe('dashboardDateZoomReducer', () => {
                 .chartZoomableFieldsByTileUuid,
         ).toEqual({ t2: fields });
     });
+
+    it('records which tiles keep their saved grain and drops removed tiles', () => {
+        const state = reducer(
+            undefined,
+            actions.setTileDateZoomRefused({ tileUuid: 't1', isRefused: true }),
+        );
+        expect(state.dateZoomRefusedByTileUuid).toEqual({ t1: true });
+        expect(
+            reducer(
+                state,
+                actions.setTileDateZoomRefused({
+                    tileUuid: 't1',
+                    isRefused: true,
+                }),
+            ),
+        ).toBe(state);
+        expect(
+            reducer(state, actions.keepTileDateZoomState(['t2']))
+                .dateZoomRefusedByTileUuid,
+        ).toEqual({});
+    });
 });

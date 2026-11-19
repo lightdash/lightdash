@@ -61,11 +61,13 @@ import type {
     ApiAiRouterRouteResponse,
     ApiAiSuggestChartTypeExploreResponse,
     ApiAiSuggestChartTypeFieldsResponse,
+    ApiAiWritebackRunStatusResponse,
     ApiAnnouncementResponse,
     ApiAnnouncementsResponse,
     ApiAppendInstructionResponse,
     ApiAppImageUploadResponse,
     ApiAppThumbnailUrlResponse,
+    ApiCaptureTranscriptResponse,
     ApiCloneAiAgentThreadShareResponse,
     ApiCreateEvaluationResponse,
     ApiDataAppActivityResponse,
@@ -131,6 +133,7 @@ import type {
     ApiAppStateAdminOverviewResponse,
     ApiAppStateHistoryResponse,
 } from '../ee/apps/appState';
+import type { AppClarifyResult } from '../ee/apps/types';
 import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { ApiScimRequestLogListResponse } from '../ee/scim/requestLogs';
 import type { ApiQueryCostEstimateResponse } from '../utils/queryCostEstimate';
@@ -190,6 +193,7 @@ import {
     type ApiAwsWebIdentityResponse,
 } from './awsWebIdentity';
 import { type BigqueryProjectRecommendation } from './bigQuerySSO';
+import { type ApiBillingPortalLinkResponse } from './billing';
 import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
@@ -210,6 +214,8 @@ import {
     type ApiAlertAsCodeUpsertResponse,
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
+    type ApiComposerChartAsCodeListResponse,
+    type ApiComposerChartAsCodeUpsertResponse,
     type ApiContentAsCodeProposeResponse,
     type ApiContentAsCodePullResponse,
     type ApiContentAsCodeSettingsResponse,
@@ -481,6 +487,12 @@ import {
     type ApiSemanticLayerDraftResponse,
     type ApiSemanticLayerDraftStateResponse,
     type ApiSemanticLayerDraftUsageResponse,
+    type ApiSemanticStudioCheckoutResponse,
+    type ApiSemanticStudioSourceFileResponse,
+    type ApiSemanticStudioSourceSaveResponse,
+    type ApiSemanticStudioSourcesResponse,
+    type ApiSemanticStudioWorkspaceResponse,
+    type ApiSemanticStudioWorkspacesResponse,
 } from './semanticStudio';
 import { type ShareUrl } from './share';
 import { type SharedSignInStatus } from './sharedSignIn';
@@ -881,6 +893,7 @@ export type HealthState = {
     hasHeadlessBrowser: boolean;
     hasManagedAnalytics?: boolean;
     hasExtendedUsageAnalytics: boolean;
+    /** @deprecated Always false. Autocomplete caching follows each project's results cache setting. */
     hasCacheAutocompleResults: boolean;
     appearance: {
         overrideColorPalette: string[] | undefined;
@@ -907,6 +920,8 @@ export type HealthState = {
         isAmbientAiEnabled: boolean;
         threadDumpEnabled: boolean;
         fastDecisionsEnabled: boolean;
+        /** Instance can turn recorded speech into text (Voice Design). */
+        voiceTranscriptionAvailable: boolean;
     };
     echarts6: {
         enabled: boolean;
@@ -922,6 +937,9 @@ export type HealthState = {
         enabled: boolean;
     };
     dashboardComments: {
+        enabled: boolean;
+    };
+    mergeQueryAuthoring: {
         enabled: boolean;
     };
     preAggregates: {
@@ -1458,6 +1476,7 @@ type ApiResults =
     | ApiQueryCostEstimateResponse['results']
     | ApiAppStateAdminOverviewResponse['results']
     | ApiAppStateHistoryResponse['results']
+    | AppClarifyResult
     | ReleaseHighlightsResult
     | AgentConnectionApprovalReviewResponse['results']
     | AgentConnectionApprovalDecisionResponse['results']
@@ -1580,6 +1599,7 @@ type ApiResults =
     | ApiRoadmapResponse['results']
     | ApiRoadmapProjectResponse['results']
     | ApiRoadmapFollowProjectResponse['results']
+    | ApiBillingPortalLinkResponse['results']
     | ChartHistory
     | ChartVersion
     | DashboardHistory
@@ -1604,6 +1624,7 @@ type ApiResults =
     | Array<LinearTeam>
     | Array<LinearProject>
     | CiChecks
+    | ApiAiWritebackRunStatusResponse['results']
     | MergePullRequestResult
     | ClosePullRequestResult
     | { diff: string }
@@ -1692,6 +1713,8 @@ type ApiResults =
     | ApiAlertAsCodeUpsertResponse['results']
     | ApiChartAsCodeListResponse['results']
     | ApiSqlChartAsCodeListResponse['results']
+    | ApiComposerChartAsCodeListResponse['results']
+    | ApiComposerChartAsCodeUpsertResponse['results']
     | ApiDashboardAsCodeListResponse['results']
     | ApiGoogleSheetsSyncAsCodeListResponse['results']
     | ApiGoogleSheetsSyncAsCodeUpsertResponse['results']
@@ -1854,6 +1877,7 @@ type ApiResults =
     | ApiPromoteAppDiffResponse['results']
     | ApiPreviewTokenResponse['results']
     | ApiAppImageUploadResponse['results']
+    | ApiCaptureTranscriptResponse['results']
     | ApiAppThumbnailUrlResponse['results']
     | ApiOrganizationDesignResponse['results']
     | ApiOrganizationDesignsResponse['results']
@@ -1895,6 +1919,12 @@ type ApiResults =
     | ApiSemanticLayerDraftResponse['results']
     | ApiSemanticLayerDraftedModelsResponse['results']
     | ApiSemanticLayerDraftStateResponse['results']
+    | ApiSemanticStudioWorkspacesResponse['results']
+    | ApiSemanticStudioCheckoutResponse['results']
+    | ApiSemanticStudioSourcesResponse['results']
+    | ApiSemanticStudioSourceFileResponse['results']
+    | ApiSemanticStudioSourceSaveResponse['results']
+    | ApiSemanticStudioWorkspaceResponse['results']
     | ApiSemanticLayerDraftApplyResponse['results']
     | ApiSemanticLayerDraftImpactResponse['results']
     | ApiSemanticLayerDraftUsageResponse['results'];

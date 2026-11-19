@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { Button } from '@mantine/core';
 import { screen, waitFor } from '@testing-library/react';
 import { createPortal } from 'react-dom';

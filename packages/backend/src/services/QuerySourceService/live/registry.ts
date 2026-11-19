@@ -1,0 +1,61 @@
+import {
+    ApiConnectorType,
+    assertUnreachable,
+    type ExternalConnectionApiSource,
+} from '@lightdash/common';
+import { attioIntegration } from './integrations/attio';
+import { ga4Integration } from './integrations/ga4';
+import { githubIntegration } from './integrations/github';
+import { googleAdsIntegration } from './integrations/googleAds';
+import { linkedInAdsIntegration } from './integrations/linkedInAds';
+import { metaAdsIntegration } from './integrations/metaAds';
+import { postHogIntegration } from './integrations/postHog';
+import { pylonIntegration } from './integrations/pylon';
+import { searchConsoleIntegration } from './integrations/searchConsole';
+import { youtubeAnalyticsIntegration } from './integrations/youtubeAnalytics';
+import { type LiveIntegration } from './types';
+
+/** One entry per integration; a missing one fails typecheck. */
+const LIVE_INTEGRATIONS: {
+    [C in ApiConnectorType]: LiveIntegration<C>;
+} = {
+    [ApiConnectorType.GA4]: ga4Integration,
+    [ApiConnectorType.SEARCH_CONSOLE]: searchConsoleIntegration,
+    [ApiConnectorType.POSTHOG]: postHogIntegration,
+    [ApiConnectorType.META_ADS]: metaAdsIntegration,
+    [ApiConnectorType.GOOGLE_ADS]: googleAdsIntegration,
+    [ApiConnectorType.YOUTUBE_ANALYTICS]: youtubeAnalyticsIntegration,
+    [ApiConnectorType.LINKEDIN_ADS]: linkedInAdsIntegration,
+    [ApiConnectorType.GITHUB]: githubIntegration,
+    [ApiConnectorType.PYLON]: pylonIntegration,
+    [ApiConnectorType.ATTIO]: attioIntegration,
+};
+
+export const getLiveIntegration = (
+    connector: ApiConnectorType,
+): LiveIntegration => {
+    if (!Object.hasOwn(LIVE_INTEGRATIONS, connector)) {
+        return assertUnreachable(connector as never, 'Unknown api connector');
+    }
+    // Reached by the source's own connector, so its settings always match
+    return LIVE_INTEGRATIONS[connector] as unknown as LiveIntegration;
+};
+
+/** A stored shape no integration understands reads as null. */
+export const parseStoredApiSource = (
+    value: unknown,
+): ExternalConnectionApiSource | null => {
+    if (
+        typeof value !== 'object' ||
+        value === null ||
+        !('connector' in value)
+    ) {
+        return null;
+    }
+    const connector = value.connector as ApiConnectorType;
+    if (!Object.hasOwn(LIVE_INTEGRATIONS, connector)) {
+        return null;
+    }
+    const parsed = getLiveIntegration(connector).settings.safeParse(value);
+    return parsed.success ? parsed.data : null;
+};

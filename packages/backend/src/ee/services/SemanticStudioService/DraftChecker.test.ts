@@ -120,6 +120,30 @@ describe('DraftChecker.compile', () => {
         expect(compiles.count).toBe(1);
     });
 
+    test("a model's pre-aggregates stay on its explore", async () => {
+        const document = `${model('orders')}metrics:
+  order_count:
+    type: count
+    sql: \${TABLE}.id
+pre_aggregates:
+  - name: by_id
+    dimensions:
+      - id
+    metrics:
+      - order_count
+`;
+        const { explores } = await checker().compile(
+            'project',
+            new Map([['orders', document]]),
+        );
+        const [orders] = explores;
+        expect(
+            'preAggregates' in orders
+                ? orders.preAggregates?.map(({ name }) => name)
+                : orders,
+        ).toEqual(['by_id']);
+    });
+
     test('changed documents compile again, and a failed compile is not kept', async () => {
         const drafts = checker();
         await drafts.compile('project', new Map([['orders', model('orders')]]));

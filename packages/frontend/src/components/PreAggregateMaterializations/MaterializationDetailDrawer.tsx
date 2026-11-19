@@ -54,7 +54,7 @@ const TRIGGER_LABELS: Record<string, string> = {
 };
 
 const DetailLabel: FC<{ children: React.ReactNode }> = ({ children }) => (
-    <Text fz="xs" c="dimmed" fw={600} tt="uppercase" lts={0.5}>
+    <Text fz="xs" c="dimmed" fw={500}>
         {children}
     </Text>
 );

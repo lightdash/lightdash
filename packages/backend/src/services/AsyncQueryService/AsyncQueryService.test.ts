@@ -19,9 +19,11 @@ import {
     CustomDimensionType,
     DashboardTileTypes,
     DatabricksAuthenticationType,
+    DateGranularity,
     DbtProjectType,
     DimensionType,
     DownloadFileType,
+    DuckdbConnectionType,
     DuckdbExecutionSpec,
     ExecuteAsyncQueryRequestParams,
     ExploreType,
@@ -81,9 +83,12 @@ import {
     type AgentIdentityClaim,
     type AuthType,
     type CaslSubjectNames,
+    type ComposerChart,
     type CreateBigqueryCredentials,
+    type CreateEmbedJwt,
     type DashboardParameterControl,
     type Document,
+    type DocumentExploreChartContent,
     type DocumentQueryReference,
     type Explore,
     type ItemsMap,
@@ -93,6 +98,7 @@ import {
     type MergeTypedColumn,
     type MetricQuery,
     type ParameterDefinitions,
+    type ParametersValuesMap,
     type PivotConfiguration,
     type ProjectDefaults,
     type RegisteredAccount,
@@ -140,7 +146,6 @@ import { setupGrantAuthentication } from '../../controllers/authentication/agent
 import { allowApiKeyAuthentication } from '../../controllers/authentication/middlewares';
 import { AiAccessController } from '../../controllers/v2/AiAccessController';
 import { QueryController } from '../../controllers/v2/QueryController';
-import { AiDeepResearchController } from '../../ee/controllers/AiDeepResearchController';
 import type { DbAiDeepResearchRun } from '../../ee/database/entities/aiDeepResearch';
 import type { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import { buildPreAggregateExplore } from '../../ee/preAggregates/buildPreAggregateExplore';
@@ -191,7 +196,10 @@ import {
     withResultsCacheConfig,
 } from '../../models/ProjectModel/ProjectModel.mock';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
-import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
+import {
+    QueryHistoryModel,
+    QueryPollingTimeoutError,
+} from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { RefreshTokenLockTimeoutError } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
 import type { SavedChartModel } from '../../models/SavedChartModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
@@ -253,12 +261,15 @@ import {
     cacheMiss,
     MissCacheResult,
 } from '../CacheService/types';
+import { ComposerRunBinding } from '../ComposerChartService/ComposerRunBinding';
+import { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 import { DocumentService } from '../DocumentService/DocumentService';
 import { OrganizationAccessService } from '../OrganizationAccessService/OrganizationAccessService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import * as analyticsClient from '../ProjectService/analyticsProject/analyticsProjectClient';
+import { developmentView } from '../ProjectService/developmentView';
 import { mergePersonalWarehouseCredentials } from '../ProjectService/personalWarehouseCredentials';
 import { type CheckGoogleRefreshToken } from '../ProjectService/previewBigquerySsoCredentials';
 import type { ProjectService } from '../ProjectService/ProjectService';
@@ -279,7 +290,7 @@ import {
     tablesConfiguration,
     validExplore,
 } from '../ProjectService/ProjectService.mock';
-import { buildApiSourceExplores } from '../QuerySourceService/api/apiSourceExplores';
+import { buildLiveExplores } from '../QuerySourceService/live/explores/build';
 import { QuerySourceRegistry } from '../QuerySourceService/QuerySourceRegistry';
 import { QuerySourceService } from '../QuerySourceService/QuerySourceService';
 import { SemanticLayerQuerySource } from '../QuerySourceService/sources/SemanticLayerQuerySource';
@@ -309,14 +320,54 @@ import {
     type PreAggregateExecutionResolution,
     type PreAggregateStrategy,
 } from './PreAggregateStrategy';
-import type {
-    DownloadAsyncQueryResultsArgs,
-    ExecuteAsyncQueryReturn,
-    RunAsyncWarehouseQueryArgs,
-    RunDuckdbQueryArgs,
+import {
+    getSchedulerPollingOptions,
+    type DownloadAsyncQueryResultsArgs,
+    type ExecuteAsyncQueryReturn,
+    type ExecuteAsyncSavedChartQueryArgs,
+    type RunAsyncWarehouseQueryArgs,
+    type RunDuckdbQueryArgs,
 } from './types';
 
 const projectUuid = '11111111-1111-4111-8111-111111111111';
+
+const sharedLiveCache = {
+    scope: { kind: 'source' as const },
+    ttlSeconds: 60,
+    purgedAt: null,
+};
+
+/** Project result-cache settings; live reuse needs caching on. */
+const projectCacheSettings = (cacheEnabled: boolean) => ({
+    cacheEnabled,
+    cacheEnabledSetByInstance: false,
+    cacheTtlSeconds: null,
+    cacheGeneration: 0,
+    lastInvalidatedAt: null,
+    clearCron: null,
+    clearNextRunAt: null,
+    schedulerTimezone: 'UTC',
+});
+
+/** A finished live result as query history keeps it. */
+const storedLiveResult = (resultsCreatedAt: Date) => {
+    const queryHistory = {
+        status: QueryHistoryStatus.READY,
+        createdAt: resultsCreatedAt,
+        warehouseExecutionTimeMs: 254,
+        totalRowCount: 3,
+        resultsFileName: 'api-results.jsonl',
+        resultsCreatedAt,
+        resultsUpdatedAt: resultsCreatedAt,
+        resultsExpiresAt: null,
+        columns: null,
+    };
+    return {
+        queryUuid: 'earlier-uuid',
+        queryHistory,
+        ...queryHistory,
+    };
+};
 
 const noOpStrategy = new NoOpPreAggregateStrategy();
 
@@ -598,6 +649,13 @@ const getMockedAsyncQueryService = (
                 }),
                 getChart: DocumentService.prototype.getChart,
             }) as DocumentService,
+        getComposerChartService: () => ({
+            assertCanView: vi
+                .fn()
+                .mockRejectedValue(
+                    new NotFoundError('Composer chart not found'),
+                ),
+        }),
         getQuerySourceService: () => {
             querySourceService ??= new QuerySourceService({
                 analytics: analyticsMock,
@@ -1133,6 +1191,201 @@ describe('underlying data dimension selection', () => {
             );
         },
     );
+});
+
+const buildEmbedAccount = () => {
+    const account = fromJwt({
+        decodedToken: defaultJwtToken,
+        embed: {
+            projectUuid,
+            organization: {
+                organizationUuid: projectSummary.organizationUuid,
+                name: 'Test Organization',
+                createdAt: new Date('2024-01-01'),
+            },
+            encodedSecret: 'test-encoded-secret',
+            dashboardUuids: [],
+            allowAllDashboards: true,
+            chartUuids: [],
+            allowAllCharts: true,
+            allowAllApps: false,
+            appUuids: [],
+            createdAt: '2024-01-01',
+            user: null,
+        },
+        source: 'test-jwt-token',
+        content: {
+            type: 'dashboard',
+            dashboardUuid: 'test-dashboard-uuid',
+            chartUuids: [],
+            explores: [],
+        },
+        userAttributes: { userAttributes: {}, intrinsicUserAttributes: {} },
+    });
+    account.user.ability = new Ability<PossibleAbilities>([
+        { action: 'manage', subject: 'all' },
+    ]);
+    account.access.parameters = {
+        enabled: true,
+        allowedParameters: ['region'],
+        values: { currency: 'GBP' },
+    };
+    return account;
+};
+
+describe('underlying data parameters', () => {
+    const runUnderlyingData = async (
+        account: Account,
+        sourceParameters: ParametersValuesMap | undefined,
+    ) => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.mocked(service.queryHistoryModel.get).mockResolvedValue({
+            queryUuid: 'source-query',
+            metricQuery: metricQueryMock,
+            fields: {},
+            requestParameters: { parameters: sourceParameters },
+            usedParameters: null,
+        } as unknown as QueryHistory);
+        // Stops the run once the parameters are resolved
+        const combineParameters = vi
+            .spyOn(service, 'combineParameters')
+            .mockRejectedValue(new Error('parameters resolved'));
+        await expect(
+            service.executeAsyncUnderlyingDataQuery({
+                account,
+                projectUuid,
+                underlyingDataSourceQueryUuid: 'source-query',
+                context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                filters: {},
+                parameters: { region: 'APAC', currency: 'USD' },
+            }),
+        ).rejects.toThrow('parameters resolved');
+        return combineParameters.mock.calls[0][2];
+    };
+
+    it('runs an embed drill-down with its source values under the token fixed values', async () => {
+        expect(
+            await runUnderlyingData(buildEmbedAccount(), {
+                region: 'UK',
+                currency: 'USD',
+            }),
+        ).toEqual({ region: 'UK', currency: 'GBP' });
+    });
+
+    it('adds a token fixed value the source query did not record', async () => {
+        expect(
+            await runUnderlyingData(buildEmbedAccount(), { region: 'UK' }),
+        ).toEqual({ region: 'UK', currency: 'GBP' });
+    });
+
+    it('applies the token fixed values to the request when the source recorded none', async () => {
+        expect(await runUnderlyingData(buildEmbedAccount(), undefined)).toEqual(
+            { region: 'APAC', currency: 'GBP' },
+        );
+    });
+
+    it('leaves the parameters of a data app token as sent', async () => {
+        const account = buildEmbedAccount();
+        account.access.content = {
+            type: 'dataApp',
+            appUuid: 'app-uuid',
+            chartUuids: [],
+            explores: [],
+        };
+        expect(await runUnderlyingData(account, { region: 'UK' })).toEqual({
+            region: 'APAC',
+            currency: 'USD',
+        });
+    });
+
+    it('leaves the parameters of a signed-in user as sent', async () => {
+        const account = buildAccount();
+        account.user.ability = new Ability<PossibleAbilities>([
+            { action: 'manage', subject: 'all' },
+        ]);
+        expect(await runUnderlyingData(account, { region: 'UK' })).toEqual({
+            region: 'APAC',
+            currency: 'USD',
+        });
+    });
+});
+
+describe('Explore metric query parameters', () => {
+    const runMetricQuery = async (
+        account: Account,
+        parameters: ParametersValuesMap,
+    ) => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.spyOn(
+            service as AnyType,
+            'assertCustomSqlAuthorizedForQuery',
+        ).mockResolvedValue(undefined);
+        const run = vi
+            .spyOn(
+                service as AnyType,
+                'runAsyncMetricQueryWithoutPermissionCheck',
+            )
+            .mockResolvedValue({ queryUuid: 'query-uuid' });
+        await service.executeAsyncMetricQuery({
+            account,
+            projectUuid,
+            metricQuery: metricQueryMock,
+            context: QueryExecutionContext.EXPLORE,
+            parameters,
+        });
+        return (run.mock.calls[0][0] as { parameters: ParametersValuesMap })
+            .parameters;
+    };
+
+    it('replaces a viewer value the token fixes', async () => {
+        const account = buildEmbedAccount();
+        account.access.parameters = {
+            enabled: true,
+            allowedParameters: [],
+            values: { tenant: 'acme' },
+        };
+        expect(await runMetricQuery(account, { tenant: 'other' })).toEqual({
+            tenant: 'acme',
+        });
+    });
+
+    it('keeps a viewer value the token allows', async () => {
+        expect(
+            await runMetricQuery(buildEmbedAccount(), {
+                region: 'APAC',
+                currency: 'USD',
+            }),
+        ).toEqual({ region: 'APAC', currency: 'GBP' });
+    });
+
+    it('keeps values the token does not fix when parameter interactivity is off', async () => {
+        const account = buildEmbedAccount();
+        account.access.parameters = {
+            enabled: false,
+            values: { currency: 'GBP' },
+        };
+        expect(
+            await runMetricQuery(account, { region: 'APAC', currency: 'USD' }),
+        ).toEqual({ region: 'APAC', currency: 'GBP' });
+    });
+
+    it('leaves the values of a token without parameter rules as sent', async () => {
+        const account = buildEmbedAccount();
+        account.access.parameters = undefined;
+        expect(
+            await runMetricQuery(account, { region: 'APAC', currency: 'USD' }),
+        ).toEqual({ region: 'APAC', currency: 'USD' });
+    });
+
+    it('leaves the parameters of a signed-in user as sent', async () => {
+        const account = buildAccount();
+        account.user.ability = new Ability<PossibleAbilities>([
+            { action: 'manage', subject: 'all' },
+        ]);
+        expect(
+            await runMetricQuery(account, { region: 'APAC', currency: 'USD' }),
+        ).toEqual({ region: 'APAC', currency: 'USD' });
+    });
 });
 
 describe('AsyncQueryService', () => {
@@ -1841,18 +2094,9 @@ describe('AsyncQueryService', () => {
                 onboardingModel: onboarding,
                 queryHistoryModel: {
                     create: vi.fn(async () => ({ queryUuid: 'api-uuid' })),
-                    findMostRecentByCacheKey: vi.fn(async () => ({
-                        queryHistory: {
-                            status: QueryHistoryStatus.READY,
-                            warehouseExecutionTimeMs: 254,
-                        },
-                        totalRowCount: 3,
-                        resultsFileName: 'api-results.jsonl',
-                        resultsCreatedAt: now,
-                        resultsUpdatedAt: now,
-                        resultsExpiresAt: null,
-                        columns: null,
-                    })),
+                    findMostRecentByCacheKey: vi.fn(async () =>
+                        storedLiveResult(now),
+                    ),
                     recordResultProducer: vi.fn(),
                     update: vi.fn(),
                 } as unknown as QueryHistoryModel,
@@ -1866,9 +2110,9 @@ describe('AsyncQueryService', () => {
                 projectUuid,
                 context: QueryExecutionContext.AI,
                 connectionUuid: 'connection-uuid',
-                connector: {
-                    describe: () => ({ connector: 'posthog' }),
-                    execute: vi.fn(),
+                source: {
+                    integration: { connector: 'posthog' },
+                    cache: sharedLiveCache,
                     usage: () => ({
                         apiCalls: 0,
                         responseBytes: 0,
@@ -1980,18 +2224,9 @@ describe('AsyncQueryService', () => {
                 } as unknown as FeatureFlagModel,
                 queryHistoryModel: {
                     create: vi.fn(async () => ({ queryUuid: 'api-uuid' })),
-                    findMostRecentByCacheKey: vi.fn(async () => ({
-                        queryHistory: {
-                            status: QueryHistoryStatus.READY,
-                            warehouseExecutionTimeMs: 254,
-                        },
-                        totalRowCount: 3,
-                        resultsFileName: 'api-results.jsonl',
-                        resultsCreatedAt: now,
-                        resultsUpdatedAt: now,
-                        resultsExpiresAt: null,
-                        columns: null,
-                    })),
+                    findMostRecentByCacheKey: vi.fn(async () =>
+                        storedLiveResult(now),
+                    ),
                     recordResultProducer: vi.fn(),
                     update: vi.fn(),
                 } as unknown as QueryHistoryModel,
@@ -2000,15 +2235,19 @@ describe('AsyncQueryService', () => {
                 userAttributes: {},
                 intrinsicUserAttributes: {},
             });
+            vi.spyOn(
+                service.projectModel,
+                'getResultsCacheSettings',
+            ).mockResolvedValue(projectCacheSettings(true));
 
             await service.executeAsyncApiQuery({
                 account: sessionAccount,
                 projectUuid,
                 context: QueryExecutionContext.AI,
                 connectionUuid: 'connection-uuid',
-                connector: {
-                    describe: () => ({ connector: 'posthog' }),
-                    execute: vi.fn(),
+                source: {
+                    integration: { connector: 'posthog' },
+                    cache: sharedLiveCache,
                     usage: () => ({
                         apiCalls: 0,
                         responseBytes: 0,
@@ -2031,9 +2270,176 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    describe('live data source result sharing', () => {
+        const setup = ({
+            latest,
+            cache = sharedLiveCache,
+            projectCacheEnabled = true,
+        }: {
+            latest: ReturnType<typeof storedLiveResult> | null;
+            cache?: Record<string, unknown>;
+            projectCacheEnabled?: boolean;
+        }) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                queryHistoryModel: {
+                    create: vi.fn(async () => ({ queryUuid: 'api-uuid' })),
+                    findMostRecentByCacheKey: vi.fn(async () => latest),
+                    updateStatusToError: vi.fn(),
+                    recordResultProducer: vi.fn(),
+                    update: vi.fn(),
+                } as unknown as QueryHistoryModel,
+            } as never);
+            vi.spyOn(service, 'getUserAttributes').mockResolvedValue({
+                userAttributes: {},
+                intrinsicUserAttributes: {},
+            });
+            vi.spyOn(
+                service.projectModel,
+                'getResultsCacheSettings',
+            ).mockResolvedValue(projectCacheSettings(projectCacheEnabled));
+            const runLiveQuery = vi.fn(async () => undefined);
+            (service as AnyType).runLiveQuery = runLiveQuery;
+            const source = {
+                integration: {
+                    connector: 'posthog',
+                    limits: { timeoutMs: 1_000, callsPerQuery: 1 },
+                },
+                cache,
+                usage: () => ({
+                    apiCalls: 0,
+                    responseBytes: 0,
+                    providerStatus: null,
+                }),
+                logCall: vi.fn(async () => undefined),
+            };
+            const submit = (invalidateCache = false) =>
+                (service as AnyType).submitLiveQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    organizationUuid: 'org-uuid',
+                    source,
+                    payload: { kind: 'query', query: '{}' },
+                    limit: 10,
+                    cacheKeySql: '{"connectionUuid":"c","compiled":{}}',
+                    context: QueryExecutionContext.EXPLORE,
+                    querySurface: undefined,
+                    invalidateCache,
+                    history: {
+                        fields: {},
+                        requestParameters: {},
+                        metricQuery: {},
+                        explore: null,
+                    },
+                    toResult: vi.fn(),
+                });
+            return { service, source, runLiveQuery, submit };
+        };
+
+        test('keys a shared-credential source on the request alone, so every viewer shares results', async () => {
+            const { service, submit } = setup({ latest: null });
+            await submit();
+            expect(
+                service.queryHistoryModel.findMostRecentByCacheKey,
+            ).toHaveBeenCalledWith(
+                QueryHistoryModel.getCacheKey(projectUuid, {
+                    sql: '{"connectionUuid":"c","compiled":{}}',
+                    userUuid: null,
+                }),
+                projectUuid,
+                expect.anything(),
+            );
+        });
+
+        test('keeps results per viewer for a source that queries as each viewer', async () => {
+            const { service, submit } = setup({
+                latest: null,
+                cache: {
+                    ...sharedLiveCache,
+                    scope: { kind: 'viewer', userUuid: 'viewer-1' },
+                },
+            });
+            await submit();
+            expect(
+                service.queryHistoryModel.findMostRecentByCacheKey,
+            ).toHaveBeenCalledWith(
+                QueryHistoryModel.getCacheKey(projectUuid, {
+                    sql: '{"connectionUuid":"c","compiled":{}}',
+                    userUuid: 'viewer-1',
+                }),
+                projectUuid,
+                expect.anything(),
+            );
+        });
+
+        test('answers from fresh shared rows without calling the integration', async () => {
+            const { service, source, runLiveQuery, submit } = setup({
+                latest: storedLiveResult(new Date()),
+            });
+            const { reusable } = await submit();
+            expect(reusable).toMatchObject({
+                resultsFileName: 'api-results.jsonl',
+            });
+            expect(runLiveQuery).not.toHaveBeenCalled();
+            expect(source.logCall).toHaveBeenCalledWith(
+                expect.objectContaining({ cacheHit: true }),
+            );
+            expect(service.queryHistoryModel.update).toHaveBeenCalledWith(
+                'api-uuid',
+                projectUuid,
+                expect.objectContaining({
+                    status: QueryHistoryStatus.READY,
+                    results_file_name: 'api-results.jsonl',
+                }),
+                sessionAccount,
+            );
+        });
+
+        test('fetches again once rows are older than the source window', async () => {
+            const { runLiveQuery, submit } = setup({
+                latest: storedLiveResult(new Date(Date.now() - 120_000)),
+                cache: { ...sharedLiveCache, ttlSeconds: 60 },
+            });
+            await submit();
+            expect(runLiveQuery).toHaveBeenCalledTimes(1);
+        });
+
+        test('fetches again after the source cache is purged', async () => {
+            const { runLiveQuery, submit } = setup({
+                latest: storedLiveResult(new Date(Date.now() - 5_000)),
+                cache: { ...sharedLiveCache, purgedAt: new Date() },
+            });
+            await submit();
+            expect(runLiveQuery).toHaveBeenCalledTimes(1);
+        });
+
+        test('calls the integration every time while the project caches no results', async () => {
+            const { service, runLiveQuery, submit } = setup({
+                latest: storedLiveResult(new Date()),
+                projectCacheEnabled: false,
+            });
+            const { reusable } = await submit();
+            expect(reusable).toBeNull();
+            expect(
+                service.queryHistoryModel.findMostRecentByCacheKey,
+            ).not.toHaveBeenCalled();
+            expect(runLiveQuery).toHaveBeenCalledTimes(1);
+        });
+
+        test('a forced refresh skips fresh rows', async () => {
+            const { service, runLiveQuery, submit } = setup({
+                latest: storedLiveResult(new Date()),
+            });
+            await submit(true);
+            expect(
+                service.queryHistoryModel.findMostRecentByCacheKey,
+            ).not.toHaveBeenCalled();
+            expect(runLiveQuery).toHaveBeenCalledTimes(1);
+        });
+    });
+
     describe('metric queries on live data source explores', () => {
         const CONNECTION_UUID = '03386598-7a51-45b2-b1f9-5ef55bd09016';
-        const [apiExplore] = buildApiSourceExplores({
+        const [apiExplore] = buildLiveExplores({
             connectionUuid: CONNECTION_UUID,
             sourceName: 'ga4_03386598',
             name: 'Marketing site',
@@ -2054,10 +2460,12 @@ describe('AsyncQueryService', () => {
         };
 
         const setup = (composer: Partial<QueryComposer> = {}) => {
-            const connector = { describe: vi.fn() };
-            const getApiSourceConnector = vi.fn(async () => connector);
+            const source = {
+                integration: { label: 'GA4', limits: { maxRows: 100000 } },
+            };
+            const getLiveSourceForExplore = vi.fn(async () => source);
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                getApiSourceConnector,
+                getLiveSourceForExplore,
                 featureFlagModel: {
                     get: vi.fn(async ({ featureFlagId }) => ({
                         id: featureFlagId,
@@ -2066,11 +2474,11 @@ describe('AsyncQueryService', () => {
                 } as unknown as FeatureFlagModel,
             } as never);
             (service as AnyType).assertOrganizationNotBlocked = vi.fn();
-            const submitApiQuery = vi.fn(async () => ({
+            const submitLiveQuery = vi.fn(async () => ({
                 queryUuid: 'live-query-uuid',
                 reusable: null,
             }));
-            (service as AnyType).submitApiQuery = submitApiQuery;
+            (service as AnyType).submitLiveQuery = submitLiveQuery;
             const queryComposer = {
                 ...createQueryComposerMock({
                     explore: apiExplore,
@@ -2093,18 +2501,18 @@ describe('AsyncQueryService', () => {
                 );
             return {
                 execute,
-                getApiSourceConnector,
-                connector,
-                submitApiQuery,
+                getLiveSourceForExplore,
+                source,
+                submitLiveQuery,
             };
         };
 
         test('answers the query with one request to the integration instead of the warehouse', async () => {
             const {
                 execute,
-                getApiSourceConnector,
-                connector,
-                submitApiQuery,
+                getLiveSourceForExplore,
+                source,
+                submitLiveQuery,
             } = setup();
 
             await expect(execute()).resolves.toEqual({
@@ -2116,13 +2524,13 @@ describe('AsyncQueryService', () => {
                 },
             });
 
-            expect(getApiSourceConnector).toHaveBeenCalledExactlyOnceWith(
+            expect(getLiveSourceForExplore).toHaveBeenCalledExactlyOnceWith(
                 sessionAccount,
                 projectUuid,
                 CONNECTION_UUID,
             );
-            const [[submitted]] = submitApiQuery.mock.calls as AnyType;
-            expect(submitted.connector).toBe(connector);
+            const [[submitted]] = submitLiveQuery.mock.calls as AnyType;
+            expect(submitted.source).toBe(source);
             expect(JSON.parse(submitted.payload.query)).toMatchObject({
                 dimensions: [{ name: 'sessionDefaultChannelGroup' }],
                 metrics: [{ name: 'sessions' }],
@@ -2141,11 +2549,11 @@ describe('AsyncQueryService', () => {
         });
 
         test('passes the live explore so its results are fingerprinted like the read check', async () => {
-            const { execute, submitApiQuery } = setup();
+            const { execute, submitLiveQuery } = setup();
 
             await execute();
 
-            const [[submitted]] = submitApiQuery.mock.calls as AnyType;
+            const [[submitted]] = submitLiveQuery.mock.calls as AnyType;
             expect(submitted.history.explore).toBe(apiExplore);
         });
 
@@ -2159,6 +2567,9 @@ describe('AsyncQueryService', () => {
                 } as unknown as QueryHistoryModel,
                 projectModel: {
                     getExploreFromCache: vi.fn(async () => apiExplore),
+                    getResultsCacheSettings: vi.fn(async () =>
+                        projectCacheSettings(true),
+                    ),
                 } as unknown as ProjectModel,
                 projectParametersModel: {
                     find: vi.fn(async () => []),
@@ -2172,14 +2583,17 @@ describe('AsyncQueryService', () => {
             (service as AnyType).isResultIdentityEnabled = vi.fn(
                 async () => true,
             );
-            (service as AnyType).runApiQuery = vi.fn(async () => undefined);
+            (service as AnyType).runLiveQuery = vi.fn(async () => undefined);
             const requestParameters = { query: apiMetricQuery };
 
-            await (service as AnyType).submitApiQuery({
+            await (service as AnyType).submitLiveQuery({
                 account: sessionAccount,
                 projectUuid,
                 organizationUuid: 'org-uuid',
-                connector: { describe: () => ({ connector: 'ga4' }) },
+                source: {
+                    integration: { connector: 'ga4' },
+                    cache: sharedLiveCache,
+                },
                 payload: { kind: 'query', query: '{}' },
                 limit: 10,
                 cacheKeySql: '{}',
@@ -2218,7 +2632,7 @@ describe('AsyncQueryService', () => {
         });
 
         test('refuses a pivot before calling the integration', async () => {
-            const { execute, getApiSourceConnector } = setup({
+            const { execute, getLiveSourceForExplore } = setup({
                 getPivotConfiguration: () => ({
                     indexColumn: undefined,
                     valuesColumns: [],
@@ -2228,7 +2642,7 @@ describe('AsyncQueryService', () => {
             } as never);
 
             await expect(execute()).rejects.toThrow(ParameterError);
-            expect(getApiSourceConnector).not.toHaveBeenCalled();
+            expect(getLiveSourceForExplore).not.toHaveBeenCalled();
         });
     });
 
@@ -5279,6 +5693,7 @@ describe('AsyncQueryService', () => {
                     parquetEnabled: false,
                     materializationMaxRows: null,
                     duckdbQueryMemoryLimit: null,
+                    duckdbWriteMemoryLimit: '256MB',
                 },
             });
             (service as AnyType).preAggregateStrategy = mockStrategy;
@@ -7099,6 +7514,7 @@ describe('AsyncQueryService', () => {
                               submission: [],
                               pivotConfiguration: null,
                               plan: null,
+                              authority: { kind: 'request' },
                           });
                 await expect(result).rejects.toThrow('Raw SQL');
                 expect(run).not.toHaveBeenCalled();
@@ -11642,6 +12058,58 @@ describe('AsyncQueryService', () => {
         );
     });
 
+    test('stores only attribution from the verified token on the async query', async () => {
+        const service = getMockedAsyncQueryService({
+            ...lightdashConfigMock,
+            usageEvents: { ...lightdashConfigMock.usageEvents, enabled: true },
+        });
+        const embed = buildEmbedAccount();
+        const account = {
+            ...embed,
+            authentication: {
+                ...embed.authentication,
+                data: {
+                    ...embed.authentication.data,
+                    user: { externalId: 'external-viewer' },
+                    userAttributes: { brand: 'brand-1', email: 'private' },
+                    usageAnalytics: { tenantAttribute: 'brand' },
+                },
+            },
+        };
+        const result = await service['createQueryHistory'](account, {
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            context: QueryExecutionContext.EMBED,
+            fields: {},
+            compiledSql: 'SELECT 1',
+            usedParameters: null,
+            metricQuery: metricQueryMock,
+            cacheKey: 'unchanged',
+            pivotConfiguration: null,
+            originalColumns: null,
+            requestParameters: {
+                query: metricQueryMock,
+                context: QueryExecutionContext.EXPLORE,
+                queryUsage: { embeddedUsage: { tenantId: 'forged' } } as never,
+            },
+        });
+        expect(result.queryUsage.embeddedUsage).toEqual({
+            externalUserId: 'external-viewer',
+            tenantAttribute: 'brand',
+            tenantId: 'brand-1',
+            tokenFingerprint: null,
+        });
+        expect(service.queryHistoryModel.create).toHaveBeenCalledWith(
+            account,
+            expect.objectContaining({
+                cacheKey: 'unchanged',
+                requestParameters: expect.objectContaining({
+                    queryUsage: result.queryUsage,
+                }),
+            }),
+        );
+    });
+
     test.each([false, true])(
         'terminal usage waits for upload and READY persistence (upload failure=%s)',
         async (uploadFails) => {
@@ -12410,6 +12878,67 @@ describe('AsyncQueryService', () => {
             displayTimezone: null,
         };
 
+        test('closes the result stream without failing a cancelled analytics query', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const close = vi.fn();
+            const write = vi.fn();
+            vi.mocked(
+                service.resultsStorageClient.createUploadStream,
+            ).mockReturnValue({
+                write,
+                close,
+                writeStream: new PassThrough(),
+            });
+            vi.mocked(
+                service.queryHistoryModel.getByQueryUuid,
+            ).mockResolvedValue(
+                createMockQueryHistory(QueryHistoryStatus.CANCELLED),
+            );
+            vi.spyOn(
+                service.warehouseClientFactory,
+                'resolveWarehouseCredentials',
+            ).mockResolvedValue({
+                warehouseCredentials: {
+                    type: WarehouseTypes.DUCKDB,
+                    connectionType: DuckdbConnectionType.ANALYTICS,
+                    database: 'memory',
+                    schema: 'main',
+                },
+                warehouseConnectionUuid: null,
+                connectionRoute: null,
+                aiPlan: null,
+                credentialKind: WarehouseCredentialKind.SHARED,
+            });
+            const executeAsyncQuery = vi.fn<
+                WarehouseClient['executeAsyncQuery']
+            >(async ({ isQueuedQueryCancelled }) => {
+                expect(await isQueuedQueryCancelled?.()).toBe(true);
+                throw new warehouses.AnalyticsQueryCancelledError();
+            });
+            const disconnect = vi.fn();
+            vi.spyOn(
+                service.warehouseClientFactory,
+                'acquireUnscoped',
+            ).mockResolvedValue({
+                warehouseClient: { ...warehouseClientMock, executeAsyncQuery },
+                sshTunnel: {
+                    disconnect,
+                } as unknown as SshTunnel<CreateWarehouseCredentials>,
+                tunnelConnectMs: null,
+            });
+
+            await service.runAsyncWarehouseQuery(args);
+
+            expect(executeAsyncQuery).toHaveBeenCalledOnce();
+            expect(disconnect).toHaveBeenCalledOnce();
+            expect(close).toHaveBeenCalledOnce();
+            expect(write).not.toHaveBeenCalled();
+            expect(service.queryHistoryModel.update).not.toHaveBeenCalled();
+            expect(
+                service.queryHistoryModel.updateStatusToError,
+            ).not.toHaveBeenCalled();
+        });
+
         test('stores the safe analytics message and logs the storage status', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             const error = new warehouses.AnalyticsQueryError(
@@ -12848,10 +13377,28 @@ describe('AsyncQueryService', () => {
                 markErrored,
                 runQueryAndTransformRows,
             } = setupGate(120_000_000_000);
+            const track = vi.spyOn(analyticsMock, 'track');
+            track.mockClear();
 
             await service.runAsyncWarehouseQuery(
                 runArgs(QueryExecutionContext.MCP_RUN_SQL),
             );
+
+            expect(track).toHaveBeenCalledWith({
+                userId: sessionAccount.user.id,
+                event: 'query_cost_estimate.agent_refused',
+                properties: {
+                    organizationId:
+                        sessionAccount.organization.organizationUuid,
+                    projectId: projectUuid,
+                    queryContext: QueryExecutionContext.MCP_RUN_SQL,
+                    queryUuid: 'gated-query-uuid',
+                    estimatedBytes: 120_000_000_000,
+                    limitBytes: 10_000_000_000,
+                    cacheHit: false,
+                    warehouseType: WarehouseTypes.BIGQUERY,
+                },
+            });
 
             expect(estimateQuery).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -12876,12 +13423,20 @@ describe('AsyncQueryService', () => {
             const { service, markErrored, runQueryAndTransformRows } =
                 setupGate(1_000_000);
 
+            const track = vi.spyOn(analyticsMock, 'track');
+            track.mockClear();
+
             await service.runAsyncWarehouseQuery(
                 runArgs(QueryExecutionContext.MCP_RUN_SQL),
             );
 
             expect(runQueryAndTransformRows).toHaveBeenCalledOnce();
             expect(markErrored).not.toHaveBeenCalled();
+            expect(track).not.toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'query_cost_estimate.agent_refused',
+                }),
+            );
         });
 
         test('does not dry-run queries from people', async () => {
@@ -12985,6 +13540,129 @@ describe('AsyncQueryService', () => {
                     context: QueryExecutionContext.DASHBOARD,
                 }),
             ).toBe(false);
+        });
+    });
+
+    describe('estimate telemetry for the explorer and SQL runner', () => {
+        const credentials = {
+            type: WarehouseTypes.BIGQUERY,
+            project: 'project',
+            dataset: 'dataset',
+            timeoutSeconds: undefined,
+            priority: undefined,
+            keyfileContents: {},
+            retries: undefined,
+            location: undefined,
+            maximumBytesBilled: undefined,
+            estimateQueryBytes: true,
+            confirmEstimatedBytesAbove: 1_000,
+        } satisfies CreateWarehouseCredentials;
+
+        type EstimateWithCredentials = (args: {
+            account: typeof sessionAccount;
+            organizationUuid: string;
+            projectUuid: string;
+            context: QueryExecutionContext;
+            sql: string;
+            warehouseCredentials: typeof credentials;
+            aiPlan: null;
+            warehouseConnectionUuid: null;
+            connectionRoute: null;
+        }) => Promise<unknown>;
+
+        const setup = (estimateQuery: ReturnType<typeof vi.fn>) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            vi.spyOn(
+                service.warehouseClientFactory,
+                'withWarehouseClient',
+            ).mockImplementation(async (_target, _context, callback) =>
+                callback({
+                    warehouseClient: {
+                        ...warehouseClientMock,
+                        credentials,
+                        estimateQuery,
+                    },
+                } as unknown as Parameters<typeof callback>[0]),
+            );
+            const trackAccount = vi.spyOn(analyticsMock, 'trackAccount');
+            trackAccount.mockClear();
+            const estimate = (
+                service as unknown as {
+                    estimateQueryCostWithCredentials: EstimateWithCredentials;
+                }
+            ).estimateQueryCostWithCredentials.bind(service);
+            return {
+                trackAccount,
+                run: (context: QueryExecutionContext) =>
+                    estimate({
+                        account: sessionAccount,
+                        organizationUuid:
+                            sessionAccount.organization.organizationUuid!,
+                        projectUuid,
+                        context,
+                        sql: 'SELECT secret_column FROM customer_table',
+                        warehouseCredentials: credentials,
+                        aiPlan: null,
+                        warehouseConnectionUuid: null,
+                        connectionRoute: null,
+                    }),
+            };
+        };
+
+        test('tracks an explorer estimate that requires confirmation', async () => {
+            const { run, trackAccount } = setup(
+                vi.fn(async () => ({ totalBytesProcessed: 5_000 })),
+            );
+
+            await expect(run(QueryExecutionContext.EXPLORE)).resolves.toEqual({
+                status: 'estimated',
+                totalBytesProcessed: 5_000,
+                confirmEstimatedBytesAbove: 1_000,
+                requiresConfirmation: true,
+            });
+            expect(trackAccount).toHaveBeenCalledWith(sessionAccount, {
+                event: 'query_cost_estimate.completed',
+                properties: {
+                    organizationId:
+                        sessionAccount.organization.organizationUuid,
+                    projectId: projectUuid,
+                    source: 'explorer',
+                    outcome: 'ok',
+                    estimatedBytes: 5_000,
+                    confirmEstimatedBytesAbove: 1_000,
+                    requiresConfirmation: true,
+                    cacheHit: false,
+                    dryRunDurationMs: expect.any(Number),
+                    warehouseType: WarehouseTypes.BIGQUERY,
+                },
+            });
+        });
+
+        test('tracks a failed SQL runner estimate and still returns the error', async () => {
+            const { run, trackAccount } = setup(
+                vi.fn(async () => {
+                    throw new WarehouseQueryError('Unrecognized name');
+                }),
+            );
+
+            await expect(
+                run(QueryExecutionContext.SQL_RUNNER),
+            ).resolves.toEqual({
+                status: 'error',
+                message: 'Unrecognized name',
+            });
+            expect(trackAccount).toHaveBeenCalledWith(
+                sessionAccount,
+                expect.objectContaining({
+                    event: 'query_cost_estimate.completed',
+                    properties: expect.objectContaining({
+                        source: 'sql_runner',
+                        outcome: 'error',
+                        cacheHit: false,
+                        estimatedBytes: null,
+                    }),
+                }),
+            );
         });
     });
 
@@ -14973,6 +15651,79 @@ describe('AsyncQueryService', () => {
             },
         );
 
+        describe('dashboard date zoom on a live data source tile', () => {
+            const [liveExplore] = buildLiveExplores({
+                connectionUuid: '03386598-7a51-45b2-b1f9-5ef55bd09016',
+                sourceName: 'ga4_03386598',
+                name: 'Marketing site',
+                apiSource: {
+                    connector: ApiConnectorType.GA4,
+                    propertyId: '123',
+                },
+                scannedFields: [],
+                edits: {},
+            });
+            const runZoomedTile = async (explore: Explore) => {
+                const { service, execute } = buildService();
+                service.getExploreWithUserAccessControls = vi
+                    .fn()
+                    .mockResolvedValue({
+                        explore,
+                        userAccessControls: {
+                            userAttributes: {},
+                            intrinsicUserAttributes: {},
+                        },
+                    });
+                const result = await service.executeAsyncDashboardChartQuery({
+                    account: viewer,
+                    projectUuid,
+                    tileUuid: 'tile-1',
+                    chartUuid: savedChart.uuid,
+                    dashboardUuid: 'dashboard-uuid',
+                    dashboardFilters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    dashboardSorts: [],
+                    dateZoom: { granularity: DateGranularity.MONTH },
+                    context: QueryExecutionContext.SCHEDULED_DELIVERY,
+                    invalidateCache: false,
+                    limit: undefined,
+                    parameters: undefined,
+                    pivotResults: false,
+                });
+                const internals = service as AnyType;
+                const [[prepared]] = vi.mocked(
+                    internals.prepareMetricQueryAsyncQueryArgs,
+                ).mock.calls as AnyType;
+                const [[, requestParameters]] = execute.mock.calls;
+                return { result, prepared, requestParameters };
+            };
+
+            test('keeps the saved grain instead of refusing the query', async () => {
+                const { result, prepared, requestParameters } =
+                    await runZoomedTile(liveExplore);
+
+                expect(prepared.dateZoom).toBeUndefined();
+                // Totals and reruns read the zoom back from the stored request
+                expect(requestParameters.dateZoom).toBeUndefined();
+                expect(result.dateZoomApplied).toBe(false);
+            });
+
+            test('still zooms a warehouse tile', async () => {
+                const { prepared, requestParameters } =
+                    await runZoomedTile(validExplore);
+
+                expect(prepared.dateZoom).toEqual({
+                    granularity: DateGranularity.MONTH,
+                });
+                expect(requestParameters.dateZoom).toEqual({
+                    granularity: DateGranularity.MONTH,
+                });
+            });
+        });
+
         describe('dashboard tile parameters', () => {
             const runTile = async ({
                 statusDefault,
@@ -15154,6 +15905,57 @@ describe('AsyncQueryService', () => {
                         dashboardControlsEnabled: true,
                         ...overrides,
                     });
+
+                test('a composer tile run with no app state takes its own control value', async () => {
+                    const service = buildService().service as AnyType;
+                    Object.assign(service, {
+                        dashboardModel: {
+                            getDashboardParameterStateByIdOrSlug: vi.fn(
+                                async () => ({
+                                    parameters: undefined,
+                                    parameterControls: sharedKeyControls,
+                                    spaceUuid: 'dashboard-space-uuid',
+                                }),
+                            ),
+                        },
+                        featureFlagModel: {
+                            get: vi.fn(async () => ({
+                                id: FeatureFlags.DashboardControls,
+                                enabled: true,
+                            })),
+                        },
+                        projectParametersModel: { find: vi.fn(async () => []) },
+                        projectModel: {
+                            findExploreContainingTable: vi.fn(async () => null),
+                        },
+                    });
+                    const tileContext = (tileUuid: string) =>
+                        service.getComposerTileContext({
+                            account: viewer,
+                            projectUuid,
+                            organizationUuid: 'organization-uuid',
+                            dashboardUuid: 'dashboard-uuid',
+                            tileUuid,
+                            dashboardFilters: {
+                                dimensions: [],
+                                metrics: [],
+                                tableCalculations: [],
+                            },
+                            chartSavedValues: { status: 'Cancelled' },
+                            parameters: undefined,
+                            excludedParameterKeys: undefined,
+                        });
+                    await expect(tileContext('tile-1')).resolves.toMatchObject({
+                        dashboardValues: { status: 'Shipped' },
+                    });
+                    await expect(tileContext('tile-2')).resolves.toMatchObject({
+                        dashboardValues: { status: 'Returned' },
+                    });
+                    await expect(tileContext('tile-3')).resolves.toMatchObject({
+                        dashboardValues: {},
+                        excludedKeys: ['status'],
+                    });
+                });
 
                 test('with the flag on, each tile runs with its own control value', async () => {
                     await expect(runControlledTile('tile-1')).resolves.toEqual({
@@ -15628,6 +16430,168 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    describe('executeAsyncSavedChartQuery with an unpublished draft', () => {
+        const account = {
+            ...sessionAccount,
+            user: {
+                ...sessionAccount.user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: ['view'] },
+                    { subject: 'SavedChart', action: ['view'] },
+                ]),
+            },
+        } as unknown as Account;
+
+        const publishedChart = {
+            uuid: 'savedChartUuid',
+            name: 'Published chart',
+            organizationUuid: projectSummary.organizationUuid,
+            projectUuid,
+            spaceUuid: 'spaceUuid',
+            tableName: validExplore.name,
+            metricQuery: metricQueryMock,
+            parameters: undefined,
+            pivotConfig: undefined,
+            chartConfig: { type: ChartType.CARTESIAN },
+            tableConfig: { columnOrder: [] },
+        };
+        const draftMetricQuery = { ...metricQueryMock, limit: 7 };
+        const draftChartConfig = { type: ChartType.TABLE };
+
+        const runWithDraft = async (
+            args: Pick<
+                ExecuteAsyncSavedChartQueryArgs,
+                'includeUnpublishedDraft' | 'versionUuid'
+            >,
+        ) => {
+            const findOpenDraft = vi.fn(async () => ({
+                uuid: 'draft-uuid',
+                draft: {
+                    metricQuery: draftMetricQuery,
+                    chartConfig: draftChartConfig,
+                    spaceUuid: 'draftedSpaceUuid',
+                },
+            }));
+            const resolveAccess = vi.fn(async () => ({
+                access: [],
+                inheritsFromOrgOrProject: true,
+            }));
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                spacePermissionService: {
+                    resolveAccess,
+                } as unknown as SpacePermissionService,
+                savedChartModel: {
+                    get: vi.fn(async () => publishedChart),
+                } as unknown as SavedChartModel,
+                analyticsModel: {
+                    addChartViewEvent: vi.fn(async () => {}),
+                } as unknown as AnalyticsModel,
+                contentDraftModel: {
+                    findOpenDraft,
+                } as unknown as ContentDraftModel,
+            } as never);
+            service['isResultIdentityEnabled'] = vi.fn(async () => false);
+            service.getExploreWithUserAccessControls = vi
+                .fn()
+                .mockResolvedValue({
+                    explore: validExplore,
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                });
+            (service as AnyType).getWarehouseCredentials = vi
+                .fn()
+                .mockResolvedValue(warehouseClientMock.credentials);
+            service.combineParameters = vi.fn().mockResolvedValue(undefined);
+            (service as AnyType).getMetricQueryFields = vi
+                .fn()
+                .mockResolvedValue({ fields: {} });
+            const prepareSpy = vi.fn().mockResolvedValue(
+                createQueryComposerMock({
+                    sql: 'SELECT 1',
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                    availableParameterDefinitions: {},
+                }),
+            );
+            (service as AnyType).prepareMetricQueryAsyncQueryArgs = prepareSpy;
+            service['executeAsyncQuery'] = vi.fn().mockResolvedValue({
+                queryUuid: 'queryUuid',
+                cacheMetadata: { cacheHit: false },
+            });
+
+            const result = await service.executeAsyncSavedChartQuery({
+                account,
+                projectUuid,
+                chartUuid: publishedChart.uuid,
+                context: QueryExecutionContext.CHART,
+                ...args,
+            });
+            return { result, prepareSpy, findOpenDraft, resolveAccess };
+        };
+
+        test("runs the requester's draft when asked for it", async () => {
+            const { result, prepareSpy, findOpenDraft } = await runWithDraft({
+                includeUnpublishedDraft: true,
+            });
+
+            expect(findOpenDraft).toHaveBeenCalledWith(
+                projectUuid,
+                'chart',
+                publishedChart.uuid,
+                sessionAccount.user.id,
+            );
+            expect(prepareSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ metricQuery: draftMetricQuery }),
+            );
+            expect(result.chartVisualization?.chartConfig).toEqual(
+                draftChartConfig,
+            );
+        });
+
+        test("authorizes against the published chart's space, not a drafted move", async () => {
+            const { resolveAccess } = await runWithDraft({
+                includeUnpublishedDraft: true,
+            });
+
+            expect(resolveAccess).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({
+                    spaceUuid: publishedChart.spaceUuid,
+                }),
+            );
+        });
+
+        test('runs the published chart when the draft is not asked for', async () => {
+            const { result, prepareSpy, findOpenDraft } = await runWithDraft(
+                {},
+            );
+
+            expect(findOpenDraft).not.toHaveBeenCalled();
+            expect(prepareSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ metricQuery: metricQueryMock }),
+            );
+            expect(result.chartVisualization?.chartConfig).toEqual(
+                publishedChart.chartConfig,
+            );
+        });
+
+        test('ignores the draft when a chart version is requested', async () => {
+            const { prepareSpy, findOpenDraft } = await runWithDraft({
+                includeUnpublishedDraft: true,
+                versionUuid: 'version-uuid',
+            });
+
+            expect(findOpenDraft).not.toHaveBeenCalled();
+            expect(prepareSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ metricQuery: metricQueryMock }),
+            );
+        });
+    });
+
     describe('executeAsyncSavedChartQuery for embedded AI agent tokens', () => {
         const writeSpaceUuid = 'write-space-uuid';
         const writeActorUuid = 'write-actor-uuid';
@@ -15798,6 +16762,25 @@ describe('AsyncQueryService', () => {
             );
             expect(prepareSpy).toHaveBeenCalledWith(
                 expect.objectContaining({ account }),
+            );
+        });
+
+        test('does not consult chart drafts for an embed token', async () => {
+            const { service, prepareSpy } = buildService();
+            const findOpenDraft = vi.fn();
+            (service as AnyType).contentDraftModel = { findOpenDraft };
+
+            await service.executeAsyncSavedChartQuery({
+                account: buildAiAgentAccount(),
+                projectUuid,
+                chartUuid: chart.uuid,
+                context: QueryExecutionContext.CHART,
+                includeUnpublishedDraft: true,
+            });
+
+            expect(findOpenDraft).not.toHaveBeenCalled();
+            expect(prepareSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ metricQuery: chart.metricQuery }),
             );
         });
 
@@ -16321,6 +17304,42 @@ describe('AsyncQueryService', () => {
             values: ['dashboard-value'],
             label: undefined,
         };
+
+        test("authorizes a tile against the published chart's space, not a drafted move", async () => {
+            const { service } = buildService();
+            const findOpenDraft = vi.fn(async () => ({
+                uuid: 'draft-uuid',
+                draft: { spaceUuid: 'draftedSpaceUuid' },
+            }));
+            (service as AnyType).contentDraftModel = { findOpenDraft };
+
+            await service.executeAsyncDashboardChartQuery({
+                account: authorizedAccount,
+                projectUuid,
+                tileUuid: 'tile-1',
+                chartUuid: mergedChart.uuid,
+                dashboardUuid: 'dashboard-uuid',
+                dashboardFilters: {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                dashboardSorts: [],
+                context: QueryExecutionContext.DASHBOARD,
+                invalidateCache: false,
+                limit: undefined,
+                parameters: undefined,
+                pivotResults: false,
+                includeUnpublishedDraft: true,
+            });
+
+            expect(findOpenDraft).toHaveBeenCalledOnce();
+            const { getSpaceSummary } = (service as AnyType).spaceModel;
+            expect(getSpaceSummary).toHaveBeenCalledWith('spaceUuid');
+            expect(getSpaceSummary).not.toHaveBeenCalledWith(
+                'draftedSpaceUuid',
+            );
+        });
 
         test('runs the merge with the tile filter pushed into both sources', async () => {
             const { service, mergeSpy, prepareSpy } = buildService();
@@ -17101,6 +18120,11 @@ describe('saved chart query result access', () => {
                 conditions: { inheritsFromOrgOrProject: true },
             },
             { subject: 'UnderlyingData', action: 'view' },
+            {
+                subject: 'Dashboard',
+                action: 'export',
+                conditions: { type: 'csv' },
+            },
             { subject: 'Explore', action: 'manage' },
         ]);
         const history: QueryHistory = {
@@ -19442,6 +20466,76 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
         await drainMergeEvents(trackAccount, 1);
     });
 
+    it('refuses a document-bound pipeline node that is not the persisted Document query', async () => {
+        const { service, executeAsyncQuery } = buildServiceWithCompiledLegs();
+        const account = buildAccount() as RegisteredAccount;
+        account.user.ability = new Ability<PossibleAbilities>([
+            { subject: 'Project', action: 'view' },
+            { subject: 'Document', action: 'view' },
+        ]);
+        const [persisted, other] = attributeScopedMergeQuery.sources;
+        if (!('metricQuery' in persisted) || !('metricQuery' in other)) {
+            throw new Error('Expected metric sources');
+        }
+        const context = DocumentQueryContext.fromChart({
+            account,
+            projectUuid,
+            reference: {
+                documentUuid: 'saved-doc',
+                versionUuid: 'saved-version',
+                chartId: 'c1',
+            },
+            content: {
+                source: 'semantic',
+                chart: {
+                    name: 'Saved chart',
+                    tableName: persisted.metricQuery.exploreName,
+                    metricQuery: persisted.metricQuery,
+                    chartConfig: { type: ChartType.TABLE },
+                },
+            } as DocumentExploreChartContent,
+            sourceRowCap: lightdashConfigMock.query.maxLimit,
+        });
+
+        const runner = new QuerySourceService({
+            analytics: analyticsMock,
+            getAsyncQueryService: () => service,
+            getAgentPermissionService: () =>
+                ({ assertOperation: vi.fn() }) as never,
+            projectModel: (service as AnyType).projectModel,
+            featureFlagModel: (service as AnyType).featureFlagModel,
+            queryHistoryModel: service.queryHistoryModel,
+            registry: QuerySourceRegistry.withBuiltInSources({
+                asyncQueryService: service,
+                projectService: service,
+            }),
+        });
+
+        await expect(
+            runner.submitQueries({
+                account,
+                projectUuid,
+                queries: [
+                    {
+                        nodeId: 'other',
+                        sourceType: QuerySourceType.SEMANTIC_LAYER,
+                        exploreName: other.metricQuery.exploreName,
+                        dimensions: other.metricQuery.dimensions,
+                        metrics: other.metricQuery.metrics,
+                    },
+                ],
+                context: QueryExecutionContext.CHART,
+                parameters: {},
+                userAttributeOverrides: {},
+                invalidateCache: false,
+                plans: {},
+                authority: { kind: 'document', context },
+                aiAttribution: null,
+            }),
+        ).rejects.toThrow('Only the persisted Document query can execute');
+        expect(executeAsyncQuery).not.toHaveBeenCalled();
+    });
+
     it('refuses a pivot the composer rejects before any leg runs', async () => {
         const { service, create } = buildService({
             config: lightdashConfigMock,
@@ -19745,6 +20839,7 @@ describe('query sources carry the execution context', () => {
     const submissionDefaults: Omit<SubmitSourceQueryArgs, 'query'> = {
         account: sessionAccount,
         projectUuid,
+        authority: { kind: 'request' },
         context: QueryExecutionContext.MULTI_SOURCE_QUERY,
         resolvedReferences: {},
         submission: [],
@@ -20840,11 +21935,18 @@ describe('DuckDB source queries on the worker', () => {
 });
 
 describe('chart embed token query history access', () => {
-    const buildChartEmbedAccount = (explores: string[]) =>
+    const buildChartEmbedAccount = (
+        explores: string[],
+        canExportCsv: boolean,
+    ) =>
         fromJwt({
             decodedToken: {
                 user: { externalId: 'external-user-123' },
-                content: { type: 'chart', contentId: 'source-chart-uuid' },
+                content: {
+                    type: 'chart',
+                    contentId: 'source-chart-uuid',
+                    canExportCsv,
+                },
             },
             embed: {
                 projectUuid,
@@ -20873,8 +21975,8 @@ describe('chart embed token query history access', () => {
             userAttributes: { userAttributes: {}, intrinsicUserAttributes: {} },
         });
 
-    const buildFixture = (explores: string[]) => {
-        const account = buildChartEmbedAccount(explores);
+    const buildFixture = (explores: string[], canExportCsv = true) => {
+        const account = buildChartEmbedAccount(explores, canExportCsv);
         const history: QueryHistory = {
             queryUuid: 'source-query-uuid',
             projectUuid,
@@ -21013,12 +22115,24 @@ describe('chart embed token query history access', () => {
             );
         },
     );
+
+    it('allows rendering results without export permission', async () => {
+        const { account, service } = buildFixture([validExplore.name], false);
+        await expect(run(service, account, 'stream')).resolves.toBeDefined();
+        await expect(run(service, account, 'download')).rejects.toThrow(
+            ForbiddenError,
+        );
+    });
 });
 
-describe('embedded AI agent result downloads', () => {
+describe('embedded result downloads', () => {
     const writeActorUuid = 'write-actor-uuid';
 
-    const buildAiAgentAccount = (actorScopes: CaslSubjectNames[]) => {
+    const buildDownloadEmbedAccount = (
+        actorScopes: CaslSubjectNames[],
+        content: CreateEmbedJwt['content'],
+        permissionsMode: 'default' | 'roles',
+    ) => {
         const actorAbility = new AbilityBuilder<MemberAbility>(Ability);
         actorScopes.forEach((resource) =>
             actorAbility.can('view', resource, { projectUuid }),
@@ -21026,10 +22140,11 @@ describe('embedded AI agent result downloads', () => {
         return fromJwt({
             decodedToken: {
                 user: { externalId: 'external-user-123' },
-                content: { type: 'aiAgent', agentUuid: 'agent-uuid' },
+                content,
                 writeActions: {
                     userUuid: writeActorUuid,
                     spaceUuid: 'space-uuid',
+                    permissionsMode,
                 },
             },
             embed: {
@@ -21051,8 +22166,8 @@ describe('embedded AI agent result downloads', () => {
             },
             source: 'test-jwt-token',
             content: {
-                type: 'aiAgent',
-                agentUuid: 'agent-uuid',
+                ...content,
+                dashboardUuid: 'dashboard-uuid',
                 chartUuids: [],
                 explores: [],
             },
@@ -21072,8 +22187,19 @@ describe('embedded AI agent result downloads', () => {
         });
     };
 
-    const buildFixture = (actorScopes: CaslSubjectNames[]) => {
-        const account = buildAiAgentAccount(actorScopes);
+    const buildFixture = (
+        actorScopes: CaslSubjectNames[],
+        content: CreateEmbedJwt['content'] = {
+            type: 'aiAgent',
+            agentUuid: 'agent-uuid',
+        },
+        permissionsMode: 'default' | 'roles' = 'default',
+    ) => {
+        const account = buildDownloadEmbedAccount(
+            actorScopes,
+            content,
+            permissionsMode,
+        );
         const history: QueryHistory = {
             queryUuid: 'ai-query-uuid',
             projectUuid,
@@ -21151,12 +22277,13 @@ describe('embedded AI agent result downloads', () => {
         service: AsyncQueryService,
         account: Account,
         operation: (typeof operations)[number],
+        type: DownloadFileType | undefined,
     ) => {
         const args = {
             account,
             projectUuid,
             queryUuid: 'ai-query-uuid',
-            type: DownloadFileType.CSV,
+            type,
         };
         switch (operation) {
             case 'schedule':
@@ -21183,7 +22310,7 @@ describe('embedded AI agent result downloads', () => {
         async (operation) => {
             const { account, service, scheduleDownload, formatFile } =
                 buildFixture(['EmbedCsvExport']);
-            await run(service, account, operation);
+            await run(service, account, operation, DownloadFileType.CSV);
             if (operation === 'schedule') {
                 expect(scheduleDownload).toHaveBeenCalled();
             } else {
@@ -21197,14 +22324,266 @@ describe('embedded AI agent result downloads', () => {
         async (operation) => {
             const { account, service, scheduleDownload, formatFile } =
                 buildFixture([]);
-            await expect(run(service, account, operation)).rejects.toThrow(
-                ForbiddenError,
-            );
+            await expect(
+                run(service, account, operation, DownloadFileType.CSV),
+            ).rejects.toThrow(ForbiddenError);
             expect(scheduleDownload).not.toHaveBeenCalled();
             expect(formatFile).not.toHaveBeenCalled();
             expect(service.queryHistoryModel.get).not.toHaveBeenCalled();
         },
     );
+
+    const cases: {
+        name: string;
+        content: CreateEmbedJwt['content'];
+        scopes: CaslSubjectNames[];
+        mode: 'default' | 'roles';
+        allowed: boolean;
+    }[] = [
+        {
+            name: 'chart flag',
+            content: {
+                type: 'chart',
+                contentId: 'chart-uuid',
+                canExportCsv: true,
+            },
+            scopes: [],
+            mode: 'default',
+            allowed: true,
+        },
+        {
+            name: 'chart role despite false flag',
+            content: {
+                type: 'chart',
+                contentId: 'chart-uuid',
+                canExportCsv: false,
+            },
+            scopes: ['EmbedCsvExport'],
+            mode: 'default',
+            allowed: true,
+        },
+        {
+            name: 'chart without export',
+            content: { type: 'chart', contentId: 'chart-uuid' },
+            scopes: [],
+            mode: 'default',
+            allowed: false,
+        },
+        {
+            name: 'chart images only',
+            content: {
+                type: 'chart',
+                contentId: 'chart-uuid',
+                canExportImages: true,
+            },
+            scopes: [],
+            mode: 'default',
+            allowed: false,
+        },
+        {
+            name: 'Explore role',
+            content: { type: 'metricsCatalog', projectUuid, canExplore: true },
+            scopes: ['EmbedCsvExport'],
+            mode: 'default',
+            allowed: true,
+        },
+        {
+            name: 'Explore without export',
+            content: { type: 'metricsCatalog', projectUuid, canExplore: true },
+            scopes: [],
+            mode: 'default',
+            allowed: false,
+        },
+        {
+            name: 'dashboard flag',
+            content: {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-uuid',
+                canExportCsv: true,
+            },
+            scopes: [],
+            mode: 'default',
+            allowed: true,
+        },
+        {
+            name: 'dashboard default ignores actor export',
+            content: {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-uuid',
+                canExportCsv: false,
+            },
+            scopes: ['EmbedCsvExport'],
+            mode: 'default',
+            allowed: false,
+        },
+        {
+            name: 'dashboard roles ignores flag',
+            content: {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-uuid',
+                canExportCsv: true,
+            },
+            scopes: [],
+            mode: 'roles',
+            allowed: false,
+        },
+        {
+            name: 'dashboard roles export',
+            content: { type: 'dashboard', dashboardUuid: 'dashboard-uuid' },
+            scopes: ['EmbedCsvExport'],
+            mode: 'roles',
+            allowed: true,
+        },
+        {
+            name: 'dashboard bulk export only',
+            content: {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-uuid',
+                canExportDashboardCsv: true,
+            },
+            scopes: [],
+            mode: 'default',
+            allowed: false,
+        },
+        {
+            name: 'data app with export scope',
+            content: { type: 'dataApp', appUuid: 'app-uuid' },
+            scopes: ['EmbedCsvExport'],
+            mode: 'default',
+            allowed: false,
+        },
+        {
+            name: 'API access with export scope',
+            content: {
+                type: 'apiAccess',
+                projectUuid,
+                serviceAccountUserUuid: writeActorUuid,
+            },
+            scopes: ['EmbedCsvExport'],
+            mode: 'default',
+            allowed: false,
+        },
+    ];
+
+    describe.each(cases)('$name', ({ content, scopes, mode, allowed }) => {
+        it.each(operations)(
+            '%s enforces export permissions',
+            async (operation) => {
+                const { account, service, scheduleDownload, formatFile } =
+                    buildFixture(scopes, content, mode);
+                // Isolate export authorization from the separately tested query-access checks.
+                vi.spyOn(
+                    service as AnyType,
+                    'assertQueryHistoryReadAccess',
+                ).mockResolvedValue(undefined);
+                vi.spyOn(
+                    service as AnyType,
+                    'assertCanReadStoredResults',
+                ).mockResolvedValue(undefined);
+                if (allowed) {
+                    await run(
+                        service,
+                        account,
+                        operation,
+                        DownloadFileType.CSV,
+                    );
+                    expect(
+                        operation === 'schedule'
+                            ? scheduleDownload
+                            : formatFile,
+                    ).toHaveBeenCalled();
+                } else {
+                    await Promise.all(
+                        [
+                            DownloadFileType.CSV,
+                            DownloadFileType.XLSX,
+                            DownloadFileType.JSONL,
+                            undefined,
+                        ].map(async (type) => {
+                            await expect(
+                                run(service, account, operation, type),
+                            ).rejects.toThrow(ForbiddenError);
+                        }),
+                    );
+                    expect(scheduleDownload).not.toHaveBeenCalled();
+                    expect(formatFile).not.toHaveBeenCalled();
+                    expect(
+                        service.queryHistoryModel.get,
+                    ).not.toHaveBeenCalled();
+                }
+            },
+        );
+    });
+
+    it('allows the dashboard bulk worker without granting direct query downloads', async () => {
+        const { account, service, formatFile } = buildFixture([], {
+            type: 'dashboard',
+            dashboardUuid: 'dashboard-uuid',
+            canExportDashboardCsv: true,
+        });
+        vi.spyOn(
+            service as AnyType,
+            'assertQueryHistoryReadAccess',
+        ).mockResolvedValue(undefined);
+        vi.spyOn(
+            service as AnyType,
+            'assertCanReadStoredResults',
+        ).mockResolvedValue(undefined);
+        const args = {
+            account,
+            projectUuid,
+            queryUuid: 'ai-query-uuid',
+            type: DownloadFileType.CSV,
+            accessMode: PersistentDownloadFileAccessMode.SIGNED as const,
+        };
+        await expect(
+            service.downloadSyncQueryResults(
+                args,
+                undefined,
+                'other-dashboard',
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        await service.downloadSyncQueryResults(
+            args,
+            undefined,
+            'dashboard-uuid',
+        );
+        expect(formatFile).toHaveBeenCalledOnce();
+        await expect(service.download(args)).rejects.toThrow(ForbiddenError);
+    });
+
+    it('rechecks export permission when executing a previously scheduled download', async () => {
+        const content = {
+            type: 'metricsCatalog',
+            projectUuid,
+            canExplore: true,
+        } as const;
+        const { account, service, scheduleDownload, formatFile } = buildFixture(
+            ['EmbedCsvExport'],
+            content,
+        );
+        vi.spyOn(
+            service as AnyType,
+            'assertQueryHistoryReadAccess',
+        ).mockResolvedValue(undefined);
+        vi.spyOn(
+            service as AnyType,
+            'assertCanReadStoredResults',
+        ).mockResolvedValue(undefined);
+        await run(service, account, 'schedule', DownloadFileType.CSV);
+        expect(scheduleDownload).toHaveBeenCalledWith(
+            expect.objectContaining({ encodedJwt: 'test-jwt-token' }),
+        );
+        const refreshedAccount = buildDownloadEmbedAccount(
+            [],
+            content,
+            'default',
+        );
+        await expect(
+            run(service, refreshedAccount, 'download', DownloadFileType.CSV),
+        ).rejects.toThrow(ForbiddenError);
+        expect(formatFile).not.toHaveBeenCalled();
+    });
 });
 
 describe('embedded field value search dashboard scoping', () => {
@@ -21572,6 +22951,31 @@ describe('fresh stored result read boundary', () => {
         service.exportsStorageClient.isEnabled = vi.fn(() => true);
         return { service, access, account, history, reload, currentUser, page };
     };
+    test('checks a result against the unpublished model the development view ran it on', async () => {
+        const f = setupRead();
+        vi.mocked(f.service.projectModel.getExploreFromCache).mockRejectedValue(
+            new NotFoundError('Explore does not exist.'),
+        );
+        const read = () =>
+            f.service.getAsyncQueryHistory({
+                account: f.account,
+                projectUuid,
+                queryUuid: f.history.queryUuid,
+            });
+        await expect(read()).rejects.toThrow(NotFoundError);
+        const inView = (explore: Explore | null) =>
+            developmentView.run(
+                {
+                    findExplores: async () =>
+                        new Map([[metricQueryMock.exploreName, explore]]),
+                    hasChanges: async () => true,
+                },
+                read,
+            );
+        await expect(inView(validExplore)).resolves.toBeDefined();
+        // A model the person's changes remove is refused, like a missing one.
+        await expect(inView(null)).rejects.toThrow(ForbiddenError);
+    });
     test.each(
         [
             AgentActorSurface.IN_APP_AGENT,
@@ -23975,27 +25379,18 @@ describe('fresh stored result read boundary', () => {
             }),
         );
         Object.assign(f.service.queryHistoryModel, {
-            findMostRecentByCacheKey: vi.fn(async () => ({
-                queryHistory: {
-                    status: QueryHistoryStatus.READY,
-                    warehouseExecutionTimeMs: 10,
-                },
-                totalRowCount: 1,
-                resultsFileName: 'api-results.jsonl',
-                resultsCreatedAt: new Date(),
-                resultsUpdatedAt: new Date(),
-                resultsExpiresAt: null,
-                columns: null,
-            })),
+            findMostRecentByCacheKey: vi.fn(async () =>
+                storedLiveResult(new Date()),
+            ),
         });
         const { queryUuid } = await f.service.executeAsyncApiQuery({
             account: f.account,
             projectUuid,
             context: QueryExecutionContext.AI,
             connectionUuid: 'connection-uuid',
-            connector: {
-                describe: () => ({ connector: 'posthog' }),
-                execute: vi.fn(),
+            source: {
+                integration: { connector: 'posthog' },
+                cache: sharedLiveCache,
                 usage: () => ({
                     apiCalls: 0,
                     responseBytes: 0,
@@ -24486,17 +25881,6 @@ describe('fresh execution producer to result reader', () => {
             },
         );
         Object.assign(service.queryHistoryModel, {
-            recordResultResearchRun: vi.fn(
-                async (
-                    uuid: string,
-                    _project: string,
-                    _user: string,
-                    runUuid: string,
-                ) => {
-                    rows.get(uuid)!.requestParameters.resultResearchRunUuid =
-                        runUuid;
-                },
-            ),
             create: vi.fn(
                 async (
                     _account: Account,
@@ -28785,6 +30169,7 @@ describe('fresh execution producer to result reader', () => {
                 f.service,
             );
             const scheduler = new SchedulerAiAugmentationService({
+                lightdashConfig: lightdashConfigMock,
                 agentPermissionService: {
                     loadRequest: vi.fn().mockResolvedValue({}),
                     assertOperationWithRequest: vi
@@ -28971,135 +30356,6 @@ describe('fresh execution producer to result reader', () => {
                 r.deep.buildEvidencePack(r.run as never, 0, resumed as never),
             ).rejects.toThrow();
             expect(storage).not.toHaveBeenCalled();
-        },
-    );
-
-    test.each([false, true])(
-        'round 18 real research refresh flag=%s and the results controller use trusted run ownership',
-        async (enabled) => {
-            const account = authenticated('session');
-            const f = setup(false, false, false, false, account);
-            const resolve = useRealCredentialSelection(f);
-            if (!enabled)
-                vi.mocked(f.service.featureFlagModel.get).mockResolvedValue({
-                    enabled: false,
-                } as never);
-            const run = {
-                ai_deep_research_run_uuid: 'run',
-                prompt_uuid: 'prompt',
-                agent_uuid: 'agent',
-                ai_thread_uuid: 'thread',
-                created_by_user_uuid: account.user.id,
-                project_uuid: projectUuid,
-                organization_uuid: projectSummary.organizationUuid,
-            };
-            const deep = new AiDeepResearchService({
-                asyncQueryService: f.service,
-                queryHistoryModel: f.service.queryHistoryModel,
-                featureFlagService: { get: f.service.featureFlagModel.get },
-                aiDeepResearchRunModel: {
-                    findByUuidScoped: vi.fn(async () => run),
-                },
-                aiAgentService: {
-                    assertDeepResearchAccess: vi.fn(async () => undefined),
-                },
-                aiAgentModel: {
-                    findWebAppPrompt: vi.fn(async () => ({
-                        promptUuid: 'prompt',
-                        threadUuid: 'thread',
-                        agentUuid: 'agent',
-                        createdByUserUuid: account.user.id,
-                        organizationUuid: projectSummary.organizationUuid,
-                        projectUuid,
-                    })),
-                },
-            } as never);
-            vi.spyOn(
-                deep as unknown as { getRunChart: () => Promise<unknown> },
-                'getRunChart',
-            ).mockResolvedValue({
-                metricQuery: metricQueryMock,
-                title: 'Chart',
-                vizConfig: {},
-            } as never);
-            const result = await deep.refreshChart({
-                account,
-                user: surfaceUser(account),
-                projectUuid,
-                aiDeepResearchRunUuid: 'run',
-                chartKey: 'chart',
-            });
-            const controller = new AiDeepResearchController({
-                getAiDeepResearchService: () => deep,
-            } as never);
-            if (!enabled) {
-                await vi.waitFor(() =>
-                    expect(f.rows.get(result.query.queryUuid)!.status).toBe(
-                        QueryHistoryStatus.READY,
-                    ),
-                );
-                expect(
-                    f.rows.get(result.query.queryUuid)!.agentIdentity,
-                ).toBeNull();
-                expect(
-                    f.rows.get(result.query.queryUuid)!.requestParameters
-                        .resultResearchRunUuid,
-                ).toBeUndefined();
-                expect(
-                    (
-                        await controller.getChartQueryResults(
-                            { account } as express.Request,
-                            projectUuid,
-                            'run',
-                            result.query.queryUuid,
-                        )
-                    ).results.status,
-                ).toBe(QueryHistoryStatus.READY);
-                return;
-            }
-            await assertSurfaceResult(
-                f,
-                resolve,
-                AgentActorSurface.IN_APP_AGENT,
-                'lightdash-chat',
-                'agent',
-                () =>
-                    controller.getChartQueryResults(
-                        { account } as express.Request,
-                        projectUuid,
-                        'run',
-                        result.query.queryUuid,
-                    ),
-            );
-            await expect(
-                controller.getChartQueryResults(
-                    { account } as express.Request,
-                    projectUuid,
-                    'unbound-run',
-                    result.query.queryUuid,
-                ),
-            ).rejects.toBeInstanceOf(NotFoundError);
-            const other = authenticated('session');
-            other.user.id = 'other';
-            await expect(
-                controller.getChartQueryResults(
-                    { account: other } as express.Request,
-                    projectUuid,
-                    'run',
-                    result.query.queryUuid,
-                ),
-            ).rejects.toBeInstanceOf(AiAccessRefusedError);
-            vi.mocked(deep['aiAgentModel'].findWebAppPrompt).mockResolvedValue({
-                createdByUserUuid: 'other',
-            } as never);
-            await expect(
-                controller.getChartQueryResults(
-                    { account } as express.Request,
-                    projectUuid,
-                    'run',
-                    result.query.queryUuid,
-                ),
-            ).rejects.toBeInstanceOf(ForbiddenError);
         },
     );
 
@@ -31788,5 +33044,596 @@ describe('external source explore queries on the worker', () => {
             expect.stringContaining('not ready'),
         );
         expect(f.run).not.toHaveBeenCalled();
+    });
+});
+
+describe('query polling timeout', () => {
+    const queryUuid = 'timed-out-query';
+    const fiveMinutes = 5 * 60 * 1000;
+    const timeoutMessage = 'Query polling timed out after 300000ms';
+    const fastPolling = { initialBackoffMs: 1, maxBackoffMs: 1 };
+    const savedChartArgs = {
+        account: sessionAccount,
+        projectUuid,
+        chartUuid: 'chart-uuid',
+        context: QueryExecutionContext.SCHEDULED_DELIVERY,
+    };
+    const schedulerOptions = (queryPollingTimeout: number) => ({
+        ...getSchedulerPollingOptions({
+            scheduler: {
+                ...lightdashConfigMock.scheduler,
+                queryPollingTimeout,
+            },
+        }),
+        ...fastPolling,
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    const setup = (
+        initialStatus: QueryHistoryStatus,
+        readyAfterMs: number | null = null,
+    ) => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        const startedAt = Date.now();
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        const row = { status: initialStatus };
+        respondWithStatusGuard(tracker, row);
+        const model = new QueryHistoryModel({ database });
+        const get = vi.fn(async () => {
+            if (
+                readyAfterMs !== null &&
+                Date.now() - startedAt >= readyAfterMs &&
+                row.status === QueryHistoryStatus.EXECUTING
+            )
+                row.status = QueryHistoryStatus.READY;
+            return {
+                queryUuid,
+                projectUuid,
+                status: row.status,
+                context: QueryExecutionContext.SQL_RUNNER,
+                createdAt: new Date(startedAt),
+                metricQuery: metricQueryMock,
+            } as unknown as QueryHistory;
+        });
+        const poll = vi.fn(
+            async (
+                ...args: Parameters<QueryHistoryModel['pollForQueryCompletion']>
+            ) => {
+                const read = vi.fn(async () => {
+                    vi.setSystemTime(Date.now() + 30_000);
+                    return get();
+                });
+                Object.assign(model, { get: read });
+                return model.pollForQueryCompletion(...args);
+            },
+        );
+        Object.assign(service.queryHistoryModel, {
+            get,
+            update: model.update.bind(model),
+            pollForQueryCompletion: poll,
+        });
+        const prometheusMetrics = {
+            trackQueryStateTransition: vi.fn(),
+            incrementQueryStatus: vi.fn(),
+            observeQueryTotalDuration: vi.fn(),
+            incrementQueryPollingTimeout: vi.fn(),
+        };
+        Object.assign(service, { prometheusMetrics });
+        const executeAsyncSavedChartQuery = vi.fn(async () => ({
+            queryUuid,
+            cacheMetadata: { cacheHit: false },
+            fields: {},
+            metricQuery: metricQueryMock,
+            usedParametersValues: {},
+            resolvedTimezone: null,
+        }));
+        const getReadyQueryResults = vi.fn(async () => ({
+            rows: [{ count: 1 }],
+            cacheMetadata: { cacheHit: false },
+            fields: {},
+            pivotDetails: null,
+            displayTimezone: null,
+            executionStats: null,
+        }));
+        Object.assign(service, {
+            executeAsyncSavedChartQuery,
+            getReadyQueryResults,
+        });
+        const cleanup = async () => {
+            tracker.reset();
+            await database.destroy();
+        };
+        return {
+            service,
+            row,
+            poll,
+            startedAt,
+            prometheusMetrics,
+            executeAsyncSavedChartQuery,
+            getReadyQueryResults,
+            cleanup,
+        };
+    };
+
+    it('cancels the still-running query and throws the same error', async () => {
+        const f = setup(QueryHistoryStatus.EXECUTING);
+        const cancel = vi.spyOn(f.service, 'cancelAsyncQuery');
+        try {
+            const error = await f.service
+                .pollForQueryCompletion({
+                    account: sessionAccount,
+                    projectUuid,
+                    queryUuid,
+                    ...fastPolling,
+                })
+                .catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(QueryPollingTimeoutError);
+            expect((error as Error).message).toBe(timeoutMessage);
+            expect(f.poll).toHaveBeenCalledWith(
+                expect.objectContaining({ timeoutMs: fiveMinutes }),
+            );
+            expect(cancel).toHaveBeenCalledOnce();
+            expect(f.row.status).toBe(QueryHistoryStatus.CANCELLED);
+            expect(
+                f.prometheusMetrics.trackQueryStateTransition,
+            ).toHaveBeenCalledWith(
+                QueryHistoryStatus.EXECUTING,
+                QueryHistoryStatus.CANCELLED,
+                QueryExecutionContext.SQL_RUNNER,
+            );
+            expect(
+                f.prometheusMetrics.incrementQueryPollingTimeout,
+            ).toHaveBeenCalledExactlyOnceWith('other');
+        } finally {
+            await f.cleanup();
+        }
+    });
+
+    it.each([
+        QueryHistoryStatus.READY,
+        QueryHistoryStatus.ERROR,
+        QueryHistoryStatus.EXPIRED,
+        QueryHistoryStatus.CANCELLED,
+    ])(
+        'does not cancel a query that is already %s at timeout',
+        async (status) => {
+            const f = setup(status);
+            f.poll.mockRejectedValueOnce(
+                new QueryPollingTimeoutError(fiveMinutes),
+            );
+            const cancel = vi.spyOn(f.service, 'cancelAsyncQuery');
+            try {
+                await expect(
+                    f.service.pollForQueryCompletion({
+                        account: sessionAccount,
+                        projectUuid,
+                        queryUuid,
+                    }),
+                ).rejects.toThrow(timeoutMessage);
+                expect(cancel).not.toHaveBeenCalled();
+                expect(f.row.status).toBe(status);
+                expect(
+                    f.prometheusMetrics.incrementQueryPollingTimeout,
+                ).toHaveBeenCalledOnce();
+            } finally {
+                await f.cleanup();
+            }
+        },
+    );
+
+    it('does not cancel or count when the query fails for another reason', async () => {
+        const f = setup(QueryHistoryStatus.EXECUTING);
+        f.poll.mockRejectedValueOnce(new Error('Warehouse query failed'));
+        const cancel = vi.spyOn(f.service, 'cancelAsyncQuery');
+        try {
+            await expect(
+                f.service.pollForQueryCompletion({
+                    account: sessionAccount,
+                    projectUuid,
+                    queryUuid,
+                }),
+            ).rejects.toThrow('Warehouse query failed');
+            expect(cancel).not.toHaveBeenCalled();
+            expect(
+                f.prometheusMetrics.incrementQueryPollingTimeout,
+            ).not.toHaveBeenCalled();
+        } finally {
+            await f.cleanup();
+        }
+    });
+
+    it('still throws the timeout error and counts it when the cancel fails', async () => {
+        const f = setup(QueryHistoryStatus.EXECUTING);
+        f.poll.mockRejectedValueOnce(new QueryPollingTimeoutError(fiveMinutes));
+        vi.spyOn(f.service, 'cancelAsyncQuery').mockRejectedValueOnce(
+            new Error('database unavailable'),
+        );
+        const warn = vi.spyOn(f.service['logger'], 'warn');
+        try {
+            await expect(
+                f.service.pollForQueryCompletion({
+                    account: sessionAccount,
+                    projectUuid,
+                    queryUuid,
+                    source: 'scheduler',
+                }),
+            ).rejects.toBeInstanceOf(QueryPollingTimeoutError);
+            expect(warn).toHaveBeenCalledWith(
+                expect.stringContaining('database unavailable'),
+            );
+            expect(
+                f.prometheusMetrics.incrementQueryPollingTimeout,
+            ).toHaveBeenCalledExactlyOnceWith('scheduler');
+        } finally {
+            await f.cleanup();
+        }
+    });
+
+    it('cancels and runs the query once when a scheduled delivery times out', async () => {
+        const f = setup(QueryHistoryStatus.QUEUED);
+        try {
+            await expect(
+                f.service.executeSavedChartQueryAndGetResults(
+                    savedChartArgs,
+                    schedulerOptions(fiveMinutes),
+                ),
+            ).rejects.toThrow(timeoutMessage);
+            expect(f.row.status).toBe(QueryHistoryStatus.CANCELLED);
+            expect(f.executeAsyncSavedChartQuery).toHaveBeenCalledOnce();
+            expect(f.poll).toHaveBeenCalledOnce();
+            expect(f.getReadyQueryResults).not.toHaveBeenCalled();
+            expect(
+                f.prometheusMetrics.incrementQueryPollingTimeout,
+            ).toHaveBeenCalledWith('scheduler');
+        } finally {
+            await f.cleanup();
+        }
+    });
+
+    it('keeps the 5 minute default for callers outside the scheduler', async () => {
+        const f = setup(QueryHistoryStatus.READY);
+        try {
+            await f.service.executeSavedChartQueryAndGetResults({
+                ...savedChartArgs,
+                context: QueryExecutionContext.AI,
+            });
+
+            expect(f.poll).toHaveBeenCalledWith(
+                expect.objectContaining({ timeoutMs: fiveMinutes }),
+            );
+            expect(f.poll.mock.calls[0][0]).not.toHaveProperty(
+                'source',
+                'scheduler',
+            );
+        } finally {
+            await f.cleanup();
+        }
+    });
+
+    it('fails a scheduled query that takes more than five minutes with the default timeout', async () => {
+        const f = setup(QueryHistoryStatus.EXECUTING, fiveMinutes + 60_000);
+        try {
+            await expect(
+                f.service.executeSavedChartQueryAndGetResults(
+                    savedChartArgs,
+                    schedulerOptions(
+                        lightdashConfigMock.scheduler.queryPollingTimeout,
+                    ),
+                ),
+            ).rejects.toThrow(timeoutMessage);
+            expect(f.row.status).toBe(QueryHistoryStatus.CANCELLED);
+        } finally {
+            await f.cleanup();
+        }
+    });
+
+    it('delivers a scheduled query that completes after more than five minutes when the configured timeout is larger', async () => {
+        const f = setup(QueryHistoryStatus.EXECUTING, fiveMinutes + 60_000);
+        const cancel = vi.spyOn(f.service, 'cancelAsyncQuery');
+        try {
+            await expect(
+                f.service.executeSavedChartQueryAndGetResults(
+                    savedChartArgs,
+                    schedulerOptions(10 * 60 * 1000),
+                ),
+            ).resolves.toMatchObject({ rows: [{ count: 1 }] });
+            expect(Date.now() - f.startedAt).toBeGreaterThan(fiveMinutes);
+            expect(f.poll).toHaveBeenCalledWith(
+                expect.objectContaining({ timeoutMs: 10 * 60 * 1000 }),
+            );
+            expect(f.executeAsyncSavedChartQuery).toHaveBeenCalledOnce();
+            expect(cancel).not.toHaveBeenCalled();
+            expect(
+                f.prometheusMetrics.incrementQueryPollingTimeout,
+            ).not.toHaveBeenCalled();
+        } finally {
+            await f.cleanup();
+        }
+    });
+});
+
+describe('bound composer chart runs', () => {
+    const viewer = () => {
+        const account = buildAccount() as RegisteredAccount;
+        account.user.ability = new Ability<PossibleAbilities>([
+            { subject: 'Project', action: 'view' },
+        ]);
+        return account;
+    };
+    const bindingFor = (account: RegisteredAccount) =>
+        ComposerRunBinding.forAuthorizedViewer({
+            account,
+            chart: {
+                uuid: 'composer-chart-uuid',
+                projectUuid,
+                dashboardUuid: 'dashboard-uuid',
+                pipeline: { schemaVersion: 1, terminalNodeId: 'n', nodes: [] },
+                chart: {
+                    pivotConfig: null,
+                    chartConfig: { type: ChartType.TABLE },
+                },
+            } as unknown as ComposerChart,
+            tileUuid: 'tile-uuid',
+            resolved: { nodes: [], parameters: {} },
+            dashboardFilters: {
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            },
+        });
+    const stamp = {
+        composerChartUuid: 'composer-chart-uuid',
+        dashboardUuid: 'dashboard-uuid',
+        tileUuid: 'tile-uuid',
+    };
+    const flagsOff = {
+        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+            id: featureFlagId,
+            enabled: false,
+        })),
+    } as unknown as FeatureFlagModel;
+    const referenced = {
+        queryUuid: '0b7c9c62-4b6e-4b1a-9c3e-4f6a0c8d2e11',
+        projectUuid,
+        organizationUuid: projectSummary.organizationUuid,
+        createdByUserUuid: 'userId',
+        context: QueryExecutionContext.DASHBOARD,
+        status: QueryHistoryStatus.READY,
+        resultsFileName: 'referenced-results.jsonl',
+        resultsExpiresAt: null,
+        columns: { one: { reference: 'one', type: DimensionType.NUMBER } },
+        metricQuery: { exploreName: 'orders' },
+        requestParameters: { composerChartSource: stamp },
+    } as unknown as QueryHistory;
+    const derivedService = (account: RegisteredAccount) => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            featureFlagModel: flagsOff,
+            getComposerChartService: () => ({
+                assertCanView: vi.fn(async () => undefined),
+            }),
+            composeEngineClient: {
+                createExecutionWarehouseClient: vi.fn(
+                    () => warehouseClientMock,
+                ),
+            } as unknown as ComposeEngineClient,
+            queryHistoryModel: inMemoryDuckdbHistory({
+                queryUuid: 'node-query',
+                account,
+                overrides: {
+                    get: vi.fn(async () => referenced),
+                    pollForQueryCompletion: vi.fn(async () => referenced),
+                },
+            }),
+            resultsStorageClient: {
+                isEnabled: true,
+                configuration: { bucket: 'mock_bucket' },
+            } as unknown as S3ResultsFileStorageClient,
+        } as never);
+        vi.spyOn(service, 'runAsyncWarehouseQuery').mockResolvedValue(
+            undefined,
+        );
+        vi.spyOn(service as AnyType, 'runPythonQuery').mockResolvedValue(
+            undefined,
+        );
+        return service;
+    };
+    const storedRequest = (service: AsyncQueryService) =>
+        vi.mocked(service.queryHistoryModel.create).mock.calls[0][1]
+            .requestParameters;
+
+    test('a viewer runs a bound duckdb node without the compose flag or Explore, and its row is stamped', async () => {
+        const account = viewer();
+        const service = derivedService(account);
+        const args = {
+            account,
+            projectUuid,
+            context: QueryExecutionContext.DASHBOARD,
+            sql: 'SELECT one FROM orders',
+            references: { orders: referenced.queryUuid },
+        };
+        await expect(service.executeAsyncComposeSqlQuery(args)).rejects.toThrow(
+            ForbiddenError,
+        );
+        await service.executeAsyncComposeSqlQuery({
+            ...args,
+            authority: { kind: 'composer', binding: bindingFor(account) },
+        });
+        expect(storedRequest(service).composerChartSource).toEqual(stamp);
+        expect(storedRequest(service).queryUsage).toMatchObject({
+            chartKind: 'composer_chart',
+            dashboardTileId: stamp.tileUuid,
+        });
+    });
+
+    test('a viewer runs a bound python node without the compose flag or Explore, and its row is stamped', async () => {
+        const account = viewer();
+        const service = derivedService(account);
+        const args = {
+            account,
+            projectUuid,
+            context: QueryExecutionContext.DASHBOARD,
+            code: 'def run(inputs, params):\n    return inputs["orders"]',
+            references: { orders: referenced.queryUuid },
+        };
+        await expect(service.executeAsyncPythonQuery(args)).rejects.toThrow(
+            ForbiddenError,
+        );
+        await service.executeAsyncPythonQuery({
+            ...args,
+            authority: { kind: 'composer', binding: bindingFor(account) },
+        });
+        expect(storedRequest(service).composerChartSource).toEqual(stamp);
+    });
+
+    test("refuses a binding built for another viewer's run", async () => {
+        const account = viewer();
+        const service = derivedService(account);
+        const other = viewer();
+        other.user.id = 'another-user';
+        await expect(
+            service.executeAsyncPythonQuery({
+                account: other,
+                projectUuid,
+                context: QueryExecutionContext.DASHBOARD,
+                code: 'def run(inputs, params):\n    return inputs["orders"]',
+                references: { orders: referenced.queryUuid },
+                authority: { kind: 'composer', binding: bindingFor(account) },
+            }),
+        ).rejects.toThrow('Composer run binding does not match');
+    });
+
+    const spyExecute = (service: AsyncQueryService) =>
+        vi
+            .spyOn(
+                service as unknown as {
+                    executeAsyncQuery: (
+                        args: unknown,
+                        parameters: unknown,
+                    ) => Promise<ExecuteAsyncQueryReturn>;
+                },
+                'executeAsyncQuery',
+            )
+            .mockResolvedValue({
+                queryUuid: 'node-query',
+                cacheMetadata: { cacheHit: false },
+            });
+
+    test('a viewer runs a bound sql node without SQL runner access, and its row is stamped', async () => {
+        const account = viewer();
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.spyOn(
+            service as AnyType,
+            'prepareSqlChartAsyncQueryArgs',
+        ).mockResolvedValue({ queryTags: {}, parameterReferences: [] });
+        const execute = spyExecute(service);
+        const args = {
+            account,
+            projectUuid,
+            context: QueryExecutionContext.DASHBOARD,
+            sql: 'select 1',
+        };
+        await expect(service.executeAsyncSqlQuery(args)).rejects.toThrow(
+            ForbiddenError,
+        );
+        await service.executeAsyncSqlQuery({
+            ...args,
+            authority: { kind: 'composer', binding: bindingFor(account) },
+        });
+        expect(execute).toHaveBeenCalledWith(
+            expect.objectContaining({ composerChartSource: stamp }),
+            expect.anything(),
+        );
+    });
+
+    test('a viewer runs a bound semantic-layer node with custom SQL, under their own user attributes, and its row is stamped', async () => {
+        const account = viewer();
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const controls = {
+            userAttributes: { region: ['east'] },
+            intrinsicUserAttributes: {},
+        };
+        vi.spyOn(service, 'getExploreWithUserAccessControls').mockResolvedValue(
+            { explore: validExplore, userAccessControls: controls },
+        );
+        const prepare = vi
+            .spyOn(service as AnyType, 'prepareMetricQueryAsyncQueryArgs')
+            .mockResolvedValue(
+                createQueryComposerMock({ userAccessControls: controls }),
+            );
+        const execute = spyExecute(service);
+        const args = {
+            account,
+            projectUuid,
+            context: QueryExecutionContext.DASHBOARD,
+            metricQuery: {
+                ...metricQueryMock,
+                customDimensions: [
+                    {
+                        id: 'upper_status',
+                        name: 'upper_status',
+                        table: metricQueryMock.exploreName,
+                        type: CustomDimensionType.SQL as const,
+                        sql: 'upper(1)',
+                        dimensionType: DimensionType.STRING,
+                    },
+                ],
+            },
+        };
+        await expect(service.executeAsyncMetricQuery(args)).rejects.toThrow(
+            ForbiddenError,
+        );
+        await service.executeAsyncMetricQuery({
+            ...args,
+            authority: { kind: 'composer', binding: bindingFor(account) },
+        });
+        expect(prepare).toHaveBeenCalledWith(
+            expect.objectContaining({ preloadedUserAccessControls: controls }),
+        );
+        expect(execute).toHaveBeenCalledWith(
+            expect.objectContaining({ composerChartSource: stamp }),
+            expect.anything(),
+        );
+    });
+
+    test('a stamped row is readable only while its reader can view the chart', async () => {
+        const account = viewer();
+        const assertCanView = vi.fn(async () => undefined);
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            getComposerChartService: () => ({ assertCanView }),
+            queryHistoryModel: {
+                get: vi.fn(async () => ({
+                    ...referenced,
+                    status: QueryHistoryStatus.ERROR,
+                    error: 'node error',
+                })),
+                getDuckdbExecution: vi.fn(async () => null),
+            } as unknown as QueryHistoryModel,
+        } as never);
+        const read = () =>
+            service.getAsyncQueryResults({
+                account,
+                projectUuid,
+                queryUuid: referenced.queryUuid,
+            });
+
+        await expect(read()).resolves.toMatchObject({
+            status: QueryHistoryStatus.ERROR,
+            error: 'node error',
+        });
+        expect(assertCanView).toHaveBeenCalledWith(
+            account,
+            projectUuid,
+            stamp.composerChartUuid,
+        );
+        const revoked = new ForbiddenError('Dashboard access revoked');
+        assertCanView.mockRejectedValue(revoked);
+        await expect(read()).rejects.toBe(revoked);
     });
 });

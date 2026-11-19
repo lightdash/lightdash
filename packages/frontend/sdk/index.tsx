@@ -49,6 +49,12 @@ import {
 } from '../src/ee/features/embed/EmbedDashboard/types';
 import {
     LightdashEventType,
+    type AppEventPayload,
+    type ChartContentState,
+    type ChartExportRequest,
+    type ContentStateChangedPayload,
+    type DashboardContentState,
+    type ExploreContentState,
     type LightdashEvent,
     type LightdashEventHandler,
 } from '../src/ee/features/embed/events/types';
@@ -1566,6 +1572,12 @@ export type {
     MetricsCatalogFilter,
     LightdashEvent,
     LightdashEventHandler,
+    AppEventPayload,
+    ContentStateChangedPayload,
+    DashboardContentState,
+    ChartContentState,
+    ChartExportRequest,
+    ExploreContentState,
     SdkError,
     SdkErrorKind,
     SdkUiOverrides,

@@ -12,7 +12,11 @@ import {
 } from '@lightdash/common';
 import { createAction, type UnknownAction } from '@reduxjs/toolkit';
 import { isEqual, sortBy } from 'es-toolkit/compat';
-import { tidyTiles } from '../../dashboardTabs/gridUtils';
+import {
+    getTilesWithTileAt,
+    getTilesWithTileWidth,
+    tidyTiles,
+} from '../../dashboardTabs/gridUtils';
 
 /**
  * An unsaved edit of a saved setting. It applies only while the saved value
@@ -46,7 +50,7 @@ const EMPTY_TILE_LAYOUT_HISTORY: TileLayoutHistory = {
 // Each step holds one small record per tile, so a long history stays cheap
 const TILE_LAYOUT_HISTORY_LIMIT = 50;
 
-export type CanvasBackground = 'dots' | 'grid';
+export type CanvasBackground = 'columns' | 'dots' | 'grid';
 
 export type DashboardEditState = {
     /** Undefined until the page seeds it from the loaded dashboard */
@@ -58,6 +62,8 @@ export type DashboardEditState = {
     canvasZoom: number;
     /** What the editor draws behind the tiles to show the grid */
     canvasBackground: CanvasBackground;
+    /** The tile the editor picked to act on; never saved */
+    selectedTileUuid: string | null;
     /** Always sorted by `order` */
     tabs: Dashboard['tabs'];
     haveTabsChanged: boolean;
@@ -76,7 +82,7 @@ export type DashboardEditState = {
         DateGranularity | string | undefined
     > | null;
     hasDefaultDateZoomGranularityChanged: boolean;
-    /** Staged sections of the controls rail, in display order */
+    /** Staged sections of the controls bar, in display order */
     controlSections: DashboardControlSection[];
     haveControlSectionsChanged: boolean;
     /** The bar's order of every control: the saved one, or the editor's reorder */
@@ -90,6 +96,7 @@ export const initialDashboardEditState: DashboardEditState = {
     tileLayoutHistory: EMPTY_TILE_LAYOUT_HISTORY,
     canvasZoom: 1,
     canvasBackground: 'grid',
+    selectedTileUuid: null,
     tabs: [],
     haveTabsChanged: false,
     activeTab: undefined,
@@ -147,6 +154,15 @@ export const dashboardEditActions = {
     moveTiles: createAction<TileLayout[]>('dashboardEdit/moveTiles'),
     /** Closes gaps and widens rows to the full grid: one undo step */
     tidyTiles: createAction('dashboardEdit/tidyTiles'),
+    /** A width picked for one tile on the tab in view: one undo step */
+    setTileWidth: createAction<{ uuid: string; w: number }>(
+        'dashboardEdit/setTileWidth',
+    ),
+    /** Puts a tile on the tab in view at a cell and selects it */
+    placeTile: createAction<{ uuid: string; x: number; y: number }>(
+        'dashboardEdit/placeTile',
+    ),
+    selectTile: createAction<string | null>('dashboardEdit/selectTile'),
     undoTileLayout: createAction('dashboardEdit/undoTileLayout'),
     redoTileLayout: createAction('dashboardEdit/redoTileLayout'),
     setCanvasZoom: createAction<number>('dashboardEdit/setCanvasZoom'),
@@ -439,7 +455,36 @@ export const dashboardEditReducer = (
     action: UnknownAction,
 ): DashboardEditState => {
     if (dashboardEditActions.setTiles.match(action)) {
-        return set(state, 'tiles', action.payload);
+        const next = set(state, 'tiles', action.payload);
+        return action.payload?.some(
+            (tile) => tile.uuid === state.selectedTileUuid,
+        )
+            ? next
+            : set(next, 'selectedTileUuid', null);
+    }
+    if (dashboardEditActions.setTileWidth.match(action)) {
+        return moveTilesTo(
+            state,
+            getTilesWithTileWidth(
+                tilesInView(state),
+                action.payload.uuid,
+                action.payload.w,
+            ),
+        );
+    }
+    if (dashboardEditActions.placeTile.match(action)) {
+        const { uuid, x, y } = action.payload;
+        return set(
+            moveTilesTo(
+                state,
+                getTilesWithTileAt(tilesInView(state), uuid, { x, y }),
+            ),
+            'selectedTileUuid',
+            uuid,
+        );
+    }
+    if (dashboardEditActions.selectTile.match(action)) {
+        return set(state, 'selectedTileUuid', action.payload);
     }
     if (dashboardEditActions.moveTiles.match(action)) {
         return moveTilesTo(state, action.payload);
