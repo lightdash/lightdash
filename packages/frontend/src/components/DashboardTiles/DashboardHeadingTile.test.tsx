@@ -1,4 +1,7 @@
 import {
+    DashboardHeadingSize,
+    DashboardHeadingTextAlign,
+    DashboardHeadingVerticalAlign,
     DashboardTileTypes,
     type DashboardHeadingTile as DashboardHeadingTileType,
 } from '@lightdash/common';
@@ -115,6 +118,85 @@ describe('DashboardHeadingTile inline editing', () => {
             ...tile,
             properties: { ...tile.properties, showDivider: true },
         });
+    });
+
+    it('changes the size from the actions shown while editing', () => {
+        const onEdit = renderTile();
+        editHeading('Revenue');
+
+        expect(screen.getByRole('button', { name: 'Medium' })).toHaveAttribute(
+            'aria-pressed',
+            'true',
+        );
+        fireEvent.click(screen.getByRole('button', { name: 'Large' }));
+
+        expect(onEdit).toHaveBeenCalledWith({
+            ...tile,
+            properties: { ...tile.properties, size: DashboardHeadingSize.LG },
+        });
+    });
+
+    it('leaves a heading alone when the option already showing is picked', () => {
+        const onEdit = renderTile();
+        fireEvent.focus(screen.getByRole('textbox', { name: 'Heading text' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Medium' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Align left' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Align middle' }));
+
+        expect(onEdit).not.toHaveBeenCalled();
+    });
+
+    it('changes the alignment from the actions shown while editing', () => {
+        const onEdit = renderTile();
+        editHeading('Revenue');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Align right' }));
+        expect(onEdit).toHaveBeenLastCalledWith({
+            ...tile,
+            properties: {
+                ...tile.properties,
+                textAlign: DashboardHeadingTextAlign.RIGHT,
+            },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Align bottom' }));
+        expect(onEdit).toHaveBeenLastCalledWith({
+            ...tile,
+            properties: {
+                ...tile.properties,
+                verticalAlign: DashboardHeadingVerticalAlign.BOTTOM,
+            },
+        });
+    });
+
+    it('renders the saved size in view mode', () => {
+        permissions.canManageDashboard = false;
+        renderWithProviders(
+            <DashboardStoreTestProvider store={createDashboardTestStore()}>
+                <DashboardHeadingTile
+                    tile={{
+                        ...tile,
+                        properties: {
+                            ...tile.properties,
+                            size: DashboardHeadingSize.XS,
+                        },
+                    }}
+                    isEditMode={false}
+                    onEdit={vi.fn()}
+                    onDelete={vi.fn()}
+                />
+            </DashboardStoreTestProvider>,
+        );
+
+        expect(screen.getByText('Revenue')).toHaveAttribute('data-size', 'xs');
+    });
+
+    it('renders a heading saved without settings at the defaults', () => {
+        renderTile({ isEditMode: false });
+
+        const heading = screen.getByText('Revenue');
+        expect(heading).toHaveAttribute('data-size', 'md');
+        expect(heading).toHaveAttribute('data-text-align', 'left');
     });
 
     it('duplicates the heading from the tile menu', () => {

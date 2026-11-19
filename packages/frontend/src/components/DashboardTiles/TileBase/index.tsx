@@ -1,5 +1,7 @@
 import {
+    DashboardHeadingVerticalAlign,
     DashboardTileTypes,
+    DEFAULT_DASHBOARD_HEADING_VERTICAL_ALIGN,
     isDashboardChartTileType,
     LOADING_CHART_OVERLAY_CLASS,
     type Dashboard,
@@ -67,6 +69,12 @@ import { TileCopyPlacement } from './TileCopyPlacement';
 import { TileHeaderPopoverContext } from './tileHeaderPopoverContext';
 import { TileSelectionToolbar } from './TileSelectionToolbar';
 import { type TileBaseProps } from './types';
+
+const HEADING_FLEX_ALIGN: Record<DashboardHeadingVerticalAlign, string> = {
+    [DashboardHeadingVerticalAlign.TOP]: 'flex-start',
+    [DashboardHeadingVerticalAlign.CENTER]: 'center',
+    [DashboardHeadingVerticalAlign.BOTTOM]: 'flex-end',
+};
 
 const TileBase = <T extends Dashboard['tiles'][number]>({
     isEditMode,
@@ -587,7 +595,10 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     flex="1"
                     align={
                         tile.type === DashboardTileTypes.HEADING
-                            ? 'center'
+                            ? HEADING_FLEX_ALIGN[
+                                  tile.properties.verticalAlign ??
+                                      DEFAULT_DASHBOARD_HEADING_VERTICAL_ALIGN
+                              ]
                             : undefined
                     }
                     onMouseEnter={

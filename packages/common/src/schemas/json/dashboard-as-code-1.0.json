@@ -737,6 +737,14 @@
                 }
             ]
         },
+        "DashboardHeadingSize": {
+            "enum": ["xs", "sm", "md", "lg"],
+            "type": "string"
+        },
+        "DashboardHeadingTextAlign": {
+            "enum": ["left", "center", "right"],
+            "type": "string"
+        },
         "DashboardHeadingTileAsCode": {
             "additionalProperties": false,
             "properties": {
@@ -751,10 +759,22 @@
                         "showDivider": {
                             "type": "boolean"
                         },
+                        "size": {
+                            "$ref": "#/$defs/DashboardHeadingSize",
+                            "description": "Omitted means the default size, `md`"
+                        },
                         "text": {
                             "type": "string"
                         },
-                        "title": {}
+                        "textAlign": {
+                            "$ref": "#/$defs/DashboardHeadingTextAlign",
+                            "description": "Omitted means the default, `left`"
+                        },
+                        "title": {},
+                        "verticalAlign": {
+                            "$ref": "#/$defs/DashboardHeadingVerticalAlign",
+                            "description": "Where the heading sits in the height of its tile. Omitted means the default, `center`"
+                        }
                     },
                     "required": ["text"],
                     "type": "object"
@@ -796,6 +816,10 @@
             },
             "required": ["w", "h", "y", "x", "type", "properties"],
             "type": "object"
+        },
+        "DashboardHeadingVerticalAlign": {
+            "enum": ["top", "center", "bottom"],
+            "type": "string"
         },
         "DashboardLoomTileAsCode": {
             "additionalProperties": false,
