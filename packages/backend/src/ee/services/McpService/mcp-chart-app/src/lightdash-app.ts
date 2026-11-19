@@ -68,14 +68,12 @@ async function getSignInUrl(url: string): Promise<string | null> {
 async function openPage(url: string): Promise<void> {
     pageUrl = url;
     frame.hidden = true;
-    if (!canFrame(new URL(url).origin)) {
-        showStatus(
-            'Claude did not allow Lightdash to load here. Open it in a new tab instead.',
-            true,
-        );
-        return;
-    }
-    showStatus('Opening Lightdash…', false);
+    const reported = app.getHostCapabilities()?.sandbox?.csp?.frameDomains;
+    const allowed = canFrame(new URL(url).origin);
+    showStatus(
+        `${allowed ? 'Opening Lightdash…' : 'Claude did not allow Lightdash to load here.'} Sites Claude allows: ${reported === undefined ? 'not reported' : JSON.stringify(reported)}`,
+        !allowed,
+    );
     const signInUrl = await getSignInUrl(url).catch(() => null);
     if (pageUrl !== url) return;
     if (signInUrl === null) {

@@ -13,6 +13,12 @@ describe('resolveLightdashAppUrl', () => {
         );
     });
 
+    it('opens the home page for a blank URL', () => {
+        expect(resolveLightdashAppUrl('  ', siteUrl)).toBe(
+            'https://app.lightdash.example/',
+        );
+    });
+
     it('keeps a page on this Lightdash site', () => {
         expect(
             resolveLightdashAppUrl('/projects/p1/tables/orders?x=1', siteUrl),
