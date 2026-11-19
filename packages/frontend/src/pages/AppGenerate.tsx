@@ -66,6 +66,12 @@ import ResizableSplitter from '../components/common/ResizableSplitter';
 import { getChartIcon } from '../components/common/ResourceIcon/utils';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import { getAiAgentThreadPath } from '../ee/features/aiCopilot/hooks/aiAgentRouting';
+import {
+    CaptureHost,
+    type CaptureHostHandle,
+    type CaptureResult,
+    type CaptureSurface,
+} from '../ee/features/capture';
 import AddAnalysisOffer from '../features/apps/analysis/AddAnalysisOffer';
 import AnalysisOffChip from '../features/apps/analysis/AnalysisOffChip';
 import { useDataAppAnalysisAvailability } from '../features/apps/analysis/useDataAppAnalysisAvailability';
@@ -76,6 +82,7 @@ import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import {
     AttachButton,
     ModelPicker,
+    CaptureButton,
     ScreenshotButton,
     SelectedAttachmentSection,
     SelectedDashboardSection,
@@ -162,6 +169,10 @@ import {
 import { getAppPageGate } from '../features/apps/utils/appPageGate';
 import { getBuildStageIndex } from '../features/apps/utils/buildStage';
 import {
+    imagesThatFit,
+    summaryToContent,
+} from '../features/apps/utils/captureAttachments';
+import {
     emptyChatMessage,
     mergeChatMessages,
     type ChatAttachedFile,
@@ -174,6 +185,7 @@ import {
     refToWireString,
 } from '../features/apps/utils/elementRefs';
 import { getHistoryLiveBuild } from '../features/apps/utils/historyLiveBuild';
+import { captureTranscriber } from '../features/apps/utils/transcribeCapture';
 import { getVersionNarration } from '../features/apps/utils/versionNarration';
 import { versionsToThreadChat } from '../features/apps/utils/versionsToChatMessages';
 import DataAppVizResultCard from '../features/chartTypes/components/DataAppVizResultCard';
@@ -195,6 +207,7 @@ import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import { useAbilityContext } from '../providers/Ability/useAbilityContext';
 import useApp from '../providers/App/useApp';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import classes from './AppGenerate.module.css';
 
 // ChatChart and ChatMessage are imported from `features/apps/utils/chatMessage`
@@ -667,8 +680,10 @@ const AppGenerate: FC = () => {
         return capture();
     }, []);
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const captureFlag = useServerFeatureFlag(FeatureFlags.DataAppCapture);
     const isChartStudioAvailable = useChartStudioAvailable();
     const { user, health } = useApp();
+    const lightdashApi = useLightdashApi();
     const sampleDataEnabled = health.data?.dataApps.sampleDataEnabled !== false;
     // Org switch for screenshots, file attachments and thumbnails. Hides the
     // affordances below; the backend rejects the uploads regardless.
@@ -1205,6 +1220,46 @@ const AppGenerate: FC = () => {
     const [analysisInUseScope, setAnalysisInUseScope] = useState<string | null>(
         null,
     );
+
+    // Voice Design: the preview area is the drawable surface.
+    const previewContentRef = useRef<HTMLDivElement>(null);
+    const captureHandlerRef = useRef<(result: CaptureResult) => void>(() => {});
+    const captureAvailable = Boolean(
+        projectUuid &&
+        previewApp &&
+        captureFlag.data?.enabled &&
+        capturesEnabled,
+    );
+    const voiceTranscriptionAvailable =
+        health.data?.ai.voiceTranscriptionAvailable;
+    const captureSurface = useMemo<CaptureSurface | null>(
+        () =>
+            captureAvailable && projectUuid
+                ? {
+                      getRegion: () =>
+                          previewContentRef.current?.getBoundingClientRect() ??
+                          new DOMRect(),
+                      captureImages: true,
+                      grabAppImage: capturePreviewScreenshot,
+                      resolveTarget: null,
+                      transcribe: captureTranscriber(
+                          lightdashApi,
+                          projectUuid,
+                          voiceTranscriptionAvailable,
+                      ),
+                      onCapture: (result) => captureHandlerRef.current(result),
+                  }
+                : null,
+        [
+            captureAvailable,
+            capturePreviewScreenshot,
+            lightdashApi,
+            projectUuid,
+            voiceTranscriptionAvailable,
+        ],
+    );
+    const captureRef = useRef<CaptureHostHandle>(null);
+    const [isCaptureRecording, setIsCaptureRecording] = useState(false);
     const handleInsightsInUse = useCallback(
         () => setAnalysisInUseScope(previewScope),
         [previewScope],
@@ -1733,6 +1788,25 @@ const AppGenerate: FC = () => {
                 },
             ];
         });
+    };
+
+    captureHandlerRef.current = (result) => {
+        const { fit, dropped } = imagesThatFit(
+            result.images,
+            fileAttachments.length,
+            MAX_APP_FILES_PER_VERSION,
+        );
+        fit.forEach((image) => void handleFileAttach(image, 'screenshot'));
+        if (dropped > 0) {
+            showToastWarning({
+                title: `${dropped} capture images did not fit`,
+                subtitle: `You can attach up to ${MAX_APP_FILES_PER_VERSION} files per message.`,
+            });
+        }
+        promptEditorRef.current?.insertContent(
+            summaryToContent(result.summary),
+        );
+        promptEditorRef.current?.focus();
     };
 
     const handlePaste = (e: React.ClipboardEvent) => {
@@ -3425,6 +3499,7 @@ const AppGenerate: FC = () => {
                                         <AppHeaderActions
                                             previewTools={
                                                 (elementPicker.available ||
+                                                    captureSurface ||
                                                     (previewApp &&
                                                         screenshotAvailable &&
                                                         capturesEnabled)) && (
@@ -3458,6 +3533,17 @@ const AppGenerate: FC = () => {
                                                                     }
                                                                 />
                                                             )}
+                                                        {captureSurface && (
+                                                            <CaptureButton
+                                                                onClick={() =>
+                                                                    captureRef.current?.start()
+                                                                }
+                                                                disabled={
+                                                                    isSubmitting ||
+                                                                    isCaptureRecording
+                                                                }
+                                                            />
+                                                        )}
                                                     </>
                                                 )
                                             }
@@ -3615,6 +3701,7 @@ const AppGenerate: FC = () => {
                                 )}
 
                             <Box
+                                ref={previewContentRef}
                                 className={classes.previewContent}
                                 // Walkthrough result for create:DataApp: a
                                 // finished app in the builder, the seeded one
@@ -3628,6 +3715,11 @@ const AppGenerate: FC = () => {
                                 data-tour-return="none"
                                 data-tour-resultdocs="data-apps.mdx#restoring-an-earlier-version:1"
                             >
+                                <CaptureHost
+                                    ref={captureRef}
+                                    surface={captureSurface}
+                                    onRecordingChange={setIsCaptureRecording}
+                                />
                                 {previewApp ? (
                                     <AppPreview
                                         ref={previewRef}

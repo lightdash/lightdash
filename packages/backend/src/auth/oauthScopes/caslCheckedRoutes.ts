@@ -141,6 +141,7 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'AppGenerateController.promoteApp',
     'AppGenerateController.restoreAppVersion',
     'AppGenerateController.toggleAppPinning',
+    'AppGenerateController.transcribeCapture',
     'AppGenerateController.unverifyDataApp',
     'AppGenerateController.updateApp',
     'AppGenerateController.upgradeApp',

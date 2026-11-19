@@ -115,6 +115,17 @@ export type ApiAppFileUploadResponse = ApiSuccess<{
     mimeType: string;
 }>;
 
+/** One spoken word from a Voice Design recording, timed from the start of its audio. */
+export type CaptureTranscriptWord = {
+    startMs: number;
+    endMs: number;
+    text: string;
+};
+
+export type ApiCaptureTranscriptResponse = ApiSuccess<{
+    words: CaptureTranscriptWord[];
+}>;
+
 /** @deprecated Use ApiAppFileUploadResponse. */
 export type ApiAppImageUploadResponse = ApiAppFileUploadResponse;
 
