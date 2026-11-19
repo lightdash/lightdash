@@ -87,6 +87,7 @@ export const DISTILL_TOOL_POLICIES = {
     analyzeFieldImpact: { result: keep },
     listWarehouseTables: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     describeWarehouseTable: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
+    grepWarehouseColumns: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     searchFieldValues: { result: truncate(SHORT_TOOL_RESULT_LIMIT) },
     runMetricQuery: {
         result: shape(),

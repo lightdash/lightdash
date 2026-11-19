@@ -58,6 +58,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     visualize: 'visualize',
     listWarehouseTables: 'list_warehouse_tables',
     describeWarehouseTable: 'describe_warehouse_table',
+    grepWarehouseColumns: 'grep_warehouse_columns',
     listKnowledgeDocuments: 'list_knowledge_documents',
     getKnowledgeDocumentContent: 'get_knowledge_document_content',
     readPinnedThread: 'read_pinned_thread',

@@ -232,6 +232,11 @@ import {
     toolGrepFieldsOutputSchema,
 } from './toolGrepFieldsArgs';
 import {
+    TOOL_GREP_WAREHOUSE_COLUMNS_DESCRIPTION,
+    toolGrepWarehouseColumnsArgsSchema,
+    toolGrepWarehouseColumnsOutputSchema,
+} from './toolGrepWarehouseColumnsArgs';
+import {
     MCP_TOOL_ITERATE_CUSTOM_CHART_TYPE_DESCRIPTION,
     mcpIterateCustomChartTypeArgsSchema,
 } from './toolIterateCustomChartTypeArgs';
@@ -1471,6 +1476,20 @@ export const listWarehouseTablesToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolListWarehouseTablesOutputSchema },
 });
 
+export const grepWarehouseColumnsToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'grepWarehouseColumns',
+    typeof toolGrepWarehouseColumnsArgsSchema,
+    typeof toolGrepWarehouseColumnsArgsSchema,
+    typeof toolGrepWarehouseColumnsOutputSchema
+> = defineTool({
+    name: 'grepWarehouseColumns',
+    title: 'Search warehouse columns',
+    description: TOOL_GREP_WAREHOUSE_COLUMNS_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolGrepWarehouseColumnsArgsSchema,
+    agent: { outputSchema: toolGrepWarehouseColumnsOutputSchema },
+});
+
 export const describeWarehouseTableToolDefinition: ToolDefinitionWithoutMcpOutput<
     'describeWarehouseTable',
     typeof toolDescribeWarehouseTableArgsSchema,
@@ -2057,6 +2076,7 @@ type AgentToolDefinitionsByName = {
     runSavedChart: typeof runSavedChartToolDefinition;
     listWarehouseTables: typeof listWarehouseTablesToolDefinition;
     describeWarehouseTable: typeof describeWarehouseTableToolDefinition;
+    grepWarehouseColumns: typeof grepWarehouseColumnsToolDefinition;
     listKnowledgeDocuments: typeof listKnowledgeDocumentsToolDefinition;
     getKnowledgeDocumentContent: typeof getKnowledgeDocumentContentToolDefinition;
     readPinnedThread: typeof readPinnedThreadToolDefinition;
@@ -2122,6 +2142,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     runSavedChart: runSavedChartToolDefinition,
     listWarehouseTables: listWarehouseTablesToolDefinition,
     describeWarehouseTable: describeWarehouseTableToolDefinition,
+    grepWarehouseColumns: grepWarehouseColumnsToolDefinition,
     listKnowledgeDocuments: listKnowledgeDocumentsToolDefinition,
     getKnowledgeDocumentContent: getKnowledgeDocumentContentToolDefinition,
     readPinnedThread: readPinnedThreadToolDefinition,
@@ -2194,6 +2215,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     runSavedChartToolDefinition,
     listWarehouseTablesToolDefinition,
     describeWarehouseTableToolDefinition,
+    grepWarehouseColumnsToolDefinition,
     listKnowledgeDocumentsToolDefinition,
     getKnowledgeDocumentContentToolDefinition,
     readPinnedThreadToolDefinition,

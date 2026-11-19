@@ -81,6 +81,7 @@ export const AGENT_TOOL_NAMES = [
     'visualize',
     'listWarehouseTables',
     'describeWarehouseTable',
+    'grepWarehouseColumns',
     'loadSkill',
     'loadProjectContext',
     'loadMcpTools',

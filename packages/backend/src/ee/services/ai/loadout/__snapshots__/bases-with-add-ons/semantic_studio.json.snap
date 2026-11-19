@@ -11,6 +11,7 @@
         "describeWarehouseTable",
         "getMetadata",
         "grepFields",
+        "grepWarehouseColumns",
         "listChanges",
         "listWarehouseTables",
         "loadProjectContext",

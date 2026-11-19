@@ -409,6 +409,34 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
         return this.parsePostgresCatalog(rows);
     }
 
+    async getSchemaColumns(
+        schemas: { database: string; schema: string }[],
+    ): Promise<WarehouseCatalog> {
+        if (!(await this.isRedshift())) return super.getSchemaColumns(schemas);
+        const names = [...new Set(schemas.map(({ schema }) => schema))];
+        if (names.length === 0) return {};
+        const query = `
+            SELECT c.table_catalog,
+                   c.table_schema,
+                   c.table_name,
+                   c.column_name,
+                   c.data_type
+            FROM svv_columns c
+            JOIN svv_all_tables t
+                ON t.database_name = c.table_catalog
+                AND t.schema_name = c.table_schema
+                AND t.table_name = c.table_name
+            WHERE c.table_catalog = $1
+            AND c.table_schema IN (${names.map((_, index) => `$${index + 2}`).join(',')})
+            ORDER BY c.table_schema, c.table_name, c.ordinal_position
+        `;
+        const { rows } = await this.runQuery(query, {}, undefined, [
+            this.credentials.dbname,
+            ...names,
+        ]);
+        return this.parsePostgresCatalog(rows);
+    }
+
     private async resolveIamPoolConfig(): Promise<PoolConfig> {
         const now = Date.now();
         if (

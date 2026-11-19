@@ -26261,6 +26261,7 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "runSavedChart",
   "listWarehouseTables",
   "describeWarehouseTable",
+  "grepWarehouseColumns",
   "listKnowledgeDocuments",
   "getKnowledgeDocumentContent",
   "readPinnedThread",

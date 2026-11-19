@@ -131,6 +131,7 @@ import {
     renderCandidateBlock,
     selectCandidateFields,
 } from '../tools/grepFieldsIndex';
+import { getGrepWarehouseColumns } from '../tools/grepWarehouseColumns';
 import { getIterateDataApp } from '../tools/iterateDataApp';
 import { getListContent } from '../tools/listContent';
 import { getListDataAppConnections } from '../tools/listDataAppConnections';
@@ -2411,6 +2412,10 @@ export const getAgentTools = (
         describeWarehouseTable: () =>
             getDescribeWarehouseTable({
                 describeWarehouseTable: dependencies.describeWarehouseTable,
+            }),
+        grepWarehouseColumns: () =>
+            getGrepWarehouseColumns({
+                listWarehouseColumns: dependencies.listWarehouseColumns,
             }),
         loadSkill: () => {
             const listed = new Set(

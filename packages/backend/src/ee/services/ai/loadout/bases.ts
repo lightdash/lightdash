@@ -101,7 +101,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
                 'runMetricQuery',
             ]),
             ...onlyIf(input.enableDataAccess, ['searchFieldValues']),
-            ...onlyIf(input.canRunSql, ['runSql']),
+            ...onlyIf(input.canRunSql, ['runSql', 'grepWarehouseColumns']),
         ],
         sections: ['semanticStudio'],
         skills: [],

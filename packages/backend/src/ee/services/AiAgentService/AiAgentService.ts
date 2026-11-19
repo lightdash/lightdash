@@ -15751,6 +15751,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             runComposerQueries: toolsRuntime.runComposerQueries,
             listWarehouseTables: toolsRuntime.listWarehouseTables,
             describeWarehouseTable: toolsRuntime.describeWarehouseTable,
+            listWarehouseColumns: toolsRuntime.listWarehouseColumns,
             listKnowledgeDocuments: toolsRuntime.listKnowledgeDocuments,
             getKnowledgeDocumentContent:
                 toolsRuntime.getKnowledgeDocumentContent,
@@ -18158,6 +18159,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     runComposerQueries,
                     listWarehouseTables,
                     describeWarehouseTable,
+                    listWarehouseColumns,
                     listKnowledgeDocuments,
                     getKnowledgeDocumentContent,
                     getSavedChart,
@@ -18663,6 +18665,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     runComposerQueries,
                     listWarehouseTables,
                     describeWarehouseTable,
+                    listWarehouseColumns,
                     listKnowledgeDocuments,
                     getKnowledgeDocumentContent,
                     // Only conversations pinned as context on this thread are
@@ -20652,6 +20655,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 case 'searchSemanticLayer':
                 case 'listWarehouseTables':
                 case 'describeWarehouseTable':
+                case 'grepWarehouseColumns':
                     return 'Reviewing the semantic layer...';
                 case 'generateVisualization':
                 case 'generateDashboard':
