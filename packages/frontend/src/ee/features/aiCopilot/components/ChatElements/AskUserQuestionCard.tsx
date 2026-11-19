@@ -150,19 +150,30 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
                 <Box component="span" className={styles.optionMark}>
                     <Indicator size="xs" />
                 </Box>
-                <Box>
-                    <Text size="sm" fw={500}>
+                <Box miw={0}>
+                    <Text size={isBare ? 'xs' : 'sm'} fw={500}>
                         {option.label}
                     </Text>
                     {option.description && (
-                        <Text fz="xs" c="dimmed">
+                        <Text
+                            fz="xs"
+                            c="dimmed"
+                            lineClamp={isBare ? 2 : undefined}
+                            title={isBare ? option.description : undefined}
+                        >
                             {option.description}
                         </Text>
                     )}
                 </Box>
-                <Box component="span" className={styles.optionKey} aria-hidden>
-                    {i + 1}
-                </Box>
+                {isBare ? null : (
+                    <Box
+                        component="span"
+                        className={styles.optionKey}
+                        aria-hidden
+                    >
+                        {i + 1}
+                    </Box>
+                )}
             </OptionCard>
         );
     });
@@ -199,8 +210,9 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
             tabIndex={-1}
             onKeyDown={onKeyDown}
             className={styles.card}
+            data-dense={isBare || undefined}
         >
-            <Stack gap="xs" p="xs">
+            <Stack gap={isBare ? 4 : 'xs'} p={isBare ? 6 : 'xs'}>
                 {isBare ? null : (
                     <Group
                         justify="space-between"
@@ -218,7 +230,7 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
                         )}
                     </Group>
                 )}
-                {isBare && !question.multiSelect ? null : (
+                {isBare ? null : (
                     <Box px="xs">
                         {isBare ? null : (
                             <Text fz="sm" fw={500}>
@@ -275,15 +287,20 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
                             </Button>
                         )}
                         <Button
-                            size="xs"
+                            size={isBare ? 'compact-xs' : 'xs'}
                             disabled={!canAdvance}
                             onClick={advance}
                         >
-                            {isLast
-                                ? questions.length > 1
-                                    ? 'Submit answers'
-                                    : 'Submit answer'
-                                : 'Next'}
+                            {isBare
+                                ? question.multiSelect &&
+                                  current.selected.length > 1
+                                    ? `Go with these ${current.selected.length}`
+                                    : 'Go with this'
+                                : isLast
+                                  ? questions.length > 1
+                                      ? 'Submit answers'
+                                      : 'Submit answer'
+                                  : 'Next'}
                         </Button>
                     </Group>
                 </Group>
