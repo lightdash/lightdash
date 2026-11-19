@@ -1,3 +1,4 @@
+import { FilterOperator } from '@lightdash/common';
 import { monthlyQueryComparisonCharts } from './monthlyQueryComparisonCharts';
 import type { UsageChartSpec } from './usageDashboardTypes';
 
@@ -122,6 +123,48 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         limit: 40,
         sorts: [{ fieldId: 'semantic_usage_total_queries', descending: true }],
+    },
+    {
+        key: 'most-used-fields-cloud',
+        name: 'Most-used fields at a glance',
+        description:
+            'Fields sized by distinct query attempts over the selected period. Names are those captured at execution; a renamed label can appear separately.',
+        explore: 'semantic_usage',
+        dimensions: ['semantic_usage_field_label'],
+        metrics: ['semantic_usage_total_queries'],
+        filters: [
+            {
+                field: 'semantic_usage_field_kind',
+                values: ['metric', 'dimension'],
+            },
+        ],
+        limit: 20,
+        sorts: [{ fieldId: 'semantic_usage_total_queries', descending: true }],
+        visualization: 'bar',
+        xField: 'semantic_usage_field_label',
+        flipAxes: true,
+        libraryChart: {
+            slug: 'word-cloud',
+            minVersion: '0.4.0',
+            fieldMapping: {
+                word: 'semantic_usage_field_label',
+                size: 'semantic_usage_total_queries',
+            },
+            optionValues: { showLegend: false },
+            query: {
+                dimensions: ['semantic_usage_field_label'],
+                metrics: ['semantic_usage_total_queries'],
+                sorts: [
+                    {
+                        fieldId: 'semantic_usage_total_queries',
+                        descending: true,
+                    },
+                ],
+                limit: 80,
+                description:
+                    'Fields sized by distinct query attempts over the selected period. Names are those captured at execution; a renamed label can appear separately.',
+            },
+        },
     },
     {
         key: 'people-using-fields',
@@ -1381,6 +1424,13 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'query_events_p95_response_time_ms',
             'query_events_avg_warehouse_execution_time_ms',
         ],
+        filters: [
+            {
+                field: 'query_events_dashboard_name',
+                operator: FilterOperator.NOT_NULL,
+                values: [],
+            },
+        ],
         limit: 20,
         sorts: [
             {
@@ -1388,6 +1438,27 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 fieldId: 'query_events_p95_response_time_ms',
             },
         ],
+        libraryChart: {
+            slug: 'customizable-cartesian-chart',
+            minVersion: '0.17.1',
+            fieldMapping: {
+                x: 'query_events_dashboard_name',
+                m1: 'query_events_total_queries',
+                m2: 'query_events_p95_response_time_ms',
+            },
+            optionValues: {
+                seriesType: 'bar',
+                m2Type: 'scatter',
+                dualAxis: true,
+                m2Right: true,
+                xAxisType: 'category',
+                xLabelAutoRotate: false,
+                xLabelRotate: 45,
+                yName: 'Queries',
+                yRightName: 'p95 response time (ms)',
+            },
+            query: null,
+        },
     },
     {
         key: 'verified-content-audience-share',
