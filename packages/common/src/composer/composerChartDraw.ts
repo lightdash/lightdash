@@ -153,6 +153,7 @@ export const getComposerChartDraw = ({
     chart,
     columns,
     fields,
+    zoomedFieldLabels,
 }: {
     pipeline: ComposerChartPipeline;
     chart: ComposerStoredChart;
@@ -160,6 +161,8 @@ export const getComposerChartDraw = ({
     columns: ResultColumn[];
     /** The run's fields map for the terminal node. */
     fields: ItemsMap;
+    /** Labels of fields a date zoom re-grained, by field id; a result column of that name shows it. */
+    zoomedFieldLabels: Record<string, string>;
 }): ComposerChartDraw => {
     assertDrawablePivot(chart);
     const node = getTerminalNode(pipeline);
@@ -178,7 +181,17 @@ export const getComposerChartDraw = ({
             case QuerySourceType.SQL:
             case QuerySourceType.DUCKDB:
             case QuerySourceType.PYTHON:
-                return getResultColumnsQuery(chart, columns);
+                return getResultColumnsQuery(
+                    chart,
+                    columns.map((column) =>
+                        zoomedFieldLabels[column.reference]
+                            ? {
+                                  ...column,
+                                  label: zoomedFieldLabels[column.reference],
+                              }
+                            : column,
+                    ),
+                );
             default:
                 return assertUnreachable(node, 'Unknown composer node kind');
         }

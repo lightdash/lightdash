@@ -228,6 +228,17 @@ const usedParametersByQuery: Record<string, ParametersValuesMap> = {
     'other-query': { region: 'UK' },
 };
 
+// The orders run's history labels its date field at the grain it ran
+const ordersRunFields = {
+    orders_created_at: {
+        fieldType: FieldType.DIMENSION,
+        type: DimensionType.DATE,
+        name: 'created_at',
+        table: 'orders',
+        label: 'Created at month',
+    },
+};
+
 const savedDashboardFilters: DashboardFilters = {
     dimensions: [],
     metrics: [],
@@ -358,7 +369,10 @@ const setup = ({ flagEnabled = true } = {}) => {
         queryHistoryModel: {
             getByQueryUuid: vi.fn(async (queryUuid: string) => ({
                 queryUuid,
-                fields: { [`${queryUuid}_field`]: {} },
+                fields: {
+                    [`${queryUuid}_field`]: {},
+                    ...(queryUuid === 'orders-query' ? ordersRunFields : {}),
+                },
                 usedParameters: usedParametersByQuery[queryUuid] ?? null,
             })),
         } as unknown as QueryHistoryModel,
@@ -796,6 +810,9 @@ describe('ComposerChartService.run', () => {
             },
         });
         expect(zoomed.dateZoomApplied).toBe(true);
+        expect(zoomed.zoomedFieldLabels).toEqual({
+            orders_created_at: 'Created at month',
+        });
         expect(zoomed.zoomableFields).toEqual([
             {
                 fieldId: 'orders_created_at',
@@ -815,6 +832,7 @@ describe('ComposerChartService.run', () => {
             submitComposerRun.mock.calls[1][0].binding.dateZoomByNodeId,
         ).toEqual({});
         expect(unzoomed.dateZoomApplied).toBe(false);
+        expect(unzoomed.zoomedFieldLabels).toEqual({});
         expect(unzoomed.zoomableFields).toEqual(zoomed.zoomableFields);
     });
 

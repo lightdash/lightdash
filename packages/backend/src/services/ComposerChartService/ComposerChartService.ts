@@ -12,6 +12,7 @@ import {
     getDataAppVizChartConfigErrors,
     getErrorMessage,
     getExploreParameterDefinitions,
+    getItemLabelWithoutTableName,
     getReferencedParameterDefinitions,
     isCartesianChartConfig,
     isComposerChartTileRequest,
@@ -916,6 +917,15 @@ export class ComposerChartService extends BaseService {
                 ]),
             ),
             dateZoomApplied: Object.keys(dateZoomByNodeId).length > 0,
+            zoomedFieldLabels: Object.fromEntries(
+                queries.flatMap(({ nodeId }, index) => {
+                    const fieldId = dateZoomByNodeId[nodeId]?.xAxisFieldId;
+                    const field = fieldId && histories[index]?.fields[fieldId];
+                    return field
+                        ? [[fieldId, getItemLabelWithoutTableName(field)]]
+                        : [];
+                }),
+            ),
             zoomableFields: getComposerZoomableFields(
                 chart.pipeline.nodes,
                 exploreByNodeId,

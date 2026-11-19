@@ -279,6 +279,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                     chart: chart.chart,
                     columns: Object.values(terminal.columns),
                     fields: run.fields,
+                    zoomedFieldLabels: run.zoomedFieldLabels,
                 }),
             };
         } catch (error) {
