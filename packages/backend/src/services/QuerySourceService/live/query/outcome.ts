@@ -1,12 +1,15 @@
 import {
     assertUnreachable,
     getLiveSourceErrorOrigin,
+    isLiveSourceErrorCode,
+    LightdashError,
     ParameterError,
     TimeoutError,
     TooManyRequestsError,
     UnexpectedServerError,
     WarehouseConnectionError,
     WarehouseQueryError,
+    type LiveSourceErrorCode,
     type LiveSourceInternalErrorCode,
     type LiveSourceUpstreamErrorCode,
 } from '@lightdash/common';
@@ -20,12 +23,27 @@ export const LIVE_QUERY_OUTCOMES = [
     'timeout',
     'upstream_error',
     'internal_error',
+    // Lightdash declined the query, e.g. past the rows one query can read
+    'refused',
+    // Our own concurrency or call-rate limit for the source
+    'limited',
 ] as const;
 
 export type LiveQueryOutcome = (typeof LIVE_QUERY_OUTCOMES)[number];
 
-/** Buckets a failed api query by cause, from the errors connectors throw. */
-export const getLiveQueryOutcome = (error: unknown): LiveQueryOutcome => {
+/** The code a live data source error carries in its data, when it names one. */
+const readLiveSourceErrorCode = (
+    error: unknown,
+): LiveSourceErrorCode | null => {
+    if (!(error instanceof LightdashError)) return null;
+    const code: unknown = error.data?.liveSourceErrorCode;
+    return isLiveSourceErrorCode(code) ? code : null;
+};
+
+/** The failure buckets an error falls in by its class alone. */
+type UncodedOutcome = Exclude<LiveQueryOutcome, 'ok' | 'refused' | 'limited'>;
+
+const getUncodedOutcome = (error: unknown): UncodedOutcome => {
     if (error instanceof ParameterError) return 'invalid_request';
     if (error instanceof WarehouseQueryError) return 'query_error';
     if (error instanceof WarehouseConnectionError) return 'connection_error';
@@ -35,13 +53,19 @@ export const getLiveQueryOutcome = (error: unknown): LiveQueryOutcome => {
     return 'internal_error';
 };
 
-/** The stable code of a failed api query, from its outcome; null when it succeeded. */
-export const getLiveSourceQueryErrorCode = (
-    outcome: LiveQueryOutcome,
-): LiveSourceInternalErrorCode | LiveSourceUpstreamErrorCode | null => {
+/** Buckets a failed api query by cause, from the errors connectors throw. */
+export const getLiveQueryOutcome = (error: unknown): LiveQueryOutcome => {
+    const code = readLiveSourceErrorCode(error);
+    if (code && getLiveSourceErrorOrigin(code) === 'refused') return 'refused';
+    if (code === 'live_source.internal.limit') return 'limited';
+    return getUncodedOutcome(error);
+};
+
+/** The stable code of an error with none of its own, from its outcome. */
+const getUncodedErrorCode = (
+    outcome: UncodedOutcome,
+): LiveSourceInternalErrorCode | LiveSourceUpstreamErrorCode => {
     switch (outcome) {
-        case 'ok':
-            return null;
         // Our own validation rejected the request before it was sent
         case 'invalid_request':
             return 'live_source.internal.invalid_request';
@@ -64,13 +88,21 @@ export const getLiveSourceQueryErrorCode = (
 };
 
 /**
- * Codes worth a Sentry issue: every failure of ours, and the API rejecting a
- * request our compiler built or failing in a way we don't understand. Auth,
- * rate limits and timeouts are the source's state.
+ * The stable code of a failed api query: the one its error carries, such as
+ * a refusal, or else the one its outcome implies.
  */
-export const isLiveSourceErrorReportable = (
-    code: LiveSourceInternalErrorCode | LiveSourceUpstreamErrorCode,
-) =>
-    getLiveSourceErrorOrigin(code) === 'internal' ||
+export const getLiveSourceErrorCode = (error: unknown): LiveSourceErrorCode => {
+    const code = readLiveSourceErrorCode(error);
+    return code ?? getUncodedErrorCode(getUncodedOutcome(error));
+};
+
+/**
+ * Codes worth a Sentry issue: every failure of ours, and the API rejecting a
+ * request our compiler built or failing in a way we don't understand.
+ * Refusals, our own limits, auth, rate limits and timeouts are expected.
+ */
+export const isLiveSourceErrorReportable = (code: LiveSourceErrorCode) =>
+    (getLiveSourceErrorOrigin(code) === 'internal' &&
+        code !== 'live_source.internal.limit') ||
     code === 'live_source.upstream.invalid_request' ||
     code === 'live_source.upstream.unknown';

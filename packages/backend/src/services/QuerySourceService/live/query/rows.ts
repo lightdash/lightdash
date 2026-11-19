@@ -1,8 +1,9 @@
-import { ParameterError } from '@lightdash/common';
+import { ParameterError, toLiveSourceErrorData } from '@lightdash/common';
 
 /**
  * The error every live data source gives when a query has more rows than one
  * query can read: answering from part of the rows would sort and total wrong.
+ * A refusal, so telemetry files it as the source's limit, not our failure.
  */
 export const tooManyRowsError = ({
     label,
@@ -15,6 +16,7 @@ export const tooManyRowsError = ({
         `This ${label} query has more than ${maxRows.toLocaleString(
             'en-US',
         )} rows, the most one query can read, so its result would be incomplete. Narrow the date range, add a filter or remove a dimension.`,
+        toLiveSourceErrorData('live_source.refused.row_limit'),
     );
 
 type ApiSourcePage = {

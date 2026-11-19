@@ -186,8 +186,7 @@ import {
     type FieldValueSearchResult,
     type Filters,
     type InvalidateExploresResultsCache,
-    type LiveSourceInternalErrorCode,
-    type LiveSourceUpstreamErrorCode,
+    type LiveSourceErrorCode,
     type MergeQueryChart,
     type MergeQueryExecutionMode,
     type Organization,
@@ -408,7 +407,7 @@ import {
 import { toLiveQueryError } from '../QuerySourceService/live/explores/definition';
 import {
     getLiveQueryOutcome,
-    getLiveSourceQueryErrorCode,
+    getLiveSourceErrorCode,
     isLiveSourceErrorReportable,
     type LiveQueryOutcome,
 } from '../QuerySourceService/live/query/outcome';
@@ -13280,6 +13279,7 @@ export class AsyncQueryService extends ProjectService {
             query: payload.query,
             rowLimit: limit,
             outcome: 'ok',
+            errorCode: null,
             errorMessage: null,
             durationMs: Date.now() - queryCreatedAt.getTime(),
             rowCount: stored.totalRowCount,
@@ -13342,6 +13342,7 @@ export class AsyncQueryService extends ProjectService {
                     call: Pick<
                         LiveQueryCall,
                         | 'outcome'
+                        | 'errorCode'
                         | 'errorMessage'
                         | 'rowCount'
                         | 'columnCount'
@@ -13459,6 +13460,7 @@ export class AsyncQueryService extends ProjectService {
                     });
                     logCall({
                         outcome: 'ok',
+                        errorCode: null,
                         errorMessage: null,
                         rowCount: shaped.rows.length,
                         columnCount: Object.keys(shaped.columns).length,
@@ -13474,27 +13476,20 @@ export class AsyncQueryService extends ProjectService {
                 } catch (e) {
                     const message = getErrorMessage(e);
                     const outcome = getLiveQueryOutcome(e);
-                    const errorCode = getLiveSourceQueryErrorCode(outcome);
+                    const errorCode = getLiveSourceErrorCode(e);
                     span.setAttributes({
                         'lightdash.error': message,
-                        ...(errorCode
-                            ? {
-                                  'lightdash.errorCode': errorCode,
-                                  'lightdash.errorOrigin':
-                                      getLiveSourceErrorOrigin(errorCode),
-                              }
-                            : {}),
+                        'lightdash.errorCode': errorCode,
+                        'lightdash.errorOrigin':
+                            getLiveSourceErrorOrigin(errorCode),
                     });
                     this.logger.warn(
-                        `Api query ${queryUuid} failed: code=${errorCode ?? '-'} integration=${connectorType} explore=${exploreName ?? '-'} context=${context}: ${message}`,
+                        `Api query ${queryUuid} failed: code=${errorCode} integration=${connectorType} explore=${exploreName ?? '-'} context=${context}: ${message}`,
                     );
                     // Our own failures always; the integration's only for
                     // compiled queries, since a request the agent wrote itself
                     // failing is the agent's to fix, not ours
-                    if (
-                        errorCode !== null &&
-                        isLiveSourceErrorReportable(errorCode)
-                    ) {
+                    if (isLiveSourceErrorReportable(errorCode)) {
                         const errorOrigin = getLiveSourceErrorOrigin(errorCode);
                         if (
                             errorOrigin === 'internal' ||
@@ -13559,6 +13554,7 @@ export class AsyncQueryService extends ProjectService {
                     });
                     logCall({
                         outcome,
+                        errorCode,
                         errorMessage: message,
                         rowCount: null,
                         columnCount: null,
@@ -13647,10 +13643,7 @@ export class AsyncQueryService extends ProjectService {
         connector: ApiConnectorType;
         queryCreatedAt: Date;
         outcome: LiveQueryOutcome;
-        errorCode?:
-            | LiveSourceInternalErrorCode
-            | LiveSourceUpstreamErrorCode
-            | null;
+        errorCode?: LiveSourceErrorCode | null;
         errorMessage: string | null;
         totalRowCount: number | null;
         columnsCount: number | null;
