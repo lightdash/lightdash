@@ -606,12 +606,14 @@ export class ProjectModelDocumentModel {
                     status: SettledDraftChangeStatus;
                     pullRequestUrl: string | null;
                     revertedBy: string | null;
+                    models: SemanticLayerDraftModelInput[];
                 }[]
             >({
                 draftChangeUuid: `${ProjectModelDraftChangesTableName}.project_model_draft_change_uuid`,
                 status: `${ProjectModelDraftChangesTableName}.status`,
                 pullRequestUrl: `${ProjectModelDraftChangesTableName}.applied_pull_request_url`,
                 revertedBy: `${ProjectModelChangeSetsTableName}.reverted_by_change_set_uuid`,
+                models: `${ProjectModelDraftChangesTableName}.models`,
             })
             .where(
                 `${ProjectModelDraftChangesTableName}.project_uuid`,
@@ -625,10 +627,17 @@ export class ProjectModelDocumentModel {
             .orderBy(`${ProjectModelDraftChangesTableName}.created_at`, 'desc')
             .limit(SETTLED_DRAFT_CHANGES_LIMIT);
         return rows.map(
-            ({ draftChangeUuid, status, pullRequestUrl, revertedBy }) => ({
+            ({
+                draftChangeUuid,
+                status,
+                pullRequestUrl,
+                revertedBy,
+                models,
+            }) => ({
                 draftChangeUuid,
                 status: revertedBy ? 'undone' : status,
                 pullRequestUrl,
+                models: models.map(({ name }) => name),
             }),
         );
     }
