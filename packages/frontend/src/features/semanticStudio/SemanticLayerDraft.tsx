@@ -28,7 +28,7 @@ import {
 } from '@tabler/icons-react';
 import { sortBy, uniqBy } from 'es-toolkit/compat';
 import { useEffect, useRef, useState, type FC } from 'react';
-import { Navigate, useSearchParams } from 'react-router';
+import { Link, Navigate, useSearchParams } from 'react-router';
 import Callout from '../../components/common/Callout';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
@@ -548,6 +548,14 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                         </ActionIcon>
                     </Menu.Target>
                     <Menu.Dropdown>
+                        {tryModel ? (
+                            <Menu.Item
+                                component={Link}
+                                to={`/projects/${projectUuid}/tables/${encodeURIComponent(tryModel)}`}
+                            >
+                                Open in Explore
+                            </Menu.Item>
+                        ) : null}
                         <Menu.Item
                             disabled={
                                 check.isLoading ||

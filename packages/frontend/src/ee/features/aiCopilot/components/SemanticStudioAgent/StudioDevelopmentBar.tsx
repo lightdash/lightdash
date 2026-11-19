@@ -41,8 +41,15 @@ export const StudioDevelopmentBar: FC<{
     pullRequest: StudioPullRequest;
 }> = ({ projectUuid, pullRequest }) => {
     const { prUrl, previewProjectUuid, ciChecks, isMine } = pullRequest;
-    const { name, destination, compile, canWriteBranch, branch, step } =
-        useStudioPublish(projectUuid, prUrl, ciChecks);
+    const {
+        name,
+        destination,
+        compile,
+        canWriteBranch,
+        mergesHere,
+        branch,
+        step,
+    } = useStudioPublish(projectUuid, prUrl, ciChecks);
     const compileAgain = useCompileCheckout(projectUuid);
     const { data: credential } = useGithubUserCredential();
     const { mutate: close, isLoading: isClosing } =
@@ -74,7 +81,11 @@ export const StudioDevelopmentBar: FC<{
                 <Tooltip
                     multiline
                     w={240}
-                    label={`Only people who can write to ${branch ?? "the project's branch"} can publish.`}
+                    label={
+                        mergesHere
+                            ? `Only people who can write to ${branch ?? "the project's branch"} can publish.`
+                            : 'Merge it in your repository to publish.'
+                    }
                 >
                     <Button
                         size="xs"
@@ -139,6 +150,14 @@ export const StudioDevelopmentBar: FC<{
                             }
                         >
                             Open preview project
+                        </Menu.Item>
+                    ) : null}
+                    {pullRequest.changedModels[0] ? (
+                        <Menu.Item
+                            component={Link}
+                            to={`/projects/${projectUuid}/tables/${encodeURIComponent(pullRequest.changedModels[0])}`}
+                        >
+                            Open in Explore
                         </Menu.Item>
                     ) : null}
                     <Menu.Item

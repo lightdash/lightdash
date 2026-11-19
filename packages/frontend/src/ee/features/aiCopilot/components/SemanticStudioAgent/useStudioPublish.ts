@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     CiMergeState,
+    DbtProjectType,
     type CiChecks,
 } from '@lightdash/common';
 import { canWriteProjectBranch } from '../../../../../features/semanticStudio/permissions';
@@ -86,6 +87,8 @@ export const useStudioPublish = (
             projectUuid,
         );
     const compile = checkout?.branchCompile ?? null;
+    // Checks are read, and pull requests merged, on GitHub only.
+    const mergesHere = project?.dbtConnection.type === DbtProjectType.GITHUB;
     // Publishing merges straight into the branch, so it waits on the right to write there and on a passing compile.
     const blocker = !canWriteBranch
         ? `Only people who can write to ${branch ?? "the project's branch"} can publish. Open ${name} for review.`
@@ -138,7 +141,8 @@ export const useStudioPublish = (
         destination,
         compile,
         blocker,
-        canWriteBranch,
+        canWriteBranch: canWriteBranch && mergesHere,
+        mergesHere,
         branch,
         step,
     };

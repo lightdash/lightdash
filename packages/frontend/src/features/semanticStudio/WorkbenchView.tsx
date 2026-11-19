@@ -6,6 +6,7 @@
  */
 import {
     assertUnreachable,
+    DbtProjectType,
     type PreAggregateMaterializationSummary,
     type SemanticLayerBlocker,
 } from '@lightdash/common';
@@ -1133,6 +1134,9 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const { data: project } = useProject(view.project.id);
     // A dbt project has no draft and no model code here: its files are in its repository.
     const keepsDraft = useKeepsSemanticLayerDraft(view.project.id);
+    // A dbt project's files are read through GitHub; another host has no Code tab to show.
+    const hasCodeView =
+        keepsDraft || project?.dbtConnection.type === DbtProjectType.GITHUB;
     const canEditModels = useCanEditSemanticLayer(view.project.id);
     const status = useSemanticLayerStatus(view.project.id);
     const checkout = useStudioCheckout().shown;
@@ -1266,6 +1270,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const opensInSources =
         !isOnLive &&
         hasChat &&
+        hasCodeView &&
         !keepsDraft &&
         !!changeOnPage &&
         (!!routeWorkspace ||
@@ -1273,7 +1278,10 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             homeShowsChanges);
     const isSources =
         opensInSources ||
-        (hasChat && !keepsDraft && searchParams.get(VIEW_PARAM) === 'sources');
+        (hasChat &&
+            hasCodeView &&
+            !keepsDraft &&
+            searchParams.get(VIEW_PARAM) === 'sources');
     const proposal = useStudioProposal(view.project.id);
     const hasProposal = !keepsDraft && proposal.length > 0;
     // A dbt project's changes are its conversation's: what it proposes, and what its pull request holds.
@@ -2122,14 +2130,18 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                             >
                                                 Models
                                             </UnstyledButton>
-                                            <UnstyledButton
-                                                role="tab"
-                                                className={classes.view}
-                                                aria-selected={isSourcesView}
-                                                onClick={showSources}
-                                            >
-                                                Code
-                                            </UnstyledButton>
+                                            {hasCodeView ? (
+                                                <UnstyledButton
+                                                    role="tab"
+                                                    className={classes.view}
+                                                    aria-selected={
+                                                        isSourcesView
+                                                    }
+                                                    onClick={showSources}
+                                                >
+                                                    Code
+                                                </UnstyledButton>
+                                            ) : null}
                                         </div>
                                         {changePicker ? (
                                             <Group

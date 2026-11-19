@@ -3560,14 +3560,19 @@ describe('compiling a dbt change on its branch', () => {
         ).toMatchObject({
             workspaceUuid: 'workspace-thread',
             appliesAs: 'dbt_pull_request',
-            branchCompile: null,
+            // A draft with a pull request that was never compiled starts compiling when it is read.
+            branchCompile: { status: 'compiling', hasExplores: false },
         });
+        expect(context.queueBranchCompile).toHaveBeenCalledTimes(1);
+        await context.service.getCheckout(repoWriter, PROJECT_UUID);
+        expect(context.queueBranchCompile).toHaveBeenCalledTimes(1);
         await context.service.compileCheckout(repoWriter, PROJECT_UUID);
         expect(
             (await context.service.getCheckout(repoWriter, PROJECT_UUID))
                 ?.branchCompile,
         ).toMatchObject({ status: 'compiling', hasExplores: false });
-        await runQueued(context);
+        // The compile asked for last is the one that is kept.
+        await runQueued(context, 1);
         expect(
             (await context.service.getCheckout(repoWriter, PROJECT_UUID))
                 ?.branchCompile,
