@@ -9,13 +9,19 @@
     flex: none;
 }
 
+/* One changed file: flat like an editor pane, ruled off from the next rather than boxed. */
 .model {
-    overflow: hidden;
+    border-block: 1px solid var(--mantine-color-default-border);
 }
 
+/* Stays in view while its diff scrolls under it. */
 .modelHead {
+    position: sticky;
+    top: calc(-1 * var(--mantine-spacing-md));
+    z-index: 1;
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
     border-bottom: 1px solid var(--mantine-color-default-border);
+    background: var(--mantine-color-ldGray-0);
 }
 
 .fields {
@@ -26,9 +32,11 @@
 }
 
 .glyph {
-    display: inline-block;
-    width: 16px;
+    flex: none;
+    width: 12px;
+    font-family: var(--mantine-font-family-monospace);
     font-weight: 600;
+    text-align: center;
     color: var(--mantine-color-orange-7);
 }
 

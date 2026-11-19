@@ -17,7 +17,7 @@ export const PublishDraftModal: FC<{
         <MantineModal
             opened
             title="Publish draft"
-            description={`This merges ${destination}, and everyone sees the changes once the project compiles.`}
+            description={`This merges ${destination}, then the project updates for everyone.`}
             confirmLabel="Publish"
             confirmLoading={isLoading}
             onClose={onClose}

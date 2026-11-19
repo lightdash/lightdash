@@ -2,14 +2,7 @@
  * Building blocks for Semantic Layer: the field table, the details modals,
  * search results and the small controls around them.
  */
-import {
-    DbtProjectType,
-    DimensionType,
-    FieldType,
-    MetricType,
-    type Field as LightdashField,
-    type WarehouseTypes,
-} from '@lightdash/common';
+import { DbtProjectType, type WarehouseTypes } from '@lightdash/common';
 import {
     Autocomplete,
     Box,
@@ -64,7 +57,6 @@ import {
     type ReactNode,
 } from 'react';
 import { Link } from 'react-router';
-import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import { ItemDetailMarkdown } from '../../components/Explorer/ExploreTree/TableTree/ItemDetailPreview';
 import dbtLogo from '../../components/ProjectConnection/ProjectConnectFlow/Assets/dbt.svg';
@@ -78,6 +70,7 @@ import googleSheetsLogo from '../../svgs/google-sheets.svg';
 import { useUpdateLiveSourceFields } from '../externalConnections/hooks/useLiveSourceFields';
 import { useExternalSourceActions } from './externalSources/externalSourceActions';
 import { isSameDraft, toFieldChange, toFieldDraft } from './fieldDraft';
+import { KindTypeIcon } from './KindTypeIcon';
 import { useLiveSourceActions } from './liveSources/liveSourceActions';
 import {
     getExplore,
@@ -169,41 +162,6 @@ const SourceLogo: FC<{ source: Source; size?: number }> = ({
 
 const KindIcon: FC<{ kind: Kind; size?: number }> = ({ kind, size = 16 }) => (
     <MantineIcon icon={KIND_ICONS[kind]} size={size} color="dimmed" />
-);
-
-const isDimensionType = (type: string): type is DimensionType =>
-    Object.values<string>(DimensionType).includes(type);
-const isMetricType = (type: string): type is MetricType =>
-    Object.values<string>(MetricType).includes(type);
-
-/** The explorer's field icon, from a field kind and type. */
-const KindTypeIcon: FC<{
-    fieldKind: FieldKind;
-    type: string;
-    name: string;
-    size?: 'md' | 'lg';
-}> = ({ fieldKind, type, name, size = 'md' }) => (
-    <FieldIcon
-        size={size}
-        item={
-            {
-                fieldType:
-                    fieldKind === 'metric'
-                        ? FieldType.METRIC
-                        : FieldType.DIMENSION,
-                type:
-                    fieldKind === 'metric'
-                        ? isMetricType(type)
-                            ? type
-                            : MetricType.NUMBER
-                        : isDimensionType(type)
-                          ? type
-                          : DimensionType.STRING,
-                name,
-                label: name,
-            } as LightdashField
-        }
-    />
 );
 
 const FieldTypeIcon: FC<{ field: Field; size?: 'md' | 'lg' }> = ({
@@ -579,7 +537,10 @@ const FieldRow = memo<{
                             </Text>
                         ) : null}
                         {field.draftState ? (
-                            <Text className={classes.fieldUnsaved}>
+                            <Text
+                                className={classes.fieldUnsaved}
+                                data-change={field.draftState}
+                            >
                                 {CHANGE_KIND_LABELS[field.draftState]}
                             </Text>
                         ) : null}
@@ -671,6 +632,8 @@ export const FieldList: FC<{
                 fieldName: field.id,
                 modelLabel: explore.label,
                 fieldLabel: field.label,
+                fieldKind: field.fieldKind,
+                fieldType: field.type,
                 code: null,
             }),
         [explore.id, explore.label],
@@ -1227,6 +1190,8 @@ export const FieldDetailModal: FC<{
                                 fieldName: field.id,
                                 modelLabel: explore.label,
                                 fieldLabel: field.label,
+                                fieldKind: field.fieldKind,
+                                fieldType: field.type,
                                 code: null,
                             });
                             onClose();

@@ -60,6 +60,7 @@ import { AiMarkdownErrorBoundary } from '../../../../../components/common/AiMark
 import { CopyActionIcon } from '../../../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SemanticLayerProposalCard } from '../../../../../features/semanticStudio/SemanticLayerProposalCard';
+import { TurnCardSkeleton } from '../../../../../features/semanticStudio/TurnCard';
 import { TurnSummaryCard } from '../../../../../features/semanticStudio/TurnSummaryCard';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
@@ -573,6 +574,16 @@ const AssistantBubbleContent: FC<{
                       : [];
               });
 
+    // A proposal still being checked has no card yet, so its place is held.
+    const isProposing =
+        isStreaming &&
+        (streamingState?.parts ?? []).some(
+            (part) =>
+                part.type === 'toolCall' &&
+                part.toolName === 'proposeSemanticLayerChange' &&
+                part.toolResult === null,
+        );
+
     // General coding-agent (editRepo) PR card metadata — resolved the same way
     // as editDbtProject (persisted result, then live streaming part), but kept
     // separate since it has no preview / post-merge migration.
@@ -971,6 +982,7 @@ const AssistantBubbleContent: FC<{
                 message={message}
                 streamParts={streamingState?.parts}
             />
+            {quietCards && isProposing ? <TurnCardSkeleton /> : null}
             {quietCards && semanticLayerProposals.length > 0 ? (
                 <AiMarkdownErrorBoundary
                     fallback={

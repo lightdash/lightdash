@@ -19,7 +19,9 @@ export type Issue = {
 };
 
 /** What in a proposal did not go as asked: models that failed, parts left out, and notes to confirm. */
-export const listProposalIssues = (proposal: SemanticLayerProposal): Issue[] =>
+export const listProposalIssues = (
+    proposal: Pick<SemanticLayerProposal, 'models'>,
+): Issue[] =>
     proposal.models.flatMap(({ model, error, refusals, notes }) => [
         ...(error ? [{ kind: 'failed' as const, model, detail: error }] : []),
         ...refusals.map(({ path, reason }) => ({
@@ -33,3 +35,23 @@ export const listProposalIssues = (proposal: SemanticLayerProposal): Issue[] =>
             detail,
         })),
     ]);
+
+/** A turn's issues across its proposals; a failure the agent went on to fix in the same turn is not one. */
+export const listTurnIssues = (
+    proposals: Pick<SemanticLayerProposal, 'models'>[],
+): Issue[] =>
+    proposals.flatMap((proposal, index) =>
+        listProposalIssues(proposal).filter(
+            ({ kind, model }) =>
+                kind !== 'failed' ||
+                !proposals
+                    .slice(index + 1)
+                    .some(({ models }) =>
+                        models.some(
+                            (later) =>
+                                later.model === model &&
+                                later.status === 'ready',
+                        ),
+                    ),
+        ),
+    );

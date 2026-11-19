@@ -277,6 +277,29 @@
     background: var(--mantine-color-yellow-6);
 }
 
+.draftDot[data-change='new'] {
+    background: var(--mantine-color-green-6);
+}
+
+.draftDot[data-change='removed'] {
+    background: var(--mantine-color-red-6);
+}
+
+/* What the draft does to a model, beside its name in a list. */
+.changeTag {
+    flex: none;
+    font-size: 12px;
+    color: var(--mantine-color-yellow-8);
+}
+
+.changeTag[data-change='new'] {
+    color: var(--mantine-color-green-8);
+}
+
+.changeTag[data-change='removed'] {
+    color: var(--mantine-color-red-8);
+}
+
 /* Someone else's work in development: an outline, so it never reads as yours. */
 .draftDot[data-others] {
     background: transparent;
@@ -285,6 +308,22 @@
 
 .fileRow:first-child {
     margin-top: var(--mantine-spacing-xs);
+}
+
+/* The share of a change that adds against the share that removes. */
+.diffBar {
+    display: flex;
+    flex: none;
+    width: 32px;
+    height: 4px;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.railOverview {
+    flex: none;
+    padding: 0 8px var(--mantine-spacing-xs);
+    border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
 .fileRow {

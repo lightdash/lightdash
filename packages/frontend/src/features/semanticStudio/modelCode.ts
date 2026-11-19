@@ -203,6 +203,8 @@ export type FieldChange = {
     name: string;
     change: ChangeKind;
     label: string;
+    /** Its declared type, such as `sum` or `date`; null for a join, the model, or a field that declares none. */
+    type: string | null;
     /** How it is defined when new, or which keys changed; null when removed. */
     detail: string | null;
 };
@@ -323,11 +325,17 @@ export const listFieldChanges = (
             name,
         );
         const label = definition?.part.label;
+        const type = definition?.part.type;
         return {
             kind,
             name,
             change,
             label: typeof label === 'string' ? label : name,
+            type:
+                (kind === 'dimension' || kind === 'metric') &&
+                typeof type === 'string'
+                    ? type
+                    : null,
             detail:
                 change === 'removed'
                     ? null

@@ -281,10 +281,10 @@ describe('the quiet pull request card of a side panel', () => {
         expect(screen.getByText("Draft doesn't compile")).toBeVisible();
         expect(
             screen.getByRole('link', { name: /orders\.yml/ }),
-        ).toHaveTextContent('Changed YAMLorders.yml+1 −0');
+        ).toHaveTextContent('Changed YAML orders.yml+1 −0');
         expect(
             screen.getByRole('link', { name: /refunds\.sql/ }),
-        ).toHaveTextContent('Added SQLrefunds.sql+1 −0');
+        ).toHaveTextContent('Added SQL refunds.sql+1 −0');
         fireEvent.click(screen.getByRole('button', { name: 'Fix with agent' }));
         expect(ask).toHaveBeenCalledWith(
             "The draft doesn't compile: refunds is not defined. Fix it.",

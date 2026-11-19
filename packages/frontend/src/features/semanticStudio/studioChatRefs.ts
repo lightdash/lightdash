@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react';
+import { type FieldKind } from './model';
 
 /** Lines picked in a source file. */
 export type StudioChatCode = {
@@ -14,6 +15,9 @@ export type StudioChatRef = {
     fieldName: string | null;
     modelLabel: string;
     fieldLabel: string | null;
+    /** What the field is, so its chip wears the icon its row does; null for a model or code. */
+    fieldKind: FieldKind | null;
+    fieldType: string | null;
     code: StudioChatCode | null;
 };
 
@@ -71,15 +75,23 @@ export const isStudioChatRefDrag = (dataTransfer: DataTransfer) =>
 
 const isRef = (value: unknown): value is Omit<StudioChatRef, 'code'> => {
     if (typeof value !== 'object' || value === null) return false;
-    const { modelName, fieldName, modelLabel, fieldLabel } = value as Record<
-        string,
-        unknown
-    >;
+    const {
+        modelName,
+        fieldName,
+        modelLabel,
+        fieldLabel,
+        fieldKind,
+        fieldType,
+    } = value as Record<string, unknown>;
     return (
         typeof modelName === 'string' &&
         typeof modelLabel === 'string' &&
         (fieldName === null || typeof fieldName === 'string') &&
-        (fieldLabel === null || typeof fieldLabel === 'string')
+        (fieldLabel === null || typeof fieldLabel === 'string') &&
+        (fieldKind === null ||
+            fieldKind === 'dimension' ||
+            fieldKind === 'metric') &&
+        (fieldType === null || typeof fieldType === 'string')
     );
 };
 
