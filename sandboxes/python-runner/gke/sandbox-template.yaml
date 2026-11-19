@@ -1,7 +1,15 @@
+# GKE Agent Sandbox resources for python query sandboxes
+# (SANDBOX_PROVIDER=gke-agent-sandbox). Apply to a cluster with the Agent
+# Sandbox add-on, a gVisor node pool and network policy enforcement.
+#
+# The add-on's default (Managed) network policy allows public internet egress,
+# so the template opts out and the NetworkPolicy below denies all traffic.
+# Commands reach the pod through the kubelet exec API, which it doesn't affect.
 apiVersion: extensions.agents.x-k8s.io/v1beta1
 kind: SandboxTemplate
 metadata: {name: python-runner, namespace: sandboxes}
 spec:
+  networkPolicyManagement: Unmanaged
   podTemplate:
     metadata:
       labels: {app: python-runner}
@@ -31,3 +39,10 @@ metadata: {name: python-runner, namespace: sandboxes}
 spec:
   replicas: 20
   sandboxTemplateRef: {name: python-runner}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: python-runner-deny-all, namespace: sandboxes}
+spec:
+  podSelector: {matchLabels: {app: python-runner}}
+  policyTypes: [Ingress, Egress]
