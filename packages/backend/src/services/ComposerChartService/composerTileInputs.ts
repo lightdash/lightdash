@@ -9,6 +9,7 @@ import {
     getDashboardFiltersForTile,
     getDashboardTileParameterOverrides,
     getEffectiveParameterDefinitions,
+    getItemId,
     getParameterReferences,
     getQueryParameterReferences,
     getTimeDimensionsMap,
@@ -16,6 +17,7 @@ import {
     isDateZoomRefusedOnExplore,
     isStandardDateGranularity,
     isSubDayGranularity,
+    MERGE_TABLE_NAME,
     metricQueryOfSemanticNode,
     QuerySourceType,
     resolveToBaseTimeDimension,
@@ -346,7 +348,9 @@ const getZoomTargets = (
             );
             const part =
                 dateParts.find(
-                    ({ name }) => `merge_${name}` === xAxisFieldId,
+                    ({ name }) =>
+                        getItemId({ table: MERGE_TABLE_NAME, name }) ===
+                        xAxisFieldId,
                 ) ?? dateParts[0];
             if (!part) return;
             legIds.forEach((leg) =>

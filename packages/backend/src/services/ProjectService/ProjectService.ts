@@ -10114,6 +10114,7 @@ export class ProjectService
             userAttributeOverrides?: UserAttributeValueMap;
             /** Saved chart whose custom SQL an embed viewer may compile */
             customSqlProvenanceChartUuid?: UUID;
+            dateZoom?: DateZoom;
         } & ({ exploreName: string } | { explore: Explore }),
     ) {
         const {
@@ -10265,7 +10266,7 @@ export class ProjectService
                 timezone,
                 availableParameterDefinitions,
                 parameters: combinedParameters,
-                dateZoom: undefined,
+                dateZoom: args.dateZoom,
                 pivotDimensions,
                 pivotItemsMap: undefined,
                 continueOnError: true, // Return SQL even with compilation errors for debugging
@@ -10448,14 +10449,6 @@ export class ProjectService
             .map((calculation) => calculation.name);
     }
 
-    /**
-     * Compiles a merge of several metric queries into one warehouse statement.
-     *
-     * Compilation only — the caller runs the returned SQL through the normal
-     * SQL execution path, so the merge does not duplicate limits, caching or
-     * result handling. Validation errors are returned rather than thrown: the
-     * explorer shows them against the offending query row.
-     */
     /** The explore with one dimension re-grained under its own name, as a dashboard tile's metric query is zoomed. */
     private async getDateZoomedExplore(
         projectUuid: string,
@@ -10479,6 +10472,14 @@ export class ProjectService
         ).explore;
     }
 
+    /**
+     * Compiles a merge of several metric queries into one warehouse statement.
+     *
+     * Compilation only — the caller runs the returned SQL through the normal
+     * SQL execution path, so the merge does not duplicate limits, caching or
+     * result handling. Validation errors are returned rather than thrown: the
+     * explorer shows them against the offending query row.
+     */
     async compileMergeQuery(args: {
         authority?: QueryRunAuthority;
         account: Account;
@@ -10759,16 +10760,12 @@ export class ProjectService
                 // filters and parameter handling as the query it was built
                 // from. This is the statement the leg runs: whole, at the
                 // source row cap, unsorted.
-                const zoomedExplore = args.dateZoomBySourceId?.[source.id]
-                    ? exploreBySourceId[source.id]
-                    : null;
                 const compiled = await this.compileQuery({
                     authority,
                     account,
                     projectUuid,
-                    ...(zoomedExplore
-                        ? { explore: zoomedExplore }
-                        : { exploreName: resolvedMetricQuery.exploreName }),
+                    exploreName: resolvedMetricQuery.exploreName,
+                    dateZoom: args.dateZoomBySourceId?.[source.id],
                     body: {
                         ...resolvedMetricQuery,
                         sorts: [],
