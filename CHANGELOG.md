@@ -1,3 +1,11 @@
+# [3.346.0](https://github.com/lightdash/lightdash/compare/3.345.0...3.346.0) (2026-11-19)
+
+
+### Features
+
+* **semantic-studio:** edit by hand on every project type, with an Edit button and reasons when it is read only ([#33015](https://github.com/lightdash/lightdash/issues/33015)) ([f3f54e5](https://github.com/lightdash/lightdash/commit/f3f54e5a8d5cd1fee794481fca0882355263562d))
+* **semantic-studio:** smaller chat cards that say what a turn changed ([#33017](https://github.com/lightdash/lightdash/issues/33017)) ([b556e46](https://github.com/lightdash/lightdash/commit/b556e46409cfb49a7b9c5f99a6589f05174dcada))
+
 # [3.345.0](https://github.com/lightdash/lightdash/compare/3.344.0...3.345.0) (2026-11-19)
 
 

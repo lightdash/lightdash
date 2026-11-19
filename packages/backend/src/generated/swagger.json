@@ -44554,6 +44554,93 @@
                 "required": ["liveVersion"],
                 "type": "object"
             },
+            "SemanticLayerDraftModelSave": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "content": {
+                                "type": "string",
+                                "description": "The model as the draft now holds it."
+                            },
+                            "startedChange": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "workspaceUuid": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["name", "workspaceUuid"],
+                                "type": "object",
+                                "nullable": true,
+                                "description": "The draft this started because the person was on Published; null otherwise."
+                            },
+                            "draftChangeUuid": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["saved"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "content",
+                            "startedChange",
+                            "draftChangeUuid",
+                            "status"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "error": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["failed"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["error", "status"],
+                        "type": "object"
+                    }
+                ],
+                "description": "`failed` carries why the edit was not saved, and the draft is left as it was."
+            },
+            "ApiSuccess_SemanticLayerDraftModelSave_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticLayerDraftModelSave"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticLayerDraftModelSaveResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticLayerDraftModelSave_"
+            },
+            "SaveSemanticLayerDraftModelRequest": {
+                "properties": {
+                    "content": {
+                        "type": "string"
+                    },
+                    "base": {
+                        "type": "string",
+                        "description": "The model's YAML the edit started from, so an edit made over a newer version is refused."
+                    }
+                },
+                "required": ["content", "base"],
+                "type": "object",
+                "description": "A hand edit of one model's whole YAML, saved into the person's draft."
+            },
             "ApiSemanticLayerDraftTakeLiveRequest": {
                 "properties": {
                     "path": {
@@ -80886,7 +80973,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.345.0",
+        "version": "3.346.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -96552,6 +96639,65 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ApiSemanticLayerDraftKeepRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/draft/models/{model}/edit": {
+            "post": {
+                "operationId": "saveSemanticLayerDraftModel",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticLayerDraftModelSaveResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Saves a hand edit of one model's YAML into this person's draft, checked the way an agent's change is.",
+                "summary": "Save an edit of a model to my semantic layer draft",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "model",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveSemanticLayerDraftModelRequest"
                             }
                         }
                     }
