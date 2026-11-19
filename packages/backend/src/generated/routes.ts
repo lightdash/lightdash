@@ -6632,6 +6632,21 @@ const models: TsoaRoute.Models = {
         enums: ['heading'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardHeadingSize: {
+        dataType: 'refEnum',
+        enums: ['xs', 'sm', 'md', 'lg'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardHeadingTextAlign: {
+        dataType: 'refEnum',
+        enums: ['left', 'center', 'right'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardHeadingVerticalAlign: {
+        dataType: 'refEnum',
+        enums: ['top', 'center', 'bottom'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardHeadingTileAsCode: {
         dataType: 'refAlias',
         type: {
@@ -6644,6 +6659,11 @@ const models: TsoaRoute.Models = {
                         properties: {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                verticalAlign: {
+                                    ref: 'DashboardHeadingVerticalAlign',
+                                },
+                                textAlign: { ref: 'DashboardHeadingTextAlign' },
+                                size: { ref: 'DashboardHeadingSize' },
                                 showDivider: { dataType: 'boolean' },
                                 text: { dataType: 'string', required: true },
                                 title: { dataType: 'undefined' },
@@ -10756,6 +10776,9 @@ const models: TsoaRoute.Models = {
                 properties: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        verticalAlign: { ref: 'DashboardHeadingVerticalAlign' },
+                        textAlign: { ref: 'DashboardHeadingTextAlign' },
+                        size: { ref: 'DashboardHeadingSize' },
                         showDivider: { dataType: 'boolean' },
                         text: { dataType: 'string', required: true },
                         title: { dataType: 'undefined' },

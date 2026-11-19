@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "3.342.0",
-  "previousVersion": "3.341.0",
-  "releaseDate": "2026-11-19T17:50:14.011Z",
+  "version": "3.343.0",
+  "previousVersion": "3.342.0",
+  "releaseDate": "2026-11-19T18:08:41.519Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20261119130000_add_heading_tile_config.ts",
+        "edition": "core",
+        "tables": [
+          "dashboard_tile_headings"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

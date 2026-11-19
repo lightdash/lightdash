@@ -1,3 +1,10 @@
+# [3.343.0](https://github.com/lightdash/lightdash/compare/3.342.0...3.343.0) (2026-11-19)
+
+
+### Features
+
+* **dashboards:** choose a size and alignment for heading tiles ([#33001](https://github.com/lightdash/lightdash/issues/33001)) ([89c765e](https://github.com/lightdash/lightdash/commit/89c765e25a9e70596e5e2c8fb849767e56966407))
+
 # [3.342.0](https://github.com/lightdash/lightdash/compare/3.341.0...3.342.0) (2026-11-19)
 
 
