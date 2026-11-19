@@ -126,6 +126,20 @@ const SOURCES: {
             },
         },
     },
+    {
+        name: 'HubSpot',
+        apiSource: { connector: ApiConnectorType.HUBSPOT, object: 'deals' },
+        scan: {
+            hubspotProperties: {
+                results: [
+                    { name: 'dealname', label: 'Deal Name', type: 'string' },
+                    { name: 'dealstage', label: 'Stage', type: 'enumeration' },
+                    { name: 'amount', label: 'Amount', type: 'number' },
+                    { name: 'count', label: 'Count', type: 'number' },
+                ],
+            },
+        },
+    },
 ];
 
 describe('live data source names', () => {

@@ -21,6 +21,7 @@ export const LIVE_SOURCE_DEFAULT_CACHE_TTL_SECONDS: Record<
     [ApiConnectorType.GITHUB]: DEFAULT_CACHE_TTL_SECONDS,
     [ApiConnectorType.PYLON]: DEFAULT_CACHE_TTL_SECONDS,
     [ApiConnectorType.ATTIO]: DEFAULT_CACHE_TTL_SECONDS,
+    [ApiConnectorType.HUBSPOT]: DEFAULT_CACHE_TTL_SECONDS,
 };
 
 /** 0 makes every query call the integration. */

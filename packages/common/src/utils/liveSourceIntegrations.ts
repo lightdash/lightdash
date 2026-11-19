@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+    HUBSPOT_OBJECTS,
     type ApiSourceOf,
     type ExternalConnectionApiSource,
 } from '../ee/externalConnections/types';
@@ -171,6 +172,20 @@ export const LIVE_INTEGRATION_CATALOG: {
             object: z.string(),
         }),
         getTarget: ({ object }) => `Object ${object}`,
+    },
+    [ApiConnectorType.HUBSPOT]: {
+        id: 'hubspot',
+        label: 'HubSpot',
+        messageLabel: 'HubSpot',
+        agentLabel: 'HubSpot',
+        description: 'Deals, contacts or companies from your CRM',
+        setup: 'token',
+        settings: z.object({
+            connector: z.literal(ApiConnectorType.HUBSPOT),
+            object: z.enum(HUBSPOT_OBJECTS),
+        }),
+        getTarget: ({ object }) =>
+            `${object.charAt(0).toUpperCase()}${object.slice(1)}`,
     },
 };
 
