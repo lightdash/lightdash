@@ -1,3 +1,4 @@
+import type { ComposerStoredChart } from '../composer/composerChart';
 import type { ApiSuccess } from './api/success';
 import { type DashboardDAO } from './dashboard';
 import type { Document } from './document';
@@ -34,6 +35,17 @@ export type PromotedSqlChart = {
     spacePath: string;
 };
 
+/** The pipeline stays server side; only the chart travels in a diff. */
+export type PromotedComposerChart = {
+    uuid: string;
+    oldUuid: string;
+    slug: string;
+    projectUuid: string;
+    name: string;
+    description: string | null;
+    chart: ComposerStoredChart;
+};
+
 export type PromotedApp = {
     uuid: string;
     name: string;
@@ -60,6 +72,10 @@ export type PromotionChanges = {
     sqlCharts?: {
         action: PromotionAction;
         data: PromotedSqlChart;
+    }[];
+    composerCharts?: {
+        action: PromotionAction;
+        data: PromotedComposerChart;
     }[];
     // Apps the promotion carries along: data apps referenced by DATA_APP
     // dashboard tiles, and custom chart types bound by charts' DATA_APP_VIZ
