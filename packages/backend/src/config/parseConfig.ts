@@ -1701,6 +1701,7 @@ export type LightdashConfig = {
             allowedDomains: string[];
             reportUri?: string;
             frameAncestors: string[];
+            mcpAppFrameAncestors: string[];
         };
         crossOriginResourceSharingPolicy: {
             enabled: boolean;
@@ -3507,6 +3508,9 @@ export const parseConfig = (): LightdashConfig => {
                     ? iframeAllowedDomains
                     : [],
                 reportUri: process.env.LIGHTDASH_CSP_REPORT_URI,
+                mcpAppFrameAncestors: getArrayFromCommaSeparatedList(
+                    'LIGHTDASH_MCP_APP_FRAME_ANCESTORS',
+                ),
             },
             crossOriginResourceSharingPolicy: {
                 enabled: corsEnabled,

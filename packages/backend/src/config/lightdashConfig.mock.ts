@@ -380,6 +380,7 @@ export const lightdashConfigMock: LightdashConfig = {
             reportOnly: false,
             allowedDomains: [],
             frameAncestors: [],
+            mcpAppFrameAncestors: [],
         },
         crossOriginResourceSharingPolicy: {
             enabled: true,

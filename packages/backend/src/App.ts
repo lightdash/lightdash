@@ -645,7 +645,11 @@ export default class App {
                     ],
                     'img-src': ["'self'", 'data:', 'blob:', 'https://*'],
                     'frame-src': ["'self'", 'https://*'],
-                    'frame-ancestors': ["'self'"] as string[],
+                    'frame-ancestors': [
+                        "'self'",
+                        ...this.lightdashConfig.security.contentSecurityPolicy
+                            .mcpAppFrameAncestors,
+                    ] as string[],
                     'worker-src': [
                         "'self'",
                         'blob:',
