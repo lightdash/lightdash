@@ -183,6 +183,35 @@ it('uses the reordered visible columns and their current widths', async () => {
     ).toBe('10300px');
 });
 
+it('keeps a focused header mounted while scrolling until focus leaves it', async () => {
+    const { row, columns } = makeWideTable();
+    renderWithProviders(
+        <TableProvider
+            data={[row]}
+            columns={columns.map((field) => ({
+                ...field,
+                meta: { ...field.meta, draggable: true },
+            }))}
+            totalRowsCount={1}
+            isFetchingRows={false}
+            fetchMoreRows={vi.fn()}
+            hideRowNumbers
+        >
+            <ScrollableTable minimal={false} />
+        </TableProvider>,
+    );
+    const handle = await screen.findByRole('button', { name: 'Field 1' });
+    handle.focus();
+    fireEvent.scroll(screen.getByRole('table').parentElement!, {
+        target: { scrollLeft: 9600 },
+    });
+    const last = await screen.findByRole('button', { name: 'Field 99' });
+    expect(handle).toHaveFocus();
+    expect(screen.queryByText('Field 50')).toBeNull();
+    last.focus();
+    await waitFor(() => expect(handle).not.toBeInTheDocument());
+});
+
 it('keeps the dragged column mounted when scrolling to a distant drop target', async () => {
     const { row, columns } = makeWideTable();
     const fields = columns.map((field) => ({

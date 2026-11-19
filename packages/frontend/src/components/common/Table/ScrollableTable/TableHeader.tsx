@@ -20,6 +20,7 @@ import classes from './HeaderDnD.module.css';
 
 interface TableHeaderProps {
     onDragColumnChange: (id?: string) => void;
+    onFocusColumnChange: (id?: string) => void;
     columnWindow?: ColumnWindow;
     minimal?: boolean;
     showSubtotals?: boolean;
@@ -43,6 +44,7 @@ const tableCalculationTourProps = {
 
 const TableHeader: FC<TableHeaderProps> = ({
     onDragColumnChange,
+    onFocusColumnChange,
     columnWindow,
     minimal = false,
     showSubtotals = true,
@@ -82,6 +84,7 @@ const TableHeader: FC<TableHeaderProps> = ({
                     key={headerGroup.id}
                     headerGroup={headerGroup}
                     onDragColumnChange={onDragColumnChange}
+                    windowed={!!columnWindow}
                 >
                     {renderColumnGroups(
                         columnWindow,
@@ -126,6 +129,19 @@ const TableHeader: FC<TableHeaderProps> = ({
 
                             return (
                                 <Th
+                                    onFocus={
+                                        columnWindow
+                                            ? () =>
+                                                  onFocusColumnChange(
+                                                      header.column.id,
+                                                  )
+                                            : undefined
+                                    }
+                                    onBlur={
+                                        columnWindow
+                                            ? () => onFocusColumnChange()
+                                            : undefined
+                                    }
                                     key={
                                         header.colSpan === 1
                                             ? header.id
@@ -151,17 +167,10 @@ const TableHeader: FC<TableHeaderProps> = ({
                                         disabled={isDragDisabled}
                                     >
                                         {(sortable) => (
-                                            <ThContainer>
-                                                {/* No sortable transform: columns reorder live in the table while dragging */}
+                                            <ThContainer ref={sortable.ref}>
                                                 <ThLabelContainer
                                                     {...(!isDragDisabled &&
                                                         sortable.handleProps)}
-                                                    ref={(el) => {
-                                                        sortable.ref(el);
-                                                        sortable.handleProps.ref(
-                                                            el,
-                                                        );
-                                                    }}
                                                     className={
                                                         isDragDisabled
                                                             ? undefined

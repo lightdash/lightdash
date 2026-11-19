@@ -24,6 +24,7 @@ const ScrollableTable: FC<ScrollableTableProps> = ({
     const { footer, table } = useTableContext();
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const [draggedColumn, setDraggedColumn] = useState<string>();
+    const [focusedColumn, setFocusedColumn] = useState<string>();
     const headerGroups = table.getHeaderGroups();
     const columns = useMemo(
         () =>
@@ -40,10 +41,11 @@ const ScrollableTable: FC<ScrollableTableProps> = ({
                               : column.getSize(),
                     pinned:
                         column.id === draggedColumn ||
+                        column.id === focusedColumn ||
                         meta?.className?.includes('sticky-column'),
                 };
             }) ?? [],
-        [headerGroups, draggedColumn],
+        [headerGroups, draggedColumn, focusedColumn],
     );
     const columnWindow = useColumnWindow(tableContainerRef, columns);
 
@@ -60,6 +62,7 @@ const ScrollableTable: FC<ScrollableTableProps> = ({
                 <ColumnWindowColGroup columnWindow={columnWindow} />
                 <TableHeader
                     onDragColumnChange={setDraggedColumn}
+                    onFocusColumnChange={setFocusedColumn}
                     minimal={minimal}
                     showSubtotals={showSubtotals}
                     columnWindow={columnWindow}
