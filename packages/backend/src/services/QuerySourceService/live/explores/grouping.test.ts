@@ -214,6 +214,36 @@ test('GitHub Count alone stays the search total', () => {
     expect(JSON.parse(compiled.query).columns).toEqual(['total_count']);
 });
 
+test('an Attio attribute named count still groups next to Count', () => {
+    const source = build({
+        connector: ApiConnectorType.ATTIO,
+        object: 'deals',
+    });
+    const withAttribute = {
+        ...source,
+        apiSource: {
+            ...source.apiSource!,
+            fields: {
+                ...source.apiSource!.fields,
+                [`${source.name}_attribute_count`]: {
+                    apiName: 'count',
+                    filterOperators: [],
+                },
+            },
+        },
+    };
+    const compiled = compile(
+        withAttribute,
+        query(withAttribute, {
+            dimensions: ['attribute_count'],
+            metrics: ['count'],
+        }),
+    );
+    expect(compiled.fieldIdsByColumn).toEqual({
+        count: `${source.name}_attribute_count`,
+    });
+});
+
 test('a list without Count is not grouped', () => {
     const source = sources[1].explore();
     const compiled = compile(

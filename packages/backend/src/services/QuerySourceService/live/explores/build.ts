@@ -329,13 +329,18 @@ export const compileLiveMetricQuery = ({
     const {
         query,
         localSorts: compiledLocalSorts = [],
-        fieldIdsByColumn = Object.fromEntries(
-            [...metricQuery.dimensions, ...metricQuery.metrics].map(
-                (fieldId) => [getApiName(apiSource, fieldId), fieldId],
-            ),
-        ),
+        fieldIdsByColumn: compiledFieldIdsByColumn,
         localAggregates = {},
     } = compile({ explore, metricQuery, timezone, now });
+    // Metrics worked out here aren't columns of the records read, and their
+    // API names may clash with a dimension's
+    const fieldIdsByColumn =
+        compiledFieldIdsByColumn ??
+        Object.fromEntries(
+            [...metricQuery.dimensions, ...metricQuery.metrics]
+                .filter((fieldId) => !Object.hasOwn(localAggregates, fieldId))
+                .map((fieldId) => [getApiName(apiSource, fieldId), fieldId]),
+        );
     const [firstAggregate] = Object.keys(localAggregates);
     const grouping = firstAggregate
         ? {
