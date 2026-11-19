@@ -241,22 +241,15 @@ describe('getModel', () => {
 
     it.each([false, true])(
         'keeps OpenAI Responses requests stateless when extended reasoning is %s',
-        (enableReasoning) => {
-            const { providerOptions } = getModel(
+        async (enableReasoning) => {
+            const { model, providerOptions } = getModel(
                 copilotConfigWithStreaming(true),
-                {
-                    enableReasoning,
-                    modelName: 'gpt-5.5',
-                },
+                { enableReasoning, modelName: 'gpt-5.5' },
             );
 
-            if (!providerOptions || !('openai' in providerOptions)) {
-                throw new Error('expected openai provider options');
-            }
-            expect(providerOptions.openai.store).toBe(false);
-            expect(providerOptions.openai.include).toEqual([
-                'reasoning.encrypted_content',
-            ]);
+            const { body } = await captureModelRequest(model, providerOptions);
+            expect(body.store).toBe(false);
+            expect(body.include).toEqual(['reasoning.encrypted_content']);
         },
     );
 
@@ -1127,6 +1120,17 @@ describe('custom OpenAI-compatible gateway models', () => {
         );
 
         expect(model.modelId).toBe(customModelName);
+    });
+
+    it('sends custom models stateless without asking for encrypted reasoning', async () => {
+        const { model, providerOptions } = getModel(
+            gatewayConfig({ modelName: customModelName }),
+        );
+
+        const { url, body } = await captureModelRequest(model, providerOptions);
+        expect(url).toBe('https://litellm.example.com/responses');
+        expect(body.store).toBe(false);
+        expect(body.include).toBeUndefined();
     });
 
     it('resolves a custom model requested by name (e.g. from an agent setting)', () => {

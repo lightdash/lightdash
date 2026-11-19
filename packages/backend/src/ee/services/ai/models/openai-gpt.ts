@@ -56,9 +56,8 @@ export const getOpenaiGptmodel = (
                 // agent stalls.
                 parallelToolCalls: false,
                 ...reasoningProviderOptions,
-                // Stateless Responses: with `store` on, the SDK resends earlier
-                // steps by item ID, which Zero Data Retention accounts reject.
-                // Chat Completions is stateless already and rejects `include`.
+                // Stored responses make the SDK resend steps by item ID, which
+                // ZDR accounts reject. Chat Completions rejects `include`.
                 ...(!config.useChatCompletions && {
                     store: false,
                     ...(supportsReasoning && {
