@@ -1,6 +1,6 @@
 import { FeatureFlags } from '@lightdash/common';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
-import { resolveOAuthScopeMode } from './mode';
+import { isReadOnlyOAuthGrant, resolveOAuthScopeMode } from './mode';
 
 describe('resolveOAuthScopeMode', () => {
     const user = {
@@ -42,4 +42,19 @@ describe('resolveOAuthScopeMode', () => {
             }
         },
     );
+});
+
+describe('isReadOnlyOAuthGrant', () => {
+    it.each([
+        [['read'], true],
+        [['mcp:read'], true],
+        [['read', 'mcp:read'], true],
+        [[], false],
+        [['write'], false],
+        [['mcp:write'], false],
+        [['mcp:read', 'write'], false],
+        [['read', 'write', 'mcp:read', 'mcp:write'], false],
+    ])('%j -> %s', (scopes, expected) => {
+        expect(isReadOnlyOAuthGrant(scopes)).toBe(expected);
+    });
 });

@@ -12,6 +12,7 @@ import { AddressInfo } from 'net';
 import passport from 'passport';
 import { fromServiceAccount, fromSession } from '../../auth/account/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
+import { isReadOnlyOAuthGrant } from '../../auth/oauthScopes/mode';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { authenticateServiceAccount } from '../../ee/authentication';
 import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
@@ -253,6 +254,7 @@ describe.each([
                 { scopes: ['mcp:read'] },
                 { scopes: ['mcp:write'] },
                 { scopes: ['mcp:read', 'write'] },
+                { scopes: ['read', 'mcp:read'] },
             ].flatMap(({ scopes }) =>
                 operations.map((operation) => ({ scopes, operation })),
             ),
@@ -265,6 +267,9 @@ describe.each([
                     scopes,
                 );
                 vi.mocked(Logger.warn).mockClear();
+                const effectiveMode = isReadOnlyOAuthGrant(scopes)
+                    ? 'enforce'
+                    : mode;
                 const scopedAllowed =
                     scopes.includes('write') ||
                     scopes.includes('mcp:write') ||
@@ -277,16 +282,16 @@ describe.each([
                     },
                 );
                 expect(response.status).toBe(
-                    mode === 'enforce' && !scopedAllowed ? 403 : 200,
+                    effectiveMode === 'enforce' && !scopedAllowed ? 403 : 200,
                 );
                 expect(Logger.warn).toHaveBeenCalledTimes(
-                    mode !== null && !scopedAllowed ? 1 : 0,
+                    effectiveMode !== null && !scopedAllowed ? 1 : 0,
                 );
-                if (mode !== null && !scopedAllowed) {
+                if (effectiveMode !== null && !scopedAllowed) {
                     expect(Logger.warn).toHaveBeenCalledWith(
                         'oauth_scope_refusal',
                         {
-                            mode,
+                            mode: effectiveMode,
                             clientId: 'client',
                             scopes,
                             method: operation.method,
@@ -298,6 +303,8 @@ describe.each([
                     );
                 }
                 expect(user.ability.can('manage', 'Organization')).toBe(true);
+                if (isReadOnlyOAuthGrant(scopes))
+                    expect(getFlag).not.toHaveBeenCalled();
                 if (!agentIdentity)
                     expect(
                         getFlag.mock.calls.every(
@@ -308,6 +315,24 @@ describe.each([
                     ).toBe(true);
             },
         );
+    },
+);
+
+it.each([['read'], ['mcp:read'], ['read', 'mcp:read']])(
+    'refuses writes for read-only scopes %j with rollout flags off',
+    async (...scopes) => {
+        const { url, getFlag } = await start(false, false, scopes, true);
+        const write = await sendRequest(`${url}/org/invite`, {
+            method: 'POST',
+            headers: { authorization: 'Bearer secret-token' },
+        });
+        const read = await sendRequest(`${url}/org/projects`, {
+            method: 'GET',
+            headers: { authorization: 'Bearer secret-token' },
+        });
+        expect(write.status).toBe(403);
+        expect(read.status).toBe(200);
+        expect(getFlag).not.toHaveBeenCalled();
     },
 );
 

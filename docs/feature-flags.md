@@ -347,9 +347,15 @@ its stored deadline has passed. Non-agent Snowflake authentication is unchanged.
 
 ### OAuth scope enforcement
 
-`agent-identity` also enables OAuth scope checks. With that flag off, OAuth
-permissions and scope validation keep their existing behaviour. With it on,
-checks log refusals but preserve existing decisions by default.
+OAuth tokens granted only read scopes (`read` and/or `mcp:read`, without
+`write` or `mcp:write`) are always enforced, independent of any flag: they
+cannot call write REST operations, write MCP tools or credential-management
+endpoints. Tokens with no scopes or with a write scope follow the flags below.
+
+`agent-identity` also enables OAuth scope checks for those other tokens. With
+that flag off, their permissions and scope validation keep their existing
+behaviour. With it on, checks log refusals but preserve existing decisions by
+default.
 
 `oauth-scope-enforcement` changes those checks from log mode to enforcement.
 It is off by default, has no custom handler and is only resolved when

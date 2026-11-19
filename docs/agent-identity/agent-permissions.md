@@ -244,7 +244,8 @@ for environment and file access.
 **OAuth scopes keep their old meaning.** `read`, `write`, `mcp:read` and
 `mcp:write` are separate from the 11 capabilities. `read` and `mcp:read`
 include the SQL runner and exports. Scope enforcement has null, log and
-enforce modes; log mode records but does not refuse.
+enforce modes; log mode records but does not refuse. Tokens granted only
+`read` and/or `mcp:read` always use enforce mode, whatever the flags.
 
 ## MCP settings
 
