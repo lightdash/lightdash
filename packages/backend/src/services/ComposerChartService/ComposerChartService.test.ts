@@ -228,7 +228,6 @@ const usedParametersByQuery: Record<string, ParametersValuesMap> = {
     'other-query': { region: 'UK' },
 };
 
-// The fields each node query's history row records beside its own; the orders run labels its date at the grain it ran
 const runFieldsByQuery: Record<string, object> = {
     'orders-query': {
         orders_created_at: {

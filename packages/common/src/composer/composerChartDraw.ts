@@ -200,10 +200,11 @@ export const withZoomedColumnLabels = (
     columns: ResultColumn[],
     zoomedFieldLabels: Record<string, string>,
 ): ResultColumn[] =>
-    columns.map((column) => {
-        const label = zoomedFieldLabels[column.reference];
-        return label ? { ...column, label } : column;
-    });
+    columns.map((column) =>
+        Object.hasOwn(zoomedFieldLabels, column.reference)
+            ? { ...column, label: zoomedFieldLabels[column.reference] }
+            : column,
+    );
 
 /** Rows reduced to the chart's columns: builders read any extra key as data (funnel labels). */
 export const pickComposerChartRows = (

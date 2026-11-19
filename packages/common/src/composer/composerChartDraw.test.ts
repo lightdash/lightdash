@@ -279,7 +279,7 @@ describe('getComposerChartDraw', () => {
 });
 
 describe('withZoomedColumnLabels', () => {
-    test('heads a column a date zoom re-grained with its zoomed label, keeping its name', () => {
+    test('heads only a column a date zoom re-grained with its zoomed label, keeping its name', () => {
         expect(
             withZoomedColumnLabels(
                 [
@@ -288,8 +288,9 @@ describe('withZoomedColumnLabels', () => {
                         type: DimensionType.DATE,
                     },
                     { reference: 'revenue', type: DimensionType.NUMBER },
+                    { reference: 'constructor', type: DimensionType.STRING },
                 ],
-                { orders_order_date_day: 'Order date month' },
+                JSON.parse('{"orders_order_date_day":"Order date month"}'),
             ),
         ).toEqual([
             {
@@ -298,6 +299,7 @@ describe('withZoomedColumnLabels', () => {
                 label: 'Order date month',
             },
             { reference: 'revenue', type: DimensionType.NUMBER },
+            { reference: 'constructor', type: DimensionType.STRING },
         ]);
     });
 });
