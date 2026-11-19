@@ -2111,6 +2111,7 @@ export default class SchedulerTask {
                                         composerTileParameters?.excludedParameterKeys ??
                                         [],
                                     invalidateCache: !useCachedResults,
+                                    dateZoom: dateZoom ?? null,
                                     context:
                                         QueryExecutionContext.SCHEDULED_DELIVERY,
                                     download: {
@@ -7114,6 +7115,7 @@ export default class SchedulerTask {
                                     parameters: {},
                                     excludedParameterKeys: [],
                                     invalidateCache: true,
+                                    dateZoom: dateZoom ?? null,
                                     context: QueryExecutionContext.CSV,
                                     download: {
                                         accessMode:
@@ -7204,6 +7206,7 @@ export default class SchedulerTask {
         parameters,
         excludedParameterKeys,
         invalidateCache,
+        dateZoom,
         context,
         download,
     }: {
@@ -7216,6 +7219,7 @@ export default class SchedulerTask {
         parameters: ParametersValuesMap;
         excludedParameterKeys: string[];
         invalidateCache: boolean;
+        dateZoom: DateZoom | null;
         context: ComposerChartRunContext;
         download: Pick<
             DownloadAsyncQueryResultsArgs,
@@ -7245,6 +7249,7 @@ export default class SchedulerTask {
                     parameters,
                     excludedParameterKeys,
                     invalidateCache,
+                    dateZoom,
                 },
                 context,
             )

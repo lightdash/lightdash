@@ -1,6 +1,8 @@
 import {
     addDashboardFiltersToMetricQuery,
     assertUnreachable,
+    DimensionType,
+    getAllDimensionsMap,
     getAvailableParametersFromTables,
     getDashboardFilterRulesForTileAndReferences,
     getDashboardFiltersForTile,
@@ -8,11 +10,17 @@ import {
     getEffectiveParameterDefinitions,
     getParameterReferences,
     getQueryParameterReferences,
+    getTimeDimensionsMap,
+    isDateZoomRefusedOnExplore,
+    isStandardDateGranularity,
+    isSubDayGranularity,
     metricQueryOfSemanticNode,
     QuerySourceType,
+    resolveToBaseTimeDimension,
     type ComposerChartPipelineNode,
     type DashboardFilters,
     type DashboardTileParameterInputs,
+    type DateZoom,
     type Explore,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -239,3 +247,82 @@ export const getComposerParameterReferences = (
         ),
     ),
 ];
+
+// The node's zoom target, null when it has a date it cannot zoom, undefined when it has none
+const getNodeDateZoomTarget = (
+    node: Extract<
+        ComposerChartPipelineNode,
+        { sourceType: QuerySourceType.SEMANTIC_LAYER }
+    >,
+    explore: Explore,
+    { granularity, xAxisFieldId }: DateZoom & { granularity: string },
+): string | null | undefined => {
+    const allDimensions = getAllDimensionsMap(explore);
+    const timeDimensions = getTimeDimensionsMap(explore);
+    const dateDimensions = node.dimensions.flatMap((fieldId) => {
+        const base = resolveToBaseTimeDimension(
+            fieldId,
+            allDimensions,
+            timeDimensions,
+        );
+        return base ? [{ fieldId, base }] : [];
+    });
+    if (dateDimensions.length === 0) return undefined;
+    if (isDateZoomRefusedOnExplore(explore)) return null;
+    const target =
+        dateDimensions.find(({ fieldId }) => fieldId === xAxisFieldId) ??
+        dateDimensions[0];
+    const subDayOnDate =
+        target.base.type === DimensionType.DATE &&
+        isStandardDateGranularity(granularity) &&
+        isSubDayGranularity(granularity);
+    return subDayOnDate ? null : target.fieldId;
+};
+
+/** The date zoom each semantic-layer node runs with, naming the dimension it re-grains; a merge's legs zoom together or not at all. */
+export const getComposerNodeDateZooms = ({
+    nodes,
+    exploreByNodeId,
+    dateZoom,
+}: {
+    nodes: ComposerChartPipelineNode[];
+    exploreByNodeId: ComposerNodeExplores;
+    dateZoom: DateZoom | null;
+}): Record<string, DateZoom> => {
+    const granularity = dateZoom?.granularity;
+    if (!granularity) return {};
+    const targets = new Map<string, string | null>();
+    nodes.forEach((node) => {
+        const explore = exploreByNodeId[node.nodeId];
+        if (node.sourceType !== QuerySourceType.SEMANTIC_LAYER || !explore)
+            return;
+        const target = getNodeDateZoomTarget(node, explore, {
+            ...dateZoom,
+            granularity,
+        });
+        if (target !== undefined) targets.set(node.nodeId, target);
+    });
+    const merges = nodes.flatMap((node) =>
+        node.sourceType === QuerySourceType.MERGE ? [node] : [],
+    );
+    // A leg that cannot zoom stops its merge's other legs, which may stop further merges
+    const blocked = (legs: string[]) =>
+        legs.some((leg) => targets.get(leg) === null) &&
+        legs.some((leg) => targets.get(leg));
+    let next = merges.find(({ sources }) =>
+        blocked(sources.map((source) => source.nodeId)),
+    );
+    while (next) {
+        for (const { nodeId } of next.sources) {
+            if (targets.has(nodeId)) targets.set(nodeId, null);
+        }
+        next = merges.find(({ sources }) =>
+            blocked(sources.map((source) => source.nodeId)),
+        );
+    }
+    return Object.fromEntries(
+        [...targets].flatMap(([nodeId, xAxisFieldId]) =>
+            xAxisFieldId ? [[nodeId, { granularity, xAxisFieldId }]] : [],
+        ),
+    );
+};

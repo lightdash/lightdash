@@ -1,4 +1,5 @@
 import {
+    DateGranularity,
     DimensionType,
     ExploreType,
     FieldType,
@@ -17,6 +18,7 @@ import { describe, expect, it } from 'vitest';
 import {
     applyDashboardFiltersToComposerNodes,
     applyDashboardParametersToComposerNodes,
+    getComposerNodeDateZooms,
     getComposerParameterReferences,
     withSqlColumnFilters,
 } from './composerTileInputs';
@@ -444,5 +446,125 @@ describe('withSqlColumnFilters', () => {
                 sqlColumnsByNodeId: { raw: ['status'] },
             }).appliedDashboardFiltersByNodeId,
         ).toEqual({});
+    });
+});
+
+describe('getComposerNodeDateZooms', () => {
+    const withDateDimensions = (
+        explore: Explore,
+        types: Record<string, DimensionType>,
+    ): Explore => {
+        const table = explore.tables[explore.baseTable];
+        const dimensions = { ...table.dimensions };
+        Object.entries(types).forEach(([name, type]) => {
+            dimensions[name] = { ...dimensions[name], type };
+        });
+        return {
+            ...explore,
+            tables: { [explore.baseTable]: { ...table, dimensions } },
+        };
+    };
+    const events = withDateDimensions(
+        buildExplore('events', ['created', 'shipped', 'kind']),
+        { created: DimensionType.TIMESTAMP, shipped: DimensionType.TIMESTAMP },
+    );
+    const visits = withDateDimensions(buildExplore('visits', ['day']), {
+        day: DimensionType.DATE,
+    });
+    const eventsNode: ComposerChartPipelineNode = {
+        sourceType: QuerySourceType.SEMANTIC_LAYER,
+        nodeId: 'events',
+        title: 'Events',
+        exploreName: 'events',
+        dimensions: ['events_kind', 'events_created', 'events_shipped'],
+        metrics: ['events_count'],
+    };
+    const visitsNode: ComposerChartPipelineNode = {
+        sourceType: QuerySourceType.SEMANTIC_LAYER,
+        nodeId: 'visits',
+        title: 'Visits',
+        exploreName: 'visits',
+        dimensions: ['visits_day'],
+        metrics: ['visits_count'],
+    };
+    const zoomExplores = { ...exploreByNodeId, events, visits };
+
+    it('zooms the x-axis field on a node that selects it, else its first date dimension, and leaves nodes without one alone', () => {
+        expect(
+            getComposerNodeDateZooms({
+                nodes: [
+                    eventsNode,
+                    visitsNode,
+                    ordersNode,
+                    sqlNode,
+                    duckdbNode,
+                ],
+                exploreByNodeId: zoomExplores,
+                dateZoom: {
+                    granularity: DateGranularity.MONTH,
+                    xAxisFieldId: 'events_shipped',
+                },
+            }),
+        ).toEqual({
+            events: {
+                granularity: DateGranularity.MONTH,
+                xAxisFieldId: 'events_shipped',
+            },
+            visits: {
+                granularity: DateGranularity.MONTH,
+                xAxisFieldId: 'visits_day',
+            },
+        });
+    });
+
+    it('zooms nothing without a granularity', () => {
+        expect(
+            getComposerNodeDateZooms({
+                nodes: [eventsNode],
+                exploreByNodeId: zoomExplores,
+                dateZoom: null,
+            }),
+        ).toEqual({});
+    });
+
+    it('skips a sub-day zoom on a date-only dimension', () => {
+        expect(
+            getComposerNodeDateZooms({
+                nodes: [eventsNode, visitsNode],
+                exploreByNodeId: zoomExplores,
+                dateZoom: { granularity: DateGranularity.HOUR },
+            }),
+        ).toEqual({
+            events: {
+                granularity: DateGranularity.HOUR,
+                xAxisFieldId: 'events_created',
+            },
+        });
+    });
+
+    it("zooms a merge's legs together, or none when one has a date it cannot zoom", () => {
+        const merged: ComposerChartPipelineNode = {
+            sourceType: QuerySourceType.MERGE,
+            nodeId: 'merged',
+            title: 'Merged',
+            sources: [
+                { nodeId: 'events' },
+                { nodeId: 'visits' },
+                { nodeId: 'payments' },
+            ],
+            joinKey: [],
+            joinType: MergeJoinType.FULL,
+        };
+        const zoom = (granularity: DateGranularity) =>
+            getComposerNodeDateZooms({
+                nodes: [eventsNode, visitsNode, paymentsNode, merged],
+                exploreByNodeId: zoomExplores,
+                dateZoom: { granularity },
+            });
+        expect(Object.keys(zoom(DateGranularity.MONTH))).toEqual([
+            'events',
+            'visits',
+        ]);
+        expect(zoom(DateGranularity.HOUR)).toEqual({});
     });
 });

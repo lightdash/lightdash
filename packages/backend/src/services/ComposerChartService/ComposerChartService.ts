@@ -34,6 +34,7 @@ import {
     type ComposerStoredChart,
     type CreateComposerChart,
     type DashboardAvailableFiltersTile,
+    type DateZoom,
     type Explore,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -56,6 +57,7 @@ import { ComposerRunBinding } from './ComposerRunBinding';
 import {
     applyDashboardFiltersToComposerNodes,
     applyDashboardParametersToComposerNodes,
+    getComposerNodeDateZooms,
     getComposerParameterReferences,
     getComposerSavedParameterValues,
     getSemanticExploreNames,
@@ -695,6 +697,7 @@ export class ComposerChartService extends BaseService {
             tileUuid: request.tileUuid,
             invalidateCache: request.invalidateCache,
             context,
+            dateZoom: request.dateZoom ?? null,
             dashboardState: {
                 type: 'request',
                 dashboardFilters: request.dashboardFilters,
@@ -717,6 +720,7 @@ export class ComposerChartService extends BaseService {
         return this.runOnTile(account, projectUuid, composerChartUuid, {
             ...tile,
             context: QueryExecutionContext.AI,
+            dateZoom: null,
             dashboardState: { type: 'saved' },
         });
     }
@@ -730,6 +734,7 @@ export class ComposerChartService extends BaseService {
             'dashboardUuid' | 'tileUuid' | 'invalidateCache'
         > & {
             context: ComposerChartRunContext;
+            dateZoom: DateZoom | null;
             dashboardState:
                 | ({ type: 'request' } & Pick<
                       ComposerChartRunRequest,
@@ -805,12 +810,18 @@ export class ComposerChartService extends BaseService {
             projectDefinitions,
             ...parameterLayer,
         });
+        const dateZoomByNodeId = getComposerNodeDateZooms({
+            nodes: resolved.nodes,
+            exploreByNodeId,
+            dateZoom: request.dateZoom,
+        });
         const binding = ComposerRunBinding.forAuthorizedViewer({
             account,
             chart,
             tileUuid: request.tileUuid,
             resolved,
             dashboardFilters,
+            dateZoomByNodeId,
         });
         const { queries } = await traceSpan(
             {
@@ -900,6 +911,7 @@ export class ComposerChartService extends BaseService {
                     histories[index]?.usedParameters ?? {},
                 ]),
             ),
+            dateZoomApplied: Object.keys(dateZoomByNodeId).length > 0,
         };
     }
 }

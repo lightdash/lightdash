@@ -140,6 +140,7 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
         userAttributeOverrides,
         invalidateCache,
         pivotConfiguration,
+        dateZoom,
         authority,
     }: SubmitSourceQueryArgs): Promise<{
         queryUuid: string;
@@ -160,6 +161,7 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
             userAttributeOverrides,
             invalidateCache,
             pivotConfiguration: pivotConfiguration ?? undefined,
+            dateZoom: dateZoom ?? undefined,
         });
 
         return {

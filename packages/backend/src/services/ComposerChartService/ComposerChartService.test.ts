@@ -4,6 +4,8 @@ import {
     ChartType,
     CustomDimensionType,
     DashboardTileTypes,
+    DateGranularity,
+    DimensionType,
     FeatureNotEnabledError,
     FieldType,
     ForbiddenError,
@@ -264,6 +266,11 @@ const setup = ({ flagEnabled = true } = {}) => {
                                 amount: {
                                     name: 'amount',
                                     sql: '${TABLE}.amount',
+                                },
+                                created_at: {
+                                    name: 'created_at',
+                                    table: name,
+                                    type: DimensionType.TIMESTAMP,
                                 },
                             },
                             metrics: {},
@@ -615,11 +622,13 @@ describe('ComposerChartService.run', () => {
         parameters: {},
         excludedParameterKeys: [],
         invalidateCache: false,
+        dateZoom: null,
     };
     const setupRun = (
         options: {
             flagEnabled?: boolean;
             chart?: CreateComposerChart['chart'];
+            nodes?: ComposerChartPipelineNode[];
         } = {},
     ) => {
         const {
@@ -628,7 +637,7 @@ describe('ComposerChartService.run', () => {
             querySourceService,
             asyncQueryService,
         } = setup(options);
-        const body = createBody(PIPELINES.python);
+        const body = createBody(options.nodes ?? PIPELINES.python);
         const stored = body.pipeline;
         Object.assign(composerChartModel, {
             getOwner: vi.fn(async () => ({ projectUuid, dashboardUuid })),
@@ -754,6 +763,46 @@ describe('ComposerChartService.run', () => {
         });
         expect(result.chartStageQueryUuid).toBe('chart_stage-query');
         expect(result.fields).toEqual({ 'result-query_field': {} });
+    });
+
+    test('zooms each semantic-layer node with a date dimension and reports the zoom applied', async () => {
+        const { service, submitComposerRun } = setupRun({
+            nodes: PIPELINES.python.map((node) =>
+                node.nodeId === 'orders'
+                    ? semantic({
+                          dimensions: ['orders_status', 'orders_created_at'],
+                      })
+                    : node,
+            ),
+        });
+        const zoomed = await service.run(
+            viewer(),
+            projectUuid,
+            'chart-uuid',
+            { ...runRequest, dateZoom: { granularity: DateGranularity.MONTH } },
+            QueryExecutionContext.DASHBOARD,
+        );
+        expect(
+            submitComposerRun.mock.calls[0][0].binding.dateZoomByNodeId,
+        ).toEqual({
+            orders: {
+                granularity: DateGranularity.MONTH,
+                xAxisFieldId: 'orders_created_at',
+            },
+        });
+        expect(zoomed.dateZoomApplied).toBe(true);
+
+        const unzoomed = await service.run(
+            viewer(),
+            projectUuid,
+            'chart-uuid',
+            runRequest,
+            QueryExecutionContext.DASHBOARD,
+        );
+        expect(
+            submitComposerRun.mock.calls[1][0].binding.dateZoomByNodeId,
+        ).toEqual({});
+        expect(unzoomed.dateZoomApplied).toBe(false);
     });
 
     test('returns the parameter values each node query ran with', async () => {
