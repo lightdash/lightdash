@@ -1,3 +1,10 @@
+# [3.326.0](https://github.com/lightdash/lightdash/compare/3.325.0...3.326.0) (2026-11-19)
+
+
+### Features
+
+* **semantic-studio:** keep a draft while its pull request is open ([#32932](https://github.com/lightdash/lightdash/issues/32932)) ([4301044](https://github.com/lightdash/lightdash/commit/4301044686b6fd3256b16c5b8581057cdbaf2cba))
+
 # [3.325.0](https://github.com/lightdash/lightdash/compare/3.324.0...3.325.0) (2026-11-18)
 
 
