@@ -6,7 +6,10 @@ import {
     type ChartAsCode,
     type DashboardAsCode,
 } from '@lightdash/common';
-import { buildAiTokenDashboard } from './aiTokenDashboard';
+import {
+    aiTokenLibraryChartBindings,
+    buildAiTokenDashboard,
+} from './aiTokenDashboard';
 import { withAnalyticsChartPresentation } from './analyticsChartPresentation';
 import { analyticsColorPalette } from './analyticsColorPalette';
 import { withEmbedRankingPresentation } from './embedDashboard';
@@ -932,9 +935,11 @@ export const analyticsDefaultSpace = {
     name: 'Default dashboards',
 };
 
+const aiTokenDashboard = buildAiTokenDashboard();
+
 export const analyticsContentAsCode = [
     ...buildUsageDashboards(legacyContentAsCode),
-    buildAiTokenDashboard(),
+    aiTokenDashboard,
 ].map(({ dashboard, charts }) => ({
     dashboard: {
         ...dashboard,
@@ -955,4 +960,5 @@ export const analyticsLibraryChartBindings: ReadonlyMap<
 > = new Map([
     ...usageLibraryChartBindings,
     ...legacyLibraryChartBindings(analyticsSampleDashboards),
+    ...aiTokenLibraryChartBindings(aiTokenDashboard.charts),
 ]);

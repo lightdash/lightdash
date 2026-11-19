@@ -12,6 +12,7 @@ import {
     type DashboardAsCode,
 } from '@lightdash/common';
 import { analyticsColorPalette } from './analyticsColorPalette';
+import type { LibraryChartBinding } from './libraryCharts';
 import type { AnalyticsContentBundle } from './usageDashboardTypes';
 
 const dashboardSlug = ANALYTICS_AI_USAGE_DASHBOARD_SLUG;
@@ -591,6 +592,50 @@ const number = (
         description,
     );
 
+// The number tiles as headline cards: the month's total with the daily trend behind it. A card holds
+// only the current month, so it has no change against an earlier period.
+export const aiTokenLibraryChartBindings = (
+    charts: ChartAsCode[],
+): Map<string, LibraryChartBinding> =>
+    new Map(
+        charts.flatMap((item): [string, LibraryChartBinding][] => {
+            if (item.chartConfig.type !== ChartType.BIG_NUMBER) return [];
+            const [metric] = item.metricQuery.metrics;
+            return [
+                [
+                    item.slug,
+                    {
+                        slug: 'big-number-with-sparkline-trend',
+                        minVersion: '0.7.1',
+                        fieldMapping: {
+                            value: metric,
+                            sparklineMetric: metric,
+                            time: day,
+                        },
+                        optionValues: {
+                            valueAggregation: 'sum',
+                            style: 'compact',
+                            showComparison: false,
+                            colorSparklineByTrend: false,
+                            showSparklineArea: true,
+                            showLabel: true,
+                            label: 'This month',
+                            showCardBorder: false,
+                            showCardShadow: false,
+                        },
+                        query: {
+                            dimensions: [day],
+                            metrics: [metric],
+                            sorts: [{ fieldId: day, descending: false }],
+                            limit: 31,
+                            description: item.description,
+                        },
+                    },
+                ],
+            ];
+        }),
+    );
+
 export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
     const tableConfig = {
         type: ChartType.TABLE as const,
@@ -810,8 +855,8 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                 ],
             })),
         {
-            key: 'all-usage-completeness',
-            name: 'All usage & completeness',
+            key: 'all-usage',
+            name: 'All usage',
             rows: [
                 note(
                     2,
@@ -825,6 +870,13 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                 ),
                 row(7, 'model-daily'),
                 row(8, 'model-rank'),
+            ],
+        },
+        // A tab of its own, so no tab loads more than eight charts
+        {
+            key: 'completeness-attribution',
+            name: 'Completeness & attribution',
+            rows: [
                 row(7, 'key-daily', 'outcome-daily'),
                 row(7, 'quality'),
                 note(

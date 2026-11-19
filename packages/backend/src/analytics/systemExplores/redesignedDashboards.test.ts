@@ -1152,6 +1152,97 @@ describe.each(Object.entries(redesigned))('%s', (slug, tabs) => {
     });
 });
 
+describe('lightdash-analytics-ai-tokens', () => {
+    const slug = 'lightdash-analytics-ai-tokens';
+    const { dashboard, charts } = analyticsContentAsCode.find(
+        (bundle) => bundle.dashboard.slug === slug,
+    )!;
+    const numbers = [
+        'total',
+        'eligible',
+        'records',
+        'input',
+        'output',
+        'cache-read',
+        'cache-write',
+        'reasoning',
+    ].map((key) => `${slug}-${key}`);
+
+    it('binds the eight number tiles and nothing else', () => {
+        expect(
+            charts
+                .filter((chart) =>
+                    analyticsLibraryChartBindings.has(chart.slug),
+                )
+                .map((chart) => chart.slug),
+        ).toEqual(numbers);
+        numbers.forEach((chartSlug) => {
+            const chart = charts.find((item) => item.slug === chartSlug)!;
+            const binding = analyticsLibraryChartBindings.get(chartSlug)!;
+            expect(chart.chartConfig.type).toBe(ChartType.BIG_NUMBER);
+            // Every metric here is a sum or a count, so the month's total is safe
+            expect(['sum', 'count']).toContain(
+                metricTypes.get(String(binding.fieldMapping.value)),
+            );
+            expect(chart.metricQuery.dimensions).toEqual([]);
+            expect(binding.optionValues).toMatchObject({
+                valueAggregation: 'sum',
+                label: 'This month',
+                showComparison: false,
+                showSparklineArea: true,
+            });
+            expect(binding.query).toMatchObject({
+                dimensions: ['ai_usage_event_ts_day'],
+                metrics: chart.metricQuery.metrics,
+                description: chart.description,
+            });
+        });
+    });
+
+    it('draws plain charts without the library types and cards with them, on the same month', () => {
+        const plain = withLibraryCharts(
+            charts,
+            analyticsLibraryChartBindings,
+            new Map(),
+        );
+        expect(plain.rejected).toEqual([]);
+        expect(plain.charts).toEqual(charts);
+        const { charts: swapped, rejected } = withLibraryCharts(
+            charts,
+            analyticsLibraryChartBindings,
+            installedTypes(),
+        );
+        expect(rejected).toEqual([]);
+        swapped.forEach((chart, index) => {
+            expect(chart.chartConfig.type === ChartType.DATA_APP_VIZ).toBe(
+                numbers.includes(chart.slug),
+            );
+            // The month and the billing scope are filters, and the card keeps them
+            expect(chart.metricQuery.filters).toEqual(
+                charts[index].metricQuery.filters,
+            );
+        });
+    });
+
+    it('keeps its rows inside the 36-column grid with at most eight chart tiles on a tab', () => {
+        dashboard.tabs.forEach((tab) => {
+            const tiles = dashboard.tiles.filter(
+                (tile) => tile.tabSlug === tab.slug,
+            );
+            const rows = new Map<number, number>();
+            tiles.forEach((tile) =>
+                rows.set(tile.y, (rows.get(tile.y) ?? 0) + tile.w),
+            );
+            rows.forEach((width) => expect(width).toBe(36));
+            expect(
+                tiles.filter(
+                    (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
+                ).length,
+            ).toBeLessThanOrEqual(8);
+        });
+    });
+});
+
 describe('library chart options', () => {
     const entries = [...analyticsLibraryChartBindings.entries()];
 

@@ -196,7 +196,7 @@ describe('built-in usage dashboards', () => {
                 uuid: tab.slug!,
             })),
         };
-        expect(installed.tabs).toHaveLength(6);
+        expect(installed.tabs).toHaveLength(7);
         for (const tab of installed.tabs) {
             expect(getDashboardTabSlug(installed, tab.uuid)).toBe(tab.uuid);
         }
