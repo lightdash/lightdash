@@ -1,8 +1,6 @@
 import {
     AI_THREAD_FILE_UNCLAIMED_TTL_HOURS,
     AI_THREAD_IMAGES_MAX_PER_PROMPT,
-    AI_THREAD_IMAGES_MAX_PER_THREAD,
-    AI_THREAD_IMAGES_MAX_THREAD_BYTES,
     assertUnreachable,
     ParameterError,
     type AiThreadFile,
@@ -23,7 +21,7 @@ export type AiThreadFileWithContent =
           uploadedAt: Date | null;
       });
 
-export const IMAGE_ATTACHMENT_LIMIT_MESSAGE = `Image attachment limit reached: up to ${AI_THREAD_IMAGES_MAX_PER_PROMPT} images per message, ${AI_THREAD_IMAGES_MAX_PER_THREAD} images and ${AI_THREAD_IMAGES_MAX_THREAD_BYTES / (1024 * 1024)} MiB per conversation.`;
+export const IMAGE_ATTACHMENT_LIMIT_MESSAGE = `Attach up to ${AI_THREAD_IMAGES_MAX_PER_PROMPT} images per message`;
 
 const UNCLAIMED_TTL_INTERVAL = `${AI_THREAD_FILE_UNCLAIMED_TTL_HOURS} hours`;
 
@@ -194,45 +192,14 @@ export class AiThreadFileModel {
         const threadOrganization = trx(AiThreadTableName)
             .select('organization_uuid')
             .where('ai_thread_uuid', args.threadUuid);
-        // Lock first: a concurrent send of the same file must already see it
-        // claimed here, so it is reported unavailable, not over the limit.
-        await trx(AiThreadTableName)
-            .where('ai_thread_uuid', args.threadUuid)
-            .forNoKeyUpdate()
-            .first('ai_thread_uuid');
         const images = await this.claimable(trx)
             .whereIn('ai_thread_file_uuid', args.fileUuids)
             .where('created_by_user_uuid', args.userUuid)
             .whereIn('organization_uuid', threadOrganization)
             .where('kind', 'image')
-            .select('size_bytes');
-        if (images.length > 0) {
-            const [budget] = await trx(AiThreadFileTableName)
-                .where('ai_thread_uuid', args.threadUuid)
-                .where('kind', 'image')
-                .select<
-                    { count: string; bytes: string; prompt_count: string }[]
-                >(
-                    trx.raw(
-                        'COUNT(*)::text AS count, COALESCE(SUM(size_bytes), 0)::text AS bytes, COUNT(*) FILTER (WHERE ai_prompt_uuid = ?)::text AS prompt_count',
-                        [args.promptUuid],
-                    ),
-                );
-            const bytes = images.reduce(
-                (total, image) => total + image.size_bytes,
-                0,
-            );
-            if (
-                images.length + Number(budget?.prompt_count ?? 0) >
-                    AI_THREAD_IMAGES_MAX_PER_PROMPT ||
-                images.length + Number(budget?.count ?? 0) >
-                    AI_THREAD_IMAGES_MAX_PER_THREAD ||
-                bytes + Number(budget?.bytes ?? 0) >
-                    AI_THREAD_IMAGES_MAX_THREAD_BYTES
-            ) {
-                throw new ParameterError(IMAGE_ATTACHMENT_LIMIT_MESSAGE);
-            }
-        }
+            .select('ai_thread_file_uuid');
+        if (images.length > AI_THREAD_IMAGES_MAX_PER_PROMPT)
+            throw new ParameterError(IMAGE_ATTACHMENT_LIMIT_MESSAGE);
         return this.claimable(trx)
             .whereIn('ai_thread_file_uuid', args.fileUuids)
             .where('created_by_user_uuid', args.userUuid)

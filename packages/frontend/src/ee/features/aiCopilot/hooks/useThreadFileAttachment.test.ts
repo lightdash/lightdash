@@ -1,12 +1,8 @@
-import {
-    AI_THREAD_IMAGE_MAX_BYTES,
-    AI_THREAD_IMAGES_MAX_THREAD_BYTES,
-} from '@lightdash/common';
+import { AI_THREAD_IMAGE_MAX_BYTES } from '@lightdash/common';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { type LightdashApiProps } from '../../../../api';
 import {
     useThreadFileAttachment,
-    type SentThreadImages,
     type ThreadFileAttachment,
 } from './useThreadFileAttachment';
 
@@ -95,15 +91,10 @@ afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
 });
-const render = (sentImages: SentThreadImages = { count: 0, bytes: 0 }) => {
+const render = () => {
     const onReady = vi.fn<(attachment: ThreadFileAttachment) => void>();
     return {
-        ...renderHook(() =>
-            useThreadFileAttachment({
-                onReady,
-                getSentImages: () => sentImages,
-            }),
-        ),
+        ...renderHook(() => useThreadFileAttachment({ onReady })),
         onReady,
     };
 };
@@ -276,26 +267,7 @@ test('five slots are reserved across calls before preparation and decoding stays
     expect(mocks.toast).toHaveBeenCalled();
 });
 
-test('images earlier messages sent count toward the conversation limits', async () => {
-    const nearCount = render({ count: 9, bytes: 0 });
-    await act(async () => {
-        await nearCount.result.current.attachImages([image('10'), image('11')]);
-    });
-    expect(nearCount.onReady).toHaveBeenCalledTimes(1);
-    expect(mocks.toast).toHaveBeenCalledTimes(1);
-
-    const nearBytes = render({
-        count: 1,
-        bytes: AI_THREAD_IMAGES_MAX_THREAD_BYTES,
-    });
-    await act(async () => {
-        await nearBytes.result.current.attachImages([image('too-much')]);
-    });
-    expect(nearBytes.onReady).not.toHaveBeenCalled();
-    expect(mocks.api).toHaveBeenCalledTimes(1);
-});
-
-test('the byte budget settles on normalized images, not larger originals', async () => {
+test('uploads the normalized image, not the larger original', async () => {
     mocks.normalize.mockImplementation(async (file) =>
         image(file.name, AI_THREAD_IMAGE_MAX_BYTES),
     );
@@ -315,57 +287,6 @@ test('the byte budget settles on normalized images, not larger originals', async
                 request.body.size === AI_THREAD_IMAGE_MAX_BYTES,
         ),
     ).toBe(true);
-});
-
-test('the overflowing fifth 3-MiB normalized image is rejected before upload', async () => {
-    const { result, onReady } = render();
-    await act(async () => {
-        await result.current.attachImages(
-            Array.from({ length: 5 }, (_, index) =>
-                image(`${index}.png`, AI_THREAD_IMAGE_MAX_BYTES),
-            ),
-        );
-    });
-    expect(onReady).toHaveBeenCalledTimes(4);
-    expect(mocks.api).toHaveBeenCalledTimes(4);
-    expect(mocks.toast).toHaveBeenCalledWith(
-        expect.objectContaining({
-            subtitle: expect.stringContaining('12 MiB'),
-        }),
-    );
-});
-
-test('authoritative server size growth is checked again; the overflow upload is disposed', async () => {
-    const requests = Array.from({ length: 5 }, () => deferred<unknown>());
-    let index = 0;
-    mocks.api.mockImplementation(async ({ method }) => {
-        if (method === 'DELETE') return undefined;
-        const pending = requests[index];
-        index += 1;
-        if (!pending) throw new Error('Unexpected upload');
-        return pending.promise;
-    });
-    const { result, onReady } = render();
-    let task = Promise.resolve();
-    act(() => {
-        task = result.current.attachImages(
-            Array.from({ length: 5 }, (_, id) => image(`${id}`, 1024 * 1024)),
-        );
-    });
-    await waitFor(() => expect(mocks.api).toHaveBeenCalledTimes(5));
-    await act(async () => {
-        requests.forEach((pending, id) =>
-            pending.resolve(
-                uploaded(`server-${id}`, AI_THREAD_IMAGE_MAX_BYTES),
-            ),
-        );
-        await task;
-    });
-    expect(onReady).toHaveBeenCalledTimes(4);
-    expect(
-        mocks.api.mock.calls.filter(([request]) => request.method === 'DELETE'),
-    ).toHaveLength(1);
-    expect(mocks.createUrl).toHaveBeenCalledTimes(4);
 });
 
 test('images become ready in the order they were picked, whichever upload finishes first', async () => {

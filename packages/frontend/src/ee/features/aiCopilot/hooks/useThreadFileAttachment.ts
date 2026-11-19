@@ -1,8 +1,6 @@
 import {
     AI_THREAD_FILE_MAX_BYTES,
     AI_THREAD_IMAGES_MAX_PER_PROMPT,
-    AI_THREAD_IMAGES_MAX_PER_THREAD,
-    AI_THREAD_IMAGES_MAX_THREAD_BYTES,
     FeatureFlags,
     isApiError,
     type AiPromptContextItem,
@@ -27,8 +25,7 @@ export type ThreadFileAttachment =
 
 export type PendingThreadFile = { id: number; filename: string } & (
     | { kind: 'text'; status: 'uploading' }
-    | { kind: 'image'; status: 'preparing' }
-    | { kind: 'image'; status: 'uploading'; sizeBytes: number }
+    | { kind: 'image'; status: 'preparing' | 'uploading' }
 );
 type PendingUpload = PendingThreadFile & { controller: AbortController };
 const THREAD_FILES_BASE = '/aiAgents/thread-files';
@@ -72,20 +69,16 @@ const deleteThreadFileApi = (lightdashApi: LightdashApi, fileUuid: string) =>
     });
 const isAbortError = (error: unknown) =>
     error instanceof DOMException && error.name === 'AbortError';
-const imageBudgetError = () =>
+const imageLimitError = () =>
     new Error(
-        `Attach up to ${AI_THREAD_IMAGES_MAX_PER_PROMPT} images per message, and ${AI_THREAD_IMAGES_MAX_PER_THREAD} images or ${AI_THREAD_IMAGES_MAX_THREAD_BYTES / (1024 * 1024)} MiB per conversation. Remove an image or start a new conversation.`,
+        `Attach up to ${AI_THREAD_IMAGES_MAX_PER_PROMPT} images per message. Remove an image to add another.`,
     );
-/** Images earlier messages already added to the conversation. */
-export type SentThreadImages = { count: number; bytes: number };
 
 /** Unsent uploads are disposable. Retention protects a pending claim; previews live until success/removal. */
 export const useThreadFileAttachment = ({
     onReady,
-    getSentImages,
 }: {
     onReady: (attachment: ThreadFileAttachment) => void;
-    getSentImages: () => SentThreadImages;
 }) => {
     const lightdashApi = useLightdashApi();
     const { showToastApiError, showToastError } = useToaster();
@@ -100,14 +93,10 @@ export const useThreadFileAttachment = ({
     const pendingIdRef = useRef(0);
     const onReadyRef = useRef(onReady);
     onReadyRef.current = onReady;
-    const getSentImagesRef = useRef(getSentImages);
-    getSentImagesRef.current = getSentImages;
     const mountedRef = useRef(true);
     const inFlightRef = useRef(new Map<number, PendingUpload>());
     const disposableFileUuidsRef = useRef(new Set<string>());
-    const readyImagesRef = useRef(
-        new Map<string, { previewUrl: string; sizeBytes: number }>(),
-    );
+    const readyImagesRef = useRef(new Map<string, { previewUrl: string }>());
     // Only decoding/encoding is serialized; completed preparations may upload concurrently.
     const imagePreparationRef = useRef(Promise.resolve());
     const imageReadyOrderRef = useRef(Promise.resolve());
@@ -203,21 +192,6 @@ export const useThreadFileAttachment = ({
         },
         [clearPreviews, lightdashApi],
     );
-    const imageBytesExcept = useCallback((excludedId: number) => {
-        let { bytes } = getSentImagesRef.current();
-        readyImagesRef.current.forEach((image) => {
-            bytes += image.sizeBytes;
-        });
-        inFlightRef.current.forEach((pending, id) => {
-            if (
-                id !== excludedId &&
-                pending.kind === 'image' &&
-                pending.status === 'uploading'
-            )
-                bytes += pending.sizeBytes;
-        });
-        return bytes;
-    }, []);
 
     const attachFile = useCallback(
         async (file: File) => {
@@ -296,12 +270,8 @@ export const useThreadFileAttachment = ({
                 ).filter((pending) => pending.kind === 'image').length;
                 const composerCount =
                     readyImagesRef.current.size + pendingCount;
-                if (
-                    composerCount >= AI_THREAD_IMAGES_MAX_PER_PROMPT ||
-                    getSentImagesRef.current().count + composerCount >=
-                        AI_THREAD_IMAGES_MAX_PER_THREAD
-                ) {
-                    reportError(imageBudgetError());
+                if (composerCount >= AI_THREAD_IMAGES_MAX_PER_PROMPT) {
+                    reportError(imageLimitError());
                     return;
                 }
                 // Reserve a slot synchronously, before any async read/decode begins.
@@ -336,18 +306,12 @@ export const useThreadFileAttachment = ({
                             !mountedRef.current
                         )
                             return;
-                        if (
-                            imageBytesExcept(id) + normalized.size >
-                            AI_THREAD_IMAGES_MAX_THREAD_BYTES
-                        )
-                            throw imageBudgetError();
                         inFlightRef.current.set(id, {
                             id,
                             filename: file.name,
                             controller,
                             kind: 'image',
                             status: 'uploading',
-                            sizeBytes: normalized.size,
                         });
                         publishPending();
                         const uploaded = await uploadThreadImageApi(
@@ -364,17 +328,11 @@ export const useThreadFileAttachment = ({
                             throw new Error(
                                 'The server returned an unexpected attachment type. Please try again.',
                             );
-                        // Wait here so the size check below sees every earlier image.
                         await earlierImage;
                         if (controller.signal.aborted || !mountedRef.current) {
                             deleteQuietly(uploaded.uuid);
                             return;
                         }
-                        if (
-                            imageBytesExcept(id) + uploaded.sizeBytes >
-                            AI_THREAD_IMAGES_MAX_THREAD_BYTES
-                        )
-                            throw imageBudgetError();
                         const attachment: ThreadImageAttachment = {
                             type: 'thread_image',
                             fileUuid: uploaded.uuid,
@@ -389,7 +347,6 @@ export const useThreadFileAttachment = ({
                         inFlightRef.current.delete(id);
                         readyImagesRef.current.set(uploaded.uuid, {
                             previewUrl: attachment.previewUrl,
-                            sizeBytes: uploaded.sizeBytes,
                         });
                         onReadyRef.current(attachment);
                     } catch (error) {
@@ -414,7 +371,6 @@ export const useThreadFileAttachment = ({
             beginUpload,
             deleteQuietly,
             finishUpload,
-            imageBytesExcept,
             lightdashApi,
             publishPending,
             reportError,

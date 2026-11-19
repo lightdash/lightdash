@@ -216,53 +216,6 @@ test('the deadline also terminates a stalled response stream', async () => {
     }
 });
 
-test('actual bytes cannot exceed the thread budget through under-reported historical snapshots', async () => {
-    const { file, item, contextMap, storage } = await setup();
-    const bytes = Buffer.alloc(AI_THREAD_IMAGE_MAX_BYTES);
-    const files = Array.from({ length: 5 }, (_, index) => ({
-        ...file,
-        uuid: `large-${index}`,
-        storageKey: `large-${index}`,
-        sizeBytes: bytes.length,
-    }));
-    contextMap.set(
-        'prompt-1',
-        files.map((image) => ({ ...item, fileUuid: image.uuid, sizeBytes: 1 })),
-    );
-    storage.getFileStream.mockImplementation(async () => ({
-        stream: Readable.from([bytes]),
-        contentDisposition: null,
-    }));
-    const result = await resolveThreadImages({ contextMap, files, storage });
-    expect([...result.values()]).toEqual(
-        files.map(() => ({ status: 'missing' })),
-    );
-    expect(storage.getFileStream).toHaveBeenCalledTimes(4);
-    expect(Sentry.captureException).toHaveBeenCalledOnce();
-});
-
-test('the retained-image budget is enforced before fetching any bytes', async () => {
-    const { contextMap, item, storage } = await setup();
-    contextMap.set(
-        'oversized',
-        Array.from({ length: 5 }, (_, index) => ({
-            ...item,
-            fileUuid: `large-${index}`,
-            sizeBytes: AI_THREAD_IMAGE_MAX_BYTES,
-        })),
-    );
-    const result = await resolveThreadImages({
-        contextMap,
-        files: [],
-        storage,
-    });
-    expect(
-        [...result.values()].every(({ status }) => status === 'missing'),
-    ).toBe(true);
-    expect(Sentry.captureException).toHaveBeenCalledOnce();
-    expect(storage.getFileStream).not.toHaveBeenCalled();
-});
-
 test('title history keeps the text of a turn and drops its files', () => {
     expect(
         withoutFileParts([

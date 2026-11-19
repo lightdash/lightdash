@@ -1,7 +1,5 @@
 import {
     AI_THREAD_IMAGE_MAX_BYTES,
-    AI_THREAD_IMAGES_MAX_PER_THREAD,
-    AI_THREAD_IMAGES_MAX_THREAD_BYTES,
     NotFoundError,
     ParameterError,
     type AiPromptContext,
@@ -120,33 +118,12 @@ export const resolveThreadImages = async ({
             item.type === 'thread_image' ? [{ promptUuid, item }] : [],
         ),
     );
-    const missingForBudget = () => {
-        Sentry.captureException(
-            new ThreadImageIntegrityError(
-                'Conversation image metadata exceeds the attachment budget.',
-            ),
-        );
-        return new Map<string, ResolvedThreadImage>(
-            references.map(({ item }) => [
-                item.fileUuid,
-                { status: 'missing' },
-            ]),
-        );
-    };
-    if (
-        references.length > AI_THREAD_IMAGES_MAX_PER_THREAD ||
-        references.reduce((bytes, { item }) => bytes + item.sizeBytes, 0) >
-            AI_THREAD_IMAGES_MAX_THREAD_BYTES
-    ) {
-        return missingForBudget();
-    }
     const availableFiles = new Map(
         files
             .filter((file) => file.kind === 'image')
             .map((file) => [file.uuid, file]),
     );
     const resolved = new Map<string, ResolvedThreadImage>();
-    let bytesRead = 0;
     for (const { promptUuid, item } of references) {
         const file = availableFiles.get(item.fileUuid);
         if (!file || file.promptUuid !== promptUuid) {
@@ -154,12 +131,9 @@ export const resolveThreadImages = async ({
         } else if (file.uploadedAt === null) {
             resolved.set(item.fileUuid, { status: 'incomplete' });
         } else {
-            if (bytesRead + file.sizeBytes > AI_THREAD_IMAGES_MAX_THREAD_BYTES)
-                return missingForBudget();
             try {
-                // eslint-disable-next-line no-await-in-loop -- Bound memory and stop before reading beyond the shared byte budget.
+                // eslint-disable-next-line no-await-in-loop -- One image in memory at a time while reading.
                 const bytes = await readImageBytes(file, storage);
-                bytesRead += bytes.length;
                 resolved.set(item.fileUuid, {
                     status: 'available',
                     part: {

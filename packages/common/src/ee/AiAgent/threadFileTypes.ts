@@ -5,8 +5,6 @@ export const AI_THREAD_IMAGE_INPUT_MAX_BYTES = 10 * 1024 * 1024;
 export const AI_THREAD_IMAGE_MAX_DIMENSION = 2560;
 export const AI_THREAD_IMAGE_MAX_PIXELS = 40_000_000;
 export const AI_THREAD_IMAGES_MAX_PER_PROMPT = 5;
-export const AI_THREAD_IMAGES_MAX_PER_THREAD = 10;
-export const AI_THREAD_IMAGES_MAX_THREAD_BYTES = 12 * 1024 * 1024;
 export const AI_THREAD_IMAGE_MEDIA_TYPES = [
     'image/png',
     'image/jpeg',

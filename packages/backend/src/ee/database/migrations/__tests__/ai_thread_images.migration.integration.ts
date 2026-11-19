@@ -200,56 +200,6 @@ test('a shared uploader cannot claim an attachment into a different organization
     ).toEqual([]);
 });
 
-test('concurrent prompts serialize the aggregate byte budget', async () => {
-    const owner = await fixture();
-    const images = await Promise.all(
-        Array.from({ length: 6 }, () => image(owner, 3 * 1024 * 1024)),
-    );
-    await Promise.all(
-        images.map(({ storageKey }) => model.markImageUploaded(storageKey)),
-    );
-    await claim(
-        owner,
-        images.slice(0, 2).map(({ file }) => file.uuid),
-    );
-    const inserted = Promise.withResolvers<void>();
-    let inserts = 0;
-    const createPromptAndClaim = (fileUuids: string[]) =>
-        migrated.database.transaction(async (trx) => {
-            const [prompt] = await trx('ai_prompt')
-                .insert({
-                    ai_thread_uuid: owner.threadUuid,
-                    created_by_user_uuid: owner.userUuid,
-                    prompt: 'Concurrent follow-up',
-                })
-                .returning('ai_prompt_uuid');
-            if (!prompt) throw new Error('Failed to create concurrent prompt');
-            inserts += 1;
-            if (inserts === 2) inserted.resolve();
-            await inserted.promise;
-            await trx('ai_thread')
-                .where('ai_thread_uuid', owner.threadUuid)
-                .update({ updated_at: new Date() });
-            return model.claimForPrompt(trx, {
-                ...owner,
-                promptUuid: prompt.ai_prompt_uuid,
-                fileUuids,
-            });
-        });
-    const outcomes = await Promise.allSettled([
-        createPromptAndClaim(images.slice(2, 4).map(({ file }) => file.uuid)),
-        createPromptAndClaim(images.slice(4, 6).map(({ file }) => file.uuid)),
-    ]);
-    expect(
-        outcomes.filter((result) => result.status === 'fulfilled'),
-    ).toHaveLength(1);
-    const rejected = outcomes.find((result) => result.status === 'rejected');
-    expect(rejected?.status === 'rejected' && rejected.reason).toBeInstanceOf(
-        ParameterError,
-    );
-    expect(await model.findForThread(owner.threadUuid)).toHaveLength(4);
-});
-
 test('more than five images are refused before any claim is committed', async () => {
     const owner = await fixture();
     const images = await Promise.all(
@@ -343,7 +293,7 @@ test('schema shape checks reject image rows with text content', async () => {
     ).rejects.toThrow('ai_thread_file_kind_shape');
 });
 
-test('the ten-image conversation budget applies across prompts', async () => {
+test('a conversation keeps accepting images across messages', async () => {
     const owner = await fixture();
     const images = await Promise.all(
         Array.from({ length: 11 }, () => image(owner)),
@@ -359,13 +309,11 @@ test('the ten-image conversation budget applies across prompts', async () => {
         await nextPrompt(owner),
         images.slice(5, 10).map(({ file }) => file.uuid),
     );
-    await expect(
-        claim(
-            await nextPrompt(owner),
-            images.slice(10).map(({ file }) => file.uuid),
-        ),
-    ).rejects.toBeInstanceOf(ParameterError);
-    expect(await model.findForThread(owner.threadUuid)).toHaveLength(10);
+    await claim(
+        await nextPrompt(owner),
+        images.slice(10).map(({ file }) => file.uuid),
+    );
+    expect(await model.findForThread(owner.threadUuid)).toHaveLength(11);
 });
 
 test('unsent cleanup removes stale file rows without losing object identity', async () => {

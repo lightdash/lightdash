@@ -1711,17 +1711,6 @@ export const useCreateAgentThreadMessageMutation = (
             });
         },
         onError: ({ error }) => {
-            // Drop the optimistic message: a refused send must not keep
-            // counting its images as part of the conversation.
-            void queryClient.invalidateQueries({
-                queryKey: [
-                    AI_AGENTS_KEY,
-                    projectUuid,
-                    agentUuid,
-                    'threads',
-                    threadUuid,
-                ],
-            });
             if (isAiAgentAuthorizationError(error)) {
                 void navigate(
                     `${getAiAgentPageBase(projectUuid, isEmbed)}/not-authorized`,

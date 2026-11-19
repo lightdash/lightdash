@@ -244,7 +244,9 @@ quality 92, stepping down to 85 then 75 only when the result would exceed the si
 limit. Malformed images may need re-saving before upload.
 
 Application limits are 3 MiB and a 2560-pixel longest edge per uploaded image,
-5 images per prompt, 10 images and 12 MiB of image bytes per thread. Browser input
+and 5 images per prompt. A thread has no image limit of its own; every image is
+replayed each turn, so a long thread is bounded only by the request-size
+guard on the model call. Browser input
 limits are 10 MiB and 40 megapixels, checked from headers before decoding and again
 on the oriented bitmap. Backend decoding and validation remain mandatory. These are application limits, not universal provider limits.
 
