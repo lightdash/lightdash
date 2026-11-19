@@ -286,14 +286,17 @@ export const patchManifest = (
                 refuse(`${path} needs dbt to parse`);
             }
             if (next === null) refuse(`Removing ${path} needs dbt to parse`);
+            // Exposures say what uses a model and change nothing an explore is compiled from.
             const {
                 models: beforeList,
                 version: _bv,
+                exposures: _be,
                 ...beforeRest
             } = parseYaml(path, base);
             const {
                 models: afterList,
                 version: _av,
+                exposures: _ae,
                 ...afterRest
             } = parseYaml(path, next);
             if (!isEqual(beforeRest, afterRest)) {

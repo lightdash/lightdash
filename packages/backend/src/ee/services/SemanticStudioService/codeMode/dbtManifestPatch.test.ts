@@ -208,6 +208,21 @@ describe('patchManifest', () => {
         ).toBe('unsupported');
     });
 
+    it('takes a change to exposures, which no explore is compiled from', () => {
+        const exposures = (owner: string) =>
+            `version: 2\nexposures:\n  - name: sales\n    owner:\n      name: ${owner}\n`;
+        const result = patched(
+            patchManifest(manifestOf(orders()), [
+                {
+                    path: 'models/exposures.yml',
+                    base: exposures('a'),
+                    next: exposures('b'),
+                },
+            ]),
+        );
+        expect(result.changedModels).toEqual([]);
+    });
+
     it('leaves a manifest alone when nothing changed', () => {
         const result = patched(patch(base));
         expect(result.changedModels).toEqual([]);
