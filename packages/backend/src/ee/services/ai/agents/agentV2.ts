@@ -153,6 +153,7 @@ import {
     canRunContentQuerySql,
     getRunContentQuery,
 } from '../tools/runContentQuery';
+import { getRunMetricQuery } from '../tools/runMetricQuery';
 import { getRunQuery } from '../tools/runQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
@@ -2264,11 +2265,19 @@ export const getAgentTools = (
             getProposeSemanticLayerChange({
                 proposeSemanticLayerChange:
                     dependencies.proposeSemanticLayerChange,
+                canRunMetrics: loadout.toolNames.has('runMetricQuery'),
             }),
         listChanges: () => getListChanges(dependencies.listChanges),
         readSemanticModel: () =>
             getReadSemanticModel({
                 readSemanticModel: dependencies.readSemanticModel,
+            }),
+        runMetricQuery: () =>
+            getRunMetricQuery({
+                agentContext,
+                getExplore: dependencies.getDraftExplore,
+                runAsyncQuery: dependencies.runDraftQuery,
+                maxLimit: args.maxQueryLimit,
             }),
         syncDbtProject: () =>
             getSyncDbtProject({
@@ -2800,6 +2809,7 @@ export const getAgentMessages = (
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
         semanticStudioCodeMode: args.semanticStudioCodeMode,
+        semanticStudioQueriesDraft: loadout.toolNames.has('runMetricQuery'),
         slackLinksOnly: args.slackLinksOnly,
         enableComposerPythonNodes: args.enableComposerQueries,
         liveSources: args.liveSources,

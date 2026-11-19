@@ -124,7 +124,7 @@ const proposalMetadataSchema = z.object({
     // Absent on results stored before a change carried a note and offers.
     note: z.string().nullable().default(null),
     options: z.array(z.string()).default([]),
-    // True when the result came back with advice the agent should act on before the turn ends.
+    // True when the result came back with advice to act on, or a metric to run, before the turn ends.
     needsFollowUp: z.boolean().default(false),
 });
 

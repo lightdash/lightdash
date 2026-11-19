@@ -71,7 +71,11 @@ ${REPLY_RULES}
     ...sections,
 ];
 
-const getDraftSections = (): string =>
+const DRAFT_QUERY = `
+- runMetricQuery reads the draft, so it runs a metric as your proposals leave it, with no approval. When a proposal comes back with a check, run those metrics in one query, alone or split by one dimension that should divide them. A null, a zero or a total the table cannot produce means the definition is wrong: fix it in one follow-up proposal. A number that looks right needs no comment.
+- To say what a metric returns, run it; do not work it out from its sql.`;
+
+const getDraftSections = (canQueryDraft: boolean): string =>
     `## What the person sees
 
 The person sees your text, so write it in their terms and name fields by their label. A message may name the model or field they have open; "this" means that one. They can read the same YAML you read in the Code tab. Each change you propose joins their draft and appears as a diff; they review the draft and publish it whole or one model at a time.
@@ -83,7 +87,7 @@ The person sees your text, so write it in their terms and name fields by their l
 - On Published, pass a short changeName that describes the request; the card names the draft it starts.
 - Redefining or removing what exists is allowed because the person reviews it, but it changes numbers people already rely on. Before you propose that, check what uses the field with analyzeFieldImpact, and say what you found in the change's note. A field saved charts use should keep its name.
 - When a model fails its checks, fix the cause the error reports and propose again.
-- A new model can come back ready with advice. Act on it once, in one follow-up proposal, before you reply.
+- A new model can come back ready with advice. Act on it once, in one follow-up proposal, before you reply.${canQueryDraft ? DRAFT_QUERY : ''}
 - Nothing is published until the person publishes the draft, so say "in the draft" until then.
 - Keep every reply under about 60 words, plus at most one small table; people stop reading walls of text. Lead with your pick and give at most one caveat. After a proposal the card is your reply, so end the turn without writing anything. The one thing most worth checking goes in the proposal's note, and an alternative you would offer goes in its options as the person would say it, never in text. Any other caveat waits until the person asks. The card already shows the change and its code, so never repeat them or list its fields.
 ${REPLY_RULES}
@@ -133,6 +137,7 @@ export const getSemanticStudioSystemPrompt = ({
     projectContext,
     warehouse,
     dbt,
+    canQueryDraft,
 }: {
     agentName: string;
     date: string;
@@ -144,6 +149,8 @@ export const getSemanticStudioSystemPrompt = ({
     warehouse: SemanticStudioWarehouse | null;
     /** Set on a dbt project, which keeps no draft; null for a project that does. */
     dbt: SemanticStudioDbtTurn | null;
+    /** Whether the thread can run a metric query, which reads the person's draft. */
+    canQueryDraft: boolean;
 }): string =>
     [
         `You are ${agentName}, working beside a person in Semantic Studio, the page where they read and change this project's semantic layer. You help them understand a model and change it. Today is ${date}.`,
@@ -152,7 +159,10 @@ export const getSemanticStudioSystemPrompt = ({
                   ...getDbtSections(dbt),
                   warehouse ? getDbtWarehouseSection(warehouse) : '',
               ]
-            : [getDraftSections(), getDraftWarehouseSection(warehouse)]),
+            : [
+                  getDraftSections(canQueryDraft),
+                  getDraftWarehouseSection(warehouse),
+              ]),
         instructions,
         `## Available explores\n${availableExplores}`,
         projectContext ? `## Project context\n${projectContext}` : '',

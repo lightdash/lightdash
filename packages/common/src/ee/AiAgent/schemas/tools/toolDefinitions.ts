@@ -841,7 +841,7 @@ export const renderChartToolDefinition: ToolDefinitionWithMcpOutput<
     },
 });
 
-/** @deprecated Legacy CSV-only metric query tool. */
+/** Metric query that returns CSV only, for agents that check numbers and show no charts. */
 export const runMetricQueryToolDefinition: ToolDefinitionWithoutMcpOutput<
     'runMetricQuery',
     typeof toolRunMetricQueryArgsSchema,
@@ -2053,6 +2053,7 @@ type AgentToolDefinitionsByName = {
     listWorkstreams: typeof listWorkstreamsToolDefinition;
     closePullRequest: typeof closePullRequestToolDefinition;
     getPullRequestDiff: typeof getPullRequestDiffToolDefinition;
+    runMetricQuery: typeof runMetricQueryToolDefinition;
     runSavedChart: typeof runSavedChartToolDefinition;
     listWarehouseTables: typeof listWarehouseTablesToolDefinition;
     describeWarehouseTable: typeof describeWarehouseTableToolDefinition;
@@ -2117,6 +2118,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     listWorkstreams: listWorkstreamsToolDefinition,
     closePullRequest: closePullRequestToolDefinition,
     getPullRequestDiff: getPullRequestDiffToolDefinition,
+    runMetricQuery: runMetricQueryToolDefinition,
     runSavedChart: runSavedChartToolDefinition,
     listWarehouseTables: listWarehouseTablesToolDefinition,
     describeWarehouseTable: describeWarehouseTableToolDefinition,
@@ -2188,6 +2190,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     listWorkstreamsToolDefinition,
     closePullRequestToolDefinition,
     getPullRequestDiffToolDefinition,
+    runMetricQueryToolDefinition,
     runSavedChartToolDefinition,
     listWarehouseTablesToolDefinition,
     describeWarehouseTableToolDefinition,

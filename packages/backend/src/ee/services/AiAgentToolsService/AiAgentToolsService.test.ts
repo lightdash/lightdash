@@ -62,6 +62,7 @@ import {
     withAgentActionScope,
 } from '../../../services/AiAccessService/agentActionTestUtils.mock';
 import { CoderService } from '../../../services/CoderService/CoderService';
+import { developmentView } from '../../../services/ProjectService/developmentView';
 import { validatePagination } from '../../../services/ProjectService/resultsPagination';
 import { PromoteService } from '../../../services/PromoteService/PromoteService';
 import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
@@ -1786,6 +1787,56 @@ describe('AiAgentToolsService', () => {
         ).resolves.toEqual([
             expect.objectContaining({ name: 'public' }),
             expect.objectContaining({ name: 'secure' }),
+        ]);
+    });
+
+    it('reads unpublished models over the live ones in the development view', async () => {
+        const service = makeService({
+            userAttributes: { access_level: ['1'] },
+            explores: {
+                orders: makeExplore({ name: 'orders', tags: ['live'] }),
+                removed: makeExplore({ name: 'removed' }),
+                untouched: makeExplore({ name: 'untouched' }),
+            },
+        });
+        const drafted = new Map([
+            ['orders', makeExplore({ name: 'orders', tags: ['drafted'] })],
+            ['added', makeExplore({ name: 'added' })],
+            [
+                'secure',
+                makeExplore({
+                    name: 'secure',
+                    requiredAttributes: { access_level: '2' },
+                }),
+            ],
+            ['removed', null],
+        ]);
+        const read = (exploreNames?: string[]) =>
+            developmentView.run(
+                {
+                    findExplores: async () => drafted,
+                    hasChanges: async () => true,
+                },
+                () =>
+                    service.getAvailableExplores({
+                        user: { ...defaultSessionUser, ...user },
+                        projectUuid,
+                        availableTags: null,
+                        exploreNames,
+                    }),
+            );
+
+        const all = await read();
+        expect(all.map(({ name }) => name).sort()).toEqual([
+            'added',
+            'orders',
+            'untouched',
+        ]);
+        expect(all.find(({ name }) => name === 'orders')?.tags).toEqual([
+            'drafted',
+        ]);
+        expect((await read(['added'])).map(({ name }) => name)).toEqual([
+            'added',
         ]);
     });
 

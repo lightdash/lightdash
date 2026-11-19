@@ -497,6 +497,10 @@ export type AiAgentDependencies = {
     editProjectContext: EditProjectContextFn;
     proposeSemanticLayerChange: ProposeSemanticLayerChangeFn;
     listChanges: () => Promise<StudioChangeSummary[]>;
+    /** Reads an explore as the person's draft leaves it. */
+    getDraftExplore: GetExploreFn;
+    /** Runs a metric query on the person's draft over what is published. */
+    runDraftQuery: RunAsyncQueryFn;
     readSemanticModel: ReadSemanticModelFn;
     syncDbtProject: SyncDbtProjectFn;
     exploreRepo: ExploreRepoFn;

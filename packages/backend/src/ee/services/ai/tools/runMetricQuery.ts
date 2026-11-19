@@ -19,7 +19,10 @@ import type { AiDecisionClient } from '../decisions/AiDecisionClient';
 import { diagnoseEmptyResult } from '../decisions/emptyResults';
 import { createQueryReviewer } from '../decisions/queryReview';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
-import type { RunAsyncQueryFn } from '../types/aiAgentDependencies';
+import type {
+    GetExploreFn,
+    RunAsyncQueryFn,
+} from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
 import { populateCustomMetricsSQL } from '../utils/populateCustomMetricsSQL';
 import { serializeData } from '../utils/serializeData';
@@ -38,6 +41,7 @@ const toolDefinition = runMetricQueryToolDefinition.for('agent');
 
 type Dependencies = {
     decisions?: AiDecisionClient;
+    getExplore: GetExploreFn;
     runAsyncQuery: RunAsyncQueryFn;
     agentContext: AgentContext;
     maxLimit: number;
@@ -45,6 +49,7 @@ type Dependencies = {
 
 export const getRunMetricQuery = ({
     decisions,
+    getExplore,
     runAsyncQuery,
     agentContext: ctx,
     maxLimit,
@@ -104,7 +109,9 @@ export const getRunMetricQuery = ({
                 const vizTool =
                     toolRunMetricQueryArgsSchemaTransformed.parse(toolArgs);
 
-                const explore = ctx.getExplore(vizTool.vizConfig.exploreName);
+                const explore = await getExplore({
+                    table: vizTool.vizConfig.exploreName,
+                });
 
                 validateVizTool(vizTool, explore);
 

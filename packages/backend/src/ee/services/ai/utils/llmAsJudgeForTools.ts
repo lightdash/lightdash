@@ -50,6 +50,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     generateVisualization: 'query_result',
     runQuery: 'query_result',
     runContentQuery: 'run_content_query',
+    runMetricQuery: 'query_result',
     runSavedChart: 'run_saved_chart',
     runSql: 'run_sql',
     query: 'query',
