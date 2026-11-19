@@ -17,8 +17,7 @@ import {
     useComputedColorScheme,
 } from '@mantine/core';
 import {
-    Editor as CodeEditor,
-    type EditorFactory,
+    type Editor as CodeEditor,
     type EditorOptions,
     type EditorType,
 } from '@pierre/diffs/edit';
@@ -57,6 +56,7 @@ import { splitPatchIntoFiles } from '../../ee/features/aiCopilot/components/Chat
 import { type StoredThread } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import { useWholePullRequestDiff } from '../../ee/features/aiCopilot/hooks/usePullRequestDiff';
 import tabClasses from './ModelTabs.module.css';
+import { createEditor } from './pierreEditor';
 import { applyProposal, fileBefore, proposedPathOf } from './proposedFile';
 import { type StudioChatCode, type StudioChatRef } from './studioChatRefs';
 import {
@@ -424,12 +424,6 @@ const createChip = (onClick: () => void) => {
 };
 
 type Layout = 'code' | 'diff' | 'split';
-
-const createEditor: EditorFactory<undefined, undefined> = (
-    type,
-    options,
-    key,
-) => new CodeEditor(type, options, key);
 
 const editorOptionsFor = <T extends EditorType>(
     onAttach: (code: Attached) => void,

@@ -15,6 +15,7 @@ import {
     JobStatusType,
     NotFoundError,
     ParameterError,
+    parseModelDocument,
     ProjectType,
     readModelPart,
     RequestMethod,
@@ -24,7 +25,11 @@ import {
     type Explore,
     type ExploreError,
     type LightdashError,
+    type LightdashModelWithSource,
+    type ModelFragmentRefusal,
+    type ModelFragmentRefusalReason,
     type Project,
+    type SaveSemanticLayerDraftModelRequest,
     type SaveSemanticStudioSourceRequest,
     type SemanticLayerBlocker,
     type SemanticLayerDraft,
@@ -34,6 +39,7 @@ import {
     type SemanticLayerDraftImpact,
     type SemanticLayerDraftItemResult,
     type SemanticLayerDraftModelInput,
+    type SemanticLayerDraftModelSave,
     type SemanticLayerDraftMoveDirection,
     type SemanticLayerDraftReconciliation,
     type SemanticLayerDraftState,
@@ -101,7 +107,7 @@ import {
     usesAnyModel,
     type DraftCheckerProjectService,
 } from './DraftChecker';
-import { foldDraft, withWrites } from './draftFold';
+import { foldDraft, toDraftEdit, toModelPath, withWrites } from './draftFold';
 import {
     findDraftedPaths,
     findRefusedPaths,
@@ -309,6 +315,17 @@ const failed = (
     changes: [],
     error,
 });
+
+const REFUSAL_REASONS: Record<ModelFragmentRefusalReason, string> = {
+    access: 'changes who can see it, which cannot be changed here.',
+    name_taken: 'uses a name another field of this model already has.',
+    incomplete: 'is missing what it needs, such as its type or sql.',
+    invalid_filter: 'has a filter that is not a single field: value pair.',
+    not_found: 'is not in the model.',
+};
+
+const describeRefusal = ({ path, reason }: ModelFragmentRefusal): string =>
+    `${path} ${REFUSAL_REASONS[reason]}`;
 
 /** Keeps a project's native models on the server and takes reviewed drafts of them live. */
 // A draft that redefines more fields than this is only partly looked up; page the lookup if drafts grow that large.
@@ -817,20 +834,13 @@ export class SemanticStudioService extends BaseService {
         }
     }
 
-    /** Checks a change on top of this person's draft and adds what passes to it; nothing goes live. */
-    async proposeDraftChange(
+    /** Folds a change onto this person's draft and checks the result against the warehouse; nothing is stored. */
+    private async checkOnDraft(
         user: SessionUser,
         projectUuid: string,
+        draft: LoadedDraft,
         models: SemanticLayerDraftModelInput[],
-        /** The question asking for it; null when none did. */
-        prompt: { promptUuid: string; threadUuid: string } | null,
-        /** Names the change this starts when the person is on Live. */
-        changeName: string | null,
-    ): Promise<SemanticLayerDraftProposal> {
-        await this.assertCanEditModels(user, projectUuid);
-        const owner = await this.findDraftOwner(projectUuid, user.userUuid);
-        const draft = await this.loadDraft(owner, null);
-        await this.assertNoModelsFromElsewhere(projectUuid, draft);
+    ) {
         const proposed = foldDraft(draft.live, [
             ...draft.changes.map((change) => change.models),
             models,
@@ -848,6 +858,67 @@ export class SemanticStudioService extends BaseService {
                 ? { ...result, notes: check.notes.get(result.model) ?? [] }
                 : failed(result, error);
         });
+        return { results, writes: check.writes };
+    }
+
+    /** Adds a checked change to this person's draft, starting a draft named `changeName` when they are on Published. */
+    private async storeDraftChange(
+        user: SessionUser,
+        owner: DraftOwner,
+        draft: LoadedDraft,
+        models: SemanticLayerDraftModelInput[],
+        promptUuid: string | null,
+        changeName: string | null,
+    ) {
+        const stored =
+            await this.projectModelDocumentModel.createCheckedOutDraftChange(
+                {
+                    ...owner,
+                    promptUuid,
+                    changeName:
+                        changeName?.trim().slice(0, 120) ||
+                        UNTITLED_WORKSPACE_NAME,
+                    models,
+                    // A repository has commits, not versions.
+                    baseVersions: draft.repo
+                        ? null
+                        : Object.fromEntries(
+                              models.map(({ name }) => [
+                                  name,
+                                  draft.stored.find((doc) => doc.name === name)
+                                      ?.version ?? null,
+                              ]),
+                          ),
+                },
+                draft.organizationUuid,
+            );
+        await this.queueDraftImpactCheckAfterChange(user, {
+            ...owner,
+            workspaceUuid: stored.workspaceUuid,
+        });
+        return stored;
+    }
+
+    /** Checks a change on top of this person's draft and adds what passes to it; nothing goes live. */
+    async proposeDraftChange(
+        user: SessionUser,
+        projectUuid: string,
+        models: SemanticLayerDraftModelInput[],
+        /** The question asking for it; null when none did. */
+        prompt: { promptUuid: string; threadUuid: string } | null,
+        /** Names the change this starts when the person is on Live. */
+        changeName: string | null,
+    ): Promise<SemanticLayerDraftProposal> {
+        await this.assertCanEditModels(user, projectUuid);
+        const owner = await this.findDraftOwner(projectUuid, user.userUuid);
+        const draft = await this.loadDraft(owner, null);
+        await this.assertNoModelsFromElsewhere(projectUuid, draft);
+        const { results, writes } = await this.checkOnDraft(
+            user,
+            projectUuid,
+            draft,
+            models,
+        );
         const passing = models.filter(
             (_model, index) => results[index].status === 'ready',
         );
@@ -860,43 +931,106 @@ export class SemanticStudioService extends BaseService {
             };
         }
         const before = withWrites(draft.live, draft.writes);
-        const { draftChangeUuid, workspaceUuid, startedChange } =
-            await this.projectModelDocumentModel.createCheckedOutDraftChange(
-                {
-                    ...owner,
-                    promptUuid: prompt?.promptUuid ?? null,
-                    changeName:
-                        changeName?.trim().slice(0, 120) ||
-                        UNTITLED_WORKSPACE_NAME,
-                    models: passing,
-                    // A repository has commits, not versions.
-                    baseVersions: draft.repo
-                        ? null
-                        : Object.fromEntries(
-                              passing.map(({ name }) => [
-                                  name,
-                                  draft.stored.find((doc) => doc.name === name)
-                                      ?.version ?? null,
-                              ]),
-                          ),
-                },
-                draft.organizationUuid,
-            );
-        await this.queueDraftImpactCheckAfterChange(user, {
-            ...owner,
-            workspaceUuid,
-        });
+        const { draftChangeUuid, startedChange } = await this.storeDraftChange(
+            user,
+            owner,
+            draft,
+            passing,
+            prompt?.promptUuid ?? null,
+            changeName,
+        );
         return {
             results,
             diffs: [...new Set(passing.map(({ name }) => name))].map(
                 (model) => ({
                     model,
                     contentBefore: before.get(model) ?? null,
-                    contentAfter: check.writes.get(model) ?? null,
+                    contentAfter: writes.get(model) ?? null,
                 }),
             ),
             draftChangeUuid,
             startedChange,
+        };
+    }
+
+    /** Saves a hand edit of one model's whole YAML into this person's draft, through the checks an agent's change goes through. */
+    async saveDraftModel(
+        user: SessionUser,
+        projectUuid: string,
+        model: string,
+        { base, content }: SaveSemanticLayerDraftModelRequest,
+    ): Promise<SemanticLayerDraftModelSave> {
+        await this.assertCanEditModels(user, projectUuid);
+        const owner = await this.findDraftOwner(projectUuid, user.userUuid);
+        const draft = await this.loadDraft(owner, null);
+        await this.assertNoModelsFromElsewhere(projectUuid, draft);
+        const fail = (error: string): SemanticLayerDraftModelSave => ({
+            status: 'failed',
+            error,
+        });
+        const current = withWrites(draft.live, draft.writes).get(model);
+        if (current === undefined || current !== base) {
+            return fail(
+                'This model changed since you started editing it. Copy your edit, then make it again on the latest version.',
+            );
+        }
+        let edited: LightdashModelWithSource;
+        try {
+            edited = parseModelDocument(content, toModelPath(model));
+        } catch (error) {
+            return fail(getErrorMessage(error));
+        }
+        if (edited.name !== model) {
+            return fail(
+                `The model's name stays ${model}. To rename it, ask the agent.`,
+            );
+        }
+        const models = toDraftEdit(model, current, content);
+        if (models.length === 0) {
+            return fail('This edit changes nothing the model means.');
+        }
+        const { results, writes } = await this.checkOnDraft(
+            user,
+            projectUuid,
+            draft,
+            models,
+        );
+        const problems = results.flatMap(({ error, refusals }) => [
+            ...(error === null ? [] : [error]),
+            ...refusals.map(describeRefusal),
+        ]);
+        if (problems.length > 0) return fail(problems.join(' '));
+        const saved = writes.get(model);
+        if (
+            saved === undefined ||
+            saved === null ||
+            results.every(({ status }) => status !== 'ready')
+        ) {
+            // Every part folded to what the draft already holds.
+            return fail('This edit changes nothing the model means.');
+        }
+        // A part the edit names but the draft would not hold is never saved quietly; sql_from is only wrapped.
+        const missed = diffModelDocuments(saved, content).filter(
+            ({ path }) => path !== 'sql_from',
+        );
+        if (missed.length > 0) {
+            return fail(
+                `${missed.map(({ path }) => path).join(', ')} cannot be saved as written here. Ask the agent to make that change.`,
+            );
+        }
+        const { draftChangeUuid, startedChange } = await this.storeDraftChange(
+            user,
+            owner,
+            draft,
+            models,
+            null,
+            `Edit ${edited.label ?? model}`,
+        );
+        return {
+            status: 'saved',
+            draftChangeUuid,
+            startedChange,
+            content: saved,
         };
     }
 
