@@ -1,3 +1,13 @@
+# [3.333.0](https://github.com/lightdash/lightdash/compare/3.332.1...3.333.0) (2026-11-19)
+
+
+### Features
+
+* **ai:** agent edits composer charts ([#32719](https://github.com/lightdash/lightdash/issues/32719)) ([de49409](https://github.com/lightdash/lightdash/commit/de49409448f254cb9d645fe6af87277c513a7bbe))
+* **ai:** agent reads and runs composer charts ([#32712](https://github.com/lightdash/lightdash/issues/32712)) ([f26ad96](https://github.com/lightdash/lightdash/commit/f26ad96737ea5f5cbac32b2425b8b33a748cbe86))
+* **ai:** Ask AI on composer chart dashboard tiles ([#32755](https://github.com/lightdash/lightdash/issues/32755)) ([1ea7c1b](https://github.com/lightdash/lightdash/commit/1ea7c1b456d269021619fd752fbba6bbd21b4cbb))
+* **ai:** create composer charts with createContent ([#32844](https://github.com/lightdash/lightdash/issues/32844)) ([c0edafa](https://github.com/lightdash/lightdash/commit/c0edafaf7518213d145263d04691e4075614a772))
+
 ## [3.332.1](https://github.com/lightdash/lightdash/compare/3.332.0...3.332.1) (2026-11-19)
 
 
