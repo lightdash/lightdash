@@ -646,6 +646,60 @@ describe('getComposerNodeDateZooms', () => {
             ).toEqual({});
         });
 
+        it('zooms no leg of merges that share a leg, and still zooms a separate merge', () => {
+            const createdKey = merged([
+                {
+                    name: 'created',
+                    events: 'events_created',
+                    visits: 'visits_day',
+                },
+            ]);
+            const separate: ComposerChartPipelineNode = {
+                sourceType: QuerySourceType.MERGE,
+                nodeId: 'separate',
+                title: 'Separate',
+                joinType: MergeJoinType.FULL,
+                sources: [{ nodeId: 'events2' }, { nodeId: 'visits2' }],
+                joinKey: [
+                    {
+                        name: 'created',
+                        fieldIdBySourceId: {
+                            events2: 'events_created',
+                            visits2: 'visits_day',
+                        },
+                    },
+                ],
+            };
+            expect(
+                getComposerNodeDateZooms({
+                    nodes: [
+                        eventsNode,
+                        visitsNode,
+                        { ...eventsNode, nodeId: 'events2' },
+                        { ...visitsNode, nodeId: 'visits2' },
+                        createdKey,
+                        { ...createdKey, nodeId: 'again' },
+                        separate,
+                    ],
+                    exploreByNodeId: {
+                        ...zoomExplores,
+                        events2: events,
+                        visits2: visits,
+                    },
+                    dateZoom: { granularity: DateGranularity.MONTH },
+                }),
+            ).toEqual({
+                events2: {
+                    granularity: DateGranularity.MONTH,
+                    xAxisFieldId: 'events_created',
+                },
+                visits2: {
+                    granularity: DateGranularity.MONTH,
+                    xAxisFieldId: 'visits_day',
+                },
+            });
+        });
+
         it("reports every leg field of a merge's date key parts as zoomable", () => {
             expect(
                 getComposerZoomableFields(

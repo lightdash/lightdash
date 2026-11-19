@@ -327,30 +327,34 @@ const getMergeDateKeys = (
     const legs = merges.flatMap(({ sources }) =>
         sources.map((source) => source.nodeId),
     );
-    // A leg of two merges could need two grains, so neither zooms
-    const sharedLeg = legs.some((leg, index) => legs.indexOf(leg) !== index);
+    // A leg of two merges could need two grains, so neither merge zooms
+    const sharedLegs = new Set(
+        legs.filter((leg, index) => legs.indexOf(leg) !== index),
+    );
     return {
         legs,
-        merges: sharedLeg
-            ? []
-            : merges.map(({ nodeId, sources, joinKey }) => {
-                  const legIds = sources.map((source) => source.nodeId);
-                  return {
-                      nodeId,
-                      legIds,
-                      dateParts: joinKey.filter((part) =>
-                          legIds.every((leg) =>
-                              candidates
-                                  .get(leg)
-                                  ?.fields.some(
-                                      ({ fieldId }) =>
-                                          fieldId ===
-                                          part.fieldIdBySourceId[leg],
-                                  ),
-                          ),
-                      ),
-                  };
-              }),
+        merges: merges
+            .filter(
+                ({ sources }) =>
+                    !sources.some((source) => sharedLegs.has(source.nodeId)),
+            )
+            .map(({ nodeId, sources, joinKey }) => {
+                const legIds = sources.map((source) => source.nodeId);
+                return {
+                    nodeId,
+                    legIds,
+                    dateParts: joinKey.filter((part) =>
+                        legIds.every((leg) =>
+                            candidates
+                                .get(leg)
+                                ?.fields.some(
+                                    ({ fieldId }) =>
+                                        fieldId === part.fieldIdBySourceId[leg],
+                                ),
+                        ),
+                    ),
+                };
+            }),
     };
 };
 
