@@ -1,3 +1,10 @@
+## [3.348.1](https://github.com/lightdash/lightdash/compare/3.348.0...3.348.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **ai-agent:** offer only agents that can open pinned content, and show the message awaiting a pick ([#33023](https://github.com/lightdash/lightdash/issues/33023)) ([0f42808](https://github.com/lightdash/lightdash/commit/0f4280816cc638ff3481e0098380c791f4bcdc76))
+
 # [3.348.0](https://github.com/lightdash/lightdash/compare/3.347.0...3.348.0) (2026-11-19)
 
 
