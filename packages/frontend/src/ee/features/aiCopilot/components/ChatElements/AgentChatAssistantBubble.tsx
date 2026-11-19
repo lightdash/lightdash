@@ -133,8 +133,6 @@ import {
 } from './ToolCalls/LiveActivityCard';
 import { QuietCardsContext, StudioAskContext } from './ToolCalls/quietCards';
 import { toReasoningTexts } from './ToolCalls/reasoningHelpers';
-import { StepFailureSummary } from './ToolCalls/StepFailureSummary';
-import { getMessageFinalStepFailure } from './ToolCalls/utils/getFinalStepFailure';
 import { getRunSqlLinkStateFromArgs } from './ToolCalls/utils/runSqlLinkState';
 import {
     getPendingApprovalIds,
@@ -854,10 +852,6 @@ const AssistantBubbleContent: FC<{
                     pendingToolCallIds: getPendingPersistedApprovalIds(message),
                     decidedToolCallIds: [],
                 };
-                const finalStepFailure =
-                    isStreaming || isPending
-                        ? null
-                        : getMessageFinalStepFailure(message);
                 // In Studio a turn that only changed the draft ends on its card; the line kept for history is not shown twice.
                 const cardReply =
                     semanticLayerProposals.length > 0
@@ -868,12 +862,6 @@ const AssistantBubbleContent: FC<{
                 const hasAnswerText =
                     messageContent.length > 0 &&
                     !(quietCards && messageContent.trim() === cardReply);
-                const failureSummary = finalStepFailure ? (
-                    <StepFailureSummary
-                        failure={finalStepFailure}
-                        projectUuid={projectUuid}
-                    />
-                ) : null;
                 return (
                     <>
                         <LiveActivityCard
@@ -895,8 +883,6 @@ const AssistantBubbleContent: FC<{
                                 isLive: isStreaming,
                             }}
                         />
-                        {/* With prose, the failure detail sits after it, next to the recovery actions. */}
-                        {!hasAnswerText && failureSummary}
                         {artifactSlot}
                         {hasAnswerText ? (
                             <Box
@@ -951,7 +937,6 @@ const AssistantBubbleContent: FC<{
                                 </AiMarkdown>
                             </Box>
                         ) : null}
-                        {hasAnswerText && failureSummary}
                     </>
                 );
             })()}
