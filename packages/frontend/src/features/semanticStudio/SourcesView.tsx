@@ -639,7 +639,7 @@ export const SourcePane: FC<{
                                 ? null
                                 : {
                                       tone: 'info',
-                                      text: 'Saved. SQL is checked when dbt next builds the change.',
+                                      text: 'Saved. SQL is checked when dbt next builds the draft.',
                                   },
                         );
                     }
@@ -902,7 +902,7 @@ export const SourcePane: FC<{
                                 >
                                     {target.prUrl
                                         ? 'Save'
-                                        : 'Save as a new change'}
+                                        : 'Save as a new draft'}
                                 </Button>
                             </Tooltip>
                         </>

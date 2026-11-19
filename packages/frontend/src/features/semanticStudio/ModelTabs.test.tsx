@@ -84,7 +84,7 @@ describe('ModelCodeView', () => {
 
         rerender(codeOf(change, 'orders'));
         expect(
-            screen.getByText('This change removes this model.'),
+            screen.getByText('This draft removes this model.'),
         ).toBeInTheDocument();
 
         rerender(codeOf(on(null), 'payments'));

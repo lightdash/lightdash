@@ -118,7 +118,7 @@ export const ModelCodeView: FC<{
             <Box className={classes.codeEditor} ref={editor}>
                 {content === null ? (
                     <Text fz="sm" c="dimmed" p="md">
-                        This change removes this model.
+                        This draft removes this model.
                     </Text>
                 ) : (
                     <WorkerPoolContextProvider

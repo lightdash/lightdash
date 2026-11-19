@@ -355,6 +355,7 @@ const setup = ({
         sha: 'merge-sha',
         compileJobUuid: 'job-1',
     }));
+    const scheduleCompileAfterMerge = vi.fn(async () => 'job-2');
     let activeWorkspace: { threadUuid: string; prUrl: string | null } | null =
         null;
     const unused = async (): Promise<never> => {
@@ -425,6 +426,7 @@ const setup = ({
             saveWithScript: unused,
             findPullRequestBranch,
             mergePullRequest,
+            scheduleCompileAfterMerge,
         },
         workspaceModel: {
             listChanges: async () => [],
@@ -758,6 +760,7 @@ const setup = ({
         queueBranchCompile,
         branchCompiles,
         upsert,
+        scheduleCompileAfterMerge,
         openPullRequest,
         updatePullRequest,
         recordedPullRequests,
@@ -3377,6 +3380,10 @@ describe('workspace pull request reconciliation', () => {
                 // A dbt draft has nothing kept on the server, so a closed pull request ends it too.
                 true,
             );
+            // Only a merge brings new models, so only a merge refreshes the project.
+            expect(context.scheduleCompileAfterMerge).toHaveBeenCalledTimes(
+                state === 'merged' ? 1 : 0,
+            );
         },
     );
 
@@ -3553,14 +3560,19 @@ describe('compiling a dbt change on its branch', () => {
         ).toMatchObject({
             workspaceUuid: 'workspace-thread',
             appliesAs: 'dbt_pull_request',
-            branchCompile: null,
+            // A draft with a pull request that was never compiled starts compiling when it is read.
+            branchCompile: { status: 'compiling', hasExplores: false },
         });
+        expect(context.queueBranchCompile).toHaveBeenCalledTimes(1);
+        await context.service.getCheckout(repoWriter, PROJECT_UUID);
+        expect(context.queueBranchCompile).toHaveBeenCalledTimes(1);
         await context.service.compileCheckout(repoWriter, PROJECT_UUID);
         expect(
             (await context.service.getCheckout(repoWriter, PROJECT_UUID))
                 ?.branchCompile,
         ).toMatchObject({ status: 'compiling', hasExplores: false });
-        await runQueued(context);
+        // The compile asked for last is the one that is kept.
+        await runQueued(context, 1);
         expect(
             (await context.service.getCheckout(repoWriter, PROJECT_UUID))
                 ?.branchCompile,

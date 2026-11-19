@@ -197,6 +197,7 @@ export type SemanticStudioServiceArguments = {
         | 'saveWithScript'
         | 'findPullRequestBranch'
         | 'mergePullRequest'
+        | 'scheduleCompileAfterMerge'
     >;
     workspaceModel: Pick<
         SemanticStudioWorkspaceModel,
@@ -1188,6 +1189,32 @@ export class SemanticStudioService extends BaseService {
         });
     }
 
+    /** The compile of a checked-out dbt draft's branch; one that has a pull request and was never compiled starts now, so nobody has to ask. */
+    private async findOrStartBranchCompile(
+        user: SessionUser,
+        { workspaceUuid, projectUuid, pullRequest }: SemanticStudioWorkspace,
+    ) {
+        const compile =
+            await this.workspaceModel.findBranchCompile(workspaceUuid);
+        if (
+            compile ||
+            !pullRequest ||
+            pullRequest.state === 'merged' ||
+            pullRequest.state === 'closed'
+        ) {
+            return compile;
+        }
+        try {
+            await this.requestBranchCompile(user, projectUuid, workspaceUuid);
+        } catch (error) {
+            this.logger.warn(
+                `SemanticStudio: could not start the compile of workspace ${workspaceUuid}: ${getErrorMessage(error)}`,
+            );
+            return null;
+        }
+        return this.workspaceModel.findBranchCompile(workspaceUuid);
+    }
+
     /** The change this person has checked out, which the whole app shows them; null on what is published or without Studio. */
     async getCheckout(
         user: SessionUser,
@@ -1202,9 +1229,7 @@ export class SemanticStudioService extends BaseService {
         if (!active) return null;
         const compile =
             status.appliesAs === 'dbt_pull_request'
-                ? await this.workspaceModel.findBranchCompile(
-                      active.workspaceUuid,
-                  )
+                ? await this.findOrStartBranchCompile(user, active)
                 : null;
         return {
             workspaceUuid: active.workspaceUuid,
@@ -2857,6 +2882,13 @@ export class SemanticStudioService extends BaseService {
                     );
                     changed = true;
                     await this.retireDbtTryOut(user, projectUuid, prUrl);
+                    // Merged outside the app, so nothing has refreshed the project with it yet.
+                    if (state === 'merged') {
+                        await this.aiWritebackService.scheduleCompileAfterMerge(
+                            user,
+                            projectUuid,
+                        );
+                    }
                 }
             } catch (error) {
                 this.logger.warn(
