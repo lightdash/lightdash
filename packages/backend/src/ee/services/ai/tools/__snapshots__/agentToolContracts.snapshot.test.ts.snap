@@ -1011,7 +1011,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                       "properties": {
                         "groupBy": {
                           "default": null,
-                          "description": "Columns that split y into one series per value. bar/line/area/scatter only. Must not include x.",
+                          "description": "Columns that split y into one series per value. A reader tells about 6 series apart at a glance, so prefer a coarser split when the choice is yours and keep a split the user asked for. bar/line/area/scatter only. Must not include x.",
                           "items": {
                             "description": "A result column reference of the presented node",
                             "type": "string",
@@ -1023,7 +1023,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                         },
                         "horizontal": {
                           "default": null,
-                          "description": "bar only: draw bars horizontally.",
+                          "description": "bar only: draw bars horizontally, for long labels or more than about 12 categories.",
                           "type": [
                             "boolean",
                             "null",
@@ -1063,14 +1063,23 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                         },
                         "stack": {
                           "default": null,
-                          "description": "bar: stack series on top of each other. area always stacks. Ignored elsewhere.",
+                          "description": "bar: stack series on top of each other, for parts that add up to a total (sums and counts; averages, ratios and distinct counts sit side by side). area always stacks. Ignored elsewhere.",
                           "type": [
                             "boolean",
                             "null",
                           ],
                         },
                         "type": {
-                          "description": "Chart type. area is a filled line.",
+                          "description": "Chart type, chosen by what the reader does with the result:
+- bar: compare or rank categories.
+- line: follow change over time or another ordered x.
+- table: read exact values across several columns, or more rows than a chart can label.
+- area: a filled line, for one total over time or the parts that add up to it.
+- pie: 2 to 6 non-negative parts of one whole; more parts read better as a bar.
+- scatter: how two measures relate, one point per entity.
+- funnel: ordered stages of one process.
+- big_number: one value as a card, when the user asks for the card or wants to save it; a figure otherwise goes in the answer text.
+A custom chart type is chosen the same way: by its own description first, then as the built-in type it most resembles.",
                           "enum": [
                             "table",
                             "big_number",

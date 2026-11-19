@@ -1,53 +1,5 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`MCP tool contracts > matches the filter-expression MCP server instructions snapshot 1`] = `
-"## Query Building Workflow
-
-For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
-
-0. \`get_context\`: select the project, and the agent when agent-scoped; follow production/preview and pinned-scope rules.
-1. \`grep_fields\`: discover fields and select one explore at the right grain.
-2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
-3. \`search_field_values\`: find valid filter values when needed.
-4. \`run_metric_query\`: query governed metrics.
-5. \`get_query_result\`: poll running queries; never resubmit the original query.
-6. \`render_chart\`: render completed metric queries when a chart is wanted.
-7. \`list_content\`: browse accessible content.
-8. \`find_content\`: search dashboards, charts, and Data Apps.
-
-## Rules
-
-- \`run_metric_query\` is registered for this session; if your catalogue lacks it, your client cached an outdated tool list — say so and ask the user to reconnect; never substitute \`run_sql\` for it
-- Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
-- Prefer \`run_metric_query\` for standard analysis; its semantic-layer metric definitions stay consistent. Use \`run_sql\`, in the connected warehouse's SQL dialect, only for ad-hoc queries, cross-table joins not modeled in explores, or explicit raw-SQL requests; it defaults to 500 rows (max 5000), adjustable with \`limit\`
-- Before writing filter expressions, read the shared skill referenced by run_metric_query and search_field_values
-- Never mix fields from different explores in one query; sort only by selected dimensions, metrics, or table calculations; when base and joined tables have similar field names, use the one at the query's semantic level
-"
-`;
-
-exports[`MCP tool contracts > matches the structured-filter MCP server instructions snapshot 1`] = `
-"## Query Building Workflow
-
-For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
-
-0. \`get_context\`: select the project, and the agent when agent-scoped; follow production/preview and pinned-scope rules.
-1. \`grep_fields\`: discover fields and select one explore at the right grain.
-2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
-3. \`search_field_values\`: find valid filter values when needed.
-4. \`run_metric_query\`: query governed metrics.
-5. \`get_query_result\`: poll running queries; never resubmit the original query.
-6. \`render_chart\`: render completed metric queries when a chart is wanted.
-7. \`list_content\`: browse accessible content.
-8. \`find_content\`: search dashboards, charts, and Data Apps.
-
-## Rules
-
-- \`run_metric_query\` is registered for this session; if your catalogue lacks it, your client cached an outdated tool list — say so and ask the user to reconnect; never substitute \`run_sql\` for it
-- Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
-- Prefer \`run_metric_query\` for standard analysis; its semantic-layer metric definitions stay consistent. Use \`run_sql\`, in the connected warehouse's SQL dialect, only for ad-hoc queries, cross-table joins not modeled in explores, or explicit raw-SQL requests; it defaults to 500 rows (max 5000), adjustable with \`limit\`
-- Never mix fields from different explores in one query; sort only by selected dimensions, metrics, or table calculations; when base and joined tables have similar field names, use the one at the query's semantic level
-"
-`;
 exports[`MCP tool contracts > matches the agent-identity tools and instructions snapshot 1`] = `
 {
   "instructions": "## Query Building Workflow
@@ -1791,11 +1743,11 @@ Every other URL, such as "/projects/<uuid>/saved/<uuid>" or "/projects/<uuid>/da
                               },
                             ],
                             "default": null,
-                            "description": "Columns that split y into one series per value. bar/line/area/scatter only. Must not include x.",
+                            "description": "Columns that split y into one series per value. A reader tells about 6 series apart at a glance, so prefer a coarser split when the choice is yours and keep a split the user asked for. bar/line/area/scatter only. Must not include x.",
                           },
                           "horizontal": {
                             "default": null,
-                            "description": "bar only: draw bars horizontally.",
+                            "description": "bar only: draw bars horizontally, for long labels or more than about 12 categories.",
                             "type": [
                               "boolean",
                               "null",
@@ -1838,14 +1790,23 @@ Every other URL, such as "/projects/<uuid>/saved/<uuid>" or "/projects/<uuid>/da
                           },
                           "stack": {
                             "default": null,
-                            "description": "bar: stack series on top of each other. area always stacks. Ignored elsewhere.",
+                            "description": "bar: stack series on top of each other, for parts that add up to a total (sums and counts; averages, ratios and distinct counts sit side by side). area always stacks. Ignored elsewhere.",
                             "type": [
                               "boolean",
                               "null",
                             ],
                           },
                           "type": {
-                            "description": "Chart type. area is a filled line.",
+                            "description": "Chart type, chosen by what the reader does with the result:
+- bar: compare or rank categories.
+- line: follow change over time or another ordered x.
+- table: read exact values across several columns, or more rows than a chart can label.
+- area: a filled line, for one total over time or the parts that add up to it.
+- pie: 2 to 6 non-negative parts of one whole; more parts read better as a bar.
+- scatter: how two measures relate, one point per entity.
+- funnel: ordered stages of one process.
+- big_number: one value as a card, when the user asks for the card or wants to save it; a figure otherwise goes in the answer text.
+A custom chart type is chosen the same way: by its own description first, then as the built-in type it most resembles.",
                             "enum": [
                               "table",
                               "big_number",
@@ -14297,6 +14258,31 @@ Browse the project's custom chart types (including ones installed from the libra
 }
 `;
 
+exports[`MCP tool contracts > matches the filter-expression MCP server instructions snapshot 1`] = `
+"## Query Building Workflow
+
+For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
+
+0. \`get_context\`: select the project, and the agent when agent-scoped; follow production/preview and pinned-scope rules.
+1. \`grep_fields\`: discover fields and select one explore at the right grain.
+2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
+3. \`search_field_values\`: find valid filter values when needed.
+4. \`run_metric_query\`: query governed metrics.
+5. \`get_query_result\`: poll running queries; never resubmit the original query.
+6. \`render_chart\`: render completed metric queries when a chart is wanted.
+7. \`list_content\`: browse accessible content.
+8. \`find_content\`: search dashboards, charts, and Data Apps.
+
+## Rules
+
+- \`run_metric_query\` is registered for this session; if your catalogue lacks it, your client cached an outdated tool list — say so and ask the user to reconnect; never substitute \`run_sql\` for it
+- Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
+- Prefer \`run_metric_query\` for standard analysis; its semantic-layer metric definitions stay consistent. Use \`run_sql\`, in the connected warehouse's SQL dialect, only for ad-hoc queries, cross-table joins not modeled in explores, or explicit raw-SQL requests; it defaults to 500 rows (max 5000), adjustable with \`limit\`
+- Before writing filter expressions, read the shared skill referenced by run_metric_query and search_field_values
+- Never mix fields from different explores in one query; sort only by selected dimensions, metrics, or table calculations; when base and joined tables have similar field names, use the one at the query's semantic level
+"
+`;
+
 exports[`MCP tool contracts > matches the filter-expression run_metric_query tools/list snapshot 1`] = `
 {
   "annotations": {
@@ -15024,3 +15010,26 @@ exports[`MCP tool contracts > matches the shared MCP tool definition names snaps
 ]
 `;
 
+exports[`MCP tool contracts > matches the structured-filter MCP server instructions snapshot 1`] = `
+"## Query Building Workflow
+
+For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
+
+0. \`get_context\`: select the project, and the agent when agent-scoped; follow production/preview and pinned-scope rules.
+1. \`grep_fields\`: discover fields and select one explore at the right grain.
+2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
+3. \`search_field_values\`: find valid filter values when needed.
+4. \`run_metric_query\`: query governed metrics.
+5. \`get_query_result\`: poll running queries; never resubmit the original query.
+6. \`render_chart\`: render completed metric queries when a chart is wanted.
+7. \`list_content\`: browse accessible content.
+8. \`find_content\`: search dashboards, charts, and Data Apps.
+
+## Rules
+
+- \`run_metric_query\` is registered for this session; if your catalogue lacks it, your client cached an outdated tool list — say so and ask the user to reconnect; never substitute \`run_sql\` for it
+- Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
+- Prefer \`run_metric_query\` for standard analysis; its semantic-layer metric definitions stay consistent. Use \`run_sql\`, in the connected warehouse's SQL dialect, only for ad-hoc queries, cross-table joins not modeled in explores, or explicit raw-SQL requests; it defaults to 500 rows (max 5000), adjustable with \`limit\`
+- Never mix fields from different explores in one query; sort only by selected dimensions, metrics, or table calculations; when base and joined tables have similar field names, use the one at the query's semantic level
+"
+`;
