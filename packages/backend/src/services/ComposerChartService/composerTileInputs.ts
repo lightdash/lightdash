@@ -257,28 +257,19 @@ type SemanticNode = Extract<
     { sourceType: QuerySourceType.SEMANTIC_LAYER }
 >;
 
-const getNodeDateZoomFieldId = (
-    node: SemanticNode,
+// As updateExploreWithDateZoom: no sub-day grain on a date, and a custom grain needs its precompiled dimension
+const canZoomField = (
     explore: Explore,
-    { granularity, xAxisFieldId }: DateZoom & { granularity: string },
-): string | null => {
-    const candidates = getChartZoomableFields(
-        explore,
-        metricQueryOfSemanticNode(node),
-    );
-    const fieldId = (
-        candidates.find((field) => field.fieldId === xAxisFieldId) ??
-        candidates[0]
-    )?.fieldId;
-    if (!fieldId) return null;
+    fieldId: string,
+    granularity: string,
+): boolean => {
     const base = resolveToBaseTimeDimension(
         fieldId,
         getAllDimensionsMap(explore),
         getTimeDimensionsMap(explore),
     );
-    if (!base) return null;
-    // As updateExploreWithDateZoom: a custom grain needs its precompiled dimension
-    const canZoom = isStandardDateGranularity(granularity)
+    if (!base) return false;
+    return isStandardDateGranularity(granularity)
         ? !(
               base.type === DimensionType.DATE &&
               isSubDayGranularity(granularity)
@@ -286,7 +277,6 @@ const getNodeDateZoomFieldId = (
         : Object.values(explore.tables).some(
               (table) => !!table.dimensions[`${base.name}_${granularity}`],
           );
-    return canZoom ? fieldId : null;
 };
 
 /** The field a stored chart plots on its x axis, if it is a cartesian chart. */
@@ -297,26 +287,89 @@ export const getStoredChartXField = (
         ? chart.chartConfig.config.layout?.xField
         : undefined;
 
-/** Merge legs stay unzoomed: the merge compiles against their saved fields. Live sources that refuse zoom are left out. */
-const getZoomableSemanticNodes = (
+type ZoomTarget = {
+    nodeId: string;
+    explore: Explore;
+    field: ChartZoomableField;
+    /** Nodes that zoom together or not at all: a merge's legs, else the node alone. */
+    group: string;
+};
+
+/** The date field each semantic-layer node would re-grain. A merge's legs share one key part that is a date on every leg, the plotted one first. */
+const getZoomTargets = (
     nodes: ComposerChartPipelineNode[],
     exploreByNodeId: ComposerNodeExplores,
-): Array<{ node: SemanticNode; explore: Explore }> => {
-    const mergeLegs = new Set(
-        nodes.flatMap((node) =>
-            node.sourceType === QuerySourceType.MERGE
-                ? node.sources.map((source) => source.nodeId)
-                : [],
-        ),
+    xAxisFieldId: string | undefined,
+): ZoomTarget[] => {
+    const candidates = new Map(
+        nodes.flatMap((node) => {
+            const explore = exploreByNodeId[node.nodeId];
+            return node.sourceType === QuerySourceType.SEMANTIC_LAYER &&
+                explore &&
+                !isDateZoomRefusedOnExplore(explore)
+                ? [
+                      [
+                          node.nodeId,
+                          {
+                              explore,
+                              fields: getChartZoomableFields(
+                                  explore,
+                                  metricQueryOfSemanticNode(node),
+                              ),
+                          },
+                      ] as const,
+                  ]
+                : [];
+        }),
     );
-    return nodes.flatMap((node) => {
-        const explore = exploreByNodeId[node.nodeId];
-        return node.sourceType === QuerySourceType.SEMANTIC_LAYER &&
-            explore &&
-            !mergeLegs.has(node.nodeId) &&
-            !isDateZoomRefusedOnExplore(explore)
-            ? [{ node, explore }]
-            : [];
+    const merges = nodes.flatMap((node) =>
+        node.sourceType === QuerySourceType.MERGE ? [node] : [],
+    );
+    const legs = merges.flatMap(({ sources }) =>
+        sources.map((source) => source.nodeId),
+    );
+    // A leg of two merges could need two grains, so neither zooms
+    const sharedLeg = legs.some((leg, index) => legs.indexOf(leg) !== index);
+    const legFields = new Map<string, { fieldId: string; group: string }>();
+    if (!sharedLeg) {
+        merges.forEach(({ nodeId, sources, joinKey }) => {
+            const legIds = sources.map((source) => source.nodeId);
+            const dateParts = joinKey.filter((part) =>
+                legIds.every((leg) =>
+                    candidates
+                        .get(leg)
+                        ?.fields.some(
+                            ({ fieldId }) =>
+                                fieldId === part.fieldIdBySourceId[leg],
+                        ),
+                ),
+            );
+            const part =
+                dateParts.find(
+                    ({ name }) => `merge_${name}` === xAxisFieldId,
+                ) ?? dateParts[0];
+            if (!part) return;
+            legIds.forEach((leg) =>
+                legFields.set(leg, {
+                    fieldId: part.fieldIdBySourceId[leg],
+                    group: nodeId,
+                }),
+            );
+        });
+    }
+    return [...candidates].flatMap(([nodeId, { explore, fields }]) => {
+        if (legs.includes(nodeId)) {
+            const leg = legFields.get(nodeId);
+            const field = fields.find(
+                ({ fieldId }) => fieldId === leg?.fieldId,
+            );
+            return leg && field
+                ? [{ nodeId, explore, field, group: leg.group }]
+                : [];
+        }
+        const field =
+            fields.find(({ fieldId }) => fieldId === xAxisFieldId) ?? fields[0];
+        return field ? [{ nodeId, explore, field, group: nodeId }] : [];
     });
 };
 
@@ -326,14 +379,10 @@ export const getComposerZoomableFields = (
     exploreByNodeId: ComposerNodeExplores,
 ): ChartZoomableField[] => [
     ...new Map(
-        getZoomableSemanticNodes(nodes, exploreByNodeId)
-            .flatMap(({ node, explore }) =>
-                getChartZoomableFields(
-                    explore,
-                    metricQueryOfSemanticNode(node),
-                ),
-            )
-            .map((field) => [field.fieldId, field]),
+        getZoomTargets(nodes, exploreByNodeId, undefined).map(({ field }) => [
+            field.fieldId,
+            field,
+        ]),
     ).values(),
 ];
 
@@ -348,17 +397,25 @@ export const getComposerNodeDateZooms = ({
 }): Record<string, DateZoom> => {
     const granularity = dateZoom?.granularity;
     if (!granularity) return {};
+    const targets = getZoomTargets(
+        nodes,
+        exploreByNodeId,
+        dateZoom.xAxisFieldId,
+    );
+    const refusedGroups = new Set(
+        targets
+            .filter(
+                ({ explore, field }) =>
+                    !canZoomField(explore, field.fieldId, granularity),
+            )
+            .map(({ group }) => group),
+    );
     return Object.fromEntries(
-        getZoomableSemanticNodes(nodes, exploreByNodeId).flatMap(
-            ({ node, explore }) => {
-                const xAxisFieldId = getNodeDateZoomFieldId(node, explore, {
-                    ...dateZoom,
-                    granularity,
-                });
-                return xAxisFieldId
-                    ? [[node.nodeId, { granularity, xAxisFieldId }]]
-                    : [];
-            },
-        ),
+        targets
+            .filter(({ group }) => !refusedGroups.has(group))
+            .map(({ nodeId, field }) => [
+                nodeId,
+                { granularity, xAxisFieldId: field.fieldId },
+            ]),
     );
 };

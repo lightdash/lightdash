@@ -496,6 +496,7 @@ import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { ExploreCompilationSummary } from '../../utils/ExploreCompilationSummary';
 import { inheritUpstreamSshTunnelPrivateKey } from '../../utils/inheritUpstreamSshTunnelPrivateKey';
 import { createComposeMergeQueryBuilder } from '../../utils/QueryBuilder/composeMergeSql';
+import { updateExploreWithDateZoom } from '../../utils/QueryBuilder/dateZoom';
 import { applyMergeTerminalWrapper } from '../../utils/QueryBuilder/MergeQueryBuilder';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
@@ -10455,6 +10456,29 @@ export class ProjectService
      * result handling. Validation errors are returned rather than thrown: the
      * explorer shows them against the offending query row.
      */
+    /** The explore with one dimension re-grained under its own name, as a dashboard tile's metric query is zoomed. */
+    private async getDateZoomedExplore(
+        projectUuid: string,
+        explore: Explore,
+        metricQuery: MetricQuery,
+        dateZoom: DateZoom,
+    ): Promise<Explore> {
+        const settings = await this.getWarehouseSqlBuilderSettings(
+            projectUuid,
+            { kind: 'explore', exploreName: explore.name },
+        );
+        const availableParameters = Object.keys(
+            await this.getAvailableParameters(projectUuid, explore),
+        );
+        return updateExploreWithDateZoom(
+            explore,
+            metricQuery,
+            warehouseSqlBuilderFromType(settings.type, settings.startOfWeek),
+            availableParameters,
+            dateZoom,
+        ).explore;
+    }
+
     async compileMergeQuery(args: {
         authority?: QueryRunAuthority;
         account: Account;
@@ -10465,6 +10489,8 @@ export class ProjectService
         userAttributeOverrides?: UserAttributeValueMap;
         /** Composer only: names a source of a shared explore by its node title, not its slot. */
         sourceTitleById?: Record<string, string>;
+        /** Composer only: the date zoom each metric source's leg runs with. */
+        dateZoomBySourceId?: Record<string, DateZoom>;
     }): Promise<ApiCompiledMergeQueryResults> {
         const {
             account,
@@ -10529,11 +10555,20 @@ export class ProjectService
                         return null;
                     }
                 }
-                const explore = await this.getExplore(
+                const savedExplore = await this.getExplore(
                     account,
                     projectUuid,
                     source.metricQuery.exploreName,
                 );
+                const dateZoom = args.dateZoomBySourceId?.[source.id];
+                const explore = dateZoom
+                    ? await this.getDateZoomedExplore(
+                          projectUuid,
+                          savedExplore,
+                          source.metricQuery,
+                          dateZoom,
+                      )
+                    : savedExplore;
                 const itemMap = getItemMap(
                     explore,
                     source.metricQuery.additionalMetrics,
@@ -10724,11 +10759,16 @@ export class ProjectService
                 // filters and parameter handling as the query it was built
                 // from. This is the statement the leg runs: whole, at the
                 // source row cap, unsorted.
+                const zoomedExplore = args.dateZoomBySourceId?.[source.id]
+                    ? exploreBySourceId[source.id]
+                    : null;
                 const compiled = await this.compileQuery({
                     authority,
                     account,
                     projectUuid,
-                    exploreName: resolvedMetricQuery.exploreName,
+                    ...(zoomedExplore
+                        ? { explore: zoomedExplore }
+                        : { exploreName: resolvedMetricQuery.exploreName }),
                     body: {
                         ...resolvedMetricQuery,
                         sorts: [],

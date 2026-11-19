@@ -21,6 +21,7 @@ import {
     CustomSqlQueryForbiddenError,
     DatabricksAuthenticationType,
     DatabricksTokenError,
+    DateGranularity,
     DbtError,
     DbtExposureType,
     DbtProjectType,
@@ -16099,6 +16100,75 @@ describe('ProjectService', () => {
                 ['a_met1', 'metric'],
             ]);
             expect(result.legs[0].sql).toContain('AS `a_dim2`');
+        });
+
+        test("compiles a zoomed source against its zoomed explore, so the merged key has the zoom's grain", async () => {
+            const created = {
+                ...validExplore.tables.a.dimensions.dim1,
+                type: DimensionType.TIMESTAMP,
+                name: 'created',
+                label: 'Created',
+                sql: '${TABLE}.created',
+                compiledSql: '"a".created',
+            };
+            const getExplore = vi
+                .spyOn(service, 'getExplore')
+                .mockResolvedValue({
+                    ...validExplore,
+                    tables: {
+                        ...validExplore.tables,
+                        a: {
+                            ...validExplore.tables.a,
+                            dimensions: {
+                                ...validExplore.tables.a.dimensions,
+                                created,
+                            },
+                        },
+                    },
+                });
+            const dated = (id: string): MergeQueryMetricSource => ({
+                ...source(id),
+                metricQuery: {
+                    ...source(id).metricQuery,
+                    dimensions: ['a_created'],
+                },
+            });
+            const result = await service.compileMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery: mergeQuery({
+                    sources: [dated('a'), dated('b')],
+                    joinKey: [
+                        {
+                            name: 'created',
+                            fieldIdBySourceId: {
+                                a: 'a_created',
+                                b: 'a_created',
+                            },
+                        },
+                    ],
+                }),
+                dateZoomBySourceId: {
+                    a: {
+                        granularity: DateGranularity.MONTH,
+                        xAxisFieldId: 'a_created',
+                    },
+                    b: {
+                        granularity: DateGranularity.MONTH,
+                        xAxisFieldId: 'a_created',
+                    },
+                },
+            });
+            getExplore.mockRestore();
+
+            expect(result.errors).toEqual([]);
+            expect(result.legs[0].sql).toMatch(/MONTH/);
+            expect(
+                result.fields.find(({ column }) => column === 'created'),
+            ).toMatchObject({
+                label: 'Created month',
+                type: DimensionType.DATE,
+            });
         });
 
         test('refuses a join key the source explore has no dimension for', async () => {

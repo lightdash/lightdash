@@ -167,6 +167,7 @@ import {
     type ComposerChartRunSource,
     type CustomDimension,
     type DashboardTileParameterInputs,
+    type DateZoom,
     type DocumentQueryReference,
     type DocumentSqlChart,
     type DuckdbSourceQuery,
@@ -15984,6 +15985,7 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         userAttributeOverrides,
         sourceTitleById,
+        dateZoomBySourceId,
         authority,
     }: {
         authority: RequestAuthority | ComposerAuthority;
@@ -15994,6 +15996,7 @@ export class AsyncQueryService extends ProjectService {
         parameters: ParametersValuesMap;
         userAttributeOverrides: UserAttributeValueMap;
         sourceTitleById: Record<string, string>;
+        dateZoomBySourceId: Record<string, DateZoom>;
     }): Promise<RunnableCompiledMergeQuery> {
         const compiled = await this.compileMergeQuery({
             account,
@@ -16002,6 +16005,7 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             userAttributeOverrides,
             sourceTitleById,
+            dateZoomBySourceId,
             authority,
         });
         if (!isRunnableCompiledMergeQuery(compiled)) {

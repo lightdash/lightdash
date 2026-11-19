@@ -20,6 +20,7 @@ import {
     applyDashboardParametersToComposerNodes,
     getComposerNodeDateZooms,
     getComposerParameterReferences,
+    getComposerZoomableFields,
     withSqlColumnFilters,
 } from './composerTileInputs';
 
@@ -558,26 +559,86 @@ describe('getComposerNodeDateZooms', () => {
         });
     });
 
-    it("leaves a merge's legs unzoomed, since the merge compiles against their saved fields", () => {
-        const merged: ComposerChartPipelineNode = {
+    describe('merge legs', () => {
+        const merged = (
+            joinKey: Array<{ name: string; events: string; visits: string }>,
+        ): ComposerChartPipelineNode => ({
             sourceType: QuerySourceType.MERGE,
             nodeId: 'merged',
             title: 'Merged',
-            sources: [{ nodeId: 'events' }, { nodeId: 'payments' }],
-            joinKey: [],
+            sources: [{ nodeId: 'events' }, { nodeId: 'visits' }],
+            joinKey: joinKey.map(({ name, events: e, visits: v }) => ({
+                name,
+                fieldIdBySourceId: { events: e, visits: v },
+            })),
             joinType: MergeJoinType.FULL,
-        };
-        expect(
+        });
+        const zoomMerge = (
+            merge: ComposerChartPipelineNode,
+            dateZoom: { granularity: DateGranularity; xAxisFieldId?: string },
+        ) =>
             getComposerNodeDateZooms({
-                nodes: [eventsNode, visitsNode, paymentsNode, merged],
+                nodes: [eventsNode, visitsNode, merge],
                 exploreByNodeId: zoomExplores,
-                dateZoom: { granularity: DateGranularity.MONTH },
-            }),
-        ).toEqual({
-            visits: {
+                dateZoom,
+            });
+        const twoDateKeys = merged([
+            { name: 'created', events: 'events_created', visits: 'visits_day' },
+            { name: 'shipped', events: 'events_shipped', visits: 'visits_day' },
+        ]);
+
+        it('zooms every leg on its own field of the first date key part', () => {
+            expect(
+                zoomMerge(twoDateKeys, { granularity: DateGranularity.MONTH }),
+            ).toEqual({
+                events: {
+                    granularity: DateGranularity.MONTH,
+                    xAxisFieldId: 'events_created',
+                },
+                visits: {
+                    granularity: DateGranularity.MONTH,
+                    xAxisFieldId: 'visits_day',
+                },
+            });
+        });
+
+        it('prefers the key part the chart plots', () => {
+            expect(
+                zoomMerge(twoDateKeys, {
+                    granularity: DateGranularity.MONTH,
+                    xAxisFieldId: 'merge_shipped',
+                }).events,
+            ).toEqual({
                 granularity: DateGranularity.MONTH,
-                xAxisFieldId: 'visits_day',
-            },
+                xAxisFieldId: 'events_shipped',
+            });
+        });
+
+        it('zooms no leg when one leg cannot take the grain or no key part is a date on every leg', () => {
+            expect(
+                zoomMerge(twoDateKeys, { granularity: DateGranularity.HOUR }),
+            ).toEqual({});
+            expect(
+                zoomMerge(
+                    merged([
+                        {
+                            name: 'kind',
+                            events: 'events_kind',
+                            visits: 'visits_day',
+                        },
+                    ]),
+                    { granularity: DateGranularity.MONTH },
+                ),
+            ).toEqual({});
+        });
+
+        it("reports a merge's date key as zoomable", () => {
+            expect(
+                getComposerZoomableFields(
+                    [eventsNode, visitsNode, twoDateKeys],
+                    zoomExplores,
+                ).map(({ fieldId }) => fieldId),
+            ).toEqual(['events_created', 'visits_day']);
         });
     });
 });
