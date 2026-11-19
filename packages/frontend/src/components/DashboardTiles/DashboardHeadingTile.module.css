@@ -1,7 +1,6 @@
 .heading {
     width: 100%;
     --heading-fz: 24px;
-    --heading-lh: var(--mantine-line-height);
 
     &[data-size='xs'] {
         --heading-fz: 16px;
@@ -11,10 +10,8 @@
         --heading-fz: 20px;
     }
 
-    /* Tighter leading so the largest size still fits a one-row tile */
     &[data-size='lg'] {
         --heading-fz: 32px;
-        --heading-lh: 1.2;
     }
 }
 
@@ -31,7 +28,8 @@
     text-align: var(--heading-ta, left);
     font-size: var(--heading-fz);
     font-weight: bold;
-    line-height: var(--heading-lh);
+    /* The leading headings had before sizes: a line as tall as its font */
+    line-height: 1;
 }
 
 .withDivider {

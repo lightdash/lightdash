@@ -181,6 +181,14 @@ describe('DashboardHeadingTile inline editing', () => {
         expect(screen.getByText('Revenue')).toHaveAttribute('data-size', 'xs');
     });
 
+    it('renders a heading saved without settings at the defaults', () => {
+        renderTile({ isEditMode: false });
+
+        const heading = screen.getByText('Revenue');
+        expect(heading).toHaveAttribute('data-size', 'md');
+        expect(heading).toHaveAttribute('data-text-align', 'left');
+    });
+
     it('duplicates the heading from the tile menu', () => {
         renderTile();
         fireEvent.click(screen.getByRole('button', { name: 'Tile actions' }));
