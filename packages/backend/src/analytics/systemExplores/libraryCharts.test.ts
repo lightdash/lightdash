@@ -571,7 +571,8 @@ describe('legacyLibraryChartBindings', () => {
             optionValues: {
                 valueAggregation: 'sum',
                 colorSparklineByTrend: false,
-                showLabel: false,
+                showLabel: true,
+                label: 'Selected period',
                 showCardBorder: false,
                 showCardShadow: false,
             },
