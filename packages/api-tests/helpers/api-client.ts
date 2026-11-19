@@ -69,18 +69,7 @@ export async function fetchWithConnectionRetry(
     url: string,
     init?: RequestInit,
 ): Promise<Response> {
-    const startedAt = Date.now();
     let response = await fetchAfterConnectionRetry(url, init);
-    const elapsed = Date.now() - startedAt;
-    if (elapsed > 2000) {
-        const shape = new URL(url).pathname.replace(
-            /[0-9a-f]{8}-[0-9a-f-]{27}/g,
-            ':uuid',
-        );
-        process.stderr.write(
-            `SLOWREQ ${elapsed}ms ${init?.method ?? 'GET'} ${shape} ${response.status}\n`,
-        );
-    }
     if (
         response.status === 503 &&
         RETRYABLE_METHODS.has((init?.method ?? 'GET').toUpperCase()) &&
