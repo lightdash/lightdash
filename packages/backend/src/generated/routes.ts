@@ -11708,6 +11708,75 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ComposerStoredChart: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                tableConfig: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        columnOrder: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                    },
+                    required: true,
+                },
+                pivotConfig: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                columns: {
+                                    dataType: 'array',
+                                    array: { dataType: 'string' },
+                                    required: true,
+                                },
+                            },
+                        },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                chartConfig: { ref: 'ChartConfig', required: true },
+                columns: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'ComposerChartColumn' },
+                    required: true,
+                },
+                schemaVersion: { dataType: 'enum', enums: [1], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PromotedComposerChart: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                chart: { ref: 'ComposerStoredChart', required: true },
+                description: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                name: { dataType: 'string', required: true },
+                projectUuid: { dataType: 'string', required: true },
+                slug: { dataType: 'string', required: true },
+                oldUuid: { dataType: 'string', required: true },
+                uuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     PromotedApp: {
         dataType: 'refAlias',
         type: {
@@ -11753,6 +11822,19 @@ const models: TsoaRoute.Models = {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
                             data: { ref: 'PromotedApp', required: true },
+                            action: { ref: 'PromotionAction', required: true },
+                        },
+                    },
+                },
+                composerCharts: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            data: {
+                                ref: 'PromotedComposerChart',
+                                required: true,
+                            },
                             action: { ref: 'PromotionAction', required: true },
                         },
                     },
@@ -84582,51 +84664,6 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 item: { ref: 'DeletedContentItem', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ComposerStoredChart: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                tableConfig: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        columnOrder: {
-                            dataType: 'array',
-                            array: { dataType: 'string' },
-                            required: true,
-                        },
-                    },
-                    required: true,
-                },
-                pivotConfig: {
-                    dataType: 'union',
-                    subSchemas: [
-                        {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                columns: {
-                                    dataType: 'array',
-                                    array: { dataType: 'string' },
-                                    required: true,
-                                },
-                            },
-                        },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                chartConfig: { ref: 'ChartConfig', required: true },
-                columns: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'ComposerChartColumn' },
-                    required: true,
-                },
-                schemaVersion: { dataType: 'enum', enums: [1], required: true },
             },
             validators: {},
         },

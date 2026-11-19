@@ -12006,6 +12006,94 @@
                 ],
                 "type": "object"
             },
+            "ComposerStoredChart": {
+                "properties": {
+                    "tableConfig": {
+                        "properties": {
+                            "columnOrder": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columnOrder"],
+                        "type": "object"
+                    },
+                    "pivotConfig": {
+                        "properties": {
+                            "columns": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columns"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartConfig"
+                    },
+                    "columns": {
+                        "items": {
+                            "$ref": "#/components/schemas/ComposerChartColumn"
+                        },
+                        "type": "array"
+                    },
+                    "schemaVersion": {
+                        "type": "number",
+                        "enum": [1],
+                        "nullable": false
+                    }
+                },
+                "required": [
+                    "tableConfig",
+                    "pivotConfig",
+                    "chartConfig",
+                    "columns",
+                    "schemaVersion"
+                ],
+                "type": "object"
+            },
+            "PromotedComposerChart": {
+                "properties": {
+                    "chart": {
+                        "$ref": "#/components/schemas/ComposerStoredChart"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "oldUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "chart",
+                    "description",
+                    "name",
+                    "projectUuid",
+                    "slug",
+                    "oldUuid",
+                    "uuid"
+                ],
+                "type": "object",
+                "description": "The pipeline stays server side; only the chart travels in a diff."
+            },
             "PromotedApp": {
                 "properties": {
                     "name": {
@@ -12052,6 +12140,21 @@
                             "properties": {
                                 "data": {
                                     "$ref": "#/components/schemas/PromotedApp"
+                                },
+                                "action": {
+                                    "$ref": "#/components/schemas/PromotionAction"
+                                }
+                            },
+                            "required": ["data", "action"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "composerCharts": {
+                        "items": {
+                            "properties": {
+                                "data": {
+                                    "$ref": "#/components/schemas/PromotedComposerChart"
                                 },
                                 "action": {
                                     "$ref": "#/components/schemas/PromotionAction"
@@ -79084,57 +79187,6 @@
                 "required": ["item"],
                 "type": "object"
             },
-            "ComposerStoredChart": {
-                "properties": {
-                    "tableConfig": {
-                        "properties": {
-                            "columnOrder": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["columnOrder"],
-                        "type": "object"
-                    },
-                    "pivotConfig": {
-                        "properties": {
-                            "columns": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["columns"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "chartConfig": {
-                        "$ref": "#/components/schemas/ChartConfig"
-                    },
-                    "columns": {
-                        "items": {
-                            "$ref": "#/components/schemas/ComposerChartColumn"
-                        },
-                        "type": "array"
-                    },
-                    "schemaVersion": {
-                        "type": "number",
-                        "enum": [1],
-                        "nullable": false
-                    }
-                },
-                "required": [
-                    "tableConfig",
-                    "pivotConfig",
-                    "chartConfig",
-                    "columns",
-                    "schemaVersion"
-                ],
-                "type": "object"
-            },
             "ComposerChart": {
                 "properties": {
                     "updatedByUserUuid": {
@@ -80489,7 +80541,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.336.2",
+        "version": "3.337.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

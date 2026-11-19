@@ -1,3 +1,10 @@
+# [3.337.0](https://github.com/lightdash/lightdash/compare/3.336.2...3.337.0) (2026-11-19)
+
+
+### Features
+
+* promote dashboards with composer charts ([#32973](https://github.com/lightdash/lightdash/issues/32973)) ([abe3f5d](https://github.com/lightdash/lightdash/commit/abe3f5d30e0f693a3d6543e5146bfb5e9a91eb59))
+
 ## [3.336.2](https://github.com/lightdash/lightdash/compare/3.336.1...3.336.2) (2026-11-19)
 
 
