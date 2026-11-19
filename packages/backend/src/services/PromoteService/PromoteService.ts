@@ -6,6 +6,8 @@ import {
     ConflictError,
     DashboardDAO,
     DashboardTileTypes,
+    FeatureFlags,
+    FeatureNotEnabledError,
     ForbiddenError,
     getDeepestPaths,
     getDocumentSavedChartLinks,
@@ -2942,11 +2944,18 @@ export class PromoteService extends BaseService {
         dashboard: DashboardDAO,
         upstreamDashboard: UpstreamDashboard,
     ) {
-        // The promote checks match the upstream space by path, not where the dashboard is now
+        if (!dashboard.tiles.some(isDashboardComposerChartTile)) return [];
+        // Unchanged charts skip the write checks, but their tiles still move upstream
         if (
-            upstreamDashboard.dashboard &&
-            dashboard.tiles.some(isDashboardComposerChartTile)
+            !(await this.getComposerChartService().isEnabled({
+                userUuid: account.user.userUuid,
+                organizationUuid: account.organization.organizationUuid!,
+            }))
         ) {
+            throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
+        }
+        // The promote checks match the upstream space by path, not where the dashboard is now
+        if (upstreamDashboard.dashboard) {
             await this.getComposerChartService().preflightDashboard(
                 account,
                 upstreamDashboard.projectUuid,

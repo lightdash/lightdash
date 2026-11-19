@@ -2,6 +2,7 @@ import {
     AlreadyExistsError,
     ChartType,
     DashboardTileTypes,
+    FeatureNotEnabledError,
     ForbiddenError,
     getUserAbilityBuilder,
     OrganizationMemberRole,
@@ -179,6 +180,7 @@ const setup = ({
         deleteOrphans: vi.fn(async () => undefined),
     };
     const composerChartService = {
+        isEnabled: vi.fn(async () => true),
         preflightDashboard: vi.fn(async () => undefined),
         preflightPipeline: vi.fn(async () => undefined),
         writeFromCode: vi.fn(async () => upstreamChartUuid),
@@ -386,6 +388,23 @@ describe('promoting a dashboard with composer charts', () => {
         ).rejects.toThrow('You need SQL runner permission');
         expect(dashboardModel.create).not.toHaveBeenCalled();
         expect(composerChartService.writeFromCode).not.toHaveBeenCalled();
+    });
+
+    test('with the composer-charts flag off, refuses even when every composer chart is unchanged', async () => {
+        const { service, dashboardModel, composerChartService } = setup({
+            upstreamDashboardExists: true,
+            upstreamChart: composerChart({
+                uuid: upstreamChartUuid,
+                projectUuid: upstreamProjectUuid,
+                dashboardUuid: upstreamDashboardUuid,
+            }),
+        });
+        composerChartService.isEnabled.mockResolvedValue(false);
+
+        await expect(
+            service.promoteDashboard(account, sourceDashboard.uuid, scoped),
+        ).rejects.toBeInstanceOf(FeatureNotEnabledError);
+        expect(dashboardModel.addVersion).not.toHaveBeenCalled();
     });
 
     test('refuses without reading upstream charts when the user cannot update the upstream dashboard', async () => {
