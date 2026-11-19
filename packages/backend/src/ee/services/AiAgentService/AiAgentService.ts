@@ -10137,6 +10137,7 @@ export class AiAgentService extends BaseService {
                         ? execution.runUuid
                         : null,
                 aiCreditCheck,
+                flagPinnedOutsideAgentSpaces: !aiCreditCheck?.isEmbedViewer,
                 onPromptResolved: (uuid) => {
                     resolvedPromptUuid = uuid;
                 },
@@ -13763,7 +13764,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     ).spaceUuid;
                 case 'data_app': {
                     const app = await this.appModel.findAppByUuid(item.appUuid);
-                    if (!app || app.project_uuid !== projectUuid) {
+                    if (
+                        !app ||
+                        app.project_uuid !== projectUuid ||
+                        !(await this.appGenerateService.canViewApp(user, app))
+                    ) {
                         return undefined;
                     }
                     return app.space_uuid;
