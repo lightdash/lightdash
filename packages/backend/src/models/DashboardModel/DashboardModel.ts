@@ -496,7 +496,7 @@ export class DashboardModel {
                     dashboard_tile_uuid: uuid,
                     text: properties.text,
                     show_divider: properties.showDivider ?? false,
-                    config: toDbHeadingTileConfig(properties),
+                    heading_config: toDbHeadingTileConfig(properties),
                 })),
             );
         }
@@ -1427,7 +1427,7 @@ export class DashboardModel {
                 `${DashboardTileMarkdownsTableName}.hide_frame`,
                 `${DashboardTileHeadingsTableName}.text`,
                 `${DashboardTileHeadingsTableName}.show_divider`,
-                `${DashboardTileHeadingsTableName}.config AS heading_config`,
+                `${DashboardTileHeadingsTableName}.heading_config`,
                 `${DashboardTileDataAppsTableName}.app_uuid`,
                 `${DashboardTileComposerChartsTableName}.composer_chart_uuid`,
                 database.raw(`${AppsTableName}.slug AS app_slug`),
@@ -3025,7 +3025,7 @@ export class DashboardModel {
                 `${DashboardTileMarkdownsTableName}.hide_frame`,
                 `${DashboardTileHeadingsTableName}.text`,
                 `${DashboardTileHeadingsTableName}.show_divider`,
-                `${DashboardTileHeadingsTableName}.config AS heading_config`,
+                `${DashboardTileHeadingsTableName}.heading_config`,
                 `${DashboardTileDataAppsTableName}.app_uuid`,
                 `${DashboardTileComposerChartsTableName}.composer_chart_uuid`,
                 this.database.raw(`${AppsTableName}.slug AS app_slug`),

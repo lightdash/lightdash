@@ -12,7 +12,7 @@ type HeadingTileConfigV1 = {
     verticalAlign: DashboardHeadingVerticalAlign | null;
 };
 
-/** What the `config` column of a heading tile holds. Add a version to change its shape */
+/** What the `heading_config` column of a heading tile holds. Add a version to change its shape */
 export type DbHeadingTileConfig = HeadingTileConfigV1;
 
 type HeadingTileFormat = Pick<

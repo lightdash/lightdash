@@ -155,7 +155,7 @@ type DbDashboardTileHeadings = {
     dashboard_tile_uuid: string;
     text: string;
     show_divider: boolean | null;
-    config: DbHeadingTileConfig | null;
+    heading_config: DbHeadingTileConfig | null;
 };
 
 export type DashboardTileHeadingsTable =
