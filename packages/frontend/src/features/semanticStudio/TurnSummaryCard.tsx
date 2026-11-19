@@ -432,8 +432,11 @@ export const TurnSummaryCard: FC<{
                     kind: KIND_LABELS[field.kind],
                     icon: <FieldChangeIcon field={field} />,
                     label: field.label,
-                    detail: field.detail,
-                    title: field.name,
+                    // How it is defined waits on hover and in the review; the card names what changed.
+                    detail: null,
+                    title: [field.name, field.detail]
+                        .filter(Boolean)
+                        .join(' · '),
                     to: fieldUrl(model, field),
                 })),
                 issues: issues.filter((issue) => issue.model === model),

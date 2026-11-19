@@ -110,4 +110,24 @@ describe('the development view of a checked-out draft', () => {
         expect(queryClient.getQueryData(key)).toBe('published');
         expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true);
     });
+
+    it('switches Try it on over a checked-out draft, which already reads the changes, without fetching again', () => {
+        const queryClient = createQueryClient();
+        const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+        localStorage.setItem('lightdash-checked-out-project', 'p-1');
+        at('/projects/p-1/semantic-layer');
+        const { result } = renderHook(() => useDevelopmentView(), {
+            wrapper: ({ children }: PropsWithChildren) => (
+                <QueryClientProvider client={queryClient}>
+                    {children}
+                </QueryClientProvider>
+            ),
+        });
+        expect(result.current[0]).toBe(false);
+        act(() => result.current[1](true));
+        expect(result.current[0]).toBe(true);
+        act(() => result.current[1](false));
+        expect(result.current[0]).toBe(false);
+        expect(invalidate).not.toHaveBeenCalled();
+    });
 });
