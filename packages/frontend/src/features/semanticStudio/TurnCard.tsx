@@ -9,7 +9,13 @@ import {
     Text,
     UnstyledButton,
 } from '@mantine/core';
-import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
+import {
+    IconBulb,
+    IconChevronDown,
+    IconChevronRight,
+    IconInfoCircle,
+    IconTable,
+} from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -30,6 +36,7 @@ export type TurnRow = {
     change: ChangeKind;
     /** What it is, as it reads after "New", "Changed" or "Removed": "metric", "join to", "YAML file". */
     kind: string;
+    icon: ReactNode;
     label: string;
     detail: string | null;
     title: string;
@@ -54,6 +61,7 @@ const Row: FC<{ row: TurnRow }> = ({ row }) => (
         className={classes.row}
         title={row.title}
     >
+        <Box className={classes.rowIcon}>{row.icon}</Box>
         <Text span fz="sm" truncate className={classes.label}>
             <Text span inherit c="dimmed">
                 {`${CHANGE_WORDS[row.change]} ${row.kind} `}
@@ -146,7 +154,7 @@ export const TurnCard: FC<{
             {isLatest ? (
                 <Group
                     className={classes.section}
-                    gap={6}
+                    gap={8}
                     wrap="nowrap"
                     align="flex-start"
                 >
@@ -180,21 +188,28 @@ export const TurnCard: FC<{
                                 issues.length === 0 &&
                                 !subtitle ? null : (
                                     <Box key={model} className={classes.model}>
-                                        <Text
-                                            fz="sm"
-                                            fw={500}
-                                            truncate
-                                            title={model}
-                                            className={classes.modelName}
+                                        <Group
+                                            gap={8}
+                                            wrap="nowrap"
+                                            className={classes.line}
                                         >
-                                            {title}
-                                        </Text>
+                                            <MantineIcon
+                                                icon={IconTable}
+                                                color="dimmed"
+                                            />
+                                            <Text
+                                                fz="sm"
+                                                fw={500}
+                                                truncate
+                                                title={model}
+                                            >
+                                                {title}
+                                            </Text>
+                                        </Group>
                                         {subtitle ? (
                                             <Text
                                                 fz="sm"
                                                 c="dimmed"
-                                                truncate
-                                                title={subtitle}
                                                 className={classes.modelNote}
                                             >
                                                 {subtitle}
@@ -254,17 +269,31 @@ export const TurnCard: FC<{
                                 ),
                         )}
                         {note ? (
-                            <Text
-                                className={classes.text}
-                                fz="sm"
-                                lineClamp={3}
-                                title={note}
+                            <Group
+                                className={classes.line}
+                                gap={8}
+                                wrap="nowrap"
+                                align="flex-start"
                             >
-                                <Text span inherit fw={500}>
-                                    Check
+                                <Box className={classes.icon}>
+                                    <MantineIcon
+                                        icon={IconInfoCircle}
+                                        color="dimmed"
+                                    />
+                                </Box>
+                                <Text
+                                    fz="sm"
+                                    flex={1}
+                                    miw={0}
+                                    lineClamp={3}
+                                    title={note}
+                                >
+                                    <Text span inherit fw={500}>
+                                        Check
+                                    </Text>
+                                    {` · ${note}`}
                                 </Text>
-                                {` · ${note}`}
-                            </Text>
+                            </Group>
                         ) : null}
                         {safety && safety.state !== 'done' ? (
                             <Group
@@ -295,6 +324,21 @@ export const TurnCard: FC<{
                     {isLatest &&
                     (actions.some(Boolean) || (onAsk && options.length > 0)) ? (
                         <Box className={classes.next}>
+                            {onAsk && options.length > 0 ? (
+                                <Group
+                                    className={classes.line}
+                                    gap={8}
+                                    wrap="nowrap"
+                                >
+                                    <MantineIcon
+                                        icon={IconBulb}
+                                        color="dimmed"
+                                    />
+                                    <Text fz="sm" c="dimmed">
+                                        Suggested next
+                                    </Text>
+                                </Group>
+                            ) : null}
                             {onAsk && options.length > 0 ? (
                                 <Group className={classes.offers} gap={4}>
                                     {options.map((option) => (

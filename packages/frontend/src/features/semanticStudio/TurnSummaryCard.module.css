@@ -34,18 +34,12 @@
     text-decoration: line-through;
 }
 
-/* Every line of text shares the card's left edge. */
-.text,
-.modelName,
+/* Lines without an icon of their own start under the text of the lines that have one. */
 .modelNote,
 .row,
 .offers {
-    padding-left: var(--mantine-spacing-sm);
+    padding-left: calc(var(--mantine-spacing-sm) + 24px);
     padding-right: var(--mantine-spacing-sm);
-}
-
-.modelName {
-    padding-bottom: 2px;
 }
 
 /* What happened to the whole model, on the line under its name. */
@@ -56,8 +50,8 @@
 
 .row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    column-gap: 6px;
+    grid-template-columns: 16px minmax(0, 1fr) auto;
+    column-gap: 8px;
     align-items: center;
     width: 100%;
     padding-top: 3px;
@@ -67,6 +61,10 @@
 .row:hover,
 .row:focus-visible {
     background: var(--mantine-color-default-hover);
+}
+
+.rowIcon {
+    display: flex;
 }
 
 .label {
@@ -84,6 +82,9 @@
 
 /* What to do next: the agent's offers, each sent as the person's message, then the card's own actions. */
 .next {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
     padding: var(--mantine-spacing-sm) 0;
 }
 
