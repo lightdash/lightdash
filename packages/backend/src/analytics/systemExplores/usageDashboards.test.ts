@@ -1602,6 +1602,33 @@ describe('display fixes', () => {
         });
     });
 
+    it('shows Queries latency in whole milliseconds with titled axes', () => {
+        const rounded = { formatOptions: { type: 'number', round: 0 } };
+        const bySuffix = (key: string) =>
+            charts.find(
+                ({ slug }) =>
+                    slug.startsWith('lightdash-analytics-query-activity-') &&
+                    slug.endsWith(`-${key}`),
+            )!;
+        const slow = bySuffix('slow-dashboards-tail-latency-and-demand');
+        expect(slow.metricQuery.metricOverrides).toEqual({
+            query_events_p95_response_time_ms: rounded,
+            query_events_avg_warehouse_execution_time_ms: rounded,
+        });
+        expect(
+            analyticsLibraryChartBindings.get(slow.slug)?.optionValues,
+        ).toMatchObject({
+            yName: 'Queries',
+            yRightName: 'p95 response time (ms)',
+        });
+        ['avg-execution-time', 'p90-execution-time'].forEach((key) => {
+            const [metric] = bySuffix(key).metricQuery.metrics;
+            expect(bySuffix(key).metricQuery.metricOverrides).toEqual({
+                [metric]: rounded,
+            });
+        });
+    });
+
     it('splits request consumption by outcome only, without a feedback legend', () => {
         const binding = analyticsLibraryChartBindings.get(
             `${prefix}request-consumption-by-outcome-and-feedback`,

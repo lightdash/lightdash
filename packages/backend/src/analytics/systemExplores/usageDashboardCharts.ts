@@ -1454,6 +1454,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 xAxisType: 'category',
                 xLabelAutoRotate: false,
                 xLabelRotate: 45,
+                yName: 'Queries',
+                yRightName: 'p95 response time (ms)',
             },
             query: null,
         },
