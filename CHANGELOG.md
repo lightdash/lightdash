@@ -1,3 +1,10 @@
+## [3.336.1](https://github.com/lightdash/lightdash/compare/3.336.0...3.336.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **ai-agent:** re-plan follow-up pipelines instead of chaining nodes ([#32967](https://github.com/lightdash/lightdash/issues/32967)) ([6598382](https://github.com/lightdash/lightdash/commit/65983825dea8033fb9c3d8364a8c441555c8c918))
+
 # [3.336.0](https://github.com/lightdash/lightdash/compare/3.335.0...3.336.0) (2026-11-19)
 
 
