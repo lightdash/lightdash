@@ -13,6 +13,7 @@ import {
     IconChevronDown,
     IconChevronRight,
     IconCornerDownRight,
+    IconEye,
     IconTable,
 } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
@@ -133,10 +134,10 @@ export const TurnCard: FC<{
     const [isOpened, setIsOpened] = useState(false);
     const isOpen = isLatest || isOpened;
     const heading = (
-        <Text fz="xs" fw={500} truncate flex={1}>
+        <Text fz="sm" fw={500} truncate flex={1} title={name ?? undefined}>
             {status}
             {name ? (
-                <Text span fz="xs" fw={400} c="dimmed">
+                <Text span inherit fw={400} c="dimmed">
                     {` · ${name}`}
                 </Text>
             ) : null}
@@ -257,19 +258,32 @@ export const TurnCard: FC<{
                                 ),
                         )}
                         {note ? (
-                            <Text
+                            <Group
                                 className={classes.line}
-                                fz="xs"
-                                lineClamp={3}
-                                title={note}
+                                gap={6}
+                                wrap="nowrap"
+                                align="flex-start"
                             >
-                                <Text span inherit fw={500}>
-                                    Check
-                                </Text>
-                                <Text span inherit c="dimmed">
+                                <Box className={classes.icon}>
+                                    <MantineIcon
+                                        icon={IconEye}
+                                        size={14}
+                                        color="dimmed"
+                                    />
+                                </Box>
+                                <Text
+                                    fz="xs"
+                                    flex={1}
+                                    miw={0}
+                                    lineClamp={3}
+                                    title={note}
+                                >
+                                    <Text span inherit fw={500}>
+                                        Check
+                                    </Text>
                                     {` · ${note}`}
                                 </Text>
-                            </Text>
+                            </Group>
                         ) : null}
                         {safety && safety.state !== 'done' ? (
                             <Group
@@ -297,14 +311,15 @@ export const TurnCard: FC<{
                             </Group>
                         ) : null}
                     </Box>
-                    {isLatest && onAsk && options.length > 0 ? (
-                        <Box className={classes.options}>
-                            {options.map((option) => (
+                    {isLatest &&
+                    (actions.some(Boolean) || (onAsk && options.length > 0)) ? (
+                        <Box className={classes.next}>
+                            {(onAsk ? options : []).map((option) => (
                                 <UnstyledButton
                                     key={option}
                                     className={classes.option}
                                     title={option}
-                                    onClick={() => onAsk(option)}
+                                    onClick={() => onAsk?.(option)}
                                 >
                                     <MantineIcon
                                         icon={IconCornerDownRight}
@@ -316,17 +331,17 @@ export const TurnCard: FC<{
                                     </Text>
                                 </UnstyledButton>
                             ))}
+                            {actions.some(Boolean) ? (
+                                <Group
+                                    className={classes.actions}
+                                    gap="xs"
+                                    justify="flex-end"
+                                    wrap="wrap"
+                                >
+                                    {actions}
+                                </Group>
+                            ) : null}
                         </Box>
-                    ) : null}
-                    {isLatest && actions.some(Boolean) ? (
-                        <Group
-                            className={classes.section}
-                            gap="xs"
-                            justify="flex-end"
-                            wrap="wrap"
-                        >
-                            {actions}
-                        </Group>
                     ) : null}
                     {children}
                 </>

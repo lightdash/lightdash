@@ -90,9 +90,18 @@
         calc(var(--mantine-spacing-xs) + 20px);
 }
 
-/* What the agent offers to do next: each line is sent as the person's message. */
-.options {
+/* What to do next: the agent's offers, each sent as the person's message, then the card's own actions. */
+.next {
     padding: 4px 0;
+}
+
+.actions {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 4px;
+}
+
+/* With nothing offered above them, the actions need no extra room. */
+.actions:first-child {
+    padding-top: 4px;
 }
 
 .option {
