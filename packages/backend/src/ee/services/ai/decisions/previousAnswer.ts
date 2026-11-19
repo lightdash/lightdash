@@ -1,4 +1,4 @@
-import type { ModelMessage } from 'ai';
+import { stripMemoryCitations } from '../utils/memoryCitation';
 
 const MAX_PREVIOUS_ANSWER_CHARS = 1_200;
 
@@ -10,39 +10,21 @@ export type PreviousAnswer = {
     askedUser: boolean;
 };
 
-const textOf = (message: ModelMessage): string => {
-    if (typeof message.content === 'string') return message.content;
-    return message.content
-        .flatMap((part) => (part.type === 'text' ? [part.text] : []))
-        .join('\n');
+export type PreviousPromptReply = {
+    response: string | null;
+    errorMessage: string | null;
+    askedUser: boolean;
 };
 
+/** A failed or empty previous turn gives no answer rather than an older one. */
 export const getPreviousAnswer = (
-    history: ModelMessage[],
+    reply: PreviousPromptReply | null,
 ): PreviousAnswer | null => {
-    const index = history.findLastIndex(
-        (message) => message.role === 'assistant' && textOf(message).trim(),
-    );
-    if (index === -1) return null;
-    // That reply's tool calls sit just before its text, back to the user's prompt.
-    const firstOfTurn =
-        history.findLastIndex(
-            (message, i) => i < index && message.role === 'user',
-        ) + 1;
-    const askedUser = history
-        .slice(firstOfTurn, index)
-        .some(
-            (message) =>
-                message.role === 'assistant' &&
-                typeof message.content !== 'string' &&
-                message.content.some(
-                    (part) =>
-                        part.type === 'tool-call' &&
-                        part.toolName === 'askUser',
-                ),
-        );
+    if (!reply || reply.errorMessage !== null) return null;
+    const text = stripMemoryCitations(reply.response ?? '').trim();
+    if (!text) return null;
     return {
-        text: textOf(history[index]).trim().slice(-MAX_PREVIOUS_ANSWER_CHARS),
-        askedUser,
+        text: text.slice(-MAX_PREVIOUS_ANSWER_CHARS),
+        askedUser: reply.askedUser,
     };
 };

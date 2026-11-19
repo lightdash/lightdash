@@ -6742,6 +6742,49 @@ export class AiAgentModel {
             .first();
     }
 
+    /** The reply just before a prompt, read past any compaction. */
+    async findPreviousPromptReply(
+        threadUuid: string,
+        currentPromptUuid: string,
+    ): Promise<{
+        response: string | null;
+        errorMessage: string | null;
+        askedUser: boolean;
+    } | null> {
+        const row = await this.database(AiPromptTableName)
+            .select<
+                {
+                    response: string | null;
+                    error_message: string | null;
+                    asked_user: boolean;
+                }[]
+            >(
+                'response',
+                'error_message',
+                this.database.raw(
+                    `exists (select 1 from ${AiAgentToolCallTableName} tc where tc.ai_prompt_uuid = ${AiPromptTableName}.ai_prompt_uuid and tc.tool_name = 'askUser') as asked_user`,
+                ),
+            )
+            .where('ai_thread_uuid', threadUuid)
+            .whereNot('ai_prompt_uuid', currentPromptUuid)
+            .where(
+                'created_at',
+                '<',
+                this.database(AiPromptTableName)
+                    .select('created_at')
+                    .where('ai_prompt_uuid', currentPromptUuid),
+            )
+            .orderBy('created_at', 'desc')
+            .first();
+        return row
+            ? {
+                  response: row.response,
+                  errorMessage: row.error_message,
+                  askedUser: row.asked_user,
+              }
+            : null;
+    }
+
     async updateHumanScore(data: {
         promptUuid: string;
         humanScore: number | null;

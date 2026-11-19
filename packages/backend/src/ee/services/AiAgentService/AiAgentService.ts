@@ -17442,6 +17442,14 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                               .catch(() => null)
                         : null;
                 const decisionStartedAt = performance.now();
+                const previousReply = decisions
+                    ? this.aiAgentModel
+                          .findPreviousPromptReply(
+                              prompt.threadUuid,
+                              prompt.promptUuid,
+                          )
+                          .catch(() => null)
+                    : null;
                 // A click on a choice from the previous turn applies its stored edit without asking JEV again.
                 const chosenIntent =
                     decisions && chartTurn
@@ -17479,8 +17487,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                               prompt: prompt.prompt,
                               instructions: agentSettings.instruction,
                               conversation: decisionHistory.slice(-3),
-                              previousAnswer:
-                                  getPreviousAnswer(decisionHistory),
+                              previousAnswer: getPreviousAnswer(
+                                  await previousReply,
+                              ),
                               context: chartTurn?.intentContext ?? null,
                           })
                         : null);
