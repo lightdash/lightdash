@@ -55,6 +55,7 @@ const DUMP_TOOL_RESULT_POLICIES = {
     // query results embed rows as a fenced csv block; keep the summary line,
     // column names and row counts, drop the cell values
     runQuery: 'strip_rows',
+    runMetricQuery: 'strip_rows',
     runSavedChart: 'strip_rows',
     runContentQuery: 'strip_rows',
     runSql: 'strip_rows',
@@ -82,7 +83,6 @@ const DUMP_TOOL_RESULT_POLICIES = {
 const LEGACY_DUMP_TOOL_RESULT_POLICIES: Partial<
     Record<string, DumpToolResultPolicy>
 > = {
-    runMetricQuery: 'strip_rows',
     improveContext: 'omit',
     submitDiscoverFieldsResult: 'keep',
     generateBarVizConfig: 'keep',

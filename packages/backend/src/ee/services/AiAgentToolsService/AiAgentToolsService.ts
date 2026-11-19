@@ -115,6 +115,7 @@ import {
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import * as JsonPatch from 'fast-json-patch';
+import { fromSession } from '../../../auth/account';
 import { mcpAgentPermissionsApply } from '../../../auth/agentPermissions/caller';
 import { type AgentToolEffect } from '../../../auth/agentPermissions/capabilityMap';
 import { type DbApp } from '../../../database/entities/apps';
@@ -159,6 +160,7 @@ import {
     type DocumentChangeContext,
 } from '../../../services/DocumentService/DocumentService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
+import { developmentView } from '../../../services/ProjectService/developmentView';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { QuerySourceService } from '../../../services/QuerySourceService/QuerySourceService';
 import { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
@@ -853,27 +855,46 @@ export class AiAgentToolsService extends BaseService {
                     throw new ForbiddenError('Organization not found');
                 }
 
-                const [dbAttributes, { tableSelection }, cachedExplores] =
-                    await Promise.all([
-                        this.userAttributesModel.getAttributeValuesForOrgMember(
-                            {
-                                organizationUuid,
-                                userUuid: user.userUuid,
-                            },
-                        ),
-                        this.projectModel.getTablesConfiguration(projectUuid),
-                        this.projectModel.findExploresFromCache(
-                            projectUuid,
-                            'name',
-                            exploreNames,
-                        ),
-                    ]);
+                const [
+                    dbAttributes,
+                    { tableSelection },
+                    liveExplores,
+                    inDevelopment,
+                ] = await Promise.all([
+                    this.userAttributesModel.getAttributeValuesForOrgMember({
+                        organizationUuid,
+                        userUuid: user.userUuid,
+                    }),
+                    this.projectModel.getTablesConfiguration(projectUuid),
+                    this.projectModel.findExploresFromCache(
+                        projectUuid,
+                        'name',
+                        exploreNames,
+                    ),
+                    developmentView
+                        .getStore()
+                        ?.findExplores(fromSession(user), projectUuid) ?? null,
+                ]);
                 const userAttributes = mergeUserAttributes(
                     dbAttributes,
                     userAttributeOverrides,
                 );
+                // In the development view the person's own unpublished models are read over the live ones.
+                const cachedExplores = inDevelopment
+                    ? [
+                          ...Object.values(liveExplores).filter(
+                              ({ name }) => !inDevelopment.has(name),
+                          ),
+                          ...[...inDevelopment].flatMap(([name, explore]) =>
+                              explore &&
+                              (!exploreNames || exploreNames.includes(name))
+                                  ? [explore]
+                                  : [],
+                          ),
+                      ]
+                    : Object.values(liveExplores);
 
-                return Object.values(cachedExplores)
+                return cachedExplores
                     .filter(
                         (explore): explore is Explore =>
                             !isExploreError(explore),

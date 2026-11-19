@@ -381,6 +381,7 @@ import { DocumentService } from '../../../services/DocumentService/DocumentServi
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { GithubAppService } from '../../../services/GithubAppService/GithubAppService';
 import { PersistentDownloadFileService } from '../../../services/PersistentDownloadFileService/PersistentDownloadFileService';
+import { developmentView } from '../../../services/ProjectService/developmentView';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import {
     describeLiveTarget,
@@ -601,6 +602,7 @@ import {
     EditProjectContextFn,
     ExploreRepoFn,
     ExportCustomChartTypeImageFn,
+    GetExploreFn,
     GetPromptFn,
     GetPullRequestDiffFn,
     ListWorkstreamsFn,
@@ -609,6 +611,7 @@ import {
     ReadSemanticModelFn,
     RecordMcpToolCallFn,
     RecordPromptDecisionFn,
+    RunAsyncQueryFn,
     SendFileFn,
     SendSlackBlocksFn,
     StoreLoadoutFn,
@@ -15614,6 +15617,34 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         const listChanges = () =>
             this.semanticStudioService.listChanges(user, projectUuid);
 
+        // Studio queries read the person's draft over what is published, the way trying their changes does.
+        const inDraft = <T>(run: () => Promise<T>): Promise<T> => {
+            let drafted:
+                | ReturnType<SemanticStudioService['findDevelopmentExplores']>
+                | undefined;
+            // Reading the draft reads the project itself, which must see what is published.
+            const findExplores = () => {
+                drafted ??= developmentView.exit(() =>
+                    this.semanticStudioService.findDevelopmentExplores(
+                        user,
+                        projectUuid,
+                    ),
+                );
+                return drafted;
+            };
+            return developmentView.run(
+                {
+                    findExplores,
+                    hasChanges: async () => (await findExplores()) !== null,
+                },
+                run,
+            );
+        };
+        const getDraftExplore: GetExploreFn = (args) =>
+            inDraft(() => toolsRuntime.getExplore(args));
+        const runDraftQuery: RunAsyncQueryFn = (...args) =>
+            inDraft(() => toolsRuntime.runAsyncQuery(...args));
+
         const readSemanticModel: ReadSemanticModelFn = (name) =>
             this.semanticStudioService.readDraftedModel(
                 user,
@@ -15751,6 +15782,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             editProjectContext,
             proposeSemanticLayerChange,
             listChanges,
+            getDraftExplore,
+            runDraftQuery,
             readSemanticModel,
             exploreRepo,
             readAttachments,
@@ -18147,6 +18180,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     editProjectContext,
                     proposeSemanticLayerChange,
                     listChanges,
+                    getDraftExplore,
+                    runDraftQuery,
                     readSemanticModel,
                     exploreRepo,
                     readAttachments,
@@ -18674,6 +18709,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     editProjectContext,
                     proposeSemanticLayerChange,
                     listChanges,
+                    getDraftExplore,
+                    runDraftQuery,
                     readSemanticModel,
                     exploreRepo,
                     readAttachments,
@@ -20624,6 +20661,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 case 'query':
                 case 'runComposerQueries':
                 case 'runContentQuery':
+                case 'runMetricQuery':
                 case 'runSavedChart':
                 case 'runQuery':
                     return 'Reviewing the results...';

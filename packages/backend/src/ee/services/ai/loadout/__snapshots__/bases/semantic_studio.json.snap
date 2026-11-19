@@ -8,6 +8,7 @@
         "listChanges",
         "proposeSemanticLayerChange",
         "readSemanticModel",
+        "runMetricQuery",
         "runSql",
         "searchFieldValues",
         "searchSemanticLayer"

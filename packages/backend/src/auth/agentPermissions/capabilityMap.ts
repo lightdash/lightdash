@@ -111,6 +111,7 @@ export const AGENT_TOOL_CAPABILITIES = {
     visualize: [AgentCapability.Query],
     runContentQuery: [AgentCapability.Query],
     runQuery: [AgentCapability.Query],
+    runMetricQuery: [AgentCapability.Query],
     runSavedChart: [AgentCapability.Query],
     runSql: [AgentCapability.RawSql],
     searchFieldValues: [AgentCapability.Query],

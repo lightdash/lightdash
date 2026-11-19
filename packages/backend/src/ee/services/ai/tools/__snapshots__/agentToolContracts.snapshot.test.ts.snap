@@ -26257,6 +26257,7 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "listWorkstreams",
   "closePullRequest",
   "getPullRequestDiff",
+  "runMetricQuery",
   "runSavedChart",
   "listWarehouseTables",
   "describeWarehouseTable",
