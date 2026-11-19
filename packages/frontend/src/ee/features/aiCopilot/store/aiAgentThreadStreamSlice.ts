@@ -110,7 +110,6 @@ export interface AiAgentThreadStreamingState {
     content: string;
     parts: StreamPart[];
     connection: AiAgentThreadStreamConnection;
-    attempt: number;
     wasInterrupted: boolean;
     toolCalls: ToolCall[];
     reasoning: Reasoning[];
@@ -143,7 +142,6 @@ const initialThread: Omit<
     | 'agentUuid'
     | 'autoApproveSql'
     | 'timing'
-    | 'attempt'
 > = {
     content: '',
     parts: [],
@@ -177,7 +175,6 @@ export const aiAgentThreadStreamSlice = createSlice({
             state[threadUuid] = {
                 ...action.payload,
                 ...initialThread,
-                attempt: (state[threadUuid]?.attempt ?? 0) + 1,
                 timing: {
                     startedAt: Date.now(),
                     firstTokenAt: null,

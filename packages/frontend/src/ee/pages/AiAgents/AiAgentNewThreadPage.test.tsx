@@ -155,7 +155,6 @@ const renderPage = (isEmbed: boolean, agentCount: number) => {
                                         agent,
                                         agents,
                                         navigateFromAgentChat: vi.fn(),
-                                        onThreadCreated: vi.fn(),
                                     }}
                                 />
                             }

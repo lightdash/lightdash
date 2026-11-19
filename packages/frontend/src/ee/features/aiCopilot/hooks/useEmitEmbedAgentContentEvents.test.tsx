@@ -11,7 +11,7 @@ import {
     useNavigate,
     useParams,
 } from 'react-router';
-import { expect, it, vi } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { mockedLightdashApi } from '../../../../testing/mockedLightdashApi';
 import EmbedProviderContext from '../../../providers/Embed/context';
 import { useCreateEmbedEventEmitter } from '../../embed/hooks/useEmbedEventEmitter';
@@ -23,6 +23,7 @@ import {
     type StreamPart,
 } from '../store/aiAgentThreadStreamSlice';
 import { AiAgentThreadStreamAbortControllerContextProvider } from '../streaming/AiAgentThreadStreamAbortControllerContextProvider';
+import { resetHandledAgentToolCallIds } from '../streaming/handledAgentToolCalls';
 import { useEmitEmbedAgentContentEvents } from './useEmitEmbedAgentContentEvents';
 import { usePendingThreadRefetch } from './usePendingThreadRefetch';
 import {
@@ -34,6 +35,8 @@ vi.mock('../../../../api');
 vi.mock('../../../../hooks/health/useHealth', () => ({
     default: () => ({ data: undefined }),
 }));
+
+beforeEach(resetHandledAgentToolCallIds);
 
 const projectUuid = 'project';
 const agentUuid = 'agent';
@@ -162,7 +165,7 @@ const setup = (
             const navigate = useNavigate();
             const { threadUuid } = useParams();
             const query = useAiAgentThread(projectUuid, agentUuid, threadUuid);
-            const onThreadCreated = useEmitEmbedAgentContentEvents({
+            useEmitEmbedAgentContentEvents({
                 projectUuid,
                 agentUuid,
                 threadUuid,
@@ -174,7 +177,7 @@ const setup = (
                 query.refetch,
             );
             const { mutate: retry } = useRetryAiAgentThreadMessageMutation();
-            return { ...query, retry, onThreadCreated, navigate };
+            return { ...query, retry, navigate };
         },
         { wrapper: Wrapper },
     );
@@ -355,7 +358,7 @@ it('delivers only the new save when an interrupted retry updates the same dashbo
     );
 });
 
-it('keeps a late save quiet after leaving and reopening an interrupted thread', async () => {
+it('delivers a late save once after leaving and reopening an interrupted thread', async () => {
     const ids = {
         projectUuid,
         agentUuid,
@@ -393,8 +396,16 @@ it('keeps a late save quiet after leaving and reopening an interrupted thread', 
 
     mockedLightdashApi.mockResolvedValue(completed);
     open(threadUuid);
+    await waitFor(() =>
+        expect(onEvent).toHaveBeenCalledExactlyOnceWith({
+            type: 'dashboardSaved',
+            payload: { dashboardUuid: 'left-uuid', action: 'updated' },
+        }),
+    );
+    open(otherThread.uuid);
+    open(threadUuid);
     await waitFor(() => expect(result.current.data).toEqual(completed));
-    expect(onEvent).not.toHaveBeenCalled();
+    expect(onEvent).toHaveBeenCalledOnce();
 });
 
 it.each([
@@ -402,7 +413,7 @@ it.each([
     ['back', 'before'],
     ['back', 'after'],
 ] as const)(
-    'keeps a delayed follow-up quiet when navigating via %s and recovery starts %s reopening',
+    'delivers a delayed follow-up once when navigating via %s and recovery starts %s reopening',
     async (via, recoveryStarts) => {
         const threadUuid = 'existing-thread';
         const messageUuid = 'delayed-follow-up';
@@ -450,7 +461,12 @@ it.each([
                 store.dispatch(markStreamRecovering({ threadUuid }));
             });
         }
-        expect(onEvent).not.toHaveBeenCalled();
+        await waitFor(() =>
+            expect(onEvent).toHaveBeenCalledExactlyOnceWith({
+                type: 'chartSaved',
+                payload: { chartUuid: 'background-uuid', action: 'updated' },
+            }),
+        );
     },
 );
 
@@ -462,8 +478,7 @@ it('delivers saves when a new thread loses its stream before its route opens', a
         messageUuid: 'first-turn',
     };
     const { threadUuid, messageUuid } = ids;
-    const { onEvent, store, open, result } = setup(undefined, []);
-    result.current.onThreadCreated(threadUuid);
+    const { onEvent, store, open } = setup(undefined, []);
 
     act(() => {
         store.dispatch(startStreaming({ ...ids, autoApproveSql: false }));

@@ -35,7 +35,6 @@ const stream = (
     projectUuid: 'project-1',
     agentUuid: 'agent-1',
     autoApproveSql: false,
-    attempt: 1,
     wasInterrupted: false,
     content: '',
     parts: [],

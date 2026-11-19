@@ -175,7 +175,7 @@ const AiAgentNewThreadPage: FC = () => {
         [boundDashboardUuid, contextInput, curateContext, previewItems],
     );
 
-    const { agent, agents, navigateFromAgentChat, onThreadCreated } =
+    const { agent, agents, navigateFromAgentChat } =
         useOutletContext<AgentContext>();
     const navigate = useNavigate();
     const location = useLocation();
@@ -232,7 +232,6 @@ const AiAgentNewThreadPage: FC = () => {
                     title: thread.firstMessage.message,
                 };
                 if (isEmbed && projectUuid && agentUuid) {
-                    onThreadCreated(thread.uuid);
                     emitEmbedAiAgentThreadChange({
                         projectUuid,
                         agentUuid,
