@@ -1,3 +1,10 @@
+## [3.327.1](https://github.com/lightdash/lightdash/compare/3.327.0...3.327.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **semantic-studio:** show a lone question's choices without repeating it ([#32940](https://github.com/lightdash/lightdash/issues/32940)) ([e7ca2e3](https://github.com/lightdash/lightdash/commit/e7ca2e364bab1e608de361203fea531c469b50c4))
+
 # [3.327.0](https://github.com/lightdash/lightdash/compare/3.326.0...3.327.0) (2026-11-19)
 
 
