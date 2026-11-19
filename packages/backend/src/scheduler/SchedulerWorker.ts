@@ -151,6 +151,7 @@ type ManagedRunner = {
     runner: Runner;
     workerPool: WorkerPool | null;
     stopPromise: Promise<void> | null;
+    releaseErrors: unknown[];
 };
 
 class ForwardingWorkerEvents extends EventEmitter {
@@ -621,14 +622,16 @@ export class SchedulerWorker extends SchedulerTask {
             schedulerWorkerEventEmitter as EventEmitter,
         ) as WorkerEvents;
         let workerPool: WorkerPool | null = null;
+        const releaseErrors: unknown[] = [];
         events.once('pool:create', ({ workerPool: createdWorkerPool }) => {
             workerPool = createdWorkerPool;
         });
         events.on('worker:create', ({ worker }) => {
             const graphileWorker = worker;
             const release = graphileWorker.release.bind(graphileWorker);
-            // Graphile 0.13 uses Promise.all for release. An expected dequeue
-            // cancellation must not close the pool before other jobs finish.
+            // Graphile 0.13 uses Promise.all for release, so one rejected
+            // worker would close the pool before other jobs finish. Hold the
+            // error until the runner has stopped.
             graphileWorker.release = () => {
                 const released: unknown = release();
                 if (released === undefined) return undefined;
@@ -636,7 +639,7 @@ export class SchedulerWorker extends SchedulerTask {
                     if (
                         !(error instanceof MigrationDequeueWaitCancelledError)
                     ) {
-                        throw error;
+                        releaseErrors.push(error);
                     }
                 });
             };
@@ -664,6 +667,7 @@ export class SchedulerWorker extends SchedulerTask {
             runner,
             workerPool,
             stopPromise: null,
+            releaseErrors,
         };
         this.managedRunners.add(managedRunner);
         if (includeCron) {
@@ -690,7 +694,12 @@ export class SchedulerWorker extends SchedulerTask {
         if (managedRunner.stopPromise === null) {
             const { runner } = managedRunner;
             this.expectedRunnerStops.add(runner);
-            managedRunner.stopPromise = runner.stop().finally(() => {
+            const stopped = runner.stop().then(() => {
+                if (managedRunner.releaseErrors.length > 0) {
+                    throw managedRunner.releaseErrors[0];
+                }
+            });
+            managedRunner.stopPromise = stopped.finally(() => {
                 this.expectedRunnerStops.delete(runner);
                 this.managedRunners.delete(managedRunner);
                 this.isRunning = this.managedRunners.size > 0;
@@ -707,11 +716,18 @@ export class SchedulerWorker extends SchedulerTask {
     ): Promise<void> {
         Logger.info(`Draining scheduler workers: ${reason}`);
         // Migration resume keeps this process alive, so never unlock live jobs.
-        await Promise.all(
+        // Wait for every runner so a failed stop never leaves one mid-drain.
+        const stops = await Promise.allSettled(
             [...this.managedRunners].map((managedRunner) =>
                 this.stopManagedRunner(managedRunner),
             ),
         );
+        const failedStop = stops.find(
+            (stop): stop is PromiseRejectedResult => stop.status === 'rejected',
+        );
+        if (failedStop) {
+            throw failedStop.reason;
+        }
     }
 
     private async startResumeWorkers(): Promise<void> {
