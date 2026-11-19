@@ -288,4 +288,6 @@ export enum EventName {
     GUIDED_TOUR_STEP_VIEWED = 'guided_tour.step_viewed',
     GUIDED_TOUR_COMPLETED = 'guided_tour.completed',
     GUIDED_TOUR_DISMISSED = 'guided_tour.dismissed',
+
+    BILLING_PORTAL_BUTTON_CLICKED = 'billing_portal_button.clicked',
 }

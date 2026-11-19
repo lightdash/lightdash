@@ -23,7 +23,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useProject } from '../../../hooks/useProject';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { AgentSettingsSelector } from '../../features/aiCopilot/components/AgentSelector';
 import { AutoModeSidebar } from '../../features/aiCopilot/components/AiAgentPageLayout/AgentSidebar';
@@ -71,7 +70,6 @@ const AgentsRouterPage = () => {
         projectUuid: projectUuid!,
         redirectOnUnauthorized: true,
     });
-    const { data: project } = useProject(projectUuid);
 
     const canManageAgents = useAiAgentPermission({
         action: 'manage',
@@ -329,10 +327,6 @@ const AgentsRouterPage = () => {
           ? 'Opening the conversation…'
           : null;
 
-    const title = project?.name ? `Ask ${project.name}` : 'Ask this project';
-    const placeholder = project?.name
-        ? `Ask ${project.name} anything...`
-        : 'Ask anything about your data...';
     const settingsHref = projectUuid
         ? `/generalSettings/ai/agents?projects=${projectUuid}`
         : '/generalSettings/ai/agents';
@@ -387,7 +381,11 @@ const AgentsRouterPage = () => {
                         py="xl"
                     >
                         <Stack align="center" gap="xxs">
-                            <Title order={2}>{title}</Title>
+                            <Title order={2}>Ask AI</Title>
+                            <Text size="sm" c="dimmed">
+                                Your question goes to the agent that knows it
+                                best
+                            </Text>
                         </Stack>
 
                         {previewItems.length > 0 && (
@@ -417,7 +415,7 @@ const AgentsRouterPage = () => {
                             projectUuid={projectUuid}
                             agents={agents ?? []}
                             selectedAgent="auto"
-                            placeholder={placeholder}
+                            placeholder="Ask anything about your data..."
                             loading={isLocked}
                             disabled={!isPinnedContextReady}
                             onSubmit={handleSubmit}

@@ -47747,6 +47747,22 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerBlocker: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['no_access'] },
+                { dataType: 'enum', enums: ['unsupported_connection'] },
+                { dataType: 'enum', enums: ['no_repository_access'] },
+                { dataType: 'enum', enums: ['github_app_missing'] },
+                { dataType: 'enum', enums: ['models_from_outside'] },
+                { dataType: 'enum', enums: ['preview_project'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerApplyMode: {
         dataType: 'refAlias',
         type: {
@@ -47766,6 +47782,14 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 appliesAs: { ref: 'SemanticLayerApplyMode', required: true },
+                blocker: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'SemanticLayerBlocker' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 enabled: { dataType: 'boolean', required: true },
             },
             validators: {},
@@ -47839,6 +47863,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                publishedLive: { dataType: 'boolean', required: true },
                 finishedAt: {
                     dataType: 'union',
                     subSchemas: [
@@ -49116,6 +49141,34 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                merge: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                merged: {
+                                    dataType: 'enum',
+                                    enums: [true],
+                                    required: true,
+                                },
+                            },
+                        },
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                reason: { dataType: 'string', required: true },
+                                merged: {
+                                    dataType: 'enum',
+                                    enums: [false],
+                                    required: true,
+                                },
+                            },
+                        },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 pullRequestUrl: {
                     dataType: 'union',
                     subSchemas: [
@@ -115944,6 +115997,7 @@ export function RegisterRoutes(app: Router) {
             required: true,
             ref: 'UUID',
         },
+        merge: { in: 'query', name: 'merge', dataType: 'boolean' },
     };
     app.post(
         '/api/v1/projects/:projectUuid/semantic-studio/draft/apply',
@@ -116011,6 +116065,7 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
+        merge: { in: 'query', name: 'merge', dataType: 'boolean' },
     };
     app.post(
         '/api/v1/projects/:projectUuid/semantic-studio/draft/models/:model/apply',

@@ -205,6 +205,24 @@ latency; missing cache flags remain unknown. This dashboard does not infer tenan
 from user attributes, reconcile invoices or provide a complete embed dependency
 inventory. Absence of observed usage is not evidence that content is safe to delete.
 
+## Agent Evaluations
+
+The **Agent Evaluations** dashboard and **Agent evaluation runs** Explore show
+assessment trends, breakdowns by agent and evaluation, and individual runs.
+Use the Date, Project, Agent and Evaluation filters to narrow the dashboard.
+The date is the time the run started, not when assessments were recorded.
+Runs still in progress are excluded. Pass rate is total passing assessments
+divided by total passing and failing assessments; it is blank when there are
+none. Human and AI assessments count separately, as in the evaluation run
+summary. Unassessed results and execution errors are shown separately.
+
+Nightly refresh reads the organization's retained evaluation history, including
+runs from before Analytics was enabled. Deletions and retention affect the
+next snapshot. Access follows the organization-wide managed Analytics grant;
+prompts, expected answers, responses, assessment reasons and raw errors are
+not exported. Production usage and user feedback remain on **Agents & AI**;
+neither is used as an evaluation verdict.
+
 ## Version tracking
 
 The installed definition hash includes models, chart definitions and dashboard

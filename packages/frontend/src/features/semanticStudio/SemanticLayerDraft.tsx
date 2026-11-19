@@ -9,11 +9,10 @@ import {
     Group,
     Loader,
     Menu,
-    Paper,
     Stack,
     Text,
-    ThemeIcon,
     Tooltip,
+    VisuallyHidden,
 } from '@mantine/core';
 import { WorkerPoolContextProvider } from '@pierre/diffs/react';
 import {
@@ -21,13 +20,14 @@ import {
     IconDots,
     IconExternalLink,
     IconEye,
+    IconFileCode,
     IconGitPullRequest,
-    IconTable,
+    IconPlayerPlay,
     IconWorldUpload,
 } from '@tabler/icons-react';
-import { countBy, sortBy, uniqBy } from 'es-toolkit/compat';
+import { sortBy, uniqBy } from 'es-toolkit/compat';
 import { useEffect, useRef, useState, type FC } from 'react';
-import { Navigate, useSearchParams } from 'react-router';
+import { Link, Navigate, useSearchParams } from 'react-router';
 import Callout from '../../components/common/Callout';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
@@ -48,55 +48,30 @@ import {
     PublishChecklist,
     PublishSummary,
 } from './DraftInsights';
-import { describePublisher } from './draftState';
+import { cannotApply, describePublisher } from './draftState';
+import { FieldChangeIcon } from './KindTypeIcon';
 import {
     CHANGE_KIND_LABELS,
     count,
+    countChangedLines,
     describeModelChange,
     DRAFT_PARAM,
     DRAFT_REVIEW,
     getChangeKind,
+    listFieldChanges,
     refusalText,
-    type ChangeKind,
 } from './modelCode';
 import classes from './SemanticLayerDraft.module.css';
 import {
-    useAppliesAsPullRequest,
     useApplySemanticLayerDraft,
+    usePublishMode,
     useCheckSemanticLayerDraftImpact,
     useDiscardSemanticLayerDraft,
     useSemanticLayerDraft,
     useSemanticLayerDraftImpact,
 } from './useSemanticLayerModel';
-
-const KIND_NOUNS: [ChangeKind, string][] = [
-    ['new', 'new model'],
-    ['changed', 'changed model'],
-    ['removed', 'removed model'],
-];
-
-const summarizeDraftModels = ({ models }: SemanticLayerDraft) => {
-    const totals = countBy(models, getChangeKind);
-    return KIND_NOUNS.flatMap(([kind, noun]) =>
-        totals[kind] ? [count(totals[kind], noun)] : [],
-    ).join(', ');
-};
-
-/** Whether the draft, or one model of it, fails its checks. */
-const cannotApply = (
-    { changes, errors }: SemanticLayerDraft,
-    model: string | null,
-) => {
-    const inScope = (name: string) => model === null || name === model;
-    return (
-        errors.some((error) => inScope(error.model)) ||
-        changes.some((change) =>
-            change.models.some(
-                (entry) => inScope(entry.model) && entry.error !== null,
-            ),
-        )
-    );
-};
+import { useDraftPullRequest } from './useStudioCheckout';
+import { LineCounts } from './WorkbenchRail';
 
 /** How many models of the draft, or the one named, still have a part to choose between. */
 const countConflicts = (
@@ -199,7 +174,7 @@ const DraftImpact: FC<{ projectUuid: string; model: string | null }> = ({
     );
 };
 
-const ApplyModal: FC<{
+export const ApplyModal: FC<{
     projectUuid: string;
     draft: SemanticLayerDraft;
     model: string | null;
@@ -207,12 +182,15 @@ const ApplyModal: FC<{
 }> = ({ projectUuid, draft, model, onClose }) => {
     const impact = useSemanticLayerDraftImpact(projectUuid, model);
     const apply = useApplySemanticLayerDraft(projectUuid);
-    const asPullRequest = useAppliesAsPullRequest(projectUuid);
-    const { showToastSuccess } = useToaster();
+    const mode = usePublishMode(projectUuid);
+    const asPullRequest = mode === 'pull_request';
+    const { showToastSuccess, showToastWarning } = useToaster();
     const scoped = draft.models.filter(
         (entry) => model === null || entry.model === model,
     );
-    const confirmLabel = asPullRequest ? 'Open pull request' : 'Publish';
+    const sent = useDraftPullRequest() !== null;
+    const sendLabel = sent ? 'Update pull request' : 'Open pull request';
+    const confirmLabel = asPullRequest ? sendLabel : 'Publish';
     // Applying never waits for the check: an unchecked draft is applied knowingly, like one that breaks something.
     const isRisky =
         impact.data?.status !== 'done' || impact.data.breaks.length > 0;
@@ -221,13 +199,13 @@ const ApplyModal: FC<{
             opened
             onClose={onClose}
             icon={asPullRequest ? IconGitPullRequest : IconWorldUpload}
-            title={
-                asPullRequest ? 'Open a pull request' : 'Publish to everyone'
-            }
+            title={asPullRequest ? sendLabel : 'Publish to everyone'}
             subtitle={
-                asPullRequest
-                    ? `${scoped.length} ${scoped.length === 1 ? 'model goes' : 'models go'} to your repository. Nothing is live until it merges.`
-                    : `${scoped.length} ${scoped.length === 1 ? 'model goes' : 'models go'} live for everyone on this project.`
+                mode === 'pull_request'
+                    ? 'Nothing is published until it merges.'
+                    : mode === 'merge'
+                      ? 'Merges into your repository.'
+                      : undefined
             }
             confirmLabel={isRisky ? `${confirmLabel} anyway` : confirmLabel}
             confirmLoading={apply.isLoading}
@@ -235,13 +213,13 @@ const ApplyModal: FC<{
                 (entry) => entry.reconciliation?.state === 'conflict',
             )}
             onConfirm={() =>
-                apply.mutate(model, {
-                    onSuccess: ({ failures, pullRequestUrl }) => {
-                        if (failures.length > 0) return;
-                        if (pullRequestUrl) {
-                            showToastSuccess({
-                                title: 'Pull request opened',
-                                action: {
+                apply.mutate(
+                    { model, merge: mode === 'merge' },
+                    {
+                        onSuccess: ({ failures, pullRequestUrl, merge }) => {
+                            if (failures.length > 0) return;
+                            if (pullRequestUrl) {
+                                const action = {
                                     children: 'View pull request',
                                     icon: IconExternalLink,
                                     onClick: () =>
@@ -250,12 +228,35 @@ const ApplyModal: FC<{
                                             '_blank',
                                             'noopener',
                                         ),
-                                },
-                            });
-                        }
-                        onClose();
+                                };
+                                if (merge && !merge.merged) {
+                                    showToastWarning({
+                                        title: 'Pull request opened, not merged',
+                                        subtitle: merge.reason,
+                                        action,
+                                    });
+                                } else {
+                                    showToastSuccess({
+                                        title: merge?.merged
+                                            ? 'Published'
+                                            : sent
+                                              ? 'Pull request updated'
+                                              : 'Pull request opened',
+                                        subtitle: merge?.merged
+                                            ? 'Updating for everyone.'
+                                            : undefined,
+                                        action,
+                                    });
+                                }
+                            } else {
+                                showToastSuccess({
+                                    title: 'Published for everyone',
+                                });
+                            }
+                            onClose();
+                        },
                     },
-                })
+                )
             }
         >
             <Stack gap="md">
@@ -278,7 +279,7 @@ const ApplyModal: FC<{
                         }
                     />
                 </Stack>
-                {asPullRequest ? null : (
+                {mode !== 'live' ? null : (
                     <Text fz="xs" c="dimmed">
                         You can undo this from each model's History tab.
                     </Text>
@@ -327,7 +328,7 @@ const DraftActions: FC<{
     model: string | null;
 }> = ({ projectUuid, draft, model }) => {
     const discard = useDiscardSemanticLayerDraft(projectUuid);
-    const asPullRequest = useAppliesAsPullRequest(projectUuid);
+    const asPullRequest = usePublishMode(projectUuid) === 'pull_request';
     const [applying, setApplying] = useState(false);
     const isAll = model === null && draft.models.length > 1;
     const hasConflict = countConflicts(draft, model) > 0;
@@ -377,40 +378,6 @@ const DraftActions: FC<{
         </Group>
     );
 };
-
-/** Switches what the person's own queries read: the live models, or those with their changes on top. */
-const ChangesSwitch: FC<{
-    isOnMyChanges: boolean;
-    onChange: (next: boolean) => void;
-    /** Why it cannot be switched right now; shown disabled with this as its tooltip. */
-    unavailableReason?: string;
-}> = ({ isOnMyChanges, onChange, unavailableReason }) => (
-    <Tooltip
-        multiline
-        w={240}
-        label={
-            unavailableReason ??
-            (isOnMyChanges
-                ? 'Explore, charts and dashboards are reading your changes. Only you see this. Click to go back to Published.'
-                : 'Try your changes in Explore, charts and dashboards. Only you see it.')
-        }
-    >
-        <Button
-            size="xs"
-            flex="none"
-            variant={isOnMyChanges ? 'light' : 'default'}
-            color={isOnMyChanges ? 'orange' : undefined}
-            aria-pressed={isOnMyChanges}
-            data-disabled={unavailableReason !== undefined || undefined}
-            aria-disabled={unavailableReason !== undefined}
-            onClick={() => {
-                if (unavailableReason === undefined) onChange(!isOnMyChanges);
-            }}
-        >
-            {isOnMyChanges ? 'Viewing my changes' : 'Try my changes'}
-        </Button>
-    </Tooltip>
-);
 
 /** Says so once when someone publishes to a model this person has in development, since the page does not reload for it. */
 const usePublishedUnderNotice = (draft: SemanticLayerDraft | undefined) => {
@@ -473,7 +440,11 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const [isPreviewing, setIsPreviewing] = useDevelopmentView();
     const [isTrying, setIsTrying] = useState(false);
     const discard = useDiscardSemanticLayerDraft(projectUuid);
-    const asPullRequest = useAppliesAsPullRequest(projectUuid);
+    const asPullRequest = usePublishMode(projectUuid) === 'pull_request';
+    const sendLabel =
+        useDraftPullRequest() !== null
+            ? 'Update pull request'
+            : 'Open pull request';
     const impact = useSemanticLayerDraftImpact(projectUuid, null);
     const check = useCheckSemanticLayerDraftImpact(projectUuid);
     const isEmpty = !draft || draft.changes.length === 0;
@@ -501,12 +472,26 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                     )
                 }
             >
-                {isPreviewing ? null : (
-                    <ChangesSwitch
-                        isOnMyChanges={false}
-                        onChange={setIsPreviewing}
-                    />
-                )}
+                {tryModel ? (
+                    <Tooltip
+                        multiline
+                        w={240}
+                        label="Opens Explore over this page with your changes. Only you see them until you publish."
+                    >
+                        <Button
+                            size="xs"
+                            variant="subtle"
+                            color="gray"
+                            flex="none"
+                            leftSection={
+                                <MantineIcon icon={IconPlayerPlay} size={12} />
+                            }
+                            onClick={() => setIsTrying(true)}
+                        >
+                            Try it
+                        </Button>
+                    </Tooltip>
+                ) : null}
                 {conflicts > 0 ? (
                     <Tooltip label="Someone published to a part you changed too. Choose which version to keep, then publish.">
                         <Button
@@ -549,7 +534,7 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                                 if (!blocked) setPublishing(true);
                             }}
                         >
-                            {asPullRequest ? 'Open pull request' : 'Publish'}
+                            {asPullRequest ? sendLabel : 'Publish'}
                         </Button>
                     </Tooltip>
                 ) : null}
@@ -558,15 +543,19 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                         <ActionIcon
                             size="md"
                             aria-label="More actions"
-                            variant="default"
+                            variant="subtle"
+                            color="gray"
                         >
                             <MantineIcon icon={IconDots} />
                         </ActionIcon>
                     </Menu.Target>
                     <Menu.Dropdown>
                         {tryModel ? (
-                            <Menu.Item onClick={() => setIsTrying(true)}>
-                                Try in Explore
+                            <Menu.Item
+                                component={Link}
+                                to={`/projects/${projectUuid}/tables/${encodeURIComponent(tryModel)}`}
+                            >
+                                Open in Explore
                             </Menu.Item>
                         ) : null}
                         <Menu.Item
@@ -597,7 +586,7 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                         opened
                         variant="delete"
                         title="Discard draft"
-                        description={`${count(draft.changes.length, 'change')} in development will be removed. Nothing live changes, and this cannot be undone.`}
+                        description={`${count(draft.changes.length, 'change')} in this draft will be removed. Published stays as it is, and this cannot be undone.`}
                         confirmLabel="Discard"
                         confirmLoading={discard.isLoading}
                         onClose={() => setDiscarding(false)}
@@ -660,6 +649,8 @@ const DraftNotes: FC<{ draft: SemanticLayerDraft }> = ({ draft }) => {
     );
 };
 
+const CHANGE_GLYPHS = { new: '+', changed: '~', removed: '−' };
+
 type DraftProps = { projectUuid: string; draft: SemanticLayerDraft };
 
 type DraftReviewProps = DraftProps & {
@@ -667,38 +658,12 @@ type DraftReviewProps = DraftProps & {
     onAskAgent: (prompt: string) => void;
 };
 
-export const DraftReviewHeading: FC<DraftProps> = ({ projectUuid, draft }) => {
-    const [isPreviewing, setIsPreviewing] = useDevelopmentView();
-    return (
-        <Group className={classes.heading} gap="xs" wrap="nowrap">
-            <Badge color="orange" flex="none">
-                Draft
-            </Badge>
-            <Text fz="sm" fw={500} truncate flex={1}>
-                {draft.models.length > 0
-                    ? summarizeDraftModels(draft)
-                    : 'Already live, nothing to publish'}
-            </Text>
-            {draft.models.length > 0 ? (
-                <ChangesSwitch
-                    isOnMyChanges={isPreviewing}
-                    onChange={setIsPreviewing}
-                />
-            ) : null}
-            <DraftActions
-                projectUuid={projectUuid}
-                draft={draft}
-                model={null}
-            />
-        </Group>
-    );
-};
-
 export const DraftReview: FC<DraftReviewProps> = ({
     projectUuid,
     draft,
     onAskAgent,
 }) => {
+    const publishesHere = usePublishMode(projectUuid) === 'live';
     const impact = useSemanticLayerDraftImpact(projectUuid, null);
     // A check that is running or found something is worth reading; one not yet run is asked for from the menu.
     const showsImpact =
@@ -734,40 +699,64 @@ export const DraftReview: FC<DraftReviewProps> = ({
                         modelChange.model,
                         modelChange,
                     );
+                    const fields = listFieldChanges(
+                        modelChange.model,
+                        draft.changes.flatMap(({ models: entries }) =>
+                            entries
+                                .filter(
+                                    ({ model, error }) =>
+                                        model === modelChange.model &&
+                                        error === null,
+                                )
+                                .flatMap(({ changes }) => changes),
+                        ),
+                        modelChange,
+                    );
                     return (
-                        <Paper
+                        <Box
                             key={modelChange.model}
+                            component="section"
                             className={classes.model}
                         >
+                            {/* A file's header, as an editor shows one: its name, what it models, how much moved. */}
                             <Group
                                 className={classes.modelHead}
                                 gap="xs"
                                 wrap="nowrap"
                             >
-                                <ThemeIcon
-                                    variant="light"
-                                    color="indigo"
-                                    size={24}
-                                    radius="sm"
+                                <MantineIcon
+                                    icon={IconFileCode}
+                                    color="dimmed"
+                                />
+                                <Text
+                                    component="h3"
+                                    fz="sm"
+                                    fw={500}
+                                    truncate
+                                    flex={1}
+                                    miw={0}
                                 >
-                                    <MantineIcon icon={IconTable} size={14} />
-                                </ThemeIcon>
-                                <Box miw={0} flex={1}>
-                                    <Text
-                                        component="h3"
-                                        fz="sm"
-                                        fw={500}
-                                        truncate
-                                    >
-                                        {title}
+                                    {modelChange.model}.yml
+                                    <Text span inherit fw={400} c="dimmed">
+                                        {` · ${[
+                                            title,
+                                            subtitle ??
+                                                (fields.length === 0
+                                                    ? CHANGE_KIND_LABELS[
+                                                          getChangeKind(
+                                                              modelChange,
+                                                          )
+                                                      ]
+                                                    : null),
+                                        ]
+                                            .filter(Boolean)
+                                            .join(' · ')}`}
                                     </Text>
-                                    <Text fz="xs" c="dimmed" truncate>
-                                        {subtitle ??
-                                            CHANGE_KIND_LABELS[
-                                                getChangeKind(modelChange)
-                                            ]}
-                                    </Text>
-                                </Box>
+                                </Text>
+                                <LineCounts
+                                    counts={countChangedLines(modelChange)}
+                                    withBar
+                                />
                                 {modelChange.reconciliation?.state ===
                                 'conflict' ? (
                                     <Badge color="yellow" flex="none">
@@ -778,7 +767,7 @@ export const DraftReview: FC<DraftReviewProps> = ({
                                         )}
                                     </Badge>
                                 ) : null}
-                                {draft.models.length > 1 ? (
+                                {draft.models.length > 1 && publishesHere ? (
                                     <DraftActions
                                         projectUuid={projectUuid}
                                         draft={draft}
@@ -786,6 +775,48 @@ export const DraftReview: FC<DraftReviewProps> = ({
                                     />
                                 ) : null}
                             </Group>
+                            {fields.length > 0 ? (
+                                <Box className={classes.fields}>
+                                    {fields.map((field) => (
+                                        <Group
+                                            key={`${field.kind}:${field.name}`}
+                                            gap={6}
+                                            wrap="nowrap"
+                                        >
+                                            <Text
+                                                span
+                                                fz="xs"
+                                                className={classes.glyph}
+                                                data-change={field.change}
+                                                aria-hidden
+                                            >
+                                                {CHANGE_GLYPHS[field.change]}
+                                            </Text>
+                                            <FieldChangeIcon field={field} />
+                                            <Text fz="xs" truncate>
+                                                <VisuallyHidden>
+                                                    {
+                                                        CHANGE_KIND_LABELS[
+                                                            field.change
+                                                        ]
+                                                    }{' '}
+                                                    {field.kind}{' '}
+                                                </VisuallyHidden>
+                                                {field.label}
+                                                {field.detail ? (
+                                                    <Text
+                                                        span
+                                                        inherit
+                                                        c="dimmed"
+                                                    >
+                                                        {` · ${field.detail}`}
+                                                    </Text>
+                                                ) : null}
+                                            </Text>
+                                        </Group>
+                                    ))}
+                                </Box>
+                            ) : null}
                             <ModelNotices
                                 projectUuid={projectUuid}
                                 model={modelChange}
@@ -809,7 +840,7 @@ export const DraftReview: FC<DraftReviewProps> = ({
                                 draft={draft}
                                 model={modelChange}
                             />
-                        </Paper>
+                        </Box>
                     );
                 })}
             </WorkerPoolContextProvider>

@@ -1,3 +1,162 @@
+# [3.330.0](https://github.com/lightdash/lightdash/compare/3.329.1...3.330.0) (2026-11-19)
+
+
+### Features
+
+* **semantic-studio:** show what a draft changes across the models view, chat card and overview ([#32952](https://github.com/lightdash/lightdash/issues/32952)) ([44a0ee5](https://github.com/lightdash/lightdash/commit/44a0ee55feaf070dbb75024bb7e058a0dd97e753))
+
+## [3.329.1](https://github.com/lightdash/lightdash/compare/3.329.0...3.329.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **billing:** hide billing portal button when no link can be fetched ([#32949](https://github.com/lightdash/lightdash/issues/32949)) ([53ae304](https://github.com/lightdash/lightdash/commit/53ae304257bc7980492dab54c4566322c67240b5))
+
+# [3.329.0](https://github.com/lightdash/lightdash/compare/3.328.3...3.329.0) (2026-11-19)
+
+
+### Features
+
+* **analytics:** add agent evaluation reporting ([#32945](https://github.com/lightdash/lightdash/issues/32945)) ([6b55419](https://github.com/lightdash/lightdash/commit/6b55419c456445255274cb0c3be0c02d4169f11e))
+
+## [3.328.3](https://github.com/lightdash/lightdash/compare/3.328.2...3.328.3) (2026-11-19)
+
+
+### Bug Fixes
+
+* **ai:** keep OpenAI Responses requests stateless for Zero Data Retention ([#32947](https://github.com/lightdash/lightdash/issues/32947)) ([41e94e7](https://github.com/lightdash/lightdash/commit/41e94e7e940fe96bdf27d02b84dbc39cc92920af))
+
+## [3.328.2](https://github.com/lightdash/lightdash/compare/3.328.1...3.328.2) (2026-11-19)
+
+
+### Bug Fixes
+
+* **ai-agent:** teach visualize chart choice and chart-shaped nodes ([#32944](https://github.com/lightdash/lightdash/issues/32944)) ([34c5833](https://github.com/lightdash/lightdash/commit/34c58332d6d8ef0e5b0f3f8ac675084fc4322689))
+
+## [3.328.1](https://github.com/lightdash/lightdash/compare/3.328.0...3.328.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **ai-agent:** remove "Step failed" summary from agent answers ([#32946](https://github.com/lightdash/lightdash/issues/32946)) ([28203b5](https://github.com/lightdash/lightdash/commit/28203b51303fd25b6e58d6d1ee7485176acf5b4a))
+
+# [3.328.0](https://github.com/lightdash/lightdash/compare/3.327.4...3.328.0) (2026-11-19)
+
+
+### Features
+
+* **semantic-studio:** review a draft in the Code tab's overview ([#32943](https://github.com/lightdash/lightdash/issues/32943)) ([a900b8d](https://github.com/lightdash/lightdash/commit/a900b8d2bfe53ee2d23a52062c4547fbd9d0eba4))
+
+## [3.327.4](https://github.com/lightdash/lightdash/compare/3.327.3...3.327.4) (2026-11-19)
+
+
+### Bug Fixes
+
+* **ai:** accept null on tool inputs the model leaves unused ([#32852](https://github.com/lightdash/lightdash/issues/32852)) ([73f31c3](https://github.com/lightdash/lightdash/commit/73f31c3809cafadd6cdc3e991f3d0a02d33de709))
+
+## [3.327.3](https://github.com/lightdash/lightdash/compare/3.327.2...3.327.3) (2026-11-19)
+
+
+### Bug Fixes
+
+* **ai-agent:** offer the SQL chart choice on dashboards that already hold SQL charts ([#32882](https://github.com/lightdash/lightdash/issues/32882)) ([ae7e18e](https://github.com/lightdash/lightdash/commit/ae7e18efde38c5816514d59a586c1b2723ed9684))
+
+## [3.327.2](https://github.com/lightdash/lightdash/compare/3.327.1...3.327.2) (2026-11-19)
+
+
+### Bug Fixes
+
+* improve input handling in request logging ([#32942](https://github.com/lightdash/lightdash/issues/32942)) ([41c887f](https://github.com/lightdash/lightdash/commit/41c887f256bb958a87972119aa3bc9d3d6d1b665))
+
+## [3.327.1](https://github.com/lightdash/lightdash/compare/3.327.0...3.327.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **semantic-studio:** show a lone question's choices without repeating it ([#32940](https://github.com/lightdash/lightdash/issues/32940)) ([e7ca2e3](https://github.com/lightdash/lightdash/commit/e7ca2e364bab1e608de361203fea531c469b50c4))
+
+# [3.327.0](https://github.com/lightdash/lightdash/compare/3.326.0...3.327.0) (2026-11-19)
+
+
+### Features
+
+* **semantic-studio:** make a dbt draft's states agree, and refresh after an outside merge ([#32934](https://github.com/lightdash/lightdash/issues/32934)) ([fb684d4](https://github.com/lightdash/lightdash/commit/fb684d4191f207641610d8ba5c35a28d8dcbf853))
+
+# [3.326.0](https://github.com/lightdash/lightdash/compare/3.325.0...3.326.0) (2026-11-19)
+
+
+### Features
+
+* **semantic-studio:** keep a draft while its pull request is open ([#32932](https://github.com/lightdash/lightdash/issues/32932)) ([4301044](https://github.com/lightdash/lightdash/commit/4301044686b6fd3256b16c5b8581057cdbaf2cba))
+
+# [3.325.0](https://github.com/lightdash/lightdash/compare/3.324.0...3.325.0) (2026-11-18)
+
+
+### Features
+
+* **semantic-studio:** one toolbar, the card as the reply, and a page that follows the draft ([#32930](https://github.com/lightdash/lightdash/issues/32930)) ([de3797f](https://github.com/lightdash/lightdash/commit/de3797faed863f0bac34a3f069242f1295ad1a45))
+
+# [3.324.0](https://github.com/lightdash/lightdash/compare/3.323.1...3.324.0) (2026-11-18)
+
+
+### Features
+
+* **semantic-studio:** end a dbt Studio turn with the same card: files changed, whether it compiles, what to do next ([#32922](https://github.com/lightdash/lightdash/issues/32922)) ([c6b21c3](https://github.com/lightdash/lightdash/commit/c6b21c37e0061c417709029d8b82aab06544337f))
+
+## [3.323.1](https://github.com/lightdash/lightdash/compare/3.323.0...3.323.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **ai-router:** use a generic heading on the router page ([#32917](https://github.com/lightdash/lightdash/issues/32917)) ([61d1892](https://github.com/lightdash/lightdash/commit/61d1892d9539497d3682a477f4dd35e57f3423a6))
+
+# [3.323.0](https://github.com/lightdash/lightdash/compare/3.322.0...3.323.0) (2026-11-18)
+
+
+### Features
+
+* **semantic-studio:** end a Studio turn with one card that says what changed and what to do next ([#32915](https://github.com/lightdash/lightdash/issues/32915)) ([b94d49f](https://github.com/lightdash/lightdash/commit/b94d49fd9289ce1522f82d0eaa2e9a55eb53e7fa))
+
+# [3.322.0](https://github.com/lightdash/lightdash/compare/3.321.1...3.322.0) (2026-11-18)
+
+
+### Bug Fixes
+
+* **semantic-studio:** keep a native model's formatting when a change is applied ([#32912](https://github.com/lightdash/lightdash/issues/32912)) ([b9d9bf5](https://github.com/lightdash/lightdash/commit/b9d9bf5502a7c0925a5c5843ede5e50f17b2a2e5))
+* **semantic-studio:** make Try it open Explore on a native draft ([#32913](https://github.com/lightdash/lightdash/issues/32913)) ([ab495b0](https://github.com/lightdash/lightdash/commit/ab495b0f3b825da510ac1cdf86b4a2916680b780))
+
+
+### Features
+
+* **semantic-studio:** end a native proposal with its steps and a link to review ([#32903](https://github.com/lightdash/lightdash/issues/32903)) ([f3cd8ec](https://github.com/lightdash/lightdash/commit/f3cd8ec6b475bcbb44092bda312179227515c12e))
+* **semantic-studio:** publish a native draft in a repository by merging its pull request ([#32914](https://github.com/lightdash/lightdash/issues/32914)) ([1ab832f](https://github.com/lightdash/lightdash/commit/1ab832f539ef765f62ac9d867342751f149c5175))
+
+## [3.321.1](https://github.com/lightdash/lightdash/compare/3.321.0...3.321.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **ai-agent:** stop the admin thread list timing out for large organizations (PROD-13190) ([#32901](https://github.com/lightdash/lightdash/issues/32901)) ([f880f3c](https://github.com/lightdash/lightdash/commit/f880f3ce24e4a0a479e38472853429f77f220f07))
+
+# [3.321.0](https://github.com/lightdash/lightdash/compare/3.320.0...3.321.0) (2026-11-18)
+
+
+### Bug Fixes
+
+* **semantic-studio:** keep the centre still while the agent works ([#32897](https://github.com/lightdash/lightdash/issues/32897)) ([e51e33b](https://github.com/lightdash/lightdash/commit/e51e33b57950fe21f43245d63e29b4bfd9b2ff00))
+
+
+### Features
+
+* **semantic-studio:** show the chat's work as tasks and fold the rest ([#32898](https://github.com/lightdash/lightdash/issues/32898)) ([278287a](https://github.com/lightdash/lightdash/commit/278287a45f6b7174165fa6a2e3f8765ba4919c97))
+
+# [3.320.0](https://github.com/lightdash/lightdash/compare/3.319.0...3.320.0) (2026-11-18)
+
+
+### Features
+
+* show Analytics settings tabs as their embedded, filterable dashboards ([#32784](https://github.com/lightdash/lightdash/issues/32784)) ([5cf67bc](https://github.com/lightdash/lightdash/commit/5cf67bc73457d5483219d562944d7ec329acb3ea))
+
 # [3.319.0](https://github.com/lightdash/lightdash/compare/3.318.0...3.319.0) (2026-11-18)
 
 

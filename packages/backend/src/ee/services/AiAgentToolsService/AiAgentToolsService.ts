@@ -5468,8 +5468,8 @@ export class AiAgentToolsService extends BaseService {
             {
                 projectUuid: context.projectUuid,
                 table,
-                schema: schema ?? null,
-                database: database ?? null,
+                schema,
+                database,
             },
             async () => {
                 let resolvedSchema = schema?.trim() || null;

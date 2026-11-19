@@ -100,69 +100,6 @@
     box-shadow: 0 0 0 3px var(--mantine-color-green-light);
 }
 
-.tabBadge {
-    min-width: 18px;
-    height: 18px;
-    padding: 0 5px;
-    display: inline-grid;
-    place-items: center;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--mantine-color-text) 9%, transparent);
-    font-size: 11px;
-    font-weight: 500;
-    font-variant-numeric: tabular-nums;
-    color: var(--mantine-color-text);
-}
-
-.tabBadge[data-tone='attention'] {
-    background: var(--mantine-color-orange-6);
-    color: var(--mantine-color-white);
-}
-
-.busyDot {
-    position: relative;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--mantine-color-violet-6);
-}
-
-.busyDot::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    background: inherit;
-    animation: ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
-}
-
-@keyframes ping {
-    75%,
-    100% {
-        transform: scale(2.4);
-        opacity: 0;
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .busyDot::after {
-        animation: none;
-    }
-}
-
-/* The open change: its name, where it stands, and what you can do with it. */
-.changeBar {
-    flex: none;
-    min-height: 46px;
-    padding: 6px var(--mantine-spacing-xs);
-    border-bottom: 1px solid var(--mantine-color-default-border);
-    background: color-mix(
-        in srgb,
-        var(--mantine-color-text) 2.5%,
-        var(--mantine-color-body)
-    );
-}
-
 .changeHeader {
     display: flex;
     flex-direction: column;
@@ -222,21 +159,6 @@
 
 .changeLink:hover {
     color: var(--mantine-color-text);
-}
-
-.changeName {
-    max-width: 360px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: var(--mantine-font-size-sm);
-    font-weight: 600;
-}
-
-.stageLine {
-    flex: 0 1 auto;
-    min-width: 0;
-    overflow: hidden;
 }
 
 .workspaceBody {
@@ -355,6 +277,29 @@
     background: var(--mantine-color-yellow-6);
 }
 
+.draftDot[data-change='new'] {
+    background: var(--mantine-color-green-6);
+}
+
+.draftDot[data-change='removed'] {
+    background: var(--mantine-color-red-6);
+}
+
+/* What the draft does to a model, beside its name in a list. */
+.changeTag {
+    flex: none;
+    font-size: 12px;
+    color: var(--mantine-color-yellow-8);
+}
+
+.changeTag[data-change='new'] {
+    color: var(--mantine-color-green-8);
+}
+
+.changeTag[data-change='removed'] {
+    color: var(--mantine-color-red-8);
+}
+
 /* Someone else's work in development: an outline, so it never reads as yours. */
 .draftDot[data-others] {
     background: transparent;
@@ -363,6 +308,22 @@
 
 .fileRow:first-child {
     margin-top: var(--mantine-spacing-xs);
+}
+
+/* The share of a change that adds against the share that removes. */
+.diffBar {
+    display: flex;
+    flex: none;
+    width: 32px;
+    height: 4px;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.railOverview {
+    flex: none;
+    padding: 0 8px var(--mantine-spacing-xs);
+    border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
 .fileRow {

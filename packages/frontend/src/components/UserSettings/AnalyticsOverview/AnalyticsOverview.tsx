@@ -44,6 +44,7 @@ import {
     AnalyticsAdoptionLink,
     AnalyticsAdoptionPreview,
 } from './AnalyticsAdoptionPreview';
+import AnalyticsDashboardEmbed from './AnalyticsDashboardEmbed';
 import classes from './AnalyticsOverview.module.css';
 import AnalyticsOverviewChart from './AnalyticsOverviewChart';
 import {
@@ -169,6 +170,7 @@ const AnalyticsOverview = ({
     projectUuid,
     projectUrlIdentifier,
     dashboards,
+    areDashboardsLoading = false,
     heading,
     status,
     actions,
@@ -176,6 +178,7 @@ const AnalyticsOverview = ({
     projectUuid: string;
     projectUrlIdentifier: string;
     dashboards: DashboardBasicDetails[];
+    areDashboardsLoading?: boolean;
     heading: ReactNode;
     status?: ReactNode;
     actions: ReactNode;
@@ -246,7 +249,21 @@ const AnalyticsOverview = ({
         onAdoptionTab || hasOpenedAdoption,
     );
     const isAdoption = onAdoptionTab && adoptionApp.status !== 'unavailable';
-    const charts = isAdoption ? [] : tab.charts;
+    const dashboard = dashboards.find(
+        ({ slug, verification }) => slug === tab.dashboardSlug && verification,
+    );
+    // A tab with a dashboard shows that dashboard. Its own charts are only for when there is none to show
+    const isDashboard = !isAdoption && dashboard !== undefined;
+    const isWaitingForDashboard =
+        !isAdoption && areDashboardsLoading && tab.dashboardSlug !== null;
+    // Once opened, a dashboard stays loaded behind the other tabs, like the Adoption app
+    const [openedDashboards, setOpenedDashboards] = useState<string[]>([]);
+    if (isDashboard && !openedDashboards.includes(dashboard.slug))
+        setOpenedDashboards([...openedDashboards, dashboard.slug]);
+    const showsOwnCharts =
+        !isAdoption && !isDashboard && !isWaitingForDashboard;
+    const charts = showsOwnCharts ? tab.charts : [];
+    const summary = showsOwnCharts ? tab.summary : null;
     // The headline numbers summarise the whole instance, so they sit on the first tab only
     const showHeadlines = tab.id === 'overview';
     const headlineSpecs = showHeadlines
@@ -257,7 +274,7 @@ const AnalyticsOverview = ({
         [
             ...headlineSpecs,
             ...charts.map(({ query }) => query),
-            ...(tab.summary ? [tab.summary.query] : []),
+            ...(summary ? [summary.query] : []),
         ],
         filters,
     );
@@ -271,13 +288,63 @@ const AnalyticsOverview = ({
         previousFilters,
         currentQueries.every((query) => !query.isLoading),
     );
-    const dashboard = dashboards.find(
-        ({ slug, verification }) => slug === tab.dashboardSlug && verification,
-    );
     const lastDay = new Date(`${filters.end}T00:00:00Z`);
     lastDay.setUTCDate(lastDay.getUTCDate() - 1);
     const dateLabel = `${new Date(`${filters.start}T00:00:00Z`).toLocaleDateString(undefined, { dateStyle: 'medium', timeZone: 'UTC' })} – ${lastDay.toLocaleDateString(undefined, { dateStyle: 'medium', timeZone: 'UTC' })} (UTC)`;
 
+    const dateNote = (
+        <Tooltip label="Excludes today so every day in the range is complete.">
+            <Text fz="xs" c="dimmed" ta="right" tabIndex={0}>
+                {dateLabel}
+            </Text>
+        </Tooltip>
+    );
+    const projectControl = (
+        <Tooltip
+            label={selectedProject ? projectNames[selectedProject] : ''}
+            disabled={!selectedProject}
+            multiline
+            maw={360}
+            events={{
+                hover: true,
+                focus: true,
+                touch: true,
+            }}
+        >
+            <Select
+                aria-label="Project"
+                placeholder="All projects"
+                clearable
+                searchable
+                data={projectOptions}
+                value={selectedProject}
+                onChange={setSelectedProject}
+                disabled={projects.isLoading || projects.isError}
+                className={classes.projectFilter}
+                classNames={{
+                    input: classes.projectInput,
+                }}
+            />
+        </Tooltip>
+    );
+    const dateControl = (
+        <SegmentedControl
+            size="xs"
+            withItemsBorders={false}
+            classNames={{
+                label: classes.dateOption,
+                root: classes.dateControl,
+                indicator: classes.dateIndicator,
+            }}
+            aria-label="Date range"
+            value={days}
+            onChange={setDays}
+            data={analyticsDateRangeDays.map((range) => ({
+                value: String(range),
+                label: `Last ${range} days`,
+            }))}
+        />
+    );
     return (
         <Stack gap="md" className={classes.overview}>
             <Group justify="space-between" align="center" gap="md">
@@ -451,7 +518,44 @@ const AnalyticsOverview = ({
                         />
                     </Box>
                 )}
-                <Tabs.Panel value={activeTab} pt={isAdoption ? 0 : 'lg'}>
+                {openedDashboards.map((slug) => {
+                    const opened = dashboards.find(
+                        (candidate) => candidate.slug === slug,
+                    );
+                    if (!opened) return null;
+                    const isShown = isDashboard && dashboard.slug === slug;
+                    return (
+                        <Box
+                            key={slug}
+                            pt={isShown ? 'sm' : 0}
+                            className={
+                                isShown ? undefined : classes.adoptionHidden
+                            }
+                            aria-hidden={!isShown || undefined}
+                        >
+                            <AnalyticsDashboardEmbed
+                                projectUuid={projectUuid}
+                                projectUrlIdentifier={projectUrlIdentifier}
+                                slug={slug}
+                                name={opened.name}
+                                range={{
+                                    start: filters.start,
+                                    lastDay: lastDay.toISOString().slice(0, 10),
+                                }}
+                                chosenProject={selectedProject}
+                                controls={{
+                                    dateNote,
+                                    date: dateControl,
+                                    project: projectControl,
+                                }}
+                            />
+                        </Box>
+                    );
+                })}
+                <Tabs.Panel
+                    value={activeTab}
+                    pt={isAdoption || isDashboard ? 0 : 'lg'}
+                >
                     {isAdoption ? (
                         adoptionApp.status === 'loading' && (
                             <Center
@@ -462,74 +566,24 @@ const AnalyticsOverview = ({
                                 <Loader size="sm" />
                             </Center>
                         )
+                    ) : isDashboard ? null : isWaitingForDashboard ? (
+                        <Center
+                            h={480}
+                            role="status"
+                            aria-label="Loading dashboard"
+                        >
+                            <Loader size="sm" />
+                        </Center>
                     ) : (
                         <Stack gap="md">
                             <Group gap="md" justify="flex-end" align="center">
-                                <Tooltip label="Excludes today so every day in the range is complete.">
-                                    <Text
-                                        fz="xs"
-                                        c="dimmed"
-                                        ta="right"
-                                        tabIndex={0}
-                                    >
-                                        {dateLabel}
-                                    </Text>
-                                </Tooltip>
+                                {dateNote}
                                 <Group
                                     gap="md"
                                     className={classes.filterControls}
                                 >
-                                    <Tooltip
-                                        label={
-                                            selectedProject
-                                                ? projectNames[selectedProject]
-                                                : ''
-                                        }
-                                        disabled={!selectedProject}
-                                        multiline
-                                        maw={360}
-                                        events={{
-                                            hover: true,
-                                            focus: true,
-                                            touch: true,
-                                        }}
-                                    >
-                                        <Select
-                                            aria-label="Project"
-                                            placeholder="All projects"
-                                            clearable
-                                            searchable
-                                            data={projectOptions}
-                                            value={selectedProject}
-                                            onChange={setSelectedProject}
-                                            disabled={
-                                                projects.isLoading ||
-                                                projects.isError
-                                            }
-                                            className={classes.projectFilter}
-                                            classNames={{
-                                                input: classes.projectInput,
-                                            }}
-                                        />
-                                    </Tooltip>
-                                    <SegmentedControl
-                                        size="xs"
-                                        withItemsBorders={false}
-                                        classNames={{
-                                            label: classes.dateOption,
-                                            root: classes.dateControl,
-                                            indicator: classes.dateIndicator,
-                                        }}
-                                        aria-label="Date range"
-                                        value={days}
-                                        onChange={setDays}
-                                        data={analyticsDateRangeDays.map(
-                                            (range) => ({
-                                                value: String(range),
-                                                label: `Last ${range} days`,
-                                            }),
-                                        )}
-                                    />
+                                    {projectControl}
+                                    {dateControl}
                                 </Group>
                             </Group>
                             {showHeadlines && (
@@ -560,10 +614,10 @@ const AnalyticsOverview = ({
                                     )}
                                 </SimpleGrid>
                             )}
-                            {tab.summary && (
+                            {summary && (
                                 <AnalyticsTabSummary
                                     key={tab.id}
-                                    summary={tab.summary}
+                                    summary={summary}
                                     result={
                                         currentQueries[
                                             headlineSpecs.length + charts.length

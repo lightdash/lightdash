@@ -20,7 +20,7 @@ afterEach(() => {
 });
 
 describe('the development view of a checked-out draft', () => {
-    it('reads the draft on every page of its project but Studio, and on no other project', () => {
+    it('reads the draft on every page of its project, Studio included, and on no other project', () => {
         localStorage.setItem('lightdash-checked-out-project', 'p-1 shop');
         at('/projects/shop/tables/orders');
         expect(getDevelopmentViewHeaders()).toEqual({
@@ -31,7 +31,9 @@ describe('the development view of a checked-out draft', () => {
             [DEVELOPMENT_VIEW_HEADER]: 'true',
         });
         at('/projects/shop/semantic-layer/kinds/modelled');
-        expect(getDevelopmentViewHeaders()).toEqual({});
+        expect(getDevelopmentViewHeaders()).toEqual({
+            [DEVELOPMENT_VIEW_HEADER]: 'true',
+        });
         at('/projects/other/tables');
         expect(getDevelopmentViewHeaders()).toEqual({});
     });
@@ -71,13 +73,14 @@ describe('the development view of a checked-out draft', () => {
         ).toBeNull();
     });
 
-    it('never serves Explore what Studio cached as published for the same key', () => {
+    it('never serves a draft page what was cached as published for the same key', () => {
         const queryClient = createQueryClient();
         const key = ['tables', 'orders', 'p-1'];
-        localStorage.setItem('lightdash-checked-out-project', 'p-1');
         at('/projects/p-1/semantic-layer');
         queryClient.setQueryData(key, 'published');
         queryClient.setQueryData(['semantic-studio-checkout', 'p-1'], 'a');
+        localStorage.setItem('lightdash-checked-out-project', 'p-1');
+        expect(queryClient.getQueryData(key)).toBeUndefined();
         at('/projects/p-1/tables/orders');
         expect(queryClient.getQueryData(key)).toBeUndefined();
         expect(

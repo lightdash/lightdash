@@ -78,7 +78,7 @@ export class SemanticStudioController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results: await this.getService().getStatus(
+            results: await this.getService().getPageStatus(
                 toSessionUser(req.account),
                 projectUuid,
             ),
@@ -618,6 +618,7 @@ export class SemanticStudioController extends BaseController {
     /**
      * Takes this person's whole draft live as one change, or none of it when any part fails its checks.
      * @summary Apply my semantic layer draft
+     * @param merge For a project whose models live in a repository, also merge the pull request the draft is sent as.
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -626,6 +627,7 @@ export class SemanticStudioController extends BaseController {
     async applyDraft(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
+        @Query() merge?: boolean,
     ): Promise<ApiSemanticLayerDraftApplyResponse> {
         assertRegisteredAccount(req.account);
         return {
@@ -634,6 +636,7 @@ export class SemanticStudioController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 null,
+                merge === true,
             ),
         };
     }
@@ -641,6 +644,7 @@ export class SemanticStudioController extends BaseController {
     /**
      * Takes one model from this person's draft live, or nothing when it fails its checks.
      * @summary Apply one model from my semantic layer draft
+     * @param merge For a project whose models live in a repository, also merge the pull request the model is sent as.
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -650,6 +654,7 @@ export class SemanticStudioController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
         @Path() model: string,
+        @Query() merge?: boolean,
     ): Promise<ApiSemanticLayerDraftApplyResponse> {
         assertRegisteredAccount(req.account);
         return {
@@ -658,6 +663,7 @@ export class SemanticStudioController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 model,
+                merge === true,
             ),
         };
     }

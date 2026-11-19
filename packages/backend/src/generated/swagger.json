@@ -42582,6 +42582,17 @@
                 "required": ["instruction"],
                 "type": "object"
             },
+            "SemanticLayerBlocker": {
+                "type": "string",
+                "enum": [
+                    "no_access",
+                    "unsupported_connection",
+                    "no_repository_access",
+                    "github_app_missing",
+                    "models_from_outside",
+                    "preview_project"
+                ]
+            },
             "SemanticLayerApplyMode": {
                 "type": "string",
                 "enum": ["live", "pull_request", "dbt_pull_request"]
@@ -42592,12 +42603,20 @@
                         "$ref": "#/components/schemas/SemanticLayerApplyMode",
                         "description": "How a change lands: `live` applies a draft here, `pull_request` sends a draft to the project's repository, and `dbt_pull_request` has the agent edit the dbt project in a pull request, with no draft."
                     },
+                    "blocker": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SemanticLayerBlocker"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "enabled": {
                         "type": "boolean",
                         "description": "Whether this person can change this project's models from Semantic Studio."
                     }
                 },
-                "required": ["appliesAs", "enabled"],
+                "required": ["appliesAs", "blocker", "enabled"],
                 "type": "object"
             },
             "ApiSuccess_SemanticLayerStatus_": {
@@ -42653,6 +42672,10 @@
             },
             "SemanticStudioWorkspace": {
                 "properties": {
+                    "publishedLive": {
+                        "type": "boolean",
+                        "description": "Whether any of its draft went live here, without a pull request."
+                    },
                     "finishedAt": {
                         "type": "string",
                         "format": "date-time",
@@ -42723,6 +42746,7 @@
                     }
                 },
                 "required": [
+                    "publishedLive",
                     "finishedAt",
                     "updatedAt",
                     "createdAt",
@@ -43858,6 +43882,37 @@
             },
             "SemanticLayerDraftApplyResult": {
                 "properties": {
+                    "merge": {
+                        "anyOf": [
+                            {
+                                "properties": {
+                                    "merged": {
+                                        "type": "boolean",
+                                        "enum": [true],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["merged"],
+                                "type": "object"
+                            },
+                            {
+                                "properties": {
+                                    "reason": {
+                                        "type": "string"
+                                    },
+                                    "merged": {
+                                        "type": "boolean",
+                                        "enum": [false],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["reason", "merged"],
+                                "type": "object"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Whether that pull request merged when publishing asked for it, and why not; null when no merge was asked."
+                    },
                     "pullRequestUrl": {
                         "type": "string",
                         "nullable": true,
@@ -43886,7 +43941,12 @@
                         "description": "Null when nothing went live."
                     }
                 },
-                "required": ["pullRequestUrl", "failures", "exploreCount"],
+                "required": [
+                    "merge",
+                    "pullRequestUrl",
+                    "failures",
+                    "exploreCount"
+                ],
                 "type": "object"
             },
             "ApiSuccess_SemanticLayerDraftApplyResult_": {
@@ -80311,7 +80371,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.319.0",
+        "version": "3.330.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -95695,6 +95755,15 @@
                         "schema": {
                             "$ref": "#/components/schemas/UUID"
                         }
+                    },
+                    {
+                        "description": "For a project whose models live in a repository, also merge the pull request the draft is sent as.",
+                        "in": "query",
+                        "name": "merge",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
                     }
                 ]
             }
@@ -95743,6 +95812,15 @@
                         "required": true,
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    {
+                        "description": "For a project whose models live in a repository, also merge the pull request the model is sent as.",
+                        "in": "query",
+                        "name": "merge",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
                         }
                     }
                 ]
