@@ -1,3 +1,10 @@
+## [3.328.2](https://github.com/lightdash/lightdash/compare/3.328.1...3.328.2) (2026-11-19)
+
+
+### Bug Fixes
+
+* **ai-agent:** teach visualize chart choice and chart-shaped nodes ([#32944](https://github.com/lightdash/lightdash/issues/32944)) ([34c5833](https://github.com/lightdash/lightdash/commit/34c58332d6d8ef0e5b0f3f8ac675084fc4322689))
+
 ## [3.328.1](https://github.com/lightdash/lightdash/compare/3.328.0...3.328.1) (2026-11-19)
 
 
