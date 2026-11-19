@@ -921,6 +921,8 @@ export type DescribeWarehouseTableFn = (args: {
     warehouseType: WarehouseTypes;
 }>;
 
+export type WarehouseColumn = { name: string; type: string };
+
 export type ListWarehouseColumnsFn = (args: {
     /** Null reads every schema. */
     schema: string | null;
@@ -929,7 +931,7 @@ export type ListWarehouseColumnsFn = (args: {
         database: string;
         schema: string;
         table: string;
-        columns: { name: string; type: string }[];
+        columns: WarehouseColumn[];
     }[];
     /** Tables left out because one call reads a bounded number of them. */
     unreadTableCount: number;

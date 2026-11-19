@@ -115,6 +115,7 @@ import {
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import * as JsonPatch from 'fast-json-patch';
+import NodeCache from 'node-cache';
 import { fromSession } from '../../../auth/account';
 import { mcpAgentPermissionsApply } from '../../../auth/agentPermissions/caller';
 import { type AgentToolEffect } from '../../../auth/agentPermissions/capabilityMap';
@@ -248,6 +249,7 @@ import {
     SyncDbtProjectFn,
     UpdateUserNameFn,
     ValidateContentFn,
+    WarehouseColumn,
 } from '../ai/types/aiAgentDependencies';
 import {
     assertAgentKeepsChartMerge,
@@ -294,7 +296,7 @@ type SearchContentResult = Awaited<
 
 // A failed node's error, e.g. a Python traceback, as the model sees it.
 const COMPOSER_NODE_ERROR_MAX_CHARS = 4096;
-const WAREHOUSE_COLUMNS_TTL_MS = 10 * 60 * 1000;
+const WAREHOUSE_COLUMNS_TTL_SECONDS = 10 * 60;
 const MAX_KEPT_TABLE_COLUMNS = 20_000;
 
 const isDataAppSearchResult = (
@@ -630,10 +632,10 @@ export class AiAgentToolsService extends BaseService {
     >();
 
     // Kept in this process only: another instance reads the warehouse again.
-    private readonly warehouseColumns = new Map<
-        string,
-        { at: number; columns: { name: string; type: string }[] }
-    >();
+    private readonly warehouseColumns = new NodeCache({
+        stdTTL: WAREHOUSE_COLUMNS_TTL_SECONDS,
+        useClones: false,
+    });
 
     private readonly appModel: AppModel;
 
@@ -6277,7 +6279,7 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
-    /** The columns of the tables the agent may list, read in one go and kept so a second search reads nothing. */
+    /** The columns of the tables the agent may list, kept after the first read so a second search reads nothing. */
     private listWarehouseColumns(
         context: AiAgentToolsRuntimeContext,
         { schema }: Parameters<ListWarehouseColumnsFn>[0],
@@ -6287,21 +6289,22 @@ export class AiAgentToolsService extends BaseService {
             { projectUuid: context.projectUuid, schema },
             async () => {
                 // Listed fresh each time, so a table that left the agent's scope leaves the search too.
-                const catalog = await this.listWarehouseTables(context);
-                const listed = Object.entries(catalog).flatMap(
-                    ([database, schemas]) =>
-                        Object.entries(schemas)
-                            .filter(([name]) => !schema || name === schema)
-                            .flatMap(([schemaName, tables]) =>
-                                Object.keys(tables).map((table) => ({
-                                    database,
-                                    schema: schemaName,
-                                    table,
-                                })),
-                            ),
+                const listed = Object.entries(
+                    await this.listWarehouseTables(context),
+                ).flatMap(([database, schemas]) =>
+                    Object.entries(schemas)
+                        .filter(([name]) => !schema || name === schema)
+                        .flatMap(([schemaName, tables]) =>
+                            Object.keys(tables).map((table) => ({
+                                database,
+                                schema: schemaName,
+                                table,
+                            })),
+                        ),
                 );
+                type Table = (typeof listed)[number];
                 // Columns were read with this person's credentials, so they are kept for this person only.
-                const keyOf = (table: (typeof listed)[number]) =>
+                const keyOf = (table: Table) =>
                     [
                         context.projectUuid,
                         context.user.userUuid,
@@ -6309,56 +6312,49 @@ export class AiAgentToolsService extends BaseService {
                         table.schema,
                         table.table,
                     ].join('|');
-                const now = Date.now();
-                const isKept = (table: (typeof listed)[number]) => {
-                    const kept = this.warehouseColumns.get(keyOf(table));
-                    return (
-                        kept !== undefined &&
-                        now - kept.at <= WAREHOUSE_COLUMNS_TTL_MS
-                    );
-                };
-                const unread = listed.filter((table) => !isKept(table));
+                const keptColumns = (table: Table) =>
+                    this.warehouseColumns.get<WarehouseColumn[]>(keyOf(table));
+                const unread = listed.filter(
+                    (table) => keptColumns(table) === undefined,
+                );
                 if (unread.length > 0) {
-                    const { catalog: read, tables: readTables } =
-                        await this.projectService.getWarehouseColumns(
-                            context.user,
-                            context.projectUuid,
-                            context.defaultQueryExecutionContext,
-                            unread,
-                            context.querySurface,
-                        );
-                    readTables.forEach((table) => {
-                        const key = keyOf(table);
-                        // Deleted first so a refreshed table moves to the end, and the oldest is always first.
-                        this.warehouseColumns.delete(key);
-                        this.warehouseColumns.set(key, {
-                            at: now,
-                            columns: Object.entries(
-                                read[table.database]?.[table.schema]?.[
+                    const read = await this.projectService.getWarehouseColumns(
+                        context.user,
+                        context.projectUuid,
+                        context.defaultQueryExecutionContext,
+                        unread,
+                        context.querySurface,
+                    );
+                    if (
+                        this.warehouseColumns.getStats().keys +
+                            read.tables.length >
+                        MAX_KEPT_TABLE_COLUMNS
+                    ) {
+                        this.warehouseColumns.flushAll();
+                    }
+                    this.warehouseColumns.mset(
+                        read.tables.map((table) => ({
+                            key: keyOf(table),
+                            val: Object.entries(
+                                read.catalog[table.database]?.[table.schema]?.[
                                     table.table
                                 ] ?? {},
-                            ).map(([name, type]) => ({
-                                name,
-                                type: String(type),
-                            })),
-                        });
-                    });
-                    while (
-                        this.warehouseColumns.size > MAX_KEPT_TABLE_COLUMNS
-                    ) {
-                        const [oldest] = this.warehouseColumns.keys();
-                        this.warehouseColumns.delete(oldest);
-                    }
+                            ).map(
+                                ([name, type]): WarehouseColumn => ({
+                                    name,
+                                    type: String(type),
+                                }),
+                            ),
+                        })),
+                    );
                 }
-                const tables = listed.filter(isKept);
+                // Only a warehouse read table by table leaves any unread.
+                const tables = listed.flatMap((table) => {
+                    const columns = keptColumns(table);
+                    return columns ? [{ ...table, columns }] : [];
+                });
                 return {
-                    tables: tables.map((table) => ({
-                        ...table,
-                        columns:
-                            this.warehouseColumns.get(keyOf(table))?.columns ??
-                            [],
-                    })),
-                    // Only a warehouse read table by table leaves any out.
+                    tables,
                     unreadTableCount: listed.length - tables.length,
                 };
             },

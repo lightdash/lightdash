@@ -709,6 +709,8 @@ const gzipAsync = promisify(gzip);
 // Reading columns table by table costs one warehouse request each.
 const MAX_TABLES_READ_ONE_BY_ONE = 500;
 
+type WarehouseTableRef = { database: string; schema: string; table: string };
+
 type TestProjectAdapterCredentials =
     | { kind: 'submitted_resolved'; credentials: CreateWarehouseCredentials }
     | {
@@ -15528,15 +15530,13 @@ export class ProjectService
      * read a schema at a time where the warehouse can, and table by table for a
      * bounded number of them where it cannot. Says which tables it read.
      */
-    async getWarehouseColumns<
-        T extends { database: string; schema: string; table: string },
-    >(
+    async getWarehouseColumns(
         user: SessionUser,
         projectUuid: string,
         queryContext: QueryExecutionContext,
-        tables: T[],
+        tables: WarehouseTableRef[],
         querySurface?: QuerySurface,
-    ): Promise<{ catalog: WarehouseCatalog; tables: T[] }> {
+    ): Promise<{ catalog: WarehouseCatalog; tables: WarehouseTableRef[] }> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         if (
@@ -15583,7 +15583,6 @@ export class ProjectService
                             await warehouseClient.getSchemaColumns(schemas);
                         // A read that names tables differently from the listing would look like no columns anywhere.
                         if (
-                            tables.length === 0 ||
                             tables.some(
                                 ({ database, schema, table }) =>
                                     catalog[database]?.[schema]?.[table],
