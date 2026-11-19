@@ -6,7 +6,7 @@ import { type FileStorageClient } from '../../clients/FileStorage/FileStorageCli
 const gzipAsync = promisify(gzip);
 const gunzipAsync = promisify(gunzip);
 
-/** The manifest a project's dbt compile read, and the commit it was parsed at. */
+/** The manifest a project's dbt compile read, or Semantic Studio patched on to a later commit, and that commit. */
 export type CompiledDbtManifest = { commitSha: string; manifest: DbtManifest };
 
 const fileId = (projectUuid: string) => `compiled-dbt-manifest/${projectUuid}`;

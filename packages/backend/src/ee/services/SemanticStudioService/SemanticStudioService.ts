@@ -60,7 +60,11 @@ import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureF
 import { type JobModel } from '../../../models/JobModel/JobModel';
 import { type SavedChartModel } from '../../../models/SavedChartModel';
 import { BaseService } from '../../../services/BaseService';
-import { readCompiledDbtManifest } from '../../../services/ProjectService/compiledDbtManifest';
+import {
+    readCompiledDbtManifest,
+    saveCompiledDbtManifest,
+    type CompiledDbtManifest,
+} from '../../../services/ProjectService/compiledDbtManifest';
 import { type ProjectService } from '../../../services/ProjectService/ProjectService';
 import { type ValidationService } from '../../../services/ValidationService/ValidationService';
 import { runWithConcurrency } from '../../../utils/runWithConcurrency';
@@ -78,6 +82,7 @@ import { getWritebackConnectionSupport } from '../AiAgentService/writebackConnec
 import { type AiWritebackService } from '../AiWritebackService/AiWritebackService';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import {
+    advanceCompiledManifest,
     findModelsToCompile,
     findNewCompileErrors,
     patchManifest,
@@ -931,16 +936,26 @@ export class SemanticStudioService extends BaseService {
         change: DbtScriptChange,
         { checkQueries }: { checkQueries: boolean },
     ): Promise<DbtScriptCheck> {
-        const compiled = await readCompiledDbtManifest(
+        const stored = await readCompiledDbtManifest(
             this.fileStorageClient,
             projectUuid,
         );
-        if (compiled === null) {
+        if (stored === null) {
             return {
                 status: 'unsupported',
                 reason: 'The project has no compiled manifest to check against',
             };
         }
+        const compiled =
+            change.headCommitSha === null ||
+            change.headCommitSha === stored.commitSha
+                ? stored
+                : await this.advanceCompiledDbtManifest(
+                      projectUuid,
+                      stored,
+                      change.headCommitSha,
+                      change,
+                  );
         const since = await change.listChangedSince(compiled.commitSha);
         if (since === null) {
             return {
@@ -1037,6 +1052,46 @@ export class SemanticStudioService extends BaseService {
             changedModels: patch.changedModels,
             explores,
         };
+    }
+
+    /** Moves the manifest saves are checked against on to the project branch's head; cached explores are left as compiled. */
+    private async advanceCompiledDbtManifest(
+        projectUuid: string,
+        stored: CompiledDbtManifest,
+        headCommitSha: string,
+        change: DbtScriptChange,
+    ): Promise<CompiledDbtManifest> {
+        const startedAt = performance.now();
+        const log = (outcome: Record<string, unknown>) =>
+            this.logger.info('Semantic Studio compiled manifest advance', {
+                event: 'semantic_studio.compiled_manifest.advanced',
+                projectUuid,
+                fromCommitSha: stored.commitSha,
+                toCommitSha: headCommitSha,
+                ...outcome,
+                durationMs: Math.round(performance.now() - startedAt),
+            });
+        try {
+            const advance = await advanceCompiledManifest(
+                stored,
+                headCommitSha,
+                change,
+            );
+            if (advance.status === 'unsupported') {
+                log({ status: 'unsupported', reason: advance.reason });
+                return stored;
+            }
+            await saveCompiledDbtManifest(
+                this.fileStorageClient,
+                projectUuid,
+                advance.compiled,
+            );
+            log({ status: 'advanced', files: advance.files });
+            return advance.compiled;
+        } catch (error) {
+            log({ status: 'failed', error: getErrorMessage(error) });
+            return stored;
+        }
     }
 
     /** Keeps what a code-mode change compiled to as the conversation's try-out, until the preview project is built. */

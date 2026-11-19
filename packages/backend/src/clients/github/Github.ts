@@ -696,7 +696,7 @@ export const getBranchHeadSha = async ({
     }
 };
 
-/** The files that differ between a commit and a later one; null when `head` does not simply follow `base`, or there are too many to list. */
+/** The files that differ between two commits, also when they diverged; null when there are too many to list. */
 export const getFilesChangedSince = async ({
     owner,
     repo,
@@ -713,19 +713,30 @@ export const getFilesChangedSince = async ({
     token?: string;
 }): Promise<string[] | null> => {
     const { octokit, headers } = getOctokit(installationId, token);
+    // A three-dot compare lists the files changed since the merge base, so a diverged pair is compared both ways.
+    const compare = async (from: string, to: string) =>
+        (
+            await octokit.rest.repos.compareCommitsWithBasehead({
+                owner,
+                repo,
+                basehead: `${from}...${to}`,
+                // Files are listed on the first page whatever its size; commits are not needed.
+                per_page: 1,
+                headers,
+            })
+        ).data;
     try {
-        const { data } = await octokit.rest.repos.compareCommitsWithBasehead({
-            owner,
-            repo,
-            basehead: `${base}...${head}`,
-            // Files are listed on the first page whatever its size; commits are not needed.
-            per_page: 1,
-            headers,
-        });
-        if (data.status === 'identical') return [];
-        const files = data.files ?? [];
-        // The compare lists at most 300 files.
-        if (data.status !== 'ahead' || files.length >= 300) return null;
+        const forward = await compare(base, head);
+        if (forward.status === 'identical') return [];
+        const compares =
+            forward.status === 'ahead'
+                ? [forward]
+                : [forward, await compare(head, base)];
+        const files = compares.flatMap((data) => data.files ?? []);
+        // Each compare lists at most 300 files.
+        if (compares.some((data) => (data.files ?? []).length >= 300)) {
+            return null;
+        }
         return [
             ...new Set(
                 files.flatMap(({ filename, previous_filename: previous }) =>

@@ -2116,6 +2116,8 @@ export class AiWritebackService extends BaseService {
                         repoPaths(
                             await checkout.listFilesChangedSince(commitSha),
                         ),
+                    headCommitSha:
+                        checkout.prUrl === null ? checkout.headSha : null,
                 });
                 this.logger.info('AI writeback script checked', {
                     event: 'ai_writeback.script.checked',

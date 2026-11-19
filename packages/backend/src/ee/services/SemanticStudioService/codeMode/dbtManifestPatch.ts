@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { isEqual, merge } from 'es-toolkit/compat';
 import { parse } from 'yaml';
+import { type CompiledDbtManifest } from '../../../../services/ProjectService/compiledDbtManifest';
 
 /** A file of the dbt project as of the stored manifest's commit, and as the change leaves it; null where it does not exist. */
 export type DbtFileChange = {
@@ -23,6 +24,8 @@ export type DbtScriptChange = {
     readAt: (path: string, commitSha: string) => Promise<string | null>;
     /** Null when the branch cannot be compared with that commit. */
     listChangedSince: (commitSha: string) => Promise<string[] | null>;
+    /** The head commit when the branch read is the one the project compiles from; null on a pull request's branch. */
+    headCommitSha: string | null;
 };
 
 /** Whether a change compiled and works, or why it needs a dbt run to be checked. */
@@ -347,6 +350,40 @@ export const patchManifest = (
         }
         throw error;
     }
+};
+
+/** Moves a compiled manifest on to a newer commit by patching every file changed since, or says why only dbt can. */
+export const advanceCompiledManifest = async (
+    compiled: CompiledDbtManifest,
+    commitSha: string,
+    branch: Pick<DbtScriptChange, 'readAt' | 'listChangedSince'>,
+): Promise<
+    | { status: 'advanced'; compiled: CompiledDbtManifest; files: number }
+    | { status: 'unsupported'; reason: string }
+> => {
+    const since = await branch.listChangedSince(compiled.commitSha);
+    if (since === null) {
+        return {
+            status: 'unsupported',
+            reason: 'The branch cannot be compared with the compiled commit',
+        };
+    }
+    const patch = patchManifest(
+        compiled.manifest,
+        await Promise.all(
+            since.map(async (path) => ({
+                path,
+                base: await branch.readAt(path, compiled.commitSha),
+                next: await branch.readAt(path, commitSha),
+            })),
+        ),
+    );
+    if (patch.status === 'unsupported') return patch;
+    return {
+        status: 'advanced',
+        compiled: { commitSha, manifest: patch.manifest },
+        files: since.length,
+    };
 };
 
 /** The models to compile so every explore a change reaches compiles: the changed ones, those that join them, and what those join. */

@@ -29,6 +29,10 @@ import {
 } from '@lightdash/common';
 import { Readable } from 'node:stream';
 import { stringify } from 'yaml';
+import {
+    readCompiledDbtManifest,
+    saveCompiledDbtManifest,
+} from '../../../services/ProjectService/compiledDbtManifest';
 import { user } from '../../../services/ProjectService/ProjectService.mock';
 import { type DbSemanticStudioBranchCompile } from '../../database/entities/semanticStudioBranchCompiles';
 import {
@@ -38,6 +42,7 @@ import {
     type ProjectModelDocumentModel,
     type StoredDraftChange,
 } from '../../models/ProjectModelDocumentModel';
+import { type DbtScriptChange } from './codeMode/dbtManifestPatch';
 import {
     isSourcePath,
     SemanticStudioService,
@@ -340,7 +345,7 @@ const setup = ({
     const compileExploresFromManifest = vi.fn(
         async (): Promise<(Explore | ExploreError)[]> => [TRY_OUT_EXPLORE],
     );
-    const files = new Map<string, string>();
+    const files = new Map<string, Buffer>();
     const branchCompiles = new Map<string, DbSemanticStudioBranchCompile>();
     let compileRequests = 0;
     const queueBranchCompile = vi.fn(
@@ -721,7 +726,7 @@ const setup = ({
         fileStorageClient: {
             isEnabled: () => true,
             uploadTxt: async (txt, id) => {
-                files.set(`${id}.txt`, txt.toString());
+                files.set(`${id}.txt`, txt);
                 return `${id}.txt`;
             },
             getFileStream: async (fileId) => {
@@ -744,6 +749,7 @@ const setup = ({
         getPullRequestState,
         recordPullRequestState,
         aiWritebackService: args.aiWritebackService,
+        fileStorageClient: args.fileStorageClient,
         workspaceModel: args.workspaceModel,
         setActiveWorkspace: (next: typeof activeWorkspace) => {
             activeWorkspace = next;
@@ -3324,6 +3330,110 @@ describe('saving a hand edit', () => {
                 path: 'models/../profiles.yml',
             }),
         ).rejects.toThrow(ParameterError);
+    });
+});
+
+describe('checking a dbt change against the compiled manifest', () => {
+    const MODEL = {
+        unique_id: 'model.shop.orders',
+        resource_type: 'model',
+        name: 'orders',
+        package_name: 'shop',
+        patch_path: 'shop://models/schema.yml',
+        description: '',
+        meta: {},
+        columns: {},
+    };
+    const COMPILED = {
+        commitSha: 'compiled-sha',
+        manifest: {
+            metadata: {
+                dbt_schema_version:
+                    'https://schemas.getdbt.com/dbt/manifest/v12.json',
+                generated_at: '',
+                adapter_type: 'postgres',
+                project_name: 'shop',
+            },
+            nodes: { [MODEL.unique_id]: MODEL },
+            metrics: {},
+            docs: {},
+        },
+    };
+    const SCHEMA = 'version: 2\nmodels:\n  - name: orders\n';
+    /** A branch where one commit since the compile changed `path`; nothing changed since `head-sha`. */
+    const branchWith = (
+        path: string,
+        next: string,
+        headCommitSha: string | null,
+    ): DbtScriptChange => ({
+        edits: new Map(),
+        readHead: async (at) => (at === path ? next : null),
+        readAt: async (at, commitSha) => {
+            if (at !== path) return null;
+            return commitSha === COMPILED.commitSha ? SCHEMA : next;
+        },
+        listChangedSince: async (commitSha) =>
+            commitSha === 'head-sha' ? [] : [path],
+        headCommitSha,
+    });
+    const check = async (change: DbtScriptChange) => {
+        const context = setup({ dbtConnection: DBT_IN_GITHUB });
+        await saveCompiledDbtManifest(
+            context.fileStorageClient,
+            PROJECT_UUID,
+            COMPILED,
+        );
+        const result = await context.service.checkDbtScriptChange(
+            repoWriter,
+            PROJECT_UUID,
+            change,
+            { checkQueries: false },
+        );
+        const compiled = await readCompiledDbtManifest(
+            context.fileStorageClient,
+            PROJECT_UUID,
+        );
+        return { context, result, compiled };
+    };
+    const described = `${SCHEMA}    description: Orders\n`;
+
+    it('moves the compiled manifest on to the project branch head, so a save checks only its own change', async () => {
+        const { context, result, compiled } = await check(
+            branchWith('models/schema.yml', described, 'head-sha'),
+        );
+        expect(compiled?.commitSha).toBe('head-sha');
+        expect(compiled?.manifest.nodes[MODEL.unique_id]).toMatchObject({
+            description: 'Orders',
+        });
+        expect(result).toEqual({
+            status: 'passed',
+            changedModels: [],
+            explores: [],
+        });
+        expect(context.compileExploresFromManifest).not.toHaveBeenCalled();
+    });
+
+    it('leaves the compiled manifest alone from a pull request branch', async () => {
+        const { context, result, compiled } = await check(
+            branchWith('models/schema.yml', described, null),
+        );
+        expect(compiled?.commitSha).toBe(COMPILED.commitSha);
+        expect(result).toMatchObject({
+            status: 'passed',
+            changedModels: ['orders'],
+        });
+        expect(context.compileExploresFromManifest).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves the compiled manifest alone when only dbt can parse what changed', async () => {
+        const { result, compiled } = await check(
+            branchWith('models/orders.sql', 'select 1', 'head-sha'),
+        );
+        expect(compiled?.commitSha).toBe(COMPILED.commitSha);
+        expect(result).toEqual({
+            status: 'unsupported',
+            reason: 'models/orders.sql needs dbt to parse',
+        });
     });
 });
 
