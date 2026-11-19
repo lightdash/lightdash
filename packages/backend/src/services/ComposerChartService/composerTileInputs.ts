@@ -262,31 +262,31 @@ const getNodeDateZoomFieldId = (
     explore: Explore,
     { granularity, xAxisFieldId }: DateZoom & { granularity: string },
 ): string | null => {
-    const allDimensions = getAllDimensionsMap(explore);
-    const timeDimensions = getTimeDimensionsMap(explore);
-    const dateDimensions = node.dimensions.flatMap((fieldId) => {
-        const base = resolveToBaseTimeDimension(
-            fieldId,
-            allDimensions,
-            timeDimensions,
-        );
-        return base ? [{ fieldId, base }] : [];
-    });
-    const target =
-        dateDimensions.find(({ fieldId }) => fieldId === xAxisFieldId) ??
-        dateDimensions[0];
-    if (!target) return null;
+    const candidates = getChartZoomableFields(
+        explore,
+        metricQueryOfSemanticNode(node),
+    );
+    const fieldId = (
+        candidates.find((field) => field.fieldId === xAxisFieldId) ??
+        candidates[0]
+    )?.fieldId;
+    if (!fieldId) return null;
+    const base = resolveToBaseTimeDimension(
+        fieldId,
+        getAllDimensionsMap(explore),
+        getTimeDimensionsMap(explore),
+    );
+    if (!base) return null;
     // As updateExploreWithDateZoom: a custom grain needs its precompiled dimension
     const canZoom = isStandardDateGranularity(granularity)
         ? !(
-              target.base.type === DimensionType.DATE &&
+              base.type === DimensionType.DATE &&
               isSubDayGranularity(granularity)
           )
         : Object.values(explore.tables).some(
-              (table) =>
-                  !!table.dimensions[`${target.base.name}_${granularity}`],
+              (table) => !!table.dimensions[`${base.name}_${granularity}`],
           );
-    return canZoom ? target.fieldId : null;
+    return canZoom ? fieldId : null;
 };
 
 /** The field a stored chart plots on its x axis, if it is a cartesian chart. */
@@ -297,7 +297,7 @@ export const getStoredChartXField = (
         ? chart.chartConfig.config.layout?.xField
         : undefined;
 
-/** Merge legs stay unzoomed: the merge compiles against their saved fields. */
+/** Merge legs stay unzoomed: the merge compiles against their saved fields. Live sources that refuse zoom are left out. */
 const getZoomableSemanticNodes = (
     nodes: ComposerChartPipelineNode[],
     exploreByNodeId: ComposerNodeExplores,
