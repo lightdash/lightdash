@@ -26,9 +26,6 @@ type SampleChart = Omit<
     libraryChart?: LibraryChartBinding;
 };
 
-const defaultChartDescription =
-    'Based on all available usage events for this organization.';
-
 const chart = (
     key: string,
     name: string,
@@ -42,6 +39,8 @@ const chart = (
         seriesNames?: string[];
         colors?: string[];
         axisLabel?: string;
+        // Big number only: show the latest day in the period, not the whole period.
+        latestDay?: boolean;
         libraryChart?: LibraryChartBinding;
     } = {},
 ): SampleChart => {
@@ -56,7 +55,7 @@ const chart = (
         key,
         libraryChart: options.libraryChart,
         name,
-        description: options.description ?? defaultChartDescription,
+        description: options.description ?? '',
         tableName,
         metricQuery: {
             exploreName: tableName,
@@ -119,6 +118,17 @@ const chart = (
                   },
               },
     };
+    if (!dimensionId && options.latestDay) {
+        // A big number reads the first row, so one row for the newest day is all it needs.
+        const dayId = `${tableName}_event_ts_day`;
+        result.metricQuery = {
+            ...result.metricQuery,
+            dimensions: [dayId],
+            sorts: [{ fieldId: dayId, descending: true }],
+            limit: 1,
+        };
+        result.tableConfig = { columnOrder: [dayId, ...metrics] };
+    }
     if (dimensionId && options.visualization === 'donut') {
         result.chartConfig = {
             type: ChartType.PIE,
@@ -237,6 +247,9 @@ const aiUsageContent = {
             'unique_users',
             undefined,
             {
+                latestDay: true,
+                description:
+                    'People who used AI on the latest day in the selected period.',
                 libraryChart: {
                     slug: 'big-number-with-sparkline-trend',
                     minVersion: '0.7.1',
@@ -536,6 +549,9 @@ export const analyticsSampleDashboards = [
                 'unique_users',
                 undefined,
                 {
+                    latestDay: true,
+                    description:
+                        'Users who ran queries on the latest day in the selected period. Service accounts count as users.',
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
                         minVersion: '0.7.1',
@@ -576,6 +592,9 @@ export const analyticsSampleDashboards = [
                 'avg_warehouse_execution_time_ms',
                 undefined,
                 {
+                    latestDay: true,
+                    description:
+                        'Average warehouse execution time on the latest day in the selected period.',
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
                         minVersion: '0.7.1',
@@ -619,6 +638,9 @@ export const analyticsSampleDashboards = [
                 'p90_warehouse_execution_time_ms',
                 undefined,
                 {
+                    latestDay: true,
+                    description:
+                        'P90 warehouse execution time on the latest day in the selected period.',
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
                         minVersion: '0.7.1',

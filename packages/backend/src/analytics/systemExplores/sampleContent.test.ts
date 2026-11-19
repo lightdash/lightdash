@@ -108,6 +108,55 @@ describe('analytics sample content', () => {
         }
     });
 
+    it('shows the latest day on both versions of the latest-day cards', () => {
+        const allCharts = analyticsContentAsCode.flatMap(
+            ({ charts }) => charts,
+        );
+        const cards = [
+            ['lightdash-analytics-overview-ai-users', 'ai_usage_event_ts_day'],
+            [
+                'lightdash-analytics-overview-agent-requesters-trend',
+                'agent_requests_requested_at_day',
+            ],
+            [
+                'lightdash-analytics-query-activity-query-users',
+                'query_events_event_ts_day',
+            ],
+            [
+                'lightdash-analytics-query-activity-avg-execution-time',
+                'query_events_event_ts_day',
+            ],
+            [
+                'lightdash-analytics-query-activity-p90-execution-time',
+                'query_events_event_ts_day',
+            ],
+        ];
+        for (const [slug, day] of cards) {
+            const fallback = allCharts.find((chart) => chart.slug === slug)!;
+            // A big number shows the first row: one row, newest day first.
+            expect(fallback.chartConfig.type).toBe(ChartType.BIG_NUMBER);
+            expect(fallback.metricQuery.dimensions).toEqual([day]);
+            expect(fallback.metricQuery.sorts).toEqual([
+                { fieldId: day, descending: true },
+            ]);
+            expect(fallback.metricQuery.limit).toBe(1);
+            expect(fallback.description).toContain(
+                'on the latest day in the selected period',
+            );
+            expect(fallback.description).not.toContain('daily trend');
+
+            const binding = analyticsLibraryChartBindings.get(slug)!;
+            expect(binding.optionValues).toMatchObject({
+                valueAggregation: 'latest',
+                label: 'Latest day',
+            });
+            expect(binding.query?.dimensions).toEqual([day]);
+            expect(binding.query?.description).toContain(
+                'on the latest day in the selected period, with the daily trend',
+            );
+        }
+    });
+
     it('keeps existing identities while separating AI and query content', () => {
         expect(analyticsSampleDashboards[0].key).toBe(
             'lightdash-analytics-overview',

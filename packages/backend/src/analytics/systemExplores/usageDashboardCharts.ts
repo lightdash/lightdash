@@ -461,15 +461,16 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'agent-requesters-trend',
         name: 'People asking agents',
         description:
-            'All retained captured history. Recent capture is not a full historical census.',
+            'People who asked an agent on the latest day in the selected period.',
         explore: 'agent_requests',
-        dimensions: [],
+        // Newest day first: the big number reads the first row, so it shows the latest day.
+        dimensions: ['agent_requests_requested_at_day'],
         metrics: ['agent_requests_distinct_requesters'],
         limit: 1,
         sorts: [
             {
                 descending: true,
-                fieldId: 'agent_requests_distinct_requesters',
+                fieldId: 'agent_requests_requested_at_day',
             },
         ],
         visualization: 'number',

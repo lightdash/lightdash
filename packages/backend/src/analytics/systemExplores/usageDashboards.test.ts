@@ -1577,6 +1577,22 @@ describe('built-in usage dashboards', () => {
 });
 
 describe('display fixes', () => {
+    it('queries one row for the newest day on the latest-day cards', () => {
+        [
+            'lightdash-analytics-overview-ai-users',
+            'lightdash-analytics-overview-agent-requesters-trend',
+            'lightdash-analytics-query-activity-query-users',
+            'lightdash-analytics-query-activity-avg-execution-time',
+            'lightdash-analytics-query-activity-p90-execution-time',
+        ].forEach((slug) => {
+            const chart = charts.find((item) => item.slug === slug)!;
+            const [day] = chart.metricQuery.dimensions;
+            expect(compile(chart).query).toMatch(
+                new RegExp(`ORDER BY "${day}" DESC\\s+LIMIT 1\\s*$`),
+            );
+        });
+    });
+
     const prefix = 'lightdash-analytics-overview-';
     const byKey = (key: string) =>
         charts.find(({ slug }) => slug === `${prefix}${key}`)!;
