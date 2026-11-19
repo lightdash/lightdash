@@ -13,10 +13,9 @@
     padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
 }
 
-/* The header is the card's one loud thing: ink, like the button that publishes it. */
+/* The header sits on the page's own tone, a shade off the card. */
 .head {
-    background: var(--mantine-primary-color-filled);
-    color: var(--mantine-primary-color-contrast);
+    background: var(--ld-color-page);
 }
 
 /* A draft is not live yet, so its light is amber. */
@@ -30,7 +29,7 @@
 
 .tally {
     flex: none;
-    opacity: 0.6;
+    color: var(--mantine-color-dimmed);
 }
 
 /* Each model the turn touched is a step, on a line that runs from one icon to the next. */
