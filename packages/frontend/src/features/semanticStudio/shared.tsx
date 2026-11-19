@@ -1166,7 +1166,12 @@ export const FieldDetailModal: FC<{
                 </Text>
             </Group>
         ) : onViewCode || addToChat ? (
-            <Group gap={4} wrap="nowrap">
+            <Group gap={4} wrap="nowrap" miw={0}>
+                {isLive ? null : (
+                    <Text fz="xs" c="dimmed" truncate mr="xs">
+                        A model's fields are edited in its code.
+                    </Text>
+                )}
                 {onViewCode ? (
                     <Button
                         size="xs"

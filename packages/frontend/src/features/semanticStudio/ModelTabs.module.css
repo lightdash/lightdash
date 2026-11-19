@@ -21,12 +21,16 @@
     flex-direction: column;
 }
 
-/* Over the code's top corner, so the file starts at the top of the pane. */
-.codeCopy {
-    position: absolute;
-    top: 6px;
-    right: 16px;
-    z-index: 1;
+.notice {
+    white-space: pre-wrap;
+}
+
+.codeHost {
+    color-scheme: light;
+
+    @mixin dark {
+        color-scheme: dark;
+    }
 }
 
 .codeToolbar {
