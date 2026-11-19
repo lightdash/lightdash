@@ -292,6 +292,10 @@ import {
 import { toMetaContentSecurityPolicy } from './mcpCustomChartFrameHtml';
 import { isProjectAllowedForMcp } from './mcpProjectAccess';
 
+export const MCP_CHART_RESOURCE_URI = 'ui://render-chart/chart.html';
+export const MCP_QUERY_RESULTS_RESOURCE_URI =
+    'ui://run-metric-query/results.html';
+
 export enum McpToolName {
     CONNECT_AGENT = 'connect_agent',
     GET_LIGHTDASH_VERSION = 'get_lightdash_version',
@@ -4560,57 +4564,16 @@ export class McpService extends BaseService {
             },
         );
 
-        // Register chart app resource for the MCP App UI
-        const chartResourceUri = 'ui://render-chart/chart.html';
-        registerAppResource(
-            this.mcpServer,
-            chartResourceUri,
-            chartResourceUri,
-            { mimeType: RESOURCE_MIME_TYPE },
-            async () => {
-                const htmlPath = path.join(
-                    __dirname,
-                    'mcp-chart-app',
-                    'dist',
-                    'chart-app.html',
-                );
-                const html = await fs.readFile(htmlPath, 'utf-8');
-                const previewDomains = [
-                    getMcpPreviewOrigin(this.lightdashConfig),
-                ];
-                return {
-                    contents: [
-                        {
-                            uri: chartResourceUri,
-                            mimeType: RESOURCE_MIME_TYPE,
-                            text: html,
-                            _meta: {
-                                ui: {
-                                    prefersBorder: false,
-                                    csp: {
-                                        connectDomains: previewDomains,
-                                        resourceDomains: previewDomains,
-                                        baseUriDomains: previewDomains,
-                                        // Custom chart types run in a blob: frame; hosts that build
-                                        // frame-src from this list block it otherwise.
-                                        frameDomains: [
-                                            ...previewDomains,
-                                            'blob:',
-                                        ],
-                                    },
-                                },
-                            },
-                        },
-                    ],
-                };
-            },
-        );
+        this.registerChartAppResource(MCP_CHART_RESOURCE_URI, {
+            preferredDisplayMode: 'fullscreen',
+        });
+        this.registerChartAppResource(MCP_QUERY_RESULTS_RESOURCE_URI, {});
 
         if (options.runMetricQueryEnabled) {
             const runMetricQueryTool = options.filterExpressionsEnabled
                 ? mcpRunMetricQueryFilterExpressionTool
                 : mcpRunMetricQueryTool;
-            this.registerTrackedTool(
+            this.registerTrackedAppTool(
                 runMetricQueryTool.name,
                 {
                     title: runMetricQueryTool.title,
@@ -4624,6 +4587,9 @@ export class McpService extends BaseService {
                     inputSchema: runMetricQueryTool.inputSchema.shape,
                     outputSchema: runMetricQueryTool.outputSchema,
                     annotations: runMetricQueryTool.annotations,
+                    _meta: {
+                        ui: { resourceUri: MCP_QUERY_RESULTS_RESOURCE_URI },
+                    },
                 },
                 async (
                     args: McpRunMetricQueryArgs,
@@ -4799,7 +4765,7 @@ export class McpService extends BaseService {
                     inputSchema: mcpRenderChartTool.inputSchema.shape,
                     outputSchema: mcpRenderChartTool.outputSchema,
                     annotations: mcpRenderChartTool.annotations,
-                    _meta: { ui: { resourceUri: chartResourceUri } },
+                    _meta: { ui: { resourceUri: MCP_CHART_RESOURCE_URI } },
                 },
                 this.wrapToolCallback(
                     mcpRenderChartTool.name,
@@ -6765,6 +6731,68 @@ export class McpService extends BaseService {
             });
         }
     }
+
+    private registerChartAppResource(
+        uri: string,
+        displayMeta: { preferredDisplayMode?: 'fullscreen' },
+    ): void {
+        registerAppResource(
+            this.mcpServer,
+            uri,
+            uri,
+            { mimeType: RESOURCE_MIME_TYPE },
+            async () => {
+                const htmlPath = path.join(
+                    __dirname,
+                    'mcp-chart-app',
+                    'dist',
+                    'chart-app.html',
+                );
+                const html = await fs.readFile(htmlPath, 'utf-8');
+                const previewDomains = [
+                    getMcpPreviewOrigin(this.lightdashConfig),
+                ];
+                return {
+                    contents: [
+                        {
+                            uri,
+                            mimeType: RESOURCE_MIME_TYPE,
+                            text: html,
+                            _meta: {
+                                ui: {
+                                    ...displayMeta,
+                                    prefersBorder: false,
+                                    csp: {
+                                        connectDomains: previewDomains,
+                                        resourceDomains: previewDomains,
+                                        baseUriDomains: previewDomains,
+                                        // Custom chart types run in a blob: frame; hosts that build
+                                        // frame-src from this list block it otherwise.
+                                        frameDomains: [
+                                            ...previewDomains,
+                                            'blob:',
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                };
+            },
+        );
+    }
+
+    private registerTrackedAppTool = (
+        name: string,
+        config: Parameters<typeof registerAppTool>[2],
+        handler: (...cbArgs: AnyType[]) => AnyType,
+    ) =>
+        registerAppTool(
+            this.mcpServer,
+            name,
+            config,
+            this.wrapToolCallback(name, handler),
+        );
 
     private registerTrackedTool: McpServer['registerTool'] = (
         name,

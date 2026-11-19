@@ -8,6 +8,7 @@ import {
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
+import fs from 'fs/promises';
 import type { ZodRawShape, ZodType } from 'zod';
 import { z } from 'zod';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
@@ -17,6 +18,8 @@ import { BuiltInSkills } from '../ai/skills/builtInSkills';
 import { MCP_CUSTOM_CHART_FRAME_TOOL_NAME } from './mcpCustomChartFrameHtml';
 import {
     isProjectScopedMcpTool,
+    MCP_CHART_RESOURCE_URI,
+    MCP_QUERY_RESULTS_RESOURCE_URI,
     McpService,
     McpToolName,
     type McpServerToolOptions,
@@ -48,6 +51,14 @@ const mockRegisteredMcpTools: RegisteredMcpTool[] = [];
 const mockRegisteredMcpPrompts: RegisteredMcpPrompt[] = [];
 const mockMcpServerInstructions: Array<string | undefined> = [];
 const mockRegisteredMcpResourceUris: string[] = [];
+type MockResourceReadCallback = () => Promise<{
+    contents: Array<{
+        uri: string;
+        text: string;
+        _meta: { ui: Record<string, unknown> };
+    }>;
+}>;
+const mockResourceReadCallbacks = new Map<string, MockResourceReadCallback>();
 
 vi.mock('@sentry/node', () => ({
     getActiveSpan: () => undefined,
@@ -70,10 +81,18 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', async (importOriginal) => ({
                     registerCapabilities: vi.fn(),
                     setRequestHandler: vi.fn(),
                 },
-                registerResource: vi.fn((_name: string, uri: string) => {
-                    mockRegisteredMcpResourceUris.push(uri);
-                    return {};
-                }),
+                registerResource: vi.fn(
+                    (
+                        _name: string,
+                        uri: string,
+                        _config: unknown,
+                        readCallback: MockResourceReadCallback,
+                    ) => {
+                        mockRegisteredMcpResourceUris.push(uri);
+                        mockResourceReadCallbacks.set(uri, readCallback);
+                        return {};
+                    },
+                ),
                 registerPrompt: vi.fn(
                     (
                         name: string,
@@ -154,6 +173,7 @@ const makeMcpService = (
                 runSqlMaxLimit: 500,
             },
             siteUrl: 'https://lightdash.example',
+            appRuntime: {},
         },
         mcpContextModel: {},
         projectModel: {},
@@ -242,6 +262,7 @@ describe('MCP tool contracts', () => {
         mockRegisteredMcpPrompts.length = 0;
         mockMcpServerInstructions.length = 0;
         mockRegisteredMcpResourceUris.length = 0;
+        mockResourceReadCallbacks.clear();
     });
 
     it('matches the shared MCP tool definition names snapshot', () => {
@@ -923,6 +944,56 @@ describe('MCP tool contracts', () => {
             MCP_CUSTOM_CHART_FRAME_TOOL_NAME,
         );
         expect(tool?.config._meta).toEqual({ ui: { visibility: ['app'] } });
+    });
+
+    it('shows run_metric_query results in the query results view', async () => {
+        const mcpService = makeMcpService();
+        await mcpService.createServer(
+            makeMcpServerOptions({ runMetricQueryEnabled: true }),
+        );
+        const viewUris = Object.fromEntries(
+            mockRegisteredMcpTools
+                .filter(
+                    ({ name }) =>
+                        name === McpToolName.RUN_METRIC_QUERY ||
+                        name === McpToolName.RENDER_CHART,
+                )
+                .map(({ name, config }) => [name, config._meta]),
+        );
+        expect(viewUris).toEqual({
+            [McpToolName.RUN_METRIC_QUERY]: {
+                ui: { resourceUri: MCP_QUERY_RESULTS_RESOURCE_URI },
+                'ui/resourceUri': MCP_QUERY_RESULTS_RESOURCE_URI,
+            },
+            [McpToolName.RENDER_CHART]: {
+                ui: { resourceUri: MCP_CHART_RESOURCE_URI },
+                'ui/resourceUri': MCP_CHART_RESOURCE_URI,
+            },
+        });
+    });
+
+    it('opens only the chart view in the side panel without a click', async () => {
+        vi.spyOn(fs, 'readFile').mockResolvedValue('<html>chart app</html>');
+        const mcpService = makeMcpService();
+        await mcpService.createServer(
+            makeMcpServerOptions({ runMetricQueryEnabled: true }),
+        );
+        const read = async (uri: string) => {
+            const readCallback = mockResourceReadCallbacks.get(uri);
+            if (!readCallback) throw new Error(`${uri} is not registered`);
+            const { contents } = await readCallback();
+            return contents[0];
+        };
+
+        const chart = await read(MCP_CHART_RESOURCE_URI);
+        const results = await read(MCP_QUERY_RESULTS_RESOURCE_URI);
+
+        expect(chart.uri).toBe(MCP_CHART_RESOURCE_URI);
+        expect(chart._meta.ui.preferredDisplayMode).toBe('fullscreen');
+        expect(results.uri).toBe(MCP_QUERY_RESULTS_RESOURCE_URI);
+        expect(results._meta.ui).not.toHaveProperty('preferredDisplayMode');
+        expect(results.text).toBe(chart.text);
+        expect(results._meta.ui.csp).toEqual(chart._meta.ui.csp);
     });
 
     it('registers only SQL execution tools when metric queries are disabled', async () => {
