@@ -250,7 +250,6 @@ export const getComposerParameterReferences = (
     ),
 ];
 
-// The dimension a node re-grains, null when it has none it can zoom
 const getNodeDateZoomFieldId = (
     node: Extract<
         ComposerChartPipelineNode,
@@ -295,7 +294,7 @@ export const getStoredChartXField = (
         ? chart.chartConfig.config.layout?.xField
         : undefined;
 
-/** The date zoom each semantic-layer node runs with, naming the dimension it re-grains; a merge's legs stay unzoomed, as the merge compiles against their saved fields. */
+/** Merge legs stay unzoomed: the merge compiles against their saved fields. */
 export const getComposerNodeDateZooms = ({
     nodes,
     exploreByNodeId,
