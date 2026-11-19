@@ -14,6 +14,7 @@ const BOUND_DASHBOARD_UUID_PARAM = 'boundDashboardUuid';
 const BOUND_CHART_UUID_PARAM = 'boundChartUuid';
 const THREAD_CONTEXT_PARAM = 'threadContext';
 const DISABLE_NAVIGATION_PARAM = 'disableNavigation';
+const INITIAL_PROMPT_PARAM = 'initialPrompt';
 
 export const getEmbedAiAgentThreadSetup = ({
     binding,
@@ -31,6 +32,7 @@ export const buildEmbedHash = (
     token: string,
     setup: EmbedAiAgentThreadSetup | null,
     navigationDisabled: boolean,
+    initialPrompt?: string,
 ): string => {
     const params = new URLSearchParams();
     if (setup?.binding) {
@@ -55,6 +57,9 @@ export const buildEmbedHash = (
     if (navigationDisabled) {
         params.set(DISABLE_NAVIGATION_PARAM, 'true');
     }
+    if (initialPrompt) {
+        params.set(INITIAL_PROMPT_PARAM, initialPrompt);
+    }
     const query = params.toString();
     return query ? `${token}&${query}` : token;
 };
@@ -73,6 +78,7 @@ export const parseEmbedHash = (
     token: string;
     aiAgentThreadSetup: EmbedAiAgentThreadSetup | null;
     aiAgentNavigationDisabled: boolean;
+    aiAgentInitialPrompt: string | null;
 } => {
     const fragment = hash.replace(/^#/, '');
     const separatorIndex = fragment.indexOf('&');
@@ -81,6 +87,7 @@ export const parseEmbedHash = (
             token: fragment,
             aiAgentThreadSetup: null,
             aiAgentNavigationDisabled: false,
+            aiAgentInitialPrompt: null,
         };
     }
 
@@ -93,6 +100,7 @@ export const parseEmbedHash = (
         }),
         aiAgentNavigationDisabled:
             params.get(DISABLE_NAVIGATION_PARAM) === 'true',
+        aiAgentInitialPrompt: params.get(INITIAL_PROMPT_PARAM) || null,
     };
 };
 

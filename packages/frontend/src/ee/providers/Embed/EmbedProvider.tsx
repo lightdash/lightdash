@@ -206,8 +206,13 @@ const EmbedProviderContent: FC<React.PropsWithChildren<Props>> = ({
     // Remove the token from the URL.
     useEffect(() => {
         if (mode === 'direct' && location.hash) {
+            const { aiAgentInitialPrompt } = parseEmbedHash(location.hash);
             void navigate(location.pathname + location.search, {
                 replace: true,
+                // The new-thread page submits this as the first message
+                state: aiAgentInitialPrompt
+                    ? { autoSubmitPrompt: aiAgentInitialPrompt }
+                    : undefined,
             });
         }
     }, [mode, location, navigate]);
