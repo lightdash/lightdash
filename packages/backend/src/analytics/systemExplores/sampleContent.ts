@@ -525,13 +525,33 @@ export const analyticsSampleDashboards = [
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
                         minVersion: '0.7.0',
-                        fieldMapping: { value: 'query_events_unique_users' },
+                        fieldMapping: {
+                            value: 'query_events_unique_users',
+                            sparklineMetric: 'query_events_unique_users',
+                            time: 'query_events_event_ts_day',
+                        },
                         optionValues: {
-                            showLabel: false,
+                            valueAggregation: 'latest',
+                            showComparison: false,
+                            colorSparklineByTrend: false,
+                            showLabel: true,
+                            label: 'Latest day',
                             showCardBorder: false,
                             showCardShadow: false,
                         },
-                        query: null,
+                        query: {
+                            dimensions: ['query_events_event_ts_day'],
+                            metrics: ['query_events_unique_users'],
+                            sorts: [
+                                {
+                                    fieldId: 'query_events_event_ts_day',
+                                    descending: false,
+                                },
+                            ],
+                            limit: 500,
+                            description:
+                                'People who ran queries on the latest day in the selected period, with the daily trend. A person active on several days is counted on each of those days.',
+                        },
                     },
                 },
             ),
@@ -547,13 +567,34 @@ export const analyticsSampleDashboards = [
                         minVersion: '0.7.0',
                         fieldMapping: {
                             value: 'query_events_avg_warehouse_execution_time_ms',
+                            sparklineMetric:
+                                'query_events_avg_warehouse_execution_time_ms',
+                            time: 'query_events_event_ts_day',
                         },
                         optionValues: {
-                            showLabel: false,
+                            valueAggregation: 'latest',
+                            showComparison: false,
+                            colorSparklineByTrend: false,
+                            showLabel: true,
+                            label: 'Latest day',
                             showCardBorder: false,
                             showCardShadow: false,
                         },
-                        query: null,
+                        query: {
+                            dimensions: ['query_events_event_ts_day'],
+                            metrics: [
+                                'query_events_avg_warehouse_execution_time_ms',
+                            ],
+                            sorts: [
+                                {
+                                    fieldId: 'query_events_event_ts_day',
+                                    descending: false,
+                                },
+                            ],
+                            limit: 500,
+                            description:
+                                'Average warehouse execution time on the latest day in the selected period, with the daily trend.',
+                        },
                     },
                 },
             ),
@@ -569,13 +610,34 @@ export const analyticsSampleDashboards = [
                         minVersion: '0.7.0',
                         fieldMapping: {
                             value: 'query_events_p90_warehouse_execution_time_ms',
+                            sparklineMetric:
+                                'query_events_p90_warehouse_execution_time_ms',
+                            time: 'query_events_event_ts_day',
                         },
                         optionValues: {
-                            showLabel: false,
+                            valueAggregation: 'latest',
+                            showComparison: false,
+                            colorSparklineByTrend: false,
+                            showLabel: true,
+                            label: 'Latest day',
                             showCardBorder: false,
                             showCardShadow: false,
                         },
-                        query: null,
+                        query: {
+                            dimensions: ['query_events_event_ts_day'],
+                            metrics: [
+                                'query_events_p90_warehouse_execution_time_ms',
+                            ],
+                            sorts: [
+                                {
+                                    fieldId: 'query_events_event_ts_day',
+                                    descending: false,
+                                },
+                            ],
+                            limit: 500,
+                            description:
+                                'P90 warehouse execution time on the latest day in the selected period, with the daily trend.',
+                        },
                     },
                 },
             ),

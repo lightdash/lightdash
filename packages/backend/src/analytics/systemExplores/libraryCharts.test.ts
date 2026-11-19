@@ -582,12 +582,21 @@ describe('legacyLibraryChartBindings', () => {
                     slug: 'big-number-with-sparkline-trend',
                     minVersion: '0.7.0',
                     optionValues: {
-                        showLabel: false,
+                        valueAggregation: 'latest',
+                        showComparison: false,
+                        colorSparklineByTrend: false,
+                        showLabel: true,
+                        label: 'Latest day',
                         showCardBorder: false,
                         showCardShadow: false,
                     },
-                    query: null,
                 });
+                expect(queryBinding(key)?.query?.dimensions).toEqual([
+                    'query_events_event_ts_day',
+                ]);
+                expect(queryBinding(key)?.query?.description).toContain(
+                    'latest day in the selected period, with the daily trend.',
+                );
             },
         );
         expect(queryBinding('queries-by-day')).toMatchObject({
