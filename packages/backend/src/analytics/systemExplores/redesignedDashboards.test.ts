@@ -1243,6 +1243,54 @@ describe('lightdash-analytics-ai-tokens', () => {
     });
 });
 
+describe('Agents & AI feedback table', () => {
+    const all = analyticsContentAsCode.flatMap((bundle) => bundle.charts);
+    const feedbackSlug =
+        'lightdash-analytics-overview-agent-feedback-rating-and-sample-coverage';
+    const draw = (types: Map<string, UsableLibraryChartType>) => {
+        const { charts: drawn, rejected } = withLibraryCharts(
+            all,
+            analyticsLibraryChartBindings,
+            types,
+        );
+        return {
+            rejected,
+            feedback: drawn.find((chart) => chart.slug === feedbackSlug)!,
+        };
+    };
+
+    it('draws a plain table when the library type is missing', () => {
+        const { feedback, rejected } = draw(new Map());
+        expect(rejected).toEqual([]);
+        expect(feedback.chartConfig.type).toBe(ChartType.TABLE);
+    });
+
+    it('draws the ranked table when the library type is installed', () => {
+        const { feedback, rejected } = draw(installedTypes());
+        expect(rejected).toEqual([]);
+        expect(feedback.chartConfig).toMatchObject({
+            type: ChartType.DATA_APP_VIZ,
+            config: { dataAppVizSlug: 'sortable-pivot-table' },
+        });
+        // The table keeps the counts, which are table calculations of the shared query
+        expect(
+            feedback.metricQuery.tableCalculations.map(({ name }) => name),
+        ).toEqual([
+            'rated_requests',
+            'share_rated_percent',
+            'negative_ratings',
+        ]);
+    });
+
+    it('falls back to the plain table on an older library type', () => {
+        const { feedback, rejected } = draw(installedTypes('0.0.1'));
+        expect(rejected.map(({ chartSlug }) => chartSlug)).toContain(
+            feedbackSlug,
+        );
+        expect(feedback.chartConfig.type).toBe(ChartType.TABLE);
+    });
+});
+
 describe('library chart options', () => {
     const entries = [...analyticsLibraryChartBindings.entries()];
 

@@ -711,14 +711,19 @@ describe('built-in usage dashboards', () => {
                 `${prefix}ai-tokens-by-feature-and-model`,
             )?.slug,
         ).toBe('heatmap');
-        for (const key of [
-            'agent-feedback-rating-and-sample-coverage',
-            'ai-consumption-by-person-feature-and-model',
-        ]) {
-            expect(
-                analyticsLibraryChartBindings.get(`${prefix}${key}`)?.slug,
-            ).toBe('customizable-cartesian-chart');
-        }
+        expect(
+            analyticsLibraryChartBindings.get(
+                `${prefix}ai-consumption-by-person-feature-and-model`,
+            )?.slug,
+        ).toBe('customizable-cartesian-chart');
+        expect(
+            find('agent-feedback-rating-and-sample-coverage').chartConfig.type,
+        ).toBe(ChartType.TABLE);
+        expect(
+            analyticsLibraryChartBindings.get(
+                `${prefix}agent-feedback-rating-and-sample-coverage`,
+            )?.slug,
+        ).toBe('sortable-pivot-table');
         expect(
             analyticsLibraryChartBindings.get(
                 `${prefix}request-consumption-by-outcome-and-feedback`,
@@ -750,6 +755,11 @@ describe('built-in usage dashboards', () => {
             'agent-retries-latency-and-consumption',
         );
         expect([retries.x, retries.w, retries.h]).toEqual([0, 36, 7]);
+        const feedback = tile(
+            'outcomes',
+            'agent-feedback-rating-and-sample-coverage',
+        );
+        expect([feedback.x, feedback.w, feedback.h]).toEqual([0, 36, 7]);
         const [person, tokens] = [
             'ai-consumption-by-person-feature-and-model',
             'ai-tokens-by-feature-and-model',
@@ -1720,6 +1730,127 @@ describe('display fixes', () => {
                 [metric]: rounded,
             });
         });
+    });
+
+    it('shows feedback as one row per agent with the counts behind each share', () => {
+        const feedback = byKey('agent-feedback-rating-and-sample-coverage');
+        expect(feedback.name).toBe('Feedback by agent');
+        if (feedback.chartConfig.type !== ChartType.TABLE)
+            throw new Error('Expected table');
+        expect(feedback.chartConfig.config?.columns).toMatchObject({
+            agent_requests_agent_name: { name: 'Agent' },
+            agent_requests_agent_id: { visible: false },
+            agent_requests_total_requests: { name: 'Requests' },
+            agent_requests_feedback_coverage: { name: 'Share rated' },
+            agent_requests_negative_feedback_rate: { name: 'Negative share' },
+            // The plain table shows the share as a percentage already
+            share_rated_percent: { visible: false },
+        });
+        expect(
+            feedback.metricQuery.tableCalculations.map(
+                ({ name, displayName }) => [name, displayName],
+            ),
+        ).toEqual([
+            ['rated_requests', 'Rated'],
+            ['share_rated_percent', 'Share rated (%)'],
+            ['negative_ratings', 'Negative'],
+        ]);
+        expect(feedback.metricQuery.sorts).toEqual([
+            { fieldId: 'agent_requests_total_requests', descending: true },
+        ]);
+        const binding = analyticsLibraryChartBindings.get(feedback.slug)!;
+        expect(binding).toMatchObject({
+            slug: 'sortable-pivot-table',
+            minVersion: '0.14.0',
+            fieldMapping: {
+                rowDimension: 'agent_requests_agent_name',
+                metric: [
+                    'agent_requests_total_requests',
+                    'rated_requests',
+                    'share_rated_percent',
+                    'negative_ratings',
+                ],
+            },
+            optionValues: {
+                initialSort: 'firstValue',
+                rowHeaderName: 'Agent',
+                valueNames: 'Requests,Rated,Share rated (%),Negative',
+                density: 'compact',
+                decimalPlaces: 0,
+                showTotalsRow: false,
+                showMiniBars: false,
+            },
+            // The counts are table calculations, which only the shared query keeps
+            query: null,
+        });
+    });
+
+    it('counts rated and negative requests exactly from the two shares', async () => {
+        const instance = await DuckDBInstance.create(':memory:', {
+            threads: '1',
+            memory_limit: '128MB',
+        });
+        const db = await instance.connect();
+        try {
+            for (const stream of [
+                'agent_request_events',
+                'ai_usage',
+            ] as const) {
+                await db.run(
+                    `CREATE TABLE ${stream} (${compactedStreamSchemas[stream].map(({ name, type }) => `"${name}" ${type}`).join(',')})`,
+                );
+            }
+            for (const dimension of ['users', 'agents'] as const) {
+                await db.run(
+                    `CREATE TABLE ${usageDimensionTable(dimension)} (${usageDimensionSchemas[dimension].map(({ name, type }) => `"${name}" ${type}`).join(',')})`,
+                );
+            }
+            await db.run(`INSERT INTO lightdash_agents VALUES
+                ('org','busy','Busy agent'), ('org','quiet','Quiet agent')`);
+            // Busy agent: seven requests, three rated, one of them negative. Sevenths do not divide evenly.
+            // Quiet agent: one request with no rating.
+            const scores: (number | null)[] = [
+                1,
+                1,
+                -1,
+                null,
+                null,
+                null,
+                null,
+            ];
+            for (const [index, score] of scores.entries()) {
+                await db.run(`INSERT INTO agent_request_events
+                    (org_id, project_id, user_id, agent_id, thread_id, prompt_id, event_id, event_ts, stage, outcome, human_score, surface) VALUES
+                    ('org','project','user','busy','thread','p${index}','created:p${index}','2026-09-29 10:00:00','created',NULL,NULL,'web_app')
+                    ${score === null ? '' : `, ('org','project','user','busy','thread','p${index}','rating:p${index}','2026-09-29 10:01:00','feedback_updated',NULL,${score},NULL)`}`);
+            }
+            await db.run(`INSERT INTO agent_request_events
+                (org_id, project_id, user_id, agent_id, thread_id, prompt_id, event_id, event_ts, stage, outcome, human_score, surface) VALUES
+                ('org','project','user','quiet','thread','q0','created:q0','2026-09-29 10:00:00','created',NULL,NULL,'web_app')`);
+            const rows = (
+                await db.runAndReadAll(
+                    compile(byKey('agent-feedback-rating-and-sample-coverage'))
+                        .query,
+                )
+            ).getRowObjectsJS();
+            expect(
+                rows.map((row) => [
+                    row.agent_requests_agent_name,
+                    Number(row.agent_requests_total_requests),
+                    row.rated_requests === null
+                        ? null
+                        : Number(row.rated_requests),
+                    Number(row.share_rated_percent),
+                    Number(row.negative_ratings),
+                ]),
+            ).toEqual([
+                ['Busy agent', 7, 3, 43, 1],
+                ['Quiet agent', 1, 0, 0, 0],
+            ]);
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
     });
 
     it('splits request consumption by outcome only, without a feedback legend', () => {

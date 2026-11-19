@@ -1,4 +1,8 @@
-import { FilterOperator } from '@lightdash/common';
+import {
+    CustomFormatType,
+    FilterOperator,
+    TableCalculationType,
+} from '@lightdash/common';
 import { monthlyQueryComparisonCharts } from './monthlyQueryComparisonCharts';
 import type { UsageChartSpec } from './usageDashboardTypes';
 
@@ -399,9 +403,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'agent-feedback-rating-and-sample-coverage',
-        name: 'Agent feedback: ratings and share of requests rated',
+        name: 'Feedback by agent',
         description:
-            'The negative feedback rate leaves out unrated requests. Read it with the share of requests rated and the request count.',
+            'Rated is the number of requests a person gave a positive or negative rating. Negative is how many of those ratings were negative.',
         explore: 'agent_requests',
         dimensions: ['agent_requests_agent_name', 'agent_requests_agent_id'],
         metrics: [
@@ -411,7 +415,39 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'agent_requests_completion_rate',
             'agent_requests_response_coverage',
         ],
-        limit: 20,
+        // The explore has the two shares but not the counts behind them. Each share is a count divided
+        // by a count that is also in the query, so multiplying back gives the exact whole number.
+        tableCalculations: [
+            {
+                name: 'rated_requests',
+                displayName: 'Rated',
+                type: TableCalculationType.NUMBER,
+                sql: 'ROUND(${agent_requests.feedback_coverage} * ${agent_requests.total_requests})',
+                format: { type: CustomFormatType.NUMBER, round: 0 },
+            },
+            {
+                name: 'share_rated_percent',
+                displayName: 'Share rated (%)',
+                type: TableCalculationType.NUMBER,
+                sql: 'ROUND(100.0 * ${agent_requests.feedback_coverage})',
+                format: { type: CustomFormatType.NUMBER, round: 0 },
+            },
+            {
+                name: 'negative_ratings',
+                displayName: 'Negative',
+                type: TableCalculationType.NUMBER,
+                sql: 'ROUND(COALESCE(${agent_requests.negative_feedback_rate}, 0) * ${agent_requests.feedback_coverage} * ${agent_requests.total_requests})',
+                format: { type: CustomFormatType.NUMBER, round: 0 },
+            },
+        ],
+        // The plain table shows the share as a percentage already
+        hiddenColumns: ['share_rated_percent'],
+        fieldLabels: {
+            agent_requests_total_requests: 'Requests',
+            agent_requests_feedback_coverage: 'Share rated',
+            agent_requests_negative_feedback_rate: 'Negative share',
+        },
+        limit: 50,
         sorts: [
             {
                 descending: true,
@@ -419,29 +455,29 @@ export const usageChartSpecs: UsageChartSpec[] = [
             },
         ],
         libraryChart: {
-            slug: 'customizable-cartesian-chart',
-            minVersion: '0.18.0',
+            slug: 'sortable-pivot-table',
+            minVersion: '0.14.0',
             fieldMapping: {
-                x: 'agent_requests_agent_name',
-                m1: 'agent_requests_total_requests',
-                m2: 'agent_requests_feedback_coverage',
-                m3: 'agent_requests_negative_feedback_rate',
+                rowDimension: 'agent_requests_agent_name',
+                metric: [
+                    'agent_requests_total_requests',
+                    'rated_requests',
+                    'share_rated_percent',
+                    'negative_ratings',
+                ],
             },
+            // The table draws bars in every value column or in none. A bar on a count of one or two
+            // ratings would make a small sample look large, so there are none.
             optionValues: {
-                m1Name: 'Agent requests',
-                m2Name: 'Share of requests rated',
-                m3Name: 'Negative feedback rate',
-                xName: 'Agent',
-                yName: 'Agent requests',
-                yRightName: 'Share rated and negative feedback rate',
-                seriesType: 'bar',
-                m2Type: 'scatter',
-                m3Type: 'scatter',
-                dualAxis: true,
-                m2Right: true,
-                m3Right: true,
-                xAxisType: 'category',
+                showMiniBars: false,
+                showTotalsRow: false,
+                decimalPlaces: 0,
+                density: 'compact',
+                initialSort: 'firstValue',
+                rowHeaderName: 'Agent',
+                valueNames: 'Requests,Rated,Share rated (%),Negative',
             },
+            // Shares the plain table's query: the counts are table calculations
             query: null,
         },
     },

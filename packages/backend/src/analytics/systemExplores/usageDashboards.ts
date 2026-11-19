@@ -298,6 +298,12 @@ const chartConfig = (spec: UsageChartSpec): ChartAsCode['chartConfig'] => {
                         .map((field) => [field, { visible: false }]),
                 ),
                 ...Object.fromEntries(
+                    (spec.hiddenColumns ?? []).map((field) => [
+                        field,
+                        { visible: false },
+                    ]),
+                ),
+                ...Object.fromEntries(
                     Object.entries(labels).map(([field, name]) => [
                         field,
                         { name },

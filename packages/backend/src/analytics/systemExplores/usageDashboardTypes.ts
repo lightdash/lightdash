@@ -30,6 +30,8 @@ export type UsageChartSpec = {
     timezone?: string;
     tableCalculations?: ChartAsCode['metricQuery']['tableCalculations'];
     fieldLabels?: Record<string, string>;
+    // Fields the query needs that the plain table does not show
+    hiddenColumns?: string[];
     visualization?: 'number' | 'line' | 'bar' | 'scatter' | 'donut';
     xField?: string;
     yFields?: string[];
