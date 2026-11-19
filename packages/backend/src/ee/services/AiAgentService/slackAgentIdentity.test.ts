@@ -65,6 +65,9 @@ describe('Slack agent identity', () => {
             } as SlackPrompt;
             const service = new AiAgentService({
                 aiAgentModel: {
+                    findSlackChannelServiceAccount: vi
+                        .fn()
+                        .mockResolvedValue(null),
                     findSlackPrompt: vi.fn().mockResolvedValue(prompt),
                     findThread: vi
                         .fn()
@@ -169,6 +172,7 @@ test.each(agentActionTestCases)(
                 ai: { copilot: { maxQueryLimit: 500 } },
             },
             aiAgentModel: {
+                findSlackChannelServiceAccount: vi.fn().mockResolvedValue(null),
                 findThreadReferencedArtifacts: vi
                     .fn()
                     .mockResolvedValue(new Map()),
@@ -332,6 +336,7 @@ test('Slack table reads carry the loaded agent UUID and installed app id', async
             ai: { copilot: { maxQueryLimit: 500 } },
         },
         aiAgentModel: {
+            findSlackChannelServiceAccount: vi.fn().mockResolvedValue(null),
             findThreadReferencedArtifacts: vi.fn().mockResolvedValue(new Map()),
             findArtifactsByThreadUuid: vi.fn().mockResolvedValue([]),
             findArtifactVersionsByPromptUuid: vi.fn().mockResolvedValue([]),
@@ -407,6 +412,9 @@ describe('Agent dbt job markers', () => {
                     getAgentSqlScope: vi.fn().mockResolvedValue(null),
                 },
                 aiAgentModel: {
+                    findSlackChannelServiceAccount: vi
+                        .fn()
+                        .mockResolvedValue(null),
                     findThreadBinding: vi.fn().mockResolvedValue(null),
                 },
                 aiAgentToolsService: {

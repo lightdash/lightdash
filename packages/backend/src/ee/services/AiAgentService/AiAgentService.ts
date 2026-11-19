@@ -206,6 +206,7 @@ import {
     type AgentToolName,
     type AgentWorkMarker,
     type AiAgentEditDbtProjectPipelineJobPayload,
+    type AiAgentIntegration,
     type AiAgentModelConfig,
     type AiAgentNodeCitationPipeline,
     type AiAgentSkill,
@@ -691,6 +692,10 @@ import {
     toSlackImageChartBlocks,
     type SlackChartBlocks,
 } from '../ai/utils/slackNativeCharts';
+import {
+    checkSlackServiceAccountChannel,
+    SLACK_SERVICE_ACCOUNT_REFUSAL_TEXT,
+} from '../ai/utils/slackServiceAccountChannel';
 import {
     getSlackTableBlocks,
     splitSlackDataMessage,
@@ -2336,8 +2341,9 @@ export class AiAgentService extends BaseService {
                           prompt.createdByUserUuid,
                           prompt.organizationUuid,
                       );
-            agent = await this.getAgent(
+            agent = await this.getAgentForSlackPrompt(
                 user,
+                prompt,
                 prompt.agentUuid,
                 prompt.projectUuid,
             );
@@ -6390,6 +6396,54 @@ export class AiAgentService extends BaseService {
         }
     }
 
+    // Answering as a service account in a channel lets anyone there act above
+    // their own role, so only org admins may set or change it.
+    private async assertSlackServiceAccountChangesAllowed(
+        user: SessionUser,
+        organizationUuid: string,
+        integrations: AiAgentIntegration[] | undefined,
+        currentIntegrations: AiAgentIntegration[],
+    ): Promise<void> {
+        if (!integrations) return;
+        const current = new Map(
+            currentIntegrations.map((i) => [
+                i.channelId,
+                i.serviceAccountUuid ?? null,
+            ]),
+        );
+        const added = integrations.flatMap((integration) => {
+            const next =
+                integration.serviceAccountUuid === undefined
+                    ? (current.get(integration.channelId) ?? null)
+                    : integration.serviceAccountUuid;
+            return next !== null && next !== current.get(integration.channelId)
+                ? [next]
+                : [];
+        });
+        if (added.length === 0) return;
+
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Only organization admins can set a service account for a Slack channel',
+            );
+        }
+        const uniqueAdded = [...new Set(added)];
+        const usable = await this.aiAgentModel.findUsableServiceAccountUuids(
+            organizationUuid,
+            uniqueAdded,
+        );
+        if (usable.length !== uniqueAdded.length) {
+            throw new ParameterError(
+                'Service account not found in this organization',
+            );
+        }
+    }
+
     public async createAgent(
         user: SessionUser,
         body: ApiCreateAiAgent,
@@ -6421,6 +6475,12 @@ export class AiAgentService extends BaseService {
             throw new ForbiddenError();
         }
         await this.assertAgentStaysInsideTraining(body.projectUuid, body);
+        await this.assertSlackServiceAccountChangesAllowed(
+            user,
+            organizationUuid,
+            body.integrations,
+            [],
+        );
 
         if (body.threadRetentionHours != null) {
             await this.validateThreadRetentionUpdate(
@@ -8153,6 +8213,12 @@ export class AiAgentService extends BaseService {
         await this.assertAgentStaysInsideTraining(
             body.projectUuid ?? agent.projectUuid,
             body,
+        );
+        await this.assertSlackServiceAccountChangesAllowed(
+            user,
+            organizationUuid,
+            body.integrations,
+            agent.integrations,
         );
 
         const nextEnableDataAccess =
@@ -17567,16 +17633,17 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 const enableSqlMode =
                     options.enableSqlMode ?? agentSettings.enableSqlMode;
 
-                // Permission-sensitive tools need the prompt actor to be the real
-                // sender. Web prompts always are; Slack prompts are only trusted when
-                // Slack OAuth is required, otherwise the actor is the workspace
-                // installer.
+                // Permission-sensitive tools need a deliberate prompt actor. Web
+                // prompts always have one; Slack prompts only when Slack OAuth is
+                // required or the channel answers as its configured service
+                // account. Otherwise the actor is the workspace installer.
                 let hasTrustedPromptUserIdentity = true;
                 let slackLinksOnly = false;
                 if (isSlackPrompt(prompt) && user.organizationUuid) {
                     const slackSettings = slackInstallation;
                     hasTrustedPromptUserIdentity =
-                        !!slackSettings?.aiRequireOAuth;
+                        !!slackSettings?.aiRequireOAuth ||
+                        (await this.isSlackChannelServiceAccountPrompt(prompt));
                     slackLinksOnly = !!slackSettings?.aiLinksOnly;
                 }
                 const promptProject = await this.projectModel.get(
@@ -19590,6 +19657,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             agent,
             response,
         });
+        const serviceAccountBlocks =
+            await this.getSlackServiceAccountContextBlocks(slackPrompt);
 
         return {
             blocks: [
@@ -19603,11 +19672,44 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     accessRefusal,
                     this.lightdashConfig.siteUrl,
                 ),
+                ...serviceAccountBlocks,
                 ...feedbackBlocks,
                 ...historyBlocks,
             ],
             chartBlocks,
         };
+    }
+
+    private async getSlackServiceAccountContextBlocks(
+        slackPrompt: SlackPrompt,
+    ): Promise<KnownBlock[]> {
+        const serviceAccount =
+            await this.aiAgentModel.findSlackChannelServiceAccount({
+                organizationUuid: slackPrompt.organizationUuid,
+                slackChannelId: slackPrompt.slackChannelId,
+            });
+        if (
+            serviceAccount === null ||
+            serviceAccount.serviceAccountUserUuid !==
+                slackPrompt.createdByUserUuid
+        ) {
+            return [];
+        }
+        const name = serviceAccount.name
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        return [
+            {
+                type: 'context',
+                elements: [
+                    {
+                        type: 'mrkdwn',
+                        text: `:robot_face: Ran with *${name}*'s permissions · Asked by <@${slackPrompt.slackUserId}>`,
+                    },
+                ],
+            },
+        ];
     }
 
     private getAgentThreadUrl(
@@ -21137,7 +21239,12 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             }
 
             if (thread.agentUuid) {
-                agent = await this.getAgent(user, thread.agentUuid);
+                agent = await this.getAgentForSlackPrompt(
+                    user,
+                    slackPrompt,
+                    thread.agentUuid,
+                    undefined,
+                );
             }
 
             const installation =
@@ -23804,6 +23911,110 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         }
     }
 
+    private async resolveSlackChannelServiceAccountActor({
+        organizationUuid,
+        teamId,
+        enterpriseId,
+        channelId,
+        slackUserId,
+        threadTs,
+        client,
+    }: {
+        organizationUuid: string;
+        teamId: string;
+        enterpriseId: string | null;
+        channelId: string;
+        slackUserId: string;
+        threadTs: string | null;
+        client: WebClient;
+    }): Promise<{ userUuid: string } | 'refused' | null> {
+        const serviceAccount =
+            await this.aiAgentModel.findSlackChannelServiceAccount({
+                organizationUuid,
+                slackChannelId: channelId,
+            });
+        if (!serviceAccount) return null;
+
+        const refusal = serviceAccount.isExpired
+            ? 'expired_service_account'
+            : await checkSlackServiceAccountChannel({
+                  client,
+                  channelId,
+                  slackUserId,
+                  teamId,
+                  enterpriseId,
+              });
+        Logger.info('AI agent Slack service account check', {
+            event: 'ai_agent.slack_service_account',
+            organizationUuid,
+            slackUserId,
+            channelId,
+            serviceAccountUuid: serviceAccount.serviceAccountUuid,
+            result: refusal ?? 'allowed',
+        });
+        if (refusal) {
+            await client.chat.postEphemeral({
+                channel: channelId,
+                user: slackUserId,
+                ...(threadTs ? { thread_ts: threadTs } : {}),
+                text: SLACK_SERVICE_ACCOUNT_REFUSAL_TEXT[refusal],
+            });
+            return 'refused';
+        }
+        return { userUuid: serviceAccount.serviceAccountUserUuid };
+    }
+
+    private async isSlackChannelServiceAccountPrompt(
+        prompt: SlackPrompt,
+    ): Promise<boolean> {
+        const serviceAccount =
+            await this.aiAgentModel.findSlackChannelServiceAccount({
+                organizationUuid: prompt.organizationUuid,
+                slackChannelId: prompt.slackChannelId,
+            });
+        return (
+            serviceAccount !== null &&
+            !serviceAccount.isExpired &&
+            serviceAccount.serviceAccountUserUuid === prompt.createdByUserUuid
+        );
+    }
+
+    // The admin's channel mapping grants the service account this agent, so the
+    // agent's own user and group access lists don't apply to it.
+    private async getAgentForSlackPrompt(
+        user: SessionUser,
+        prompt: SlackPrompt,
+        agentUuid: string,
+        projectUuid: string | undefined,
+    ): Promise<AiAgent> {
+        const serviceAccount =
+            await this.aiAgentModel.findSlackChannelServiceAccount({
+                organizationUuid: prompt.organizationUuid,
+                slackChannelId: prompt.slackChannelId,
+            });
+        if (
+            serviceAccount === null ||
+            serviceAccount.isExpired ||
+            serviceAccount.serviceAccountUserUuid !==
+                prompt.createdByUserUuid ||
+            serviceAccount.agentUuid !== agentUuid
+        ) {
+            return this.getAgent(user, agentUuid, projectUuid);
+        }
+        if (!(await this.getIsCopilotEnabled(user))) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid: prompt.organizationUuid,
+            agentUuid,
+            projectUuid,
+        });
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+        return agent;
+    }
+
     private async handleAiAgentAuth(
         slackSettings: { aiRequireOAuth?: boolean },
         {
@@ -24352,18 +24563,36 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             return;
         }
 
-        const authResult = await this.handleAiAgentAuth(
-            slackSettings,
-            {
-                userId: event.user,
-                teamId,
-                threadTs: event.thread_ts || event.ts, // Use event.ts for new messages to create a thread
-                channelId: event.channel,
-                messageId: event.ts,
-                organizationUuid,
-            },
-            client,
-        );
+        const channelServiceAccount =
+            slackSettings.aiMultiAgentChannelId === event.channel
+                ? null
+                : await this.resolveSlackChannelServiceAccountActor({
+                      organizationUuid,
+                      teamId,
+                      enterpriseId: context.enterpriseId ?? null,
+                      channelId: event.channel,
+                      slackUserId: event.user,
+                      threadTs: event.thread_ts ?? null,
+                      client,
+                  });
+        if (channelServiceAccount === 'refused') {
+            return;
+        }
+
+        const authResult =
+            channelServiceAccount ??
+            (await this.handleAiAgentAuth(
+                slackSettings,
+                {
+                    userId: event.user,
+                    teamId,
+                    threadTs: event.thread_ts || event.ts, // Use event.ts for new messages to create a thread
+                    channelId: event.channel,
+                    messageId: event.ts,
+                    organizationUuid,
+                },
+                client,
+            ));
 
         if (!authResult) {
             return;
@@ -24536,8 +24765,14 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 throw new Error('No agent selected - this should not happen');
             }
 
-            // Verify access for the selected agent
-            await this.verifyAgentAccess(agentConfig, userUuid, slackSettings);
+            // The admin's channel mapping is the grant for service account channels.
+            if (!channelServiceAccount) {
+                await this.verifyAgentAccess(
+                    agentConfig,
+                    userUuid,
+                    slackSettings,
+                );
+            }
 
             if (event.thread_ts) {
                 const aiThreadAccessConsent =
