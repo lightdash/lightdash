@@ -1,24 +1,26 @@
 import {
+    DimensionType,
     SortByDirection,
     type RawResultRow,
     type VizColumnsConfig,
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
-import { Flex, Group, type FlexProps, Badge, Tooltip } from '@mantine/core';
+import { Badge, Flex, Group, Tooltip, type FlexProps } from '@mantine/core';
 import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
-import { flexRender } from '@tanstack/react-table';
+import { flexRender, type TableOptions } from '@tanstack/react-table';
 import { clsx } from 'clsx';
-import { useMemo } from 'react';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable/constants';
 import MantineIcon from '../../common/MantineIcon';
+import { ColumnWindowColGroup } from '../../common/Table/ColumnWindowColGroup';
 import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
 import { VirtualizedArea } from '../../common/Table/ScrollableTable/TableBody';
 import { Table as TableStyled, Tr } from '../../common/Table/Table.styles';
+import { renderColumns } from '../../common/Table/useColumnWindow';
 import { useVirtualTable } from '../hooks/useVirtualTable';
 import { RawResultCellContextMenu } from './RawResultCellContextMenu';
 import styles from './Table.module.css';
 
-type TableProps = {
+type ChartDataTableProps = {
     columnNames: string[];
     rows: RawResultRow[];
     columnsConfig?: VizColumnsConfig;
@@ -27,98 +29,198 @@ type TableProps = {
     onTHClick?: (fieldName: string) => void;
 };
 
-// This is a simple table that is set up to be virtualized from basically
-// just rows and columns. It is currently used to render the table data from charts.
-// TODO: Ideally we could use this for what DataViz/Table is doing and
-// not use a TableDataModel within that
-export const ChartDataTable = ({
-    columnNames,
-    rows,
-    columnsConfig,
+type ResultsTableOptions = {
+    enableJsonViewer?: boolean;
+    density?: 'default' | 'compact';
+    columnTypes?: Record<string, DimensionType>;
+};
+
+export const ResultsTable = ({
     flexProps,
     thSortConfig,
     onTHClick,
-}: TableProps) => {
-    const { tableWrapperRef, getTableData, paddingTop, paddingBottom } =
-        useVirtualTable({ columnNames, rows, config: columnsConfig });
+    density = 'default',
+    columnTypes,
+    showGroupColumnTooltip = false,
+    ...data
+}: ChartDataTableProps &
+    ResultsTableOptions & {
+        meta?: TableOptions<RawResultRow>['meta'];
+        showGroupColumnTooltip?: boolean;
+    }) => {
+    const isCompact = density === 'compact';
+    const {
+        viewport,
+        headers,
+        virtualRows,
+        rowModelRows,
+        paddingTop,
+        paddingBottom,
+        columnWindow,
+        columnCount,
+    } = useVirtualTable({ ...data, isCompact });
+    const renderedColumnCount = columnWindow?.slots.length ?? columnCount;
 
-    const columnsCount = useMemo(() => columnNames.length, [columnNames]);
-    const { headerGroups, virtualRows, rowModelRows } = getTableData();
+    const renderHeader = (index: number) => {
+        if (isCompact && index === 0) {
+            return (
+                <th
+                    key="index"
+                    aria-colindex={columnWindow ? 1 : undefined}
+                    className={clsx(styles.rowIndex, styles.headerCell)}
+                >
+                    #
+                </th>
+            );
+        }
+        const header = headers[isCompact ? index - 1 : index];
+        const sortConfig = thSortConfig?.[header.id];
+        const onClick =
+            sortConfig && onTHClick ? () => onTHClick(header.id) : undefined;
+        const aggregation = data.columnsConfig?.[header.id]?.aggregation;
+        const label = flexRender(
+            header.column.columnDef.header,
+            header.getContext(),
+        );
+        const content = (
+            <Group gap="two" fz="sm">
+                {aggregation && (
+                    <Badge size="sm" color="indigo" radius="xs">
+                        {aggregation}
+                    </Badge>
+                )}
+                {isCompact ? (
+                    <span className={styles.headerLabel}>
+                        {label}
+                        {columnTypes?.[header.id] && (
+                            <span className={styles.columnType}>
+                                {columnTypes[header.id]}
+                            </span>
+                        )}
+                    </span>
+                ) : (
+                    label
+                )}
+                {onClick && sortConfig?.direction && (
+                    <MantineIcon
+                        icon={
+                            sortConfig.direction === SortByDirection.ASC
+                                ? IconArrowUp
+                                : IconArrowDown
+                        }
+                    />
+                )}
+            </Group>
+        );
+        return (
+            <th
+                key={`field:${header.id}`}
+                aria-colindex={columnWindow ? index + 1 : undefined}
+                title={
+                    columnWindow
+                        ? data.columnsConfig?.[header.id]?.label || header.id
+                        : undefined
+                }
+                onClick={onClick}
+                className={styles.headerCell}
+                data-sortable={onClick ? true : undefined}
+            >
+                {showGroupColumnTooltip ? (
+                    <Tooltip
+                        label="You cannot sort by a group column"
+                        disabled={!!onClick}
+                        position="top"
+                    >
+                        {content}
+                    </Tooltip>
+                ) : (
+                    content
+                )}
+            </th>
+        );
+    };
+
+    const renderRow = (index: number) => {
+        const cells = rowModelRows[index].getVisibleCells();
+        return (
+            <Tr key={index} $index={index}>
+                {renderColumns(columnWindow, columnCount, (columnIndex) => {
+                    if (isCompact && columnIndex === 0) {
+                        return (
+                            <td
+                                key="index"
+                                className={styles.rowIndex}
+                                aria-colindex={columnWindow ? 1 : undefined}
+                            >
+                                {index + 1}
+                            </td>
+                        );
+                    }
+                    const cell =
+                        cells[isCompact ? columnIndex - 1 : columnIndex];
+                    const value = cell.getValue() as RawResultRow[0];
+                    const isNull = value === null || value === undefined;
+
+                    return (
+                        <BodyCell
+                            key={cell.id}
+                            columnIndex={
+                                columnWindow ? columnIndex + 1 : undefined
+                            }
+                            index={index}
+                            cell={cell}
+                            isNumericItem={
+                                isCompact &&
+                                columnTypes?.[cell.column.id] ===
+                                    DimensionType.NUMBER
+                            }
+                            hasData={!!value}
+                            cellContextMenu={RawResultCellContextMenu}
+                            isLargeText={
+                                (value?.toString() || '').length >
+                                SMALL_TEXT_LENGTH
+                            }
+                        >
+                            {cell.getIsPlaceholder() ? null : isCompact &&
+                              isNull ? (
+                                <span className={styles.nullValue}>null</span>
+                            ) : (
+                                flexRender(
+                                    cell.column.columnDef.cell,
+                                    cell.getContext(),
+                                )
+                            )}
+                        </BodyCell>
+                    );
+                })}
+            </Tr>
+        );
+    };
 
     return (
         <Flex
-            ref={tableWrapperRef}
+            ref={viewport}
             direction="column"
             miw="100%"
             {...flexProps}
             className={clsx('sentry-block ph-no-capture', styles.wrapper)}
-            data-testid="chart-data-table"
+            data-testid={
+                showGroupColumnTooltip ? 'chart-data-table' : undefined
+            }
         >
-            <TableStyled>
+            <TableStyled
+                className={clsx(isCompact && styles.compact)}
+                aria-colcount={columnWindow ? columnCount : undefined}
+                $virtualWidth={columnWindow?.width}
+            >
+                <ColumnWindowColGroup columnWindow={columnWindow} />
                 <Tooltip.Group>
                     <thead>
                         <tr>
-                            {headerGroups.map((headerGroup) =>
-                                headerGroup.headers.map((header) => {
-                                    const sortConfig =
-                                        thSortConfig?.[header.id];
-                                    const onClick =
-                                        sortConfig && onTHClick
-                                            ? () => onTHClick(header.id)
-                                            : undefined;
-
-                                    return (
-                                        <th
-                                            key={header.id}
-                                            onClick={onClick}
-                                            className={styles.headerCell}
-                                            data-sortable={
-                                                onClick ? true : undefined
-                                            }
-                                        >
-                                            <Tooltip
-                                                label="You cannot sort by a group column"
-                                                disabled={!!onClick}
-                                                position="top"
-                                            >
-                                                <Group gap="two" fz="sm">
-                                                    {columnsConfig?.[header.id]
-                                                        ?.aggregation && (
-                                                        <Badge
-                                                            size="sm"
-                                                            color="indigo"
-                                                            radius="xs"
-                                                        >
-                                                            {
-                                                                columnsConfig?.[
-                                                                    header.id
-                                                                ]?.aggregation
-                                                            }
-                                                        </Badge>
-                                                    )}
-
-                                                    {flexRender(
-                                                        header.column.columnDef
-                                                            .header,
-                                                        header.getContext(),
-                                                    )}
-
-                                                    {onClick &&
-                                                        sortConfig?.direction && (
-                                                            <MantineIcon
-                                                                icon={
-                                                                    sortConfig.direction ===
-                                                                    SortByDirection.ASC
-                                                                        ? IconArrowUp
-                                                                        : IconArrowDown
-                                                                }
-                                                            ></MantineIcon>
-                                                        )}
-                                                </Group>
-                                            </Tooltip>
-                                        </th>
-                                    );
-                                }),
+                            {renderColumns(
+                                columnWindow,
+                                columnCount,
+                                renderHeader,
                             )}
                         </tr>
                     </thead>
@@ -126,52 +228,14 @@ export const ChartDataTable = ({
                 <tbody>
                     {paddingTop > 0 && (
                         <VirtualizedArea
-                            cellCount={columnsCount}
+                            cellCount={renderedColumnCount}
                             padding={paddingTop}
                         />
                     )}
-                    {virtualRows.map(({ index }) => {
-                        return (
-                            <Tr key={index} $index={index}>
-                                {rowModelRows[index]
-                                    .getVisibleCells()
-                                    .map((cell) => {
-                                        const cellValue =
-                                            cell.getValue() as RawResultRow[0];
-
-                                        return (
-                                            <BodyCell
-                                                key={cell.id}
-                                                index={index}
-                                                cell={cell}
-                                                isNumericItem={false}
-                                                hasData={!!cellValue}
-                                                cellContextMenu={
-                                                    RawResultCellContextMenu
-                                                }
-                                                isLargeText={
-                                                    (
-                                                        cellValue?.toString() ||
-                                                        ''
-                                                    ).length > SMALL_TEXT_LENGTH
-                                                }
-                                            >
-                                                {cell.getIsPlaceholder()
-                                                    ? null
-                                                    : flexRender(
-                                                          cell.column.columnDef
-                                                              .cell,
-                                                          cell.getContext(),
-                                                      )}
-                                            </BodyCell>
-                                        );
-                                    })}
-                            </Tr>
-                        );
-                    })}
+                    {virtualRows.map(({ index }) => renderRow(index))}
                     {paddingBottom > 0 && (
                         <VirtualizedArea
-                            cellCount={columnsCount}
+                            cellCount={renderedColumnCount}
                             padding={paddingBottom}
                         />
                     )}
@@ -180,3 +244,7 @@ export const ChartDataTable = ({
         </Flex>
     );
 };
+
+export const ChartDataTable = (props: ChartDataTableProps) => (
+    <ResultsTable {...props} showGroupColumnTooltip />
+);

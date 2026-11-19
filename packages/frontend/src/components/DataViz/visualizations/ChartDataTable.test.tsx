@@ -1,9 +1,94 @@
 import { type RawResultRow } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { BaseResultsRunner } from '../../../features/queryRunner/BaseResultsRunner';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { ChartDataTable } from './ChartDataTable';
+import { Table } from './Table';
+
+describe('wide SQL results', () => {
+    beforeEach(() => {
+        const width = vi
+            .spyOn(HTMLElement.prototype, 'offsetWidth', 'get')
+            .mockReturnValue(400);
+        const height = vi
+            .spyOn(HTMLElement.prototype, 'offsetHeight', 'get')
+            .mockReturnValue(200);
+        return () => {
+            width.mockRestore();
+            height.mockRestore();
+        };
+    });
+
+    it.each(['chart data', 'compact results'])(
+        'scrolls headers and values together in %s',
+        async (view) => {
+            const columnNames = Array.from(
+                { length: 100 },
+                (_, i) => `field_${i}`,
+            );
+            const rows = [
+                Object.fromEntries(
+                    columnNames.map((name) => [name, `value_${name}`]),
+                ),
+            ];
+            const compact = view === 'compact results';
+            if (compact) {
+                const runner = new BaseResultsRunner({
+                    fields: [],
+                    columnNames,
+                    rows,
+                    runPivotQuery: vi.fn(),
+                });
+                renderWithProviders(
+                    <Table
+                        resultsRunner={runner}
+                        columnsConfig={{}}
+                        density="compact"
+                    />,
+                );
+                expect(
+                    screen.getByRole('columnheader', { name: '#' }),
+                ).toHaveAttribute('aria-colindex', '1');
+                expect(screen.getByRole('cell', { name: '1' })).toHaveAttribute(
+                    'aria-colindex',
+                    '1',
+                );
+            } else {
+                renderWithProviders(
+                    <ChartDataTable columnNames={columnNames} rows={rows} />,
+                );
+            }
+            const table = screen.getByRole('table');
+            const grid = within(table);
+            const columnCount = compact ? '101' : '100';
+            expect(table).toHaveAttribute('aria-colcount', columnCount);
+            expect(grid.getByText('field_0')).toBeInTheDocument();
+            expect(grid.getByText('value_field_0')).toBeInTheDocument();
+            expect(grid.queryByText('field_99')).not.toBeInTheDocument();
+            expect(grid.queryByText('value_field_99')).not.toBeInTheDocument();
+
+            const getWidth = () =>
+                parseFloat(
+                    table.style.getPropertyValue('--virtual-table-width'),
+                );
+            const width = getWidth();
+            fireEvent.scroll(table.parentElement!, {
+                target: { scrollLeft: width - 400 },
+            });
+            expect(
+                await grid.findByRole('columnheader', { name: 'field_99' }),
+            ).toHaveAttribute('aria-colindex', columnCount);
+            expect(
+                grid.getByRole('cell', { name: 'value_field_99' }),
+            ).toHaveAttribute('aria-colindex', columnCount);
+            expect(grid.queryByText('field_0')).not.toBeInTheDocument();
+            expect(grid.queryByText('value_field_0')).not.toBeInTheDocument();
+            expect(getWidth()).toBe(width);
+        },
+    );
+});
 
 describe('ChartDataTable — pivoted column sort affordance (#12560)', () => {
     const columnNames = ['indexCol', 'pivotedCol'];

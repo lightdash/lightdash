@@ -25,7 +25,7 @@ import {
     useComputedColorScheme,
 } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
-import { flexRender, type Row } from '@tanstack/react-table';
+import { createCell, flexRender, type Row } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import React, { useCallback, useEffect, useMemo, type FC } from 'react';
 import {
@@ -46,6 +46,7 @@ import {
 import { getGroupedDimensionColumnIds } from '../getGroupedDimensionColumnIds';
 import { Tr } from '../Table.styles';
 import { type TableContext } from '../types';
+import { renderColumns, type ColumnWindow } from '../useColumnWindow';
 import { useTableContext } from '../useTableContext';
 import { countSubRows } from '../utils';
 import BodyCell from './BodyCell';
@@ -65,6 +66,7 @@ export const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({
 };
 
 interface TableRowProps {
+    columnWindow?: ColumnWindow;
     index: number;
     virtualIndex: number;
     row: Row<ResultRow>;
@@ -79,6 +81,7 @@ interface TableRowProps {
 }
 
 const TableRow: FC<TableRowProps> = ({
+    columnWindow,
     row,
     index,
     virtualIndex,
@@ -90,25 +93,32 @@ const TableRow: FC<TableRowProps> = ({
     rowSpanMergesByColumnId,
 }) => {
     const colorScheme = useComputedColorScheme();
+    const { table } = useTableContext();
+    const cells = columnWindow ? undefined : row.getVisibleCells();
+    const headerGroups = table.getHeaderGroups();
+    const leafHeaders = headerGroups[headerGroups.length - 1].headers;
+    const hasRules = Boolean(conditionalFormattings?.length);
     const rowFields = useMemo(
         () =>
-            row
-                .getAllCells() // get all as they can be necessary for conditional formatting
-                .reduce<ConditionalFormattingRowFields>((acc, cell) => {
-                    const meta = cell.column.columnDef.meta;
-                    if (meta?.item) {
-                        const cellValue = cell.getValue() as
-                            | ResultRow[0]
-                            | undefined;
+            hasRules
+                ? table
+                      .getAllLeafColumns()
+                      .reduce<ConditionalFormattingRowFields>((acc, column) => {
+                          const meta = column.columnDef.meta;
+                          if (meta?.item) {
+                              const cellValue = row.getValue(column.id) as
+                                  | ResultRow[0]
+                                  | undefined;
 
-                        acc[getItemId(meta.item)] = {
-                            field: meta.item,
-                            value: cellValue?.value?.raw,
-                        };
-                    }
-                    return acc;
-                }, {}),
-        [row],
+                              acc[getItemId(meta.item)] = {
+                                  field: meta.item,
+                                  value: cellValue?.value?.raw,
+                              };
+                          }
+                          return acc;
+                      }, {})
+                : {},
+        [hasRules, row, table],
     );
     const getEffectiveColorFromRange = useCallback(
         (
@@ -147,7 +157,13 @@ const TableRow: FC<TableRowProps> = ({
 
     return (
         <Tr $index={index} ref={measureElement} data-index={virtualIndex}>
-            {row.getVisibleCells().map((cell) => {
+            {renderColumns(columnWindow, cells?.length ?? 0, (columnIndex) => {
+                const column = columnWindow
+                    ? leafHeaders[columnIndex].column
+                    : undefined;
+                const cell = column
+                    ? createCell(table, row, column, column.id)
+                    : cells![columnIndex];
                 const rowSpanMerge = rowSpanMergesByColumnId?.get(
                     cell.column.id,
                 )?.[index];
@@ -253,6 +269,7 @@ const TableRow: FC<TableRowProps> = ({
 
                 return (
                     <BodyCell
+                        columnIndex={columnWindow ? columnIndex + 1 : undefined}
                         minimal={minimal}
                         rowSpan={rowSpanMerge?.rowSpan}
                         key={cell.id}
@@ -338,11 +355,18 @@ const TableRow: FC<TableRowProps> = ({
 const SCROLL_THRESHOLD = 100;
 
 const VirtualizedTableBody: FC<{
+    columnWindow?: ColumnWindow;
     tableContainerRef: React.RefObject<HTMLDivElement | null>;
     minimal?: boolean;
     showSubtotals?: boolean;
     showRowGrouping?: boolean;
-}> = ({ tableContainerRef, minimal, showSubtotals, showRowGrouping }) => {
+}> = ({
+    tableContainerRef,
+    minimal,
+    showSubtotals,
+    showRowGrouping,
+    columnWindow,
+}) => {
     const {
         table,
         columns,
@@ -412,7 +436,8 @@ const VirtualizedTableBody: FC<{
     ]);
 
     const virtualRows = rowVirtualizer.getVirtualItems();
-    const cellsCount = rows[0]?.getVisibleCells().length || 0;
+    const cellsCount =
+        columnWindow?.slots.length ?? table.getVisibleLeafColumns().length;
 
     const measureElement = useCallback(
         (node: HTMLElement | null) => {
@@ -422,7 +447,8 @@ const VirtualizedTableBody: FC<{
     );
 
     const skeletonRows = useMemo(() => {
-        const tableColumnsCount = table.getAllColumns().length;
+        if (virtualRows.length || !isFetchingRows) return null;
+        const tableColumnsCount = cellsCount;
         const pageSize = table.getState().pagination.pageSize;
 
         return Array.from({ length: pageSize }).map((_, index) => {
@@ -442,7 +468,7 @@ const VirtualizedTableBody: FC<{
                 </tr>
             );
         });
-    }, [table]);
+    }, [table, cellsCount, virtualRows.length, isFetchingRows]);
 
     // Use before/after padding rows to maintain correct total scroll height
     // while only rendering visible rows
@@ -461,6 +487,7 @@ const VirtualizedTableBody: FC<{
             <tbody>
                 {rows.map((row, index) => (
                     <TableRow
+                        columnWindow={columnWindow}
                         minimal={minimal}
                         key={index}
                         index={index}
@@ -499,11 +526,7 @@ const VirtualizedTableBody: FC<{
                                   data-index={virtualRow.index}
                                   ref={measureElement}
                               >
-                                  <td
-                                      colSpan={
-                                          table.getVisibleFlatColumns().length
-                                      }
-                                  >
+                                  <td colSpan={cellsCount}>
                                       <Center>
                                           <Tooltip
                                               position="top"
@@ -519,6 +542,7 @@ const VirtualizedTableBody: FC<{
 
                       return (
                           <TableRow
+                              columnWindow={columnWindow}
                               minimal={minimal}
                               key={index}
                               index={index}
@@ -543,6 +567,7 @@ const VirtualizedTableBody: FC<{
 };
 
 interface TableBodyProps {
+    columnWindow?: ColumnWindow;
     minimal?: boolean;
     tableContainerRef: React.RefObject<HTMLDivElement | null>;
     showSubtotals?: boolean;
@@ -550,6 +575,7 @@ interface TableBodyProps {
 }
 
 const TableBody: FC<TableBodyProps> = ({
+    columnWindow,
     minimal,
     tableContainerRef,
     showSubtotals,
@@ -557,6 +583,7 @@ const TableBody: FC<TableBodyProps> = ({
 }) => {
     return (
         <VirtualizedTableBody
+            columnWindow={columnWindow}
             tableContainerRef={tableContainerRef}
             minimal={minimal}
             showSubtotals={showSubtotals}

@@ -48,6 +48,11 @@
     vertical-align: top;
 }
 
+.table[data-virtual-columns] {
+    width: var(--virtual-table-width);
+    table-layout: fixed;
+}
+
 .table th {
     font-weight: 600;
 }

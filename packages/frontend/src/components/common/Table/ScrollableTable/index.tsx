@@ -1,5 +1,8 @@
-import { useRef, type FC } from 'react';
+import { useMemo, useRef, useState, type FC } from 'react';
+import { ColumnWindowColGroup } from '../ColumnWindowColGroup';
+import { DEFAULT_FROZEN_COLUMN_WIDTH } from '../constants';
 import { Table, TableScrollableWrapper } from '../Table.styles';
+import { useColumnWindow } from '../useColumnWindow';
 import { useTableContext } from '../useTableContext';
 import TableBody from './TableBody';
 import TableFooter from './TableFooter';
@@ -18,23 +21,55 @@ const ScrollableTable: FC<ScrollableTableProps> = ({
     showRowGrouping = false,
     isDashboard = false,
 }) => {
-    const { footer } = useTableContext();
+    const { footer, table } = useTableContext();
     const tableContainerRef = useRef<HTMLDivElement>(null);
+    const [draggedColumn, setDraggedColumn] = useState<string>();
+    const headerGroups = table.getHeaderGroups();
+    const columns = useMemo(
+        () =>
+            headerGroups.at(-1)?.headers.map(({ column }) => {
+                const meta = column.columnDef.meta;
+                return {
+                    id: column.id,
+                    width:
+                        meta?.width ??
+                        (meta?.frozen
+                            ? DEFAULT_FROZEN_COLUMN_WIDTH
+                            : column.getSize()),
+                    pinned:
+                        column.id === draggedColumn ||
+                        meta?.className?.includes('sticky-column'),
+                };
+            }) ?? [],
+        [headerGroups, draggedColumn],
+    );
+    const columnWindow = useColumnWindow(tableContainerRef, columns);
 
     return (
         <TableScrollableWrapper
             ref={tableContainerRef}
             $isDashboard={isDashboard}
         >
-            <Table $showFooter={!!footer?.show}>
-                <TableHeader minimal={minimal} showSubtotals={showSubtotals} />
+            <Table
+                $showFooter={!!footer?.show}
+                $virtualWidth={columnWindow?.width}
+                aria-colcount={columnWindow ? columns.length : undefined}
+            >
+                <ColumnWindowColGroup columnWindow={columnWindow} />
+                <TableHeader
+                    onDragColumnChange={setDraggedColumn}
+                    minimal={minimal}
+                    showSubtotals={showSubtotals}
+                    columnWindow={columnWindow}
+                />
                 <TableBody
                     tableContainerRef={tableContainerRef}
                     minimal={minimal}
                     showSubtotals={showSubtotals}
                     showRowGrouping={showRowGrouping}
+                    columnWindow={columnWindow}
                 />
-                <TableFooter />
+                <TableFooter columnWindow={columnWindow} />
             </Table>
         </TableScrollableWrapper>
     );

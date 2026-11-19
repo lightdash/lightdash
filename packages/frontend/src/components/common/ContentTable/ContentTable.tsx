@@ -21,6 +21,7 @@ import {
     IconSearch,
 } from '@tabler/icons-react';
 import {
+    createCell,
     flexRender,
     type Header,
     type Row,
@@ -36,6 +37,12 @@ import {
     type CSSProperties,
 } from 'react';
 import MantineIcon from '../MantineIcon';
+import { ColumnWindowColGroup } from '../Table/ColumnWindowColGroup';
+import {
+    renderColumns,
+    useColumnWindow,
+    type ColumnWindow,
+} from '../Table/useColumnWindow';
 import classes from './ContentTable.module.css';
 import {
     type ContentTableInstance,
@@ -114,30 +121,32 @@ const useColumnSizeVars = <TData extends RowData>(
     const columnSizingInfo = table.getState().columnSizingInfo;
     const headers = table.getFlatHeaders();
 
-    const vars: ColumnSizeVars = {};
+    return useMemo(() => {
+        const vars: ColumnSizeVars = {};
 
-    for (const [columnId, size] of Object.entries(columnSizing)) {
-        vars[getColumnSizeVarName('col', columnId)] = size;
-    }
-
-    for (const header of headers) {
-        vars[getColumnSizeVarName('header', header.id)] = header.getSize();
-        vars[getColumnSizeVarName('col', header.column.id)] =
-            header.column.getSize();
-    }
-
-    if (columnSizingInfo.isResizingColumn) {
-        const resizingColumn = table.getColumn(
-            String(columnSizingInfo.isResizingColumn),
-        );
-
-        if (resizingColumn) {
-            vars[getColumnSizeVarName('col', resizingColumn.id)] =
-                resizingColumn.getSize();
+        for (const [columnId, size] of Object.entries(columnSizing)) {
+            vars[getColumnSizeVarName('col', columnId)] = size;
         }
-    }
 
-    return vars;
+        for (const header of headers) {
+            vars[getColumnSizeVarName('header', header.id)] = header.getSize();
+            vars[getColumnSizeVarName('col', header.column.id)] =
+                header.column.getSize();
+        }
+
+        if (columnSizingInfo.isResizingColumn) {
+            const resizingColumn = table.getColumn(
+                String(columnSizingInfo.isResizingColumn),
+            );
+
+            if (resizingColumn) {
+                vars[getColumnSizeVarName('col', resizingColumn.id)] =
+                    resizingColumn.getSize();
+            }
+        }
+
+        return vars;
+    }, [columnSizing, columnSizingInfo, headers, table]);
 };
 
 const defaultEstimateSize = () => 44;
@@ -233,9 +242,11 @@ const MemoizedHeaderContent = memo(
 const HeaderCell = <TData extends RowData>({
     header,
     table,
+    colIndex,
 }: {
     header: Header<TData, unknown>;
     table: ContentTableInstance<TData>;
+    colIndex?: number;
 }) => {
     const options = table.lightdashOptions;
     const columnDef = getLightdashColumnDef(header.column);
@@ -277,6 +288,7 @@ const HeaderCell = <TData extends RowData>({
     return (
         <Table.Th
             {...headCellProps}
+            aria-colindex={colIndex}
             {...getRowSelectCellProps(header.column.id)}
             data-align={contentAlign}
             data-resizing={isResizing || undefined}
@@ -325,9 +337,11 @@ const HeaderCell = <TData extends RowData>({
 const FooterCell = <TData extends RowData>({
     header,
     table,
+    colIndex,
 }: {
     header: Header<TData, unknown>;
     table: ContentTableInstance<TData>;
+    colIndex?: number;
 }) => {
     const options = table.lightdashOptions;
     const footerCellProps = sanitizeMantineProps(
@@ -345,6 +359,7 @@ const FooterCell = <TData extends RowData>({
     return (
         <Table.Th
             {...footerCellProps}
+            aria-colindex={colIndex}
             {...getRowSelectCellProps(header.column.id)}
             className={cx(
                 classes.footerCell,
@@ -360,8 +375,10 @@ const FooterCell = <TData extends RowData>({
 
 const SkeletonRows = <TData extends RowData>({
     table,
+    columnWindow,
 }: {
     table: ContentTableInstance<TData>;
+    columnWindow?: ColumnWindow;
 }) => {
     const columns = table.getVisibleLeafColumns();
     const skeletonRowHeight = getSkeletonRowHeight(table);
@@ -372,42 +389,47 @@ const SkeletonRows = <TData extends RowData>({
 
     return Array.from({ length: 8 }, (_, rowIndex) => (
         <Table.Tr key={rowIndex} className={classes.bodyRow}>
-            {columns.map((column, columnIndex) => (
-                <Table.Td
-                    key={column.id}
-                    {...getRowSelectCellProps(column.id)}
-                    className={cx(
-                        classes.bodyCell,
-                        classes.skeletonCell,
-                        isRowSelectColumn(column.id) && classes.rowSelectCell,
-                    )}
-                    h={skeletonRowHeight}
-                    w={getColumnSizeVar('col', column.id)}
-                >
-                    <div className={classes.skeletonStack}>
-                        <Skeleton
-                            className={classes.skeletonLine}
-                            height={isTallRow ? 14 : 12}
-                            radius="xl"
-                            width={getSkeletonWidth(column.id, columnIndex)}
-                        />
-                        {isTallRow && column.id === firstContentColumnId ? (
+            {renderColumns(columnWindow, columns.length, (columnIndex) => {
+                const column = columns[columnIndex];
+                return (
+                    <Table.Td
+                        key={column.id}
+                        {...getRowSelectCellProps(column.id)}
+                        className={cx(
+                            classes.bodyCell,
+                            classes.skeletonCell,
+                            isRowSelectColumn(column.id) &&
+                                classes.rowSelectCell,
+                        )}
+                        h={skeletonRowHeight}
+                        w={getColumnSizeVar('col', column.id)}
+                    >
+                        <div className={classes.skeletonStack}>
                             <Skeleton
-                                className={classes.skeletonLineSecondary}
-                                height={10}
+                                className={classes.skeletonLine}
+                                height={isTallRow ? 14 : 12}
                                 radius="xl"
-                                width={rowIndex % 2 === 0 ? '42%' : '34%'}
+                                width={getSkeletonWidth(column.id, columnIndex)}
                             />
-                        ) : null}
-                    </div>
-                </Table.Td>
-            ))}
+                            {isTallRow && column.id === firstContentColumnId ? (
+                                <Skeleton
+                                    className={classes.skeletonLineSecondary}
+                                    height={10}
+                                    radius="xl"
+                                    width={rowIndex % 2 === 0 ? '42%' : '34%'}
+                                />
+                            ) : null}
+                        </div>
+                    </Table.Td>
+                );
+            })}
         </Table.Tr>
     ));
 };
 
 type BodyRowsProps<TData extends RowData> = {
     table: ContentTableInstance<TData>;
+    columnWindow?: ColumnWindow;
     rows: Row<TData>[];
     virtualRows?: VirtualItem[];
     measureElement?: (element: HTMLTableRowElement | null) => void;
@@ -419,11 +441,13 @@ type BodyRowsProps<TData extends RowData> = {
 
 const BodyRows = <TData extends RowData>({
     table,
+    columnWindow,
     rows,
     virtualRows,
     measureElement,
 }: BodyRowsProps<TData>) => {
     const options = table.lightdashOptions;
+    const columns = table.getVisibleLeafColumns();
     const rowsToRender = virtualRows
         ? virtualRows
               .map((virtualRow) => ({
@@ -450,6 +474,7 @@ const BodyRows = <TData extends RowData>({
                     }),
                 );
                 const isLastDataRow = row === rows[rows.length - 1];
+                const cells = columnWindow ? undefined : row.getVisibleCells();
 
                 return (
                     <Table.Tr
@@ -466,61 +491,77 @@ const BodyRows = <TData extends RowData>({
                         data-index={virtualRow?.index}
                         ref={virtualRow ? measureElement : undefined}
                     >
-                        {row.getVisibleCells().map((cell) => {
-                            const columnDef = getLightdashColumnDef(
-                                cell.column,
-                            );
-                            const cellArgs = {
-                                cell,
-                                column: cell.column,
-                                row,
-                                table,
-                            };
-                            const cellProps = mergeMantineProps(
-                                sanitizeMantineProps(
-                                    resolveProps(
-                                        options.mantineTableBodyCellProps,
-                                        cellArgs,
+                        {renderColumns(
+                            columnWindow,
+                            cells?.length ?? columns.length,
+                            (index) => {
+                                const column = columns[index];
+                                const cell = cells
+                                    ? cells[index]
+                                    : createCell(table, row, column, column.id);
+                                const columnDef = getLightdashColumnDef(
+                                    cell.column,
+                                );
+                                const cellArgs = {
+                                    cell,
+                                    column: cell.column,
+                                    row,
+                                    table,
+                                };
+                                const cellProps = mergeMantineProps(
+                                    sanitizeMantineProps(
+                                        resolveProps(
+                                            options.mantineTableBodyCellProps,
+                                            cellArgs,
+                                        ),
                                     ),
-                                ),
-                                sanitizeMantineProps(
-                                    resolveProps(
-                                        columnDef?.mantineTableBodyCellProps,
-                                        cellArgs,
+                                    sanitizeMantineProps(
+                                        resolveProps(
+                                            columnDef?.mantineTableBodyCellProps,
+                                            cellArgs,
+                                        ),
                                     ),
-                                ),
-                            );
+                                );
 
-                            return (
-                                <Table.Td
-                                    {...cellProps}
-                                    {...getRowSelectCellProps(cell.column.id)}
-                                    key={cell.id}
-                                    className={cx(
-                                        classes.bodyCell,
-                                        isRowSelectColumn(cell.column.id) &&
-                                            classes.rowSelectCell,
-                                        cellProps.className,
-                                    )}
-                                    w={getColumnSizeVar('col', cell.column.id)}
-                                >
-                                    {options.enableEditing &&
-                                    columnDef?.Edit &&
-                                    table.lightdashState.editingCell?.id ===
-                                        cell.id
-                                        ? columnDef.Edit({
-                                              ...cell.getContext(),
-                                              cell,
-                                              row,
-                                              table,
-                                          })
-                                        : flexRender(
-                                              cell.column.columnDef.cell,
-                                              cell.getContext(),
-                                          )}
-                                </Table.Td>
-                            );
-                        })}
+                                return (
+                                    <Table.Td
+                                        {...cellProps}
+                                        aria-colindex={
+                                            columnWindow ? index + 1 : undefined
+                                        }
+                                        {...getRowSelectCellProps(
+                                            cell.column.id,
+                                        )}
+                                        key={cell.id}
+                                        className={cx(
+                                            classes.bodyCell,
+                                            isRowSelectColumn(cell.column.id) &&
+                                                classes.rowSelectCell,
+                                            cellProps.className,
+                                        )}
+                                        w={getColumnSizeVar(
+                                            'col',
+                                            cell.column.id,
+                                        )}
+                                    >
+                                        {options.enableEditing &&
+                                        columnDef?.Edit &&
+                                        table.lightdashState.editingCell?.id ===
+                                            cell.id
+                                            ? columnDef.Edit({
+                                                  ...cell.getContext(),
+                                                  cell,
+                                                  row,
+                                                  table,
+                                              })
+                                            : flexRender(
+                                                  cell.column.columnDef.cell,
+                                                  cell.getContext(),
+                                              )}
+                                    </Table.Td>
+                                );
+                            },
+                        )}
                     </Table.Tr>
                 );
             })}
@@ -556,6 +597,7 @@ const MemoizedBodyRows = memo(BodyRows, (previous, next) => {
         previous.rows === next.rows &&
         previous.rowSelection === next.rowSelection &&
         previous.editingCellId === next.editingCellId &&
+        previous.columnWindow === next.columnWindow &&
         previous.visibleColumnIds === next.visibleColumnIds &&
         areVirtualRowsEqual(previous.virtualRows, next.virtualRows)
     );
@@ -668,15 +710,30 @@ export const ContentTable = <TData extends RowData>({
     const containerRef = table.refs.tableContainerRef;
     const rows = table.getRowModel().rows;
     const visibleColumns = table.getVisibleLeafColumns();
-    const visibleColumnIds = visibleColumns
-        .map((column) => column.id)
-        .join('|');
+    const columnSizeVars = useColumnSizeVars(table);
+    const layout = useMemo(
+        () =>
+            options.enableColumnVirtualization
+                ? visibleColumns.map((column) => ({
+                      id: column.id,
+                      width: columnSizeVars[
+                          getColumnSizeVarName('col', column.id)
+                      ],
+                  }))
+                : [],
+        [options.enableColumnVirtualization, visibleColumns, columnSizeVars],
+    );
+    const columnWindow = useColumnWindow(containerRef, layout);
+    const columnSpan = columnWindow?.slots.length ?? visibleColumns.length;
+    const visibleColumnIds = useMemo(
+        () => visibleColumns.map((column) => column.id).join('|'),
+        [visibleColumns],
+    );
     const enableVirtualization = options.enableRowVirtualization === true;
     const sortingState = table.getState().sorting;
     const globalFilterState = table.getState().globalFilter;
     const rowSelectionState = table.getState().rowSelection;
     const editingCellId = runtimeState.editingCell?.id ?? null;
-    const columnSizeVars = useColumnSizeVars(table);
     const isResizingColumn = Boolean(
         table.getState().columnSizingInfo.isResizingColumn,
     );
@@ -722,6 +779,10 @@ export const ContentTable = <TData extends RowData>({
     const containerProps = sanitizeMantineProps(
         options.mantineTableContainerProps,
     );
+    const containerStyle = useMemo(
+        () => ({ ...columnSizeVars, ...containerProps.style }),
+        [columnSizeVars, containerProps.style],
+    );
     // Column borders are drawn by this module, not by Mantine's data attribute.
     const { withColumnBorders, ...tableProps } = sanitizeMantineProps(
         options.mantineTableProps,
@@ -747,13 +808,16 @@ export const ContentTable = <TData extends RowData>({
         runtimeState.showSkeletons ||
         (runtimeState.isLoading && rows.length === 0);
     const isEmpty = !showSkeletons && rows.length === 0;
-    const hasFooter = table
-        .getFooterGroups()
-        .some((footerGroup) =>
-            footerGroup.headers.some(
-                (header) => header.column.columnDef.footer,
+    const footerGroups = table.getFooterGroups();
+    const hasFooter = useMemo(
+        () =>
+            footerGroups.some((footerGroup) =>
+                footerGroup.headers.some(
+                    (header) => header.column.columnDef.footer,
+                ),
             ),
-        );
+        [footerGroups],
+    );
 
     return (
         <Paper
@@ -788,10 +852,7 @@ export const ContentTable = <TData extends RowData>({
                     containerProps.className,
                 )}
                 // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
-                style={{
-                    ...columnSizeVars,
-                    ...containerProps.style,
-                }}
+                style={containerStyle}
             >
                 <Table
                     {...tableProps}
@@ -804,17 +865,29 @@ export const ContentTable = <TData extends RowData>({
                         withColumnBorders === true && classes.columnBorders,
                         tableProps.className,
                     )}
-                    miw={table.getTotalSize()}
+                    miw={
+                        columnWindow
+                            ? `${columnWindow.width}px`
+                            : table.getTotalSize()
+                    }
+                    {...(columnWindow && {
+                        w: `${columnWindow.width}px`,
+                        'aria-colcount': visibleColumns.length,
+                    })}
                 >
-                    <colgroup>
-                        {visibleColumns.map((column) => (
-                            <Box
-                                component="col"
-                                key={column.id}
-                                w={getColumnSizeVar('col', column.id)}
-                            />
-                        ))}
-                    </colgroup>
+                    {columnWindow ? (
+                        <ColumnWindowColGroup columnWindow={columnWindow} />
+                    ) : (
+                        <colgroup>
+                            {visibleColumns.map((column) => (
+                                <Box
+                                    component="col"
+                                    key={column.id}
+                                    w={getColumnSizeVar('col', column.id)}
+                                />
+                            ))}
+                        </colgroup>
+                    )}
                     <Table.Thead
                         {...headProps}
                         className={cx(
@@ -833,13 +906,26 @@ export const ContentTable = <TData extends RowData>({
                                     headRowProps.className,
                                 )}
                             >
-                                {headerGroup.headers.map((header) => (
-                                    <HeaderCell
-                                        key={header.id}
-                                        header={header}
-                                        table={table}
-                                    />
-                                ))}
+                                {renderColumns(
+                                    columnWindow,
+                                    headerGroup.headers.length,
+                                    (index) => {
+                                        const header =
+                                            headerGroup.headers[index];
+                                        return (
+                                            <HeaderCell
+                                                key={header.id}
+                                                header={header}
+                                                table={table}
+                                                colIndex={
+                                                    columnWindow
+                                                        ? index + 1
+                                                        : undefined
+                                                }
+                                            />
+                                        );
+                                    },
+                                )}
                             </Table.Tr>
                         ))}
                     </Table.Thead>
@@ -851,16 +937,20 @@ export const ContentTable = <TData extends RowData>({
                             <Table.Tr>
                                 <Table.Td
                                     className={classes.fillerCell}
-                                    colSpan={visibleColumns.length}
+                                    colSpan={columnSpan}
                                     h={paddingTop}
                                 />
                             </Table.Tr>
                         ) : null}
 
                         {showSkeletons ? (
-                            <SkeletonRows table={table} />
+                            <SkeletonRows
+                                table={table}
+                                columnWindow={columnWindow}
+                            />
                         ) : rows.length > 0 ? (
                             <MemoizedBodyRows
+                                columnWindow={columnWindow}
                                 editingCellId={editingCellId}
                                 isResizingColumn={isResizingColumn}
                                 measureElement={rowVirtualizer.measureElement}
@@ -874,7 +964,7 @@ export const ContentTable = <TData extends RowData>({
                             <Table.Tr>
                                 <Table.Td
                                     className={classes.emptyCell}
-                                    colSpan={visibleColumns.length}
+                                    colSpan={columnSpan}
                                 >
                                     {runtimeState.showAlertBanner ? (
                                         <div className={classes.emptyState}>
@@ -891,7 +981,7 @@ export const ContentTable = <TData extends RowData>({
                             <Table.Tr>
                                 <Table.Td
                                     className={classes.fillerCell}
-                                    colSpan={visibleColumns.length}
+                                    colSpan={columnSpan}
                                     h={paddingBottom}
                                 />
                             </Table.Tr>
@@ -899,15 +989,28 @@ export const ContentTable = <TData extends RowData>({
                     </Table.Tbody>
                     {hasFooter ? (
                         <Table.Tfoot className={classes.foot}>
-                            {table.getFooterGroups().map((footerGroup) => (
+                            {footerGroups.map((footerGroup) => (
                                 <Table.Tr key={footerGroup.id}>
-                                    {footerGroup.headers.map((header) => (
-                                        <FooterCell
-                                            key={header.id}
-                                            header={header}
-                                            table={table}
-                                        />
-                                    ))}
+                                    {renderColumns(
+                                        columnWindow,
+                                        footerGroup.headers.length,
+                                        (index) => {
+                                            const header =
+                                                footerGroup.headers[index];
+                                            return (
+                                                <FooterCell
+                                                    key={header.id}
+                                                    header={header}
+                                                    table={table}
+                                                    colIndex={
+                                                        columnWindow
+                                                            ? index + 1
+                                                            : undefined
+                                                    }
+                                                />
+                                            );
+                                        },
+                                    )}
                                 </Table.Tr>
                             ))}
                         </Table.Tfoot>

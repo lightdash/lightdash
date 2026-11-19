@@ -7,94 +7,77 @@ import {
     getCoreRowModel,
     useReactTable,
     type ColumnDef,
+    type TableOptions,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useCallback, useMemo, useRef } from 'react';
-import { getValueCell } from '../../../hooks/useColumns';
-import { useResizeObserver } from '../../../hooks/useResizeObserver';
+import { useMemo, useRef } from 'react';
+import { getJsonValueCell, getValueCell } from '../../../hooks/useColumns';
 import { ROW_HEIGHT_PX } from '../../common/Table/constants';
+import { useColumnWindow } from '../../common/Table/useColumnWindow';
 
-// This just makes a virtual table from rows and columns. It's very similar to useTableDataModel.
 export const useVirtualTable = ({
     columnNames,
     rows,
-    config,
+    columnsConfig,
+    enableJsonViewer = false,
+    isCompact,
+    meta,
 }: {
     columnNames: string[];
     rows: RawResultRow[];
-    config?: VizColumnsConfig;
+    columnsConfig?: VizColumnsConfig;
+    enableJsonViewer?: boolean;
+    isCompact: boolean;
+    meta?: TableOptions<RawResultRow>['meta'];
 }) => {
-    const [setResizeRef, containerRect] = useResizeObserver<HTMLDivElement>();
-    const scrollElementRef = useRef<HTMLDivElement | null>(null);
-
-    const tableWrapperRef = useCallback(
-        (el: HTMLDivElement | null) => {
-            scrollElementRef.current = el;
-            setResizeRef(el);
-        },
-        [setResizeRef],
+    const viewport = useRef<HTMLDivElement>(null);
+    const columns: ColumnDef<RawResultRow, any>[] = useMemo(
+        () =>
+            columnNames.map((name) => ({
+                id: name,
+                accessorFn: TableDataModel.getColumnsAccessorFn(name),
+                header: columnsConfig?.[name]?.label || name,
+                cell: enableJsonViewer ? getJsonValueCell : getValueCell,
+            })),
+        [columnNames, columnsConfig, enableJsonViewer],
     );
-
-    const containerWidth = containerRect.width;
-
-    const tanstackColumns: ColumnDef<RawResultRow, any>[] = useMemo(() => {
-        return columnNames.map((columnName) => ({
-            id: columnName,
-            // react table has a bug with accessors that has dots in them
-            // we found the fix here -> https://github.com/TanStack/table/issues/1671
-            // do not remove the line below
-            accessorFn: TableDataModel.getColumnsAccessorFn(columnName),
-            header: (config && config[columnName]?.label) || columnName,
-            cell: getValueCell,
-        }));
-    }, [columnNames, config]);
-
     const table = useReactTable({
         data: rows,
-        columns: tanstackColumns,
+        columns,
         getCoreRowModel: getCoreRowModel(),
+        meta,
     });
+    const headers = table.getFlatHeaders();
+    const layout = useMemo(() => {
+        const dataColumns = headers.map(({ id, getSize }) => ({
+            id: `field:${id}`,
+            width: getSize(),
+        }));
+        return isCompact
+            ? [{ id: 'row-number', width: 40 }, ...dataColumns]
+            : dataColumns;
+    }, [headers, isCompact]);
+    const columnWindow = useColumnWindow(viewport, layout);
 
-    const getRowHeight = useCallback(() => ROW_HEIGHT_PX, []);
-
-    const virtualizer = useVirtualizer({
-        getScrollElement: () => scrollElementRef.current,
+    const rowVirtualizer = useVirtualizer({
+        getScrollElement: () => viewport.current,
         count: rows.length,
-        estimateSize: () => getRowHeight(),
+        estimateSize: () => (isCompact ? 28 : ROW_HEIGHT_PX),
         overscan: 25,
     });
-
-    const getTableData = useCallback(() => {
-        const { rows: rowModelRows } = table.getRowModel();
-        const virtualRows = virtualizer.getVirtualItems();
-
-        return {
-            headerGroups: table.getHeaderGroups(),
-            virtualRows,
-            rowModelRows,
-        };
-    }, [table, virtualizer]);
-
-    const paddingTop =
-        virtualizer.getVirtualItems().length > 0
-            ? virtualizer.getVirtualItems()[0]?.start || 0
-            : 0;
-    const paddingBottom =
-        virtualizer.getVirtualItems().length > 0
-            ? virtualizer.getTotalSize() -
-              (virtualizer.getVirtualItems()[
-                  virtualizer.getVirtualItems().length - 1
-              ]?.end || 0)
-            : 0;
+    const virtualRows = rowVirtualizer.getVirtualItems();
 
     return {
-        tableWrapperRef,
-        columnNames,
-        rows,
-        getRowHeight,
-        getTableData,
-        paddingTop,
-        paddingBottom,
-        containerWidth,
+        viewport,
+        headers,
+        columnWindow,
+        columnCount: layout.length,
+        virtualRows,
+        rowModelRows: table.getRowModel().rows,
+        paddingTop: virtualRows[0]?.start ?? 0,
+        paddingBottom: virtualRows.length
+            ? rowVirtualizer.getTotalSize() -
+              virtualRows[virtualRows.length - 1].end
+            : 0,
     };
 };

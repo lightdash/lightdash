@@ -4,6 +4,7 @@ import { Navigate, Outlet, type RouteObject } from 'react-router';
 import AUTH_ROUTES from './AuthRoutes';
 import AppRoute from './components/AppRoute';
 import ProjectLayout from './components/common/ProjectLayout';
+import { StaticTableRenderContext } from './components/common/Table/StaticTableRenderContext';
 import ForbiddenPanel from './components/ForbiddenPanel';
 import JobDetailsDrawer from './components/JobDetailsDrawer';
 import { NavBarLayout } from './components/NavBarLayout';
@@ -94,6 +95,11 @@ const MINIMAL_ROUTES: RouteObject[] = [
     {
         path: '/minimal',
         handle: { hideAILauncher: true },
+        element: (
+            <StaticTableRenderContext.Provider value>
+                <Outlet />
+            </StaticTableRenderContext.Provider>
+        ),
         children: [
             {
                 path: '/minimal/projects/:projectUuid/saved/:savedQueryUuid',

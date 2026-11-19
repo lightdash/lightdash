@@ -70,6 +70,11 @@
     background-color: var(--mantine-color-ldGray-0);
 }
 
+[data-virtual-columns] .headerCell {
+    overflow: hidden;
+    overflow-wrap: anywhere;
+}
+
 .headerCell[data-sortable] {
     cursor: pointer;
 }

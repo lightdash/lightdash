@@ -9,6 +9,8 @@ export const SMALL_TEXT_LENGTH = 35;
 export const ROW_HEIGHT_PX = 34;
 
 // Frozen/locked column styling constants
+export const DEFAULT_FROZEN_COLUMN_WIDTH = 100;
+
 export const FROZEN_COLUMN_BACKGROUND =
     'light-dark(var(--mantine-color-background-0), var(--mantine-color-ldGray-0))';
 

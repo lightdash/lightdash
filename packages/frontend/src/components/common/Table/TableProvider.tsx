@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-table';
 import React, { useEffect, useMemo, useState, type FC } from 'react';
 import {
+    DEFAULT_FROZEN_COLUMN_WIDTH,
     DEFAULT_PAGE_SIZE,
     FROZEN_COLUMN_BACKGROUND,
     ROW_NUMBER_COLUMN_ID,
@@ -32,15 +33,10 @@ const rowColumn: TableColumn = {
 };
 
 const calculateColumnVisibility = (columns: ProviderProps['columns']) =>
-    columns.reduce(
-        (acc, c) => ({
-            ...acc,
-            ...(c.id && {
-                [c.id]:
-                    c.meta && 'isVisible' in c.meta ? c.meta?.isVisible : true,
-            }),
-        }),
-        {},
+    Object.fromEntries(
+        columns.flatMap((column) =>
+            column.id ? [[column.id, column.meta?.isVisible ?? true]] : [],
+        ),
     );
 
 export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
@@ -99,11 +95,10 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
         () => columns.filter((col) => col.meta?.frozen),
         [columns],
     );
-    const defaultFrozenColumnWidth = 100;
     const stickyColumns = useMemo(() => {
         let cumulativeLeft = rowColumnWidth;
         return frozenColumns.map((col, i) => {
-            const colWidth = col.meta?.width ?? defaultFrozenColumnWidth;
+            const colWidth = col.meta?.width ?? DEFAULT_FROZEN_COLUMN_WIDTH;
             const left = cumulativeLeft;
             cumulativeLeft += colWidth;
             return {

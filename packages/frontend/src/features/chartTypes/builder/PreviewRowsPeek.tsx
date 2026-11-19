@@ -7,8 +7,13 @@ import {
 import { Box, Button, Group, Stack, Table, Text } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import { formatDistanceToNow } from 'date-fns';
-import { useMemo, useState, type FC } from 'react';
+import { useMemo, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { ColumnWindowColGroup } from '../../../components/common/Table/ColumnWindowColGroup';
+import {
+    renderColumns,
+    useColumnWindow,
+} from '../../../components/common/Table/useColumnWindow';
 import { getChartTypeRowColumns, rowsFromVizContext } from './chartTypeRows';
 import { ChartTypeRowsModal } from './ChartTypeSampleData';
 import { type AttachedExplore } from './exploreSource';
@@ -43,7 +48,8 @@ type Props = {
 
 type DisplayRows = {
     columns: { id: string; label: string }[];
-    rows: Record<string, string>[];
+    rowCount: number;
+    getValue: (rowIndex: number, columnId: string) => string;
 };
 
 const SERIES_COLUMN = '__series';
@@ -53,22 +59,17 @@ const unpivotSample = (
     fields: DataAppVizField[],
     context: DataAppVizContext,
 ): DisplayRows => {
-    const flat = getChartTypeRowColumns(rowsFromVizContext(context));
     const pivot = context.pivotDetails;
     if (!pivot) {
+        const flat = getChartTypeRowColumns(rowsFromVizContext(context));
         return {
             columns: flat.map(({ reference, label }) => ({
                 id: reference,
                 label,
             })),
-            rows: context.rows.map((row) =>
-                Object.fromEntries(
-                    flat.map(({ reference }) => [
-                        reference,
-                        row[reference]?.value.formatted ?? '',
-                    ]),
-                ),
-            ),
+            rowCount: context.rows.length,
+            getValue: (index, id) =>
+                context.rows[index][id]?.value.formatted ?? '',
         };
     }
     const indexColumns = normalizeIndexColumns(pivot.indexColumn).map(
@@ -90,49 +91,35 @@ const unpivotSample = (
     }));
     const seriesLabel =
         fields.find((field) => field.type === 'series')?.label ?? 'Series';
-    const seriesValues = [
-        ...new Set(
-            pivot.valuesColumns.map((column) =>
-                column.pivotValues.map((value) => value.formatted).join(' · '),
-            ),
-        ),
-    ];
-    const rows = context.rows.flatMap((row) =>
-        seriesValues.map((series) => ({
-            ...Object.fromEntries(
-                indexColumns.map(({ id }) => [
-                    id,
-                    row[id]?.value.formatted ?? '',
-                ]),
-            ),
-            [SERIES_COLUMN]: series,
-            ...Object.fromEntries(
-                metricIds.map((metricId) => {
-                    const column = pivot.valuesColumns.find(
-                        (candidate) =>
-                            candidate.referenceField === metricId &&
-                            candidate.pivotValues
-                                .map((value) => value.formatted)
-                                .join(' · ') === series,
-                    );
-                    return [
-                        metricId,
-                        column
-                            ? (row[column.pivotColumnName]?.value.formatted ??
-                              '')
-                            : '',
-                    ];
-                }),
-            ),
-        })),
-    );
+    const columnsBySeries = new Map<string, Map<string, string>>();
+    for (const column of pivot.valuesColumns) {
+        const series = column.pivotValues
+            .map((value) => value.formatted)
+            .join(' · ');
+        const metrics =
+            columnsBySeries.get(series) ?? new Map<string, string>();
+        if (!metrics.has(column.referenceField))
+            metrics.set(column.referenceField, column.pivotColumnName);
+        columnsBySeries.set(series, metrics);
+    }
+    const seriesValues = [...columnsBySeries.keys()];
+    const metricFields = new Set(metricIds);
     return {
         columns: [
             ...indexColumns,
             { id: SERIES_COLUMN, label: seriesLabel },
             ...metricColumns,
         ],
-        rows,
+        rowCount: context.rows.length * seriesValues.length,
+        getValue: (index, id) => {
+            const series = seriesValues[index % seriesValues.length];
+            if (id === SERIES_COLUMN) return series;
+            const row = context.rows[Math.floor(index / seriesValues.length)];
+            const reference = metricFields.has(id)
+                ? columnsBySeries.get(series)?.get(id)
+                : id;
+            return reference ? (row[reference]?.value.formatted ?? '') : '';
+        },
     };
 };
 
@@ -204,24 +191,34 @@ const PreviewRowsPeek: FC<Props> = ({ source, fields, context }) => {
                   }));
             return {
                 columns,
-                rows: context.rows.map((row) =>
-                    Object.fromEntries(
-                        columns.map(({ id }) => [
-                            id,
-                            row[id]?.value.formatted ?? '',
-                        ]),
-                    ),
-                ),
+                rowCount: context.rows.length,
+                getValue: (index, id) =>
+                    context.rows[index][id]?.value.formatted ?? '',
             };
         }
         return unpivotSample(fields, context);
     }, [context, fields, isChart]);
+    const viewport = useRef<HTMLDivElement>(null);
+    const layout = useMemo(
+        () => display?.columns.map(({ id }) => ({ id, width: 150 })) ?? [],
+        [display],
+    );
+    const columnWindow = useColumnWindow(viewport, layout);
+    const sample = useMemo(
+        () =>
+            context && display && !isChart
+                ? {
+                      data: rowsFromVizContext(context),
+                      summary: sampleSummary(fields, context, display.rowCount),
+                  }
+                : null,
+        [context, display, fields, isChart],
+    );
     if (!context || !display || display.columns.length === 0) return null;
     if (isChart && attached?.status !== 'ready') return null;
 
     const isPivoted = isChart && context.pivotDetails !== null;
     const { columns } = display;
-    const rows = display.rows.slice(0, PEEK_ROWS);
     let summary: string;
     if (isChart) {
         const rowCount = isPivoted
@@ -234,7 +231,7 @@ const PreviewRowsPeek: FC<Props> = ({ source, fields, context }) => {
             : '';
         summary = `${plural(rowCount, isPivoted ? 'pivoted row' : 'row')}${ran}`;
     } else {
-        summary = sampleSummary(fields, context, display.rows.length);
+        summary = sample?.summary ?? '';
     }
 
     return (
@@ -243,6 +240,7 @@ const PreviewRowsPeek: FC<Props> = ({ source, fields, context }) => {
                 {isChart ? 'Query results' : 'Sample data'}
             </Text>
             <Box
+                ref={viewport}
                 className={classes.tableViewport}
                 role="region"
                 aria-label={
@@ -251,52 +249,90 @@ const PreviewRowsPeek: FC<Props> = ({ source, fields, context }) => {
                 tabIndex={0}
             >
                 <Table
-                    miw={isPivoted ? columns.length * 150 : undefined}
+                    miw={
+                        columnWindow
+                            ? `${columnWindow.width}px`
+                            : isPivoted
+                              ? columns.length * 150
+                              : undefined
+                    }
+                    aria-colcount={columns.length}
                     data-pivoted={isPivoted || undefined}
                     className={classes.table}
                     horizontalSpacing={0}
                     verticalSpacing={0}
                 >
+                    <ColumnWindowColGroup columnWindow={columnWindow} />
                     <Table.Thead className={classes.headerRow}>
                         <Table.Tr>
-                            {columns.map((column) => (
-                                <Table.Th
-                                    key={column.id}
-                                    className={classes.headerCell}
-                                >
-                                    <Text
-                                        component="span"
-                                        fz="xs"
-                                        fw={500}
-                                        truncate={!isPivoted}
-                                        lineClamp={isPivoted ? 2 : undefined}
-                                        title={column.label}
-                                    >
-                                        {column.label}
-                                    </Text>
-                                </Table.Th>
-                            ))}
+                            {renderColumns(
+                                columnWindow,
+                                columns.length,
+                                (index) => {
+                                    const column = columns[index];
+                                    return (
+                                        <Table.Th
+                                            key={column.id}
+                                            aria-colindex={index + 1}
+                                            className={classes.headerCell}
+                                        >
+                                            <Text
+                                                component="span"
+                                                fz="xs"
+                                                fw={500}
+                                                truncate={!isPivoted}
+                                                lineClamp={
+                                                    isPivoted ? 2 : undefined
+                                                }
+                                                title={column.label}
+                                            >
+                                                {column.label}
+                                            </Text>
+                                        </Table.Th>
+                                    );
+                                },
+                            )}
                         </Table.Tr>
                     </Table.Thead>
                     <Table.Tbody>
-                        {rows.map((row, index) => (
-                            <Table.Tr
-                                // Result rows carry no stable id of their own.
-                                key={index}
-                                className={classes.row}
-                            >
-                                {columns.map((column) => (
-                                    <Table.Td
-                                        key={column.id}
-                                        className={classes.cell}
-                                    >
-                                        <Text component="span" fz="xs" truncate>
-                                            {row[column.id] ?? ''}
-                                        </Text>
-                                    </Table.Td>
-                                ))}
-                            </Table.Tr>
-                        ))}
+                        {Array.from(
+                            { length: Math.min(display.rowCount, PEEK_ROWS) },
+                            (_, index) => (
+                                <Table.Tr
+                                    // Result rows carry no stable id of their own.
+                                    key={index}
+                                    className={classes.row}
+                                >
+                                    {renderColumns(
+                                        columnWindow,
+                                        columns.length,
+                                        (columnIndex) => {
+                                            const column = columns[columnIndex];
+                                            return (
+                                                <Table.Td
+                                                    key={column.id}
+                                                    aria-colindex={
+                                                        columnIndex + 1
+                                                    }
+                                                    className={classes.cell}
+                                                >
+                                                    <Text
+                                                        component="span"
+                                                        fz="xs"
+                                                        truncate
+                                                    >
+                                                        {display.getValue(
+                                                            index,
+                                                            column.id,
+                                                        )}
+                                                    </Text>
+                                                </Table.Td>
+                                            );
+                                        },
+                                    )}
+                                </Table.Tr>
+                            ),
+                        )}
                     </Table.Tbody>
                 </Table>
             </Box>
@@ -318,9 +354,9 @@ const PreviewRowsPeek: FC<Props> = ({ source, fields, context }) => {
                     View all
                 </Button>
             </Group>
-            {!isChart && (
+            {sample && (
                 <ChartTypeRowsModal
-                    data={rowsFromVizContext(context)}
+                    data={sample.data}
                     opened={isSampleModalOpen}
                     onClose={() => setIsSampleModalOpen(false)}
                     title="Sample data"
