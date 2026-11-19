@@ -1,3 +1,11 @@
+## [3.336.2](https://github.com/lightdash/lightdash/compare/3.336.1...3.336.2) (2026-11-19)
+
+
+### Bug Fixes
+
+* **ai-agent:** send replies to agent offers to the agent, not an instant acknowledgement ([#32977](https://github.com/lightdash/lightdash/issues/32977)) ([047f4ea](https://github.com/lightdash/lightdash/commit/047f4eaa4f3ea97bf4df866cc469fc071a3e04ad))
+* **embed:** recover AI agent save events after a stream drop ([#32956](https://github.com/lightdash/lightdash/issues/32956)) ([063e282](https://github.com/lightdash/lightdash/commit/063e282dc9de441a73e17fba40cd8230ba10c9b0))
+
 ## [3.336.1](https://github.com/lightdash/lightdash/compare/3.336.0...3.336.1) (2026-11-19)
 
 
