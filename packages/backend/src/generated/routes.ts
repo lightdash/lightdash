@@ -32094,6 +32094,14 @@ const models: TsoaRoute.Models = {
                         array: {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                serviceAccountUuid: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { dataType: 'string' },
+                                        { dataType: 'enum', enums: [null] },
+                                        { dataType: 'undefined' },
+                                    ],
+                                },
                                 channelId: {
                                     dataType: 'string',
                                     required: true,
@@ -33241,6 +33249,14 @@ const models: TsoaRoute.Models = {
                         array: {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                serviceAccountUuid: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { dataType: 'string' },
+                                        { dataType: 'enum', enums: [null] },
+                                        { dataType: 'undefined' },
+                                    ],
+                                },
                                 channelId: {
                                     dataType: 'string',
                                     required: true,
@@ -34162,6 +34178,14 @@ const models: TsoaRoute.Models = {
                         array: {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                serviceAccountUuid: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { dataType: 'string' },
+                                        { dataType: 'enum', enums: [null] },
+                                        { dataType: 'undefined' },
+                                    ],
+                                },
                                 channelId: {
                                     dataType: 'string',
                                     required: true,
@@ -34324,6 +34348,17 @@ const models: TsoaRoute.Models = {
                                 array: {
                                     dataType: 'nestedObjectLiteral',
                                     nestedProperties: {
+                                        serviceAccountUuid: {
+                                            dataType: 'union',
+                                            subSchemas: [
+                                                { dataType: 'string' },
+                                                {
+                                                    dataType: 'enum',
+                                                    enums: [null],
+                                                },
+                                                { dataType: 'undefined' },
+                                            ],
+                                        },
                                         channelId: {
                                             dataType: 'string',
                                             required: true,
@@ -54638,6 +54673,14 @@ const models: TsoaRoute.Models = {
                         array: {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                serviceAccountUuid: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { dataType: 'string' },
+                                        { dataType: 'enum', enums: [null] },
+                                        { dataType: 'undefined' },
+                                    ],
+                                },
                                 channelId: {
                                     dataType: 'string',
                                     required: true,

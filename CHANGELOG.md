@@ -1,3 +1,10 @@
+# [3.332.0](https://github.com/lightdash/lightdash/compare/3.331.0...3.332.0) (2026-11-19)
+
+
+### Features
+
+* **ai:** let Slack channels use a shared service account's permissions ([#32948](https://github.com/lightdash/lightdash/issues/32948)) ([71b42d6](https://github.com/lightdash/lightdash/commit/71b42d65b18abb7e5745b9e776058930e6e049f8))
+
 # [3.331.0](https://github.com/lightdash/lightdash/compare/3.330.1...3.331.0) (2026-11-19)
 
 
