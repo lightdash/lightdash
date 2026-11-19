@@ -661,6 +661,8 @@ export const SourcePane: FC<{
             fieldName: null,
             modelLabel: fileName(path),
             fieldLabel: null,
+            fieldKind: null,
+            fieldType: null,
             code: { path, ...picked },
         });
     };

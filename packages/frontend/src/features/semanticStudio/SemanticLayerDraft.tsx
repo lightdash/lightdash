@@ -174,7 +174,7 @@ const DraftImpact: FC<{ projectUuid: string; model: string | null }> = ({
     );
 };
 
-const ApplyModal: FC<{
+export const ApplyModal: FC<{
     projectUuid: string;
     draft: SemanticLayerDraft;
     model: string | null;
@@ -755,6 +755,7 @@ export const DraftReview: FC<DraftReviewProps> = ({
                                 </Text>
                                 <LineCounts
                                     counts={countChangedLines(modelChange)}
+                                    withBar
                                 />
                                 {modelChange.reconciliation?.state ===
                                 'conflict' ? (

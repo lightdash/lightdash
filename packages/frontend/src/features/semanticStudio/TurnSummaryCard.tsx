@@ -13,10 +13,11 @@ import {
     IconGitPullRequest,
     IconTrash,
 } from '@tabler/icons-react';
-import { useEffect, type FC } from 'react';
+import { lazy, Suspense, useEffect, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
 import MantineIcon from '../../components/common/MantineIcon';
+import { cannotApply } from './draftState';
 import { FieldChangeIcon } from './KindTypeIcon';
 import {
     describeModelChange,
@@ -34,11 +35,19 @@ import { TurnCard, type Safety } from './TurnCard';
 import { getSemanticStudioUrl } from './urls';
 import {
     useDiscardDraftChange,
+    usePublishMode,
     useRefreshSemanticLayerDraft,
     useSemanticLayerDraft,
     useSemanticLayerDraftImpact,
 } from './useSemanticLayerModel';
-import { useStudioCheckout } from './useStudioCheckout';
+import { useDraftPullRequest, useStudioCheckout } from './useStudioCheckout';
+
+// The review and its diff viewer stay out of the chat's bundle until someone publishes from a card.
+const ApplyModal = lazy(() =>
+    import('./SemanticLayerDraft').then((module) => ({
+        default: module.ApplyModal,
+    })),
+);
 
 const KIND_LABELS: Record<FieldChange['kind'], string> = {
     dimension: 'Dimension',
@@ -256,6 +265,16 @@ export const TurnSummaryCard: FC<{
         ({ reconciliation }) => reconciliation?.state === 'conflict',
     ).length;
     const safety = isDraft ? getSafety(phase.error, impact, conflicts) : null;
+    const [publishing, setPublishing] = useState(false);
+    const asPullRequest = usePublishMode(projectUuid) === 'pull_request';
+    const isSent = useDraftPullRequest() !== null;
+    // A clean draft can go out from where it was made, as the toolbar's button would send it.
+    const canPublish =
+        safety?.state === 'done' &&
+        !!draft &&
+        !cannotApply(draft, null) &&
+        !issues.some(({ kind }) => kind === 'failed');
+    const publishLabel = isSent ? 'Update pull request' : 'Open pull request';
     // A model the agent could not add, and did not go on to fix, is one more thing to hand back to it.
     const failure = issues.find(({ kind }) => kind === 'failed');
     const fixFailure = failure
@@ -274,6 +293,15 @@ export const TurnSummaryCard: FC<{
                         onAsk,
                     }),
                     phase.error ? null : fixFailure,
+                    canPublish ? (
+                        <Button
+                            key="publish"
+                            size="compact-xs"
+                            onClick={() => setPublishing(true)}
+                        >
+                            {asPullRequest ? publishLabel : 'Publish'}
+                        </Button>
+                    ) : null,
                 ];
             case 'published':
                 return phase.model
@@ -421,6 +449,17 @@ export const TurnSummaryCard: FC<{
             isLatest={isLatest}
             actions={actions}
             isGone={phase.kind === 'gone'}
-        />
+        >
+            {publishing && draft ? (
+                <Suspense fallback={null}>
+                    <ApplyModal
+                        projectUuid={projectUuid}
+                        draft={draft}
+                        model={null}
+                        onClose={() => setPublishing(false)}
+                    />
+                </Suspense>
+            ) : null}
+        </TurnCard>
     );
 };

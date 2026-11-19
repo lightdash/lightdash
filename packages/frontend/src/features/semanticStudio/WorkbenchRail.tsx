@@ -1,5 +1,5 @@
 import { type PreAggregateMaterializationSummary } from '@lightdash/common';
-import { Box, Text, TextInput, Tooltip } from '@mantine/core';
+import { Box, Group, Text, TextInput, Tooltip } from '@mantine/core';
 import {
     IconBolt,
     IconChevronRight,
@@ -146,6 +146,8 @@ const Tree: FC<{
                                     fieldName: null,
                                     modelLabel: node.label,
                                     fieldLabel: null,
+                                    fieldKind: null,
+                                    fieldType: null,
                                     code: null,
                                 });
                             }}
@@ -288,21 +290,31 @@ export const Rail: FC<{
 
 export const LineCounts: FC<{
     counts: { additions: number; deletions: number } | null;
-}> = ({ counts }) =>
+    /** Also draws how much of the change adds and how much removes. */
+    withBar?: boolean;
+}> = ({ counts, withBar = false }) =>
     counts ? (
-        <Text fz="xs" flex="none">
-            {counts.additions > 0 ? (
-                <Text span inherit c="green.7">
-                    +{counts.additions}
-                </Text>
+        <Group gap={6} wrap="nowrap" flex="none">
+            <Text fz="xs">
+                {counts.additions > 0 ? (
+                    <Text span inherit c="green.7">
+                        +{counts.additions}
+                    </Text>
+                ) : null}
+                {counts.additions > 0 && counts.deletions > 0 ? ' ' : null}
+                {counts.deletions > 0 ? (
+                    <Text span inherit c="red.7">
+                        −{counts.deletions}
+                    </Text>
+                ) : null}
+            </Text>
+            {withBar && counts.additions + counts.deletions > 0 ? (
+                <Box className={classes.diffBar} aria-hidden>
+                    <Box flex={counts.additions} bg="green.7" />
+                    <Box flex={counts.deletions} bg="red.7" />
+                </Box>
             ) : null}
-            {counts.additions > 0 && counts.deletions > 0 ? ' ' : null}
-            {counts.deletions > 0 ? (
-                <Text span inherit c="red.7">
-                    −{counts.deletions}
-                </Text>
-            ) : null}
-        </Text>
+        </Group>
     ) : null;
 
 const sumLineCounts = (
@@ -358,7 +370,7 @@ export const CodeRail: FC<{
                         color="dimmed"
                     />
                     <Text className={classes.treeLabel}>Overview</Text>
-                    <LineCounts counts={sumLineCounts(lineCounts)} />
+                    <LineCounts counts={sumLineCounts(lineCounts)} withBar />
                 </Box>
             </Box>
         ) : null}

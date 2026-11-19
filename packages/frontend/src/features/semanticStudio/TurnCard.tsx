@@ -2,7 +2,10 @@ import {
     Box,
     Button,
     Group,
+    Loader,
     Paper,
+    Skeleton,
+    Stack,
     Text,
     UnstyledButton,
     VisuallyHidden,
@@ -77,6 +80,23 @@ const Row: FC<{ row: TurnRow }> = ({ row }) => {
         </UnstyledButton>
     );
 };
+
+/** Stands in for a turn's card while the change it will show is still being checked. */
+export const TurnCardSkeleton: FC = () => (
+    <Paper mt="xs" className={classes.card} aria-busy>
+        <Group className={classes.section} gap={6} wrap="nowrap">
+            <Loader size={12} color="gray" />
+            <Text fz="xs" fw={500}>
+                Checking the change
+            </Text>
+        </Group>
+        <Stack className={classes.section} gap={8}>
+            <Skeleton h={8} w="45%" />
+            <Skeleton h={8} w="70%" />
+            <Skeleton h={8} w="55%" />
+        </Stack>
+    </Paper>
+);
 
 /** The shell of a turn's card: status, what changed by model, whether it is safe, and what to do next. */
 export const TurnCard: FC<{
@@ -241,7 +261,7 @@ export const TurnCard: FC<{
                             {note}
                         </Text>
                     ) : null}
-                    {safety && safety.state !== 'done' ? (
+                    {safety ? (
                         <Group
                             className={classes.section}
                             gap={6}

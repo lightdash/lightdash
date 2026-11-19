@@ -434,6 +434,8 @@ export const MainPane: FC<{
                                     fieldName: null,
                                     modelLabel: title,
                                     fieldLabel: null,
+                                    fieldKind: null,
+                                    fieldType: null,
                                     code: null,
                                 });
                             }}

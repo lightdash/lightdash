@@ -310,6 +310,16 @@
     margin-top: var(--mantine-spacing-xs);
 }
 
+/* The share of a change that adds against the share that removes. */
+.diffBar {
+    display: flex;
+    flex: none;
+    width: 32px;
+    height: 4px;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
 .railOverview {
     flex: none;
     padding: 0 8px var(--mantine-spacing-xs);

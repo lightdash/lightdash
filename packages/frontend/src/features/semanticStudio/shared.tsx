@@ -632,6 +632,8 @@ export const FieldList: FC<{
                 fieldName: field.id,
                 modelLabel: explore.label,
                 fieldLabel: field.label,
+                fieldKind: field.fieldKind,
+                fieldType: field.type,
                 code: null,
             }),
         [explore.id, explore.label],
@@ -1188,6 +1190,8 @@ export const FieldDetailModal: FC<{
                                 fieldName: field.id,
                                 modelLabel: explore.label,
                                 fieldLabel: field.label,
+                                fieldKind: field.fieldKind,
+                                fieldType: field.type,
                                 code: null,
                             });
                             onClose();
