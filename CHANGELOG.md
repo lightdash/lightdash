@@ -1,3 +1,20 @@
+# [3.344.0](https://github.com/lightdash/lightdash/compare/3.343.1...3.344.0) (2026-11-19)
+
+
+### Bug Fixes
+
+* **ai-agent:** send Voice Design to the agent the user picked, and name attachments outside its spaces ([#33013](https://github.com/lightdash/lightdash/issues/33013)) ([43c7567](https://github.com/lightdash/lightdash/commit/43c7567081046f36d036337de57260185de2cd10))
+
+
+### Features
+
+* **semantic-studio:** show a checked-out draft in the project switcher instead of a banner ([#33012](https://github.com/lightdash/lightdash/issues/33012)) ([c122388](https://github.com/lightdash/lightdash/commit/c1223880949af9b3a08c3de51019d885e2b82583))
+
+
+### Performance Improvements
+
+* **semantic-studio:** keep the compiled project current without a full compile ([#33009](https://github.com/lightdash/lightdash/issues/33009)) ([e2d59bb](https://github.com/lightdash/lightdash/commit/e2d59bb8fe6aeefb3856e902deb5c335c9673937))
+
 ## [3.343.1](https://github.com/lightdash/lightdash/compare/3.343.0...3.343.1) (2026-11-19)
 
 
