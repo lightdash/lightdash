@@ -61,7 +61,6 @@ type Props = {
     startedAt?: string;
     isLatest?: boolean;
     note?: string | null;
-    options?: string[];
 };
 
 // ts-unused-exports:disable-next-line
@@ -255,7 +254,6 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     startedAt,
     isLatest = true,
     note = null,
-    options = [],
 }) => {
     const quiet = useContext(QuietCardsContext);
     // Hooks must run before the early returns below; the query is disabled until
@@ -502,7 +500,6 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                 ciChecks={ciChecks ?? null}
                 isLatestTurn={isLatest}
                 note={note}
-                options={options}
             />
         );
     }

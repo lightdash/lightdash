@@ -312,76 +312,54 @@ export const ApplyModal: FC<{
     );
 };
 
-const DiscardButton: FC<{
-    label: string;
-    disabled: boolean;
-    onConfirm: () => void;
-}> = ({ label, disabled, onConfirm }) => {
-    const [armed, setArmed] = useState(false);
-    return (
-        <Button
-            size="xs"
-            variant={armed ? 'light' : 'subtle'}
-            color={armed ? 'red' : undefined}
-            disabled={disabled}
-            onMouseLeave={() => setArmed(false)}
-            onBlur={() => setArmed(false)}
-            onClick={() => {
-                setArmed(!armed);
-                if (armed) onConfirm();
-            }}
-        >
-            {armed ? 'Confirm discard' : label}
-        </Button>
-    );
-};
-
-/** Discard and apply, for the whole draft when `model` is null. */
-const DraftActions: FC<{
+/** Publishing or discarding one model on its own, tucked into a menu: the bar above publishes the draft. */
+const ModelActions: FC<{
     projectUuid: string;
     draft: SemanticLayerDraft;
-    model: string | null;
+    model: string;
 }> = ({ projectUuid, draft, model }) => {
     const discard = useDiscardSemanticLayerDraft(projectUuid);
     const asPullRequest = usePublishMode(projectUuid) === 'pull_request';
     const [applying, setApplying] = useState(false);
-    const isAll = model === null && draft.models.length > 1;
+    const [armed, setArmed] = useState(false);
     const hasConflict = countConflicts(draft, model) > 0;
     const blocked = hasConflict || cannotApply(draft, model);
-    const hasModels = draft.models.length > 0;
-    const discardLabel = isAll ? 'Discard all' : 'Discard';
+    const blockedReason = hasConflict
+        ? 'Choose which version to keep first.'
+        : 'Some changes no longer pass their checks.';
     return (
-        <Group gap="xs" wrap="nowrap" flex="none">
-            <DiscardButton
-                label={hasModels ? discardLabel : 'Clear draft'}
-                disabled={discard.isLoading}
-                onConfirm={() => discard.mutate(model)}
-            />
-            {hasModels ? (
-                <Tooltip
-                    label={
-                        hasConflict
-                            ? 'Choose which version to keep first.'
-                            : 'Some changes no longer pass their checks.'
-                    }
-                    disabled={!blocked}
-                >
-                    <Button
-                        size="xs"
-                        variant={model === null ? 'filled' : 'default'}
-                        data-disabled={blocked || undefined}
-                        onClick={() => {
-                            if (!blocked) setApplying(true);
-                        }}
+        <>
+            <Menu position="bottom-end" onClose={() => setArmed(false)}>
+                <Menu.Target>
+                    <ActionIcon size="sm" aria-label={`More for ${model}`}>
+                        <MantineIcon icon={IconDots} />
+                    </ActionIcon>
+                </Menu.Target>
+                <Menu.Dropdown>
+                    <Menu.Item
+                        disabled={blocked}
+                        title={blocked ? blockedReason : undefined}
+                        onClick={() => setApplying(true)}
                     >
                         {asPullRequest
-                            ? 'Open pull request'
-                            : isAll
-                              ? 'Publish all'
-                              : 'Publish'}
-                    </Button>
-                </Tooltip>
-            ) : null}
+                            ? 'Open pull request for this model only'
+                            : 'Publish this model only'}
+                    </Menu.Item>
+                    <Menu.Item
+                        color="red"
+                        closeMenuOnClick={armed}
+                        disabled={discard.isLoading}
+                        onClick={() => {
+                            if (armed) discard.mutate(model);
+                            setArmed(!armed);
+                        }}
+                    >
+                        {armed
+                            ? 'Click again to discard'
+                            : "Discard this model's changes"}
+                    </Menu.Item>
+                </Menu.Dropdown>
+            </Menu>
             {applying ? (
                 <ApplyModal
                     projectUuid={projectUuid}
@@ -390,7 +368,7 @@ const DraftActions: FC<{
                     onClose={() => setApplying(false)}
                 />
             ) : null}
-        </Group>
+        </>
     );
 };
 
@@ -758,7 +736,6 @@ export const DraftReview: FC<DraftReviewProps> = ({
                                 </Text>
                                 <LineCounts
                                     counts={countChangedLines(modelChange)}
-                                    withBar
                                 />
                                 {modelChange.reconciliation?.state ===
                                 'conflict' ? (
@@ -771,7 +748,7 @@ export const DraftReview: FC<DraftReviewProps> = ({
                                     </Badge>
                                 ) : null}
                                 {draft.models.length > 1 && publishesHere ? (
-                                    <DraftActions
+                                    <ModelActions
                                         projectUuid={projectUuid}
                                         draft={draft}
                                         model={modelChange.model}

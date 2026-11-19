@@ -45,10 +45,10 @@ import {
     type DiffFile,
 } from './splitPatch';
 
-const FILE_KINDS: Record<string, string> = {
-    yml: 'YAML',
-    yaml: 'YAML',
-    sql: 'SQL',
+const FILE_ACTIONS: Record<ChangeKind, string> = {
+    new: 'Added the file',
+    changed: 'Changed the file',
+    removed: 'Removed the file',
 };
 
 const changeOfFile = ({ patch }: DiffFile): ChangeKind => {
@@ -90,7 +90,6 @@ export const DbtTurnSummaryCard: FC<{
     ciChecks: CiChecks | null;
     isLatestTurn: boolean;
     note: string | null;
-    options: string[];
 }> = ({
     projectUuid,
     prUrl,
@@ -100,7 +99,6 @@ export const DbtTurnSummaryCard: FC<{
     ciChecks,
     isLatestTurn,
     note,
-    options,
 }) => {
     const onAsk = useContext(StudioAskContext);
     const isBitbucket = isBitbucketPullRequest(prUrl);
@@ -149,6 +147,7 @@ export const DbtTurnSummaryCard: FC<{
         files.length > 0
             ? [...new Set(files.map(getModelOfFile))].map((model) => ({
                   model,
+                  change: 'changed',
                   title: model,
                   subtitle: null,
                   issues: [],
@@ -162,10 +161,7 @@ export const DbtTurnSummaryCard: FC<{
                           return {
                               id: file.key,
                               change,
-                              kind:
-                                  FILE_KINDS[
-                                      file.path.split('.').pop() ?? ''
-                                  ] ?? 'File',
+                              action: FILE_ACTIONS[change],
                               icon: (
                                   <MantineIcon
                                       icon={IconFileCode}
@@ -181,6 +177,7 @@ export const DbtTurnSummaryCard: FC<{
               }))
             : changedModels.map((model) => ({
                   model,
+                  change: 'changed',
                   title: model,
                   subtitle: null,
                   issues: [],
@@ -188,7 +185,7 @@ export const DbtTurnSummaryCard: FC<{
                       {
                           id: model,
                           change: 'changed',
-                          kind: 'Model',
+                          action: 'Changed the model',
                           icon: <MantineIcon icon={IconTable} color="dimmed" />,
                           label: model,
                           detail: null,
@@ -294,8 +291,6 @@ export const DbtTurnSummaryCard: FC<{
             groups={groups}
             safety={state === 'open' ? getSafety(latestCompile) : null}
             note={state === 'open' ? note : null}
-            options={state === 'open' ? options : []}
-            onAsk={onAsk}
             isLatest={isLatestTurn}
             actions={actions}
             isGone={state === 'closed'}
