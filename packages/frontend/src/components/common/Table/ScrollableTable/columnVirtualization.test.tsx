@@ -250,6 +250,7 @@ it('keeps the dragged column mounted when scrolling to a distant drop target', a
 
 it('resizes the same field on rows with a merged dimension', async () => {
     const { row, columns } = makeWideTable();
+    const saveWidth = vi.fn();
     const fields = columns.map((field, index) => ({
         ...field,
         meta: {
@@ -274,7 +275,7 @@ it('resizes the same field on rows with a merged dimension', async () => {
             totalRowsCount={2}
             isFetchingRows={false}
             fetchMoreRows={vi.fn()}
-            onColumnWidthChange={vi.fn()}
+            onColumnWidthChange={saveWidth}
             hideRowNumbers
         >
             <ScrollableTable
@@ -289,12 +290,80 @@ it('resizes the same field on rows with a merged dimension', async () => {
         '2',
     );
     const header = screen.getByText('Field 2').closest('th')!;
+    const table = screen.getByRole('table');
+    vi.spyOn(header, 'getBoundingClientRect').mockReturnValue(
+        DOMRect.fromRect({ width: 100 }),
+    );
+    vi.spyOn(table, 'getBoundingClientRect').mockReturnValue(
+        DOMRect.fromRect({ width: 10000 }),
+    );
     fireEvent.mouseDown(within(header).getByRole('separator'), { clientX: 0 });
-    fireEvent.mouseMove(document, { clientX: 200 });
+    fireEvent.mouseMove(document, { clientX: -30 });
+    expect(table.style.width).toBe('9970px');
+    expect(table.style.minWidth).toBe('9970px');
     expect(screen.getAllByText('value 2')[1].closest('td')!.style.width).toBe(
-        '200px',
+        '70px',
     );
     const neighbor = screen.getAllByText('value 3')[1].closest('td')!;
     expect(neighbor.style.width).toBe('');
-    fireEvent.mouseUp(document, { clientX: 200 });
+    fireEvent.mouseUp(document, { clientX: -30 });
+    expect(saveWidth).toHaveBeenCalledWith('field_2', 70);
+    expect(table.style.width).toBe('');
 });
+
+it('fits the Total label and sizes unsaved columns using their displayed contents', async () => {
+    const { row, columns } = makeWideTable();
+    const fields = columns.map((field, index) => {
+        if (index >= 3) return field;
+        return { ...field, header: 'ID', meta: {} };
+    });
+    fields[2].meta = { headerText: 'Customer reference number' };
+    row.field_1.value.formatted = '$123,456,789.00';
+    renderWithProviders(
+        <TableProvider
+            data={[row]}
+            columns={fields}
+            totalRowsCount={1}
+            isFetchingRows={false}
+            fetchMoreRows={vi.fn()}
+            footer={{ show: true }}
+        >
+            <ScrollableTable />
+        </TableProvider>,
+    );
+    const table = (await screen.findByText('Total')).closest('table')!;
+    const columnWidth = (index: number) => {
+        const col = table.querySelector<HTMLTableColElement>(
+            `col[data-column-index="${index}"]`,
+        );
+        return Number(col?.style.width.match(/[\d.]+/)?.[0]);
+    };
+    expect(columnWidth(1)).toBeGreaterThan(30);
+    expect(columnWidth(3)).toBeGreaterThan(columnWidth(2));
+    expect(columnWidth(4)).toBeGreaterThan(columnWidth(2));
+    expect(columnWidth(5)).toBe(100);
+});
+
+it.each([false, true])(
+    'windows 41 data columns when hideRowNumbers is %s',
+    async (hideRowNumbers) => {
+        const { row, columns } = makeWideTable();
+        renderWithProviders(
+            <TableProvider
+                data={[row]}
+                columns={columns.slice(0, 41)}
+                totalRowsCount={1}
+                isFetchingRows={false}
+                fetchMoreRows={vi.fn()}
+                hideRowNumbers={hideRowNumbers}
+            >
+                <ScrollableTable />
+            </TableProvider>,
+        );
+        expect(await screen.findByText('value 0')).toBeInTheDocument();
+        expect(screen.getByRole('table')).toHaveAttribute(
+            'aria-colcount',
+            hideRowNumbers ? '41' : '42',
+        );
+    },
+);

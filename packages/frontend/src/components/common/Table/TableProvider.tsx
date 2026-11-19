@@ -15,6 +15,7 @@ import {
 } from './constants';
 import Context from './context';
 import { getGroupedRowModelLightdash } from './getGroupedRowModelLightdash';
+import { getRowNumberWidth } from './measureColumnWidth';
 import { type ProviderProps, type TableColumn } from './types';
 
 const rowColumn: TableColumn = {
@@ -87,10 +88,16 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
         setTempColumnOrder([ROW_NUMBER_COLUMN_ID, ...(columnOrder || [])]);
     }, [columnOrder]);
 
-    const withTotals = showColumnCalculation ? 60 : 0;
     const rowColumnWidth = hideRowNumbers
         ? 0
-        : Math.max(withTotals, `${data.length}`.length * 10 + 20);
+        : Math.max(
+              showColumnCalculation ? 60 : 0,
+              `${data.length}`.length * 10 + 20,
+              getRowNumberWidth(
+                  Math.max(totalRowsCount, data.length),
+                  !!rest.footer?.show,
+              ),
+          );
     const frozenColumns = useMemo(
         () => columns.filter((col) => col.meta?.frozen),
         [columns],

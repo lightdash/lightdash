@@ -1,5 +1,5 @@
 import { isField, isTableCalculation } from '@lightdash/common';
-import { Tooltip } from '@mantine/core';
+import { Box, Tooltip } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
 import { isEqual } from 'es-toolkit/compat';
 import React, { useEffect, type FC } from 'react';
@@ -19,6 +19,7 @@ import { HeaderDnD } from './HeaderDnD';
 import classes from './HeaderDnD.module.css';
 
 interface TableHeaderProps {
+    headerHeight?: number;
     onDragColumnChange: (id?: string) => void;
     onFocusColumnChange: (id?: string) => void;
     columnWindow?: ColumnWindow;
@@ -43,6 +44,7 @@ const tableCalculationTourProps = {
 };
 
 const TableHeader: FC<TableHeaderProps> = ({
+    headerHeight,
     onDragColumnChange,
     onFocusColumnChange,
     columnWindow,
@@ -78,7 +80,7 @@ const TableHeader: FC<TableHeaderProps> = ({
     }
 
     return (
-        <thead data-testid="table-header">
+        <Box component="thead" data-testid="table-header" h={headerHeight}>
             {table.getHeaderGroups().map((headerGroup) => (
                 <HeaderDnD
                     key={headerGroup.id}
@@ -229,7 +231,7 @@ const TableHeader: FC<TableHeaderProps> = ({
                     )}
                 </HeaderDnD>
             ))}
-        </thead>
+        </Box>
     );
 };
 

@@ -178,6 +178,11 @@ const getDataAndColumns = (args: Args): Array<TableHeader | TableColumn> => {
                 meta: {
                     item,
                     labelOverride: modelColumn.labelOverride,
+                    headerText:
+                        modelColumn.header.kind === 'field' &&
+                        modelColumn.header.showTableName
+                            ? `${modelColumn.header.tableLabel} ${modelColumn.header.label}`
+                            : modelColumn.header.label,
                     isVisible: modelColumn.isVisible,
                     frozen: modelColumn.frozen,
                     // For image columns with explicit width: set fixed width constraints
