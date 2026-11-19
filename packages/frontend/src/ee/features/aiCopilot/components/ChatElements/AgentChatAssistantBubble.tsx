@@ -1382,8 +1382,10 @@ export const AssistantBubble: FC<Props> = memo(
                     <Group
                         gap={0}
                         className={styles.messageActions}
-                        // Earlier answers reveal their actions on hover or focus.
-                        data-persistent={isLastMessage || hasRating}
+                        // Earlier answers reveal their actions on hover or focus; in a narrow side chat every answer does.
+                        data-persistent={
+                            !quietCards && (isLastMessage || hasRating)
+                        }
                         // Walkthrough: rating the answer feeds the Issues loop.
                         // See scripts/scope-tours.
                         data-tour-scope="create:AiAgentThread"
