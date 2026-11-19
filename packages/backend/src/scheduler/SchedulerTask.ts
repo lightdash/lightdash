@@ -239,7 +239,10 @@ import {
     getDashboardTileParameterLayer,
     getEnabledParameterControls,
 } from '../services/ProjectService/parameters';
-import { ProjectService } from '../services/ProjectService/ProjectService';
+import {
+    ProjectService,
+    type IncrementalCompileResult,
+} from '../services/ProjectService/ProjectService';
 import { RenameService } from '../services/RenameService/RenameService';
 import { SchedulerService } from '../services/SchedulerService/SchedulerService';
 import {
@@ -3354,6 +3357,14 @@ export default class SchedulerTask {
                                       ),
                               }
                             : undefined,
+                        !account && payload.incremental === true
+                            ? () =>
+                                  this.compileIncrementally(
+                                      user,
+                                      payload.projectUuid,
+                                      payload.jobUuid,
+                                  )
+                            : undefined,
                     );
                     if (revalidate) await revalidate();
                     await this.schedulerService.logSchedulerJob({
@@ -3413,6 +3424,15 @@ export default class SchedulerTask {
                 }
             },
         );
+    }
+
+    // Only the commercial worker can patch a dbt manifest, so this one always runs the full compile.
+    protected async compileIncrementally(
+        _user: SessionUser,
+        _projectUuid: string,
+        _jobUuid: string,
+    ): Promise<IncrementalCompileResult | null> {
+        return null;
     }
 
     // Files that could not be applied fail the step so the job details say why

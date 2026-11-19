@@ -940,6 +940,8 @@ export type CompileProjectPayload = TraceTaskBase & {
     // Apply charts and dashboards as code from the repo once compiled
     syncContentAfterCompile?: boolean;
     compilationSource?: CompilationSource;
+    // Saves only what changed since the last compile when the worker can tell; full otherwise
+    incremental?: boolean;
 };
 
 export type PreAggregateMaterializationTrigger =

@@ -6665,6 +6665,8 @@ describe('connection compile jobs', () => {
                     RequestMethod.CLI,
                     'compile-1',
                     undefined,
+                    // An agent's compile is never incremental.
+                    undefined,
                 ]);
                 expect(f.children.generateValidation).toHaveBeenCalledWith(
                     expect.objectContaining({

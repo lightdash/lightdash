@@ -4416,6 +4416,7 @@ describe('AiWritebackService.mergePullRequest', () => {
         projectUuid: 'p1',
         prUrl: PR_7,
         sha: 'sha-7',
+        incrementalCompile: false,
     };
 
     const setup = (overrides: Record<string, AnyType> = {}) => {
@@ -4449,6 +4450,22 @@ describe('AiWritebackService.mergePullRequest', () => {
             'p1',
             RequestMethod.BACKEND,
             true,
+            false,
+            false,
+            undefined,
+            false,
+        );
+    });
+
+    it('lets the recompile save only what changed when the caller asks', async () => {
+        const { service, mergePullRequest, scheduleCompileProject } = setup();
+        await service.mergePullRequest({
+            ...mergeArgs,
+            incrementalCompile: true,
+        });
+        expect(scheduleCompileProject.mock.calls[0].at(-1)).toBe(true);
+        expect(mergePullRequest.mock.calls[0][0]).not.toHaveProperty(
+            'incrementalCompile',
         );
     });
 

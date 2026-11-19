@@ -17,6 +17,7 @@ import {
     ParameterError,
     ProjectType,
     readModelPart,
+    RequestMethod,
     ValidationTarget,
     type CompileSemanticStudioBranchPayload,
     type DbtManifest,
@@ -58,10 +59,19 @@ import { type FileStorageClient } from '../../../clients/FileStorage/FileStorage
 import { type DraftImpactBreaks } from '../../../database/entities/projectModelDraftImpacts';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { type JobModel } from '../../../models/JobModel/JobModel';
+import { type ProjectCompileLogModel } from '../../../models/ProjectCompileLogModel';
 import { type SavedChartModel } from '../../../models/SavedChartModel';
+import { CompileInterruptedError } from '../../../scheduler/compileShutdown';
 import { BaseService } from '../../../services/BaseService';
-import { readCompiledDbtManifest } from '../../../services/ProjectService/compiledDbtManifest';
-import { type ProjectService } from '../../../services/ProjectService/ProjectService';
+import {
+    readCompiledDbtManifest,
+    saveCompiledDbtManifest,
+    type CompiledDbtManifest,
+} from '../../../services/ProjectService/compiledDbtManifest';
+import {
+    type IncrementalCompileResult,
+    type ProjectService,
+} from '../../../services/ProjectService/ProjectService';
 import { type ValidationService } from '../../../services/ValidationService/ValidationService';
 import { runWithConcurrency } from '../../../utils/runWithConcurrency';
 import {
@@ -78,6 +88,7 @@ import { getWritebackConnectionSupport } from '../AiAgentService/writebackConnec
 import { type AiWritebackService } from '../AiWritebackService/AiWritebackService';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import {
+    advanceCompiledManifest,
     findModelsToCompile,
     findNewCompileErrors,
     patchManifest,
@@ -121,6 +132,10 @@ export type SemanticStudioServiceArguments = {
         getAllExploreSummaries: (
             projectUuid: string,
         ) => Promise<{ name: string; type?: ExploreType }[]>;
+        findExploresByBaseTables: (
+            projectUuid: string,
+            baseTables: string[],
+        ) => Promise<{ name: string; type: ExploreType | null }[]>;
         findExploresFromCache: (
             projectUuid: string,
             key: 'name',
@@ -171,6 +186,7 @@ export type SemanticStudioServiceArguments = {
         | 'setExplores'
         | 'compileExploresFromManifest'
         | 'compileExploresFromBranch'
+        | 'saveExploresToCacheAndIndexCatalog'
     > &
         DraftCheckerProjectService;
     fileStorageClient: Pick<
@@ -187,6 +203,7 @@ export type SemanticStudioServiceArguments = {
     >;
     savedChartModel: Pick<SavedChartModel, 'analyzeFieldImpact'>;
     jobModel: Pick<JobModel, 'findLatestCompileStatus'>;
+    projectCompileLogModel: Pick<ProjectCompileLogModel, 'findLatestJobUuid'>;
     writebackPreviewService: Pick<
         WritebackPreviewService,
         'createPreviewForPullRequest'
@@ -347,6 +364,8 @@ export class SemanticStudioService extends BaseService {
 
     private readonly jobModel: SemanticStudioServiceArguments['jobModel'];
 
+    private readonly projectCompileLogModel: SemanticStudioServiceArguments['projectCompileLogModel'];
+
     private readonly writebackPreviewService: SemanticStudioServiceArguments['writebackPreviewService'];
 
     private readonly checker: DraftChecker;
@@ -374,6 +393,7 @@ export class SemanticStudioService extends BaseService {
         this.workspaceModel = args.workspaceModel;
         this.aiWritebackService = args.aiWritebackService;
         this.jobModel = args.jobModel;
+        this.projectCompileLogModel = args.projectCompileLogModel;
         this.writebackPreviewService = args.writebackPreviewService;
         this.checker = new DraftChecker(args.projectService);
     }
@@ -931,16 +951,26 @@ export class SemanticStudioService extends BaseService {
         change: DbtScriptChange,
         { checkQueries }: { checkQueries: boolean },
     ): Promise<DbtScriptCheck> {
-        const compiled = await readCompiledDbtManifest(
+        const stored = await readCompiledDbtManifest(
             this.fileStorageClient,
             projectUuid,
         );
-        if (compiled === null) {
+        if (stored === null) {
             return {
                 status: 'unsupported',
                 reason: 'The project has no compiled manifest to check against',
             };
         }
+        const compiled =
+            change.headCommitSha === null ||
+            change.headCommitSha === stored.commitSha
+                ? stored
+                : await this.advanceCompiledDbtManifest(
+                      projectUuid,
+                      stored,
+                      change.headCommitSha,
+                      change,
+                  );
         const since = await change.listChangedSince(compiled.commitSha);
         if (since === null) {
             return {
@@ -1037,6 +1067,212 @@ export class SemanticStudioService extends BaseService {
             changedModels: patch.changedModels,
             explores,
         };
+    }
+
+    /** Moves the manifest saves are checked against on to the project branch's head; cached explores are left as compiled. */
+    private async advanceCompiledDbtManifest(
+        projectUuid: string,
+        stored: CompiledDbtManifest,
+        headCommitSha: string,
+        change: DbtScriptChange,
+    ): Promise<CompiledDbtManifest> {
+        const startedAt = performance.now();
+        const log = (outcome: Record<string, unknown>) =>
+            this.logger.info('Semantic Studio compiled manifest advance', {
+                event: 'semantic_studio.compiled_manifest.advanced',
+                projectUuid,
+                fromCommitSha: stored.commitSha,
+                toCommitSha: headCommitSha,
+                ...outcome,
+                durationMs: Math.round(performance.now() - startedAt),
+            });
+        try {
+            const advance = await advanceCompiledManifest(
+                stored,
+                headCommitSha,
+                change,
+            );
+            if (advance.status === 'unsupported') {
+                log({ status: 'unsupported', reason: advance.reason });
+                return stored;
+            }
+            await saveCompiledDbtManifest(
+                this.fileStorageClient,
+                projectUuid,
+                advance.compiled,
+            );
+            log({ status: 'advanced', files: advance.files });
+            return advance.compiled;
+        } catch (error) {
+            log({ status: 'failed', error: getErrorMessage(error) });
+            return stored;
+        }
+    }
+
+    /** Saves only the explores a merged change reaches; null when only a full compile can be trusted, with why logged. */
+    async compileAfterMerge(
+        user: SessionUser,
+        projectUuid: string,
+        jobUuid: string,
+    ): Promise<IncrementalCompileResult | null> {
+        const startedAt = performance.now();
+        const log = (outcome: Record<string, unknown>) =>
+            this.logger.info('Semantic Studio compile after merge', {
+                event: 'semantic_studio.compile_after_merge',
+                projectUuid,
+                jobUuid,
+                ...outcome,
+                durationMs: Math.round(performance.now() - startedAt),
+            });
+        const full = (reason: string) => {
+            log({ mode: 'full', reason });
+            return null;
+        };
+        try {
+            const { dbtConnection } = await this.projectModel.get(projectUuid);
+            if (dbtConnection.type !== DbtProjectType.GITHUB) {
+                return full('The project is not in a GitHub repository');
+            }
+            if (dbtConnection.selector?.trim()) {
+                return full('The project compiles a dbt selection');
+            }
+            const stored = await readCompiledDbtManifest(
+                this.fileStorageClient,
+                projectUuid,
+            );
+            if (stored === null) {
+                return full('The project has no compiled manifest');
+            }
+            if (
+                stored.exploresJobUuid === null ||
+                stored.exploresJobUuid !==
+                    (await this.projectCompileLogModel.findLatestJobUuid(
+                        projectUuid,
+                    ))
+            ) {
+                return full(
+                    'The cached explores may not be what the compiled manifest compiles to',
+                );
+            }
+            const { checkout, root } =
+                await this.aiWritebackService.openStudioCheckout(
+                    user,
+                    projectUuid,
+                    null,
+                );
+            const changed = await checkout.listFilesChangedSince(
+                stored.commitSha,
+            );
+            if (changed === null) {
+                return full(
+                    'The branch cannot be compared with the compiled commit',
+                );
+            }
+            if (changed.some((path) => !path.startsWith(root))) {
+                return full('A file outside the dbt project changed');
+            }
+            const advance = await advanceCompiledManifest(
+                stored,
+                checkout.headSha,
+                {
+                    listChangedSince: async () =>
+                        changed.map((path) => path.slice(root.length)),
+                    readAt: (path, commitSha) =>
+                        checkout.readFileAt(`${root}${path}`, commitSha),
+                },
+            );
+            if (advance.status === 'unsupported') return full(advance.reason);
+            const { manifest } = advance.compiled;
+            const { reached, uniqueIds } = findModelsToCompile(
+                manifest,
+                advance.changedModels,
+            );
+            const reachedNames = new Set(reached);
+            const compiled =
+                reached.length === 0
+                    ? []
+                    : await this.projectService.compileExploresFromManifest(
+                          user,
+                          projectUuid,
+                          manifest,
+                          await checkout.readFileAt(
+                              `${root}lightdash.config.yml`,
+                              checkout.headSha,
+                          ),
+                          uniqueIds,
+                      );
+            if (compiled.some(isExploreError)) {
+                return full('An explore the change reaches does not compile');
+            }
+            // Explores of the models only compiled to be joined lack their own joins.
+            const explores = compiled.filter(
+                (explore): explore is Explore =>
+                    !isExploreError(explore) &&
+                    reachedNames.has(explore.baseTable),
+            );
+            // Pre-aggregate explores are built from the cache after a compile, and user-managed ones are not compiled at all.
+            const cachedNames = (
+                await this.projectModel.findExploresByBaseTables(
+                    projectUuid,
+                    reached,
+                )
+            ).flatMap(({ name, type }) =>
+                type === null || type === ExploreType.DEFAULT ? [name] : [],
+            );
+            const exploreNames = new Set(explores.map(({ name }) => name));
+            if (
+                cachedNames.length !== exploreNames.size ||
+                cachedNames.some((name) => !exploreNames.has(name))
+            ) {
+                return full('The change adds or removes an explore');
+            }
+            const broken = findNewCompileErrors(
+                explores,
+                await this.projectModel.findExploresFromCache(
+                    projectUuid,
+                    'name',
+                    cachedNames,
+                ),
+            );
+            if (broken.length > 0) {
+                return full(`The change warns: ${broken.join('. ')}`);
+            }
+            const indexCatalogJobUuid =
+                await this.projectService.saveExploresToCacheAndIndexCatalog({
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    explores,
+                    complete: false,
+                    compilationSource: 'refresh_dbt',
+                    jobUuid,
+                    requestMethod: RequestMethod.BACKEND,
+                });
+            await saveCompiledDbtManifest(this.fileStorageClient, projectUuid, {
+                ...advance.compiled,
+                exploresJobUuid: jobUuid,
+            }).catch((error: unknown) => {
+                // The compile log has moved on, so the next compile after a merge runs in full.
+                this.logger.warn(
+                    `SemanticStudio: failed to keep the patched manifest: ${getErrorMessage(error)}`,
+                );
+            });
+            log({
+                mode: 'incremental',
+                files: advance.files,
+                changedModels: advance.changedModels.length,
+                explores: explores.length,
+                fromCommitSha: stored.commitSha,
+                toCommitSha: checkout.headSha,
+            });
+            return {
+                indexCatalogJobUuid,
+                errorCount: 0,
+                total: explores.length,
+            };
+        } catch (error) {
+            if (error instanceof CompileInterruptedError) throw error;
+            return full(`It failed: ${getErrorMessage(error)}`);
+        }
     }
 
     /** Keeps what a code-mode change compiled to as the conversation's try-out, until the preview project is built. */
@@ -1317,6 +1553,7 @@ export class SemanticStudioService extends BaseService {
             user,
             projectUuid,
             prUrl,
+            incrementalCompile: true,
         });
         if (result.merged) {
             await this.recordPullRequestState(projectUuid, prUrl, 'merged');
@@ -2223,6 +2460,7 @@ export class SemanticStudioService extends BaseService {
                         user,
                         projectUuid,
                         prUrl,
+                        incrementalCompile: true,
                     })
                 ).merged;
             } catch (error) {
@@ -2887,6 +3125,7 @@ export class SemanticStudioService extends BaseService {
                         await this.aiWritebackService.scheduleCompileAfterMerge(
                             user,
                             projectUuid,
+                            true,
                         );
                     }
                 }

@@ -874,6 +874,13 @@ type ResolvedCompileAdapter = {
     failedDbtSourceUuids?: string[];
     exploreNaming?: ExploreNaming;
 };
+/** What a compile that saved only the explores a change reaches reports to its job. */
+export type IncrementalCompileResult = {
+    indexCatalogJobUuid: string;
+    errorCount: number;
+    total: number;
+};
+
 type SaveCompiledExploresArgs = {
     userUuid: string;
     projectUuid: string;
@@ -7193,6 +7200,13 @@ export class ProjectService
                                 projectUuid,
                                 user.organizationUuid,
                                 compileAdapter,
+                                ProjectService.isWholeCacheCompile({
+                                    multiConnection,
+                                    stagedMergedManifest,
+                                    exploreNaming,
+                                })
+                                    ? job.jobUuid
+                                    : null,
                             );
                             timings.compileExplores.end = performance.now();
                             timings.getConfig.start = performance.now();
@@ -8763,11 +8777,26 @@ export class ProjectService
         }
     }
 
+    /** Whether the explores a compile saves are exactly what its one dbt manifest compiles to, the whole cache over. */
+    private static isWholeCacheCompile(compile: {
+        multiConnection: MultiConnectionCompilation | null;
+        stagedMergedManifest: Buffer | undefined;
+        exploreNaming: ExploreNaming | undefined;
+    }): boolean {
+        return (
+            compile.multiConnection === null &&
+            compile.stagedMergedManifest === undefined &&
+            compile.exploreNaming === undefined &&
+            !agentExecutionContext.getStore()?.agentConnectionExecution
+        );
+    }
+
     /** Keeps what a single-source dbt compile parsed, so Semantic Studio's code mode can change its YAML without running dbt. */
     private async saveCompiledDbtManifestBestEffort(
         projectUuid: string,
         organizationUuid: string,
         adapter: ProjectAdapter,
+        exploresJobUuid: string | null,
     ): Promise<void> {
         if (
             !(adapter instanceof DbtGitProjectAdapter) ||
@@ -8787,6 +8816,7 @@ export class ProjectService
             await saveCompiledDbtManifest(this.fileStorageClient, projectUuid, {
                 commitSha,
                 manifest: projectMergedManifest(adapter.lastManifest),
+                exploresJobUuid,
             });
         } catch (error) {
             this.logger.warn(
@@ -13864,6 +13894,13 @@ export class ProjectService
                             projectUuid,
                             project.organizationUuid,
                             adapter,
+                            ProjectService.isWholeCacheCompile({
+                                multiConnection,
+                                stagedMergedManifest,
+                                exploreNaming,
+                            })
+                                ? (jobUuid ?? null)
+                                : null,
                         );
                         const lightdashProjectConfig =
                             await adapter.getLightdashProjectConfig(
@@ -14161,6 +14198,7 @@ export class ProjectService
         validateAfterCompile: boolean = false,
         syncContentAfterCompile: boolean = false,
         existingJobUuid?: string,
+        incremental: boolean = false,
     ): Promise<{ jobUuid: string }> {
         const { organizationUuid, type } =
             await this.projectModel.getSummary(projectUuid);
@@ -14229,6 +14267,7 @@ export class ProjectService
             isPreview: type === ProjectType.PREVIEW,
             validateAfterCompile,
             syncContentAfterCompile: syncContent,
+            incremental,
             ...connectionTask,
             userUuid: user.userUuid,
         });
@@ -14244,6 +14283,8 @@ export class ProjectService
         requestMethod: RequestMethod,
         jobUuid: string,
         afterCompile?: { stepType: JobStepType; run: () => Promise<void> },
+        /** Saves only what changed since the last compile; null runs the full compile. */
+        compileIncrementally?: () => Promise<IncrementalCompileResult | null>,
     ) {
         if (agentExecutionContext.getStore()?.agentConnectionExecution) {
             try {
@@ -14377,6 +14418,7 @@ export class ProjectService
                     job.jobUuid,
                     JobStepType.COMPILING,
                     async () =>
+                        (await compileIncrementally?.()) ??
                         this.refreshTablesAndProjectConfig(
                             user,
                             projectUuid,
