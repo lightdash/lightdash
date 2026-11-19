@@ -742,7 +742,8 @@ export const SourcePane: FC<{
     }`;
     const check = (isOn: boolean) =>
         isOn ? <MantineIcon icon={IconCheck} size={14} /> : null;
-    const surfaceKey = `${path}:${shownLayout}:${revision}`;
+    // Pierre takes `edit` when it mounts, so entering or leaving editing mounts it again.
+    const surfaceKey = `${path}:${shownLayout}:${revision}:${isEditing}`;
     return (
         <Box className={tabClasses.codePane}>
             <Group
