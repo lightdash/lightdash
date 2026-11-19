@@ -197,6 +197,7 @@ export type SemanticStudioServiceArguments = {
         | 'saveWithScript'
         | 'findPullRequestBranch'
         | 'mergePullRequest'
+        | 'scheduleCompileAfterMerge'
     >;
     workspaceModel: Pick<
         SemanticStudioWorkspaceModel,
@@ -2857,6 +2858,13 @@ export class SemanticStudioService extends BaseService {
                     );
                     changed = true;
                     await this.retireDbtTryOut(user, projectUuid, prUrl);
+                    // Merged outside the app, so nothing has refreshed the project with it yet.
+                    if (state === 'merged') {
+                        await this.aiWritebackService.scheduleCompileAfterMerge(
+                            user,
+                            projectUuid,
+                        );
+                    }
                 }
             } catch (error) {
                 this.logger.warn(

@@ -355,6 +355,7 @@ const setup = ({
         sha: 'merge-sha',
         compileJobUuid: 'job-1',
     }));
+    const scheduleCompileAfterMerge = vi.fn(async () => 'job-2');
     let activeWorkspace: { threadUuid: string; prUrl: string | null } | null =
         null;
     const unused = async (): Promise<never> => {
@@ -425,6 +426,7 @@ const setup = ({
             saveWithScript: unused,
             findPullRequestBranch,
             mergePullRequest,
+            scheduleCompileAfterMerge,
         },
         workspaceModel: {
             listChanges: async () => [],
@@ -758,6 +760,7 @@ const setup = ({
         queueBranchCompile,
         branchCompiles,
         upsert,
+        scheduleCompileAfterMerge,
         openPullRequest,
         updatePullRequest,
         recordedPullRequests,
@@ -3376,6 +3379,10 @@ describe('workspace pull request reconciliation', () => {
                 state,
                 // A dbt draft has nothing kept on the server, so a closed pull request ends it too.
                 true,
+            );
+            // Only a merge brings new models, so only a merge refreshes the project.
+            expect(context.scheduleCompileAfterMerge).toHaveBeenCalledTimes(
+                state === 'merged' ? 1 : 0,
             );
         },
     );

@@ -853,7 +853,7 @@ export class AiWritebackService extends BaseService {
      * turns into an API error. Only git-connected projects re-clone on compile
      * and thus pick up the merged branch, so non-git projects are skipped.
      */
-    private async scheduleCompileAfterMerge(
+    async scheduleCompileAfterMerge(
         user: SessionUser,
         projectUuid: string,
     ): Promise<string | null> {
