@@ -12,8 +12,7 @@ import { withImageRequestSizeGuard } from './requestSizeGuard';
  * included, and that field is what reaches JSON logs. Everything else on the
  * error (status, retryability, provider message and code) is kept.
  */
-export const redactModelError = (error: unknown): unknown => {
-    if (!APICallError.isInstance(error)) return error;
+export const withoutRequestBody = (error: APICallError): APICallError => {
     const clean = new APICallError({
         message: error.message,
         url: error.url,
@@ -43,11 +42,15 @@ const hasImageInput = (prompt: ModelPrompt) =>
             ),
     );
 
-// Text-only calls keep their request body on the error for debugging.
-const errorRedactorFor = (prompt: ModelPrompt) =>
-    hasBinaryModelInputs(prompt)
-        ? redactModelError
-        : (error: unknown): unknown => error;
+// A thrown value is untyped; only provider errors carry a request body.
+// Text-only calls keep theirs for debugging.
+const errorRedactorFor = (prompt: ModelPrompt) => {
+    const hasBinaryInputs = hasBinaryModelInputs(prompt);
+    return (error: unknown): unknown =>
+        hasBinaryInputs && APICallError.isInstance(error)
+            ? withoutRequestBody(error)
+            : error;
+};
 
 export const modelErrorRedactionMiddleware: LanguageModelMiddleware = {
     specificationVersion: 'v4',

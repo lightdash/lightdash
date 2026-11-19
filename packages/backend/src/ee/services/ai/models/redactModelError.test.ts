@@ -10,7 +10,10 @@ import { MockLanguageModelV4 } from 'ai/test';
 import { inspect } from 'node:util';
 import Logger from '../../../../logging/logger';
 import { getAiCallTelemetry } from '../utils/aiCallTelemetry';
-import { redactModelError, withModelErrorRedaction } from './redactModelError';
+import {
+    withModelErrorRedaction,
+    withoutRequestBody,
+} from './redactModelError';
 
 vi.mock('@sentry/node', async () => ({
     ...(await vi.importActual<typeof import('@sentry/node')>('@sentry/node')),
@@ -83,7 +86,7 @@ afterEach(() => {
 
 test('drops the request body and keeps everything used to classify the failure', () => {
     const error = failure();
-    const sanitized = redactModelError(error);
+    const sanitized = withoutRequestBody(error);
     expectPrivate(sanitized);
     expect(APICallError.isInstance(sanitized)).toBe(true);
     expect(sanitized).toMatchObject({
@@ -99,10 +102,16 @@ test('drops the request body and keeps everything used to classify the failure',
     });
 });
 
-test('errors that are not provider call errors pass through untouched', () => {
+test('errors that are not provider call errors pass through untouched', async () => {
     const plain = new Error('ordinary failure');
-    expect(redactModelError(plain)).toBe(plain);
-    expect(redactModelError('text')).toBe('text');
+    const model = withModelErrorRedaction(
+        new MockLanguageModelV4({
+            doGenerate: async () => {
+                throw plain;
+            },
+        }),
+    );
+    await expect(model.doGenerate({ prompt: imagePrompt })).rejects.toBe(plain);
 });
 
 test('generate and initial stream failures are sanitized before leaving the wrapped model', async () => {
