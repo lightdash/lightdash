@@ -8,6 +8,7 @@ import {
     DEVELOPMENT_PREVIEW_HEADER,
     DEVELOPMENT_VIEW_HEADER,
     getDevelopmentViewHeaders,
+    pinDevelopmentView,
     useCheckedOutView,
     useDevelopmentView,
 } from './developmentView';
@@ -47,6 +48,22 @@ describe('the development view of a checked-out draft', () => {
             [DEVELOPMENT_VIEW_HEADER]: 'true',
             [DEVELOPMENT_PREVIEW_HEADER]: 'preview-1',
         });
+    });
+
+    it('keeps an open Try it reading its changes when the view is switched off under it', () => {
+        at('/projects/p-1/semantic-layer');
+        localStorage.setItem('lightdash-development-view-project', 'p-1');
+        localStorage.setItem('lightdash-development-preview', 'preview-1');
+        const tried = {
+            [DEVELOPMENT_VIEW_HEADER]: 'true',
+            [DEVELOPMENT_PREVIEW_HEADER]: 'preview-1',
+        };
+        const unpin = pinDevelopmentView('preview-1');
+        // Another tab, or a page that leaves Studio, switches the shared view off.
+        clearDevelopmentView();
+        expect(getDevelopmentViewHeaders()).toEqual(tried);
+        unpin();
+        expect(getDevelopmentViewHeaders()).toEqual({});
     });
 
     it('refetches when the checkout or its compile changes, and not on a page that loaded it already', () => {
