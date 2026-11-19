@@ -58,6 +58,7 @@ import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import { derived } from '../../../utils/changeOrigin';
 import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import { ClearCachedResultsMenuItem } from '../../ProjectResultsCache/ClearCachedResultsMenuItem';
@@ -152,12 +153,14 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                     replaceableFieldsMap,
                 );
             if (fieldsToReplace) {
-                dispatch(
-                    explorerActions.replaceFields({
-                        fieldsToReplace: {
-                            customMetrics: fieldsToReplace,
-                        },
-                    }),
+                derived(() =>
+                    dispatch(
+                        explorerActions.replaceFields({
+                            fieldsToReplace: {
+                                customMetrics: fieldsToReplace,
+                            },
+                        }),
+                    ),
                 );
                 track({
                     name: EventName.CUSTOM_FIELDS_REPLACEMENT_APPLIED,

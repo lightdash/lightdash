@@ -204,6 +204,13 @@ export enum FeatureFlags {
     SemanticStudioEditing = 'semantic-studio-editing',
 
     /**
+     * Undo and redo for the chart being built in the Explorer: the header
+     * buttons and their keyboard shortcuts. Off by default; resolves per user
+     * or organization. It gates the browser only, there is no backend action.
+     */
+    ExplorerUndoRedo = 'explorer-undo-redo',
+
+    /**
      * Configurable retention for AI agent threads. Off by default; enabled
      * per-org on demand for enterprise customers.
      */

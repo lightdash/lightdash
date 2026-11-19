@@ -22,6 +22,7 @@ export * from './ui';
 export * from './cli';
 export * from './env';
 export * from './composer';
+export * from './explorerHistory';
 
 type RequestOptions = Parameters<APIRequestContext['fetch']>[1];
 

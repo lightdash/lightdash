@@ -11,7 +11,19 @@ so does a custom spec arriving while the custom editor has none
 (`onChartConfigChange` undefined), a `chartConfig` prop that changes by
 value, since the prop is then the only truth (a dashboard tile refetch).
 
+A chart the owner replaced wholesale (an explorer undo or redo, signalled by
+the provider's `chartConfigRevision` prop) also starts a new store, without
+the cartesian intent: the restored chart carries its own series and stacking.
+
 ## Rules
+
+- **Dispatches from effects run inside `derived()`.** The store stamps every
+  action with its origin (`utils/changeOrigin.ts`). An action dispatched
+  outside `derived` counts as the user's edit, and every config emitted in
+  the same browser task becomes an undo step in the explorer. An effect that
+  reacts to results, inputs or an earlier edit (a repair, an auto-fill, a
+  reconcile) must wrap its dispatches in `derived(() => ...)`, or loading a
+  chart records a step and undo cannot get past it.
 
 - **One slice per chart type, seeded by the provider.** Every slice starts
   at its type's defaults and the provider seeds only the mounted type, so
