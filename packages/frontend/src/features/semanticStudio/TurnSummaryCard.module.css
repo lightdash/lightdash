@@ -28,7 +28,7 @@
 
 .row {
     display: grid;
-    grid-template-columns: 12px 16px minmax(0, 1fr);
+    grid-template-columns: 12px 16px minmax(0, 1fr) auto;
     column-gap: 6px;
     align-items: center;
     width: 100%;
@@ -66,9 +66,8 @@
     min-width: 0;
 }
 
-/* How the part is defined, under its name. */
+/* How much of a file moved, at the row's end. */
 .sub {
-    grid-column: 3;
     min-width: 0;
 }
 

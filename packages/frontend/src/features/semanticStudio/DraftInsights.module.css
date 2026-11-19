@@ -113,3 +113,39 @@ summary.sectionTitle {
 details:not([open]) > .sectionTitle {
     border-bottom: 0;
 }
+
+/* One model a publish carries: its name over the parts of it that change. */
+.publishModel {
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    overflow: hidden;
+}
+
+.publishHead {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    background: var(--mantine-color-ldGray-0);
+}
+
+.publishRow {
+    display: grid;
+    grid-template-columns: 12px 16px minmax(0, 1fr) auto;
+    column-gap: var(--mantine-spacing-xs);
+    align-items: center;
+    padding: 6px var(--mantine-spacing-sm);
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.publishGlyph {
+    font-family: var(--mantine-font-family-monospace);
+    font-weight: 600;
+    text-align: center;
+    color: var(--mantine-color-orange-text);
+}
+
+.publishGlyph[data-change='new'] {
+    color: var(--mantine-color-green-text);
+}
+
+.publishGlyph[data-change='removed'] {
+    color: var(--mantine-color-red-text);
+}

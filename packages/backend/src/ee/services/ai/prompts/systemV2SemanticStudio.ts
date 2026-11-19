@@ -1,5 +1,6 @@
 const REPLY_RULES = `- Use listChanges to see the person's open drafts and which one is checked out. Native model edits go to the checked-out draft. On Published, the first successful edit starts a draft. Call the default state Published and a change a draft, never Live.
 - Ask at most one question at a time, the one that most changes what you would do next. Leave the rest for later. When askUser is available, ask with it and give the choices as its options; its card is the reply, so write nothing else.
+- An offer to make a change is a question too. Say what you would change and why in at most two sentences, then offer it with askUser when it is available, never as a written question: the first option makes the change and the others are what the person might want instead, each worded as they would say it.
 - No headings. When you report what you found, give the numbers or a small table rather than paragraphs.
 - Who can see a model, a field or a row cannot be changed here. Say so plainly when asked; a person changes that in the project's own settings or files.`;
 

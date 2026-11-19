@@ -6,6 +6,7 @@ import {
     Badge,
     Box,
     Button,
+    Code,
     Group,
     Loader,
     Menu,
@@ -21,9 +22,7 @@ import {
     IconExternalLink,
     IconEye,
     IconFileCode,
-    IconGitPullRequest,
     IconPlayerPlay,
-    IconWorldUpload,
 } from '@tabler/icons-react';
 import { sortBy, uniqBy } from 'es-toolkit/compat';
 import { useEffect, useRef, useState, type FC } from 'react';
@@ -37,6 +36,7 @@ import {
 } from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
 import { TryIt } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/TryItButton';
 import useToaster from '../../hooks/toaster/useToaster';
+import { useProject } from '../../hooks/useProject';
 import { ChangeDiff } from './ChangeDiff';
 import { DevelopmentBar } from './DevelopmentBar';
 import { useDevelopmentView } from './developmentView';
@@ -54,11 +54,12 @@ import {
     CHANGE_KIND_LABELS,
     count,
     countChangedLines,
+    countPublishedChanges,
     describeModelChange,
     DRAFT_PARAM,
     DRAFT_REVIEW,
     getChangeKind,
-    listFieldChanges,
+    listPublishedParts,
     refusalText,
 } from './modelCode';
 import classes from './SemanticLayerDraft.module.css';
@@ -191,6 +192,19 @@ export const ApplyModal: FC<{
     const sent = useDraftPullRequest() !== null;
     const sendLabel = sent ? 'Update pull request' : 'Open pull request';
     const confirmLabel = asPullRequest ? sendLabel : 'Publish';
+    const { data: project } = useProject(projectUuid);
+    const branch =
+        project?.dbtConnection && 'branch' in project.dbtConnection
+            ? project.dbtConnection.branch
+            : null;
+    const into = branch ? (
+        <>
+            {' '}
+            into <Code>{branch}</Code>
+        </>
+    ) : null;
+    const changes = countPublishedChanges(draft, model);
+    const them = changes === 1 ? 'it' : 'them';
     // Applying never waits for the check: an unchecked draft is applied knowingly, like one that breaks something.
     const isRisky =
         impact.data?.status !== 'done' || impact.data.breaks.length > 0;
@@ -198,14 +212,10 @@ export const ApplyModal: FC<{
         <MantineModal
             opened
             onClose={onClose}
-            icon={asPullRequest ? IconGitPullRequest : IconWorldUpload}
-            title={asPullRequest ? sendLabel : 'Publish to everyone'}
-            subtitle={
-                mode === 'pull_request'
-                    ? 'Nothing is published until it merges.'
-                    : mode === 'merge'
-                      ? 'Merges into your repository.'
-                      : undefined
+            title={
+                asPullRequest
+                    ? sendLabel
+                    : `Publish ${count(changes, 'change')}`
             }
             confirmLabel={isRisky ? `${confirmLabel} anyway` : confirmLabel}
             confirmLoading={apply.isLoading}
@@ -260,30 +270,35 @@ export const ApplyModal: FC<{
             }
         >
             <Stack gap="md">
+                <Text fz="sm" c="dimmed">
+                    {mode === 'pull_request' ? (
+                        <>
+                            {sent ? 'Updates the' : 'Opens a'} pull request
+                            {into}. Nothing is published until it merges.
+                        </>
+                    ) : mode === 'merge' ? (
+                        <>
+                            Merges{into}. Everyone on this project sees {them}{' '}
+                            once it updates.
+                        </>
+                    ) : (
+                        `Everyone on this project sees ${them} right away. You can undo from each model's History tab.`
+                    )}
+                </Text>
                 <PublishSummary
                     projectUuid={projectUuid}
                     draft={draft}
                     model={model}
                 />
-                <Stack gap={6}>
-                    <Text fz="xs" fw={500} c="dimmed">
-                        Checks
-                    </Text>
-                    <PublishChecklist
-                        draft={draft}
-                        model={model}
-                        breaks={
-                            impact.data?.status === 'done'
-                                ? impact.data.breaks.length
-                                : null
-                        }
-                    />
-                </Stack>
-                {mode !== 'live' ? null : (
-                    <Text fz="xs" c="dimmed">
-                        You can undo this from each model's History tab.
-                    </Text>
-                )}
+                <PublishChecklist
+                    draft={draft}
+                    model={model}
+                    breaks={
+                        impact.data?.status === 'done'
+                            ? impact.data.breaks.length
+                            : null
+                    }
+                />
                 <DraftImpact projectUuid={projectUuid} model={model} />
                 <MessageList
                     variant="danger"
@@ -699,19 +714,7 @@ export const DraftReview: FC<DraftReviewProps> = ({
                         modelChange.model,
                         modelChange,
                     );
-                    const fields = listFieldChanges(
-                        modelChange.model,
-                        draft.changes.flatMap(({ models: entries }) =>
-                            entries
-                                .filter(
-                                    ({ model, error }) =>
-                                        model === modelChange.model &&
-                                        error === null,
-                                )
-                                .flatMap(({ changes }) => changes),
-                        ),
-                        modelChange,
-                    );
+                    const fields = listPublishedParts(draft, modelChange);
                     return (
                         <Box
                             key={modelChange.model}
