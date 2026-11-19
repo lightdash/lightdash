@@ -103,6 +103,7 @@ import {
 import {
     diffLineCounts,
     runCodeMode,
+    unifiedDiffs,
     validateSemanticLayerYaml,
     type CodeModeRepo,
 } from '../SemanticStudioService/codeMode/codeMode';
@@ -211,7 +212,8 @@ const STALE_RUN_THRESHOLD_MINUTES = 45;
 
 export type ScriptSave =
     | { status: 'script_failed'; error: string; logs: string[] }
-    | { status: 'checked' }
+    /** A dry run's change as a unified diff per file, bounded in size. */
+    | { status: 'checked'; diffs: string[] }
     | {
           status: 'saved';
           result: AiWritebackRunResult;
@@ -2147,7 +2149,9 @@ export class AiWritebackService extends BaseService {
                     };
                 }
             }
-            if (dryRun) return { status: 'checked' };
+            if (dryRun) {
+                return { status: 'checked', diffs: unifiedDiffs(ran.edits) };
+            }
 
             // A policy that denies deleting files holds here as on the sandbox path.
             if (

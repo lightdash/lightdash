@@ -3439,7 +3439,7 @@ describe('saving a hand edit', () => {
         const context = setup();
         const save = vi
             .spyOn(context.aiWritebackService, 'saveWithScript')
-            .mockResolvedValueOnce({ status: 'checked' })
+            .mockResolvedValueOnce({ status: 'checked', diffs: [] })
             .mockResolvedValueOnce({
                 status: 'script_failed',
                 error: 'changed',
@@ -3477,7 +3477,7 @@ describe('saving a hand edit', () => {
     it('keeps a save with no conversation as a draft of its own', async () => {
         const context = setup();
         vi.spyOn(context.aiWritebackService, 'saveWithScript')
-            .mockResolvedValueOnce({ status: 'checked' })
+            .mockResolvedValueOnce({ status: 'checked', diffs: [] })
             .mockResolvedValueOnce({
                 status: 'saved',
                 changedModels: [],

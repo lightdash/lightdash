@@ -11313,6 +11313,19 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                     "aiWritebackRunUuid": {
                       "type": "string",
                     },
+                    "diffs": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
                     "status": {
                       "allOf": [
                         {
@@ -11593,6 +11606,19 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                   "properties": {
                     "aiWritebackRunUuid": {
                       "type": "string",
+                    },
+                    "diffs": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
                     },
                     "refusal": {
                       "additionalProperties": false,

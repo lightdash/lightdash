@@ -6381,6 +6381,17 @@ describe('AiWritebackService.saveWithScript compile check', () => {
         return { save, provider, checkout, service };
     };
 
+    it('returns what a dry run would write as a diff by project path, without committing', async () => {
+        const { save, provider } = setUp();
+        await expect(save(null, true)).resolves.toEqual({
+            status: 'checked',
+            diffs: [
+                '--- /dev/null\n+++ b/models/notes.yml\n@@ -0,0 +1,1 @@\n+notes: 1\n',
+            ],
+        });
+        expect(provider.commitApiChanges).not.toHaveBeenCalled();
+    });
+
     it.each([true, false])(
         'rejects a stale source before writing (dry run: %s)',
         async (dryRun) => {

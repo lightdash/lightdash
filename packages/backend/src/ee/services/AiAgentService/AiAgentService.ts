@@ -15311,6 +15311,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 );
             }
             let { script } = args;
+            let diffs: string[] | null = null;
             if (script) {
                 // Run it once now so a broken script goes back to the model instead of failing in the background.
                 const checked = await this.aiWritebackService.saveWithScript(
@@ -15340,6 +15341,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 );
                 if (checked?.status === 'script_failed') return checked;
                 if (checked === null) script = null;
+                if (checked?.status === 'checked') diffs = checked.diffs;
             }
             const { aiWritebackRunUuid } =
                 await this.aiWritebackService.createPendingRun({
@@ -15381,6 +15383,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 status: 'started',
                 aiWritebackRunUuid,
                 inSandbox: !script,
+                diffs,
             };
         };
 

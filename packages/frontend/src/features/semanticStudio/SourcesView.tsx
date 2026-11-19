@@ -226,9 +226,11 @@ const SOURCE_ICONS: FileTreeIconConfig = {
 export const SourcesRail: FC<{
     target: SourcesTarget;
     proposal: string[];
+    /** The proposal is a save of the agent's that is running. */
+    isSaving: boolean;
     /** On a change, nothing open is its overview, listed first. */
     hasOverview: boolean;
-}> = ({ target, proposal, hasOverview }) => {
+}> = ({ target, proposal, isSaving, hasOverview }) => {
     const { data, isLoading, error } = useStudioSources(
         target.projectUuid,
         target.prUrl,
@@ -332,7 +334,9 @@ export const SourcesRail: FC<{
                             </Text>
                             <Text fz="xs" c="dimmed" truncate flex={1}>
                                 {change.isProposed
-                                    ? 'proposed'
+                                    ? isSaving
+                                        ? 'being saved'
+                                        : 'proposed'
                                     : change.path
                                           .split('/')
                                           .slice(0, -1)
@@ -450,7 +454,9 @@ export const SourcePane: FC<{
     onSaved: (prUrl: string, thread: StoredThread | null) => void;
     onAddToChat: (ref: StudioChatRef) => void;
     proposal: string[];
-}> = ({ target, onSaved, onAddToChat, proposal }) => {
+    /** The proposal is a save of the agent's that is running, so it is shown and not saved again. */
+    isSaving: boolean;
+}> = ({ target, onSaved, onAddToChat, proposal, isSaving }) => {
     const colorScheme = useComputedColorScheme('light');
     const [path] = useOpenFile();
     const { data: sources } = useStudioSources(
@@ -524,6 +530,7 @@ export const SourcePane: FC<{
     const isEditing = target.canEdit && (isDirty || editingKey === editKey);
     // A proposal shown in the editor is the agent's until the person types over it.
     const hasOwnEdits = isDirty && text !== offered;
+    const isBeingSaved = isSaving && isDirty && !hasOwnEdits;
     const open = useRef({ key: editKey, path });
     open.current = { key: editKey, path };
     // Null at first, so coming back to Sources brings back what was left unsaved.
@@ -589,7 +596,14 @@ export const SourcePane: FC<{
         setRevision((current) => current + 1);
     };
     const submit = () => {
-        if (!path || !isDirty || save.isLoading || !target.canEdit) return;
+        if (
+            !path ||
+            !isDirty ||
+            isBeingSaved ||
+            save.isLoading ||
+            !target.canEdit
+        )
+            return;
         // The save may land after another file is opened; it then leaves that file alone.
         const savedKey = editKey;
         const isStillOpen = () => open.current.key === savedKey;
@@ -726,13 +740,19 @@ export const SourcePane: FC<{
     const status = !change
         ? null
         : change.isProposed
-          ? { label: 'Proposed', color: 'violet' }
+          ? { label: isSaving ? 'Saving' : 'Proposed', color: 'violet' }
           : change.isNew
             ? { label: 'Added', color: 'green' }
             : { label: 'Modified', color: 'yellow' };
     // Like a pull request's compare: what the diff starts from, and what it shows.
     const comparison = `${!target.canEdit ? 'Before' : isChangedFile || !target.prUrl ? 'Published' : 'This draft'} → ${
-        proposedFrom !== null ? 'Proposal' : isDirty ? 'Unsaved' : 'This change'
+        proposedFrom !== null
+            ? isSaving
+                ? 'Being saved'
+                : 'Proposal'
+            : isDirty
+              ? 'Unsaved'
+              : 'This change'
     }`;
     const check = (isOn: boolean) =>
         isOn ? <MantineIcon icon={IconCheck} size={14} /> : null;
@@ -793,7 +813,7 @@ export const SourcePane: FC<{
                             </Text>
                         </Tooltip>
                     ) : null}
-                    {isDirty ? (
+                    {isDirty && !isBeingSaved ? (
                         <Tooltip label="Not saved">
                             <Box
                                 className={classes.unsavedDot}
@@ -903,7 +923,7 @@ export const SourcePane: FC<{
                             </Menu.Dropdown>
                         </Menu>
                     ) : null}
-                    {isDirty ? (
+                    {isDirty && !isBeingSaved ? (
                         <>
                             <Button
                                 size="compact-xs"
@@ -946,8 +966,9 @@ export const SourcePane: FC<{
             {proposed && proposed !== offered && hasOwnEdits ? (
                 <Alert color="violet" radius={0} py={8}>
                     <Text fz="xs">
-                        The agent proposed a change to this file. Discard your
-                        edits to see it here.
+                        {isSaving
+                            ? 'The agent is saving a change to this file. Discard your edits to see it here.'
+                            : 'The agent proposed a change to this file. Discard your edits to see it here.'}
                     </Text>
                 </Alert>
             ) : null}
@@ -994,7 +1015,11 @@ export const SourcePane: FC<{
                                     className={classes.sourceHost}
                                     file={current}
                                     options={options}
-                                    edit={isEditing && !save.isLoading}
+                                    edit={
+                                        isEditing &&
+                                        !save.isLoading &&
+                                        !isBeingSaved
+                                    }
                                     editorOptions={fileOptions}
                                     onEditChange={(event) =>
                                         setText(event.file.contents)
@@ -1019,7 +1044,11 @@ export const SourcePane: FC<{
                                         diffIndicators: 'bars',
                                         lineDiffType: 'word',
                                     }}
-                                    edit={isEditing && !save.isLoading}
+                                    edit={
+                                        isEditing &&
+                                        !save.isLoading &&
+                                        !isBeingSaved
+                                    }
                                     editorOptions={diffOptions}
                                     onEditChange={(event) =>
                                         setText(event.file.contents)
