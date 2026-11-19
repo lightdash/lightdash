@@ -1192,8 +1192,12 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     />
                 );
             case 'sources':
-                if (!sourceFile && !sourcesPrUrl) {
-                    // No file is open and the draft has no pull request to show: say where things stand.
+                if (
+                    !sourceFile &&
+                    !sourcesPrUrl &&
+                    shownProposal.length === 0
+                ) {
+                    // No file is open and there is no pull request or change being saved to show: say where things stand.
                     const empty = saving
                         ? {
                               icon: <Loader size="sm" color="gray" />,
