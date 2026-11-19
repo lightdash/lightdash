@@ -1,3 +1,10 @@
+## [3.338.1](https://github.com/lightdash/lightdash/compare/3.338.0...3.338.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* let SQL table calculations hit pre-aggregates ([#32713](https://github.com/lightdash/lightdash/issues/32713)) ([5de52c0](https://github.com/lightdash/lightdash/commit/5de52c062278cbfc08ad0781486eaf2353b04360))
+
 # [3.338.0](https://github.com/lightdash/lightdash/compare/3.337.1...3.338.0) (2026-11-19)
 
 
