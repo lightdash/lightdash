@@ -19,6 +19,12 @@ egress and no credentials.
   `scripts/aks-dev/build-sandbox-image.sh python`, which runs `az acr build`), register
   it as a disk image in a dedicated python sandbox group, and set
   `AZURE_SANDBOXES_PYTHON_GROUP` / `AZURE_SANDBOXES_PYTHON_DISK_IMAGE` (the disk image id).
+- GKE Agent Sandbox: `SANDBOX_PROVIDER=gke-agent-sandbox`. Build the plain image
+  (`./build-local-image.sh`, amd64), push it to a registry the cluster can pull from, and
+  apply `gke/sandbox-template.yaml` (a gVisor `SandboxTemplate` plus `SandboxWarmPool`).
+  Point the backend at the pool with `GKE_AGENT_SANDBOX_PYTHON_NAMESPACE` /
+  `GKE_AGENT_SANDBOX_PYTHON_WARM_POOL`. The backend's service account needs to create
+  `sandboxclaims` and `pods/exec` in that namespace.
 
 Preinstalled libraries: pandas, numpy, scipy, pyarrow, scikit-learn, polars
 (pinned in `e2b.Dockerfile`). `run()` must still return a pandas DataFrame.

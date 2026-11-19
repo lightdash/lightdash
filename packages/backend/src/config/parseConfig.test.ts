@@ -3182,6 +3182,21 @@ describe('SANDBOX_PROVIDER', () => {
         expect(parseConfig().appRuntime.sandboxProvider).toBe('gcp-cloud-run');
     });
 
+    test('parses gke-agent-sandbox with its python settings', () => {
+        process.env.SANDBOX_PROVIDER = 'gke-agent-sandbox';
+        process.env.GKE_AGENT_SANDBOX_PYTHON_NAMESPACE = 'sandboxes';
+        process.env.GKE_AGENT_SANDBOX_PYTHON_WARM_POOL = 'python-runner';
+        const { appRuntime } = parseConfig();
+        expect(appRuntime.sandboxProvider).toBe('gke-agent-sandbox');
+        expect(appRuntime.gkeAgentSandboxPython).toEqual({
+            namespace: 'sandboxes',
+            warmPool: 'python-runner',
+            container: 'runner',
+        });
+        delete process.env.GKE_AGENT_SANDBOX_PYTHON_NAMESPACE;
+        delete process.env.GKE_AGENT_SANDBOX_PYTHON_WARM_POOL;
+    });
+
     test('throws on an unknown provider instead of falling back to e2b', () => {
         process.env.SANDBOX_PROVIDER = 'gcp-cloudrun';
         expect(() => parseConfig()).toThrowError(ParseError);

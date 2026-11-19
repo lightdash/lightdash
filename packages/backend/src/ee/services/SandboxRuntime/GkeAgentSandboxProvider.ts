@@ -82,6 +82,7 @@ class Handle implements SandboxHandle {
             let bytes = 0;
             let done = false;
             let ws: { close(): void } | undefined;
+            let timer: NodeJS.Timeout | null = null;
             const finish = (fn: () => void) => {
                 if (!done) {
                     done = true;
@@ -107,18 +108,18 @@ class Handle implements SandboxHandle {
                         cb();
                     },
                 });
-            const timer = opts.timeoutMs
-                ? setTimeout(() => {
-                      ws?.close();
-                      finish(() =>
-                          reject(
-                              new SandboxTimeoutError(
-                                  `Command timed out after ${opts.timeoutMs}ms`,
-                              ),
-                          ),
-                      );
-                  }, opts.timeoutMs)
-                : null;
+            if (opts.timeoutMs) {
+                timer = setTimeout(() => {
+                    ws?.close();
+                    finish(() =>
+                        reject(
+                            new SandboxTimeoutError(
+                                `Command timed out after ${opts.timeoutMs}ms`,
+                            ),
+                        ),
+                    );
+                }, opts.timeoutMs);
+            }
             let stdin: Readable | null = null;
             if (opts.stdin) {
                 const p = new PassThrough();
@@ -246,10 +247,10 @@ class Handle implements SandboxHandle {
  * SandboxWarmPool (`SandboxClaim`), then drives it over the Kubernetes exec
  * API, with multi-file writes sent as one tar stream.
  *
- * Benchmark-grade: it covers the one-shot python query path only. `connect`,
- * `persist` and `resume` are not implemented, and it is not yet selectable
- * through `SANDBOX_PROVIDER`. Claim readiness uses a watch, not polling:
- * polling every claim overloads the API server under concurrency. See
+ * Python query nodes only (`SANDBOX_PROVIDER=gke-agent-sandbox`): `connect`,
+ * `persist` and `resume` are not implemented, so data apps and AI writeback
+ * reject this provider. Claim readiness uses a watch, not polling: polling
+ * every claim overloads the API server under concurrency. See
  * sandboxes/python-runner/gke/sandbox-template.yaml for the cluster side.
  */
 export class GkeAgentSandboxProvider implements SandboxProvider {

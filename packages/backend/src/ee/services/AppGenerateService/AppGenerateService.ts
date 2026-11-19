@@ -1654,6 +1654,11 @@ export class AppGenerateService extends BaseService {
     private getSandboxManager(): SandboxManagerPort {
         if (!this.sandboxManager) {
             const { sandboxProvider } = this.lightdashConfig.appRuntime;
+            if (sandboxProvider === 'gke-agent-sandbox') {
+                throw new MissingConfigError(
+                    AppRuntimeConfigErrors.gkeAgentSandboxPythonOnly,
+                );
+            }
             this.sandboxManager = createSandboxManager({
                 provider: sandboxProvider,
                 e2bApiKey: this.lightdashConfig.appRuntime.e2bApiKey,

@@ -31,6 +31,10 @@ export const AppRuntimeConfigErrors = {
         'Azure data-app sandbox disk image is not configured (AZURE_SANDBOXES_DATA_APP_DISK_IMAGE)',
     gcpCloudRun:
         'GCP Cloud Run sandboxes are not configured (GCP_CLOUD_RUN_SANDBOX_URL / GCP_CLOUD_RUN_SANDBOX_SECRET)',
+    gkeAgentSandboxPythonOnly:
+        'The gke-agent-sandbox sandbox provider only supports python queries',
+    gkeAgentSandboxPython:
+        'GKE Agent Sandbox python sandboxes are not configured (GKE_AGENT_SANDBOX_PYTHON_NAMESPACE / GKE_AGENT_SANDBOX_PYTHON_WARM_POOL)',
 } as const;
 
 /** The data-app Azure sandbox group settings, or null when any is missing. */
@@ -91,6 +95,8 @@ export const getDataAppSandboxConfigError = (
             return getDataAppCloudRunGateway(appRuntime)
                 ? null
                 : AppRuntimeConfigErrors.gcpCloudRun;
+        case 'gke-agent-sandbox':
+            return AppRuntimeConfigErrors.gkeAgentSandboxPythonOnly;
         default:
             return assertUnreachable(
                 sandboxProvider,

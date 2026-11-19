@@ -47,6 +47,7 @@ import {
     listReposAccessibleToUser,
 } from '../../../clients/github/Github';
 import { getGitlabProjects } from '../../../clients/gitlab/Gitlab';
+import { AppRuntimeConfigErrors } from '../../../config/appRuntimeAvailability';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import { type AgentActionLogModel } from '../../../models/AgentActionLogModel';
 import type { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
@@ -1499,6 +1500,11 @@ export class AiWritebackService extends BaseService {
             if (sandboxProvider === 'gcp-cloud-run') {
                 throw new MissingConfigError(
                     'AI writeback is not supported on the gcp-cloud-run sandbox provider yet (it needs its own gateway image)',
+                );
+            }
+            if (sandboxProvider === 'gke-agent-sandbox') {
+                throw new MissingConfigError(
+                    AppRuntimeConfigErrors.gkeAgentSandboxPythonOnly,
                 );
             }
             this.sandboxManager = createSandboxManager({

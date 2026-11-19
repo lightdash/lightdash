@@ -14,6 +14,10 @@ import {
 import { DockerSandboxProvider } from './DockerSandboxProvider';
 import { E2bSandboxProvider } from './E2bSandboxProvider';
 import {
+    GkeAgentSandboxProvider,
+    type GkeAgentSandboxConfig,
+} from './GkeAgentSandboxProvider';
+import {
     AwsMicrovmControlPlane,
     LambdaMicroVmSandboxProvider,
     type LambdaMicroVmConfig,
@@ -25,6 +29,7 @@ import { type SandboxLogger, type SandboxProvider } from './types';
 export * from './AzureContainerAppsSandboxProvider';
 export * from './CloudRunSandboxProvider';
 export * from './errors';
+export * from './GkeAgentSandboxProvider';
 export * from './SandboxManager';
 export * from './SnapshotStore';
 export * from './types';
@@ -34,7 +39,8 @@ export type SandboxProviderKind =
     | 'docker'
     | 'lambda-microvm'
     | 'azure-sandboxes'
-    | 'gcp-cloud-run';
+    | 'gcp-cloud-run'
+    | 'gke-agent-sandbox';
 
 /** Static, non-per-sandbox config the Lambda MicroVMs provider needs. */
 export interface LambdaMicroVmProviderConfig extends LambdaMicroVmConfig {
@@ -59,6 +65,11 @@ export interface CreateSandboxProviderOptions {
      * `--sandbox-launcher` (toolchain image baked into that deployment).
      */
     gcpCloudRun: CloudRunSandboxesConfig | null;
+    /**
+     * Required when `provider === 'gke-agent-sandbox'`; omitted otherwise. The
+     * namespace, warm pool and container of the python runner sandboxes.
+     */
+    gkeAgentSandbox?: GkeAgentSandboxConfig | null;
     /**
      * Backing store for object-store snapshots. Required by the providers with
      * no native memory snapshot (Docker, GCP Cloud Run); native-pause providers
@@ -131,6 +142,14 @@ export const createSandboxProvider = (
                 options.logger,
                 options.snapshotStore,
             );
+        }
+        case 'gke-agent-sandbox': {
+            if (!options.gkeAgentSandbox) {
+                throw new MissingConfigError(
+                    AppRuntimeConfigErrors.gkeAgentSandboxPython,
+                );
+            }
+            return new GkeAgentSandboxProvider(options.gkeAgentSandbox);
         }
         case 'azure-sandboxes': {
             const config = options.azureSandboxes;

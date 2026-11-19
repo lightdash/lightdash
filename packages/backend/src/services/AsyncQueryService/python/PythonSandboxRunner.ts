@@ -4,6 +4,7 @@ import {
     MissingConfigError,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
+import { AppRuntimeConfigErrors } from '../../../config/appRuntimeAvailability';
 import { type LightdashConfig } from '../../../config/parseConfig';
 import {
     createSandboxProvider,
@@ -13,6 +14,7 @@ import {
     SandboxTimeoutError,
     type AzureSandboxesConfig,
     type CloudRunSandboxesConfig,
+    type GkeAgentSandboxConfig,
     type SandboxHandle,
     type SandboxLogger,
     type SandboxProvider,
@@ -128,10 +130,16 @@ export class PythonSandboxRunner {
                     provider === 'gcp-cloud-run'
                         ? this.getCloudRunConfig()
                         : null,
+                gkeAgentSandbox:
+                    provider === 'gke-agent-sandbox'
+                        ? this.getGkeAgentSandboxConfig()
+                        : null,
                 // One-shot sandboxes are never suspended; Docker and Cloud Run
                 // still require a store at construction.
                 snapshotStore:
-                    provider === 'e2b' || provider === 'azure-sandboxes'
+                    provider === 'e2b' ||
+                    provider === 'azure-sandboxes' ||
+                    provider === 'gke-agent-sandbox'
                         ? null
                         : new S3SnapshotStore({
                               lightdashConfig: this.lightdashConfig,
@@ -144,12 +152,18 @@ export class PythonSandboxRunner {
 
     private static getSupportedProvider(
         provider: LightdashConfig['appRuntime']['sandboxProvider'],
-    ): 'e2b' | 'docker' | 'gcp-cloud-run' | 'azure-sandboxes' {
+    ):
+        | 'e2b'
+        | 'docker'
+        | 'gcp-cloud-run'
+        | 'azure-sandboxes'
+        | 'gke-agent-sandbox' {
         switch (provider) {
             case 'e2b':
             case 'docker':
             case 'gcp-cloud-run':
             case 'azure-sandboxes':
+            case 'gke-agent-sandbox':
                 return provider;
             case 'lambda-microvm':
                 throw new MissingConfigError(
@@ -172,6 +186,17 @@ export class PythonSandboxRunner {
             );
         }
         return { sandboxUrl, sandboxSecret };
+    }
+
+    private getGkeAgentSandboxConfig(): GkeAgentSandboxConfig {
+        const { namespace, warmPool, container } =
+            this.lightdashConfig.appRuntime.gkeAgentSandboxPython;
+        if (!namespace || !warmPool) {
+            throw new MissingConfigError(
+                AppRuntimeConfigErrors.gkeAgentSandboxPython,
+            );
+        }
+        return { namespace, warmPool, container };
     }
 
     private getAzureSandboxesConfig(): AzureSandboxesConfig {
@@ -214,6 +239,11 @@ export class PythonSandboxRunner {
             // The gateway bakes in its image; the ref only feeds `version`.
             case 'gcp-cloud-run':
                 return CLOUD_RUN_PYTHON_TEMPLATE_REF;
+            // The warm pool fixes the image; its name stands in as the ref.
+            case 'gke-agent-sandbox':
+                return `${this.getGkeAgentSandboxConfig().namespace}/${
+                    this.getGkeAgentSandboxConfig().warmPool
+                }`;
             case 'azure-sandboxes':
                 if (!appRuntime.azureSandboxesPythonDiskImage) {
                     throw new MissingConfigError(
@@ -249,7 +279,11 @@ export class PythonSandboxRunner {
     async run(args: PythonSandboxRunArgs): Promise<PythonSandboxRunResult> {
         const { queryUuid, code, inputs, inputMeta, timeoutMs } = args;
         const provider = this.getProvider();
-        const batch = this.lightdashConfig.appRuntime.sandboxProvider === 'e2b';
+        // Providers with a native multi-file upload write everything in one call.
+        const { sandboxProvider } = this.lightdashConfig.appRuntime;
+        const batch =
+            sandboxProvider === 'e2b' ||
+            sandboxProvider === 'gke-agent-sandbox';
         const spec = {
             ...this.buildSpec(timeoutMs),
             ...(batch ? { onTimeout: 'kill' as const } : {}),

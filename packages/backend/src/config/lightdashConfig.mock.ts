@@ -584,6 +584,11 @@ export const lightdashConfigMock: LightdashConfig = {
             sandboxUrl: null,
             sandboxSecret: null,
         },
+        gkeAgentSandboxPython: {
+            namespace: null,
+            warmPool: null,
+            container: 'runner',
+        },
         otel: {
             enabled: false,
             endpoint: '',

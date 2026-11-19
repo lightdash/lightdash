@@ -2239,7 +2239,9 @@ export type AppRuntimeConfig = {
      * `azure-sandboxes` runs Azure Container Apps Sandboxes (native
      * suspend/resume — the Azure analog of E2B / Lambda MicroVMs);
      * `gcp-cloud-run` runs Google Cloud Run Sandboxes behind a gateway service
-     * deployed with `--sandbox-launcher` (object-store snapshots, like Docker).
+     * deployed with `--sandbox-launcher` (object-store snapshots, like Docker);
+     * `gke-agent-sandbox` claims pre-warmed gVisor pods from a GKE Agent
+     * Sandbox warm pool (python query nodes only).
      * Later: kubernetes | ecs | microsandbox.
      */
     sandboxProvider:
@@ -2247,7 +2249,8 @@ export type AppRuntimeConfig = {
         | 'docker'
         | 'lambda-microvm'
         | 'azure-sandboxes'
-        | 'gcp-cloud-run';
+        | 'gcp-cloud-run'
+        | 'gke-agent-sandbox';
     /**
      * OCI image the `docker` sandbox provider launches data-app containers
      * from. Built locally from sandboxes/data-apps (e.g. `lightdash-sandbox:local`).
@@ -2372,6 +2375,17 @@ export type AppRuntimeConfig = {
     gcpCloudRunPython: {
         sandboxUrl: string | null;
         sandboxSecret: string | null;
+    };
+    /**
+     * Config for python query nodes on `gke-agent-sandbox`: the namespace
+     * holding the SandboxWarmPool, the pool to claim pods from, and the
+     * container commands run in. Required only when
+     * `sandboxProvider === 'gke-agent-sandbox'`.
+     */
+    gkeAgentSandboxPython: {
+        namespace: string | null;
+        warmPool: string | null;
+        container: string;
     };
     /** E2B template used by managed project onboarding. */
     /**
@@ -2798,8 +2812,9 @@ const parseSandboxProvider = (
     if (normalized === 'lambda-microvm') return 'lambda-microvm';
     if (normalized === 'azure-sandboxes') return 'azure-sandboxes';
     if (normalized === 'gcp-cloud-run') return 'gcp-cloud-run';
+    if (normalized === 'gke-agent-sandbox') return 'gke-agent-sandbox';
     throw new ParseError(
-        `Cannot parse environment variable "SANDBOX_PROVIDER". Value must be one of e2b, docker, lambda-microvm, azure-sandboxes, gcp-cloud-run but SANDBOX_PROVIDER=${value}`,
+        `Cannot parse environment variable "SANDBOX_PROVIDER". Value must be one of e2b, docker, lambda-microvm, azure-sandboxes, gcp-cloud-run, gke-agent-sandbox but SANDBOX_PROVIDER=${value}`,
     );
 };
 
@@ -3002,6 +3017,12 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             sandboxUrl: process.env.GCP_CLOUD_RUN_PYTHON_SANDBOX_URL || null,
             sandboxSecret:
                 process.env.GCP_CLOUD_RUN_PYTHON_SANDBOX_SECRET || null,
+        },
+        gkeAgentSandboxPython: {
+            namespace: process.env.GKE_AGENT_SANDBOX_PYTHON_NAMESPACE || null,
+            warmPool: process.env.GKE_AGENT_SANDBOX_PYTHON_WARM_POOL || null,
+            container:
+                process.env.GKE_AGENT_SANDBOX_PYTHON_CONTAINER || 'runner',
         },
         azureSandboxesAiWritebackGroup:
             process.env.AZURE_SANDBOXES_AI_WRITEBACK_GROUP || null,

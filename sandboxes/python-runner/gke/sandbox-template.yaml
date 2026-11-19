@@ -15,7 +15,7 @@ spec:
       securityContext: {runAsUser: 1000, runAsGroup: 1000, runAsNonRoot: true}
       containers:
       - name: runner
-        image: us-central1-docker.pkg.dev/<PROJECT_ID>/sandbox-bench/python-runner:bench1
+        image: <your-registry>/lightdash-python-runner:<lightdash-version>
         command: ["python3","-I","-c","import numpy, pandas, scipy.stats, pyarrow; from pathlib import Path; import time; Path('/tmp/python-warm-ready').touch(); time.sleep(10**9)"]
         readinessProbe:
           exec: {command: ["test","-f","/tmp/python-warm-ready"]}
