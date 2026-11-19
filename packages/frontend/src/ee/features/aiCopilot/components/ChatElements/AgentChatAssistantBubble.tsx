@@ -1077,6 +1077,7 @@ export const AssistantBubble: FC<Props> = memo(
         mcpServers,
         onDashboardLinkClick,
     }) => {
+        const quietCards = useContext(QuietCardsContext);
         const artifact = useAiAgentStoreSelector(selectArtifactPreview);
         const dispatch = useAiAgentStoreDispatch();
         const writingSummaryLabel = useUiString(
@@ -1402,7 +1403,8 @@ export const AssistantBubble: FC<Props> = memo(
                             }
                         />
 
-                        {(!hasRating || upVoted) && (
+                        {/* A narrow side chat keeps only copy; rating and timing belong to the full thread. */}
+                        {!quietCards && (!hasRating || upVoted) && (
                             <ActionIcon
                                 color="ldGray.9"
                                 aria-label="upvote"
@@ -1425,7 +1427,7 @@ export const AssistantBubble: FC<Props> = memo(
                             </ActionIcon>
                         )}
 
-                        {(!hasRating || downVoted) && (
+                        {!quietCards && (!hasRating || downVoted) && (
                             <Popover
                                 width={500}
                                 position="top-start"
@@ -1547,7 +1549,7 @@ export const AssistantBubble: FC<Props> = memo(
                                 decision={message.jevDecision}
                             />
                         )}
-                        {canViewDebugInfo && (
+                        {canViewDebugInfo && !quietCards && (
                             <MessageTimingIndicator
                                 responseTiming={message.responseTiming}
                                 isWinner={battle.isWinner}
