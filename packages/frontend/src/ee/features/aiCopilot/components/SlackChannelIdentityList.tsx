@@ -52,10 +52,19 @@ export const SlackChannelIdentityList: FC<Props> = ({
     );
 
     const options = useMemo(() => {
-        const accounts = (serviceAccounts.data ?? []).map((account) => ({
-            value: account.uuid,
-            label: account.description,
-        }));
+        const now = Date.now();
+        const accounts = (serviceAccounts.data ?? []).map((account) => {
+            const isExpired =
+                account.expiresAt !== null &&
+                new Date(account.expiresAt).getTime() <= now;
+            return {
+                value: account.uuid,
+                label: isExpired
+                    ? `${account.description} (expired)`
+                    : account.description,
+                disabled: isExpired,
+            };
+        });
         const known = new Set(accounts.map((a) => a.value));
         const unknown = [
             ...new Set(

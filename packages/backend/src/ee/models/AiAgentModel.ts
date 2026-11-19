@@ -1257,6 +1257,7 @@ export class AiAgentModel {
         serviceAccountUuid: string;
         serviceAccountUserUuid: string;
         name: string;
+        isExpired: boolean;
     } | null> {
         const row = await this.database(AiAgentSlackIntegrationTableName)
             .innerJoin(
@@ -1274,6 +1275,9 @@ export class AiAgentModel {
                 serviceAccountUuid: `${ServiceAccountsTableName}.service_account_uuid`,
                 serviceAccountUserUuid: `${ServiceAccountsTableName}.service_account_user_uuid`,
                 name: `${ServiceAccountsTableName}.description`,
+                isExpired: this.database.raw(
+                    `COALESCE(${ServiceAccountsTableName}.expires_at <= now(), false)`,
+                ),
             })
             .where(
                 `${AiAgentSlackIntegrationTableName}.slack_channel_id`,
@@ -1290,21 +1294,13 @@ export class AiAgentModel {
             .whereNotNull(
                 `${ServiceAccountsTableName}.service_account_user_uuid`,
             )
-            .where((query) =>
-                query
-                    .whereNull(`${ServiceAccountsTableName}.expires_at`)
-                    .orWhere(
-                        `${ServiceAccountsTableName}.expires_at`,
-                        '>',
-                        this.database.fn.now(),
-                    ),
-            )
             .first<
                 | {
                       agentUuid: string;
                       serviceAccountUuid: string;
                       serviceAccountUserUuid: string;
                       name: string;
+                      isExpired: boolean;
                   }
                 | undefined
             >();

@@ -2346,6 +2346,7 @@ export class AiAgentService extends BaseService {
                 user,
                 prompt,
                 prompt.agentUuid,
+                prompt.projectUuid,
             );
         } catch (error) {
             const failure = deliveryGuard.getFailure();
@@ -21240,6 +21241,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     user,
                     slackPrompt,
                     thread.agentUuid,
+                    undefined,
                 );
             }
 
@@ -23931,13 +23933,15 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             });
         if (!serviceAccount) return null;
 
-        const refusal = await checkSlackServiceAccountChannel({
-            client,
-            channelId,
-            slackUserId,
-            teamId,
-            enterpriseId,
-        });
+        const refusal = serviceAccount.isExpired
+            ? 'expired_service_account'
+            : await checkSlackServiceAccountChannel({
+                  client,
+                  channelId,
+                  slackUserId,
+                  teamId,
+                  enterpriseId,
+              });
         Logger.info('AI agent Slack service account check', {
             event: 'ai_agent.slack_service_account',
             organizationUuid,
@@ -23968,6 +23972,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             });
         return (
             serviceAccount !== null &&
+            !serviceAccount.isExpired &&
             serviceAccount.serviceAccountUserUuid === prompt.createdByUserUuid
         );
     }
@@ -23978,6 +23983,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         user: SessionUser,
         prompt: SlackPrompt,
         agentUuid: string,
+        projectUuid: string | undefined,
     ): Promise<AiAgent> {
         const serviceAccount =
             await this.aiAgentModel.findSlackChannelServiceAccount({
@@ -23986,11 +23992,12 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             });
         if (
             serviceAccount === null ||
+            serviceAccount.isExpired ||
             serviceAccount.serviceAccountUserUuid !==
                 prompt.createdByUserUuid ||
             serviceAccount.agentUuid !== agentUuid
         ) {
-            return this.getAgent(user, agentUuid, prompt.projectUuid);
+            return this.getAgent(user, agentUuid, projectUuid);
         }
         if (!(await this.getIsCopilotEnabled(user))) {
             throw new ForbiddenError('Copilot is not enabled');
@@ -23998,7 +24005,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         const agent = await this.aiAgentModel.getAgent({
             organizationUuid: prompt.organizationUuid,
             agentUuid,
-            projectUuid: prompt.projectUuid,
+            projectUuid,
         });
         if (!agent) {
             throw new NotFoundError(`Agent not found: ${agentUuid}`);

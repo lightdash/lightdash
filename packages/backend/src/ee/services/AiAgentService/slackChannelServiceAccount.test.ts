@@ -15,10 +15,12 @@ const SERVICE_ACCOUNT_USER_UUID = 'sa-user-uuid';
 
 const buildService = ({
     serviceAccount,
+    isExpired = false,
     channel = { is_private: false, is_ext_shared: false },
     sender = { team_id: 'T12345' },
 }: {
     serviceAccount: boolean;
+    isExpired?: boolean;
     channel?: Record<string, unknown>;
     sender?: Record<string, unknown>;
 }) => {
@@ -39,6 +41,7 @@ const buildService = ({
                           serviceAccountUuid: 'sa-uuid',
                           serviceAccountUserUuid: SERVICE_ACCOUNT_USER_UUID,
                           name: 'slack-analytics-bot',
+                          isExpired,
                       }
                     : null,
             ),
@@ -153,6 +156,22 @@ describe('Slack channel service account', () => {
         expect(createSlackPrompt).not.toHaveBeenCalled();
     });
 
+    it('refuses instead of falling back when the service account expired', async () => {
+        const { mention, client, handleAiAgentAuth, createSlackPrompt } =
+            buildService({ serviceAccount: true, isExpired: true });
+
+        await mention();
+
+        expect(client.conversations.info).not.toHaveBeenCalled();
+        expect(client.chat.postEphemeral).toHaveBeenCalledWith(
+            expect.objectContaining({
+                text: expect.stringContaining('has expired'),
+            }),
+        );
+        expect(handleAiAgentAuth).not.toHaveBeenCalled();
+        expect(createSlackPrompt).not.toHaveBeenCalled();
+    });
+
     it('refuses guests', async () => {
         const { mention, createSlackPrompt } = buildService({
             serviceAccount: true,
@@ -201,6 +220,7 @@ describe('agent lookup for Slack prompts', () => {
                               serviceAccountUuid: 'sa-uuid',
                               serviceAccountUserUuid: SERVICE_ACCOUNT_USER_UUID,
                               name: 'slack-analytics-bot',
+                              isExpired: false,
                           }
                         : null,
                 ),
@@ -220,6 +240,7 @@ describe('agent lookup for Slack prompts', () => {
                 { userUuid: SERVICE_ACCOUNT_USER_UUID },
                 prompt,
                 'agent',
+                undefined,
             );
         /* eslint-enable @typescript-eslint/no-explicit-any */
         return { lookup, getAgent };

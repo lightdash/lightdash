@@ -16,6 +16,7 @@ export type SlackServiceAccountSender = {
 };
 
 export type SlackServiceAccountRefusal =
+    | 'expired_service_account'
     | 'direct_message'
     | 'external_channel'
     | 'guest_sender'
@@ -87,6 +88,8 @@ export const SLACK_SERVICE_ACCOUNT_REFUSAL_TEXT: Record<
     SlackServiceAccountRefusal,
     string
 > = {
+    expired_service_account:
+        "This channel's shared service account has expired, so the question wasn't answered. Ask an admin to pick another one.",
     direct_message:
         "Direct messages can't use a shared service account. Ask in the channel instead.",
     external_channel:

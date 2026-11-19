@@ -131,6 +131,7 @@ describe('Slack channel service account on the real schema', () => {
             serviceAccountUuid,
             serviceAccountUserUuid,
             name: 'slack-analytics-bot',
+            isExpired: false,
         });
 
         await database.raw(
@@ -142,7 +143,7 @@ describe('Slack channel service account on the real schema', () => {
                 organizationUuid,
                 slackChannelId: 'C_SHARED',
             }),
-        ).toBeNull();
+        ).toMatchObject({ serviceAccountUuid, isExpired: true });
         expect(
             await model.findUsableServiceAccountUuids(organizationUuid, [
                 serviceAccountUuid,
