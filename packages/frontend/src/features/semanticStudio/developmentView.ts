@@ -8,6 +8,21 @@ import {
 import { useCallback } from 'react';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 
+/** Open Try it sessions; each keeps the view it started on, so no other tab or page moves it or switches it off under them. */
+let pins = 0;
+let pinnedPreview: string | null = null;
+export const pinDevelopmentView = (
+    previewProjectUuid: string | null = null,
+): (() => void) => {
+    pins += 1;
+    pinnedPreview = previewProjectUuid;
+    return () => {
+        pins -= 1;
+        if (pins === 0) pinnedPreview = null;
+    };
+};
+export const isDevelopmentViewPinned = (): boolean => pins > 0;
+
 const STORAGE_KEY = 'lightdash-development-view-project';
 const PREVIEW_STORAGE_KEY = 'lightdash-development-preview';
 /** The project the person has a draft checked out on, so the whole app reads it from the first request. */
@@ -55,6 +70,7 @@ export const clearDevelopmentView = () => {
 
 /** The preview project the view reads, or null when it reads the person's latest change directly. */
 export const getDevelopmentPreview = (): string | null => {
+    if (pins > 0) return pinnedPreview;
     try {
         return localStorage.getItem(PREVIEW_STORAGE_KEY);
     } catch {
@@ -66,6 +82,14 @@ export const getDevelopmentPreview = (): string | null => {
 export const getDevelopmentViewHeaders = (): Record<string, string> => {
     try {
         const { pathname } = window.location;
+        if (pins > 0 && findProjectInPath(pathname) !== null) {
+            return {
+                [DEVELOPMENT_VIEW_HEADER]: 'true',
+                ...(pinnedPreview
+                    ? { [DEVELOPMENT_PREVIEW_HEADER]: pinnedPreview }
+                    : {}),
+            };
+        }
         if (isOnFor(localStorage.getItem(STORAGE_KEY), pathname)) {
             const preview = localStorage.getItem(PREVIEW_STORAGE_KEY);
             return {
@@ -114,16 +138,6 @@ const switchView = (queryClient: QueryClient, write: () => void) => {
         predicate: ({ queryKey }) => readsTheView(queryKey),
     });
 };
-
-/** Open Try it sessions; each keeps the view it started on, so nothing moves it under them. */
-let pins = 0;
-export const pinDevelopmentView = (): (() => void) => {
-    pins += 1;
-    return () => {
-        pins -= 1;
-    };
-};
-export const isDevelopmentViewPinned = (): boolean => pins > 0;
 
 const isCheckedOutHere = (pathname: string): boolean => {
     try {
@@ -194,7 +208,7 @@ export const useDevelopmentView = (): [
         },
         [pathname, queryClient, setProject, projectRoute],
     );
-    return [isOnFor(project, pathname), set];
+    return [isOnFor(project, pathname) || pins > 0, set];
 };
 
 /** What the checked-out view last showed in this page: its change and compile. */
