@@ -1025,7 +1025,8 @@ export class SemanticStudioService extends BaseService {
             draft,
             models,
             null,
-            `Edit ${edited.label ?? model}`,
+            // Named for the model as it was, since the edit may be to its label.
+            `Edit ${parseModelDocument(current, toModelPath(model)).label ?? edited.label ?? model}`,
         );
         return {
             status: 'saved',
