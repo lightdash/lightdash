@@ -689,6 +689,10 @@ export const runPylonQuery = async ({
                 return { rows: page.records, nextCursor: page.nextCursor };
             },
         });
+    // Matches past the rows read would be missed, so the filter needs them all
+    if (localFilters.length > 0 && hasMoreRead) {
+        throw tooManyRowsError({ label: LABEL, maxRows: PYLON_MAX_QUERY_ROWS });
+    }
     const keptRecords = (readRecords as PylonRecord[]).filter((record) =>
         localFilters.every((filter) =>
             matchesLocalFilter(

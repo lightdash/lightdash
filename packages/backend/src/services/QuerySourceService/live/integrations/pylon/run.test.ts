@@ -208,6 +208,35 @@ describe('pylonIntegration issues', () => {
         expect(result.hasMoreRows).toBe(true);
     });
 
+    it('refuses to filter first response when more issues match than one query reads', async () => {
+        const fullPage = (pageIndex: number) =>
+            page(
+                Array.from({ length: 1_000 }, (_, index) =>
+                    issue(pageIndex * 1_000 + index + 1),
+                ),
+                'next',
+            );
+        const { source } = connect(
+            ...Array.from({ length: 10 }, (_, pageIndex) =>
+                fullPage(pageIndex),
+            ),
+        );
+
+        await expect(
+            run(source, {
+                kind: 'issues',
+                columns: ['number'],
+                localFilters: [
+                    {
+                        column: 'first_response_minutes',
+                        operator: 'greater_than',
+                        value: 60,
+                    },
+                ],
+            }),
+        ).rejects.toThrow('more than 9,999 rows');
+    });
+
     it('returns no rows when no issues match', async () => {
         const { source } = connect(page([]));
 
