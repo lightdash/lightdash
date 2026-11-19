@@ -18,6 +18,10 @@ import {
     useRef,
     useState,
 } from 'react';
+import {
+    useTourTracking,
+    type TourTracking,
+} from '../../../hooks/useTourTracking';
 import { cardLayout } from './cardLayout';
 import styles from './GuidedTour.module.css';
 
@@ -100,6 +104,8 @@ export type TourPoint = { x: number; y: number };
 type GuidedTourProps = {
     steps: GuidedTourStep[];
     opened: boolean;
+    /** From `useOnboardingTour`; null for a tour that is not tracked. */
+    tracking: TourTracking | null;
     onClose: () => void;
     /** Fired on Got it at the last step, before `onClose`; not on Skip. */
     onFinish?: () => void;
@@ -796,6 +802,7 @@ const Highlights: FC<{ rects: DOMRect[] }> = ({ rects }) => (
 export const GuidedTour: FC<GuidedTourProps> = ({
     steps,
     opened,
+    tracking,
     onClose,
     onFinish,
     onStepChange,
@@ -1027,13 +1034,23 @@ export const GuidedTour: FC<GuidedTourProps> = ({
 
     const isLast = stepIndex === steps.length - 1;
 
-    const handleClose = useCallback(() => {
+    const { trackEnded } = useTourTracking({
+        tracking,
+        opened,
+        stepIndex: step ? stepIndex : null,
+        stepCount: steps.length,
+    });
+    const close = useCallback(() => {
         // Whatever the walkthrough left open goes with it: the host shows the
         // completion dialog on the page behind, and a menu floats over it.
         closeOpenDropdowns(null);
         setStepIndex(0);
         onClose();
     }, [onClose]);
+    const handleClose = useCallback(() => {
+        trackEnded('dismissed');
+        close();
+    }, [trackEnded, close]);
     // Centre of the control whose click advanced the tour, for the host to
     // keep: a remount mid-tour then resumes as a beacon at that point.
     const clickPointRef = useRef<TourPoint | null>(null);
@@ -1047,12 +1064,13 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     );
     const handleNext = useCallback(() => {
         if (isLast) {
+            trackEnded('completed');
             onFinish?.();
-            handleClose();
+            close();
             return;
         }
         goToStep(stepIndex + 1);
-    }, [isLast, onFinish, handleClose, goToStep, stepIndex]);
+    }, [isLast, trackEnded, onFinish, close, goToStep, stepIndex]);
     const handleBack = () => goToStep(Math.max(0, stepIndex - 1));
 
     // A step that lives on another page asks the host to go there first.
