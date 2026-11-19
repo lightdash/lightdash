@@ -391,7 +391,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         visualization: 'number',
         libraryChart: {
             slug: 'big-number-with-sparkline-trend',
-            minVersion: '0.7.0',
+            minVersion: '0.7.1',
             fieldMapping: {
                 value: 'agent_requests_total_requests',
                 sparklineMetric: 'agent_requests_total_requests',
@@ -438,7 +438,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         visualization: 'number',
         libraryChart: {
             slug: 'big-number-with-sparkline-trend',
-            minVersion: '0.7.0',
+            minVersion: '0.7.1',
             fieldMapping: {
                 value: 'agent_requests_distinct_requesters',
                 sparklineMetric: 'agent_requests_distinct_requesters',
@@ -486,7 +486,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'heatmap',
-            minVersion: '0.4.1',
+            minVersion: '0.4.2',
             fieldMapping: {
                 x: 'agent_requests_requested_at_day',
                 y: 'agent_requests_agent_name',
@@ -514,7 +514,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'vega-trellis',
-            minVersion: '0.6.1',
+            minVersion: '0.6.2',
             fieldMapping: {
                 x: 'agent_requests_requested_at_day',
                 value: 'agent_requests_total_requests',
@@ -552,7 +552,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'sortable-pivot-table',
-            minVersion: '0.13.0',
+            minVersion: '0.13.1',
             fieldMapping: {
                 rowDimension: 'agent_requests_user_name',
                 rowDimension2: 'agent_requests_agent_name',
@@ -798,7 +798,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'heatmap',
-            minVersion: '0.4.1',
+            minVersion: '0.4.2',
             fieldMapping: {
                 x: 'ai_usage_model',
                 y: 'ai_usage_feature',

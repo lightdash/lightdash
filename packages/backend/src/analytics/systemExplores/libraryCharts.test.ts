@@ -533,7 +533,7 @@ describe('legacyLibraryChartBindings', () => {
             ),
         ).toEqual({
             slug: 'big-number-with-sparkline-trend',
-            minVersion: '0.7.0',
+            minVersion: '0.7.1',
             fieldMapping: {
                 value: 'ai_usage_unique_users',
                 sparklineMetric: 'ai_usage_unique_users',

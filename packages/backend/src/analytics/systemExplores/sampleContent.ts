@@ -154,7 +154,7 @@ const aiUsageContent = {
         chart('ai-calls', 'AI calls', 'ai_usage', 'total_ai_calls', undefined, {
             libraryChart: {
                 slug: 'big-number-with-sparkline-trend',
-                minVersion: '0.7.0',
+                minVersion: '0.7.1',
                 fieldMapping: {
                     value: 'ai_usage_total_ai_calls',
                     sparklineMetric: 'ai_usage_total_ai_calls',
@@ -188,7 +188,7 @@ const aiUsageContent = {
             {
                 libraryChart: {
                     slug: 'big-number-with-sparkline-trend',
-                    minVersion: '0.7.0',
+                    minVersion: '0.7.1',
                     fieldMapping: {
                         value: 'ai_usage_total_tokens_used',
                         sparklineMetric: 'ai_usage_total_tokens_used',
@@ -226,7 +226,7 @@ const aiUsageContent = {
             {
                 libraryChart: {
                     slug: 'big-number-with-sparkline-trend',
-                    minVersion: '0.7.0',
+                    minVersion: '0.7.1',
                     fieldMapping: {
                         value: 'ai_usage_unique_users',
                         sparklineMetric: 'ai_usage_unique_users',
@@ -266,7 +266,7 @@ const aiUsageContent = {
             {
                 libraryChart: {
                     slug: 'big-number-with-sparkline-trend',
-                    minVersion: '0.7.0',
+                    minVersion: '0.7.1',
                     fieldMapping: {
                         value: 'ai_usage_total_output_tokens',
                         sparklineMetric: 'ai_usage_total_output_tokens',
@@ -415,7 +415,7 @@ const aiUsageContent = {
                     'Tokens by feature over the selected period. Token volume is not monetary cost.',
                 libraryChart: {
                     slug: 'heatmap',
-                    minVersion: '0.4.1',
+                    minVersion: '0.4.2',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
                         y: 'ai_usage_feature',
