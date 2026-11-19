@@ -501,6 +501,7 @@ const FieldRow = memo<{
                     className={classes.fieldRow}
                     data-selected={selected}
                     data-off={!field.inUse || field.draftState === 'removed'}
+                    data-change={field.draftState ?? undefined}
                     data-field-index={index}
                     data-field-id={field.id}
                     role="row"
@@ -581,6 +582,8 @@ export const FieldList: FC<{
     onShowHidden: () => void;
     /** The field whose details are open, from the URL. */
     openFieldId: string | null;
+    /** A field to bring into view on arrival, such as one just published. */
+    revealFieldId: string | null;
     /** Click or Enter opens a field's details; arrows move between rows. */
     onOpen: (field: Field) => void;
     toolbar?: ReactNode;
@@ -591,6 +594,7 @@ export const FieldList: FC<{
     hiddenCount,
     onShowHidden,
     openFieldId,
+    revealFieldId,
     onOpen,
     toolbar,
 }) => {
@@ -640,11 +644,10 @@ export const FieldList: FC<{
     );
     const selectedIndex = fields.findIndex(({ id }) => id === activeFieldId);
     const tabStop = selectedIndex < 0 ? 0 : selectedIndex;
-    // Arriving on an open field (a link, back, reload): show its row.
+    // Arriving on an open field (a link, back, reload), or one to reveal: show its row.
     useEffect(() => {
-        const rowIndex = openFieldId
-            ? rowIndexByField.get(openFieldId)
-            : undefined;
+        const arrivedAt = openFieldId ?? revealFieldId;
+        const rowIndex = arrivedAt ? rowIndexByField.get(arrivedAt) : undefined;
         if (rowIndex === undefined) return;
         virtualizer.scrollToIndex(rowIndex, { align: 'center' });
         // Only on arrival, not on every render.

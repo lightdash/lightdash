@@ -270,13 +270,12 @@ const ExploreBody: FC<{
     }
     return (
         <>
-            {review || published ? (
+            {/* A pull request's fields are not on this page yet; a publish marks its own fields below. */}
+            {review ? (
                 <Group gap="xs" mb="sm" wrap="nowrap">
                     <ModelMark model={exploreId} />
                     <Text fz="xs" c="dimmed">
-                        {review
-                            ? `${describeFieldChanges(review.fields) || 'Changed'}. Not published until the pull request merges.`
-                            : describeFieldChanges(published ?? [])}
+                        {`${describeFieldChanges(review.fields) || 'Changed'}. Not published until the pull request merges.`}
                     </Text>
                 </Group>
             ) : null}
@@ -304,6 +303,12 @@ const ExploreBody: FC<{
                 hiddenCount={hiddenCount}
                 onShowHidden={onShowHidden}
                 openFieldId={openFieldId}
+                revealFieldId={
+                    published
+                        ? (fields.find(({ draftState }) => draftState)?.id ??
+                          null)
+                        : null
+                }
                 toolbar={<FieldListToolbar {...toolbarProps} />}
                 // The open field is in the URL; opening and closing replaces
                 // the entry rather than stacking up the back button.
