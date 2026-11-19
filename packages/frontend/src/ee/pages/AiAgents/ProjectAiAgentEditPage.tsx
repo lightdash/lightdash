@@ -100,6 +100,7 @@ const formSchema = z.object({
         z.object({
             type: z.literal('slack'),
             channelId: z.string().min(1, 'Channel is required'),
+            serviceAccountUuid: z.string().nullable(),
         }),
     ),
     tags: z.array(z.string()).nullable(),

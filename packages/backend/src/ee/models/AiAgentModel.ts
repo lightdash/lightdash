@@ -778,6 +778,7 @@ export class AiAgentModel {
                 `${AiAgentIntegrationTableName}.ai_agent_uuid`,
                 `${AiAgentIntegrationTableName}.integration_type`,
                 `${AiAgentSlackIntegrationTableName}.slack_channel_id`,
+                `${AiAgentSlackIntegrationTableName}.service_account_uuid`,
             )
             .whereNotNull(`${AiAgentIntegrationTableName}.integration_type`)
             .where(`${AiAgentIntegrationTableName}.ai_agent_uuid`, agentUuid);
@@ -832,7 +833,8 @@ export class AiAgentModel {
                         (SELECT json_agg(
                             json_build_object(
                                 'type', integration_type,
-                                'channelId', slack_channel_id
+                                'channelId', slack_channel_id,
+                                'serviceAccountUuid', service_account_uuid
                             )
                         ) FROM integrations
                          WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid),
@@ -941,6 +943,7 @@ export class AiAgentModel {
                 `${AiAgentIntegrationTableName}.ai_agent_uuid`,
                 `${AiAgentIntegrationTableName}.integration_type`,
                 `${AiAgentSlackIntegrationTableName}.slack_channel_id`,
+                `${AiAgentSlackIntegrationTableName}.service_account_uuid`,
             )
             .whereNotNull(`${AiAgentIntegrationTableName}.integration_type`);
 
@@ -993,7 +996,8 @@ export class AiAgentModel {
                         (SELECT json_agg(
                             json_build_object(
                                 'type', integration_type,
-                                'channelId', slack_channel_id
+                                'channelId', slack_channel_id,
+                                'serviceAccountUuid', service_account_uuid
                             )
                         ) FROM integrations
                          WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid),
@@ -1222,6 +1226,67 @@ export class AiAgentModel {
         });
 
         return agent;
+    }
+
+    async findUsableServiceAccountUuids(
+        organizationUuid: string,
+        serviceAccountUuids: string[],
+    ): Promise<string[]> {
+        if (serviceAccountUuids.length === 0) return [];
+        const rows = await this.database(ServiceAccountsTableName)
+            .select('service_account_uuid')
+            .where('organization_uuid', organizationUuid)
+            .whereIn('service_account_uuid', serviceAccountUuids)
+            .whereNotNull('service_account_user_uuid');
+        return rows.map((row) => row.service_account_uuid);
+    }
+
+    async findSlackChannelServiceAccount({
+        organizationUuid,
+        slackChannelId,
+    }: {
+        organizationUuid: string;
+        slackChannelId: string;
+    }): Promise<{
+        serviceAccountUuid: string;
+        serviceAccountUserUuid: string;
+        name: string;
+    } | null> {
+        const row = await this.database(AiAgentSlackIntegrationTableName)
+            .innerJoin(
+                ServiceAccountsTableName,
+                `${ServiceAccountsTableName}.service_account_uuid`,
+                `${AiAgentSlackIntegrationTableName}.service_account_uuid`,
+            )
+            .select({
+                serviceAccountUuid: `${ServiceAccountsTableName}.service_account_uuid`,
+                serviceAccountUserUuid: `${ServiceAccountsTableName}.service_account_user_uuid`,
+                name: `${ServiceAccountsTableName}.description`,
+            })
+            .where(
+                `${AiAgentSlackIntegrationTableName}.slack_channel_id`,
+                slackChannelId,
+            )
+            .where(
+                `${AiAgentSlackIntegrationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .where(
+                `${ServiceAccountsTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .whereNotNull(
+                `${ServiceAccountsTableName}.service_account_user_uuid`,
+            )
+            .first<
+                | {
+                      serviceAccountUuid: string;
+                      serviceAccountUserUuid: string;
+                      name: string;
+                  }
+                | undefined
+            >();
+        return row ?? null;
     }
 
     private static async generateUniqueSlug(
@@ -2430,6 +2495,8 @@ export class AiAgentModel {
                                         baseIntegration.ai_agent_integration_uuid,
                                     organization_uuid: agent.organization_uuid,
                                     slack_channel_id: integration.channelId,
+                                    service_account_uuid:
+                                        integration.serviceAccountUuid ?? null,
                                 });
                             } catch (error) {
                                 if (isUniqueConstraintViolation(error)) {
@@ -2443,6 +2510,8 @@ export class AiAgentModel {
                             return {
                                 type: integration.type,
                                 channelId: integration.channelId,
+                                serviceAccountUuid:
+                                    integration.serviceAccountUuid ?? null,
                             };
                         default:
                             return assertUnreachable(
@@ -2635,6 +2704,26 @@ export class AiAgentModel {
                 const integrationUuids = await trx(AiAgentIntegrationTableName)
                     .select('ai_agent_integration_uuid')
                     .where('ai_agent_uuid', args.agentUuid);
+                const existingServiceAccounts = new Map(
+                    integrationUuids.length > 0
+                        ? (
+                              await trx(AiAgentSlackIntegrationTableName)
+                                  .select(
+                                      'slack_channel_id',
+                                      'service_account_uuid',
+                                  )
+                                  .whereIn(
+                                      'ai_agent_integration_uuid',
+                                      integrationUuids.map(
+                                          (i) => i.ai_agent_integration_uuid,
+                                      ),
+                                  )
+                          ).map((row) => [
+                              row.slack_channel_id,
+                              row.service_account_uuid,
+                          ])
+                        : [],
+                );
 
                 if (integrationUuids.length > 0) {
                     await trx(AiAgentSlackIntegrationTableName)
@@ -2655,7 +2744,13 @@ export class AiAgentModel {
                 integrations = await Promise.all(
                     args.integrations.map(async (integration) => {
                         switch (integration.type) {
-                            case 'slack':
+                            case 'slack': {
+                                const serviceAccountUuid =
+                                    integration.serviceAccountUuid === undefined
+                                        ? (existingServiceAccounts.get(
+                                              integration.channelId,
+                                          ) ?? null)
+                                        : integration.serviceAccountUuid;
                                 try {
                                     const [baseIntegration] = await trx(
                                         AiAgentIntegrationTableName,
@@ -2674,6 +2769,8 @@ export class AiAgentModel {
                                         organization_uuid:
                                             agent.organization_uuid,
                                         slack_channel_id: integration.channelId,
+                                        service_account_uuid:
+                                            serviceAccountUuid,
                                     });
                                 } catch (error) {
                                     if (isUniqueConstraintViolation(error)) {
@@ -2687,7 +2784,9 @@ export class AiAgentModel {
                                 return {
                                     type: integration.type,
                                     channelId: integration.channelId,
+                                    serviceAccountUuid,
                                 };
+                            }
                             default:
                                 return assertUnreachable(
                                     integration.type,
@@ -2714,6 +2813,7 @@ export class AiAgentModel {
                     .select({
                         type: `${AiAgentIntegrationTableName}.integration_type`,
                         channelId: `${AiAgentSlackIntegrationTableName}.slack_channel_id`,
+                        serviceAccountUuid: `${AiAgentSlackIntegrationTableName}.service_account_uuid`,
                     });
             }
 
