@@ -1,0 +1,10 @@
+/* In a narrow side panel a result takes the height of its rows, up to a cap it scrolls within. */
+.fitted {
+    display: flex;
+    flex-direction: column;
+    max-height: 280px;
+}
+
+.fitted > * {
+    min-height: 0;
+}
