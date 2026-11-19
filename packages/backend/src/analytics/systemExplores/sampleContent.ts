@@ -225,13 +225,33 @@ const aiUsageContent = {
                 libraryChart: {
                     slug: 'big-number-with-sparkline-trend',
                     minVersion: '0.7.0',
-                    fieldMapping: { value: 'ai_usage_unique_users' },
+                    fieldMapping: {
+                        value: 'ai_usage_unique_users',
+                        sparklineMetric: 'ai_usage_unique_users',
+                        time: 'ai_usage_event_ts_day',
+                    },
                     optionValues: {
-                        showLabel: false,
+                        valueAggregation: 'latest',
+                        showComparison: false,
+                        colorSparklineByTrend: false,
+                        showLabel: true,
+                        label: 'Latest day',
                         showCardBorder: false,
                         showCardShadow: false,
                     },
-                    query: null,
+                    query: {
+                        dimensions: ['ai_usage_event_ts_day'],
+                        metrics: ['ai_usage_unique_users'],
+                        sorts: [
+                            {
+                                fieldId: 'ai_usage_event_ts_day',
+                                descending: false,
+                            },
+                        ],
+                        limit: 500,
+                        description:
+                            'People who used AI on the latest day in the selected period, with the daily trend. A person active on several days is counted on each of those days.',
+                    },
                 },
             },
         ),

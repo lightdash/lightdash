@@ -526,6 +526,41 @@ describe('legacyLibraryChartBindings', () => {
         });
     });
 
+    it('shows the latest day and daily trend on the AI users card', () => {
+        expect(
+            analyticsLibraryChartBindings.get(
+                'lightdash-analytics-overview-ai-users',
+            ),
+        ).toEqual({
+            slug: 'big-number-with-sparkline-trend',
+            minVersion: '0.7.0',
+            fieldMapping: {
+                value: 'ai_usage_unique_users',
+                sparklineMetric: 'ai_usage_unique_users',
+                time: 'ai_usage_event_ts_day',
+            },
+            optionValues: {
+                valueAggregation: 'latest',
+                showComparison: false,
+                colorSparklineByTrend: false,
+                showLabel: true,
+                label: 'Latest day',
+                showCardBorder: false,
+                showCardShadow: false,
+            },
+            query: {
+                dimensions: ['ai_usage_event_ts_day'],
+                metrics: ['ai_usage_unique_users'],
+                sorts: [
+                    { fieldId: 'ai_usage_event_ts_day', descending: false },
+                ],
+                limit: 500,
+                description:
+                    'People who used AI on the latest day in the selected period, with the daily trend. A person active on several days is counted on each of those days.',
+            },
+        });
+    });
+
     it('runs the day query on the real AI calls chart only when its type is usable', () => {
         const slug = 'lightdash-analytics-overview-ai-calls';
         const real = allCharts.find((c) => c.slug === slug)!;

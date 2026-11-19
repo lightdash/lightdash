@@ -438,13 +438,33 @@ export const usageChartSpecs: UsageChartSpec[] = [
         libraryChart: {
             slug: 'big-number-with-sparkline-trend',
             minVersion: '0.7.0',
-            fieldMapping: { value: 'agent_requests_distinct_requesters' },
+            fieldMapping: {
+                value: 'agent_requests_distinct_requesters',
+                sparklineMetric: 'agent_requests_distinct_requesters',
+                time: 'agent_requests_requested_at_day',
+            },
             optionValues: {
-                showLabel: false,
+                valueAggregation: 'latest',
+                showComparison: false,
+                colorSparklineByTrend: false,
+                showLabel: true,
+                label: 'Latest day',
                 showCardBorder: false,
                 showCardShadow: false,
             },
-            query: null,
+            query: {
+                dimensions: ['agent_requests_requested_at_day'],
+                metrics: ['agent_requests_distinct_requesters'],
+                sorts: [
+                    {
+                        fieldId: 'agent_requests_requested_at_day',
+                        descending: false,
+                    },
+                ],
+                limit: 500,
+                description:
+                    'People who asked an agent on the latest day in the selected period, with the daily trend. A person active on several days is counted on each of those days.',
+            },
         },
     },
     {
