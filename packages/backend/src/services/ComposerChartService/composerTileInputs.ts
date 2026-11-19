@@ -366,11 +366,11 @@ type ZoomTarget = {
     group: string;
 };
 
-/** The date field each semantic-layer node would re-grain; a merge's legs zoom one date key part, the targeted one first. */
+/** The date field each semantic-layer node would re-grain: the first target it has, else its first date; a merge's legs zoom one date key part. */
 const getZoomTargets = (
     nodes: ComposerChartPipelineNode[],
     exploreByNodeId: ComposerNodeExplores,
-    xAxisFieldId: string | undefined,
+    targetFieldIds: string[],
 ): ZoomTarget[] => {
     const candidates = getZoomCandidates(nodes, exploreByNodeId);
     const { legs, merges } = getMergeDateKeys(nodes, candidates);
@@ -378,14 +378,18 @@ const getZoomTargets = (
         merges.flatMap(({ nodeId, legIds, dateParts }) => {
             // A dashboard targets a leg's field; a stored chart plots the merged key
             const part =
-                dateParts.find(
-                    ({ name, fieldIdBySourceId }) =>
-                        getItemId({ table: MERGE_TABLE_NAME, name }) ===
-                            xAxisFieldId ||
-                        Object.values(fieldIdBySourceId).some(
-                            (fieldId) => fieldId === xAxisFieldId,
+                targetFieldIds
+                    .flatMap((target) =>
+                        dateParts.filter(
+                            ({ name, fieldIdBySourceId }) =>
+                                getItemId({ table: MERGE_TABLE_NAME, name }) ===
+                                    target ||
+                                Object.values(fieldIdBySourceId).includes(
+                                    target,
+                                ),
                         ),
-                ) ?? dateParts[0];
+                    )
+                    .at(0) ?? dateParts[0];
             return part
                 ? legIds.map(
                       (leg) =>
@@ -411,7 +415,11 @@ const getZoomTargets = (
                 : [];
         }
         const field =
-            fields.find(({ fieldId }) => fieldId === xAxisFieldId) ?? fields[0];
+            targetFieldIds
+                .flatMap((target) =>
+                    fields.filter(({ fieldId }) => fieldId === target),
+                )
+                .at(0) ?? fields[0];
         return field ? [{ nodeId, explore, field, group: nodeId }] : [];
     });
 };
@@ -457,17 +465,22 @@ export const getComposerNodeDateZooms = ({
     nodes,
     exploreByNodeId,
     dateZoom,
+    chartXFieldId,
 }: {
     nodes: ComposerChartPipelineNode[];
     exploreByNodeId: ComposerNodeExplores;
     dateZoom: DateZoom | null;
+    /** The stored chart's x field: the target when the dashboard names none, or names one the tile no longer has. */
+    chartXFieldId: string | null;
 }): Record<string, DateZoom> => {
     const granularity = dateZoom?.granularity;
     if (!granularity) return {};
     const targets = getZoomTargets(
         nodes,
         exploreByNodeId,
-        dateZoom.xAxisFieldId,
+        [dateZoom.xAxisFieldId, chartXFieldId].flatMap((target) =>
+            target ? [target] : [],
+        ),
     );
     const refusedGroups = new Set(
         targets
