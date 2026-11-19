@@ -457,6 +457,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     }),
                     savedChartModel: models.getSavedChartModel(),
                     jobModel: models.getJobModel(),
+                    projectCompileLogModel: models.getProjectCompileLogModel(),
                     writebackPreviewService:
                         repository.getWritebackPreviewService<WritebackPreviewService>(),
                     aiWritebackService:

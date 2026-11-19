@@ -767,12 +767,16 @@ export class AiWritebackService extends BaseService {
         projectUuid: string;
         prUrl: string;
         sha?: string;
+        /** Whether the compile may save only what the merge changed; false runs the full compile. */
+        incrementalCompile: boolean;
     }): Promise<WritebackMergeResult> {
-        const result = await this.ciService.mergePullRequest(args);
+        const { incrementalCompile, ...merge } = args;
+        const result = await this.ciService.mergePullRequest(merge);
         if (!result.merged) return { ...result, compileJobUuid: null };
         const compileJobUuid = await this.scheduleCompileAfterMerge(
             args.user,
             args.projectUuid,
+            incrementalCompile,
         );
         await this.trackMerged(args.user, args.projectUuid, {
             prUrl: args.prUrl,
@@ -856,6 +860,7 @@ export class AiWritebackService extends BaseService {
     async scheduleCompileAfterMerge(
         user: SessionUser,
         projectUuid: string,
+        incremental: boolean,
     ): Promise<string | null> {
         try {
             const project = await this.projectModel.get(projectUuid);
@@ -871,6 +876,10 @@ export class AiWritebackService extends BaseService {
                     projectUuid,
                     RequestMethod.BACKEND,
                     true,
+                    false,
+                    false,
+                    undefined,
+                    incremental,
                 );
             this.logger.info(
                 `Scheduled dbt compile (job ${jobUuid}) after writeback PR merge for project ${projectUuid}`,

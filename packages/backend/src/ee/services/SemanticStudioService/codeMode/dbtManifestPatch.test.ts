@@ -207,6 +207,15 @@ describe('patchManifest', () => {
                 },
             ]).status,
         ).toBe('unsupported');
+        expect(
+            patchManifest(manifestOf(orders()), [
+                {
+                    path: 'lightdash.project_context.yml',
+                    base: null,
+                    next: 'models: []',
+                },
+            ]).status,
+        ).toBe('unsupported');
     });
 
     it('leaves a manifest alone when nothing changed', () => {
@@ -224,7 +233,11 @@ describe('advanceCompiledManifest', () => {
             commitSha === 'head' ? (files?.[path] ?? null) : base,
         listChangedSince: async () => (files ? Object.keys(files) : null),
     });
-    const compiled = { commitSha: 'old', manifest: manifestOf(orders()) };
+    const compiled = {
+        commitSha: 'old',
+        manifest: manifestOf(orders()),
+        exploresJobUuid: 'job-1',
+    };
 
     it('patches what changed since the compiled commit and moves it to the new one', async () => {
         const result = await advanceCompiledManifest(
@@ -234,6 +247,9 @@ describe('advanceCompiledManifest', () => {
         );
         if (result.status !== 'advanced') throw new Error(result.reason);
         expect(result.compiled.commitSha).toBe('head');
+        // The cached explores were not compiled from the new commit.
+        expect(result.compiled.exploresJobUuid).toBeNull();
+        expect(result.changedModels).toEqual(['orders']);
         expect(result.files).toBe(1);
         expect(
             result.compiled.manifest.nodes['model.shop.orders'],
@@ -267,6 +283,25 @@ describe('findModelsToCompile', () => {
             model('customers'),
             model('payments', { meta: { joins: [{ join: 'orders' }] } }),
             model('unrelated'),
+        );
+        expect(findModelsToCompile(manifest, ['customers'])).toEqual({
+            reached: ['customers', 'orders'],
+            uniqueIds: ['model.shop.orders', 'model.shop.customers'],
+        });
+    });
+
+    it('reaches a model whose additional explore joins a changed model', () => {
+        const manifest = manifestOf(
+            model('orders', {
+                meta: {
+                    explores: {
+                        orders_with_customers: {
+                            joins: [{ join: 'customers' }],
+                        },
+                    },
+                },
+            }),
+            model('customers'),
         );
         expect(findModelsToCompile(manifest, ['customers'])).toEqual({
             reached: ['customers', 'orders'],

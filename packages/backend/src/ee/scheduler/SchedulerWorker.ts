@@ -8,6 +8,7 @@ import {
     SCHEDULER_TASKS,
     SchedulerJobStatus,
     type AnonymousAccount,
+    type SessionUser,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
 import { type ContentReviewRequestModel } from '../../models/ContentReviewRequestModel';
@@ -24,6 +25,7 @@ import {
 import { TypedEETaskList } from '../../scheduler/types';
 import { type JiraAppService } from '../../services/JiraAppService/JiraAppService';
 import { type LinearAppService } from '../../services/LinearAppService/LinearAppService';
+import { type IncrementalCompileResult } from '../../services/ProjectService/ProjectService';
 import { toFailedScan } from '../../services/QuerySourceService/live/integrations/postHog/scan';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiAgentReviewNotificationModel } from '../models/AiAgentReviewNotificationModel';
@@ -248,6 +250,18 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected findAiUsageLedgerRetainedOrganizations(): Promise<string[]> {
         return this.findRetainedOrganizations();
+    }
+
+    protected compileIncrementally(
+        user: SessionUser,
+        projectUuid: string,
+        jobUuid: string,
+    ): Promise<IncrementalCompileResult | null> {
+        return this.semanticStudioService.compileAfterMerge(
+            user,
+            projectUuid,
+            jobUuid,
+        );
     }
 
     protected getCronItems() {

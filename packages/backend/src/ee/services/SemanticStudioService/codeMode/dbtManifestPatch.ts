@@ -97,6 +97,7 @@ const PROJECT_FILES = new Set([
     'dependencies.yml',
     'selectors.yml',
     'lightdash.config.yml',
+    'lightdash.project_context.yml',
 ]);
 
 // dbt renders YAML strings through Jinja, which drops one trailing newline, so a block scalar's description matches the parsed one.
@@ -358,7 +359,12 @@ export const advanceCompiledManifest = async (
     commitSha: string,
     branch: Pick<DbtScriptChange, 'readAt' | 'listChangedSince'>,
 ): Promise<
-    | { status: 'advanced'; compiled: CompiledDbtManifest; files: number }
+    | {
+          status: 'advanced';
+          compiled: CompiledDbtManifest;
+          changedModels: string[];
+          files: number;
+      }
     | { status: 'unsupported'; reason: string }
 > => {
     const since = await branch.listChangedSince(compiled.commitSha);
@@ -381,7 +387,12 @@ export const advanceCompiledManifest = async (
     if (patch.status === 'unsupported') return patch;
     return {
         status: 'advanced',
-        compiled: { commitSha, manifest: patch.manifest },
+        compiled: {
+            commitSha,
+            manifest: patch.manifest,
+            exploresJobUuid: null,
+        },
+        changedModels: patch.changedModels,
         files: since.length,
     };
 };
@@ -397,16 +408,23 @@ export const findModelsToCompile = (
         .filter(
             (node) => project === undefined || node.package_name === project,
         );
-    const joinsOf = (node: ModelNode): string[] => {
-        const joins = node.meta?.joins;
-        return Array.isArray(joins)
+    const namesJoined = (joins: unknown): string[] =>
+        Array.isArray(joins)
             ? joins.flatMap((join) =>
                   isEntry(join) && typeof join.join === 'string'
                       ? [join.join]
                       : [],
               )
             : [];
-    };
+    // An additional explore can join models its base model does not.
+    const joinsOf = (node: ModelNode): string[] => [
+        ...namesJoined(node.meta?.joins),
+        ...(isEntry(node.meta?.explores)
+            ? Object.values(node.meta.explores).flatMap((explore) =>
+                  isEntry(explore) ? namesJoined(explore.joins) : [],
+              )
+            : []),
+    ];
     const changed = new Set(changedModels);
     const reached = models.filter(
         (node) =>

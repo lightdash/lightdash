@@ -12,6 +12,7 @@ import {
     NotFoundError,
     ParameterError,
     ProjectType,
+    SupportedDbtAdapter,
     ValidationErrorType,
     ValidationSourceType,
     WarehouseTypes,
@@ -42,6 +43,7 @@ import {
     type ProjectModelDocumentModel,
     type StoredDraftChange,
 } from '../../models/ProjectModelDocumentModel';
+import { type ApiCheckout } from '../AiWritebackService/providers/GithubProvider';
 import { type DbtScriptChange } from './codeMode/dbtManifestPatch';
 import {
     isSourcePath,
@@ -168,6 +170,12 @@ const setup = ({
     changeSets = [],
     staleCommits = 0,
     validationFor = () => [],
+    exploreSummaries = exploreTypes.map((type, index) => ({
+        name: `explore_${index}`,
+        type,
+    })),
+    latestCompileJob = null,
+    checkout = null,
 }: {
     stored?: { name: string; content: string; version?: number }[];
     otherDrafters?: {
@@ -201,6 +209,15 @@ const setup = ({
     validationFor?: (
         explores: (Explore | ExploreError)[],
     ) => CreateValidation[];
+    exploreSummaries?: {
+        name: string;
+        type?: ExploreType;
+        baseTable?: string;
+    }[];
+    /** The job of the project's last explore save. */
+    latestCompileJob?: string | null;
+    /** The project branch as Studio reads it. */
+    checkout?: ApiCheckout | null;
 } = {}) => {
     const upsert = vi.fn(
         (
@@ -361,6 +378,13 @@ const setup = ({
         compileJobUuid: 'job-1',
     }));
     const scheduleCompileAfterMerge = vi.fn(async () => 'job-2');
+    const saveExploresToCacheAndIndexCatalog = vi.fn(
+        async (_args: {
+            explores: (Explore | ExploreError)[];
+            complete?: boolean;
+            jobUuid?: string | null;
+        }) => 'index-job',
+    );
     let activeWorkspace: { threadUuid: string; prUrl: string | null } | null =
         null;
     const unused = async (): Promise<never> => {
@@ -427,7 +451,10 @@ const setup = ({
     );
     const args: SemanticStudioServiceArguments = {
         aiWritebackService: {
-            openStudioCheckout: unused,
+            openStudioCheckout: async () => {
+                if (checkout === null) throw new Error('No checkout');
+                return { checkout, root: '' };
+            },
             saveWithScript: unused,
             findPullRequestBranch,
             mergePullRequest,
@@ -545,11 +572,7 @@ const setup = ({
                           createdByUserUuid: USER_UUID,
                           dbtConnection,
                       },
-            getAllExploreSummaries: async () =>
-                exploreTypes.map((type, index) => ({
-                    name: `explore_${index}`,
-                    type,
-                })),
+            getAllExploreSummaries: async () => exploreSummaries,
             findExploresFromCache: async () => previewExplores,
             deleteCachedExplores,
         },
@@ -720,8 +743,12 @@ const setup = ({
             setExplores,
             compileExploresFromManifest,
             compileExploresFromBranch,
+            saveExploresToCacheAndIndexCatalog,
         },
         jobModel: { findLatestCompileStatus: async () => previewCompile },
+        projectCompileLogModel: {
+            findLatestJobUuid: async () => latestCompileJob,
+        },
         writebackPreviewService: { createPreviewForPullRequest },
         fileStorageClient: {
             isEnabled: () => true,
@@ -767,6 +794,7 @@ const setup = ({
         branchCompiles,
         upsert,
         scheduleCompileAfterMerge,
+        saveExploresToCacheAndIndexCatalog,
         openPullRequest,
         updatePullRequest,
         recordedPullRequests,
@@ -2808,6 +2836,7 @@ describe('SemanticStudioService', () => {
                 user: repoWriter,
                 projectUuid: PROJECT_UUID,
                 prUrl: PULL_REQUEST_URL,
+                incrementalCompile: true,
             });
             // The merge is what settles the draft.
             expect(context.drafts).toHaveLength(0);
@@ -3358,6 +3387,7 @@ describe('checking a dbt change against the compiled manifest', () => {
             metrics: {},
             docs: {},
         },
+        exploresJobUuid: 'compile-job',
     };
     const SCHEMA = 'version: 2\nmodels:\n  - name: orders\n';
     /** A branch where one commit since the compile changed `path`; nothing changed since `head-sha`. */
@@ -3437,6 +3467,189 @@ describe('checking a dbt change against the compiled manifest', () => {
     });
 });
 
+describe('compiling after a merge', () => {
+    const model = (name: string, meta: Record<string, unknown> = {}) => ({
+        unique_id: `model.shop.${name}`,
+        resource_type: 'model',
+        name,
+        package_name: 'shop',
+        patch_path: `shop://models/${name}.yml`,
+        description: '',
+        meta,
+        columns: {},
+    });
+    const STORED = {
+        commitSha: 'compiled-sha',
+        manifest: {
+            metadata: {
+                dbt_schema_version:
+                    'https://schemas.getdbt.com/dbt/manifest/v12.json',
+                generated_at: '',
+                adapter_type: 'postgres',
+                project_name: 'shop',
+            },
+            nodes: Object.fromEntries(
+                [
+                    model('orders', {
+                        joins: [{ join: 'customers' }, { join: 'payments' }],
+                    }),
+                    model('customers'),
+                    model('payments'),
+                ].map((node) => [node.unique_id, node]),
+            ),
+            metrics: {},
+            docs: {},
+        },
+        exploresJobUuid: 'compile-job',
+    };
+    const explore = (name: string, baseTable = name): Explore => ({
+        name,
+        label: name,
+        tags: [],
+        baseTable,
+        joinedTables: [],
+        tables: {},
+        targetDatabase: SupportedDbtAdapter.POSTGRES,
+    });
+    const schemaOf = (path: string) =>
+        path.endsWith('.sql')
+            ? 'select 1'
+            : `version: 2\nmodels:\n  - name: ${path.slice('models/'.length, -'.yml'.length)}\n`;
+    /** The project branch at `head-sha`, where `changes` are the files changed since the compile. */
+    const branchWith = (changes: Record<string, string>): ApiCheckout => ({
+        prUrl: null,
+        branch: 'main',
+        baseBranch: null,
+        headSha: 'head-sha',
+        listFiles: async () => [],
+        readFile: async (path) => changes[path] ?? null,
+        readFileAt: async (path, commitSha) => {
+            if (!(path in changes)) return null;
+            return commitSha === 'head-sha' ? changes[path] : schemaOf(path);
+        },
+        listFilesChangedSince: async () => Object.keys(changes),
+    });
+    const DESCRIBED = {
+        'models/customers.yml': `${schemaOf('models/customers.yml')}    description: Who buys\n`,
+    };
+    const SUMMARIES = ['orders', 'customers', 'payments'].map((name) => ({
+        name,
+        baseTable: name,
+    }));
+    const compileAfterMerge = async ({
+        changes = DESCRIBED,
+        latestCompileJob = 'compile-job',
+        exploreSummaries = SUMMARIES,
+        compiled = [
+            explore('orders'),
+            explore('customers'),
+            explore('payments'),
+        ],
+    }: {
+        changes?: Record<string, string>;
+        latestCompileJob?: string | null;
+        exploreSummaries?: { name: string; baseTable?: string }[];
+        compiled?: (Explore | ExploreError)[];
+    } = {}) => {
+        const context = setup({
+            dbtConnection: DBT_IN_GITHUB,
+            latestCompileJob,
+            exploreSummaries,
+            checkout: branchWith(changes),
+        });
+        context.compileExploresFromManifest.mockResolvedValue(compiled);
+        await saveCompiledDbtManifest(
+            context.fileStorageClient,
+            PROJECT_UUID,
+            STORED,
+        );
+        const result = await context.service.compileAfterMerge(
+            repoWriter,
+            PROJECT_UUID,
+            'merge-job',
+        );
+        const stored = await readCompiledDbtManifest(
+            context.fileStorageClient,
+            PROJECT_UUID,
+        );
+        return { context, result, stored };
+    };
+
+    it('saves only the explores a YAML change reaches, and moves the manifest on with them', async () => {
+        const { context, result, stored } = await compileAfterMerge();
+        // Orders joins customers, so it changes too; payments only compiles to be joined.
+        expect(context.compileExploresFromManifest).toHaveBeenCalledWith(
+            repoWriter,
+            PROJECT_UUID,
+            expect.anything(),
+            null,
+            [
+                'model.shop.orders',
+                'model.shop.customers',
+                'model.shop.payments',
+            ],
+        );
+        expect(
+            context.saveExploresToCacheAndIndexCatalog,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+            context.saveExploresToCacheAndIndexCatalog.mock.calls[0][0],
+        ).toMatchObject({
+            explores: [explore('orders'), explore('customers')],
+            complete: false,
+            jobUuid: 'merge-job',
+        });
+        expect(result).toEqual({
+            indexCatalogJobUuid: 'index-job',
+            errorCount: 0,
+            total: 2,
+        });
+        expect(stored).toMatchObject({
+            commitSha: 'head-sha',
+            exploresJobUuid: 'merge-job',
+        });
+        expect(stored?.manifest.nodes['model.shop.customers']).toMatchObject({
+            description: 'Who buys',
+        });
+    });
+
+    it.each([
+        [
+            'only dbt can parse the change',
+            { changes: { 'models/customers.sql': 'select 2' } },
+        ],
+        [
+            'something else saved explores since the manifest was compiled',
+            { latestCompileJob: 'cli-deploy-job' },
+        ],
+        [
+            'the change adds or removes an explore',
+            {
+                exploreSummaries: [
+                    ...SUMMARIES,
+                    { name: 'vip_customers', baseTable: 'customers' },
+                ],
+            },
+        ],
+        [
+            'an explore it reaches does not compile',
+            {
+                compiled: [
+                    explore('orders'),
+                    { name: 'customers', label: 'customers', errors: [] },
+                ],
+            },
+        ],
+    ])('runs the full compile when %s', async (_label, options) => {
+        const { context, result, stored } = await compileAfterMerge(options);
+        expect(result).toBeNull();
+        expect(
+            context.saveExploresToCacheAndIndexCatalog,
+        ).not.toHaveBeenCalled();
+        expect(stored).toEqual(STORED);
+    });
+});
+
 describe('isSourcePath', () => {
     it('takes model and project files, and nothing that steps outside them', () => {
         expect(isSourcePath('models/orders.yml')).toBe(true);
@@ -3494,6 +3707,13 @@ describe('workspace pull request reconciliation', () => {
             expect(context.scheduleCompileAfterMerge).toHaveBeenCalledTimes(
                 state === 'merged' ? 1 : 0,
             );
+            if (state === 'merged') {
+                expect(context.scheduleCompileAfterMerge).toHaveBeenCalledWith(
+                    deployer,
+                    PROJECT_UUID,
+                    true,
+                );
+            }
         },
     );
 
@@ -3739,6 +3959,7 @@ describe('compiling a dbt change on its branch', () => {
             user: repoWriter,
             projectUuid: PROJECT_UUID,
             prUrl: OWN_PULL_REQUEST,
+            incrementalCompile: true,
         });
         expect(context.recordPullRequestState).toHaveBeenCalledWith(
             PROJECT_UUID,
