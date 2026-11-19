@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
+    FeatureFlags,
     getEmbedWriteSpaceUuids,
     type UiStringKey,
 } from '@lightdash/common';
@@ -32,6 +33,7 @@ import {
 } from '../../../hooks/useExploreWarehouseConnection';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useVerificationSavePrompt } from '../../../hooks/useVerificationSavePrompt';
 import { Can } from '../../../providers/Ability';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
@@ -74,6 +76,9 @@ const ExplorerHeader: FC = memo(() => {
     const { backDestination, onBackToDashboard } = useEmbed();
     const backButtonLabel = useUiString(getBackButtonLabelKey(backDestination));
     const ability = useAbilityContext();
+    const isUndoRedoEnabled =
+        useServerFeatureFlag(FeatureFlags.ExplorerUndoRedo).data?.enabled ===
+        true;
 
     // Get state from Redux and new hook
     const limit = useExplorerSelector(selectQueryLimit);
@@ -300,7 +305,7 @@ const ExplorerHeader: FC = memo(() => {
                             </div>
                         </Tooltip>
                     )}
-                <ExplorerHistoryButtons />
+                {isUndoRedoEnabled && <ExplorerHistoryButtons />}
                 <RefreshButton size="xs" />
             </Group>
         </Group>
