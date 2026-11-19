@@ -1,4 +1,4 @@
-import { type CaptureTranscriptWord } from '@lightdash/common';
+import { ParameterError, type CaptureTranscriptWord } from '@lightdash/common';
 
 const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1';
 const TRANSCRIPTION_MODEL = 'whisper-1';
@@ -104,6 +104,10 @@ export const transcribeCaptureAudio = async ({
             body: form,
         },
     );
+    if (response.status === 400) {
+        // The provider could not read the upload as audio.
+        throw new ParameterError('The recording could not be read as audio');
+    }
     if (!response.ok) {
         throw new Error(`Transcription failed with status ${response.status}`);
     }
