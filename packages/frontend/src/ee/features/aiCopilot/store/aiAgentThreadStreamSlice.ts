@@ -1,7 +1,6 @@
 import { type AiAccessRefusal } from '@lightdash/common';
 import {
     createSlice,
-    nanoid,
     prepareAutoBatched,
     type PayloadAction,
 } from '@reduxjs/toolkit';
@@ -111,7 +110,8 @@ export interface AiAgentThreadStreamingState {
     content: string;
     parts: StreamPart[];
     connection: AiAgentThreadStreamConnection;
-    interruptionId: string | null;
+    attempt: number;
+    wasInterrupted: boolean;
     toolCalls: ToolCall[];
     reasoning: Reasoning[];
     decidedToolCallIds: string[];
@@ -143,11 +143,12 @@ const initialThread: Omit<
     | 'agentUuid'
     | 'autoApproveSql'
     | 'timing'
+    | 'attempt'
 > = {
     content: '',
     parts: [],
     connection: { status: 'streaming' },
-    interruptionId: null,
+    wasInterrupted: false,
     toolCalls: [],
     reasoning: [],
     decidedToolCallIds: [],
@@ -176,6 +177,7 @@ export const aiAgentThreadStreamSlice = createSlice({
             state[threadUuid] = {
                 ...action.payload,
                 ...initialThread,
+                attempt: (state[threadUuid]?.attempt ?? 0) + 1,
                 timing: {
                     startedAt: Date.now(),
                     firstTokenAt: null,
@@ -260,23 +262,15 @@ export const aiAgentThreadStreamSlice = createSlice({
                 toolCallId: string;
             }>(),
         },
-        markStreamRecovering: {
-            reducer: (
-                state,
-                action: PayloadAction<{
-                    threadUuid: string;
-                    interruptionId: string;
-                }>,
-            ) => {
-                const stream = state[action.payload.threadUuid];
-                if (stream?.connection.status === 'streaming') {
-                    stream.connection = { status: 'recovering' };
-                    stream.interruptionId = action.payload.interruptionId;
-                }
-            },
-            prepare: ({ threadUuid }: { threadUuid: string }) => ({
-                payload: { threadUuid, interruptionId: nanoid() },
-            }),
+        markStreamRecovering: (
+            state,
+            action: PayloadAction<{ threadUuid: string }>,
+        ) => {
+            const stream = state[action.payload.threadUuid];
+            if (stream?.connection.status === 'streaming') {
+                stream.connection = { status: 'recovering' };
+                stream.wasInterrupted = true;
+            }
         },
         markStreamPolling: (
             state,

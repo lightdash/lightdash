@@ -41,7 +41,7 @@ const agentUuid = 'agent';
 const save = (
     promptUuid: string,
     slug: string,
-    type: 'chart' | 'dashboard',
+    type: 'chart' | 'dashboard' | 'composer_chart',
     toolName: 'createContent' | 'editContent',
     toolCallId = `call-${promptUuid}-${slug}`,
 ) => {
@@ -211,7 +211,13 @@ it.each(['pending', 'idle'] as const)(
             save('older', 'old-chart', 'chart', 'editContent'),
         );
         const pending = assistant(messageUuid, 'pending');
-        const completed = assistant(messageUuid, 'idle', chart, dashboard);
+        const completed = assistant(
+            messageUuid,
+            'idle',
+            chart,
+            dashboard,
+            save(messageUuid, 'composer', 'composer_chart', 'createContent'),
+        );
         const { onEvent, store, result, respond } = setup(threadUuid, [
             older,
             pending,
@@ -391,9 +397,13 @@ it('keeps a late save quiet after leaving and reopening an interrupted thread', 
     expect(onEvent).not.toHaveBeenCalled();
 });
 
-it.each(['sidebar', 'back'] as const)(
-    'keeps a delayed follow-up quiet when reopening its thread via %s from compose',
-    async (via) => {
+it.each([
+    ['sidebar', 'before'],
+    ['back', 'before'],
+    ['back', 'after'],
+] as const)(
+    'keeps a delayed follow-up quiet when navigating via %s and recovery starts %s reopening',
+    async (via, recoveryStarts) => {
         const threadUuid = 'existing-thread';
         const messageUuid = 'delayed-follow-up';
         const { onEvent, result, store, open } = setup(threadUuid, []);
@@ -410,7 +420,9 @@ it.each(['sidebar', 'back'] as const)(
                     autoApproveSql: false,
                 }),
             );
-            store.dispatch(markStreamRecovering({ threadUuid }));
+            if (recoveryStarts === 'before') {
+                store.dispatch(markStreamRecovering({ threadUuid }));
+            }
         });
         const completed = {
             uuid: threadUuid,
@@ -433,6 +445,11 @@ it.each(['sidebar', 'back'] as const)(
         }
 
         await waitFor(() => expect(result.current.data).toEqual(completed));
+        if (recoveryStarts === 'after') {
+            act(() => {
+                store.dispatch(markStreamRecovering({ threadUuid }));
+            });
+        }
         expect(onEvent).not.toHaveBeenCalled();
     },
 );

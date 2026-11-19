@@ -27,7 +27,7 @@ export const useEmitEmbedAgentContentEvents = ({
         const stream = threadUuid && state.aiAgentThreadStream[threadUuid];
         if (
             !stream ||
-            !stream.interruptionId ||
+            !stream.wasInterrupted ||
             stream.projectUuid !== projectUuid ||
             stream.agentUuid !== agentUuid
         ) {
@@ -35,10 +35,10 @@ export const useEmitEmbedAgentContentEvents = ({
         }
         return {
             messageUuid: stream.messageUuid,
-            interruptionId: stream.interruptionId,
+            attempt: stream.attempt,
         };
     }, shallowEqual);
-    const interruptionOnEntry = useRef<string | null>(null);
+    const attemptOnEntry = useRef<number | null>(null);
     const location = useLocation();
     const composeKey = threadUuid ? null : location.key;
     const composeVisit = useMemo<{ createdThreadUuid: string | null } | null>(
@@ -50,11 +50,11 @@ export const useEmitEmbedAgentContentEvents = ({
         const justCreated =
             threadUuid &&
             previousCompose.current?.createdThreadUuid === threadUuid;
-        interruptionOnEntry.current =
+        attemptOnEntry.current =
             !threadUuid || justCreated
                 ? null
-                : (store.getState().aiAgentThreadStream[threadUuid]
-                      ?.interruptionId ?? null);
+                : (store.getState().aiAgentThreadStream[threadUuid]?.attempt ??
+                  null);
         previousCompose.current = composeVisit;
     }, [store, projectUuid, agentUuid, threadUuid, composeVisit]);
 
@@ -62,7 +62,7 @@ export const useEmitEmbedAgentContentEvents = ({
         if (!isEmbedEventReady || !projectUuid || !agentUuid) return;
         const message =
             turn &&
-            turn.interruptionId !== interruptionOnEntry.current &&
+            turn.attempt !== attemptOnEntry.current &&
             thread?.uuid === threadUuid &&
             thread?.agentUuid === agentUuid
                 ? thread.messages.find(
