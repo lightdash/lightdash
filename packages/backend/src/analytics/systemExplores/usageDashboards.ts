@@ -10,6 +10,10 @@ import {
     type DashboardAsCode,
 } from '@lightdash/common';
 import { adoptionChartSpecs, adoptionDashboardSpec } from './adoptionDashboard';
+import {
+    agentEvaluationsChartSpecs,
+    agentEvaluationsDashboardSpec,
+} from './agentEvaluationsDashboard';
 import { analyticsColorPalette } from './analyticsColorPalette';
 import { contentChartSpecs, contentDashboardSpec } from './contentDashboard';
 import { dataAppsChartSpecs, dataAppsDashboardSpec } from './dataAppsDashboard';
@@ -468,6 +472,7 @@ const dashboardSpecs = [
     contentDashboardSpec,
     dataAppsDashboardSpec,
     toolsDashboardSpec,
+    agentEvaluationsDashboardSpec,
     adoptionDashboardSpec,
     embedDashboardSpec,
     homeDashboardSpec,
@@ -480,6 +485,7 @@ const allChartSpecs: UsageChartSpec[] = [
     ...contentChartSpecs,
     ...dataAppsChartSpecs,
     ...toolsChartSpecs,
+    ...agentEvaluationsChartSpecs,
     ...adoptionChartSpecs,
     ...embedChartSpecs,
     ...peopleNoActivityChartSpecs,
