@@ -54,14 +54,14 @@ const Row: FC<{ row: TurnRow }> = ({ row }) => (
         className={classes.row}
         title={row.title}
     >
-        <Text span fz="xs" truncate className={classes.label}>
+        <Text span fz="sm" truncate className={classes.label}>
             <Text span inherit c="dimmed">
                 {`${CHANGE_WORDS[row.change]} ${row.kind} `}
             </Text>
             {row.label}
         </Text>
         {row.detail ? (
-            <Text span fz="xs" c="dimmed" truncate className={classes.sub}>
+            <Text span fz="sm" c="dimmed" truncate className={classes.sub}>
                 {row.detail}
             </Text>
         ) : null}
@@ -73,7 +73,7 @@ export const TurnCardSkeleton: FC = () => (
     <Paper mt="xs" className={classes.card} aria-busy>
         <Group className={classes.section} gap={6} wrap="nowrap">
             <Loader size={12} color="gray" />
-            <Text fz="xs" fw={500}>
+            <Text fz="sm" fw={500}>
                 Checking the change
             </Text>
         </Group>
@@ -126,13 +126,13 @@ export const TurnCard: FC<{
                 {status}
             </Text>
             {name ? (
-                <Text fz="xs" c="dimmed" truncate title={name}>
+                <Text fz="sm" c="dimmed" truncate title={name}>
                     {name}
                 </Text>
             ) : null}
         </Box>
     ) : (
-        <Text fz="xs" fw={500} truncate flex={1}>
+        <Text fz="sm" fw={500} truncate flex={1}>
             {status}
             {name ? (
                 <Text span inherit fw={400} c="dimmed">
@@ -150,7 +150,9 @@ export const TurnCard: FC<{
                     wrap="nowrap"
                     align="flex-start"
                 >
-                    <Box className={classes.headIcon}>{icon}</Box>
+                    {icon ? (
+                        <Box className={classes.headIcon}>{icon}</Box>
+                    ) : null}
                     {heading}
                     {headerAction}
                 </Group>
@@ -179,7 +181,7 @@ export const TurnCard: FC<{
                                 !subtitle ? null : (
                                     <Box key={model} className={classes.model}>
                                         <Text
-                                            fz="xs"
+                                            fz="sm"
                                             fw={500}
                                             truncate
                                             title={model}
@@ -189,7 +191,7 @@ export const TurnCard: FC<{
                                         </Text>
                                         {subtitle ? (
                                             <Text
-                                                fz="xs"
+                                                fz="sm"
                                                 c="dimmed"
                                                 truncate
                                                 title={subtitle}
@@ -220,7 +222,7 @@ export const TurnCard: FC<{
                                                 />
                                                 {/* A warehouse error runs long; its start says what went wrong and the rest is on hover. */}
                                                 <Text
-                                                    fz="xs"
+                                                    fz="sm"
                                                     fw={500}
                                                     flex={1}
                                                     miw={0}
@@ -239,7 +241,7 @@ export const TurnCard: FC<{
                                                     {ISSUE_KINDS[kind].label}
                                                     <Text
                                                         span
-                                                        fz="xs"
+                                                        fz="sm"
                                                         fw={400}
                                                         c="dimmed"
                                                     >
@@ -254,7 +256,7 @@ export const TurnCard: FC<{
                         {note ? (
                             <Text
                                 className={classes.text}
-                                fz="xs"
+                                fz="sm"
                                 lineClamp={3}
                                 title={note}
                             >
@@ -275,14 +277,14 @@ export const TurnCard: FC<{
                                     <TaskIcon state={safety.state} />
                                 </Box>
                                 <Text
-                                    fz="xs"
+                                    fz="sm"
                                     flex={1}
                                     miw={0}
                                     className={classes.wrap}
                                 >
                                     {safety.text}
                                     {safety.why ? (
-                                        <Text span fz="xs" c="dimmed">
+                                        <Text span fz="sm" c="dimmed">
                                             {` · ${safety.why}`}
                                         </Text>
                                     ) : null}
@@ -298,7 +300,7 @@ export const TurnCard: FC<{
                                     {options.map((option) => (
                                         <Button
                                             key={option}
-                                            size="compact-xs"
+                                            size="compact-sm"
                                             variant="light"
                                             color="gray"
                                             maw="100%"

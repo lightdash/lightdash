@@ -197,7 +197,7 @@ export const DbtTurnSummaryCard: FC<{
                 return [
                     <Button
                         key="pr"
-                        size="compact-xs"
+                        size="compact-sm"
                         variant="subtle"
                         component="a"
                         href={prUrl}
@@ -212,7 +212,7 @@ export const DbtTurnSummaryCard: FC<{
                     groups[0] ? (
                         <Button
                             key="open"
-                            size="compact-xs"
+                            size="compact-sm"
                             component={Link}
                             to={modelUrl(groups[0].model)}
                         >

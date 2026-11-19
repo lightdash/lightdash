@@ -299,7 +299,7 @@ export const TurnSummaryCard: FC<{
                     canPublish ? (
                         <Button
                             key="publish"
-                            size="compact-xs"
+                            size="compact-sm"
                             onClick={() => setPublishing(true)}
                         >
                             {asPullRequest ? publishLabel : 'Publish'}
@@ -311,7 +311,7 @@ export const TurnSummaryCard: FC<{
                     ? [
                           <Button
                               key="open"
-                              size="compact-xs"
+                              size="compact-sm"
                               component={Link}
                               to={modelUrl(phase.model)}
                           >
@@ -323,7 +323,7 @@ export const TurnSummaryCard: FC<{
                 return [
                     <Button
                         key="pr"
-                        size="compact-xs"
+                        size="compact-sm"
                         component="a"
                         href={phase.url}
                         target="_blank"
@@ -358,10 +358,7 @@ export const TurnSummaryCard: FC<{
                           icon: <TaskIcon state="failed" />,
                           status: "Draft doesn't compile",
                       }
-                    : {
-                          icon: <MantineIcon icon={IconGitBranch} size={14} />,
-                          status: 'Saved to your draft',
-                      };
+                    : { icon: null, status: 'Saved to your draft' };
             case 'published':
                 return {
                     icon: (
