@@ -42,6 +42,9 @@ const SAME_IN_EITHER_VIEW = new Set([
     'semantic-studio-workspaces',
     'semantic-studio-model-version',
     'semantic-studio-checkout',
+    // The draft is the person's own whichever view reads the models.
+    'semantic-layer-draft',
+    'semantic-layer-draft-state',
 ]);
 
 const PROJECT_IN_PATH = /\/projects\/([^/]+)/;
