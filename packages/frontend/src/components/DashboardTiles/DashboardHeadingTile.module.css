@@ -13,7 +13,8 @@
     min-height: 0;
     font-size: 24px;
     font-weight: bold;
-    line-height: var(--mantine-line-height);
+    /* The line height a 24px Text gets, so the text does not move on focus */
+    line-height: 24px;
     color: inherit;
     cursor: text;
 }
