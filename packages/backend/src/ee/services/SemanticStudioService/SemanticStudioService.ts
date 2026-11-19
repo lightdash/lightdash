@@ -131,9 +131,11 @@ export type SemanticStudioServiceArguments = {
         get: (projectUuid: string) => Promise<ModelProject>;
         getAllExploreSummaries: (
             projectUuid: string,
-        ) => Promise<
-            { name: string; type?: ExploreType; baseTable?: string }[]
-        >;
+        ) => Promise<{ name: string; type?: ExploreType }[]>;
+        findExploresByBaseTables: (
+            projectUuid: string,
+            baseTables: string[],
+        ) => Promise<{ name: string; type: ExploreType | null }[]>;
         findExploresFromCache: (
             projectUuid: string,
             key: 'name',
@@ -1208,14 +1210,14 @@ export class SemanticStudioService extends BaseService {
                     !isExploreError(explore) &&
                     reachedNames.has(explore.baseTable),
             );
+            // Pre-aggregate explores are built from the cache after a compile, and user-managed ones are not compiled at all.
             const cachedNames = (
-                await this.projectModel.getAllExploreSummaries(projectUuid)
-            ).flatMap((summary) =>
-                !isUserManagedExplore(summary) &&
-                summary.baseTable !== undefined &&
-                reachedNames.has(summary.baseTable)
-                    ? [summary.name]
-                    : [],
+                await this.projectModel.findExploresByBaseTables(
+                    projectUuid,
+                    reached,
+                )
+            ).flatMap(({ name, type }) =>
+                type === null || type === ExploreType.DEFAULT ? [name] : [],
             );
             const exploreNames = new Set(explores.map(({ name }) => name));
             if (

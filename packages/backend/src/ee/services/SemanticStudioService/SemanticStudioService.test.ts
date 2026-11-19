@@ -573,6 +573,15 @@ const setup = ({
                           dbtConnection,
                       },
             getAllExploreSummaries: async () => exploreSummaries,
+            findExploresByBaseTables: async (
+                _projectUuid: string,
+                baseTables: string[],
+            ) =>
+                exploreSummaries.flatMap(({ name, type, baseTable }) =>
+                    baseTable !== undefined && baseTables.includes(baseTable)
+                        ? [{ name, type: type ?? null }]
+                        : [],
+                ),
             findExploresFromCache: async () => previewExplores,
             deleteCachedExplores,
         },
@@ -3548,7 +3557,11 @@ describe('compiling after a merge', () => {
     }: {
         changes?: Record<string, string>;
         latestCompileJob?: string | null;
-        exploreSummaries?: { name: string; baseTable?: string }[];
+        exploreSummaries?: {
+            name: string;
+            type?: ExploreType;
+            baseTable?: string;
+        }[];
         compiled?: (Explore | ExploreError)[];
     } = {}) => {
         const context = setup({
@@ -3611,6 +3624,20 @@ describe('compiling after a merge', () => {
         expect(stored?.manifest.nodes['model.shop.customers']).toMatchObject({
             description: 'Who buys',
         });
+    });
+
+    it('stays incremental when a reached model has pre-aggregate explores in the cache', async () => {
+        const { result } = await compileAfterMerge({
+            exploreSummaries: [
+                ...SUMMARIES,
+                {
+                    name: '__preagg__customers__daily',
+                    type: ExploreType.PRE_AGGREGATE,
+                    baseTable: 'customers',
+                },
+            ],
+        });
+        expect(result).not.toBeNull();
     });
 
     it.each([
