@@ -1,10 +1,11 @@
 import { resolveTileDateZoom, type DateZoom } from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
-import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import {
+    dashboardDateZoomActions,
     selectControlGranularities,
     selectDateZoomGranularity,
     useDashboardDateZoomConfig,
+    useDashboardDispatch,
     useDashboardSelector,
 } from '../../dashboard/store';
 
@@ -33,16 +34,14 @@ export const useReportComposerTileDateZoomApplied = (
     tileUuid: string,
     dateZoomApplied: boolean | undefined,
 ) => {
-    const setTilesWithDateZoomApplied = useDashboardContext(
-        (c) => c.setTilesWithDateZoomApplied,
-    );
+    const dispatch = useDashboardDispatch();
     useEffect(() => {
         if (dateZoomApplied === undefined) return;
-        setTilesWithDateZoomApplied((prev) => {
-            const next = new Set(prev ?? []);
-            if (dateZoomApplied) next.add(tileUuid);
-            else next.delete(tileUuid);
-            return next;
-        });
-    }, [dateZoomApplied, tileUuid, setTilesWithDateZoomApplied]);
+        dispatch(
+            dashboardDateZoomActions.setTileDateZoomApplied({
+                tileUuid,
+                isApplied: dateZoomApplied,
+            }),
+        );
+    }, [dispatch, dateZoomApplied, tileUuid]);
 };

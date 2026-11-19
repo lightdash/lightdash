@@ -62,6 +62,7 @@ import {
     getComposerParameterReferences,
     getComposerSavedParameterValues,
     getSemanticExploreNames,
+    getStoredChartXField,
     withSqlColumnFilters,
     type ComposerNodeExplores,
 } from './composerTileInputs';
@@ -818,9 +819,7 @@ export class ComposerChartService extends BaseService {
                 ...request.dateZoom,
                 xAxisFieldId:
                     request.dateZoom.xAxisFieldId ??
-                    (isCartesianChartConfig(chart.chart.chartConfig.config)
-                        ? chart.chart.chartConfig.config.layout?.xField
-                        : undefined),
+                    getStoredChartXField(chart.chart),
             },
         });
         const binding = ComposerRunBinding.forAuthorizedViewer({

@@ -24,7 +24,7 @@ export class ComposerRunBinding {
         readonly stamp: ComposerChartRunSource,
         /** The server-built series-split stage, run after the terminal node; null without a group-by. */
         readonly chartStageNodeId: string | null,
-        /** The date zoom each semantic-layer node runs with, keyed by node id. */
+        /** The date zoom each semantic-layer node runs with. */
         readonly dateZoomByNodeId: Record<string, DateZoom>,
     ) {}
 

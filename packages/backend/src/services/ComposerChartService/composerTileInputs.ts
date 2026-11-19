@@ -11,6 +11,7 @@ import {
     getParameterReferences,
     getQueryParameterReferences,
     getTimeDimensionsMap,
+    isCartesianChartConfig,
     isDateZoomRefusedOnExplore,
     isStandardDateGranularity,
     isSubDayGranularity,
@@ -18,6 +19,7 @@ import {
     QuerySourceType,
     resolveToBaseTimeDimension,
     type ComposerChartPipelineNode,
+    type ComposerStoredChart,
     type DashboardFilters,
     type DashboardTileParameterInputs,
     type DateZoom,
@@ -248,7 +250,11 @@ export const getComposerParameterReferences = (
     ),
 ];
 
-// The node's zoom target, null when it has a date it cannot zoom, undefined when it has none
+type NodeDateZoomTarget =
+    | { kind: 'zoom'; fieldId: string }
+    // Has a date dimension it cannot re-grain
+    | { kind: 'refused' };
+
 const getNodeDateZoomTarget = (
     node: Extract<
         ComposerChartPipelineNode,
@@ -256,7 +262,7 @@ const getNodeDateZoomTarget = (
     >,
     explore: Explore,
     { granularity, xAxisFieldId }: DateZoom & { granularity: string },
-): string | null | undefined => {
+): NodeDateZoomTarget | null => {
     const allDimensions = getAllDimensionsMap(explore);
     const timeDimensions = getTimeDimensionsMap(explore);
     const dateDimensions = node.dimensions.flatMap((fieldId) => {
@@ -267,17 +273,33 @@ const getNodeDateZoomTarget = (
         );
         return base ? [{ fieldId, base }] : [];
     });
-    if (dateDimensions.length === 0) return undefined;
-    if (isDateZoomRefusedOnExplore(explore)) return null;
+    if (dateDimensions.length === 0) return null;
+    if (isDateZoomRefusedOnExplore(explore)) return { kind: 'refused' };
     const target =
         dateDimensions.find(({ fieldId }) => fieldId === xAxisFieldId) ??
         dateDimensions[0];
-    const subDayOnDate =
-        target.base.type === DimensionType.DATE &&
-        isStandardDateGranularity(granularity) &&
-        isSubDayGranularity(granularity);
-    return subDayOnDate ? null : target.fieldId;
+    // As updateExploreWithDateZoom: a custom grain needs its precompiled dimension
+    const canZoom = isStandardDateGranularity(granularity)
+        ? !(
+              target.base.type === DimensionType.DATE &&
+              isSubDayGranularity(granularity)
+          )
+        : Object.values(explore.tables).some(
+              (table) =>
+                  !!table.dimensions[`${target.base.name}_${granularity}`],
+          );
+    return canZoom
+        ? { kind: 'zoom', fieldId: target.fieldId }
+        : { kind: 'refused' };
 };
+
+/** The field a stored chart plots on its x axis, if it is a cartesian chart. */
+export const getStoredChartXField = (
+    chart: ComposerStoredChart,
+): string | undefined =>
+    isCartesianChartConfig(chart.chartConfig.config)
+        ? chart.chartConfig.config.layout?.xField
+        : undefined;
 
 /** The date zoom each semantic-layer node runs with, naming the dimension it re-grains; a merge's legs zoom together or not at all. */
 export const getComposerNodeDateZooms = ({
@@ -291,7 +313,7 @@ export const getComposerNodeDateZooms = ({
 }): Record<string, DateZoom> => {
     const granularity = dateZoom?.granularity;
     if (!granularity) return {};
-    const targets = new Map<string, string | null>();
+    const targets = new Map<string, NodeDateZoomTarget>();
     nodes.forEach((node) => {
         const explore = exploreByNodeId[node.nodeId];
         if (node.sourceType !== QuerySourceType.SEMANTIC_LAYER || !explore)
@@ -300,29 +322,29 @@ export const getComposerNodeDateZooms = ({
             ...dateZoom,
             granularity,
         });
-        if (target !== undefined) targets.set(node.nodeId, target);
+        if (target) targets.set(node.nodeId, target);
     });
     const merges = nodes.flatMap((node) =>
         node.sourceType === QuerySourceType.MERGE ? [node] : [],
     );
-    // A leg that cannot zoom stops its merge's other legs, which may stop further merges
-    const blocked = (legs: string[]) =>
-        legs.some((leg) => targets.get(leg) === null) &&
-        legs.some((leg) => targets.get(leg));
-    let next = merges.find(({ sources }) =>
-        blocked(sources.map((source) => source.nodeId)),
-    );
-    while (next) {
-        for (const { nodeId } of next.sources) {
-            if (targets.has(nodeId)) targets.set(nodeId, null);
-        }
-        next = merges.find(({ sources }) =>
-            blocked(sources.map((source) => source.nodeId)),
+    const hasRefusedAndZoomedLegs = (legs: string[]) =>
+        legs.some((leg) => targets.get(leg)?.kind === 'refused') &&
+        legs.some((leg) => targets.get(leg)?.kind === 'zoom');
+    // Refusing one merge's legs may leave another merge mixed
+    let mixed;
+    do {
+        mixed = merges.find(({ sources }) =>
+            hasRefusedAndZoomedLegs(sources.map((source) => source.nodeId)),
         );
-    }
+        for (const { nodeId } of mixed?.sources ?? []) {
+            if (targets.has(nodeId)) targets.set(nodeId, { kind: 'refused' });
+        }
+    } while (mixed);
     return Object.fromEntries(
-        [...targets].flatMap(([nodeId, xAxisFieldId]) =>
-            xAxisFieldId ? [[nodeId, { granularity, xAxisFieldId }]] : [],
+        [...targets].flatMap(([nodeId, target]) =>
+            target.kind === 'zoom'
+                ? [[nodeId, { granularity, xAxisFieldId: target.fieldId }]]
+                : [],
         ),
     );
 };

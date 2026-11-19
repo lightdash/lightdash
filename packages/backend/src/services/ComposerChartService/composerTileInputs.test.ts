@@ -542,6 +542,22 @@ describe('getComposerNodeDateZooms', () => {
         });
     });
 
+    it('zooms a custom granularity only on a node whose explore defines it', () => {
+        const fiscal = withDateDimensions(
+            buildExplore('events', ['created', 'created_fiscal', 'kind']),
+            { created: DimensionType.TIMESTAMP },
+        );
+        expect(
+            getComposerNodeDateZooms({
+                nodes: [eventsNode, visitsNode],
+                exploreByNodeId: { events: fiscal, visits },
+                dateZoom: { granularity: 'fiscal' },
+            }),
+        ).toEqual({
+            events: { granularity: 'fiscal', xAxisFieldId: 'events_created' },
+        });
+    });
+
     it("zooms a merge's legs together, or none when one has a date it cannot zoom", () => {
         const merged: ComposerChartPipelineNode = {
             sourceType: QuerySourceType.MERGE,
