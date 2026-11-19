@@ -257,7 +257,7 @@ describe('Overview dashboard', () => {
             const types = installedTypes();
             types.set('sortable-pivot-table', {
                 ...types.get('sortable-pivot-table')!,
-                registryVersion: '0.13.0',
+                registryVersion: '0.13.1',
             });
             const result = withLibraryCharts(
                 charts,
@@ -275,7 +275,15 @@ describe('Overview dashboard', () => {
                 const { optionValues, fieldMapping, minVersion } =
                     bindingOf(key);
                 const [day] = swappedOf(key).metricQuery.dimensions;
-                expect(minVersion).toBe('0.7.1');
+                // The change against the previous period on a summed card needs the newer version
+                expect(minVersion).toBe(
+                    optionValues.valueAggregation === 'sum' ? '0.8.0' : '0.7.1',
+                );
+                if (optionValues.valueAggregation === 'sum')
+                    expect(optionValues).toMatchObject({
+                        showComparison: true,
+                        comparisonSource: 'previousPeriod',
+                    });
                 expect(optionValues).toMatchObject({
                     showSparklineArea: true,
                     colorSparklineByTrend: false,
@@ -314,14 +322,16 @@ describe('Overview dashboard', () => {
 
         it('ranks the ten most active people in the query, with mini bars and no total', () => {
             const binding = bindingOf(table);
-            expect(binding.minVersion).toBe('0.13.1');
+            expect(binding.minVersion).toBe('0.14.0');
             expect(binding.optionValues).toEqual({
                 showMiniBars: true,
                 showTotalsRow: false,
                 decimalPlaces: 0,
                 density: 'compact',
+                initialSort: 'firstValue',
+                rowHeaderName: 'Person',
+                valueNames: 'Recorded activities,Queries,AI calls',
             });
-            expect(binding.optionValues).not.toHaveProperty('initialSort');
             const { metricQuery } = swappedOf(table);
             expect(metricQuery.dimensions).toEqual(['user_activity_user_name']);
             expect(metricQuery.metrics).toEqual([

@@ -40,12 +40,17 @@ const card = ({
     visualization: 'number',
     libraryChart: {
         slug: 'big-number-with-sparkline-trend',
-        minVersion: '0.7.1',
+        minVersion: distinct ? '0.7.1' : '0.8.0',
         fieldMapping: { value: metric, sparklineMetric: metric, time: day },
         optionValues: {
             ...(distinct
                 ? { valueAggregation: 'latest', showComparison: false }
-                : { valueAggregation: 'sum', style: 'compact' }),
+                : {
+                      valueAggregation: 'sum',
+                      style: 'compact',
+                      showComparison: true,
+                      comparisonSource: 'previousPeriod',
+                  }),
             colorSparklineByTrend: false,
             showSparklineArea: true,
             showLabel: true,
@@ -199,17 +204,20 @@ export const homeChartSpecs: UsageChartSpec[] = [
         fieldLabels: userActivityLabels,
         libraryChart: {
             slug: 'sortable-pivot-table',
-            minVersion: '0.13.1',
+            minVersion: '0.14.0',
             fieldMapping: {
                 rowDimension: 'user_activity_user_name',
                 metric: mostActivePeopleMetrics,
             },
-            // The rows arrive ranked by the query. A total of ten people is not the total for everyone.
+            // Ranked by the query and by the table. A total of ten people is not the total for everyone.
             optionValues: {
                 showMiniBars: true,
                 showTotalsRow: false,
                 decimalPlaces: 0,
                 density: 'compact',
+                initialSort: 'firstValue',
+                rowHeaderName: 'Person',
+                valueNames: 'Recorded activities,Queries,AI calls',
             },
             query: {
                 dimensions: ['user_activity_user_name'],

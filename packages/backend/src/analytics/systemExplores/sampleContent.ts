@@ -186,7 +186,7 @@ const aiUsageContent = {
                 'AI calls in the selected period. One agent request can make several AI calls.',
             libraryChart: {
                 slug: 'big-number-with-sparkline-trend',
-                minVersion: '0.7.1',
+                minVersion: '0.8.0',
                 fieldMapping: {
                     value: 'ai_usage_total_ai_calls',
                     sparklineMetric: 'ai_usage_total_ai_calls',
@@ -194,6 +194,8 @@ const aiUsageContent = {
                 },
                 optionValues: {
                     valueAggregation: 'sum',
+                    showComparison: true,
+                    comparisonSource: 'previousPeriod',
                     style: 'compact',
                     colorSparklineByTrend: false,
                     showLabel: true,
@@ -223,7 +225,7 @@ const aiUsageContent = {
                 description: 'Tokens used in the selected period.',
                 libraryChart: {
                     slug: 'big-number-with-sparkline-trend',
-                    minVersion: '0.7.1',
+                    minVersion: '0.8.0',
                     fieldMapping: {
                         value: 'ai_usage_total_tokens_used',
                         sparklineMetric: 'ai_usage_total_tokens_used',
@@ -231,6 +233,8 @@ const aiUsageContent = {
                     },
                     optionValues: {
                         valueAggregation: 'sum',
+                        showComparison: true,
+                        comparisonSource: 'previousPeriod',
                         style: 'compact',
                         colorSparklineByTrend: false,
                         showLabel: true,
@@ -306,7 +310,7 @@ const aiUsageContent = {
                 description: 'Output tokens in the selected period.',
                 libraryChart: {
                     slug: 'big-number-with-sparkline-trend',
-                    minVersion: '0.7.1',
+                    minVersion: '0.8.0',
                     fieldMapping: {
                         value: 'ai_usage_total_output_tokens',
                         sparklineMetric: 'ai_usage_total_output_tokens',
@@ -314,6 +318,8 @@ const aiUsageContent = {
                     },
                     optionValues: {
                         valueAggregation: 'sum',
+                        showComparison: true,
+                        comparisonSource: 'previousPeriod',
                         style: 'compact',
                         colorSparklineByTrend: false,
                         showLabel: true,
@@ -461,13 +467,18 @@ const aiUsageContent = {
                 description: 'Tokens by feature in the selected period.',
                 libraryChart: {
                     slug: 'heatmap',
-                    minVersion: '0.4.2',
+                    minVersion: '0.5.0',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
                         y: 'ai_usage_feature',
                         value: 'ai_usage_total_tokens_used',
                     },
-                    optionValues: {},
+                    optionValues: {
+                        xTitle: 'Day',
+                        yTitle: 'Feature',
+                        legendTitle: 'Tokens',
+                        legendFormat: 'compact',
+                    },
                     query: {
                         dimensions: [
                             'ai_usage_feature',
@@ -531,7 +542,7 @@ export const analyticsSampleDashboards = [
                     description: 'Queries run in the selected period.',
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
-                        minVersion: '0.7.1',
+                        minVersion: '0.8.0',
                         fieldMapping: {
                             value: 'query_events_total_queries',
                             sparklineMetric: 'query_events_total_queries',
@@ -539,6 +550,8 @@ export const analyticsSampleDashboards = [
                         },
                         optionValues: {
                             valueAggregation: 'sum',
+                            showComparison: true,
+                            comparisonSource: 'previousPeriod',
                             style: 'compact',
                             colorSparklineByTrend: false,
                             showLabel: true,

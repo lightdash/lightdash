@@ -188,7 +188,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         visualization: 'number',
         libraryChart: {
             slug: 'big-number-with-sparkline-trend',
-            minVersion: '0.7.1',
+            minVersion: '0.8.0',
             fieldMapping: {
                 value: 'agent_requests_total_requests',
                 sparklineMetric: 'agent_requests_total_requests',
@@ -196,6 +196,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
             },
             optionValues: {
                 valueAggregation: 'sum',
+                showComparison: true,
+                comparisonSource: 'previousPeriod',
                 style: 'compact',
                 colorSparklineByTrend: false,
                 showLabel: true,
@@ -284,13 +286,18 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'heatmap',
-            minVersion: '0.4.2',
+            minVersion: '0.5.0',
             fieldMapping: {
                 x: 'agent_requests_requested_at_day',
                 y: 'agent_requests_agent_name',
                 value: 'agent_requests_total_requests',
             },
-            optionValues: {},
+            optionValues: {
+                xTitle: 'Day',
+                yTitle: 'Agent',
+                legendTitle: 'Agent requests',
+                legendFormat: 'compact',
+            },
             query: null,
         },
     },
@@ -312,7 +319,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'vega-trellis',
-            minVersion: '0.6.2',
+            minVersion: '0.7.0',
             fieldMapping: {
                 x: 'agent_requests_requested_at_day',
                 value: 'agent_requests_total_requests',
@@ -330,6 +337,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 fillOpacity: 25,
                 showLine: true,
                 showPoints: false,
+                showPeakLabel: true,
+                zeroFillGaps: true,
             },
             query: null,
         },
@@ -356,7 +365,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'sortable-pivot-table',
-            minVersion: '0.13.1',
+            minVersion: '0.14.0',
             fieldMapping: {
                 rowDimension: 'agent_requests_user_name',
                 rowDimension2: 'agent_requests_agent_name',
@@ -366,6 +375,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 defaultCollapsed: 'collapsed',
                 decimalPlaces: 0,
                 density: 'compact',
+                initialSort: 'firstValue',
+                rowHeaderName: 'Person / Agent',
+                valueNames: 'Agent requests',
             },
             query: {
                 dimensions: [
@@ -408,7 +420,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.17.1',
+            minVersion: '0.18.0',
             fieldMapping: {
                 x: 'agent_requests_agent_name',
                 m1: 'agent_requests_total_requests',
@@ -416,6 +428,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 m3: 'agent_requests_negative_feedback_rate',
             },
             optionValues: {
+                m1Name: 'Agent requests',
+                m2Name: 'Share of requests rated',
+                m3Name: 'Negative feedback rate',
                 xName: 'Agent',
                 yName: 'Agent requests',
                 yRightName: 'Share rated and negative feedback rate',
@@ -450,13 +465,15 @@ export const usageChartSpecs: UsageChartSpec[] = [
         yFields: ['agent_requests_total_requests'],
         libraryChart: {
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.17.1',
+            minVersion: '0.18.0',
             fieldMapping: {
                 x: 'agent_requests_requested_at_day',
                 m1: 'agent_requests_total_requests',
                 m2: 'agent_requests_completion_rate',
             },
             optionValues: {
+                m1Name: 'Agent requests',
+                m2Name: 'Completion rate',
                 xName: 'Day',
                 yName: 'Agent requests',
                 yRightName: 'Completion rate',
@@ -509,13 +526,15 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.17.1',
+            minVersion: '0.18.0',
             fieldMapping: {
                 x: 'agent_requests_retry_count',
                 m1: 'agent_requests_total_requests',
                 m2: 'agent_requests_average_request_latency_ms',
             },
             optionValues: {
+                m1Name: 'Agent requests',
+                m2Name: 'Average latency (ms)',
                 seriesType: 'bar',
                 m2Type: 'line',
                 dualAxis: true,
@@ -611,13 +630,18 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'heatmap',
-            minVersion: '0.4.2',
+            minVersion: '0.5.0',
             fieldMapping: {
                 x: 'ai_usage_model',
                 y: 'ai_usage_feature',
                 value: 'ai_usage_total_tokens_used',
             },
-            optionValues: {},
+            optionValues: {
+                xTitle: 'Model',
+                yTitle: 'Feature',
+                legendTitle: 'Tokens',
+                legendFormat: 'compact',
+            },
             query: null,
         },
     },
@@ -782,13 +806,15 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.17.1',
+            minVersion: '0.18.0',
             fieldMapping: {
                 x: 'query_events_dashboard_name',
                 m1: 'query_events_total_queries',
                 m2: 'query_events_p95_response_time_ms',
             },
             optionValues: {
+                m1Name: 'Queries',
+                m2Name: 'P95 response time (ms)',
                 xName: 'Dashboard',
                 seriesType: 'bar',
                 m2Type: 'scatter',
