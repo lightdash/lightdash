@@ -12,6 +12,7 @@ import {
 import { adoptionChartSpecs, adoptionDashboardSpec } from './adoptionDashboard';
 import { analyticsColorPalette } from './analyticsColorPalette';
 import { contentChartSpecs, contentDashboardSpec } from './contentDashboard';
+import { dataAppsChartSpecs, dataAppsDashboardSpec } from './dataAppsDashboard';
 import { embedChartSpecs, embedDashboardSpec } from './embedDashboard';
 import { homeChartSpecs, homeDashboardSpec } from './homeDashboard';
 import type { LibraryChartBinding } from './libraryCharts';
@@ -464,6 +465,7 @@ const dashboardSpecs = [
     ...usageDashboardSpecs,
     peopleDashboardSpec,
     contentDashboardSpec,
+    dataAppsDashboardSpec,
     adoptionDashboardSpec,
     embedDashboardSpec,
     homeDashboardSpec,
@@ -474,6 +476,7 @@ const allChartSpecs: UsageChartSpec[] = [
     ...usageChartSpecs,
     ...peopleChartSpecs,
     ...contentChartSpecs,
+    ...dataAppsChartSpecs,
     ...adoptionChartSpecs,
     ...embedChartSpecs,
     ...peopleNoActivityChartSpecs,

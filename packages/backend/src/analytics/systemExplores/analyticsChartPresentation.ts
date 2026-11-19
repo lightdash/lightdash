@@ -288,14 +288,6 @@ export const withAnalyticsChartPresentation = (
                 },
                 eChartsConfig: {
                     ...config.eChartsConfig,
-                    ...(chart.slug.endsWith('-apps-loads-and-observed-viewers')
-                        ? {
-                              xAxis: (config.eChartsConfig?.xAxis ?? [{}]).map(
-                                  // Empty strings fall back to the field label.
-                                  (axis) => ({ ...axis, name: ' ' }),
-                              ),
-                          }
-                        : {}),
                     showAxisTicks: false,
                     axisLabelFontSize: 11,
                     axisTitleFontSize: 12,
