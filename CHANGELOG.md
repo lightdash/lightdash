@@ -1,3 +1,10 @@
+# [3.349.0](https://github.com/lightdash/lightdash/compare/3.348.1...3.349.0) (2026-11-19)
+
+
+### Features
+
+* **semantic-studio:** tidy the Studio chat's empty state, discard and publish follow-through ([#33025](https://github.com/lightdash/lightdash/issues/33025)) ([e2be9f2](https://github.com/lightdash/lightdash/commit/e2be9f283b73873bfc057db6b865d3af75bf8edd))
+
 ## [3.348.1](https://github.com/lightdash/lightdash/compare/3.348.0...3.348.1) (2026-11-19)
 
 

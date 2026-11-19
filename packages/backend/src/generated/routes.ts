@@ -49160,6 +49160,11 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                models: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
                 pullRequestUrl: {
                     dataType: 'union',
                     subSchemas: [
