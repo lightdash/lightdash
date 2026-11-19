@@ -11,6 +11,7 @@ import { withAnalyticsChartPresentation } from './analyticsChartPresentation';
 import { analyticsColorPalette } from './analyticsColorPalette';
 import { withEmbedRankingPresentation } from './embedDashboard';
 import type { LibraryChartBinding } from './libraryCharts';
+import { noteRows } from './noteLayout';
 import { buildQueryCalendarChart } from './queryCalendarChart';
 import {
     buildUsageDashboards,
@@ -847,7 +848,14 @@ const legacyContentAsCode: {
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
             tiles: [
                 ...(bundle.key === aiUsageContent.key
-                    ? [note('overview', 0, 1, aiUsageOverviewCaption)]
+                    ? [
+                          note(
+                              'overview',
+                              0,
+                              noteRows(aiUsageOverviewCaption),
+                              aiUsageOverviewCaption,
+                          ),
+                      ]
                     : []),
                 ...charts.map(
                     ({ slug }, index): DashboardAsCode['tiles'][number] => {

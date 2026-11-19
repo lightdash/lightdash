@@ -935,7 +935,7 @@ describe('built-in usage dashboards', () => {
                     expect(h).toBe(1);
                     expect(properties.content).toBe(section.description);
                 } else {
-                    expect(h).toBe(section.noteHeight ?? 2);
+                    expect(h).toBe(2);
                     expect(properties.content).toBe(
                         `### ${section.title}\n\n${section.description}`,
                     );

@@ -32,7 +32,7 @@ export const peopleNoActivityChartSpecs: UsageChartSpec[] = [
         key: 'people-without-observed-activity-detail',
         name: 'Who has not used Lightdash?',
         description:
-            'Members with an active account and finished setup who have no confirmed human activity in recorded history. This includes people with only automated, inferred or unclassified activity. People without a name show their primary email, or their user UUID if there is no email. Shows up to 1,000 people.',
+            'Members with an active account and finished setup who have no confirmed human activity in recorded history. This includes people with only automated, inferred or unclassified activity. People without a name show their primary email, or their user UUID if there is no email. Shows up to 1,000 people. Activity through shows the cut-off date. The Date filter does not apply.',
         explore: 'people_adoption',
         dimensions: [
             ...personDimensions,
@@ -54,7 +54,7 @@ export const peopleNoActivityChartSpecs: UsageChartSpec[] = [
         key: 'people-without-activity-30d-detail',
         name: 'Who has not used Lightdash in the last 30 complete days?',
         description:
-            'Members with an active account and finished setup who have no confirmed human activity in the 30 complete UTC days before the membership snapshot. Includes people who have never used Lightdash and people who used it earlier but have lapsed. Activity status tells them apart. People without a name show their primary email, or their user UUID if there is no email. Shows up to 1,000 people.',
+            'Members with an active account and finished setup who have no confirmed human activity in the 30 complete UTC days before the membership snapshot. Includes people who have never used Lightdash and people who used it earlier but have lapsed. Activity status tells them apart. People without a name show their primary email, or their user UUID if there is no email. Shows up to 1,000 people. Activity through shows the cut-off date. The Date filter does not apply.',
         explore: 'people_adoption',
         dimensions: [
             ...personDimensions,
@@ -85,13 +85,13 @@ export const peopleNoActivitySections = [
     {
         title: 'People who have not used Lightdash',
         description:
-            'Members with an active account and finished setup. No views, queries or agent requests made by hand. Scheduled and automated runs do not count. No recorded activity does not prove a person is inactive.',
+            'Members with an active account and finished setup, with no views, queries or agent requests made by hand. Scheduled and automated runs do not count.',
         charts: ['people-without-observed-activity'],
     },
     {
         title: 'Who has not used Lightdash?',
         description:
-            'The first list covers all recorded history. The second covers the 30 complete UTC days before the latest membership snapshot, and includes people who were active before then. Activity through shows the cut-off date. These lists ignore the Date, Data app and Surface filters.',
+            'The first list covers all recorded history. The second covers the 30 complete UTC days before the latest membership snapshot.',
         charts: [
             'people-without-observed-activity-detail',
             'people-without-activity-30d-detail',

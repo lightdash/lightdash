@@ -14,6 +14,7 @@ import { analyticsColorPalette } from './analyticsColorPalette';
 import { embedChartSpecs, embedDashboardSpec } from './embedDashboard';
 import { homeChartSpecs, homeDashboardSpec } from './homeDashboard';
 import type { LibraryChartBinding } from './libraryCharts';
+import { noteRows } from './noteLayout';
 import { peopleNoActivityChartSpecs } from './peopleNoActivityCharts';
 import { usageActivityOriginSql } from './usageActivityOrigin';
 import { usageChartSpecs } from './usageDashboardCharts';
@@ -465,19 +466,12 @@ export const buildUsageDashboards = (
             let y = 0;
             for (const section of tab.sections) {
                 if (section.note !== false) {
-                    const noteHeight = section.caption
-                        ? 1
-                        : (section.noteHeight ?? 2);
-                    dashboard.tiles.push(
-                        note(
-                            tab.key,
-                            y,
-                            noteHeight,
-                            section.caption
-                                ? section.description
-                                : `### ${section.title}\n\n${section.description}`,
-                        ),
-                    );
+                    const content = section.caption
+                        ? section.description
+                        : `### ${section.title}\n\n${section.description}`;
+                    // As tall as its text and no taller
+                    const noteHeight = noteRows(content);
+                    dashboard.tiles.push(note(tab.key, y, noteHeight, content));
                     y += noteHeight;
                 }
                 const sectionCharts = section.charts.map((key) => {

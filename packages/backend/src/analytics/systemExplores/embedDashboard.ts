@@ -18,7 +18,8 @@ export const embedChartSpecs: UsageChartSpec[] = [
             key: 'embed-loads',
             name: 'Dashboard loads',
             metric: 'total_loads',
-            description: 'Authorized loads of embedded dashboards.',
+            description:
+                'Authorized loads of embedded dashboards. Reloads count. Views served from the browser cache can be missing. A load is not a billed load, and does not prove the dashboard rendered.',
         },
         {
             key: 'embed-viewers',
@@ -80,7 +81,7 @@ export const embedChartSpecs: UsageChartSpec[] = [
         key: 'embed-identity-coverage',
         name: 'Loads with and without a viewer ID',
         description:
-            'Share of loads with and without an external viewer ID. Loads with no ID are shown, and are not counted as one anonymous person.',
+            'Share of loads with and without an external viewer ID. Loads with no ID are shown, and are not counted as one anonymous person. An external ID does not show which tenant a viewer belongs to.',
         explore: 'embed_reach',
         dimensions: ['embed_reach_identity_coverage'],
         metrics: ['embed_reach_total_loads'],
@@ -250,8 +251,7 @@ export const embedDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'Who is using your embedded dashboards?',
                     description:
-                        'Loads of embedded dashboards and the external viewer IDs your application sends. Reloads count. Views served from the browser cache can be missing. A load is not a billed load, and does not prove the dashboard rendered. Only usage since recording began is included; earlier usage is not backfilled.',
-                    noteHeight: 2,
+                        'Loads of embedded dashboards and the external viewer IDs your application sends. Only usage since recording began is included.',
                     charts: [
                         'embed-loads',
                         'embed-viewers',
@@ -261,13 +261,13 @@ export const embedDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'Usage over time',
                     description:
-                        'Daily loads and weekly distinct identified viewers. The default period is the last 30 completed UTC days; partial weeks remain visible. Missing data is not zero usage.',
+                        'Daily loads and weekly distinct identified viewers. Missing data is not zero usage.',
                     charts: ['embed-load-trend', 'embed-viewer-trend'],
                 },
                 {
                     title: 'Most-loaded dashboards and viewer IDs',
                     description:
-                        'The top 10 dashboards, and how often a load has an external viewer ID. Loads with no ID stay in the totals. An external ID does not show which tenant a viewer belongs to.',
+                        'The top 10 dashboards, and how often a load has an external viewer ID. Loads with no ID stay in the totals.',
                     charts: [
                         'embed-popular-dashboards',
                         'embed-identity-coverage',
@@ -288,13 +288,13 @@ export const embedDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'Queries and response time',
                     description:
-                        'Queries per day, and response time for successful queries measured from the start of the request. Timing includes queueing and result storage, but not rendering in the browser. Older queries with no timing are left out of response time.',
+                        'Queries per day, and response time for successful queries. Timing includes queueing and result storage, and stops before the browser draws the result.',
                     charts: ['embed-query-trend', 'embed-query-latency'],
                 },
                 {
                     title: 'Outcomes and caching',
                     description:
-                        'Query outcomes and cache hits. A successful query does not prove the dashboard rendered. A missing cache flag is unknown, not a miss.',
+                        'A successful query does not prove the dashboard rendered. A missing cache flag is unknown, not a miss.',
                     charts: ['embed-query-outcomes', 'embed-query-cache'],
                 },
             ],

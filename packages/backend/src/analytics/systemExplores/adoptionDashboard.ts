@@ -183,7 +183,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-app-reader-trend',
         name: 'Data app loads and viewers by day',
         description:
-            'Loads and distinct identified viewers per day, from standalone pages, dashboards and charts. Older loads with unknown context appear in the surface breakdown instead. Daily viewer counts cannot be added up across days.',
+            'Loads and distinct identified viewers per day, from standalone pages, dashboards and charts. Older loads with unknown context appear in the surface breakdown instead. Daily viewer counts cannot be added up across days. Reloads count.',
         explore: 'data_app_reach',
         dimensions: ['data_app_reach_event_ts_day'],
         metrics: [
@@ -252,7 +252,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-app-outcome-trend',
         name: 'Data app errors by day',
         description:
-            'Distinct data app navigations each day with an HTML delivery failure or a runtime error, on all surfaces. A navigation with both kinds of error is counted in both series.',
+            'Distinct data app navigations each day with an HTML delivery failure or a runtime error, on all surfaces. A navigation with both kinds of error is counted in both series. Daily counts cannot be added up across days.',
         explore: 'data_app_outcomes',
         dimensions: ['data_app_outcomes_event_ts_day'],
         metrics: [
@@ -273,7 +273,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-app-outcome-detail',
         name: 'Data app outcomes by app and surface',
         description:
-            'HTML delivery, SDK startup and runtime errors for each data app and surface, each counted once per navigation. Includes builder previews, embeds and deliveries. The Captured signals column is a raw count: it includes repeated signals and signals with no navigation ID.',
+            'HTML delivery, SDK startup and runtime errors for each data app and surface, each counted once per navigation. Includes builder previews, embeds and deliveries. The Captured signals column is a raw count: it includes repeated signals and signals with no navigation ID. SDK startup does not confirm the data app rendered fully or was read. Older app bundles may send no SDK signals: that is unknown, not an error.',
         explore: 'data_app_outcomes',
         dimensions: [
             'data_app_outcomes_app_name',
@@ -504,7 +504,7 @@ export const adoptionDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'Who is loading data apps, and where?',
                     description:
-                        'Trends and named viewers cover standalone pages, dashboards and charts. The surface breakdown also includes builder previews, embeds, deliveries and unknown context. Loads include reloads and do not prove readership.',
+                        'Trends and named viewers cover standalone pages, dashboards and charts. The surface breakdown adds builder previews, embeds, deliveries and unknown context.',
                     charts: [
                         'adoption-app-reader-trend',
                         'adoption-app-reader-detail',
@@ -520,7 +520,7 @@ export const adoptionDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'Are data apps loading reliably?',
                     description:
-                        'Technical signals from every surface, including previews, embeds and deliveries. SDK startup does not confirm the app rendered fully or was read. Older app bundles may send no SDK signals: that is unknown, not an error. Counts are per navigation, not per person. A navigation is one load of an app page. Daily counts cannot be added up to get a deduplicated count for a longer period. The Date, Data app and Surface filters change only the tiles on this tab.',
+                        'Technical signals from every surface, counted once for each load of a data app page. The Date, Data app and Surface filters change only the tiles on this tab.',
                     charts: [
                         'adoption-app-outcome-trend',
                         'adoption-app-outcome-detail',
@@ -535,7 +535,7 @@ export const adoptionDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'Are people sending more agent requests?',
                     description:
-                        'Agent requests sent in the web app, including follow-ups. These charts exclude Slack, embeds, conversations that build data apps and the AI calls behind each request.',
+                        'Agent requests sent in the web app, including follow-ups. Slack, embeds and conversations that build data apps are left out.',
                     charts: [
                         'adoption-ask-ai-questions',
                         'adoption-ask-ai-people',

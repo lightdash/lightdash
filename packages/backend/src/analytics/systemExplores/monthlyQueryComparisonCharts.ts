@@ -17,7 +17,7 @@ export const monthlyQueryComparisonCharts: UsageChartSpec[] = [
         metric: 'unique_users',
         label: 'Querying users',
         description:
-            'Distinct user IDs that ran a query in each month, including service accounts. Queries with no user ID are left out. A user who queried on several days counts once for the month.',
+            'Distinct user IDs that ran a query in each month, including service accounts. Queries with no user ID are left out. A user who queried on several days counts once for the month. ∅ means there is no data for the month before, or it was zero. Months with no data are left out.',
     },
     {
         key: 'queries-run-month-over-month',
@@ -25,7 +25,7 @@ export const monthlyQueryComparisonCharts: UsageChartSpec[] = [
         metric: 'total_queries',
         label: 'Queries run',
         description:
-            'Completed query attempts, including cache hits and queries that failed during execution. Preview projects and queries that failed before execution are left out.',
+            'Completed query attempts, including cache hits and queries that failed during execution. Preview projects and queries that failed before execution are left out. ∅ means there is no data for the month before, or it was zero. Months with no data are left out.',
     },
 ].map(({ metric, label, ...spec }) => {
     const value = `\${query_events.${metric}}`;

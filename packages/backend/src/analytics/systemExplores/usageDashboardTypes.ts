@@ -48,7 +48,6 @@ export type UsageDashboardSpec = {
         sections: {
             title: string;
             description: string;
-            noteHeight?: number;
             caption?: true;
             // false leaves out the text above the tiles, for tiles that explain themselves
             note?: false;

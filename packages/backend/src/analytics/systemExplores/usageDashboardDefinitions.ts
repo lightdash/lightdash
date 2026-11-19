@@ -13,10 +13,10 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                 name: 'Agent adoption',
                 sections: [
                     {
-                        title: 'Observed request activity',
+                        title: 'Request activity',
                         caption: true,
                         description:
-                            'Requests by agent, person and day. This is not the share of eligible people who use agents, and it does not compare with external assistants. Shows the selected period. Activity before recording began can be missing.',
+                            'Agent requests and the people who sent them.',
                         charts: [
                             'agent-requests-trend',
                             'agent-requesters-trend',
@@ -58,7 +58,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         title: 'Technical outcomes',
                         caption: true,
                         description:
-                            "Outcomes show whether a request finished technically, not whether the answer solved the person's problem. Pending and unknown outcomes are shown. A request counts once, however many steps the agent takes.",
+                            'Outcomes show whether a request finished, which is a technical result. Pending and unknown outcomes are included.',
                         charts: [
                             'agent-requests-and-completion-by-day',
                             'agent-request-outcomes',
@@ -67,10 +67,10 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         rowHeight: 8,
                     },
                     {
-                        title: 'Feedback coverage',
+                        title: 'Feedback',
                         caption: true,
                         description:
-                            'Read ratings together with how many requests were rated and how many have a known outcome. Unrated requests are not positive feedback. Small samples are not reliable rankings.',
+                            'Unrated requests are not positive feedback. Small samples are not reliable rankings.',
                         charts: ['agent-feedback-rating-and-sample-coverage'],
                     },
                 ],
@@ -92,7 +92,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         title: 'AI consumption',
                         caption: true,
                         description:
-                            'Tokens by person and model, and by feature and model. Tokens are not cost. Team history, model pricing and spend on external assistants are not included. Shows the selected period. Activity before recording began can be missing.',
+                            'Tokens by person and model, and by feature and model. Tokens are not cost.',
                         charts: [
                             'ai-consumption-by-person-feature-and-model',
                             'ai-tokens-by-feature-and-model',
@@ -104,7 +104,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         title: 'Consumption by outcome',
                         caption: true,
                         description:
-                            'Tokens linked to requests, by technical outcome. Some AI calls cannot be linked to a request. Do not read that as zero tokens.',
+                            'Tokens linked to requests, by technical outcome. Some AI calls cannot be linked to a request.',
                         charts: ['request-consumption-by-outcome-and-feedback'],
                     },
                 ],
@@ -122,9 +122,8 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                 sections: [
                     {
                         title: 'How is query usage changing?',
-                        noteHeight: 3,
                         description:
-                            'Last 12 completed calendar months (UTC). The current month is left out. Each change compares a month with the month before. ∅ means there is no data for the month before, or it was zero. Months with no data are left out, and history can be incomplete. Missing history is not zero activity. The date filter does not change these two tiles.',
+                            'Last 12 completed calendar months (UTC), each compared with the month before. The date filter does not change these two tiles.',
                         charts: [
                             'querying-users-month-over-month',
                             'queries-run-month-over-month',
@@ -140,7 +139,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         title: 'Response latency',
                         caption: true,
                         description:
-                            'P95 response time is the time the backend took to respond. It does not include rendering in the browser. Older queries can have no timing: blank means unknown, not instant. Shows the selected period. Activity before recording began can be missing.',
+                            'P95 response time is the time the backend took to respond, before the browser draws the result. A blank means the timing is unknown.',
                         charts: ['slow-dashboards-tail-latency-and-demand'],
                         layout: 'row',
                         rowHeight: 9,
@@ -160,7 +159,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Query origins',
                         description:
-                            'Queries by origin, by who or what started them, and by context, where recorded. Origin is the kind of work, such as interactive, scheduled or data app. Context is where the query was run from, such as a dashboard or an Explore. Older queries with unknown values are still shown. Shows the selected period. Activity before recording began can be missing.',
+                            'Origin is the kind of work, such as interactive, scheduled or data app. Context is where the query was run from, such as a dashboard or an Explore.',
                         charts: ['query-origin-and-initiating-actor'],
                     },
                     {
@@ -179,7 +178,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         title: 'Most-used fields',
                         caption: true,
                         description:
-                            'Fields (metrics and dimensions) used by queries, including in filters and sorting. Each query counts once per field, including cached and failed queries. One query can use several fields, so counts overlap. A field missing here is not proof it is unused. Names are those recorded when the query ran, so a renamed field can appear more than once.',
+                            'Fields used by queries, including filters and sorting. A query counts once for each field it uses.',
                         charts: ['most-used-fields-cloud', 'most-used-fields'],
                     },
                     {
@@ -191,7 +190,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Queries with field details',
                         description:
-                            'Captured: the fields a query used were recorded. Partial: some of them could not be recorded. Unavailable: includes SQL queries. Not captured: includes older history. Recording starts once the feature is enabled and deployed. This is not a complete list of fields.',
+                            'How much field detail was recorded for each query. Recording starts once the feature is switched on.',
                         charts: ['field-capture-coverage'],
                     },
                 ],
@@ -210,7 +209,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Active people',
                         description:
-                            "People with any recorded activity. Includes scheduled deliveries and other automated runs in the person's name. This does not include everyone with access, and it does not separate business users from the data team. Shows the selected period. Activity before recording began can be missing.",
+                            "People with any recorded activity. Includes scheduled deliveries and other automated runs in the person's name.",
                         charts: [
                             'observed-active-people',
                             'daily-observed-active-people',
@@ -227,7 +226,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Activity over time',
                         description:
-                            "Any recorded activity, week by week, is a rough sign of people returning. Includes scheduled deliveries and other automated runs in the person's name. This is not a full retention cohort or a history of who was eligible in each period. Shows the selected period. Activity before recording began can be missing.",
+                            "Recorded activity by person, week by week. Includes scheduled deliveries and other automated runs in the person's name.",
                         charts: ['observed-activity-by-person-and-week'],
                     },
                 ],
@@ -266,7 +265,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Content audience',
                         description:
-                            'People who viewed content, alongside recorded views. Reloads can add views. Views served entirely from the browser cache are not counted. Shows the selected period. Activity before recording began can be missing.',
+                            'People who viewed content, alongside views. Reloads add views, and views served from the browser cache are not counted.',
                         charts: [
                             'content-reach-distinct-people-not-just-views',
                             'who-visited-which-dashboard',
@@ -275,7 +274,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Verified content',
                         description:
-                            'Distinct viewers of verified content, divided by viewers of content whose verification status is known. A viewer can also view unverified content. Content with unknown verification status is left out.',
+                            'Viewers of verified content as a share of viewers of content whose verification status is known.',
                         charts: ['verified-content-audience-share'],
                     },
                 ],
@@ -287,7 +286,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'New content',
                         description:
-                            'People who viewed content in its first seven days and came back after those seven days are used as a sign of adoption. Older content may have been created before recording began. Counts include deleted items unless you filter them out.',
+                            'People who viewed content in its first seven days and came back later are a sign of adoption. Counts include deleted items.',
                         charts: [
                             'new-content-adoption-creation-week-proxy',
                             'content-creation-by-month',
@@ -302,7 +301,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Content review',
                         description:
-                            'No observed activity is not proof that an item is safe to delete. Known dependencies cover current dashboard tiles and enabled schedules, not every external use.',
+                            'No recorded activity is not proof that an item is safe to delete. Known dependencies are current dashboard tiles and enabled schedules.',
                         charts: [
                             'review-candidates-activity-and-known-dependencies',
                         ],
@@ -316,7 +315,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Current ownership',
                         description:
-                            'Owner status comes from current Lightdash membership, not employment records. Content with a missing or inactive owner needs review. Schedule ownership is not fully recorded.',
+                            'Owner status comes from current Lightdash membership. Content with a missing or inactive owner needs review.',
                         charts: ['content-ownership-current-snapshot'],
                     },
                     {
@@ -341,9 +340,9 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                 name: 'Data app usage',
                 sections: [
                     {
-                        title: 'Observed data app use',
+                        title: 'Data app use',
                         description:
-                            'Recorded data app loads, including reloads. Viewer counts exclude anonymous visitors, and preview activity may be incomplete. Shows the selected period. Unknown or deleted apps are included.',
+                            'Data app loads, including reloads. Viewer counts leave out anonymous visitors.',
                         charts: [
                             'total-loads',
                             'distinct-viewers',
@@ -391,7 +390,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Tokens for data app generation',
                         description:
-                            'Tokens used to generate data apps, by builder, week and model. Tokens are not cost. Tokens cannot yet be linked to individual apps or builds.',
+                            'Tokens used to generate data apps, by builder, week and model. Tokens are not cost.',
                         charts: ['app-generation-consumption'],
                     },
                 ],
@@ -476,7 +475,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Assessment trends',
                         description:
-                            'Filter by agent or evaluation to track quality across runs. Pass rate uses all assessments, not all prompts. Runs still in progress, unassessed results and execution errors do not count as failed assessments.',
+                            'Filter by agent or evaluation to track quality across runs. Pass rate is passing assessments divided by all assessments.',
                         charts: [
                             'assessment-pass-rate-by-day',
                             'assessment-volume-by-day',

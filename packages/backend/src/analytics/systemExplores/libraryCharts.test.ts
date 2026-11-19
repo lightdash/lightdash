@@ -761,7 +761,7 @@ describe('legacyLibraryChartBindings', () => {
             captions('lightdash-analytics-overview', 'adoption').filter(
                 (content) =>
                     content.includes(
-                        'This is not the share of eligible people who use agents',
+                        'Agent requests and the people who sent them.',
                     ),
             ),
         ).toHaveLength(1);

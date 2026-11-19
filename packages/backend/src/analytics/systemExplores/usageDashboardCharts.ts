@@ -8,7 +8,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'assessment-pass-rate-by-day',
         name: 'Assessment pass rate by day',
         description:
-            'Passing assessments divided by all assessments, grouped by the day the run started. Runs without assessments do not contribute to the rate.',
+            'Passing assessments divided by all assessments, grouped by the day the run started. Runs without assessments do not contribute to the rate. Runs still in progress, unassessed results and execution errors do not count as failed assessments.',
         explore: 'agent_evaluation_runs',
         dimensions: ['agent_evaluation_runs_event_ts_day'],
         metrics: ['agent_evaluation_runs_pass_rate'],
@@ -98,7 +98,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'most-used-fields',
         name: 'Queries per field',
         description:
-            'Distinct queries per field, counting fields that were selected, filtered, grouped or sorted.',
+            'Distinct queries per field, counting fields that were selected, filtered, grouped or sorted. Cached and failed queries count. A field missing here can still be in use. Names are those recorded when the query ran, so a renamed field can appear more than once.',
         explore: 'semantic_usage',
         dimensions: [
             'semantic_usage_field_label',
@@ -225,7 +225,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'field-capture-coverage',
         name: 'Queries with field details',
         description:
-            'Distinct queries by how much field detail was recorded, including older history and SQL queries. Missing detail does not mean a query used no fields.',
+            'Distinct queries by how much field detail was recorded, including older history and SQL queries. Missing detail does not mean a query used no fields. Captured means the fields were recorded, partial that some could not be, unavailable includes SQL queries, and not captured includes older history.',
         explore: 'semantic_usage',
         dimensions: ['semantic_usage_lineage_status'],
         metrics: ['semantic_usage_total_queries'],
@@ -340,7 +340,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
     {
         key: 'total-loads',
         name: 'Data app loads',
-        description: 'Number of times a data app was loaded. Reloads count.',
+        description:
+            'Number of times a data app was loaded. Reloads count. Unknown or deleted data apps are included.',
         explore: 'data_app_events',
         dimensions: [],
         metrics: ['data_app_events_total_views'],
@@ -712,7 +713,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
     {
         key: 'agent-request-outcomes',
         name: 'Requests by outcome',
-        description: 'Pending requests may not have an outcome yet.',
+        description:
+            'Pending requests may not have an outcome yet. A request counts once, however many steps the agent takes.',
         explore: 'agent_requests',
         dimensions: ['agent_requests_status'],
         metrics: ['agent_requests_total_requests'],
@@ -863,7 +865,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'app-generation-consumption',
         name: 'Data app generation tokens by builder, model and week',
         description:
-            'Tokens used to generate data apps, by builder, week and model.',
+            'Tokens used to generate data apps, by builder, week and model. Tokens cannot yet be linked to individual data apps or builds.',
         explore: 'ai_usage',
         dimensions: [
             'ai_usage_user_name',
@@ -967,7 +969,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'content-ownership-current-snapshot',
         name: 'Content ownership (current)',
         description:
-            'Owner status reflects current Lightdash membership, not whether the person is still employed.',
+            'Owner status reflects current Lightdash membership, not whether the person is still employed. Schedule ownership is not fully recorded.',
         explore: 'content_inventory',
         dimensions: ['content_health_owner_status'],
         metrics: ['content_health_total_content'],
@@ -1178,7 +1180,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'new-content-adoption-creation-week-proxy',
         name: 'New content adoption after the first week',
         description:
-            'Creation date stands in for launch date. Return activity after the first seven days only shows when enough history has been recorded.',
+            'Creation date stands in for launch date. Return activity after the first seven days only shows when enough history has been recorded. Older content may have been created before recording began.',
         explore: 'content_reach',
         dimensions: [
             'content_reach_content_name',
@@ -1310,7 +1312,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
     {
         key: 'query-origin-and-initiating-actor',
         name: 'Queries by origin and who started them',
-        description: '',
+        description: 'Older queries with unknown values are still shown.',
         explore: 'query_events',
         dimensions: [
             'query_events_workload_origin',
@@ -1466,7 +1468,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'verified-content-audience-share',
         name: 'Share of viewers who viewed verified content',
         description:
-            'Viewers of verified content as a share of viewers of content with a known verification status.',
+            'Viewers of verified content as a share of viewers of content with a known verification status. A viewer can also view unverified content.',
         explore: 'content_reach',
         dimensions: [],
         metrics: ['content_reach_verified_audience_share'],
