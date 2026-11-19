@@ -25774,6 +25774,50 @@
             "ApiAppFileUploadResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__fileId-string--imageId_deprecated-true_-string--filename_description-Sanitizedoriginalfilename.canonicalizedserver-side._-string--mimeType_description-NormalizedMIMEtypeasstoredonthestagedS3object._-string__"
             },
+            "CaptureTranscriptWord": {
+                "properties": {
+                    "text": {
+                        "type": "string"
+                    },
+                    "endMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "startMs": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["text", "endMs", "startMs"],
+                "type": "object",
+                "description": "One spoken word from a Voice Design recording, timed from the start of its audio."
+            },
+            "ApiSuccess__words-CaptureTranscriptWord-Array__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "words": {
+                                "items": {
+                                    "$ref": "#/components/schemas/CaptureTranscriptWord"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["words"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiCaptureTranscriptResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__words-CaptureTranscriptWord-Array__"
+            },
             "DataAppContextFile": {
                 "properties": {
                     "contentBase64": {
@@ -80371,7 +80415,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.330.1",
+        "version": "3.331.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

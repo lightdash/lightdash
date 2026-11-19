@@ -1,3 +1,10 @@
+# [3.331.0](https://github.com/lightdash/lightdash/compare/3.330.1...3.331.0) (2026-11-19)
+
+
+### Features
+
+* **apps:** Voice Design in the data app builder ([#32925](https://github.com/lightdash/lightdash/issues/32925)) ([5a82ade](https://github.com/lightdash/lightdash/commit/5a82aded6bbcba4d039bb329a98c508003259558))
+
 ## [3.330.1](https://github.com/lightdash/lightdash/compare/3.330.0...3.330.1) (2026-11-19)
 
 
