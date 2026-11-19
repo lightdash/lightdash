@@ -263,7 +263,8 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
                             {optionList}
                         </Radio.Group>
                     )}
-                    {ownAnswer}
+                    {/* In a narrow chat the composer right below takes any other answer. */}
+                    {isBare ? null : ownAnswer}
                 </Stack>
                 <Group
                     justify="space-between"
