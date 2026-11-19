@@ -5,11 +5,13 @@ import MantineIcon from '../../components/common/MantineIcon';
 import { SettingRow } from '../../components/common/Settings/SettingLayout';
 import { SettingsCard } from '../../components/common/Settings/SettingsCard';
 import { SettingsPage } from '../../components/common/Settings/SettingsPage';
-import { useOpenBillingPortal } from '../features/billing/useOpenBillingPortal';
+import useTracking from '../../providers/Tracking/useTracking';
+import { EventName } from '../../types/Events';
+import { useBillingPortalLink } from '../features/billing/useBillingPortalLink';
 
 const BillingPortalContent = () => {
-    const { open, isOpening, isLoading, isAvailable, isNotConfigured } =
-        useOpenBillingPortal();
+    const { url, isLoading, isNotConfigured } = useBillingPortalLink();
+    const { track } = useTracking();
 
     if (isLoading) return <Skeleton h={88} radius="md" />;
 
@@ -22,7 +24,7 @@ const BillingPortalContent = () => {
         );
     }
 
-    if (!isAvailable) {
+    if (!url) {
         return (
             <Callout variant="warning" title="Billing portal unavailable">
                 The billing portal is not available right now. Contact support
@@ -39,8 +41,15 @@ const BillingPortalContent = () => {
                 description="Update payment methods, change your billing address or email, and view invoices. The portal opens in a new tab."
                 control={
                     <Button
-                        loading={isOpening}
-                        onClick={() => void open()}
+                        component="a"
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() =>
+                            track({
+                                name: EventName.BILLING_PORTAL_BUTTON_CLICKED,
+                            })
+                        }
                         rightSection={<MantineIcon icon={IconExternalLink} />}
                     >
                         Open billing portal
