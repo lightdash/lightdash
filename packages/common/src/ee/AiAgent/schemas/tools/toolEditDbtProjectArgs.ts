@@ -95,6 +95,8 @@ export const toolEditDbtProjectMetadataSchema = z.discriminatedUnion('status', [
     z.object({
         status: z.literal('pending'),
         aiWritebackRunUuid: z.string(),
+        // What a script save writes, one unified diff per file, shown while it runs. Nullish: sandbox saves and rows from before this field have none.
+        diffs: z.array(z.string()).nullish(),
     }),
     z.object({
         status: z.literal('success'),

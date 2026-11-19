@@ -461,7 +461,9 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             hasCodeView &&
             !keepsDraft &&
             searchParams.get(VIEW_PARAM) === 'sources');
-    const proposal = useStudioProposal(view.project.id);
+    const { diffs: proposal, isSaving: isSavingProposal } = useStudioProposal(
+        view.project.id,
+    );
     const hasProposal = !keepsDraft && proposal.length > 0;
     // A dbt project's changes are its conversation's: what it proposes, and what its pull request holds.
     const isChanges =
@@ -1066,6 +1068,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         projectUuid={view.project.id}
                         pullRequest={changeOnPage}
                         proposal={shownProposal}
+                        isSaving={isSavingProposal}
                     />
                 );
             case 'workspaces':
@@ -1123,6 +1126,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         projectUuid={view.project.id}
                         pullRequest={null}
                         proposal={[]}
+                        isSaving={false}
                     />
                 ) : null;
             case 'code':
@@ -1202,12 +1206,17 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         projectUuid={view.project.id}
                         pullRequest={changeOnPage}
                         proposal={shownProposal}
+                        isSaving={isSavingProposal}
                     />
                 ) : (
                     <Suspense fallback={null}>
                         <SourcePane
                             target={sourcesTarget}
-                            proposal={shownProposal}
+                            // Once the commit lands the file is read from the change, so its diffs are not applied again.
+                            proposal={
+                                isSavingProposal && !saving ? [] : shownProposal
+                            }
+                            isSaving={isSavingProposal}
                             onSaved={(prUrl, thread) => {
                                 if (prUrl === sourcesPrUrl) return;
                                 // A save from live started a change of its own, with a conversation to ask about it in.
@@ -1474,6 +1483,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                         <SourcesRail
                                             target={sourcesTarget}
                                             proposal={shownProposal}
+                                            isSaving={isSavingProposal}
                                             hasOverview={!!sourcesPrUrl}
                                         />
                                     </Suspense>

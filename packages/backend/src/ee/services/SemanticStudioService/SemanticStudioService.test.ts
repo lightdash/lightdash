@@ -3256,7 +3256,7 @@ describe('saving a hand edit', () => {
         const context = setup();
         const save = vi
             .spyOn(context.aiWritebackService, 'saveWithScript')
-            .mockResolvedValueOnce({ status: 'checked' })
+            .mockResolvedValueOnce({ status: 'checked', diffs: [] })
             .mockResolvedValueOnce({
                 status: 'script_failed',
                 error: 'changed',
