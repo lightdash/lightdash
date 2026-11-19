@@ -5,7 +5,6 @@
  * of the path is the page you are on; see urls.ts.
  */
 import { FeatureFlags } from '@lightdash/common';
-import { Center, Loader } from '@mantine/core';
 import { useCallback, useMemo, type FC } from 'react';
 import {
     Navigate,
@@ -31,6 +30,7 @@ import {
     getStudioPermissions,
 } from './permissions';
 import { buildRealProject } from './realProject';
+import { StudioPageSkeleton } from './StudioPageSkeleton';
 import {
     getSemanticStudioSourceUrl,
     getSemanticStudioUrl,
@@ -144,9 +144,9 @@ const SemanticStudioPage: FC = () => {
         liveConnections.isInitialLoading
     ) {
         return (
-            <Center h="100%">
-                <Loader color="gray" />
-            </Center>
+            <Page title="Semantic Layer" withFullHeight noContentPadding>
+                <StudioPageSkeleton />
+            </Page>
         );
     }
 
