@@ -254,11 +254,6 @@ export const getComposerParameterReferences = (
     ),
 ];
 
-type SemanticNode = Extract<
-    ComposerChartPipelineNode,
-    { sourceType: QuerySourceType.SEMANTIC_LAYER }
->;
-
 // As updateExploreWithDateZoom: no sub-day grain on a date, and a custom grain needs its precompiled dimension
 const canZoomField = (
     explore: Explore,
@@ -289,21 +284,17 @@ export const getStoredChartXField = (
         ? chart.chartConfig.config.layout?.xField
         : undefined;
 
-type ZoomTarget = {
-    nodeId: string;
-    explore: Explore;
-    field: ChartZoomableField;
-    /** Nodes that zoom together or not at all: a merge's legs, else the node alone. */
-    group: string;
-};
+type ZoomCandidates = Map<
+    string,
+    { explore: Explore; fields: ChartZoomableField[] }
+>;
 
-/** The date field each semantic-layer node would re-grain. A merge's legs share one key part that is a date on every leg, the plotted one first. */
-const getZoomTargets = (
+/** Each semantic-layer node that can zoom, with its zoomable date fields. */
+const getZoomCandidates = (
     nodes: ComposerChartPipelineNode[],
     exploreByNodeId: ComposerNodeExplores,
-    xAxisFieldId: string | undefined,
-): ZoomTarget[] => {
-    const candidates = new Map(
+): ZoomCandidates =>
+    new Map(
         nodes.flatMap((node) => {
             const explore = exploreByNodeId[node.nodeId];
             return node.sourceType === QuerySourceType.SEMANTIC_LAYER &&
@@ -324,6 +315,12 @@ const getZoomTargets = (
                 : [];
         }),
     );
+
+/** Every merge leg, and per merge the key parts that are a zoomable date on all its legs. */
+const getMergeDateKeys = (
+    nodes: ComposerChartPipelineNode[],
+    candidates: ZoomCandidates,
+) => {
     const merges = nodes.flatMap((node) =>
         node.sourceType === QuerySourceType.MERGE ? [node] : [],
     );
@@ -332,35 +329,73 @@ const getZoomTargets = (
     );
     // A leg of two merges could need two grains, so neither zooms
     const sharedLeg = legs.some((leg, index) => legs.indexOf(leg) !== index);
-    const legFields = new Map<string, { fieldId: string; group: string }>();
-    if (!sharedLeg) {
-        merges.forEach(({ nodeId, sources, joinKey }) => {
-            const legIds = sources.map((source) => source.nodeId);
-            const dateParts = joinKey.filter((part) =>
-                legIds.every((leg) =>
-                    candidates
-                        .get(leg)
-                        ?.fields.some(
-                            ({ fieldId }) =>
-                                fieldId === part.fieldIdBySourceId[leg],
-                        ),
-                ),
-            );
+    return {
+        legs,
+        merges: sharedLeg
+            ? []
+            : merges.map(({ nodeId, sources, joinKey }) => {
+                  const legIds = sources.map((source) => source.nodeId);
+                  return {
+                      nodeId,
+                      legIds,
+                      dateParts: joinKey.filter((part) =>
+                          legIds.every((leg) =>
+                              candidates
+                                  .get(leg)
+                                  ?.fields.some(
+                                      ({ fieldId }) =>
+                                          fieldId ===
+                                          part.fieldIdBySourceId[leg],
+                                  ),
+                          ),
+                      ),
+                  };
+              }),
+    };
+};
+
+type ZoomTarget = {
+    nodeId: string;
+    explore: Explore;
+    field: ChartZoomableField;
+    /** Nodes that zoom together or not at all: a merge's legs, else the node alone. */
+    group: string;
+};
+
+/** The date field each semantic-layer node would re-grain; a merge's legs zoom one date key part, the targeted one first. */
+const getZoomTargets = (
+    nodes: ComposerChartPipelineNode[],
+    exploreByNodeId: ComposerNodeExplores,
+    xAxisFieldId: string | undefined,
+): ZoomTarget[] => {
+    const candidates = getZoomCandidates(nodes, exploreByNodeId);
+    const { legs, merges } = getMergeDateKeys(nodes, candidates);
+    const legFields = new Map(
+        merges.flatMap(({ nodeId, legIds, dateParts }) => {
+            // A dashboard targets a leg's field; a stored chart plots the merged key
             const part =
                 dateParts.find(
-                    ({ name }) =>
+                    ({ name, fieldIdBySourceId }) =>
                         getItemId({ table: MERGE_TABLE_NAME, name }) ===
-                        xAxisFieldId,
+                            xAxisFieldId ||
+                        Object.values(fieldIdBySourceId).some(
+                            (fieldId) => fieldId === xAxisFieldId,
+                        ),
                 ) ?? dateParts[0];
-            if (!part) return;
-            legIds.forEach((leg) =>
-                legFields.set(leg, {
-                    fieldId: part.fieldIdBySourceId[leg],
-                    group: nodeId,
-                }),
-            );
-        });
-    }
+            return part
+                ? legIds.map(
+                      (leg) =>
+                          [
+                              leg,
+                              {
+                                  fieldId: part.fieldIdBySourceId[leg],
+                                  group: nodeId,
+                              },
+                          ] as const,
+                  )
+                : [];
+        }),
+    );
     return [...candidates].flatMap(([nodeId, { explore, fields }]) => {
         if (legs.includes(nodeId)) {
             const leg = legFields.get(nodeId);
@@ -377,18 +412,42 @@ const getZoomTargets = (
     });
 };
 
-/** The date fields a composer tile can be zoomed on, one per field id. */
+/** The date fields a composer tile can be zoomed on, one per field id: a merge leg offers only its date key fields. */
 export const getComposerZoomableFields = (
     nodes: ComposerChartPipelineNode[],
     exploreByNodeId: ComposerNodeExplores,
-): ChartZoomableField[] => [
-    ...new Map(
-        getZoomTargets(nodes, exploreByNodeId, undefined).map(({ field }) => [
-            field.fieldId,
-            field,
-        ]),
-    ).values(),
-];
+): ChartZoomableField[] => {
+    const candidates = getZoomCandidates(nodes, exploreByNodeId);
+    const { legs, merges } = getMergeDateKeys(nodes, candidates);
+    const keyFieldsByLeg = new Map(
+        merges.flatMap(({ legIds, dateParts }) =>
+            legIds.map(
+                (leg) =>
+                    [
+                        leg,
+                        new Set(
+                            dateParts.map(
+                                (part) => part.fieldIdBySourceId[leg],
+                            ),
+                        ),
+                    ] as const,
+            ),
+        ),
+    );
+    return [
+        ...new Map(
+            [...candidates]
+                .flatMap(([nodeId, { fields }]) =>
+                    legs.includes(nodeId)
+                        ? fields.filter(({ fieldId }) =>
+                              keyFieldsByLeg.get(nodeId)?.has(fieldId),
+                          )
+                        : fields,
+                )
+                .map((field) => [field.fieldId, field]),
+        ).values(),
+    ];
+};
 
 export const getComposerNodeDateZooms = ({
     nodes,
