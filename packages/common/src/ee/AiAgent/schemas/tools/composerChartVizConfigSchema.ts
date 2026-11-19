@@ -18,7 +18,15 @@ const composerBuiltinChartVizTypeSchema = z.enum([
 
 export const composerBuiltinChartVizConfigSchemaV1 = z.object({
     type: composerBuiltinChartVizTypeSchema.describe(
-        'Chart type. area is a filled line.',
+        `Chart type, chosen by what the reader does with the result:
+- bar: compare or rank categories.
+- line: follow change over time or another ordered x.
+- table: read exact values across several columns, or more rows than a chart can label.
+- area: a filled line, for one total over time or the parts that add up to it.
+- pie: 2 to 6 non-negative parts of one whole; more parts read better as a bar.
+- scatter: how two measures relate, one point per entity.
+- funnel: ordered stages of one process.
+- big_number: one value as a card, when the user asks for the card or wants to save it; a figure otherwise goes in the answer text.`,
     ),
     x: refSchema
         .nullish()
@@ -38,20 +46,22 @@ export const composerBuiltinChartVizConfigSchemaV1 = z.object({
         .nullish()
         .default(null)
         .describe(
-            'Columns that split y into one series per value. bar/line/area/scatter only. Must not include x.',
+            'Columns that split y into one series per value, readable up to about 6 series. bar/line/area/scatter only. Must not include x.',
         ),
     stack: z
         .boolean()
         .nullish()
         .default(null)
         .describe(
-            'bar: stack series on top of each other. area always stacks. Ignored elsewhere.',
+            'bar: stack series on top of each other, for parts that add up to a total (sums and counts; averages, ratios and distinct counts sit side by side). area always stacks. Ignored elsewhere.',
         ),
     horizontal: z
         .boolean()
         .nullish()
         .default(null)
-        .describe('bar only: draw bars horizontally.'),
+        .describe(
+            'bar only: draw bars horizontally, for long labels or more than about 12 categories.',
+        ),
     y2: refSchema
         .nullish()
         .default(null)
@@ -72,7 +82,9 @@ export const composerBuiltinChartVizConfigSchemaV1 = z.object({
 const composerCustomChartVizConfigSchemaV1 = z.object({
     type: z
         .literal('custom')
-        .describe("Renders one of this project's custom chart types."),
+        .describe(
+            "Renders one of this project's custom chart types. Most vary a built-in type: choose one as you would the type it varies.",
+        ),
     customChartTypeSlug: z.string().describe('Slug of the custom chart type.'),
     fieldMapping: z
         .record(z.string(), z.union([refSchema, z.array(refSchema)]))
