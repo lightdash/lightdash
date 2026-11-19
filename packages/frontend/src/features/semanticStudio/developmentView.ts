@@ -47,6 +47,13 @@ const SAME_IN_EITHER_VIEW = new Set([
     'semantic-layer-draft-state',
 ]);
 
+/** Ends the key of a query that asks for what is published by name, whatever view the page is in. */
+export const PUBLISHED_VIEW = 'published-view';
+
+const isSameInEitherView = (queryKey: QueryKey): boolean =>
+    SAME_IN_EITHER_VIEW.has(String(queryKey[0])) ||
+    queryKey.at(-1) === PUBLISHED_VIEW;
+
 const PROJECT_IN_PATH = /\/projects\/([^/]+)/;
 
 const findProjectInPath = (pathname: string): string | null =>
@@ -111,15 +118,14 @@ export const getDevelopmentViewHeaders = (): Record<string, string> => {
 /** Caches each view apart, since one key reads the draft on one page and what is published on another. */
 export const hashQueryKeyByView = (queryKey: QueryKey): string => {
     const hash = hashQueryKey(queryKey);
-    if (SAME_IN_EITHER_VIEW.has(String(queryKey[0]))) return hash;
+    if (isSameInEitherView(queryKey)) return hash;
     const headers = getDevelopmentViewHeaders();
     return Object.keys(headers).length > 0
         ? `${hash}${JSON.stringify(headers)}`
         : hash;
 };
 
-const readsTheView = (queryKey: QueryKey) =>
-    !SAME_IN_EITHER_VIEW.has(String(queryKey[0]));
+const readsTheView = (queryKey: QueryKey) => !isSameInEitherView(queryKey);
 
 /** Switches the view and refetches what it reads, keeping each query's data meanwhile so no page drops back to its loader. */
 const switchView = (queryClient: QueryClient, write: () => void) => {

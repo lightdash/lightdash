@@ -9,6 +9,7 @@ import {
     DEVELOPMENT_VIEW_HEADER,
     getDevelopmentViewHeaders,
     pinDevelopmentView,
+    PUBLISHED_VIEW,
     useCheckedOutView,
     useDevelopmentView,
 } from './developmentView';
@@ -116,6 +117,15 @@ describe('the development view of a checked-out draft', () => {
         queryClient.setQueryData(key, 'discarded');
         clearDevelopmentView();
         expect(queryClient.getQueryData(key)).toBe('discarded');
+    });
+
+    it('reads a query that names what is published the same on and off a draft', () => {
+        const queryClient = createQueryClient();
+        const key = ['tables', 'p-1', 'filtered', PUBLISHED_VIEW];
+        at('/projects/p-1/semantic-layer');
+        queryClient.setQueryData(key, 'published');
+        localStorage.setItem('lightdash-checked-out-project', 'p-1');
+        expect(queryClient.getQueryData(key)).toBe('published');
     });
 
     it('keeps what a page shows while Try it switches the view, then refetches it', () => {
