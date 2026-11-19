@@ -3,6 +3,8 @@ import {
     diffModelDocuments,
     type ModelFragmentChange,
     type ModelFragmentRefusal,
+    type SemanticLayerDraft,
+    type SemanticLayerDraftModel,
     type SemanticLayerModelChange,
 } from '@lightdash/common';
 import { parseDiffFromFile } from '@pierre/diffs';
@@ -434,3 +436,34 @@ export const findPeekStart = (lines: string[]): number =>
         lines.findIndex((line) => line.trim() === 'metrics:'),
         0,
     );
+
+/** The fields, joins and model keys the draft touches on one model, as its card and its review list them. */
+export const listPublishedParts = (
+    draft: SemanticLayerDraft,
+    entry: SemanticLayerDraftModel,
+): FieldChange[] =>
+    listFieldChanges(
+        entry.model,
+        draft.changes.flatMap(({ models }) =>
+            models
+                .filter(
+                    ({ model, error }) =>
+                        model === entry.model && error === null,
+                )
+                .flatMap(({ changes }) => changes),
+        ),
+        entry,
+    );
+
+/** How many changes a publish carries: each part touched, and each model added or removed whole. */
+export const countPublishedChanges = (
+    draft: SemanticLayerDraft,
+    model: string | null,
+): number =>
+    draft.models
+        .filter((entry) => model === null || entry.model === model)
+        .reduce(
+            (total, entry) =>
+                total + Math.max(listPublishedParts(draft, entry).length, 1),
+            0,
+        );
