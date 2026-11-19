@@ -321,10 +321,12 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
         imageExportOpened,
         { open: openImageExport, close: closeImageExport },
     ] = useDisclosure(false);
-    // Same rule as the classic chart tile, which hides it on minimal dashboards
+    // Same rule as the classic chart tile; needs the chart drawn to capture it
     const canExportImage =
         canExportData &&
         !minimal &&
+        errorMessage === null &&
+        results.hasFetchedAllRows &&
         !!readyDraw &&
         !CHART_TYPES_WITHOUT_IMAGE_EXPORT.includes(readyDraw.chartConfig.type);
     const exportQueryUuid =

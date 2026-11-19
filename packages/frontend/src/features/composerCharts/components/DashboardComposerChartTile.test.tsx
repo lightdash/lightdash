@@ -10,7 +10,10 @@ import { DashboardStoreTestProvider } from '../../../testing/DashboardStoreTestP
 import { renderWithProviders } from '../../../testing/testUtils';
 import DashboardComposerChartTile from './DashboardComposerChartTile';
 
-const drawMocks = vi.hoisted(() => ({ chartType: 'cartesian' as string }));
+const drawMocks = vi.hoisted(() => ({
+    chartType: 'cartesian' as string,
+    hasFetchedAllRows: true,
+}));
 
 vi.mock('../../../api');
 vi.mock('@lightdash/common', async (importOriginal) => ({
@@ -61,7 +64,7 @@ vi.mock('../../../hooks/useQueryResults', () => ({
         columns: {},
         rows: [],
         totalResults: 0,
-        hasFetchedAllRows: true,
+        hasFetchedAllRows: drawMocks.hasFetchedAllRows,
         fetchAll: true,
         setFetchAll: () => {},
         isFetchingRows: false,
@@ -156,6 +159,7 @@ const exportImageItem = () =>
 describe('DashboardComposerChartTile "Export image"', () => {
     afterEach(() => {
         cleanup();
+        drawMocks.hasFetchedAllRows = true;
     });
 
     it.each([ChartType.CARTESIAN, ChartType.PIE, ChartType.FUNNEL])(
@@ -187,6 +191,13 @@ describe('DashboardComposerChartTile "Export image"', () => {
     it('does not offer it on a minimal dashboard', async () => {
         drawMocks.chartType = ChartType.CARTESIAN;
         await openMenu({ minimal: true });
+        expect(exportImageItem()).toBeNull();
+    });
+
+    it('does not offer it while the chart rows are loading', async () => {
+        drawMocks.chartType = ChartType.CARTESIAN;
+        drawMocks.hasFetchedAllRows = false;
+        await openMenu();
         expect(exportImageItem()).toBeNull();
     });
 
