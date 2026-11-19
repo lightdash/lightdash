@@ -69,7 +69,7 @@ export const getRowCountSql = (
             return `SELECT total_rows AS row_count FROM system.tables WHERE database IN (${quoteString(schema)}, ${quoteString(database)}) AND name = ${quoteString(table)}`;
         case WarehouseTypes.DUCKDB:
             return `SELECT estimated_size AS row_count FROM duckdb_tables() WHERE schema_name = ${quoteString(schema)} AND table_name = ${quoteString(table)}`;
-        // ponytail: no metadata row count that is cheap and dependable; these fall back to the capped read.
+        // No metadata row count that is cheap and dependable; these fall back to the capped read.
         case WarehouseTypes.DATABRICKS:
         case WarehouseTypes.TRINO:
         case WarehouseTypes.ATHENA:

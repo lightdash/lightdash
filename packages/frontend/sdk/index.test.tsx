@@ -324,9 +324,14 @@ vi.mock('../src/ee/pages/AiAgents/AgentPage', async () => {
 
     return {
         default: function MockAgentPage() {
-            const { agentUuid, projectUuid } = useParams();
+            const { agentUuid, projectUuid, threadUuid } = useParams();
             const isEmbedded = useIsEmbedded();
-            useEmitEmbedAgentContentEvents({ projectUuid, agentUuid });
+            useEmitEmbedAgentContentEvents({
+                projectUuid,
+                agentUuid,
+                threadUuid,
+                thread: undefined,
+            });
             return (
                 <div
                     data-testid="agent-page"
@@ -417,22 +422,16 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
     const mockToken =
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb250ZW50Ijp7InByb2plY3RVdWlkIjoidGVzdC1wcm9qZWN0LXV1aWQifX0.test';
     const mockInstanceUrl = 'http://localhost:3000';
-    const originalLocation = window.location;
+    const originalUrl = window.location.href;
 
     beforeEach(() => {
         vi.clearAllMocks();
-        // Store initial window.location
-        window.location = {
-            ...window.location,
-            pathname: '/test',
-            search: '',
-            hash: '',
-        };
+        window.history.replaceState(null, '', '/test');
     });
 
     afterEach(() => {
         vi.clearAllMocks();
-        window.location = originalLocation;
+        window.history.replaceState(null, '', originalUrl);
     });
 
     it('should pass mode="sdk" to EmbedProvider', async () => {
@@ -1824,7 +1823,7 @@ describe('SDK token rotation', () => {
     const tokenA = `${header}.${payload}.signature-a`;
     const tokenB = `${header}.${payload}.signature-b`;
     const instanceUrl = 'http://localhost:3000';
-    const originalLocation = window.location;
+    const originalUrl = window.location.href;
     const sentToken = (fetchMock: ReturnType<typeof vi.fn>) =>
         fetchMock.mock.calls.at(-1)?.[1].headers['lightdash-embed-token'];
     const stubFetch = () => {
@@ -1840,17 +1839,12 @@ describe('SDK token rotation', () => {
 
     beforeEach(() => {
         clearInMemoryStorage();
-        window.location = {
-            ...window.location,
-            pathname: '/test',
-            search: '',
-            hash: '',
-        };
+        window.history.replaceState(null, '', '/test');
     });
 
     afterEach(() => {
         vi.unstubAllGlobals();
-        window.location = originalLocation;
+        window.history.replaceState(null, '', originalUrl);
     });
 
     it('sends the rotated token on the next request without remounting', async () => {
@@ -1934,14 +1928,14 @@ describe('SDK token rotation', () => {
 
     it('keeps the direct-mode token after the hash is stripped from the URL', () => {
         const queryClient = new QueryClient();
-        window.location = { ...window.location, hash: `#${tokenA}` };
+        window.history.replaceState(null, '', `/test#${tokenA}`);
 
         const { rerender } = render(renderProvider(queryClient, undefined));
         expect(getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY)?.token).toBe(
             tokenA,
         );
 
-        window.location = { ...window.location, hash: '' };
+        window.history.replaceState(null, '', '/test');
         rerender(renderProvider(queryClient, undefined));
 
         expect(getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY)?.token).toBe(

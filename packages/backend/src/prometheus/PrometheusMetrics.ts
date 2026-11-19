@@ -39,14 +39,22 @@ import {
     type ComposerQueryStage,
 } from '../services/AsyncQueryService/composerQueryStage';
 import {
+    QUERY_COST_ESTIMATE_CACHE_RESULTS,
+    QUERY_COST_ESTIMATE_OUTCOMES,
+    QUERY_COST_ESTIMATE_SOURCES,
+    type QueryCostEstimateCacheResult,
+    type QueryCostEstimateOutcome,
+    type QueryCostEstimateSource,
+} from '../services/AsyncQueryService/queryCostEstimateTypes';
+import {
     QUERY_POLLING_SOURCES,
     type QueryPollingSource,
 } from '../services/AsyncQueryService/queryPollingSource';
 import type { WarehouseExecutionSource } from '../services/AsyncQueryService/types';
 import {
-    API_QUERY_OUTCOMES,
-    type ApiQueryOutcome,
-} from '../services/QuerySourceService/api/apiQueryOutcome';
+    LIVE_QUERY_OUTCOMES,
+    type LiveQueryOutcome,
+} from '../services/QuerySourceService/live/query/outcome';
 import {
     serializeOtelHttpMetrics,
     shutdownOtelHttpMetrics,
@@ -253,18 +261,22 @@ export default class PrometheusMetrics {
         'source' | 'stage'
     > | null = null;
 
-    // Live API source requests (PostHog, ...), by connector and outcome
+    // Live API source requests (PostHog, ...), by integration and outcome
     public apiSourceRequestCounter: prometheus.Counter<
-        'connector' | 'outcome'
+        'integration' | 'outcome'
     > | null = null;
 
     public apiSourceRequestDurationHistogram: prometheus.Histogram<
-        'connector' | 'outcome'
+        'integration' | 'outcome'
     > | null = null;
 
-    public apiSourceInflightGauge: prometheus.Gauge<'connector'> | null = null;
+    public apiSourceInflightGauge: prometheus.Gauge<'integration'> | null =
+        null;
 
-    public apiSourceTruncatedCounter: prometheus.Counter<'connector'> | null =
+    public apiSourceTruncatedCounter: prometheus.Counter<'integration'> | null =
+        null;
+
+    public liveSourceCacheHitCounter: prometheus.Counter<'integration'> | null =
         null;
 
     // Pre-aggregate metrics
@@ -280,6 +292,14 @@ export default class PrometheusMetrics {
         null;
 
     public duckdbResolutionCounter: prometheus.Counter<string> | null = null;
+
+    public queryCostEstimateCounter: prometheus.Counter<
+        'source' | 'outcome' | 'cache'
+    > | null = null;
+
+    public queryCostEstimateDryRunDurationHistogram: prometheus.Histogram<
+        'source' | 'outcome'
+    > | null = null;
 
     public duckdbResolutionDurationHistogram: prometheus.Histogram<string> | null =
         null;
@@ -969,28 +989,34 @@ export default class PrometheusMetrics {
 
                 this.apiSourceRequestCounter = new prometheus.Counter({
                     name: 'lightdash_api_source_requests_total',
-                    help: 'Live API source requests, by connector and outcome',
-                    labelNames: ['connector', 'outcome'],
+                    help: 'Live API source requests, by integration and outcome',
+                    labelNames: ['integration', 'outcome'],
                     ...rest,
                 });
                 this.apiSourceRequestDurationHistogram =
                     new prometheus.Histogram({
                         name: 'lightdash_api_source_request_duration_seconds',
-                        help: 'Live API source request duration, by connector and outcome',
-                        labelNames: ['connector', 'outcome'],
+                        help: 'Live API source request duration, by integration and outcome',
+                        labelNames: ['integration', 'outcome'],
                         buckets: [0.25, 0.5, 1, 2.5, 5, 10, 20, 30, 45, 60],
                         ...rest,
                     });
                 this.apiSourceInflightGauge = new prometheus.Gauge({
                     name: 'lightdash_api_source_inflight_requests',
-                    help: 'Live API source requests in flight on this process, by connector',
-                    labelNames: ['connector'],
+                    help: 'Live API source requests in flight on this process, by integration',
+                    labelNames: ['integration'],
                     ...rest,
                 });
                 this.apiSourceTruncatedCounter = new prometheus.Counter({
                     name: 'lightdash_api_source_truncated_total',
-                    help: 'Live API source results cut at the row limit, by connector',
-                    labelNames: ['connector'],
+                    help: 'Live API source results cut at the row limit, by integration',
+                    labelNames: ['integration'],
+                    ...rest,
+                });
+                this.liveSourceCacheHitCounter = new prometheus.Counter({
+                    name: 'lightdash_live_source_cache_hits_total',
+                    help: 'Live data source queries answered from a stored result without calling the integration, by integration',
+                    labelNames: ['integration'],
                     ...rest,
                 });
 
@@ -1026,16 +1052,17 @@ export default class PrometheusMetrics {
                         });
                     },
                 );
-                Object.values(ApiConnectorType).forEach((connector) => {
-                    this.apiSourceInflightGauge?.set({ connector }, 0);
-                    this.apiSourceTruncatedCounter?.inc({ connector }, 0);
-                    API_QUERY_OUTCOMES.forEach((outcome) => {
+                Object.values(ApiConnectorType).forEach((integration) => {
+                    this.apiSourceInflightGauge?.set({ integration }, 0);
+                    this.apiSourceTruncatedCounter?.inc({ integration }, 0);
+                    this.liveSourceCacheHitCounter?.inc({ integration }, 0);
+                    LIVE_QUERY_OUTCOMES.forEach((outcome) => {
                         this.apiSourceRequestCounter?.inc(
-                            { connector, outcome },
+                            { integration, outcome },
                             0,
                         );
                         this.apiSourceRequestDurationHistogram?.zero({
-                            connector,
+                            integration,
                             outcome,
                         });
                     });
@@ -1103,6 +1130,41 @@ export default class PrometheusMetrics {
                         buckets: [1, 5, 10, 30, 60, 120, 300, 600, 900, 1800],
                         ...rest,
                     });
+
+                this.queryCostEstimateCounter = new prometheus.Counter({
+                    name: 'lightdash_query_cost_estimate_total',
+                    help: 'Query cost estimates by source, outcome and estimate cache result',
+                    labelNames: ['source', 'outcome', 'cache'],
+                    ...rest,
+                });
+
+                this.queryCostEstimateDryRunDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'lightdash_query_cost_estimate_dry_run_duration_ms',
+                        help: 'Warehouse dry-run duration for query cost estimates in ms',
+                        labelNames: ['source', 'outcome'],
+                        buckets: [
+                            50, 100, 250, 500, 1000, 2000, 5000, 10000, 30000,
+                        ],
+                        ...rest,
+                    });
+
+                QUERY_COST_ESTIMATE_SOURCES.forEach((source) => {
+                    QUERY_COST_ESTIMATE_OUTCOMES.forEach((outcome) => {
+                        QUERY_COST_ESTIMATE_CACHE_RESULTS.forEach((cache) => {
+                            this.queryCostEstimateCounter?.inc(
+                                { source, outcome, cache },
+                                0,
+                            );
+                        });
+                    });
+                    (['ok', 'error'] as const).forEach((outcome) => {
+                        this.queryCostEstimateDryRunDurationHistogram?.zero({
+                            source,
+                            outcome,
+                        });
+                    });
+                });
 
                 this.duckdbResolutionCounter = new prometheus.Counter({
                     name: 'lightdash_pre_aggregate_duckdb_resolution_total',
@@ -1700,6 +1762,33 @@ export default class PrometheusMetrics {
         );
     }
 
+    public trackQueryCostEstimate({
+        source,
+        outcome,
+        cache,
+    }: {
+        source: QueryCostEstimateSource;
+        outcome: QueryCostEstimateOutcome;
+        cache: QueryCostEstimateCacheResult;
+    }) {
+        this.queryCostEstimateCounter?.inc({ source, outcome, cache });
+    }
+
+    public observeQueryCostEstimateDryRun({
+        source,
+        outcome,
+        durationMs,
+    }: {
+        source: QueryCostEstimateSource;
+        outcome: 'ok' | 'error';
+        durationMs: number;
+    }) {
+        this.queryCostEstimateDryRunDurationHistogram?.observe(
+            { source, outcome },
+            durationMs,
+        );
+    }
+
     public incrementPreAggregateFallback(reason: string) {
         this.preAggregateFallbackCounter?.inc({ reason });
     }
@@ -2189,23 +2278,30 @@ export default class PrometheusMetrics {
     }
 
     public observeApiSourceRequest(
-        connector: ApiConnectorType,
-        outcome: ApiQueryOutcome,
+        integration: ApiConnectorType,
+        outcome: LiveQueryOutcome,
         durationMs: number,
     ) {
-        this.apiSourceRequestCounter?.inc({ connector, outcome });
+        this.apiSourceRequestCounter?.inc({ integration, outcome });
         this.apiSourceRequestDurationHistogram?.observe(
-            { connector, outcome },
+            { integration, outcome },
             durationMs / 1000,
         );
     }
 
-    public trackApiSourceInflight(connector: ApiConnectorType, delta: 1 | -1) {
-        this.apiSourceInflightGauge?.inc({ connector }, delta);
+    public trackApiSourceInflight(
+        integration: ApiConnectorType,
+        delta: 1 | -1,
+    ) {
+        this.apiSourceInflightGauge?.inc({ integration }, delta);
     }
 
-    public incrementApiSourceTruncated(connector: ApiConnectorType) {
-        this.apiSourceTruncatedCounter?.inc({ connector });
+    public incrementLiveSourceCacheHit(integration: ApiConnectorType) {
+        this.liveSourceCacheHitCounter?.inc({ integration });
+    }
+
+    public incrementApiSourceTruncated(integration: ApiConnectorType) {
+        this.apiSourceTruncatedCounter?.inc({ integration });
     }
 
     public incrementUsageEventsPushed() {

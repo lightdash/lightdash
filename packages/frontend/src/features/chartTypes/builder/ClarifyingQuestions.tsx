@@ -1,22 +1,15 @@
-import {
-    ActionIcon,
-    Anchor,
-    Box,
-    Button,
-    Group,
-    Text,
-    Tooltip,
-} from '@mantine/core';
+import { type AppClarifyQuestion } from '@lightdash/common';
+import { ActionIcon, Box, Text, Tooltip } from '@mantine/core';
 import { IconPencil, IconSparkles } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import ClarificationQuestionList from '../../apps/components/ClarificationQuestionList';
+import ClarificationStepper from '../../apps/components/ClarificationStepper';
 import classes from './ClarifyingQuestions.module.css';
 
 type Props = {
     /** The prompt the questions were asked about. */
     prompt: string;
-    questions: string[];
+    questions: AppClarifyQuestion[];
     answers: string[];
     onAnswer: (index: number, value: string) => void;
     /** Hands the prompt back to the composer, round dropped. */
@@ -25,8 +18,7 @@ type Props = {
     onBuild: () => void;
 };
 
-/** The clarifying round, grown upward out of the composer. Partial answers are
- *  fine: both Skip and Build lead to the same build. */
+/** The clarifying round, grown upward out of the composer. */
 const ClarifyingQuestions: FC<Props> = ({
     prompt,
     questions,
@@ -35,64 +27,41 @@ const ClarifyingQuestions: FC<Props> = ({
     onEditPrompt,
     onSkip,
     onBuild,
-}) => {
-    const answeredCount = answers.filter(
-        (answer) => answer.trim().length > 0,
-    ).length;
-
-    return (
-        <Box
-            className={classes.sheet}
-            role="group"
-            aria-label="Questions before building"
-        >
-            <Box className={classes.sheetHeader}>
-                <MantineIcon icon={IconSparkles} size={14} color="dimmed" />
-                <Text
-                    className={classes.sheetPrompt}
-                    fz="xs"
-                    fw={500}
-                    lineClamp={1}
-                >
-                    {prompt}
-                </Text>
-                <Tooltip label="Edit the prompt instead">
-                    <ActionIcon
-                        color="ldGray"
-                        size="xs"
-                        aria-label="Edit the prompt instead"
-                        onClick={onEditPrompt}
-                    >
-                        <MantineIcon icon={IconPencil} size={13} />
-                    </ActionIcon>
-                </Tooltip>
-            </Box>
-            <ClarificationQuestionList
-                questions={questions}
-                answers={answers}
-                onAnswer={onAnswer}
-            />
-            <Group gap="xs" justify="flex-end" align="center">
-                <Anchor
-                    className={classes.skipLink}
-                    component="button"
-                    type="button"
+}) => (
+    <Box
+        className={classes.sheet}
+        role="group"
+        aria-label="Questions before building"
+    >
+        <Box className={classes.sheetHeader}>
+            <MantineIcon icon={IconSparkles} size={14} color="dimmed" />
+            <Text
+                className={classes.sheetPrompt}
+                fz="xs"
+                fw={500}
+                lineClamp={1}
+            >
+                {prompt}
+            </Text>
+            <Tooltip label="Edit the prompt instead">
+                <ActionIcon
+                    color="ldGray"
                     size="xs"
-                    c="dimmed"
-                    fw={500}
-                    onClick={onSkip}
+                    aria-label="Edit the prompt instead"
+                    onClick={onEditPrompt}
                 >
-                    Skip and build anyway
-                </Anchor>
-                <Text fz="xs" c="dimmed">
-                    {answeredCount} of {questions.length} answered
-                </Text>
-                <Button size="xs" onClick={onBuild}>
-                    Build
-                </Button>
-            </Group>
+                    <MantineIcon icon={IconPencil} size={13} />
+                </ActionIcon>
+            </Tooltip>
         </Box>
-    );
-};
+        <ClarificationStepper
+            questions={questions}
+            answers={answers}
+            onAnswer={onAnswer}
+            onSkip={onSkip}
+            onBuild={onBuild}
+        />
+    </Box>
+);
 
 export default ClarifyingQuestions;

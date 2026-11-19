@@ -171,6 +171,14 @@
     color: var(--mantine-color-yellow-8);
 }
 
+.fieldUnsaved[data-change='new'] {
+    color: var(--mantine-color-green-8);
+}
+
+.fieldUnsaved[data-change='removed'] {
+    color: var(--mantine-color-red-8);
+}
+
 .fieldRow[data-off='true'] .fieldLabel,
 .fieldRow[data-restricted='true'] .fieldLabel {
     color: var(--mantine-color-dimmed);

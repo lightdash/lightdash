@@ -11,9 +11,11 @@ import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import { ConnectionTestResult } from '../components/ConnectionTestResult';
 import { useCreateExternalConnection } from '../hooks/useCreateExternalConnection';
+import { useTestConnection } from '../hooks/useTestConnection';
 import { useTestConnectionConfig } from '../hooks/useTestConnectionConfig';
 import { useUpdateExternalConnection } from '../hooks/useUpdateExternalConnection';
 import {
+    normalizeAccountId,
     toTokenLiveSourceCreatePayload,
     toTokenLiveSourceUpdatePayload,
     useTokenLiveSourceForm,
@@ -40,18 +42,34 @@ export const TokenLiveSourceModal: FC<Props> = ({
     const form = useTokenLiveSourceForm(definition, connection);
     const createMutation = useCreateExternalConnection();
     const updateMutation = useUpdateExternalConnection();
-    const testMutation = useTestConnectionConfig();
+    const testConfigMutation = useTestConnectionConfig();
+    const testSavedMutation = useTestConnection();
+    // A saved source left with a blank token tests with its stored one
+    const testsStoredToken = !!connection && form.values.token.trim() === '';
+    const testMutation = testsStoredToken
+        ? testSavedMutation
+        : testConfigMutation;
     const isSaving = createMutation.isLoading || updateMutation.isLoading;
     const isEditing = !!connection;
 
     const handleTest = () => {
         if (form.validate().hasErrors) return;
-        testMutation.mutate({
+        const testRequest = definition.getTestRequest(
+            normalizeAccountId(definition, form.values.accountId),
+        );
+        if (connection && testsStoredToken) {
+            testSavedMutation.mutate({
+                projectUuid,
+                connectionUuid: connection.externalConnectionUuid,
+                config: toTokenLiveSourceUpdatePayload(definition, form.values),
+                ...testRequest,
+            });
+            return;
+        }
+        testConfigMutation.mutate({
             projectUuid,
             config: toTokenLiveSourceCreatePayload(definition, form.values),
-            ...definition.getTestRequest(
-                definition.account.normalize(form.values.accountId),
-            ),
+            ...testRequest,
         });
     };
 
@@ -92,13 +110,15 @@ export const TokenLiveSourceModal: FC<Props> = ({
                     data-autofocus
                     {...form.getInputProps('name')}
                 />
-                <TextInput
-                    required
-                    label={definition.account.label}
-                    description={definition.account.description}
-                    placeholder={definition.account.placeholder}
-                    {...form.getInputProps('accountId')}
-                />
+                {definition.account && (
+                    <TextInput
+                        required
+                        label={definition.account.label}
+                        description={definition.account.description}
+                        placeholder={definition.account.placeholder}
+                        {...form.getInputProps('accountId')}
+                    />
+                )}
                 <PasswordInput
                     required={!isEditing}
                     label={definition.tokenLabel}
@@ -115,9 +135,8 @@ export const TokenLiveSourceModal: FC<Props> = ({
                         variant="default"
                         onClick={handleTest}
                         loading={testMutation.isLoading}
-                        disabled={isEditing && form.values.token.trim() === ''}
                     >
-                        Test connection
+                        Test access
                     </Button>
                 </Group>
                 {testMutation.data && (

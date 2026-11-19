@@ -19,31 +19,6 @@
     background: var(--mantine-color-body);
 }
 
-.pullRequestPrompt {
-    max-width: 48rem;
-    margin-inline: auto;
-    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md)
-        var(--mantine-spacing-xs);
-}
-
-.pullRequestCard {
-    padding: var(--mantine-spacing-sm);
-    border-radius: var(--mantine-radius-md);
-    background-color: var(--mantine-color-ldGray-0);
-}
-
-.pullRequestIcon {
-    display: grid;
-    place-items: center;
-    flex: none;
-    width: 32px;
-    height: 32px;
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-sm);
-    background-color: var(--mantine-color-body);
-    color: var(--mantine-color-dimmed);
-}
-
 @media (hover: hover) {
     .actions {
         opacity: 0;
@@ -133,35 +108,39 @@
 }
 
 .modelHead {
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--mantine-color-default-border);
-    background: color-mix(
-        in srgb,
-        var(--mantine-color-text) 2.5%,
-        var(--mantine-color-body)
-    );
+    padding: 12px 14px 0;
 }
 
 .modelTile {
-    width: 28px;
-    height: 28px;
     flex: none;
     display: grid;
     place-items: center;
-    border-radius: 8px;
-    border: 1px solid var(--mantine-color-default-border);
-    background: var(--mantine-color-body);
     color: var(--mantine-color-dimmed);
 }
 
 .modelName {
-    font-size: var(--mantine-font-size-md);
+    font-size: var(--mantine-font-size-sm);
     font-weight: 600;
-    letter-spacing: -0.01em;
 }
 
 .modelBody {
-    padding: 14px;
+    padding: 8px 14px 14px;
+}
+
+/* A pull request's models read as one card, one model after another. */
+.modelStack {
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-lg);
+    overflow: hidden;
+}
+
+.modelStack > .modelCard {
+    border: 0;
+    border-radius: 0;
+}
+
+.modelStack > .modelCard + .modelCard {
+    border-top: 1px solid var(--mantine-color-default-border);
 }
 
 /* The code runs to the card's edges so its gutter lines up with the rows above. */
@@ -173,15 +152,6 @@
 
 .modelBody > .fileBlock:last-child {
     margin-bottom: -14px;
-}
-
-.totals:empty {
-    display: none;
-}
-
-/* Totals share the card's left edge instead of their own inset. */
-.totals > * {
-    padding-inline: 0;
 }
 
 .fileName {
@@ -281,4 +251,20 @@
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+}
+
+/* The modal's title is the change: what is tried, in which model, and each field it touches. */
+.tryTitle {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px var(--mantine-spacing-sm);
+}
+
+.tryModel {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 500;
 }

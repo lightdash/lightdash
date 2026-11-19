@@ -1774,6 +1774,11 @@ describe('composer bound run', () => {
             } as ComposerChart,
             tileUuid: 'tile-uuid',
             resolved: { nodes: storedNodes, parameters: {} },
+            dashboardFilters: {
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            },
         });
     const createBoundSources = () => {
         const queryUuid = (nodeId: string) => ({
@@ -1832,6 +1837,7 @@ describe('composer bound run', () => {
             account,
             projectUuid,
             binding,
+            context: QueryExecutionContext.DASHBOARD,
             invalidateCache: true,
         });
 
@@ -1873,6 +1879,7 @@ describe('composer bound run', () => {
                 account: other,
                 projectUuid,
                 binding: bindingFor(account),
+                context: QueryExecutionContext.DASHBOARD,
                 invalidateCache: false,
             }),
         ).rejects.toThrow(ForbiddenError);
@@ -1897,6 +1904,7 @@ describe('composer bound run', () => {
                 account: agent,
                 projectUuid,
                 binding: bindingFor(agent),
+                context: QueryExecutionContext.DASHBOARD,
                 invalidateCache: false,
             }),
         ).rejects.toThrow('Raw SQL');
@@ -1915,6 +1923,7 @@ describe('composer bound run', () => {
                 account,
                 projectUuid,
                 binding: bindingFor(account),
+                context: QueryExecutionContext.DASHBOARD,
                 invalidateCache: false,
             }),
         ).rejects.toThrow('python queries are not enabled');

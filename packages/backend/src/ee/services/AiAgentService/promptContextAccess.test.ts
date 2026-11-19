@@ -65,6 +65,8 @@ const chartTypeApp: App = {
 type Design = { designUuid: string; organizationUuid: string };
 
 type Doc = { documentUuid: string; spaceUuid: string };
+type SqlChart = { savedSqlUuid: string; spaceUuid: string };
+type ComposerChart = { uuid: string; projectUuid: string };
 type ThreadFile = {
     uuid: string;
     ownerUuid: string;
@@ -78,10 +80,16 @@ const buildService = (
         documents = [],
         documentsEnabled = true,
         threadFiles = [],
+        sqlCharts = [],
+        composerCharts = [],
+        composerChartsEnabled = true,
     }: {
         documents?: Doc[];
         documentsEnabled?: boolean;
         threadFiles?: ThreadFile[];
+        sqlCharts?: SqlChart[];
+        composerCharts?: ComposerChart[];
+        composerChartsEnabled?: boolean;
     } = {},
 ) => {
     // Mirrors the model predicate: own, unclaimed files in the org.
@@ -116,6 +124,45 @@ const buildService = (
                     if (!document)
                         throw new NotFoundError('Document not found');
                     return document;
+                },
+            ),
+    };
+    const savedSqlService = {
+        getSqlChart: vi
+            .fn()
+            .mockImplementation(
+                async (
+                    _user: SessionUser,
+                    _projectUuid: string,
+                    savedSqlUuid: string,
+                ) => {
+                    const chart = sqlCharts.find(
+                        (c) => c.savedSqlUuid === savedSqlUuid,
+                    );
+                    if (!chart)
+                        throw new NotFoundError('Saved SQL Chart not found');
+                    return { savedSqlUuid, space: { uuid: chart.spaceUuid } };
+                },
+            ),
+    };
+    const composerChartService = {
+        isEnabled: vi.fn().mockResolvedValue(composerChartsEnabled),
+        get: vi
+            .fn()
+            .mockImplementation(
+                async (
+                    _account: unknown,
+                    projectUuid: string,
+                    composerChartUuid: string,
+                ) => {
+                    const chart = composerCharts.find(
+                        (c) =>
+                            c.uuid === composerChartUuid &&
+                            c.projectUuid === projectUuid,
+                    );
+                    if (!chart)
+                        throw new NotFoundError('Composer chart not found');
+                    return chart;
                 },
             ),
     };
@@ -156,6 +203,8 @@ const buildService = (
         appGenerateService,
         organizationDesignModel,
         documentService,
+        savedSqlService,
+        composerChartService,
         featureFlagService,
         aiThreadFileModel,
         analytics: { track: vi.fn() },
@@ -182,6 +231,8 @@ const buildService = (
         appGenerateService,
         organizationDesignModel,
         documentService,
+        savedSqlService,
+        composerChartService,
         aiThreadFileModel,
     };
 };
@@ -404,5 +455,96 @@ describe('validatePromptContextAccess for attached documents', () => {
                 ['space-1'],
             ),
         ).rejects.toThrow(ForbiddenError);
+    });
+});
+
+describe('validatePromptContextAccess for SQL charts', () => {
+    const sqlChart: SqlChart = {
+        savedSqlUuid: 'sql-uuid',
+        spaceUuid: 'space-1',
+    };
+    const item = {
+        type: 'sql_chart',
+        sqlChartUuid: 'sql-uuid',
+        sqlChartSlug: 'revenue-sql',
+    } as const;
+
+    it('accepts a SQL chart the user can view, checked in the agent project', async () => {
+        const { validate, savedSqlService } = buildService([], [], {
+            sqlCharts: [sqlChart],
+        });
+
+        await expect(validate([item])).resolves.toEqual([item]);
+        expect(savedSqlService.getSqlChart).toHaveBeenCalledWith(
+            user,
+            PROJECT_UUID,
+            'sql-uuid',
+        );
+    });
+
+    it('rejects a SQL chart the user cannot view', async () => {
+        const { validate } = buildService([], [], { sqlCharts: [] });
+
+        await expect(validate([item])).rejects.toThrow(NotFoundError);
+    });
+
+    it('rejects a SQL chart outside the embedded space', async () => {
+        const { validate } = buildService([], [], { sqlCharts: [sqlChart] });
+
+        await expect(validate([item], ['space-2'])).rejects.toThrow(
+            'Pinned SQL chart is outside the embedded space',
+        );
+    });
+});
+
+describe('validatePromptContextAccess for composer charts', () => {
+    const composerChart: ComposerChart = {
+        uuid: 'composer-uuid',
+        projectUuid: PROJECT_UUID,
+    };
+    const item = {
+        type: 'composer_chart',
+        composerChartUuid: 'composer-uuid',
+        composerChartSlug: 'revenue-vs-target',
+    } as const;
+
+    it('accepts a composer chart the user can view, checked in the agent project', async () => {
+        const { validate, composerChartService } = buildService([], [], {
+            composerCharts: [composerChart],
+        });
+
+        await expect(validate([item])).resolves.toEqual([item]);
+        expect(composerChartService.get).toHaveBeenCalledWith(
+            expect.objectContaining({
+                user: expect.objectContaining({ userUuid: USER_UUID }),
+            }),
+            PROJECT_UUID,
+            'composer-uuid',
+        );
+    });
+
+    it('rejects a composer chart the user cannot view', async () => {
+        const { validate } = buildService([], [], { composerCharts: [] });
+
+        await expect(validate([item])).rejects.toThrow(NotFoundError);
+    });
+
+    it('rejects a composer chart when composer charts are off', async () => {
+        const { validate } = buildService([], [], {
+            composerCharts: [composerChart],
+            composerChartsEnabled: false,
+        });
+
+        await expect(validate([item])).rejects.toThrow(NotFoundError);
+    });
+
+    it('rejects a composer chart in embedded AI', async () => {
+        const { validate } = buildService([], [], {
+            composerCharts: [composerChart],
+        });
+
+        await expect(validate([item], ['space-1'])).rejects.toThrow(
+            'Composer charts are not available in embedded AI',
+        );
     });
 });

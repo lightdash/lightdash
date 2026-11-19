@@ -241,9 +241,22 @@ export const isEmbedReadOnlyAiAgentToken = (token: CreateEmbedJwt): boolean => {
     );
 };
 
+/** Who owns the threads of an AI agent token: its shared owner id, else its viewer. */
+export const getEmbedThreadOwnerIdentifier = (
+    token: Pick<CreateEmbedJwt, 'content' | 'user'>,
+): string | null =>
+    (token.content.type === 'aiAgent' &&
+        token.content.threadOwnershipIdentifier) ||
+    token.user?.externalId ||
+    null;
+
 export const EmbedJwtSchema = z
     .object({
         userAttributes: z.record(z.string(), z.unknown()).optional(),
+        usageAnalytics: z
+            .object({ tenantAttribute: z.string() })
+            .optional()
+            .catch(undefined),
         user: z
             .object({
                 externalId: z.string().nullish(),
@@ -287,6 +300,7 @@ export const EmbedJwtSchema = z
                 agentUuid: z.string(),
                 canExplore: z.boolean().optional(),
                 canViewDebugInfo: z.boolean().optional(),
+                threadOwnershipIdentifier: z.string().optional(),
             }),
             z.object({
                 type: z.literal('metricsCatalog'),
@@ -398,6 +412,8 @@ export type EmbedJwtContentAiAgent = {
     canExplore?: boolean;
     /** Shows agent debug information. Ignored in roles mode, where view:EmbedAiAgentDebug decides. */
     canViewDebugInfo?: boolean;
+    /** Owns the threads started with this token instead of user.externalId. Tokens that share it share those threads. */
+    threadOwnershipIdentifier?: string;
 };
 
 export type EmbedJwtContentMetricsCatalog = {
@@ -424,9 +440,11 @@ export type CreateEmbedJwt = {
     actor?: EmbedActor;
     writeActions?: EmbedWriteActions;
     userAttributes?: { [key: string]: string };
+    /** Opt in to reporting one signed user attribute as a tenant identifier. */
+    usageAnalytics?: { tenantAttribute: string };
     user?: {
         email?: string;
-        /** Must be unique per viewer within the organization: it owns the embedded AI agent threads that viewer starts. */
+        /** Must be unique per viewer within the organization: it owns the embedded AI agent threads that viewer starts, unless the token sets content.threadOwnershipIdentifier. */
         externalId?: string;
     };
     expiresIn?: string;

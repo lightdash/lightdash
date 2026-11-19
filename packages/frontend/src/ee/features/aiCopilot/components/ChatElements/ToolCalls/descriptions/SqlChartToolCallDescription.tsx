@@ -4,7 +4,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconChartBar } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
-import { useCanViewAiAgentSql } from '../../../../hooks/useCanViewAiAgentSql';
+import { useCanViewAiAgentSql } from '../../../../../../../features/composerCharts/hooks/useCanViewAiAgentSql';
 import { AiSqlModal } from '../../AiSqlModal';
 import {
     SqlApprovalActions,
@@ -29,6 +29,7 @@ type Props = {
     chart: SqlChartToolArgs;
     /** Set while the SQL chart waits for the user to approve its SQL. */
     approval: SqlApprovalTarget | null;
+    contentLabel?: 'SQL chart' | 'composer chart';
 };
 
 const CHART_KIND_LABELS: Record<SqlChartKind, string> = {
@@ -47,6 +48,7 @@ export const SqlChartToolCallDescription: FC<Props> = ({
     slug,
     chart,
     approval,
+    contentLabel = 'SQL chart',
 }) => {
     const canViewSql = useCanViewAiAgentSql();
     // Whoever approves the SQL has to see it.
@@ -71,8 +73,8 @@ export const SqlChartToolCallDescription: FC<Props> = ({
         .filter(Boolean)
         .join(' · ');
     const title = approval
-        ? `${verb} SQL chart`
-        : `${action === 'create' ? 'Created' : 'Edited'} SQL chart`;
+        ? `${verb} ${contentLabel}`
+        : `${action === 'create' ? 'Created' : 'Edited'} ${contentLabel}`;
     const review: SqlApprovalReview | null =
         showSql && chart.sql
             ? {

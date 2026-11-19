@@ -3,6 +3,8 @@ import {
     type CompiledDimension,
     type CompiledMetric,
     type Explore,
+    type SemanticLayerDraft,
+    type SemanticLayerDraftModel,
 } from '@lightdash/common';
 import { isEqual, omit } from 'es-toolkit/compat';
 import { type ChangeKind } from './modelCode';
@@ -34,4 +36,41 @@ export const diffDraftFields = (
         if (!before.has(id)) states.set(id, 'new');
     });
     return states;
+};
+
+/** How a draft's notices name whoever put a change live under it; another of the reader's own changes reads as theirs. */
+export const describePublisher = (
+    published: SemanticLayerDraftModel['publishedSince'],
+): { subject: string; where: string; option: string; keepLabel: string } => {
+    if (published?.isYours) {
+        return {
+            subject: 'You',
+            where: ' from another change',
+            option: 'You, in another change',
+            keepLabel: 'Keep the published version',
+        };
+    }
+    const by = published?.by ?? null;
+    return {
+        subject: by ?? 'Someone',
+        where: '',
+        option: by ?? 'Someone else',
+        keepLabel: by ? `Keep ${by}'s version` : 'Keep their version',
+    };
+};
+
+/** Whether the draft, or one model of it, fails its checks. */
+export const cannotApply = (
+    { changes, errors }: SemanticLayerDraft,
+    model: string | null,
+) => {
+    const inScope = (name: string) => model === null || name === model;
+    return (
+        errors.some((error) => inScope(error.model)) ||
+        changes.some((change) =>
+            change.models.some(
+                (entry) => inScope(entry.model) && entry.error !== null,
+            ),
+        )
+    );
 };

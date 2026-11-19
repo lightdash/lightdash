@@ -1,7 +1,8 @@
 import { CloseButton, Text } from '@mantine/core';
-import { IconColumns, IconTable } from '@tabler/icons-react';
+import { IconCode, IconColumns, IconTable } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { KindTypeIcon } from '../../../../../features/semanticStudio/KindTypeIcon';
 import { type StudioChatRef } from '../../../../../features/semanticStudio/studioChatRefs';
 import classes from './SemanticStudioAgent.module.css';
 
@@ -16,16 +17,33 @@ export const StudioChatRefChips: FC<{
             aria-label="Added to the next message"
         >
             {refs.map((ref) => {
-                const name = ref.fieldLabel ?? ref.modelLabel;
+                const name = ref.code
+                    ? `${ref.code.path.split('/').pop()} ${ref.code.from}-${ref.code.to}`
+                    : (ref.fieldLabel ?? ref.modelLabel);
                 return (
                     <span
-                        key={`${ref.modelName}:${ref.fieldName ?? ''}`}
+                        key={`${ref.modelName}:${ref.fieldName ?? ''}:${ref.code?.from ?? ''}-${ref.code?.to ?? ''}`}
+                        title={ref.code?.path}
                         className={classes.refChip}
                     >
-                        <MantineIcon
-                            icon={ref.fieldName ? IconColumns : IconTable}
-                            size={12}
-                        />
+                        {ref.fieldName && ref.fieldKind ? (
+                            <KindTypeIcon
+                                fieldKind={ref.fieldKind}
+                                type={ref.fieldType ?? ''}
+                                name={ref.fieldName}
+                            />
+                        ) : (
+                            <MantineIcon
+                                icon={
+                                    ref.code
+                                        ? IconCode
+                                        : ref.fieldName
+                                          ? IconColumns
+                                          : IconTable
+                                }
+                                size={12}
+                            />
+                        )}
                         {ref.fieldLabel ? (
                             <Text component="span" className={classes.refModel}>
                                 {ref.modelLabel}

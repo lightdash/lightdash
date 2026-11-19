@@ -34,7 +34,7 @@ export const MyWarehouseConnectionsPanel = () => {
     return (
         <SettingsPage
             title="My warehouse connections"
-            description="Manage your personal warehouse credentials. They're only used for projects that require user credentials."
+            description="Manage your personal warehouse credentials. They're only used for projects that require user credentials or use them when available."
             actions={
                 <SettingsPageActions>
                     <SettingsPageDocumentationLink href="https://docs.lightdash.com/references/personal-warehouse-connections" />
@@ -62,7 +62,7 @@ export const MyWarehouseConnectionsPanel = () => {
                 <SettingsEmptyState
                     icon={IconDatabaseCog}
                     title="No warehouse connections"
-                    description="Add personal credentials for projects that require them."
+                    description="Add personal credentials for projects that require them or use them when available."
                 />
             )}
 

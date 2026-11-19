@@ -1,18 +1,26 @@
 import { type AiAgentMessageUser } from '@lightdash/common';
 import { useEffect, useRef } from 'react';
+import { splitStudioChatCode } from '../../../../../features/semanticStudio/studioChatRefs';
 import {
     useStudioWorkspaceAction,
     useStudioWorkspaces,
 } from '../../../../../features/semanticStudio/useStudioWorkspaces';
-import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
-import { useStoredStudioThread } from './useSemanticStudioChat';
+import {
+    useStoredStudioThread,
+    useStudioThread,
+} from './useSemanticStudioChat';
 
 const NAME_LENGTH = 60;
 
-/** A workspace is named after what was first asked in it. */
-const nameFromRequest = (request: string | undefined): string => {
-    const line = (request ?? '').trim().split('\n')[0].trim();
-    if (!line) return 'Untitled change';
+/** A workspace is first named after what was asked in it, skipping any picked lines. */
+export const nameFromRequest = (request: string | undefined): string => {
+    const line =
+        splitStudioChatCode(request ?? '')
+            .text.replace(/```[\s\S]*?```/g, '')
+            .split('\n')
+            .map((text) => text.trim())
+            .find((text) => text && !/, lines \d+ to \d+:$/.test(text)) ?? '';
+    if (!line) return 'Untitled';
     const named = line.charAt(0).toUpperCase() + line.slice(1);
     return named.length > NAME_LENGTH
         ? `${named.slice(0, NAME_LENGTH - 1).trimEnd()}…`
@@ -27,6 +35,7 @@ const nameFromRequest = (request: string | undefined): string => {
 export const useSyncStudioWorkspace = (
     projectUuid: string,
     hasChanges: boolean,
+    syncThread: boolean,
 ) => {
     const [stored, setStored] = useStoredStudioThread(projectUuid);
     const { data: workspaces } = useStudioWorkspaces(projectUuid);
@@ -35,7 +44,12 @@ export const useSyncStudioWorkspace = (
 
     const followed = useRef<string | null>(null);
     useEffect(() => {
-        if (!active?.agentUuid || followed.current === active.workspaceUuid) {
+        if (
+            !syncThread ||
+            !active?.threadUuid ||
+            !active.agentUuid ||
+            followed.current === active.workspaceUuid
+        ) {
             return;
         }
         followed.current = active.workspaceUuid;
@@ -45,13 +59,12 @@ export const useSyncStudioWorkspace = (
                 agentUuid: active.agentUuid,
             });
         }
-    }, [active, stored, setStored]);
+    }, [syncThread, active, stored, setStored]);
 
-    const { data: thread } = useAiAgentThread(
+    const { data: thread } = useStudioThread(
         projectUuid,
         stored?.agentUuid,
         stored?.threadUuid,
-        { enabled: !!stored },
     );
     const firstRequest = thread?.messages.find(
         (message): message is AiAgentMessageUser => message.role === 'user',
@@ -59,7 +72,8 @@ export const useSyncStudioWorkspace = (
     const started = useRef<string | null>(null);
     const { mutate, isLoading } = action;
     useEffect(() => {
-        if (!stored || !hasChanges || !workspaces || isLoading) return;
+        if (!syncThread || !stored || !hasChanges || !workspaces || isLoading)
+            return;
         const own = workspaces.mine.find(
             ({ threadUuid }) => threadUuid === stored.threadUuid,
         );
@@ -72,7 +86,49 @@ export const useSyncStudioWorkspace = (
                 name: own?.name ?? nameFromRequest(firstRequest?.message),
             },
         });
-    }, [stored, hasChanges, workspaces, isLoading, mutate, firstRequest]);
+    }, [
+        syncThread,
+        stored,
+        hasChanges,
+        workspaces,
+        isLoading,
+        mutate,
+        firstRequest,
+    ]);
+
+    // The generated title says what the change is better than the first message, unless someone renamed it.
+    const title = thread?.title?.trim() ?? '';
+    const retitled = useRef<string | null>(null);
+    useEffect(() => {
+        if (!syncThread || !stored || !title || !workspaces || isLoading)
+            return;
+        const own = workspaces.mine.find(
+            ({ threadUuid }) => threadUuid === stored.threadUuid,
+        );
+        if (!own || own.name === title) return;
+        // A workspace the server started before the chat had a title is named for no request.
+        if (
+            own.name !== nameFromRequest(firstRequest?.message) &&
+            own.name !== nameFromRequest(undefined)
+        ) {
+            return;
+        }
+        if (retitled.current === `${own.workspaceUuid}:${title}`) return;
+        retitled.current = `${own.workspaceUuid}:${title}`;
+        mutate({
+            kind: 'rename',
+            workspaceUuid: own.workspaceUuid,
+            name: title,
+        });
+    }, [
+        syncThread,
+        stored,
+        title,
+        workspaces,
+        isLoading,
+        mutate,
+        firstRequest,
+    ]);
 
     return active;
 };

@@ -32,12 +32,6 @@ vi.mock('../../../../hooks/useFieldValues', () => ({
     })),
 }));
 
-vi.mock('../../../../hooks/health/useHealth', () => ({
-    default: vi.fn(() => ({
-        data: { hasCacheAutocompleResults: false },
-    })),
-}));
-
 const mockField: FilterableItem = {
     name: 'test_field',
     type: DimensionType.STRING,
@@ -464,6 +458,38 @@ describe('FilterStringAutoComplete', () => {
             expect(onDropdownOpen).toHaveBeenCalled();
             expect(onDropdownClose).toHaveBeenCalled();
         });
+    });
+
+    describe('cached results footer', () => {
+        it.each([
+            [true, true],
+            [false, false],
+        ])(
+            'with cached results %s, shows the refresh footer: %s',
+            async (hasCachedResults, isShown) => {
+                const user = userEvent.setup({ pointerEventsCheck: 0 });
+                vi.mocked(useFieldValues).mockReturnValue({
+                    ...createFieldValuesMock(),
+                    hasCachedResults,
+                });
+
+                renderWithProviders(
+                    <FilterStringAutoComplete
+                        filterId="test-filter"
+                        field={mockField}
+                        values={[]}
+                        suggestions={[]}
+                        onChange={vi.fn()}
+                    />,
+                );
+
+                await user.click(screen.getByRole('textbox'));
+
+                expect(screen.queryAllByText(/Results loaded at/)).toHaveLength(
+                    isShown ? 1 : 0,
+                );
+            },
+        );
     });
 
     describe('suggestion errors', () => {

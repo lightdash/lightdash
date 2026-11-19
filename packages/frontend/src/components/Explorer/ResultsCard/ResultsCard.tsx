@@ -1,22 +1,30 @@
 import { subject } from '@casl/ability';
-import { ActionIcon, Group, Popover, SegmentedControl } from '@mantine/core';
-import { IconShare2 } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Box,
+    Group,
+    Popover,
+    Text,
+    Tooltip,
+    UnstyledButton,
+} from '@mantine/core';
+import { IconDownload } from '@tabler/icons-react';
 import {
     memo,
     useCallback,
     useEffect,
+    useLayoutEffect,
     useMemo,
+    useRef,
     useState,
     type FC,
 } from 'react';
 import {
     explorerActions,
-    selectColumnOrder,
     selectIsEditMode,
+    selectHasSelectedFields,
     selectIsResultsExpanded,
-    selectMetricQuery,
-    selectParameters,
-    selectSavedChart,
+    selectIsVisualizationExpanded,
     selectSorts,
     selectTableName,
     useExplorerDispatch,
@@ -26,18 +34,11 @@ import {
     NOT_ON_LIVE_SOURCES,
     useIsRefusedOnLiveSource,
 } from '../../../features/externalConnections/liveSources/apiSourceExplore';
-import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
-import { resolveMergeColumnOrder } from '../../../features/mergeQuery/utils/resolveMergeColumnOrder';
-import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
-import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
-import { useAccount } from '../../../hooks/user/useAccount';
-import { useCanExportEmbeddedContent } from '../../../hooks/user/useCanExportEmbeddedContent';
 import { Can } from '../../../providers/Ability';
-import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
-import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import AddTableCalculationButton from '../../AddTableCalculationButton';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import {
@@ -45,14 +46,32 @@ import {
     COLLAPSABLE_CARD_POPOVER_PROPS,
 } from '../../common/CollapsableCard/constants';
 import MantineIcon from '../../common/MantineIcon';
+import ExportDataModal from '../../DashboardTiles/ExportDataModal';
 import ExportSelector from '../../ExportSelector';
 import SortButton from '../../SortButton';
+import { useAddDroppedFieldToQuery, useFieldDrop } from '../fieldDrag';
+import StaleResultsPrompt from '../StaleResultsPrompt';
+import { useIsResultsStale } from '../useIsResultsStale';
 import { ExplorerResults } from './ExplorerResults';
+import resultsClasses from './ExplorerResults.module.css';
 import { ResultsViewMode } from './types';
 import { useGroupedResultsAvailability } from './useGroupedResultsAvailability';
+import { useResultsExport } from './useResultsExport';
+
+const VIEW_OPTIONS = [
+    {
+        value: ResultsViewMode.RESULTS,
+        label: 'Rows',
+        description: 'One row per result',
+    },
+    {
+        value: ResultsViewMode.GROUPED,
+        label: 'Pivoted',
+        description: 'The rows as your chart groups them',
+    },
+];
 
 const ResultsCard: FC = memo(() => {
-    const lightdashApi = useLightdashApi();
     const projectUuid = useProjectUuid();
 
     // View mode state for switching between results and grouped results
@@ -62,6 +81,7 @@ const ResultsCard: FC = memo(() => {
 
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const resultsIsOpen = useExplorerSelector(selectIsResultsExpanded);
+    const hasSelectedFields = useExplorerSelector(selectHasSelectedFields);
     const dispatch = useExplorerDispatch();
     const tableName = useExplorerSelector(selectTableName);
     const isTableCalculationRefused = useIsRefusedOnLiveSource(
@@ -69,9 +89,6 @@ const ResultsCard: FC = memo(() => {
         'tableCalculations',
     );
     const sorts = useExplorerSelector(selectSorts);
-    const metricQuery = useExplorerSelector(selectMetricQuery);
-    const parameters = useExplorerSelector(selectParameters);
-    const columnOrder = useExplorerSelector(selectColumnOrder);
 
     // Check if grouped view is available
     const { isGroupedDisabled } = useGroupedResultsAvailability();
@@ -85,19 +102,6 @@ const ResultsCard: FC = memo(() => {
         }
     }, [isGroupedDisabled, viewMode]);
 
-    const { queryResults, getDownloadQueryUuid } = useExplorerQuery();
-    const merge = useMergeSafe();
-    const mergeResults = merge?.mergeResults;
-
-    const mergedTotalResults =
-        mergeResults?.unpivotedResults?.totalResults ??
-        mergeResults?.results.totalResults;
-    const totalResults = mergeResults
-        ? (mergedTotalResults ?? mergeResults.metricQuery.limit)
-        : queryResults.totalResults;
-
-    const savedChart = useExplorerSelector(selectSavedChart);
-
     const toggleExpandedSection = useCallback(
         (section: ExplorerSection) => {
             dispatch(explorerActions.toggleExpandedSection(section));
@@ -105,63 +109,112 @@ const ResultsCard: FC = memo(() => {
         [dispatch],
     );
 
-    const disabled = useMemo(() => (totalResults ?? 0) <= 0, [totalResults]);
-
     const toggleCard = useCallback(
         () => toggleExpandedSection(ExplorerSection.RESULTS),
         [toggleExpandedSection],
     );
     const { user } = useApp();
-    const ability = useAbilityContext();
-    const { data: account } = useAccount();
-    const isEmbedded = account?.isJwtUser() === true;
-    const canEmbedExportCsv = useCanExportEmbeddedContent('csv');
-    const canExportResultsCsv =
-        canEmbedExportCsv ||
-        ability.can(
-            'manage',
-            subject('ExportCsv', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid,
+    const resultsExport = useResultsExport();
+    const { showToastSuccess, showToastWarning, showToastError } = useToaster();
+    const { copyResultsToClipboard } = resultsExport;
+    const handleCopyToClipboard = useMemo(() => {
+        if (!copyResultsToClipboard) return undefined;
+        return async () => {
+            try {
+                const { copiedRows, totalResults } =
+                    await copyResultsToClipboard();
+                setIsExportMenuOpen(false);
+                if (copiedRows < totalResults) {
+                    showToastWarning({
+                        title: `Copied the first ${copiedRows.toLocaleString()} of ${totalResults.toLocaleString()} rows`,
+                        subtitle:
+                            'Download the data to get every row in a file.',
+                    });
+                } else {
+                    showToastSuccess({
+                        title: `Copied ${copiedRows.toLocaleString()} ${
+                            copiedRows === 1 ? 'row' : 'rows'
+                        } to the clipboard`,
+                    });
+                }
+            } catch (error) {
+                showToastError({
+                    title: 'Unable to copy results',
+                    subtitle:
+                        error instanceof Error ? error.message : undefined,
+                });
+            }
+        };
+    }, [
+        copyResultsToClipboard,
+        showToastError,
+        showToastSuccess,
+        showToastWarning,
+    ]);
+    const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+    const [isDownloadOpen, setIsDownloadOpen] = useState(false);
+    const isStale = useIsResultsStale();
+    const isChartOpen = useExplorerSelector(selectIsVisualizationExpanded);
+    // A field dropped here joins the query, which then runs
+    const fieldDrop = useFieldDrop(useAddDroppedFieldToQuery());
+    const showEdgeColumn =
+        isEditMode && !isGroupedView && (resultsExport.totalResults ?? 0) > 0;
+
+    const canManageCustomFields = user.data?.ability?.can(
+        'manage',
+        subject('CustomFields', {
+            organizationUuid: user.data.organizationUuid,
+            projectUuid,
+        }),
+    );
+    const handleAddCustomDimension = useCallback(() => {
+        if (!tableName) return;
+        dispatch(
+            explorerActions.toggleCustomDimensionModal({
+                isEditing: false,
+                table: tableName,
+                item: undefined,
             }),
         );
+    }, [dispatch, tableName]);
 
-    const getGsheetLink = async () => {
-        if (projectUuid) {
-            return uploadGsheet(lightdashApi, {
-                projectUuid,
-                exploreId: tableName,
-                metricQuery,
-                columnOrder,
-                showTableNames: true,
-                parameters,
-                // No pivotConfig - ResultsCard only shows raw table data
-            });
-        } else {
-            throw new Error('Project UUID is missing');
-        }
-    };
-
-    // ResultsCard always downloads raw unpivoted results
-    const getResultsCardDownloadQueryUuid = useCallback(
-        (limit: number | null) => {
-            return mergeResults
-                ? merge.getDownloadQueryUuid(limit, false)
-                : getDownloadQueryUuid(limit, false);
-        },
-        [getDownloadQueryUuid, merge, mergeResults],
-    );
-
-    const exportColumnOrder = mergeResults
-        ? resolveMergeColumnOrder(mergeResults.columnOrder, columnOrder)
-        : columnOrder;
-
+    // The edge column's header cell tracks the table header's real box
+    const edgeHostRef = useRef<HTMLDivElement>(null);
+    const [headerBox, setHeaderBox] = useState({ top: 0, height: 37 });
+    useLayoutEffect(() => {
+        const host = edgeHostRef.current;
+        if (!showEdgeColumn || !host) return;
+        let observedHead: Element | null = null;
+        // The table can be swapped for an empty state, so find its header anew
+        const measure = () => {
+            const thead = host.querySelector('thead');
+            if (thead !== observedHead) {
+                if (observedHead) observer.unobserve(observedHead);
+                if (thead) observer.observe(thead);
+                observedHead = thead;
+            }
+            if (!thead) return;
+            const { top: headTop, height } = thead.getBoundingClientRect();
+            const top = headTop - host.getBoundingClientRect().top;
+            setHeaderBox((prev) =>
+                prev.top === top && prev.height === height
+                    ? prev
+                    : { top, height },
+            );
+        };
+        const observer = new ResizeObserver(measure);
+        observer.observe(host);
+        measure();
+        return () => observer.disconnect();
+    }, [showEdgeColumn, resultsIsOpen]);
     return (
         <CollapsableCard
             title="Results"
+            dropProps={isEditMode ? fieldDrop.dropProps : undefined}
+            isDropActive={fieldDrop.isOver}
             isOpen={resultsIsOpen}
             onToggle={toggleCard}
-            disabled={!tableName}
+            disabled={!tableName || !hasSelectedFields}
             // Walkthrough markers for view:SavedChart: reading a chart means
             // opening it from Browse and unfolding the rows behind it. The
             // heading's click is the action; the card is the result. See
@@ -195,40 +248,57 @@ const ResultsCard: FC = memo(() => {
                     'explore/explore-view.mdx#explore-from-an-existing-chart:1',
             }}
             headerElement={
-                // Hide header controls when in grouped view
-                isGroupedView ? null : (
-                    <Group wrap="nowrap" gap="xs">
-                        {tableName && sorts.length > 0 && (
+                <Group wrap="nowrap" gap="xs">
+                    {resultsIsOpen && !isGroupedDisabled && (
+                        <Group gap={2} wrap="nowrap" role="tablist">
+                            {VIEW_OPTIONS.map((option) => (
+                                <Tooltip
+                                    key={option.value}
+                                    label={option.description}
+                                    openDelay={400}
+                                >
+                                    <UnstyledButton
+                                        role="tab"
+                                        aria-selected={
+                                            viewMode === option.value
+                                        }
+                                        className={resultsClasses.viewTab}
+                                        onClick={() =>
+                                            setViewMode(option.value)
+                                        }
+                                    >
+                                        {option.label}
+                                    </UnstyledButton>
+                                </Tooltip>
+                            ))}
+                        </Group>
+                    )}
+                    {/* Row count and sort describe the flat rows only */}
+                    {!isGroupedView &&
+                        resultsExport.totalResults !== undefined &&
+                        resultsExport.totalResults > 0 &&
+                        !isStale && (
+                            <Text fz="xs" c="dimmed">
+                                {resultsExport.totalResults.toLocaleString()}{' '}
+                                {resultsExport.totalResults === 1
+                                    ? 'row'
+                                    : 'rows'}
+                            </Text>
+                        )}
+                    {/* One sort chip on screen: the open Chart shows it otherwise */}
+                    {!isGroupedView &&
+                        tableName &&
+                        sorts.length > 0 &&
+                        (resultsIsOpen || !isChartOpen) && (
                             <SortButton isEditMode={isEditMode} sorts={sorts} />
                         )}
-                    </Group>
-                )
+                </Group>
             }
             rightHeaderElement={
                 projectUuid &&
                 resultsIsOpen &&
                 tableName && (
                     <Group gap="xs" wrap="nowrap">
-                        {!isGroupedDisabled && (
-                            <SegmentedControl
-                                size="xs"
-                                data={[
-                                    {
-                                        label: 'Results',
-                                        value: ResultsViewMode.RESULTS,
-                                    },
-                                    {
-                                        label: 'Chart results',
-                                        value: ResultsViewMode.GROUPED,
-                                    },
-                                ]}
-                                value={viewMode}
-                                onChange={(value) =>
-                                    setViewMode(value as ResultsViewMode)
-                                }
-                            />
-                        )}
-
                         {/* Hide AddColumnButton when in grouped view */}
                         {!isGroupedView && (
                             <Can
@@ -251,66 +321,132 @@ const ResultsCard: FC = memo(() => {
                             </Can>
                         )}
 
-                        {canExportResultsCsv && (
+                        {resultsExport.canExport && (
                             <Popover
                                 {...COLLAPSABLE_CARD_POPOVER_PROPS}
-                                disabled={disabled}
+                                opened={isExportMenuOpen}
+                                onChange={setIsExportMenuOpen}
+                                disabled={resultsExport.disabled}
                                 position="bottom-end"
                             >
                                 <Popover.Target>
-                                    <ActionIcon
-                                        data-testid="export-csv-button"
-                                        {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
-                                        disabled={disabled}
-                                        // Walkthrough action for
-                                        // manage:ExportCsv: the export
-                                        // dialog for the results table. See
-                                        // scripts/scope-tours.
-                                        data-tour-anchor="export-results"
-                                        data-tour-hint="Open the export dialog"
-                                        data-tour-scope="manage:ExportCsv"
-                                        data-tour-step="2"
-                                        data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
-                                        data-tour-label="Open the export dialog"
-                                        data-tour-title="Download a chart's results"
-                                        data-tour-interactive="true"
-                                        data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"] >> [data-tour-anchor="results-heading"]'
-                                        // With Google Drive configured the
-                                        // popover opens on a chooser first;
-                                        // the `?` hop is taken only there.
-                                        data-tour-then='[data-tour-anchor="export-choose-download"]? >> [data-tour-anchor="export-download"]'
-                                        data-tour-docs="explore/share-charts.mdx#download-results-or-a-chart-image:p5:1"
-                                    >
-                                        <MantineIcon icon={IconShare2} />
-                                    </ActionIcon>
+                                    <Tooltip label="Export results">
+                                        <ActionIcon
+                                            data-testid="export-csv-button"
+                                            aria-label="Export results"
+                                            {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
+                                            disabled={resultsExport.disabled}
+                                            onClick={() =>
+                                                setIsExportMenuOpen(
+                                                    (open) => !open,
+                                                )
+                                            }
+                                            // Walkthrough action for
+                                            // manage:ExportCsv. See
+                                            // scripts/scope-tours.
+                                            data-tour-anchor="export-results"
+                                            data-tour-hint="Open the export dialog"
+                                            data-tour-scope="manage:ExportCsv"
+                                            data-tour-step="2"
+                                            data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
+                                            data-tour-label="Open the export dialog"
+                                            data-tour-title="Download a chart's results"
+                                            data-tour-interactive="true"
+                                            data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"] >> [data-tour-anchor="results-heading"]'
+                                            // With Google Drive configured the
+                                            // popover opens on a chooser first;
+                                            // the `?` hop is taken only there.
+                                            data-tour-then='[data-tour-anchor="export-choose-download"]? >> [data-tour-anchor="export-download"]'
+                                            data-tour-docs="explore/share-charts.mdx#download-results-or-a-chart-image:p5:1"
+                                        >
+                                            <MantineIcon icon={IconDownload} />
+                                        </ActionIcon>
+                                    </Tooltip>
                                 </Popover.Target>
 
                                 <Popover.Dropdown>
                                     <ExportSelector
-                                        projectUuid={projectUuid}
-                                        totalResults={totalResults}
-                                        getDownloadQueryUuid={
-                                            getResultsCardDownloadQueryUuid
-                                        }
                                         getGsheetLink={
-                                            mergeResults || isEmbedded
-                                                ? undefined
-                                                : getGsheetLink
+                                            resultsExport.getGsheetLink
                                         }
-                                        columnOrder={exportColumnOrder}
-                                        customLabels={undefined} // for results table download, don't override labels
-                                        hiddenFields={undefined} // for results table download, don't hide columns
-                                        chartName={savedChart?.name}
-                                        showTableNames
+                                        onDownloadData={() => {
+                                            setIsExportMenuOpen(false);
+                                            setIsDownloadOpen(true);
+                                        }}
+                                        copyToClipboard={
+                                            isStale || !handleCopyToClipboard
+                                                ? undefined
+                                                : {
+                                                      onCopy: handleCopyToClipboard,
+                                                      isLoading:
+                                                          !resultsExport.isCopyReady,
+                                                  }
+                                        }
                                     />
                                 </Popover.Dropdown>
                             </Popover>
+                        )}
+                        {resultsExport.canExport && (
+                            <ExportDataModal
+                                isOpen={isDownloadOpen}
+                                onClose={() => setIsDownloadOpen(false)}
+                                projectUuid={projectUuid}
+                                totalResults={resultsExport.totalResults}
+                                getDownloadQueryUuid={
+                                    resultsExport.getDownloadQueryUuid
+                                }
+                                columnOrder={resultsExport.columnOrder}
+                                chartName={resultsExport.chartName}
+                                showTableNames
+                            />
                         )}
                     </Group>
                 )
             }
         >
-            <ExplorerResults viewMode={viewMode} />
+            {isStale && !isChartOpen && (
+                <Box py="sm">
+                    <StaleResultsPrompt subject="your results" />
+                </Box>
+            )}
+            <Box
+                ref={edgeHostRef}
+                className={resultsClasses.edgeHost}
+                data-with-edge={showEdgeColumn || undefined}
+            >
+                <ExplorerResults viewMode={viewMode} />
+                {showEdgeColumn && (
+                    <Can
+                        I="manage"
+                        this={subject('Explore', {
+                            organizationUuid: user.data?.organizationUuid,
+                            projectUuid,
+                        })}
+                    >
+                        <Box
+                            className={resultsClasses.edgeAction}
+                            __vars={{
+                                '--edge-top': `${headerBox.top}px`,
+                                '--edge-height': `${headerBox.height}px`,
+                            }}
+                        >
+                            <AddTableCalculationButton
+                                tableEdge
+                                onAddCustomDimension={
+                                    canManageCustomFields && tableName
+                                        ? handleAddCustomDimension
+                                        : undefined
+                                }
+                                disabledReason={
+                                    isTableCalculationRefused
+                                        ? NOT_ON_LIVE_SOURCES
+                                        : undefined
+                                }
+                            />
+                        </Box>
+                    </Can>
+                )}
+            </Box>
         </CollapsableCard>
     );
 });

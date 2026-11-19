@@ -6,6 +6,7 @@ export const contentInventoryColumns: CompactedStreamColumn[] = [
         'org_id',
         'project_id',
         'project_name',
+        'project_type',
         'content_type',
         'content_id',
         'content_name',

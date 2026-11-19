@@ -1,6 +1,7 @@
 import {
     defineUserAbility,
     OrganizationMemberRole,
+    ProjectMemberRole,
     type MemberAbility,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
@@ -8,6 +9,7 @@ import {
     canListLiveSources,
     canOpenProjectSettings,
     canOpenSemanticStudio,
+    canWriteProjectBranch,
     getStudioPermissions,
     keepsKindPage,
 } from './permissions';
@@ -143,5 +145,53 @@ describe('keepsKindPage', () => {
             false,
         );
         expect(keepsKindPage(all, null)).toBe(false);
+    });
+});
+
+describe('publishing a dbt draft into the project branch', () => {
+    it('is for org developers and admins, not for developers of one project', () => {
+        expect(
+            canWriteProjectBranch(
+                abilityFor(OrganizationMemberRole.DEVELOPER),
+                ORG,
+                PROJECT,
+            ),
+        ).toBe(true);
+        expect(
+            canWriteProjectBranch(
+                abilityFor(OrganizationMemberRole.ADMIN),
+                ORG,
+                PROJECT,
+            ),
+        ).toBe(true);
+        expect(
+            canWriteProjectBranch(
+                abilityFor(OrganizationMemberRole.EDITOR),
+                ORG,
+                PROJECT,
+            ),
+        ).toBe(false);
+        const projectDeveloper = defineUserAbility(
+            {
+                role: OrganizationMemberRole.MEMBER,
+                organizationUuid: ORG,
+                userUuid: 'user-uuid',
+                roleUuid: undefined,
+            },
+            [
+                {
+                    projectUuid: PROJECT,
+                    role: ProjectMemberRole.DEVELOPER,
+                    userUuid: 'user-uuid',
+                    roleUuid: undefined,
+                },
+            ],
+        );
+        expect(
+            getStudioPermissions(projectDeveloper, ORG, PROJECT).modelled,
+        ).toBe(true);
+        expect(canWriteProjectBranch(projectDeveloper, ORG, PROJECT)).toBe(
+            false,
+        );
     });
 });

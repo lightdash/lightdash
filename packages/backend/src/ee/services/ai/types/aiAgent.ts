@@ -19,6 +19,7 @@ import {
     type AiDeepResearchWorkerTaskInput,
     type AiSemanticChartArtifactConfig,
     type ApiConnectorType,
+    type StudioChangeSummary,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
@@ -59,6 +60,7 @@ import {
     FindCustomChartTypesFn,
     FindExploresFn,
     GenerateDataAppFn,
+    GetComposerChartFn,
     GetDashboardChartsFn,
     GetExploreFn,
     GetKnowledgeDocumentContentFn,
@@ -85,6 +87,7 @@ import {
     ListWarehouseTablesFn,
     ListWorkstreamsFn,
     LoadAgentSkillFn,
+    PrepareComposerChartEditFn,
     ProposeSemanticLayerChangeFn,
     ReadAttachmentsFn,
     ReadContentFn,
@@ -97,6 +100,7 @@ import {
     ResolveCustomChartTypeFn,
     ResolveUrlFn,
     RunAsyncQueryFn,
+    RunComposerChartQueryFn,
     RunComposerQueriesFn,
     RunSavedChartQueryFn,
     RunSqlChartQueryFn,
@@ -323,6 +327,8 @@ export type AiAgentArgs = AnyAiModel & {
     // The thread owns at least one attached document, so readAttachments is
     // registered.
     enableReadAttachments: boolean;
+    // The thread has at least one pinned conversation, so readPinnedThread is registered.
+    enableReadPinnedThread: boolean;
     // A web app thread whose UI renders askUser questions, so the tool is offered.
     enableAskUser: boolean;
     enableFilterExpressions: boolean;
@@ -332,6 +338,8 @@ export type AiAgentArgs = AnyAiModel & {
     // Whether the repo host has server-side code search (GitHub yes, GitLab no).
     // Drives whether the prompt tells the agent to use `search`.
     repoFsSupportsCodeSearch: boolean;
+    // Semantic Studio saves changes with a code mode script instead of the sandbox.
+    semanticStudioCodeMode: boolean;
     canRunSql: boolean;
     // Whether the composer query tool is the query path: composer flags, data
     // access and the agent's enableComposerQueries opt-in.
@@ -427,6 +435,7 @@ export type AiAgentDependencies = {
     readContent: ReadContentFn;
     resolveUrl: ResolveUrlFn;
     editContent: EditContentFn;
+    prepareComposerChartEdit: PrepareComposerChartEditFn;
     recordSqlChartRefusal?: (
         action: 'create' | 'update',
         reasonCode: string,
@@ -446,6 +455,7 @@ export type AiAgentDependencies = {
     runAsyncQuery: RunAsyncQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;
     runSqlChartQuery: RunSqlChartQueryFn;
+    runComposerChartQuery: RunComposerChartQueryFn;
     runSqlJob: RunSqlJobFn;
     runComposerQueries: RunComposerQueriesFn;
     listWarehouseTables: ListWarehouseTablesFn;
@@ -456,6 +466,7 @@ export type AiAgentDependencies = {
     readAttachments: ReadAttachmentsFn;
     getSavedChart: GetSavedChartFn;
     getSqlChart: GetSqlChartFn;
+    getComposerChart: GetComposerChartFn;
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;
     deferSlackVisualization?: import('./aiAgentDependencies').DeferSlackVisualizationFn;
@@ -485,6 +496,7 @@ export type AiAgentDependencies = {
     editDbtProject: EditDbtProjectFn;
     editProjectContext: EditProjectContextFn;
     proposeSemanticLayerChange: ProposeSemanticLayerChangeFn;
+    listChanges: () => Promise<StudioChangeSummary[]>;
     readSemanticModel: ReadSemanticModelFn;
     syncDbtProject: SyncDbtProjectFn;
     exploreRepo: ExploreRepoFn;

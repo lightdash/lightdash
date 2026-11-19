@@ -1,5 +1,6 @@
 import Analytics from '@rudderstack/rudder-sdk-node';
 import { EventEmitter } from 'events';
+import { buildAccount, defaultJwtToken } from '../auth/account/account.mock';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import type { EmbedDashboardViewed } from '../ee/analytics';
 import { type ContentViewMetadata } from './eventStream/contentViewsStream';
@@ -209,5 +210,78 @@ describe('Embedded dashboard view tracking', () => {
         analytics.track(embedPayload);
         expect(writer.push).not.toHaveBeenCalled();
         expect(rudder).toHaveBeenCalledTimes(2);
+    });
+
+    const embedAccount = (tenant: string, externalId?: string) => ({
+        ...buildAccount({ accountType: 'jwt' }),
+        organization: { organizationUuid: 'org' },
+        authentication: {
+            type: 'jwt' as const,
+            source: 'signed-embed-token',
+            data: {
+                ...defaultJwtToken,
+                user: { externalId },
+                userAttributes: { brand: tenant, unrelated: 'not reported' },
+                usageAnalytics: { tenantAttribute: 'brand' },
+            },
+        },
+    });
+
+    it('captures one load for a multi-tile fetch with the same source ID, without changing telemetry', () => {
+        const { analytics, writer, rudder } = setup();
+        const account = embedAccount('tenant-a', 'viewer-1');
+        analytics.trackAccount(
+            account,
+            {
+                ...embedPayload,
+                properties: { ...embedPayload.properties, chartTilesCount: 4 },
+            },
+            embedMetadata,
+        );
+        expect(writer.push.mock.calls.map(([stream]) => stream)).toEqual([
+            'content_views',
+            'embed_view_events',
+        ]);
+        const [, legacy] = writer.push.mock.calls[0];
+        const [, load] = writer.push.mock.calls[1];
+        expect(load).toMatchObject({
+            event_id: legacy.event_id,
+            event_ts: legacy.event_ts,
+            schema_version: 1,
+            org_id: 'org',
+            project_id: 'project',
+            content_id: 'dashboard',
+            external_user_id: 'viewer-1',
+            embed_tenant_attribute: 'brand',
+            embed_tenant_id: 'tenant-a',
+            embed_token_fingerprint: null,
+        });
+        expect(load).not.toHaveProperty('user_id');
+        expect(JSON.stringify(load)).not.toContain('not reported');
+        expect(rudder).toHaveBeenCalledTimes(1);
+        expect(rudder.mock.calls[0][0].properties).not.toHaveProperty(
+            'embeddedUsage',
+        );
+    });
+
+    it('keeps anonymous and unknown tenant attribution separate and honors the capture gate', () => {
+        const { analytics, writer } = setup();
+        const account = embedAccount(' ', '');
+        analytics.trackAccount(account, embedPayload, embedMetadata);
+        expect(writer.push.mock.calls[1][1]).toMatchObject({
+            external_user_id: null,
+            embed_token_fingerprint: expect.any(String),
+            embed_tenant_id: null,
+        });
+        writer.push.mockClear();
+        analytics.trackAccount(account, embedPayload, {
+            ...embedMetadata,
+            context: 'preview',
+        });
+        expect(writer.push).not.toHaveBeenCalled();
+
+        const disabled = setup(false);
+        disabled.analytics.trackAccount(account, embedPayload, embedMetadata);
+        expect(disabled.writer.push).not.toHaveBeenCalled();
     });
 });

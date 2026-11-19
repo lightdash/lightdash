@@ -75,6 +75,13 @@ export enum FeatureFlags {
     EnableDataApps = 'enable-data-apps',
 
     /**
+     * Voice Design in the data app builder: the user draws on the preview
+     * while talking, and the marked-up screenshots and what they said land
+     * in the prompt box. Off by default; per user or organization.
+     */
+    DataAppCapture = 'data-app-capture',
+
+    /**
      * AI access (in-app agent, Slack agent, MCP) skips the results cache,
      * earlier results and pre-aggregates. Off by default; organization scope.
      */
@@ -191,9 +198,17 @@ export enum FeatureFlags {
     /**
      * Keeps the models of a project that has no dbt connection on the server,
      * and lets the Semantic Studio agent draft changes to them for a person to
-     * apply. Off by default; organization-scoped.
+     * apply. On a GitHub dbt project it also saves changes with a script
+     * committed through the GitHub API. Off by default; organization-scoped.
      */
     SemanticStudioEditing = 'semantic-studio-editing',
+
+    /**
+     * Undo and redo for the chart being built in the Explorer: the header
+     * buttons and their keyboard shortcuts. Off by default; resolves per user
+     * or organization. It gates the browser only, there is no backend action.
+     */
+    ExplorerUndoRedo = 'explorer-undo-redo',
 
     /**
      * Configurable retention for AI agent threads. Off by default; enabled
@@ -261,10 +276,22 @@ export enum FeatureFlags {
      */
     MobileQrSignIn = 'mobile-qr-sign-in',
     /**
+     * Organization-scoped, on by default: the organization can use the mobile
+     * apps. An organization override set to off denies every mobile sign-in
+     * and every token issued to a mobile app. User overrides are ignored.
+     */
+    MobileAppAccess = 'mobile-app-access',
+    /**
      * Organization-scoped, off by default: BigQuery workload identity federation.
      * Only enable on instances whose pods run as their own Google service account.
      */
     BigqueryWorkloadIdentityAuth = 'bigquery-workload-identity-auth',
+    /**
+     * Organization-scoped, off by default: "Sign in with Google" for BigQuery
+     * also requests drive.readonly, so Google Sheets-backed tables can be queried.
+     * Restricted scope: only enable once the instance's OAuth app is verified for it.
+     */
+    BigqueryOAuthDriveAccess = 'bigquery-oauth-drive-access',
     /**
      * Organization-scoped: org admins can bring their own AI provider keys,
      * restrict model visibility, and route those keys through a custom base

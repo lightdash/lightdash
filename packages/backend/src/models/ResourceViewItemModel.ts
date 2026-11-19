@@ -9,7 +9,10 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { AppsTableName, AppVersionsTableName } from '../database/entities/apps';
-import { DashboardsTableName } from '../database/entities/dashboards';
+import {
+    DashboardsTableName,
+    DashboardVersionsTableName,
+} from '../database/entities/dashboards';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
     PinnedAppTableName,
@@ -20,6 +23,7 @@ import { ProjectTableName } from '../database/entities/projects';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
+import { leftJoinLatestDashboardVersion } from './DashboardModel/latestDashboardVersion';
 
 type ResourceViewItemModelArguments = {
     database: Knex;
@@ -145,21 +149,13 @@ const getDashboards = async (
             `${DashboardsTableName}.space_id`,
             `${SpaceTableName}.space_id`,
         )
-        .innerJoin(
-            knex('dashboard_versions')
-                .distinctOn('dashboard_id')
-                .orderBy('dashboard_id')
-                .orderBy('created_at', 'desc')
-                .select(
-                    'dashboard_id',
-                    'created_at as updated_at',
-                    'updated_by_user_uuid',
-                )
-                .as('dv'),
-            `${DashboardsTableName}.dashboard_id`,
-            'dv.dashboard_id',
+        .modify(leftJoinLatestDashboardVersion)
+        .whereNotNull(`${DashboardVersionsTableName}.dashboard_version_id`)
+        .leftJoin(
+            'users',
+            `${DashboardVersionsTableName}.updated_by_user_uuid`,
+            'users.user_uuid',
         )
-        .leftJoin('users', 'dv.updated_by_user_uuid', 'users.user_uuid')
         .where((accessFilter) => {
             void accessFilter.whereIn(
                 `${SpaceTableName}.space_uuid`,
@@ -189,7 +185,7 @@ const getDashboards = async (
             views: `${DashboardsTableName}.views_count`,
             first_viewed_at: `${DashboardsTableName}.first_viewed_at`,
             description: `${DashboardsTableName}.description`,
-            updated_at: 'dv.updated_at',
+            updated_at: `${DashboardVersionsTableName}.created_at`,
             updated_by_user_first_name: 'users.first_name',
             updated_by_user_last_name: 'users.last_name',
         })

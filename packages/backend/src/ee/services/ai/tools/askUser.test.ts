@@ -76,6 +76,7 @@ describe('canOfferAskUser', () => {
     const webPrompt = {
         threadCreatedFrom: 'web_app',
         threadEmbedSpaceUuid: null,
+        threadEmbedOwnerIdentifier: null,
         externalUserId: null,
         battleProfile: null,
     } as AiWebAppPrompt;
@@ -84,12 +85,25 @@ describe('canOfferAskUser', () => {
         expect(canOfferAskUser(webPrompt, 'standard')).toBe(true);
     });
 
+    it('offers it in Semantic Studio, where a question before a change needs an answer', () => {
+        expect(
+            canOfferAskUser(
+                { ...webPrompt, threadCreatedFrom: 'semantic_studio' },
+                'standard',
+            ),
+        ).toBe(true);
+    });
+
     it.each([
         ['an api thread', { ...webPrompt, threadCreatedFrom: 'api' }],
         ['a Slack prompt', { ...webPrompt, slackUserId: 'U1' }],
         ['a Battle thread', { ...webPrompt, battleProfile: 'fast' }],
         ['an embed', { ...webPrompt, threadEmbedSpaceUuid: 'space-1' }],
         ['a read-only embed', { ...webPrompt, externalUserId: 'viewer-1' }],
+        [
+            'a read-only embed without a viewer id',
+            { ...webPrompt, threadEmbedOwnerIdentifier: 'dashboard-1' },
+        ],
     ])('withholds it from %s', (_, prompt) => {
         expect(canOfferAskUser(prompt as AiWebAppPrompt, 'standard')).toBe(
             false,

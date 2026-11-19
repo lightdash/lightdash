@@ -202,9 +202,9 @@ describe('VersionHistoryPanel', () => {
             expect(
                 screen.getAllByText('Choosing a horizontal layout').length,
             ).toBeGreaterThan(0);
-            expect(
-                screen.getAllByText('Updating Chart.tsx').length,
-            ).toBeGreaterThan(0);
+            expect(screen.getAllByText('Edited 1 file').length).toBeGreaterThan(
+                0,
+            );
         },
     );
 

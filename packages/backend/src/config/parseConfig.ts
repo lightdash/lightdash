@@ -1179,6 +1179,21 @@ export const parsePreAggregateResultsS3Config = ():
     };
 };
 
+const parsePreAggregateDuckdbWriteMemoryLimit = (): string => {
+    const value =
+        process.env.PRE_AGGREGATE_DUCKDB_WRITE_MEMORY_LIMIT ?? '256MB';
+    const match = /^(\d+)(MB|GB)$/i.exec(value);
+    const amount = Number(match?.[1]);
+    const bytesPerUnit = match?.[2].toUpperCase() === 'GB' ? 1e9 : 1e6;
+    // DuckDB uses an unsigned 64-bit byte count for memory limits.
+    if (!match || amount <= 0 || amount * bytesPerUnit >= 2 ** 64) {
+        throw new ParseError(
+            'PRE_AGGREGATE_DUCKDB_WRITE_MEMORY_LIMIT must be a positive whole number followed by MB or GB (e.g. 256MB or 1GB) within DuckDB’s memory limit range.',
+        );
+    }
+    return value;
+};
+
 export const parseUsageEventsS3Config = (): Omit<
     S3Config,
     'expirationTime'
@@ -1459,8 +1474,6 @@ export const getAiConfig = () => ({
                   availableModels: getArrayFromCommaSeparatedList(
                       'OPENAI_AVAILABLE_MODELS',
                   ),
-                  zeroDataRetention:
-                      process.env.OPENAI_ZERO_DATA_RETENTION === 'true',
                   useChatCompletions:
                       process.env.OPENAI_USE_CHAT_COMPLETIONS === 'true',
                   customHeaders: getProviderCustomHeaders(
@@ -1805,7 +1818,6 @@ export type LightdashConfig = {
     results: {
         /** @deprecated When set, forces results caching on or off for every project. */
         cacheEnabled: boolean | null;
-        autocompleteEnabled: boolean;
         cacheStateTimeSeconds: number;
         s3?: Omit<S3Config, 'expirationTime'>;
     };
@@ -2061,6 +2073,7 @@ export type LightdashConfig = {
         materializationMaxRows: number | null;
         /** Max memory DuckDB can use for caching parquet data and query intermediates on the shared query instance (e.g. '256MB', '1GB', '2GB'). Only affects pre-aggregate reads, not materializations which use isolated instances. */
         duckdbQueryMemoryLimit: string | null;
+        duckdbWriteMemoryLimit: string;
         s3?: Omit<S3Config, 'expirationTime'>;
     };
     externalSources: {
@@ -3928,8 +3941,6 @@ export const parseConfig = (): LightdashConfig => {
         s3: parseBaseS3Config(),
         results: {
             cacheEnabled: resultsCacheEnabled,
-            autocompleteEnabled:
-                process.env.AUTOCOMPLETE_CACHE_ENABLED === 'true',
             cacheStateTimeSeconds: parseInt(
                 process.env.CACHE_STALE_TIME_SECONDS || '86400', // A day in seconds
                 10,
@@ -4302,6 +4313,7 @@ export const parseConfig = (): LightdashConfig => {
                 null,
             duckdbQueryMemoryLimit:
                 process.env.PRE_AGGREGATE_DUCKDB_QUERY_MEMORY_LIMIT ?? null,
+            duckdbWriteMemoryLimit: parsePreAggregateDuckdbWriteMemoryLimit(),
             s3: preAggregatesS3,
         },
         externalSources: {

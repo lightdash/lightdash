@@ -804,6 +804,7 @@ describe('signed analytics file manifests', () => {
             'lightdash_projects',
             'lightdash_content',
             'lightdash_people',
+            'lightdash_agent_evaluation_runs',
             'ai_usage',
             'data_app_events',
             'export_events',
@@ -811,6 +812,7 @@ describe('signed analytics file manifests', () => {
             'mcp_tool_calls',
             'content_views',
             'agent_request_events',
+            'embed_view_events',
             'user_activity',
             'historical_activity',
         ]);

@@ -17,6 +17,7 @@ import {
     type CreateComposerChart,
     type Dashboard,
     type DashboardAsCode,
+    type DashboardFieldTarget,
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -834,7 +835,7 @@ describe('Composer charts', () => {
         const statusRule = (
             id: string,
             values: string[],
-            tileTargets?: Record<string, false>,
+            tileTargets?: Record<string, false | DashboardFieldTarget>,
         ) => ({
             id,
             label: undefined,
@@ -938,6 +939,10 @@ describe('Composer charts', () => {
                 'currency',
                 'date_custom_parameter',
             ]);
+            expect(late.results.usedParameterValuesByNodeId).toMatchObject({
+                dates: { date_custom_parameter: '2100-01-01' },
+                tagged: { currency: 'eur' },
+            });
         });
 
         it('a dashboard filter reaches every semantic-layer node with the field and replaces a node rule on it', async () => {
@@ -1021,6 +1026,66 @@ describe('Composer charts', () => {
             expect(
                 (await statusesOf(unfiltered, 'counts')).length,
             ).toBeGreaterThan(1);
+        });
+
+        it('a tile target naming a SQL column filters the SQL nodes with that column only', async () => {
+            const { dashboard, chart } = await createComposerDashboard(
+                apiClientSend(admin),
+                { pipeline: everyKindPipeline },
+            );
+            tracker.trackDashboard(dashboard.uuid);
+            const tileUuid = dashboard.tiles[0].uuid;
+            const viewer = await loginAsViewer();
+            const runWith = async (
+                dimensions: ReturnType<typeof statusRule>[],
+            ) => {
+                const run = await viewer.post<Body<ComposerChartRunResults>>(
+                    runUrl(chart.uuid),
+                    {
+                        ...runRequest(dashboard.uuid, tileUuid),
+                        dashboardFilters: {
+                            dimensions,
+                            metrics: [],
+                            tableCalculations: [],
+                        },
+                    },
+                );
+                expect(run.status).toBe(200);
+                return run.body.results;
+            };
+            const rowsOf = (results: ComposerChartRunResults, nodeId: string) =>
+                pollRows(viewer, queryOf(results, nodeId));
+
+            const unfiltered = await runWith([]);
+            expect(
+                unfiltered.sqlColumns.map((c) => c.reference).sort(),
+            ).toEqual(['amount', 'status']);
+
+            const filtered = await runWith([
+                statusRule('dash', ['shipped'], {
+                    [tileUuid]: {
+                        fieldId: 'status',
+                        tableName: 'mock_table',
+                        isSqlColumn: true,
+                    },
+                }),
+            ]);
+            const rawRows = await rowsOf(filtered, 'raw');
+            expect(rawRows.length).toBeLessThan(
+                (await rowsOf(unfiltered, 'raw')).length,
+            );
+            expect(rawValues(rawRows, 'status')).toEqual(['shipped']);
+            // The semantic-layer nodes have no column target, so stay whole
+            expect(
+                rawValues(await rowsOf(filtered, 'counts'), 'orders_status')
+                    .length,
+            ).toBeGreaterThan(1);
+            expect(
+                Object.keys(filtered.appliedDashboardFiltersByNodeId),
+            ).toEqual(['raw']);
+            expect(
+                filtered.appliedDashboardFilters.dimensions.map((r) => r.id),
+            ).toEqual(['dash']);
         });
 
         it('leaves the tile unchanged for a filter no node has, or one switched off for the tile', async () => {
@@ -1318,6 +1383,51 @@ describe('Composer charts', () => {
             // A group-by round-trips like any other chart
             const again = await uploadChart(await downloadChart(chart.slug));
             expect(again.body.results.action).toBe('no changes');
+        });
+
+        it('refuses a rollback that changes a chart to a pipeline the user may not save', async () => {
+            const editor = await loginAsEditor();
+            const { dashboard, chart } = await createDashboardWithSqlChart();
+            const changedSql =
+                'select status as orders_status, max(amount) as orders_total_order_amount from orders group by 1';
+            const changed = await uploadChart({
+                ...(await downloadChart(chart.slug)),
+                pipeline: {
+                    schemaVersion: 1,
+                    terminalNodeId: 'orders',
+                    nodes: [
+                        {
+                            sourceType: QuerySourceType.SQL,
+                            nodeId: 'orders',
+                            title: 'Orders by status',
+                            sql: changedSql,
+                        },
+                    ],
+                },
+            });
+            expect(changed.body.results.action).toBe('update');
+            const current = await getDashboard(dashboard.uuid);
+            const saved = await saveTiles(current, current.tiles);
+            expect(saved.status).toBe(200);
+            const rollbackUrl = `/api/v1/dashboards/${dashboard.uuid}/rollback/${dashboard.versionUuid}`;
+
+            const refused = await editor.post(
+                rollbackUrl,
+                {},
+                { failOnStatusCode: false },
+            );
+            expect(refused.status).toBe(403);
+            expect(
+                (await getChart(chart.uuid)).body.results.pipeline.nodes[0],
+            ).toMatchObject({ sql: changedSql });
+            expect((await getDashboard(dashboard.uuid)).versionUuid).toBe(
+                saved.body.results.versionUuid,
+            );
+
+            expect((await admin.post(rollbackUrl, {})).status).toBe(200);
+            expect((await getChart(chart.uuid)).body.results.pipeline).toEqual(
+                chart.pipeline,
+            );
         });
 
         it('writes a custom chart type as its slug and refuses one missing from the project', async () => {

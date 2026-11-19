@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    AdditionalMetric,
     AgentCapability,
     AlertAsCode,
     AlreadyExistsError,
@@ -19,6 +20,7 @@ import {
     ApiVirtualViewAsCodeListResponse,
     ApiVirtualViewAsCodeUpsertResponse,
     applyNewChartDefaults,
+    assertDashboardWithinLimits,
     assertUnreachable,
     ChartAsCode,
     ChartAsCodeConfig,
@@ -30,6 +32,8 @@ import {
     ChartType,
     ComposerChart,
     ComposerChartAsCode,
+    ComposerStoredChart,
+    ComposerStoredChartAsCode,
     ContentAsCodeType,
     ContentSlugRenameRequest,
     ContentType,
@@ -180,6 +184,7 @@ import { BaseService } from '../BaseService';
 import type { ComposerChartService } from '../ComposerChartService/ComposerChartService';
 import { DashboardService } from '../DashboardService/DashboardService';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
+import { getCustomMetricSqlPermissionMessage } from '../ProjectService/customMetricSqlPermission';
 import { getAvailableParameterDefinitions } from '../ProjectService/parameters';
 import { ProjectService } from '../ProjectService/ProjectService';
 import { PromoteService } from '../PromoteService/PromoteService';
@@ -417,6 +422,54 @@ export class CoderService extends BaseService {
         currentChart?: CurrentChartSqlItems,
     ): ContentAsCodeSqlPermissionCheckResult[] {
         return getChartContentAsCodePermissionChecks(nextChart, currentChart);
+    }
+
+    /** Run after the space access checks: it loads the explore and saved charts. */
+    private async assertCanUploadCustomMetricSql({
+        account,
+        auditedAbility,
+        project,
+        chart,
+        getSavedAdditionalMetrics,
+    }: {
+        account: Account;
+        auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
+        project: Pick<Project, 'projectUuid' | 'organizationUuid'>;
+        chart: ChartAsCode;
+        getSavedAdditionalMetrics: () => Promise<AdditionalMetric[]>;
+    }): Promise<void> {
+        const additionalMetrics = chart.metricQuery.additionalMetrics ?? [];
+        if (
+            additionalMetrics.length === 0 ||
+            auditedAbility.can(
+                'manage',
+                subject('CustomFields', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid: project.projectUuid,
+                    metadata: { slug: chart.slug },
+                }),
+            )
+        ) {
+            return;
+        }
+        if (!this.projectService) {
+            throw new Error(
+                'ProjectService is required to check custom metric uploads',
+            );
+        }
+        const needingPermission =
+            await this.projectService.getCustomMetricsNeedingPermission({
+                account,
+                projectUuid: project.projectUuid,
+                exploreName: chart.metricQuery.exploreName,
+                additionalMetrics,
+                savedAdditionalMetrics: await getSavedAdditionalMetrics(),
+            });
+        if (needingPermission.length > 0) {
+            throw new ForbiddenError(
+                `${getCustomMetricSqlPermissionMessage(needingPermission)} (chart slug "${chart.slug}")`,
+            );
+        }
     }
 
     directAccessService: DirectAccessService;
@@ -3183,7 +3236,7 @@ export class CoderService extends BaseService {
     async getCurrentContentVersionBySlug(
         user: SessionUser,
         projectUuid: string,
-        type: 'dashboard' | 'chart' | 'sql_chart',
+        type: 'dashboard' | 'chart' | 'sql_chart' | 'composer_chart',
         slug: string,
     ): Promise<{ contentUuid: string; versionUuid: string | null }> {
         const { name: projectName, organizationUuid } =
@@ -3257,6 +3310,22 @@ export class CoderService extends BaseService {
                     contentUuid: sqlChart.saved_sql_uuid,
                     versionUuid: sqlChart.saved_sql_version_uuid,
                 };
+            }
+            case 'composer_chart': {
+                const identity =
+                    await this.composerChartModel.findIdentityBySlug(
+                        projectUuid,
+                        slug,
+                    );
+                if (!identity || identity.deleted) {
+                    throw new NotFoundError(
+                        `Composer chart with slug "${slug}" not found`,
+                    );
+                }
+                const { versionUuid } = await this.composerChartModel.get(
+                    identity.uuid,
+                );
+                return { contentUuid: identity.uuid, versionUuid };
             }
             default:
                 return assertUnreachable(type, 'Invalid content type');
@@ -3477,6 +3546,38 @@ export class CoderService extends BaseService {
         );
     }
 
+    private async withSpaceSlugs<T extends { spaceUuid: string }>(
+        items: T[],
+    ): Promise<Array<T & { spaceSlug: string }>> {
+        const spaces = await this.spaceModel.find({
+            spaceUuids: [...new Set(items.map((item) => item.spaceUuid))],
+        });
+        const spacePathByUuid = new Map(
+            spaces.map((space) => [space.uuid, space.path]),
+        );
+        return items.map((item) => ({
+            ...item,
+            spaceSlug: getContentAsCodePathFromLtreePath(
+                spacePathByUuid.get(item.spaceUuid) ?? '',
+            ),
+        }));
+    }
+
+    /** Download's file shape, unchecked against the user, for git write-back. */
+    async getPortableComposerChartsAsCode(
+        projectUuid: string,
+        slugs: string[],
+    ): Promise<ComposerChartAsCode[]> {
+        const charts = await this.composerChartModel.findForCode(
+            projectUuid,
+            slugs,
+        );
+        return this.getComposerChartsAsCode(
+            projectUuid,
+            await this.withSpaceSlugs(charts),
+        );
+    }
+
     /** Download works with the composer-charts flag off, so an upload never drops tiles. */
     async getComposerCharts(
         user: SessionUser,
@@ -3490,13 +3591,38 @@ export class CoderService extends BaseService {
             projectUuid,
             'You are not allowed to download composer charts',
         );
+        return this.findComposerChartsAsCode(
+            account,
+            projectUuid,
+            slugs,
+            offset,
+        );
+    }
+
+    /** Slug-list read for AI/MCP read_content: no export gate; view through the chart's dashboard still applies. */
+    async getComposerChartsForRead(
+        account: RegisteredAccount,
+        projectUuid: string,
+        slugs: string[],
+    ): Promise<ApiComposerChartAsCodeListResponse['results']> {
+        return this.findComposerChartsAsCode(
+            account,
+            projectUuid,
+            slugs,
+            undefined,
+        );
+    }
+
+    private async findComposerChartsAsCode(
+        account: RegisteredAccount,
+        projectUuid: string,
+        slugs: string[] | undefined,
+        offset: number | undefined,
+    ): Promise<ApiComposerChartAsCodeListResponse['results']> {
         const charts = await this.composerChartModel.findForCode(
             projectUuid,
             slugs,
         );
-        const spaces = await this.spaceModel.find({
-            spaceUuids: [...new Set(charts.map((chart) => chart.spaceUuid))],
-        });
         // Viewing a composer chart follows its dashboard, as on every other read
         const viewable = await Promise.all(
             charts.map((chart) =>
@@ -3520,9 +3646,6 @@ export class CoderService extends BaseService {
             offset,
             pageSize: this.lightdashConfig.contentAsCode.maxDownloads,
         });
-        const spacePathByUuid = new Map(
-            spaces.map((space) => [space.uuid, space.path]),
-        );
         const found = new Set(
             charts
                 .filter((_, index) => viewable[index])
@@ -3531,16 +3654,25 @@ export class CoderService extends BaseService {
         return {
             composerCharts: await this.getComposerChartsAsCode(
                 projectUuid,
-                page.map((chart) => ({
-                    ...chart,
-                    spaceSlug: getContentAsCodePathFromLtreePath(
-                        spacePathByUuid.get(chart.spaceUuid) ?? '',
-                    ),
-                })),
+                await this.withSpaceSlugs(page),
             ),
             missingIds: (slugs ?? []).filter((slug) => !found.has(slug)),
             total,
             offset: nextOffset,
+        };
+    }
+
+    /** A composer chart file's chart as stored: its custom chart type bound by uuid and version. */
+    async toStoredComposerChart(
+        projectUuid: string,
+        chart: ComposerStoredChartAsCode,
+    ): Promise<ComposerStoredChart> {
+        return {
+            ...chart,
+            chartConfig: await this.resolveDataAppVizBinding(
+                projectUuid,
+                chart.chartConfig,
+            ),
         };
     }
 
@@ -3556,13 +3688,21 @@ export class CoderService extends BaseService {
         file: ComposerChartAsCode,
         options: Pick<
             UpsertContentAsCodeOptions,
-            'skipSpaceCreate' | 'publicSpaceCreate' | 'spaceNames'
+            | 'skipSpaceCreate'
+            | 'publicSpaceCreate'
+            | 'spaceNames'
+            | 'authorization'
         > = {},
     ): Promise<ApiComposerChartAsCodeUpsertResponse['results']> {
         const project = await this.projectModel.get(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
         const { allowSpaceCreate } = CoderService.checkContentAsCodeWriteAccess(
-            { auditedAbility, project, slug },
+            {
+                auditedAbility,
+                project,
+                slug,
+                authorization: options.authorization,
+            },
         );
         if (file.contentType !== ContentAsCodeType.COMPOSER_CHART) {
             throw new ParameterError(
@@ -3598,13 +3738,7 @@ export class CoderService extends BaseService {
                 { featureFlagId: FeatureFlags.ComposerCharts },
             );
         }
-        const chart = {
-            ...file.chart,
-            chartConfig: await this.resolveDataAppVizBinding(
-                projectUuid,
-                file.chart.chartConfig,
-            ),
-        };
+        const chart = await this.toStoredComposerChart(projectUuid, file.chart);
 
         const [dashboard] = live
             ? []
@@ -4759,6 +4893,15 @@ export class CoderService extends BaseService {
                 errorMessage: `You don't have access to create charts in space "${chartWithDefaults.spaceSlug}"`,
                 accessContexts: spaceAccessContexts,
             });
+            if (!canUploadAnyContent) {
+                await this.assertCanUploadCustomMetricSql({
+                    account: options.account ?? fromSession(user),
+                    auditedAbility,
+                    project,
+                    chart: chartWithDefaults,
+                    getSavedAdditionalMetrics: async () => [],
+                });
+            }
 
             console.info(
                 `Creating chart "${chartWithDefaults.name}" on project ${projectUuid}`,
@@ -5002,6 +5145,20 @@ export class CoderService extends BaseService {
                 action: 'update',
                 metadata: { savedChartUuid: chart.uuid },
                 errorMessage: `You don't have access to update chart "${slug}"`,
+            });
+        }
+
+        if (!canUploadAnyContent) {
+            await this.assertCanUploadCustomMetricSql({
+                account: options.account ?? fromSession(user),
+                auditedAbility,
+                project,
+                chart: chartWithDefaults,
+                getSavedAdditionalMetrics: async () =>
+                    (
+                        currentChart ??
+                        (await this.savedChartModel.get(chart.uuid))
+                    ).metricQuery.additionalMetrics ?? [],
             });
         }
 
@@ -6274,6 +6431,13 @@ export class CoderService extends BaseService {
             ),
             existingDashboard?.tiles ?? [],
         );
+        if (!existingDashboard) {
+            assertDashboardWithinLimits(
+                { tiles: tilesWithUuids, tabs: tabsWithUuids },
+                this.lightdashConfig.dashboard,
+                null,
+            );
+        }
         await this.assertTileChartsViewAccess({
             userUuid: user.userUuid,
             auditedAbility,
@@ -6656,6 +6820,12 @@ export class CoderService extends BaseService {
             user.organizationUuid!,
             promotedDashboard,
             upstreamDashboard,
+        );
+        // After the access checks, so saved tile counts are not revealed
+        assertDashboardWithinLimits(
+            { tiles: tilesWithUuids, tabs: tabsWithUuids },
+            this.lightdashConfig.dashboard,
+            dashboard,
         );
 
         const { space } = await this.getOrCreateSpace(

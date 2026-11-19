@@ -155,6 +155,12 @@ describe('Document runtime access', () => {
                 aiCreditService: {
                     assertAiCreditsAvailable: async () => undefined,
                 },
+                aiAgentModel: {
+                    findPinnedThreadContextUuids: vi.fn().mockResolvedValue([]),
+                    findSlackChannelServiceAccount: vi
+                        .fn()
+                        .mockResolvedValue(null),
+                },
                 aiThreadFileModel: {
                     findForThread: vi.fn().mockResolvedValue([]),
                     findClaimableByUser: vi.fn().mockResolvedValue([]),

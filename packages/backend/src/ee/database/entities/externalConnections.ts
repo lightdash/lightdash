@@ -232,12 +232,15 @@ export type DbApiSourceCall = {
     column_count: number | null;
     truncated: boolean | null;
     response_bytes: number | null;
+    /** True when a stored result answered the query and the integration wasn't called. */
+    cache_hit: boolean;
     created_at: Date;
 };
 
 export type ApiSourceCallsTable = Knex.CompositeTableType<
     DbApiSourceCall,
-    Omit<DbApiSourceCall, 'api_source_call_uuid' | 'created_at'>,
+    Omit<DbApiSourceCall, 'api_source_call_uuid' | 'created_at' | 'cache_hit'> &
+        Partial<Pick<DbApiSourceCall, 'cache_hit'>>,
     never
 >;
 

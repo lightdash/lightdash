@@ -834,6 +834,9 @@ export class ServiceRepository
                     userModel: this.models.getUserModel(),
                     oauthModel: this.models.getOauthModel(),
                     getUserService: () => this.getUserService(),
+                    getProjectService: () => this.getProjectService(),
+                    getMobilePushNotificationService: () =>
+                        this.getMobilePushNotificationService(),
                     analytics: this.context.lightdashAnalytics,
                 }),
         );
@@ -1508,6 +1511,7 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     lightdashConfig: this.context.lightdashConfig,
                     projectModel: this.models.getProjectModel(),
+                    getProjectService: () => this.getProjectService(),
                     savedChartModel: this.models.getSavedChartModel(),
                     spaceModel: this.models.getSpaceModel(),
                     analyticsModel: this.models.getAnalyticsModel(),
@@ -1978,6 +1982,9 @@ export class ServiceRepository
                         this.models.getWarehouseConnectionModel(),
                     appModel: this.models.getAppModel(),
                     getDocumentService: () => this.getDocumentService(),
+                    composerChartModel: this.models.getComposerChartModel(),
+                    getComposerChartService: () =>
+                        this.getComposerChartService(),
                     // Lazy accessor (not the instance) to promote embedded data
                     // apps during dashboard promotion. AppGenerateService depends
                     // on PromoteService, so resolving it eagerly here would cycle.
@@ -2402,6 +2409,7 @@ export class ServiceRepository
                     getStatus: () => ({ enabled: false, environments: [] }),
                     registerInstallation: async () => undefined,
                     revokeInstallation: async () => undefined,
+                    revokeInstallationsWithoutGrant: async () => undefined,
                     registerLiveActivity: async () => undefined,
                     revokeLiveActivity: async () => undefined,
                     enqueueThreadReconciliation: async () => undefined,

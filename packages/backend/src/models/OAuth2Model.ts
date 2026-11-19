@@ -24,6 +24,12 @@ import {
     matchesOAuthGrantBinding,
 } from '../auth/agentConnectionGrants/oauthGrantBinding';
 import {
+    isMobileAppAccessEnabled,
+    MobileOrgDisabledOAuthError,
+    type MobileGrant,
+    type MobileOrgDisabledOAuthErrorName,
+} from '../auth/mobileAppAccess';
+import {
     OAUTH_SCOPES,
     resolveOAuthScopeMode,
     scopesForOAuthRecord,
@@ -91,6 +97,27 @@ export class OAuth2Model implements AuthorizationCodeModel {
             return existing;
         }
         return [...existing, TOKEN_EXCHANGE_GRANT_TYPE];
+    }
+
+    async assertMobileAppAccess(
+        client: Pick<Client, 'redirectUris'>,
+        organizationUuid: string,
+        errorName: MobileOrgDisabledOAuthErrorName = 'access_denied',
+        grant: MobileGrant | null = null,
+    ): Promise<void> {
+        if (!isMobileOAuthClient(client.redirectUris)) return;
+        if (
+            await isMobileAppAccessEnabled(
+                this.featureFlagModel,
+                organizationUuid,
+            )
+        )
+            return;
+        throw new MobileOrgDisabledOAuthError(
+            organizationUuid,
+            errorName,
+            grant,
+        );
     }
 
     private getRotationGraceMs(): number {
@@ -490,6 +517,12 @@ export class OAuth2Model implements AuthorizationCodeModel {
         client: Client,
         user: UserWithOrganizationUuid,
     ): Promise<Token> {
+        await this.assertMobileAppAccess(
+            client,
+            user.organizationUuid,
+            'access_denied',
+            { userId: user.userId, clientId: client.id },
+        );
         const { parentRefreshToken = null, ...issued } = token;
         if (parentRefreshToken === null) {
             if (issued.agentConnectionGrantUuid != null)
@@ -757,6 +790,13 @@ export class OAuth2Model implements AuthorizationCodeModel {
         if (!result) {
             return false;
         }
+
+        await this.assertMobileAppAccess(
+            { redirectUris: result.redirect_uris },
+            result.organization_uuid,
+            'access_denied',
+            { userId: result.user_id, clientId: result.client_id },
+        );
 
         const sessionExpiresAt =
             result.session_expires_at == null

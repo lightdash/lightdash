@@ -8,6 +8,7 @@ import {
     type ApiAppSchedulersResponse,
     type ApiAppThumbnailUrlResponse,
     type ApiCancelAppVersionResponse,
+    type ApiCaptureTranscriptResponse,
     type ApiClarifyAppRequest,
     type ApiClarifyAppResponse,
     type ApiContentVerificationDeleteResponse,
@@ -433,6 +434,8 @@ export class AppGenerateController extends BaseController {
     }
 
     /**
+     * Pass includeUnpublishedDraft=true to authorize against your own
+     * unpublished draft of the chart; omitted, the published chart is used.
      * @summary Get data app visualization render metadata for a saved chart
      */
     @Middlewares([
@@ -453,6 +456,7 @@ export class AppGenerateController extends BaseController {
         @Path() savedChartUuid: UUID,
         @Path() dataAppVizUuid: string,
         @Query() chartVersionUuid?: UUID,
+        @Query() includeUnpublishedDraft?: boolean,
     ): Promise<ApiDataAppVizRenderMetadataResponse> {
         assertRegisteredAccount(req.account);
         const result =
@@ -462,6 +466,7 @@ export class AppGenerateController extends BaseController {
                 savedChartUuid,
                 dataAppVizUuid,
                 chartVersionUuid,
+                includeUnpublishedDraft,
             );
         return {
             status: 'ok',
@@ -470,6 +475,8 @@ export class AppGenerateController extends BaseController {
     }
 
     /**
+     * Pass includeUnpublishedDraft=true to authorize against your own
+     * unpublished draft of the chart; omitted, the published chart is used.
      * @summary Get a data app visualization preview token for a saved chart
      */
     @Middlewares([
@@ -491,6 +498,7 @@ export class AppGenerateController extends BaseController {
         @Path() dataAppVizUuid: string,
         @Path() version: number,
         @Query() chartVersionUuid?: UUID,
+        @Query() includeUnpublishedDraft?: boolean,
     ): Promise<ApiDataAppVizPreviewTokenResponse> {
         assertRegisteredAccount(req.account);
         const token =
@@ -501,6 +509,7 @@ export class AppGenerateController extends BaseController {
                 dataAppVizUuid,
                 version,
                 chartVersionUuid,
+                includeUnpublishedDraft,
             );
         return {
             status: 'ok',
@@ -689,6 +698,43 @@ export class AppGenerateController extends BaseController {
     ): Promise<ApiAppFileUploadResponse> {
         this.setStatus(200);
         return this.handleUploadFile(req, projectUuid, appUuid, filename, kind);
+    }
+
+    /**
+     * Transcribe the audio of a Voice Design recording into timed words.
+     * Send the raw audio bytes with their Content-Type header.
+     * @summary Transcribe capture audio
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/transcribe-capture')
+    @OperationId('transcribeDataAppCapture')
+    async transcribeCapture(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Query() language?: string,
+    ): Promise<ApiCaptureTranscriptResponse> {
+        assertRegisteredAccount(req.account);
+        const mimeType = req.headers['content-type'];
+        if (!mimeType) {
+            throw new ParameterError('Content-Type header is required');
+        }
+        const contentLength = parseInt(req.headers['content-length'] ?? '', 10);
+        if (Number.isNaN(contentLength) || contentLength <= 0) {
+            throw new ParameterError(
+                'Content-Length must be a positive integer',
+            );
+        }
+        const words = await this.getAppGenerateService().transcribeCapture(
+            toSessionUser(req.account),
+            projectUuid,
+            mimeType,
+            req,
+            contentLength,
+            language,
+        );
+        this.setStatus(200);
+        return { status: 'ok', results: { words } };
     }
 
     /**

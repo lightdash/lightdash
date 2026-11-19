@@ -41,6 +41,7 @@ const DUMP_TOOL_RESULT_POLICIES = {
     listDataAppConnections: 'keep',
     editDbtProject: 'keep',
     proposeSemanticLayerChange: 'keep',
+    listChanges: 'keep',
     readSemanticModel: 'keep',
     editRepo: 'keep',
     syncDbtProject: 'keep',

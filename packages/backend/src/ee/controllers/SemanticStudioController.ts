@@ -14,11 +14,18 @@ import {
     type ApiSemanticLayerStatusResponse,
     type ApiSemanticLayerStoredModelsResponse,
     type ApiSemanticLayerUndoResponse,
+    type ApiSemanticStudioCheckoutResponse,
+    type ApiSemanticStudioSourceFileResponse,
+    type ApiSemanticStudioSourceSaveResponse,
+    type ApiSemanticStudioSourcesResponse,
     type ApiSemanticStudioWorkspaceResponse,
     type ApiSemanticStudioWorkspacesResponse,
     type ApiSuccessEmpty,
+    type ApiWritebackMergeResponse,
+    type SaveSemanticStudioSourceRequest,
     type SemanticLayerFieldUsageBody,
     type SemanticLayerUndoRequest,
+    type SemanticStudioPublishBody,
     type SemanticStudioWorkspaceRenameBody,
     type SemanticStudioWorkspaceStartBody,
     type UUID,
@@ -71,7 +78,7 @@ export class SemanticStudioController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results: await this.getService().getStatus(
+            results: await this.getService().getPageStatus(
                 toSessionUser(req.account),
                 projectUuid,
             ),
@@ -167,6 +174,148 @@ export class SemanticStudioController extends BaseController {
     }
 
     /**
+     * The change you have checked out, which the whole app shows you; null on what is published.
+     * @summary Get my Semantic Studio checkout
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/checkout')
+    @OperationId('getSemanticStudioCheckout')
+    async getCheckout(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSemanticStudioCheckoutResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().getCheckout(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
+        };
+    }
+
+    /**
+     * Compiles the branch of your checked-out dbt change again.
+     * @summary Compile my Semantic Studio checkout
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/checkout/compile')
+    @OperationId('compileSemanticStudioCheckout')
+    async compileCheckout(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSemanticStudioCheckoutResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().compileCheckout(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
+        };
+    }
+
+    /**
+     * Publishes your checked-out dbt draft: merges its pull request once its branch compiled.
+     * @summary Publish my Semantic Studio checkout
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/checkout/publish')
+    @OperationId('publishSemanticStudioCheckout')
+    async publishCheckout(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: SemanticStudioPublishBody,
+    ): Promise<ApiWritebackMergeResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().publishCheckout(
+                toSessionUser(req.account),
+                projectUuid,
+                body.prUrl,
+            ),
+        };
+    }
+
+    /**
+     * The project's YAML and SQL files, at a change's open pull request or the branch it deploys from.
+     * @summary List Semantic Studio source files
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/sources')
+    @OperationId('listSemanticStudioSources')
+    async listSources(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Query() prUrl?: string,
+    ): Promise<ApiSemanticStudioSourcesResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().listSources(
+                toSessionUser(req.account),
+                projectUuid,
+                prUrl ?? null,
+            ),
+        };
+    }
+
+    /**
+     * One source file's contents.
+     * @summary Read a Semantic Studio source file
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/sources/file')
+    @OperationId('readSemanticStudioSource')
+    async readSource(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Query() path: string,
+        @Query() prUrl?: string,
+    ): Promise<ApiSemanticStudioSourceFileResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().readSource(
+                toSessionUser(req.account),
+                projectUuid,
+                prUrl ?? null,
+                path,
+            ),
+        };
+    }
+
+    /**
+     * Saves an edit to one source file as a commit on a change's pull request, or opens one.
+     * @summary Save a Semantic Studio source file
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/sources/file')
+    @OperationId('saveSemanticStudioSource')
+    async saveSource(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: SaveSemanticStudioSourceRequest,
+    ): Promise<ApiSemanticStudioSourceSaveResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().saveSource(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+            ),
+        };
+    }
+
+    /**
      * One workspace in this project.
      * @summary Get a Semantic Studio workspace
      */
@@ -233,6 +382,30 @@ export class SemanticStudioController extends BaseController {
         return {
             status: 'ok',
             results: await this.getService().activateWorkspace(
+                toSessionUser(req.account),
+                projectUuid,
+                workspaceUuid,
+            ),
+        };
+    }
+
+    /**
+     * One of your workspaces' changes replayed on what is live, without changes from before drafts had workspaces.
+     * @summary Get a Semantic Studio workspace's draft
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/workspaces/{workspaceUuid}/draft')
+    @OperationId('getSemanticStudioWorkspaceDraft')
+    async getWorkspaceDraft(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() workspaceUuid: UUID,
+    ): Promise<ApiSemanticLayerDraftResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().getWorkspaceDraft(
                 toSessionUser(req.account),
                 projectUuid,
                 workspaceUuid,
@@ -445,6 +618,7 @@ export class SemanticStudioController extends BaseController {
     /**
      * Takes this person's whole draft live as one change, or none of it when any part fails its checks.
      * @summary Apply my semantic layer draft
+     * @param merge For a project whose models live in a repository, also merge the pull request the draft is sent as.
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -453,6 +627,7 @@ export class SemanticStudioController extends BaseController {
     async applyDraft(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
+        @Query() merge?: boolean,
     ): Promise<ApiSemanticLayerDraftApplyResponse> {
         assertRegisteredAccount(req.account);
         return {
@@ -461,6 +636,7 @@ export class SemanticStudioController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 null,
+                merge === true,
             ),
         };
     }
@@ -468,6 +644,7 @@ export class SemanticStudioController extends BaseController {
     /**
      * Takes one model from this person's draft live, or nothing when it fails its checks.
      * @summary Apply one model from my semantic layer draft
+     * @param merge For a project whose models live in a repository, also merge the pull request the model is sent as.
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -477,6 +654,7 @@ export class SemanticStudioController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
         @Path() model: string,
+        @Query() merge?: boolean,
     ): Promise<ApiSemanticLayerDraftApplyResponse> {
         assertRegisteredAccount(req.account);
         return {
@@ -485,6 +663,7 @@ export class SemanticStudioController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 model,
+                merge === true,
             ),
         };
     }

@@ -26,6 +26,21 @@ export const getStudioPermissions = (
     };
 };
 
+/** Whether this person can write to the branch the project deploys from, which publishing a dbt draft merges into. */
+export const canWriteProjectBranch = (
+    ability: AnyAbility,
+    organizationUuid: string,
+    projectUuid: string,
+) =>
+    ability.can(
+        'manage',
+        subject('SourceCode', {
+            organizationUuid,
+            projectUuid,
+            isProtectedBranch: true,
+        }),
+    );
+
 /**
  * Everyone who can see the project opens the page. What they see comes from
  * the backend, which already filters explores and fields by role and user

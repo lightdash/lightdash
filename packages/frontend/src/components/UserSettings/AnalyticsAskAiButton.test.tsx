@@ -41,6 +41,7 @@ const readyAgent: ReturnType<typeof useDefaultAiAgent> = {
     agents: [agent],
     agentsUpdatedAt: 1,
     isResolving: false,
+    isLoadingAgents: false,
 };
 
 const renderButton = () =>

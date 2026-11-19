@@ -40,6 +40,7 @@ export type QueryResultsProps = {
     csvLimit?: number | null; // null = all results, capped by the org CSV cells limit
     chartUuid?: string;
     chartVersionUuid?: string;
+    includeUnpublishedDraft?: boolean;
     dateZoomGranularity?: DateGranularity | string;
     context?: QueryExecutionContext;
     invalidateCache?: boolean;
@@ -193,6 +194,8 @@ export const executeAsyncQuery = (
                 // query is attributed to the delivery, as dashboards do.
                 context: data.context ?? QueryExecutionContext.CHART,
                 chartUuid: data.chartUuid,
+                includeUnpublishedDraft:
+                    data.includeUnpublishedDraft || undefined,
                 limit: data.csvLimit,
                 invalidateCache: data.invalidateCache,
                 parameters: data.parameters,
@@ -313,7 +316,7 @@ export const useGetReadyQueryResults = (
 /**
  * Get single results page
  */
-const getResultsPage = async (
+export const getResultsPage = async (
     lightdashApi: LightdashApi,
     projectUuid: string,
     queryUuid: string,
@@ -378,6 +381,7 @@ export const useInfiniteQueryResults = (
     queryUuid?: string,
     chartName?: string,
     resultsUrl: string | null = null,
+    { toastErrors = true }: { toastErrors?: boolean } = {},
 ): InfiniteQueryResults => {
     const lightdashApi = useLightdashApi();
     const setErrorResponse = useQueryError({
@@ -386,6 +390,7 @@ export const useInfiniteQueryResults = (
             ? `Error running query for chart '${chartName}'`
             : 'Error running query',
         chartName,
+        toastErrors,
     });
     const [fetchArgs, setFetchArgs] = useState<{
         queryUuid?: string;

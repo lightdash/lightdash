@@ -49,6 +49,7 @@ import {
 } from '../src/ee/features/embed/EmbedDashboard/types';
 import {
     LightdashEventType,
+    type AppEventPayload,
     type ChartContentState,
     type ChartExportRequest,
     type ContentStateChangedPayload,
@@ -1571,6 +1572,7 @@ export type {
     MetricsCatalogFilter,
     LightdashEvent,
     LightdashEventHandler,
+    AppEventPayload,
     ContentStateChangedPayload,
     DashboardContentState,
     ChartContentState,

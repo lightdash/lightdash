@@ -28,7 +28,7 @@ import {
 import { getFilterOperatorOptions } from './filterLabels';
 import { getFilterTypeFromItem } from './filters';
 import { getItemId, getItemLabelWithoutTableName } from './item';
-import { LIVE_SOURCE_INTEGRATION_PROFILES } from './liveSourceIntegrations';
+import { LIVE_INTEGRATION_CATALOG } from './liveSourceIntegrations';
 
 /** Why a metric query can't run on a live data source explore, with what to change. */
 export type ApiSourceQueryIssue = {
@@ -75,7 +75,7 @@ const getIssueNames = (
                     : undefined;
             return `"${label ?? operator}"`;
         },
-        source: LIVE_SOURCE_INTEGRATION_PROFILES[apiSource.integration].label,
+        source: LIVE_INTEGRATION_CATALOG[apiSource.integration].messageLabel,
     };
 };
 
@@ -522,12 +522,18 @@ const getIncompatibilityIssues = (
     names: IssueNames,
     metricQuery: MetricQuery,
 ): ApiSourceQueryIssue[] => {
-    const used = new Set([
+    const selected = new Set([
         ...metricQuery.dimensions,
         ...metricQuery.metrics,
+    ]);
+    const selectedOrFiltered = new Set([
+        ...selected,
         ...getFilterFieldIds(metricQuery),
     ]);
     return apiSource.incompatible.flatMap((incompatibility) => {
+        const used = incompatibility.selectedOnly
+            ? selected
+            : selectedOrFiltered;
         const field = incompatibility.fields.find((id) => used.has(id));
         const other = incompatibility.with.find((id) => used.has(id));
         if (!field || !other) {

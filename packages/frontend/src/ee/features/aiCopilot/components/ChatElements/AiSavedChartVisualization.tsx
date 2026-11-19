@@ -13,6 +13,7 @@ import { DrillDownModal } from '../../../../../components/MetricQueryData/DrillD
 import MetricQueryDataProvider from '../../../../../components/MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../../../../../components/MetricQueryData/UnderlyingDataModal';
 import { type EchartsSeriesClickEvent } from '../../../../../components/SimpleChart';
+import { ArtifactLoadingSketch } from '../../../../../features/composerCharts/lineage/ArtifactLoadingSketch';
 import {
     buildInitialExplorerState,
     createExplorerStore,
@@ -22,7 +23,6 @@ import { useExplorerQueryEffects } from '../../../../../hooks/useExplorerQueryEf
 import { useExplorerQueryManager } from '../../../../../hooks/useExplorerQueryManager';
 import { useResizeObserver } from '../../../../../hooks/useResizeObserver';
 import { ExplorerSection } from '../../../../../providers/Explorer/types';
-import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
 
 type Props = {
     projectUuid: string;

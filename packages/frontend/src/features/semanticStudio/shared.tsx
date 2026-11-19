@@ -2,14 +2,7 @@
  * Building blocks for Semantic Layer: the field table, the details modals,
  * search results and the small controls around them.
  */
-import {
-    DbtProjectType,
-    DimensionType,
-    FieldType,
-    MetricType,
-    type Field as LightdashField,
-    type WarehouseTypes,
-} from '@lightdash/common';
+import { DbtProjectType, type WarehouseTypes } from '@lightdash/common';
 import {
     Autocomplete,
     Box,
@@ -64,7 +57,6 @@ import {
     type ReactNode,
 } from 'react';
 import { Link } from 'react-router';
-import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import { ItemDetailMarkdown } from '../../components/Explorer/ExploreTree/TableTree/ItemDetailPreview';
 import dbtLogo from '../../components/ProjectConnection/ProjectConnectFlow/Assets/dbt.svg';
@@ -78,6 +70,7 @@ import googleSheetsLogo from '../../svgs/google-sheets.svg';
 import { useUpdateLiveSourceFields } from '../externalConnections/hooks/useLiveSourceFields';
 import { useExternalSourceActions } from './externalSources/externalSourceActions';
 import { isSameDraft, toFieldChange, toFieldDraft } from './fieldDraft';
+import { KindTypeIcon } from './KindTypeIcon';
 import { useLiveSourceActions } from './liveSources/liveSourceActions';
 import {
     getExplore,
@@ -171,41 +164,6 @@ const KindIcon: FC<{ kind: Kind; size?: number }> = ({ kind, size = 16 }) => (
     <MantineIcon icon={KIND_ICONS[kind]} size={size} color="dimmed" />
 );
 
-const isDimensionType = (type: string): type is DimensionType =>
-    Object.values<string>(DimensionType).includes(type);
-const isMetricType = (type: string): type is MetricType =>
-    Object.values<string>(MetricType).includes(type);
-
-/** The explorer's field icon, from a field kind and type. */
-const KindTypeIcon: FC<{
-    fieldKind: FieldKind;
-    type: string;
-    name: string;
-    size?: 'md' | 'lg';
-}> = ({ fieldKind, type, name, size = 'md' }) => (
-    <FieldIcon
-        size={size}
-        item={
-            {
-                fieldType:
-                    fieldKind === 'metric'
-                        ? FieldType.METRIC
-                        : FieldType.DIMENSION,
-                type:
-                    fieldKind === 'metric'
-                        ? isMetricType(type)
-                            ? type
-                            : MetricType.NUMBER
-                        : isDimensionType(type)
-                          ? type
-                          : DimensionType.STRING,
-                name,
-                label: name,
-            } as LightdashField
-        }
-    />
-);
-
 const FieldTypeIcon: FC<{ field: Field; size?: 'md' | 'lg' }> = ({
     field,
     size = 'md',
@@ -247,7 +205,14 @@ export const NodeIcon: FC<{
         case 'explore': {
             const explore = getExplore(project, nodeRef.exploreId);
             const source = getSource(project, explore.sourceId);
-            return source.type === 'dbt' ? (
+            // A live source with several explores shows its logo on the
+            // source row above; a single-explore source is its explore
+            const isUnderLiveSource =
+                source.type === 'live' &&
+                project.explores.filter(
+                    ({ sourceId }) => sourceId === source.id,
+                ).length > 1;
+            return source.type === 'dbt' || isUnderLiveSource ? (
                 <MantineIcon icon={IconTable} size={size} color="dimmed" />
             ) : (
                 <SourceLogo source={source} size={size} />
@@ -528,6 +493,7 @@ const FieldRow = memo<{
         onOpen,
         onDragStart,
     }) => {
+        const canDrag = useAddToStudioChat() !== null;
         const summary = summaryOf(field.description);
         return (
             <Box className={classes.fieldItem} top={top}>
@@ -540,13 +506,15 @@ const FieldRow = memo<{
                     role="row"
                     aria-selected={selected}
                     tabIndex={tabStop ? 0 : -1}
-                    draggable
+                    draggable={canDrag}
                     onDragStart={(event) => onDragStart(event, field)}
                     onClick={() => onOpen(field)}
                 >
-                    <Box className={classes.dragGrip} aria-hidden>
-                        <MantineIcon icon={IconGripVertical} size={12} />
-                    </Box>
+                    {canDrag ? (
+                        <Box className={classes.dragGrip} aria-hidden>
+                            <MantineIcon icon={IconGripVertical} size={12} />
+                        </Box>
+                    ) : null}
                     <Group gap={8} wrap="nowrap" className={classes.fieldName}>
                         <Box flex="none" display="flex">
                             <FieldTypeIcon field={field} />
@@ -569,7 +537,10 @@ const FieldRow = memo<{
                             </Text>
                         ) : null}
                         {field.draftState ? (
-                            <Text className={classes.fieldUnsaved}>
+                            <Text
+                                className={classes.fieldUnsaved}
+                                data-change={field.draftState}
+                            >
                                 {CHANGE_KIND_LABELS[field.draftState]}
                             </Text>
                         ) : null}
@@ -661,6 +632,9 @@ export const FieldList: FC<{
                 fieldName: field.id,
                 modelLabel: explore.label,
                 fieldLabel: field.label,
+                fieldKind: field.fieldKind,
+                fieldType: field.type,
+                code: null,
             }),
         [explore.id, explore.label],
     );
@@ -1145,22 +1119,30 @@ export const FieldDetailModal: FC<{
     const addToChat = useAddToStudioChat();
     const source = getSource(view.project, explore.sourceId);
     const saved = toFieldDraft(field);
-    // Drafts live in the view, so closing without saving keeps them.
-    const draft = view.getDraft(explore, field) ?? saved;
-    const isSaved = (next: FieldDraft) => isSameDraft(next, saved);
-    const setDraft = (next: FieldDraft) =>
-        view.setDraft(explore, field, isSaved(next) ? null : next);
+    // Typed here and handed to the view on close: the view keeps it, and typing does not render the whole page.
+    const [draft, setDraft] = useState(
+        () => view.getDraft(explore, field) ?? saved,
+    );
+    // What was just saved counts as saved before the field is read again.
+    const [committed, setCommitted] = useState<FieldDraft | null>(null);
+    const isSaved = (next: FieldDraft) =>
+        isSameDraft(next, saved) ||
+        (committed !== null && isSameDraft(next, committed));
+    const keep = useRef(() => {});
+    keep.current = () =>
+        view.setDraft(explore, field, isSaved(draft) ? null : draft);
+    useEffect(() => () => keep.current(), []);
     const canEdit = view.canEditFields(explore);
     const isLive = source.kind === 'live';
     const dirty = !isSaved(draft);
-    const discard = () => view.setDraft(explore, field, null);
+    const discard = () => setDraft(committed ?? saved);
     const update = useUpdateLiveSourceFields({
         projectUuid: view.project.id,
         connectionUuid: source.connectionUuid ?? '',
     });
     const save = () => {
         update.mutate([toFieldChange(field.name, draft, saved)], {
-            onSuccess: discard,
+            onSuccess: () => setCommitted(draft),
         });
     };
     const facts = [
@@ -1208,6 +1190,9 @@ export const FieldDetailModal: FC<{
                                 fieldName: field.id,
                                 modelLabel: explore.label,
                                 fieldLabel: field.label,
+                                fieldKind: field.fieldKind,
+                                fieldType: field.type,
+                                code: null,
                             });
                             onClose();
                         }}

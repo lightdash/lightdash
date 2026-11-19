@@ -10,23 +10,29 @@ import {
     Center,
     Group,
     Loader,
-    Stack,
     Text,
     Tooltip,
 } from '@mantine/core';
 import {
     IconArrowBackUp,
-    IconGitPullRequest,
     IconMessagePlus,
     IconLayoutSidebarRightCollapse,
     IconPlus,
 } from '@tabler/icons-react';
 import { uniqBy } from 'es-toolkit/compat';
-import { useEffect, useEffectEvent, useRef, useState, type FC } from 'react';
+import {
+    memo,
+    useEffect,
+    useEffectEvent,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { Provider } from 'react-redux';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SidebarPosition } from '../../../../../components/common/Page/types';
 import {
+    withStudioChatCode,
     isStudioChatRefDrag,
     readStudioChatRefDrop,
     type StudioChatRef,
@@ -37,7 +43,6 @@ import useSidebarResize from '../../../../../hooks/useSidebarResize';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
 import { usePendingThreadRefetch } from '../../hooks/usePendingThreadRefetch';
 import {
-    useAiAgentThread,
     useCreateAgentThreadMessageMutation,
     useCreateAgentThreadMutation,
 } from '../../hooks/useProjectAiAgents';
@@ -45,17 +50,19 @@ import { store } from '../../store';
 import { AiAgentThreadStreamAbortControllerContextProvider } from '../../streaming/AiAgentThreadStreamAbortControllerContextProvider';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../ChatElements/AgentChatInput';
-import { QuietCardsContext } from '../ChatElements/ToolCalls/quietCards';
+import {
+    QuietCardsContext,
+    StudioAskContext,
+} from '../ChatElements/ToolCalls/quietCards';
 import classes from './SemanticStudioAgent.module.css';
 import { StudioChatEmptyState } from './StudioChatEmptyState';
 import { StudioChatRefChips } from './StudioChatRefChips';
-import { getOpenProposal } from './studioProposal';
 import {
     useChatOpen,
     useStudioAgent,
+    useStudioThread,
     type StoredThread,
 } from './useSemanticStudioChat';
-import { useStudioPullRequest } from './useStudioPullRequest';
 
 type OpenModel = { modelName: string | null; fieldName: string | null };
 
@@ -80,17 +87,20 @@ const withOpenModel = (
 ) => {
     const refs = [
         ...(modelName ? [{ modelName, fieldName }] : []),
-        ...attached.map((ref) => ({
-            modelName: ref.modelName,
-            fieldName: ref.fieldName,
-        })),
+        ...attached
+            .filter(({ code }) => code === null)
+            .map((ref) => ({
+                modelName: ref.modelName,
+                fieldName: ref.fieldName,
+            })),
     ];
     const items = uniqBy(
         refs,
         (ref) => `${ref.modelName}:${ref.fieldName ?? ''}`,
     ).map((ref) => ({ type: 'semantic_model' as const, ...ref }));
+    const code = attached.flatMap((ref) => (ref.code ? [ref.code] : []));
     return {
-        prompt: message,
+        prompt: withStudioChatCode(message, code),
         context: [...items, ...(context ?? [])],
         optimisticContext: [...items, ...(optimisticContext ?? [])],
     };
@@ -263,7 +273,7 @@ const ExistingThread: FC<
         data: thread,
         isLoading,
         refetch,
-    } = useAiAgentThread(projectUuid, agent.uuid, threadUuid);
+    } = useStudioThread(projectUuid, agent.uuid, threadUuid);
     const { isStreaming, isThreadPending } = usePendingThreadRefetch(
         thread,
         threadUuid,
@@ -283,11 +293,6 @@ const ExistingThread: FC<
         onAttachedSent();
     };
     useAskedPrompt({ prompt, onPromptTaken }, (message) => send({ message }));
-    const keepsDraft = useKeepsSemanticLayerDraft(projectUuid);
-    const pullRequest = useStudioPullRequest(projectUuid);
-    // Unknown counts as open, so a slow or unavailable status check never offers a second pull request.
-    const isClosed = !!pullRequest?.ciChecks && !pullRequest.isOpen;
-    const isRequestingPullRequest = useRef(false);
     if (isLoading || !thread) {
         return (
             <Center flex={1}>
@@ -297,84 +302,41 @@ const ExistingThread: FC<
     }
     const isBusy = isSending || isStreaming || isThreadPending;
     return (
-        <AgentChatDisplay
-            thread={thread}
-            agentName={agent.name}
-            enableAutoScroll
-            projectUuid={projectUuid}
-            agentUuid={agent.uuid}
-            renderArtifactsInline
+        <StudioAskContext.Provider
+            value={isBusy ? null : (message) => send({ message })}
         >
-            {!keepsDraft &&
-            !isBusy &&
-            getOpenProposal(thread.messages).length > 0 ? (
-                <div className={classes.pullRequestPrompt}>
-                    <Stack className={classes.pullRequestCard} gap="sm">
-                        <Group gap="sm" wrap="nowrap">
-                            <span className={classes.pullRequestIcon}>
-                                <MantineIcon
-                                    icon={IconGitPullRequest}
-                                    size={16}
-                                />
-                            </span>
-                            <Stack gap={0} flex={1} miw={0}>
-                                <Text fz="sm" fw={500}>
-                                    {pullRequest && !isClosed
-                                        ? 'Add this to your pull request?'
-                                        : 'Happy with this change?'}
-                                </Text>
-                                <Text fz="xs" c="dimmed">
-                                    {!pullRequest
-                                        ? 'You can try it once its pull request opens.'
-                                        : isClosed
-                                          ? 'Your last pull request is closed, so this opens a new one.'
-                                          : 'Commits it to the same pull request.'}
-                                </Text>
-                            </Stack>
-                        </Group>
-                        <Button
-                            size="xs"
-                            fullWidth
-                            onClick={() => {
-                                if (isRequestingPullRequest.current) return;
-                                isRequestingPullRequest.current = true;
-                                void sendMessage({
-                                    enableSqlMode: sqlMode,
-                                    prompt: !pullRequest
-                                        ? 'Open the pull request.'
-                                        : isClosed
-                                          ? 'Open a new pull request.'
-                                          : 'Save this to the pull request.',
-                                    // The pull request tools only join a turn that carries this hint.
-                                    toolHints: ['editDbtProject'],
-                                }).finally(() => {
-                                    isRequestingPullRequest.current = false;
-                                });
-                            }}
-                        >
-                            {!pullRequest
-                                ? 'Open pull request'
-                                : isClosed
-                                  ? 'Open new pull request'
-                                  : 'Save to pull request'}
-                        </Button>
-                    </Stack>
-                </div>
-            ) : null}
-            <StudioChatRefChips refs={attached} onRemove={onDetach} />
-            <AgentChatInput
-                allowAttachments={false}
-                accessCalloutVariant="inline"
-                loading={isBusy}
-                onSubmit={send}
-                placeholder="What should I build or change?"
-                messageCount={thread.messages.length}
+            <AgentChatDisplay
+                thread={thread}
+                agentName={agent.name}
+                enableAutoScroll
                 projectUuid={projectUuid}
                 agentUuid={agent.uuid}
-                threadUuid={threadUuid}
-                fullWidth
-            />
-        </AgentChatDisplay>
+                renderArtifactsInline
+                onChoiceSelect={
+                    isBusy ? undefined : (message) => send({ message })
+                }
+            >
+                {thread.messages.length === 0 && !isBusy ? (
+                    <Text fz="xs" c="dimmed" ta="center" px="md" pb="xs">
+                        You edited this draft by hand. Ask for more here, or
+                        publish it when it is ready.
+                    </Text>
+                ) : null}
+                <StudioChatRefChips refs={attached} onRemove={onDetach} />
+                <AgentChatInput
+                    allowAttachments={false}
+                    accessCalloutVariant="inline"
+                    loading={isBusy}
+                    onSubmit={send}
+                    placeholder="What should I build or change?"
+                    messageCount={thread.messages.length}
+                    projectUuid={projectUuid}
+                    agentUuid={agent.uuid}
+                    threadUuid={threadUuid}
+                    fullWidth
+                />
+            </AgentChatDisplay>
+        </StudioAskContext.Provider>
     );
 };
 
@@ -385,6 +347,10 @@ type AgentProps = OpenModel &
         showStarters: boolean;
         onAttach: (ref: StudioChatRef) => void;
     };
+
+// The panel renders on every move of its resize handle; the thread only when what it is given changes.
+const ExistingThreadMemo = memo(ExistingThread);
+const NewThreadMemo = memo(NewThread);
 
 const SemanticStudioAgentPanel: FC<AgentProps> = ({
     projectUuid,
@@ -404,12 +370,13 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
         isEnabled,
         agent,
         thread,
+        isLoadingAgents,
         setStored,
         startNewThread,
         previousThread,
         returnToPreviousThread,
     } = useStudioAgent(projectUuid);
-    const [isOpen, setIsOpen] = useChatOpen();
+    const [isOpen, setIsOpen] = useChatOpen(projectUuid);
 
     const { sidebarRef, sidebarWidth, isResizing, startResizing } =
         useSidebarResize({
@@ -418,7 +385,14 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
             position: SidebarPosition.RIGHT,
         });
 
-    if (!isEnabled || !agent) return null;
+    if (!isEnabled) return null;
+    if (!agent) {
+        return isLoadingAgents ? (
+            <Box className={classes.panel} p="md">
+                <Loader size="sm" />
+            </Box>
+        ) : null;
+    }
     if (!isOpen) return null;
     return (
         <QuietCardsContext.Provider value>
@@ -503,7 +477,7 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
                 </Group>
                 <Box className={classes.body}>
                     {thread ? (
-                        <ExistingThread
+                        <ExistingThreadMemo
                             key={thread.threadUuid}
                             projectUuid={projectUuid}
                             agent={thread.agent}
@@ -517,7 +491,7 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
                             onAttachedSent={onAttachedSent}
                         />
                     ) : (
-                        <NewThread
+                        <NewThreadMemo
                             projectUuid={projectUuid}
                             agent={agent}
                             onCreated={setStored}

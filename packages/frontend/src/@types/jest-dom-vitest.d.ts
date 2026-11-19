@@ -1,19 +1,8 @@
-export {};
-
-interface JestDomMatchers {
-    toBeChecked(): void;
-    toBeDisabled(): void;
-    toBeEnabled(): void;
-    toBeInTheDocument(): void;
-    toBeVisible(): void;
-    toHaveAttribute(attribute: string, value?: string | RegExp): void;
-    toHaveStyle(css: string | Record<string, unknown>): void;
-}
-
-declare module '@vitest/expect' {
-    interface Assertion<T = unknown> extends JestDomMatchers {}
-}
+import type { TestingLibraryMatchers } from '@testing-library/jest-dom/matchers';
 
 declare module 'vitest' {
-    interface Assertion<T = unknown> extends JestDomMatchers {}
+    interface Matchers<
+        R extends void | Promise<void> = void | Promise<void>,
+        T = unknown,
+    > extends TestingLibraryMatchers<unknown, R> {}
 }

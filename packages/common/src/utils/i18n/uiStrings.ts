@@ -130,7 +130,22 @@ export const DEFAULT_UI_STRINGS = {
     'tileMenu.downloadData': 'Download data',
     'tileMenu.exportImage': 'Export image',
     'tileMenu.viewUnderlyingData': 'View underlying data',
+    'tileMenu.viewLineage': 'View lineage',
     'tile.composerChart.notAvailable': 'This chart is not available here',
+    'tile.composerChart.lineageTitle': 'Lineage: {chart}',
+    'tile.composerChart.lineageRunFailed': 'The pipeline did not run',
+    'tile.composerChart.lineageSavedSql':
+        "Saved query, without this dashboard's filters and parameters",
+    'tile.error.couldNotLoad': 'This chart could not load',
+    'tile.error.showDetails': 'Show details',
+    'tile.filters.dashboardApplied.singular': 'Dashboard filter applied:',
+    'tile.filters.dashboardApplied.plural': 'Dashboard filters applied:',
+    'tile.filters.chart.singular': 'Chart filter:',
+    'tile.filters.chart.plural': 'Chart filters:',
+    'tile.filters.overriddenByDashboard': '(overridden by dashboard)',
+    'tile.filters.unknownField':
+        'Tried to reference field with unknown id: {fieldId}',
+    'tile.parameters.title': 'Parameters',
     'dateZoom.defaultZoom': 'Default zoom',
     'dateZoom.none': 'None',
     'dateZoom.viewModeTooltip':
@@ -306,6 +321,8 @@ export const DEFAULT_UI_STRINGS = {
     'filters.config.collapseTab': 'Collapse tab',
     'filters.config.noTilesInTab': 'No tiles in this tab',
     'filters.config.noFieldsMatchingType': 'No fields matching filter type',
+    'filters.config.tileFieldsGroup': 'Fields',
+    'filters.config.tileSqlColumnsGroup': 'SQL columns',
     'filters.config.fieldNotAvailableInChart':
         "The selected field '{field}' is not available in this chart",
     'filters.coverage.noMatchingCharts':
@@ -476,8 +493,9 @@ export const DEFAULT_UI_STRINGS = {
     'filters.tileCard.thisTile': 'this tile',
     'filters.tileCard.selectName': '{filter} on {tile}',
     'filters.tileCard.filteredBy': 'Filtered by {field}',
-    'filters.tileCard.filteredVia': 'Filtered via {field}',
     'filters.tileCard.filteredByHeading': 'Filtered by',
+    // No longer rendered; shipped keys stay so host overrides keep typing
+    'filters.tileCard.filteredVia': 'Filtered via {field}',
     'filters.tileCard.filteredViaHeading': 'Filtered via',
     'filters.tileCard.notFilteredLabel': 'Not filtered',
     'filters.tileCard.fieldNotOnTile':
@@ -556,6 +574,7 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.artifact.pending.building': 'Building…',
     'aiAgent.stepFailure.title': 'Step failed',
     'aiAgent.stepFailure.openInSqlRunner': 'Open in SQL Runner',
+    'aiAgent.toolCall.sqlNotApproved': 'SQL not approved',
     'aiAgent.message.responseTiming': 'Response timing',
     'aiAgent.mcpApps.available.singular': '{count} app available to connect',
     'aiAgent.mcpApps.available.plural': '{count} apps available to connect',
@@ -645,6 +664,9 @@ export const DEFAULT_UI_STRINGS = {
     'explorer.backToChart': 'Back to Chart',
     'explorer.backToAi': 'Back to AI',
     'explorer.backToMetricsCatalog': 'Back to Metrics Catalog',
+    'explorer.loadingChart': 'Loading chart',
+    'explorer.loadingChartResults': 'Loading chart results',
+    'explorer.runningQuery': 'Running query',
 } as const satisfies Record<string, string>;
 
 export type UiStringKey = keyof typeof DEFAULT_UI_STRINGS;

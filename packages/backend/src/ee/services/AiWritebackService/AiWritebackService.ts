@@ -7,6 +7,7 @@ import {
     ForbiddenError,
     getErrorMessage,
     isAiWritebackRunInProgress,
+    isExploreError,
     isGitProjectType,
     isUserWithOrg,
     MissingConfigError,
@@ -25,12 +26,15 @@ import {
     type AiWritebackWorkstream,
     type ClosePullRequestResult,
     type DbtProjectConfig,
+    type Explore,
+    type ExploreError,
     type GitRepo,
-    type MergePullRequestResult,
     type PullRequestWritebackAction,
     type SessionUser,
+    type WritebackMergeResult,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
+import { createHash } from 'node:crypto';
 import type {
     AiWritebackFailureStage,
     LightdashAnalytics,
@@ -71,12 +75,14 @@ import type { AiWritebackRunModel } from '../../models/AiWritebackRunModel';
 import type {
     AiWritebackThreadModel,
     AiWritebackThreadWithPrUrl,
+    AiWritebackWorkstreamRow,
     ResumableWritebackThread,
 } from '../../models/AiWritebackThreadModel';
 import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { selectWritebackSource } from '../ai/decisions/writebackSource';
 import { type OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
+import type { AiWritebackWorkstreams } from '../ai/types/aiAgentDependencies';
 import { getWritebackConnectionSupport } from '../AiAgentService/writebackConnection';
 import {
     anthropicClaudeCodeAllowedHosts,
@@ -94,6 +100,16 @@ import {
     type SandboxHandle,
     type SandboxSpec,
 } from '../SandboxRuntime';
+import {
+    diffLineCounts,
+    runCodeMode,
+    validateSemanticLayerYaml,
+    type CodeModeRepo,
+} from '../SemanticStudioService/codeMode/codeMode';
+import {
+    type DbtScriptChange,
+    type DbtScriptCheck,
+} from '../SemanticStudioService/codeMode/dbtManifestPatch';
 import {
     ALLOWED_TOOLS,
     ASSISTANT_TEXT_TAIL_CHARS,
@@ -120,13 +136,9 @@ import {
     STDERR_TAIL_BYTES,
     SYSTEM_PROMPT_PATH,
     TMP_PROFILES_DIR,
-    TRY_OUT_HAND_OVER_TIMEOUT_MS,
-    TRY_OUT_MAX_FILE_BYTES,
-    TRY_OUT_MAX_MANIFEST_BYTES,
-    TRY_OUT_PARSE_TIMEOUT_MS,
-    TRY_OUT_TARGET_DIR,
     WAREHOUSE_SKILL_PATH,
 } from './constants';
+import { findDeniedCommitPaths } from './deniedPaths';
 import {
     WRITEBACK_AGENT_ACCESS_REFUSED_MESSAGE,
     WritebackAccessError,
@@ -138,7 +150,7 @@ import {
 } from './errors';
 import { validateNativeSandbox } from './nativeValidation';
 import { BitbucketProvider } from './providers/BitbucketProvider';
-import { GithubProvider } from './providers/GithubProvider';
+import { GithubProvider, type ApiCheckout } from './providers/GithubProvider';
 import { assertSameHost, GitlabProvider } from './providers/GitlabProvider';
 import type { GitProvider } from './providers/GitProvider';
 import { readStagedChanges } from './providers/sandboxGit';
@@ -155,7 +167,6 @@ import type {
     CodingAgentConfig,
     GitConnection,
     GitInstallation,
-    ParsedDbtProject,
     RepoContext,
     SetStage,
     TurnContext,
@@ -197,6 +208,17 @@ const WRITEBACK_WORKSPACE: PersistentWorkspace = {
 // when the worker died before it could be finalized. Sweep well beyond that
 // hard timeout so an in-flight or just-timing-out run is never falsely errored.
 const STALE_RUN_THRESHOLD_MINUTES = 45;
+
+export type ScriptSave =
+    | { status: 'script_failed'; error: string; logs: string[] }
+    | { status: 'checked' }
+    | {
+          status: 'saved';
+          result: AiWritebackRunResult;
+          changedModels: string[];
+          /** What the change compiled to before it was committed; null when it was not compiled. */
+          explores: (Explore | ExploreError)[] | null;
+      };
 
 const STALE_RUN_ERROR_MESSAGE =
     'This change stopped unexpectedly before it finished, most likely because the server restarted mid-run. Please ask again to retry.';
@@ -745,20 +767,19 @@ export class AiWritebackService extends BaseService {
         projectUuid: string;
         prUrl: string;
         sha?: string;
-    }): Promise<MergePullRequestResult> {
+    }): Promise<WritebackMergeResult> {
         const result = await this.ciService.mergePullRequest(args);
-        if (result.merged) {
-            const compileScheduled = await this.scheduleCompileAfterMerge(
-                args.user,
-                args.projectUuid,
-            );
-            await this.trackMerged(args.user, args.projectUuid, {
-                prUrl: args.prUrl,
-                mergeCommitSha: result.sha,
-                compileScheduled,
-            });
-        }
-        return result;
+        if (!result.merged) return { ...result, compileJobUuid: null };
+        const compileJobUuid = await this.scheduleCompileAfterMerge(
+            args.user,
+            args.projectUuid,
+        );
+        await this.trackMerged(args.user, args.projectUuid, {
+            prUrl: args.prUrl,
+            mergeCommitSha: result.sha,
+            compileScheduled: compileJobUuid !== null,
+        });
+        return { ...result, compileJobUuid };
     }
 
     /**
@@ -832,14 +853,14 @@ export class AiWritebackService extends BaseService {
      * turns into an API error. Only git-connected projects re-clone on compile
      * and thus pick up the merged branch, so non-git projects are skipped.
      */
-    private async scheduleCompileAfterMerge(
+    async scheduleCompileAfterMerge(
         user: SessionUser,
         projectUuid: string,
-    ): Promise<boolean> {
+    ): Promise<string | null> {
         try {
             const project = await this.projectModel.get(projectUuid);
             if (!isGitProjectType(project.dbtConnection)) {
-                return false;
+                return null;
             }
             // skipPermissionCheck: the merge already passed the manage:SourceCode
             // guard, so this system-initiated recompile shouldn't fail for a user
@@ -854,14 +875,14 @@ export class AiWritebackService extends BaseService {
             this.logger.info(
                 `Scheduled dbt compile (job ${jobUuid}) after writeback PR merge for project ${projectUuid}`,
             );
-            return true;
+            return jobUuid;
         } catch (error) {
             this.logger.error(
                 `Failed to schedule dbt compile after writeback PR merge for project ${projectUuid}: ${getErrorMessage(
                     error,
                 )}`,
             );
-            return false;
+            return null;
         }
     }
 
@@ -1526,6 +1547,10 @@ export class AiWritebackService extends BaseService {
                     'github.com',
                     'gitlab.com',
                     'bitbucket.org',
+                    // `dbt deps`: the package index, then its tarball hosts.
+                    'hub.getdbt.com',
+                    'public.cdn.getdbt.com',
+                    'codeload.github.com',
                 ],
             },
         };
@@ -1789,6 +1814,494 @@ export class AiWritebackService extends BaseService {
             this.dbtWritebackConfig(),
             assertPublishAllowed,
         );
+    }
+
+    /** In Studio, the thread's open pull request that no sandbox made, such as one a script opened; null when there is none to continue. */
+    private async findThreadPullRequestToContinue({
+        continues,
+        startNewPullRequest,
+        aiThreadUuid,
+        adopt,
+    }: {
+        continues: boolean;
+        startNewPullRequest: boolean;
+        aiThreadUuid: string | null;
+        adopt: (prUrl: string) => Promise<AdoptedPullRequest>;
+    }): Promise<AdoptedPullRequest | null> {
+        if (!continues || startNewPullRequest || !aiThreadUuid) return null;
+        const threadPrUrl =
+            await this.aiWritebackRunModel.findLatestPrUrlByThread(
+                aiThreadUuid,
+            );
+        if (!threadPrUrl) return null;
+        try {
+            return await adopt(threadPrUrl);
+        } catch (error) {
+            // Merged, closed or in another repository: this turn opens a new one. Anything else fails the run.
+            if (!(error instanceof ParameterError)) throw error;
+            this.logger.info(
+                `AiWriteback: not continuing the thread's pull request: ${getErrorMessage(error)}`,
+            );
+            return null;
+        }
+    }
+
+    /** The project's files as Studio shows them: a change's pull request, finished ones at their last commit, or the branch the project deploys from. */
+    async openStudioCheckout(
+        user: SessionUser,
+        projectUuid: string,
+        prUrl: string | null,
+    ): Promise<{ checkout: ApiCheckout; root: string }> {
+        await this.assertWritebackProviderSupported(
+            user.organizationUuid,
+            projectUuid,
+        );
+        const prepared = await this.prepareTurn({
+            user,
+            projectUuid,
+            prompt: '',
+            aiThreadUuid: undefined,
+            dbtSourceUuid: undefined,
+            prUrl: null,
+            startNewPullRequest: true,
+        });
+        if (
+            prepared.kind !== 'run' ||
+            prepared.turn.provider !== this.githubProvider
+        ) {
+            throw new ParameterError(
+                'Only a project in a GitHub repository can show its files here.',
+            );
+        }
+        const { gitConnection: connection } = prepared.turn;
+        const installation = await this.githubProvider.resolveInstallation(
+            prepared.turn.organizationUuid,
+            { user, connection },
+        );
+        const checkout = await this.githubProvider.openApiCheckout({
+            connection,
+            installation,
+            prUrl,
+            access: 'read',
+        });
+        return {
+            checkout,
+            root:
+                connection.projectSubPath === '.'
+                    ? ''
+                    : `${connection.projectSubPath}/`,
+        };
+    }
+
+    /** The branch of an open pull request in the project's own repository, read as the app. */
+    async findPullRequestBranch(
+        organizationUuid: string,
+        projectUuid: string,
+        prUrl: string,
+    ): Promise<string> {
+        const { dbtConnection } = await this.projectModel.get(projectUuid);
+        const provider = this.getGitProvider(dbtConnection.type);
+        const connection = provider.resolveConnection(dbtConnection, {
+            projectUuid,
+            projectDbtSourceUuid: null,
+        });
+        const installation =
+            await provider.resolveInstallation(organizationUuid);
+        const { headRef } = await provider.adoptPullRequest({
+            prUrl,
+            connection,
+            installation,
+        });
+        return headRef;
+    }
+
+    /**
+     * Makes a change with a script, read and committed through the GitHub API
+     * with no sandbox. Null when the target needs the sandbox: not GitHub, a
+     * sandbox-bound thread saving outside its own pull request, or a dbt source still to be chosen.
+     */
+    async saveWithScript(
+        args: AiWritebackRunArgs,
+        script: string,
+        {
+            dryRun,
+            assertPublishAllowed,
+            checkDbt,
+            expectedSource = null,
+        }: {
+            expectedSource?: { path: string; revision: string | null } | null;
+            dryRun: boolean;
+            assertPublishAllowed: (() => Promise<void>) | null;
+            /** Compiles a dbt change before it is committed; null commits without compiling. */
+            checkDbt:
+                | ((change: DbtScriptChange) => Promise<DbtScriptCheck>)
+                | null;
+        },
+    ): Promise<ScriptSave | null> {
+        const { user, projectUuid, aiWritebackRunUuid } = args;
+        await this.assertWritebackProviderSupported(
+            user.organizationUuid,
+            projectUuid,
+        );
+        const prepared = await this.prepareTurn({
+            user,
+            projectUuid,
+            prompt: args.prompt,
+            aiThreadUuid: args.aiThreadUuid,
+            dbtSourceUuid: args.dbtSourceUuid,
+            prUrl: args.prUrl,
+            startNewPullRequest: args.startNewPullRequest,
+        });
+        if (prepared.kind !== 'run') return null;
+        const { turn } = prepared;
+        if (turn.provider !== this.githubProvider) return null;
+        // A change the agent opened takes hand saves on its own pull request; its next turn syncs them in.
+        if (
+            turn.existingRow &&
+            (!args.prUrl || args.prUrl !== turn.existingRow.pr_url)
+        ) {
+            return null;
+        }
+        const setStage = (stage: AiWritebackFailureStage) => {
+            if (dryRun || !aiWritebackRunUuid) return;
+            this.aiWritebackRunModel
+                .updateStageIfInProgress(aiWritebackRunUuid, stage)
+                .catch((error: unknown) => {
+                    this.logger.warn(
+                        `AiWriteback: failed to persist run stage: ${getErrorMessage(error)}`,
+                    );
+                });
+        };
+        const startedAt = performance.now();
+        let stage: AiWritebackFailureStage = 'clone';
+        try {
+            setStage('clone');
+            const { gitConnection: connection } = turn;
+            const installation = await this.githubProvider.resolveInstallation(
+                turn.organizationUuid,
+                { user, connection },
+            );
+            const open = (prUrl: string | null) =>
+                this.githubProvider.openApiCheckout({
+                    connection,
+                    installation,
+                    prUrl,
+                    access: 'write',
+                });
+            let checkout: ApiCheckout;
+            if (args.prUrl) {
+                checkout = await open(args.prUrl);
+            } else {
+                const threadPrUrl =
+                    !args.startNewPullRequest && args.aiThreadUuid
+                        ? await this.aiWritebackRunModel.findLatestPrUrlByThread(
+                              args.aiThreadUuid,
+                          )
+                        : null;
+                // The thread's last pull request is continued while it is still open in this repository.
+                checkout = await (
+                    threadPrUrl ? open(threadPrUrl) : open(null)
+                ).catch((error: unknown) => {
+                    if (threadPrUrl && error instanceof ParameterError) {
+                        return open(null);
+                    }
+                    throw error;
+                });
+            }
+
+            // The connection holds a normalized sub-path, '.' for the repository root.
+            const root =
+                connection.projectSubPath === '.'
+                    ? ''
+                    : `${connection.projectSubPath}/`;
+            if (expectedSource !== null) {
+                const current = await checkout.readFile(
+                    `${root}${expectedSource.path}`,
+                );
+                const revision =
+                    current === null
+                        ? null
+                        : createHash('sha256').update(current).digest('hex');
+                if (revision !== expectedSource.revision) {
+                    throw new ParameterError(
+                        'This file changed since you opened it. Reload it to see the latest version, then make your edit again.',
+                    );
+                }
+            }
+            let listing: Promise<string[]> | null = null;
+            const isNative =
+                connection.provider === PullRequestProvider.GITHUB &&
+                connection.semanticLayer === 'lightdash';
+            const touchedTables = new Map<string, string>();
+            const repo: CodeModeRepo = {
+                list: () => {
+                    listing ??= checkout
+                        .listFiles()
+                        .then((paths) =>
+                            paths
+                                .filter((path) => path.startsWith(root))
+                                .map((path) => path.slice(root.length)),
+                        );
+                    return listing;
+                },
+                read: (path) => checkout.readFile(`${root}${path}`),
+                findModel: async (name) => {
+                    const explore =
+                        await this.projectModel.findExploreByTableName(
+                            projectUuid,
+                            name,
+                        );
+                    const table =
+                        explore && !isExploreError(explore)
+                            ? explore.tables[explore.baseTable]
+                            : undefined;
+                    if (!table) return null;
+                    const found = {
+                        yml: table.ymlPath ?? null,
+                        sql: table.sqlPath ?? null,
+                    };
+                    [found.yml, found.sql].forEach((path) => {
+                        if (path) touchedTables.set(path, name);
+                    });
+                    return found;
+                },
+                validateYaml: (path, text) =>
+                    validateSemanticLayerYaml(path, text, {
+                        isNative,
+                        dbtVersion: turn.dbtVersion,
+                    }),
+            };
+
+            stage = 'agent';
+            setStage('agent');
+            const ran = await runCodeMode(script, repo, { timeoutMs: 20000 });
+            const denied = findDeniedCommitPaths(
+                ran.edits.map(({ path }) => `${root}${path}`),
+            );
+            const error =
+                ran.error ??
+                (denied.length > 0
+                    ? `These files may not be changed: ${denied.join(', ')}`
+                    : null) ??
+                (ran.edits.length === 0
+                    ? 'The script changed no files.'
+                    : null);
+            this.logger.info('AI writeback script ran', {
+                event: 'ai_writeback.script.ran',
+                projectUuid,
+                dryRun,
+                ok: error === null,
+                files: ran.edits.length,
+                durationMs: Math.round(performance.now() - startedAt),
+            });
+            if (error !== null) {
+                return { status: 'script_failed', error, logs: ran.logs };
+            }
+            let check: DbtScriptCheck | null = null;
+            if (checkDbt && !isNative) {
+                const repoPaths = (paths: string[] | null) =>
+                    paths === null
+                        ? null
+                        : paths
+                              .filter((path) => path.startsWith(root))
+                              .map((path) => path.slice(root.length));
+                check = await checkDbt({
+                    edits: new Map(
+                        ran.edits.map(({ path, after }) => [path, after]),
+                    ),
+                    readHead: (path) => checkout.readFile(`${root}${path}`),
+                    readAt: (path, commitSha) =>
+                        checkout.readFileAt(`${root}${path}`, commitSha),
+                    listChangedSince: async (commitSha) =>
+                        repoPaths(
+                            await checkout.listFilesChangedSince(commitSha),
+                        ),
+                });
+                this.logger.info('AI writeback script checked', {
+                    event: 'ai_writeback.script.checked',
+                    projectUuid,
+                    dryRun,
+                    status: check.status,
+                    ...(check.status === 'unsupported'
+                        ? { reason: check.reason }
+                        : {}),
+                    durationMs: Math.round(performance.now() - startedAt),
+                });
+                if (check.status === 'unsupported') return null;
+                if (check.status === 'failed') {
+                    return {
+                        status: 'script_failed',
+                        error: check.error,
+                        logs: ran.logs,
+                    };
+                }
+            }
+            if (dryRun) return { status: 'checked' };
+
+            // A policy that denies deleting files holds here as on the sandbox path.
+            if (
+                ran.edits.some(({ after }) => after === null) &&
+                args.agentPermissionsApply &&
+                (await this.agentPermissionService.isManaged(
+                    turn.organizationUuid,
+                ))
+            ) {
+                await this.agentPermissionService.assertOperation({
+                    account: fromSession(user),
+                    organizationUuid: turn.organizationUuid,
+                    projectUuid,
+                    kind: 'tool_effect',
+                    key: 'editRepo.delete_file',
+                    surface:
+                        agentExecutionContext.getStore()?.surface ??
+                        AiWritebackService.getAgentSurface(args.source),
+                });
+            }
+
+            if (aiWritebackRunUuid) {
+                const claimed =
+                    await this.aiWritebackRunModel.claimForFinalize(
+                        aiWritebackRunUuid,
+                    );
+                if (!claimed) {
+                    const liveRow =
+                        await this.aiWritebackRunModel.findByUuid(
+                            aiWritebackRunUuid,
+                        );
+                    throw new WritebackRunAbortedError(
+                        liveRow?.status ?? 'cancelled',
+                    );
+                }
+            }
+            stage = 'commit';
+            const title = AiWritebackService.truncateEnd(
+                args.prompt.split('\n')[0].trim(),
+                72,
+            );
+            const lockKey = turn.existingRow
+                ? workstreamLockKey(
+                      args.aiThreadUuid,
+                      turn,
+                      `${connection.owner}/${connection.repo}`,
+                  )
+                : null;
+            const lock = lockKey
+                ? await this.aiWritebackThreadModel.acquireWorkstreamLock(
+                      lockKey,
+                  )
+                : null;
+            if (lockKey && !lock) {
+                throw new ParameterError(
+                    'The agent is editing this change right now. Save again once it finishes.',
+                );
+            }
+            const committed = await this.githubProvider
+                .commitApiChanges({
+                    connection,
+                    installation,
+                    user,
+                    checkout,
+                    title,
+                    description: args.prompt,
+                    fileChanges: {
+                        additions: ran.edits.flatMap(({ path, after }) =>
+                            after === null
+                                ? []
+                                : [
+                                      {
+                                          path: `${root}${path}`,
+                                          contents:
+                                              Buffer.from(after).toString(
+                                                  'base64',
+                                              ),
+                                      },
+                                  ],
+                        ),
+                        deletions: ran.edits.flatMap(({ path, after }) =>
+                            after === null ? [{ path: `${root}${path}` }] : [],
+                        ),
+                    },
+                    setStage: (next) => {
+                        stage = next;
+                        setStage(next);
+                    },
+                    assertPublishAllowed,
+                })
+                .finally(() => lock?.release());
+            if (committed.prCreated) {
+                await this.pullRequestsModel.findOrCreate({
+                    organizationUuid: turn.organizationUuid,
+                    projectUuid,
+                    createdByUserUuid: user.userUuid,
+                    provider: PullRequestProvider.GITHUB,
+                    source: PullRequestSource.AI_AGENT,
+                    owner: connection.owner,
+                    repo: connection.repo,
+                    prNumber: parsePullNumber(committed.prUrl),
+                    prUrl: committed.prUrl,
+                    summary: null,
+                });
+            }
+            if (aiWritebackRunUuid) {
+                await this.aiWritebackRunModel.markReady(aiWritebackRunUuid, {
+                    branchName: null,
+                    prUrl: committed.prUrl,
+                });
+            }
+            const diff = ran.edits.map(({ before, after }) =>
+                diffLineCounts(before, after),
+            );
+            return {
+                status: 'saved',
+                changedModels:
+                    check?.status === 'passed'
+                        ? check.changedModels
+                        : [
+                              ...new Set(
+                                  ran.edits.flatMap(({ path }) => {
+                                      const table = touchedTables.get(path);
+                                      return table ? [table] : [];
+                                  }),
+                              ),
+                          ],
+                explores: check?.status === 'passed' ? check.explores : null,
+                result: {
+                    output: ran.logs.join('\n'),
+                    exitCode: 0,
+                    prUrl: committed.prUrl,
+                    prAction: committed.prCreated ? 'opened' : 'updated',
+                    commitSha: committed.commitSha,
+                    additions: diff.reduce((sum, d) => sum + d.additions, 0),
+                    deletions: diff.reduce((sum, d) => sum + d.deletions, 0),
+                    projectName: turn.projectName,
+                    repository: `${connection.owner}/${connection.repo}`,
+                    steps: ran.edits.map(({ path }) => ({
+                        kind: 'edit' as const,
+                        label: path.split('/').pop() ?? path,
+                    })),
+                    dbtSourceUuid: turn.projectDbtSourceUuid,
+                },
+            };
+        } catch (error) {
+            this.logger.warn('AI writeback script save failed', {
+                event: 'ai_writeback.script.failed',
+                projectUuid,
+                stage,
+                errorName: error instanceof Error ? error.name : typeof error,
+            });
+            if (!dryRun && aiWritebackRunUuid) {
+                await this.aiWritebackRunModel
+                    .markError(
+                        aiWritebackRunUuid,
+                        AiWritebackService.truncateEnd(
+                            getErrorMessage(error),
+                            4000,
+                        ),
+                    )
+                    .catch(() => false);
+            }
+            throw error;
+        }
     }
 
     async createPendingRun(args: {
@@ -2525,14 +3038,23 @@ export class AiWritebackService extends BaseService {
                 { user, connection: turn.gitConnection },
             );
 
-            const adoptedPr =
-                !turn.existingRow && prUrl
-                    ? await turn.provider.adoptPullRequest({
-                          prUrl,
-                          connection: turn.gitConnection,
-                          installation,
-                      })
-                    : null;
+            const adopt = (url: string) =>
+                turn.provider.adoptPullRequest({
+                    prUrl: url,
+                    connection: turn.gitConnection,
+                    installation,
+                });
+            let adoptedPr: AdoptedPullRequest | null = null;
+            if (!turn.existingRow) {
+                adoptedPr = prUrl
+                    ? await adopt(prUrl)
+                    : await this.findThreadPullRequestToContinue({
+                          continues: !!args.continuesThreadPullRequest,
+                          startNewPullRequest: !!startNewPullRequest,
+                          aiThreadUuid: aiThreadUuid ?? null,
+                          adopt,
+                      });
+            }
 
             ({ sandbox, sandboxUuid } = await this.acquireSandbox({
                 organizationUuid: turn.organizationUuid,
@@ -2557,6 +3079,23 @@ export class AiWritebackService extends BaseService {
                     turn.gitConnection.provider ===
                     PullRequestProvider.BITBUCKET,
             }));
+            if (
+                turn.existingRow?.pr_url &&
+                turn.provider === this.githubProvider
+            ) {
+                const synced =
+                    await this.githubProvider.syncSandboxWithPullRequest({
+                        sandbox,
+                        connection: turn.gitConnection,
+                        installation,
+                        prUrl: turn.existingRow.pr_url,
+                    });
+                if (synced.length > 0) {
+                    this.logger.info(
+                        `AiWriteback: synced ${synced.length} file(s) changed outside the agent into the resumed sandbox`,
+                    );
+                }
+            }
 
             setStage('agent');
             const setup = await config.buildAgentSetup({
@@ -2714,26 +3253,6 @@ export class AiWritebackService extends BaseService {
                 assertPublishAllowed,
             });
             pauseOnExit = applied.pauseOnExit;
-
-            if (
-                args.onDbtProject &&
-                hasChanges &&
-                config.mode === 'dbt-writeback' &&
-                !(
-                    (turn.gitConnection.provider ===
-                        PullRequestProvider.GITHUB ||
-                        turn.gitConnection.provider ===
-                            PullRequestProvider.BITBUCKET) &&
-                    turn.gitConnection.semanticLayer === 'lightdash'
-                )
-            ) {
-                await this.handOverDbtProject(
-                    sandbox,
-                    turn,
-                    applied.prUrl ?? null,
-                    args.onDbtProject,
-                );
-            }
 
             tracker.completed({
                 exitCode: agent.exitCode,
@@ -4219,70 +4738,6 @@ export class AiWritebackService extends BaseService {
         await this.prepareWarehouseSkills(sandbox, turn);
     }
 
-    /**
-     * Parses the edited project into a manifest and hands it over. Best-effort: a
-     * change that cannot be tried here still has its pull request and preview.
-     */
-    private async handOverDbtProject(
-        sandbox: SandboxHandle,
-        turn: TurnContext,
-        prUrl: string | null,
-        onDbtProject: (project: ParsedDbtProject) => Promise<void>,
-    ): Promise<void> {
-        const projectDir = `${CWD}/${turn.gitConnection.projectSubPath}`;
-        const unsetFlags = COMPILE_STRIPPED_ENV_VARS.map(
-            (name) => `-u ${name}`,
-        ).join(' ');
-        const dbtBin = dbtSandboxVenvBin(turn.dbtVersion);
-        try {
-            // Same secret-stripped env as the compile wrapper: dbt renders the repo's Jinja.
-            await sandbox.commands.run(
-                `env ${unsetFlags} PATH="${dbtBin}:$PATH" dbt parse --project-dir ${quoteShellArgument(
-                    projectDir,
-                )} --profiles-dir ${TMP_PROFILES_DIR} --target-path ${TRY_OUT_TARGET_DIR}`,
-                { cwd: CWD, timeoutMs: TRY_OUT_PARSE_TIMEOUT_MS },
-            );
-            const manifestJson = await sandbox.files.read(
-                `${TRY_OUT_TARGET_DIR}/manifest.json`,
-                { maxBytes: TRY_OUT_MAX_MANIFEST_BYTES },
-            );
-            const lightdashConfigYaml = await sandbox.files
-                .read(`${projectDir}/lightdash.config.yml`, {
-                    maxBytes: TRY_OUT_MAX_FILE_BYTES,
-                })
-                .catch(() => null);
-            const diff = await sandbox.commands.run(
-                'git -c core.quotepath=off diff --name-only -z --relative HEAD~1 HEAD',
-                { cwd: projectDir, maxOutputBytes: TRY_OUT_MAX_FILE_BYTES },
-            );
-            let timer: NodeJS.Timeout | undefined;
-            try {
-                await Promise.race([
-                    onDbtProject({
-                        manifestJson,
-                        lightdashConfigYaml,
-                        changedFiles: diff.stdout.split('\0').filter(Boolean),
-                        prUrl,
-                    }),
-                    new Promise<never>((_, reject) => {
-                        timer = setTimeout(
-                            () => reject(new Error('timed out')),
-                            TRY_OUT_HAND_OVER_TIMEOUT_MS,
-                        );
-                    }),
-                ]);
-            } finally {
-                clearTimeout(timer);
-            }
-        } catch (error) {
-            this.logger.warn(
-                `AiWriteback: could not prepare the change to be tried before its preview: ${getErrorMessage(
-                    error,
-                )} (sandboxId=${sandbox.sandboxId})`,
-            );
-        }
-    }
-
     private async prepareWarehouseSkills(
         sandbox: SandboxHandle,
         turn: TurnContext,
@@ -4408,28 +4863,38 @@ export class AiWritebackService extends BaseService {
      */
     async listWorkstreams(args: {
         aiThreadUuid: string | undefined;
+        projectUuid: string;
         repoTarget: string | null;
-    }): Promise<
-        {
-            repository: string;
-            provider: string;
-            prUrl: string;
-            prNumber: number;
-            summary: string | null;
-        }[]
-    > {
-        if (!args.aiThreadUuid) return [];
-        const rows = await this.aiWritebackThreadModel.listByAiThreadUuid(
-            args.aiThreadUuid,
-            args.repoTarget,
-        );
-        return rows.map((row) => ({
+    }): Promise<AiWritebackWorkstreams> {
+        if (!args.aiThreadUuid) {
+            return { workstreams: [], pendingStartedAt: [], otherThreads: [] };
+        }
+        const [own, pending, others] = await Promise.all([
+            this.aiWritebackThreadModel.listByAiThreadUuid(
+                args.aiThreadUuid,
+                args.repoTarget,
+            ),
+            this.aiWritebackRunModel.listInProgressByAiThreadUuid(
+                args.aiThreadUuid,
+            ),
+            this.aiWritebackThreadModel.listByProjectUuidExcludingThread(
+                args.projectUuid,
+                args.aiThreadUuid,
+                args.repoTarget,
+            ),
+        ]);
+        const toWorkstream = (row: AiWritebackWorkstreamRow) => ({
             repository: `${row.owner}/${row.repo}`,
             provider: row.provider,
             prUrl: row.pr_url,
             prNumber: row.pr_number,
             summary: row.summary,
-        }));
+        });
+        return {
+            workstreams: own.map(toWorkstream),
+            pendingStartedAt: pending.map((run) => run.created_at),
+            otherThreads: others.map(toWorkstream),
+        };
     }
 
     /**

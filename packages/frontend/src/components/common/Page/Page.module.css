@@ -84,6 +84,15 @@
     flex-shrink: 1000;
 }
 
+/* Yields further on windows too narrow for two sidebars at their minimum */
+.content[data-with-sidebar='true'][data-two-sidebars='true'] {
+    min-width: min(
+        var(--page-min-content-width),
+        calc(100vw - 2 * var(--page-sidebar-min-width)),
+        100%
+    );
+}
+
 @media (max-width: $mantine-breakpoint-md) {
     .content[data-with-sidebar='true'] {
         min-width: 0;

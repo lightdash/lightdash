@@ -130,6 +130,14 @@ const buildService = ({
                 .mockResolvedValue(agentSpaceAccess ?? undefined),
         },
         embedModel: { get: vi.fn().mockResolvedValue(embed) },
+        // Own mock: the shared one can be reset by other files in the worker.
+        projectModel: {
+            getSummary: vi.fn().mockResolvedValue({
+                projectUuid: mockProjectUuid,
+                organizationUuid: mockOrganizationUuid,
+                name: 'Test Project',
+            }),
+        },
         userAttributesModel: { find: vi.fn().mockResolvedValue([]) },
         userModel: {
             findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(actor),

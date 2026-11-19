@@ -282,6 +282,7 @@ export class GoogleChatClient {
                     switch (f.type) {
                         case PartialFailureType.DASHBOARD_CHART:
                         case PartialFailureType.DASHBOARD_SQL_CHART:
+                        case PartialFailureType.DASHBOARD_COMPOSER_CHART:
                             return `- <b>${f.chartName}:</b> ${f.error}`;
                         case PartialFailureType.MISSING_TARGETS:
                             return `- <b>No targets found for this scheduled delivery</b>`;

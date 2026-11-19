@@ -644,7 +644,10 @@ describe('getControlsToSave', () => {
         expect(saved.controlSections).toBe(controlSections);
         expect(saved.haveControlSectionsChanged).toBe(false);
         expect(saved.controlOrderToSave).toBeNull();
-        expect(saved).toMatchObject(getParametersToSave(parameterInputs));
+        expect(saved).toMatchObject({
+            parameterControlsToSave: null,
+            parameters: parameterInputs.appliedParameters,
+        });
         // The stored order is then carried forward as loaded
         const stored = [{ kind: DashboardControlRefKind.FILTER, id: 'a' }];
         expect(

@@ -232,7 +232,12 @@ export const buildRealProject = ({
                 name: summary.name,
                 label: summary.label || summary.name,
                 sourceId: source.id,
-                groupPath: groupPathOf(summary),
+                // A live source's explores sit under the source already;
+                // their group label is for the explorer's list
+                groupPath:
+                    summary.type === ExploreType.API_SOURCE
+                        ? []
+                        : groupPathOf(summary),
                 description: summary.description ?? '',
                 warnings: isSummaryExploreError(summary)
                     ? (summary.errors ?? []).map(({ message }) => message)

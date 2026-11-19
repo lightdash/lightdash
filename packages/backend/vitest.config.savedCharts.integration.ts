@@ -1,9 +1,10 @@
 import { defineConfig } from 'vitest/config';
-import base from './vitest.config';
+import { baseConfig as base } from './vitest.config';
 
 export default defineConfig({
     ...base,
     test: {
+        clearMocks: false,
         ...base.test,
         name: 'saved-chart-integration-tests',
         include: [

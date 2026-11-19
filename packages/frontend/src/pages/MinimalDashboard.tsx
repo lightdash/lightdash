@@ -132,6 +132,7 @@ const renderDashboardTile = (tile: Dashboard['tiles'][number]) => {
             return (
                 <SqlChartTile
                     key={tile.uuid}
+                    minimal
                     tile={tile}
                     isEditMode={false}
                     onDelete={() => {}}
@@ -351,6 +352,8 @@ const MinimalDashboard: FC = () => {
     });
 
     const schedulerTabs = useSearchParams('selectedTabs');
+    // A page that frames this one and offers the tabs itself asks for them to be left out here
+    const hideTabs = useSearchParams('hideTabs') === 'true';
     const dateZoom = useDateZoomGranularitySearch();
 
     const {
@@ -616,7 +619,7 @@ const MinimalDashboard: FC = () => {
         filteredAndSortedDashboardTiles.length === 0;
 
     const canNavigateBetweenTabs =
-        !schedulerTabsSelected && tabsWithUrls.length > 0;
+        !schedulerTabsSelected && !hideTabs && tabsWithUrls.length > 0;
 
     return (
         <DashboardProvider

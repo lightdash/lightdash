@@ -3,11 +3,30 @@
     align-items: center;
     gap: 6px;
     min-width: 0;
+    padding: 2px 8px;
+    border-radius: var(--mantine-radius-xl);
     white-space: nowrap;
     font-size: var(--mantine-font-size-xs);
     font-weight: 500;
     color: var(--mantine-color-text);
+    background: var(--mantine-color-default-hover);
     cursor: default;
+}
+
+.stage[data-state='now'],
+.stage[data-state='busy'] {
+    color: var(--mantine-color-blue-light-color);
+    background: var(--mantine-color-blue-light);
+}
+
+.stage[data-state='done'] {
+    color: var(--mantine-color-green-light-color);
+    background: var(--mantine-color-green-light);
+}
+
+.stage[data-state='stopped'] {
+    color: var(--mantine-color-red-light-color);
+    background: var(--mantine-color-red-light);
 }
 
 .dots {
@@ -95,4 +114,13 @@
     .dot[data-state='busy'] {
         animation: none;
     }
+}
+
+a.stage {
+    cursor: pointer;
+    text-decoration: none;
+}
+
+a.stage:hover {
+    filter: brightness(0.95);
 }

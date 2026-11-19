@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     AbilityAction,
+    assertDashboardWithinLimits,
     assertRegisteredAccount,
     buildMergeQueryFromMergeDefinition,
     BulkActionable,
@@ -30,6 +31,7 @@ import {
     getErrorMessage,
     getExploreParameterDefinitions,
     getItemId,
+    getNewHandWrittenAdditionalMetrics,
     getParameterMirror,
     getParameterReferences,
     getQueryParameterReferences,
@@ -110,6 +112,7 @@ import {
     SchedulerDashboardUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
 import {
+    fromSession,
     getAccountWriteContext,
     getEmbedActorChartSpaceUuids,
     toSessionUser,
@@ -153,6 +156,7 @@ import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionC
 import { logAgentContentWrite } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
 import type { ComposerChartService } from '../ComposerChartService/ComposerChartService';
+import { getCustomMetricSqlPermissionMessage } from '../ProjectService/customMetricSqlPermission';
 import { assertCanSaveInDevelopmentView } from '../ProjectService/developmentView';
 import { convertDashboardParametersToValuesMap } from '../ProjectService/parameters';
 import type { ProjectService } from '../ProjectService/ProjectService';
@@ -173,6 +177,7 @@ import {
 } from '../verifiedContentGuards';
 import { withVersionAgentIdentity } from '../VersionAgentIdentity';
 import {
+    assertCanRollbackComposerCharts,
     duplicateComposerChartTiles,
     rollbackComposerCharts,
 } from './composerChartTiles';
@@ -206,11 +211,14 @@ type DashboardServiceArguments = {
     contentVerificationModel: ContentVerificationModel;
     projectService: Pick<
         ProjectService,
-        'findExplores' | 'projectParametersModel' | 'getQueryTimezoneForProject'
+        | 'findExplores'
+        | 'projectParametersModel'
+        | 'getQueryTimezoneForProject'
+        | 'getCustomMetricsNeedingPermission'
     >;
     getComposerChartService: () => Pick<
         ComposerChartService,
-        'getParameterReferences'
+        'getParameterReferences' | 'assertCanRestore'
     >;
 };
 
@@ -1796,6 +1804,7 @@ export class DashboardService
                 userId: user.userUuid,
                 properties: {
                     dashboardId: dashboard.uuid,
+                    dashboardSlug: dashboard.slug,
                     organizationId: dashboard.organizationUuid,
                     projectId: dashboard.projectUuid,
                     parametersCount: Object.keys(dashboard.parameters || {})
@@ -2426,6 +2435,11 @@ export class DashboardService
         }
         DashboardService.assertControlOrder(
             createDashboard.config?.controlOrder,
+        );
+        assertDashboardWithinLimits(
+            { tiles: createDashboard.tiles, tabs: createDashboard.tabs ?? [] },
+            this.lightdashConfig.dashboard,
+            null,
         );
         const newDashboard = await this.dashboardModel.create(
             space.uuid,
@@ -3246,6 +3260,17 @@ export class DashboardService
             organizationUuid: existingDashboardDao.organizationUuid,
         });
 
+        if (isDashboardVersionedFields(incomingFields)) {
+            assertDashboardWithinLimits(
+                {
+                    tiles: incomingFields.tiles,
+                    tabs: incomingFields.tabs ?? [],
+                },
+                this.lightdashConfig.dashboard,
+                existingDashboardDao,
+            );
+        }
+
         if (
             isDashboardVersionedFields(incomingFields) &&
             incomingFields.config
@@ -3720,6 +3745,56 @@ export class DashboardService
             affectedCharts.map((chart) => this.savedChartModel.get(chart.uuid)),
         );
 
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('CustomFields', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                }),
+            )
+        ) {
+            const account = fromSession(user);
+            const savedMetric = registry[existingIndex];
+            // A metric no chart uses has no explore: changed SQL needs the permission
+            const needsPermission =
+                affected.length > 0
+                    ? (
+                          await Promise.all(
+                              affected.map((chart) =>
+                                  this.projectService.getCustomMetricsNeedingPermission(
+                                      {
+                                          account,
+                                          projectUuid: chart.projectUuid,
+                                          exploreName:
+                                              chart.metricQuery.exploreName,
+                                          additionalMetrics: [metric],
+                                          // The chart's own metric: the registry may hold SQL a rollback restored
+                                          savedAdditionalMetrics: (
+                                              chart.metricQuery
+                                                  .additionalMetrics ?? []
+                                          ).filter(
+                                              (chartMetric) =>
+                                                  getItemId(chartMetric) ===
+                                                  metricId,
+                                          ),
+                                      },
+                                  ),
+                              ),
+                          )
+                      ).some((metrics) => metrics.length > 0)
+                    : getNewHandWrittenAdditionalMetrics(
+                          [metric],
+                          [savedMetric],
+                          {},
+                      ).length > 0;
+            if (needsPermission) {
+                throw new ForbiddenError(
+                    getCustomMetricSqlPermissionMessage([metric]),
+                );
+            }
+        }
+
         const updatedRegistry = [
             ...registry.slice(0, existingIndex),
             metric,
@@ -3727,6 +3802,8 @@ export class DashboardService
         ];
         if (!dryRun) {
             await this.savedChartModel.transaction(async (tx) => {
+                // Waits for a rollback of this dashboard rather than locking its charts in another order
+                await this.dashboardModel.lockForVersioning(dashboard.uuid, tx);
                 await this.dashboardModel.updateLatestVersionConfig(
                     dashboard.uuid,
                     {
@@ -4918,10 +4995,11 @@ export class DashboardService
     }
 
     async rollback(
-        user: SessionUser,
+        account: RegisteredAccount,
         dashboardUuidOrSlug: UuidOrSlug,
         versionUuid: UUID,
     ): Promise<void> {
+        const user = toSessionUser(account);
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
 
@@ -4939,7 +5017,7 @@ export class DashboardService
                 dashboardUuid: dashboardDao.uuid,
                 spaceUuid: dashboardDao.spaceUuid,
             });
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'manage',
@@ -4967,14 +5045,58 @@ export class DashboardService
         if (!targetVersion) {
             throw new NotFoundError('Dashboard version not found');
         }
-
+        assertDashboardWithinLimits(
+            targetVersion,
+            this.lightdashConfig.dashboard,
+            dashboardDao,
+        );
         const agentIdentity = getContentWriteAgentIdentity({
             userUuid: user.userUuid,
             organizationUuid: dashboardDao.organizationUuid,
         });
 
+        // Only rollback charts that belong to the dashboard
+        const uniqueChartUuids = [
+            ...new Set(
+                targetVersion.tiles
+                    .filter(
+                        (tile) =>
+                            isDashboardChartTileType(tile) &&
+                            tile.properties.savedChartUuid &&
+                            tile.properties.belongsToDashboard === true,
+                    )
+                    .map((tile) =>
+                        isDashboardChartTileType(tile)
+                            ? tile.properties.savedChartUuid!
+                            : '',
+                    )
+                    .filter(Boolean),
+            ),
+        ];
+
+        const chartRestores = await this.savedChartService.assertCanRestoreAt(
+            account,
+            uniqueChartUuids,
+            targetVersion.updatedAt,
+        );
+
         // Rollback dashboard and all owned charts in a single transaction
         await this.savedChartModel.transaction(async (tx) => {
+            // Dashboard before its charts, the order permanent delete takes them in
+            await this.dashboardModel.lockForVersioning(dashboardDao.uuid, tx);
+            await this.savedChartService.lockCheckedRestores(chartRestores, tx);
+            await assertCanRollbackComposerCharts(
+                this.composerChartModel,
+                this.getComposerChartService,
+                account,
+                {
+                    organizationUuid: dashboardDao.organizationUuid,
+                    projectUuid: dashboardDao.projectUuid,
+                },
+                targetVersion,
+                tx,
+            );
+
             // Rollback dashboard version
             await this.dashboardModel.addVersion(
                 dashboardDao.uuid,
@@ -4991,54 +5113,19 @@ export class DashboardService
                 agentIdentity,
             );
 
-            // Only rollback charts that belong to the dashboard
-            const uniqueChartUuids = [
-                ...new Set(
-                    targetVersion.tiles
-                        .filter(
-                            (tile) =>
-                                isDashboardChartTileType(tile) &&
-                                tile.properties.savedChartUuid &&
-                                tile.properties.belongsToDashboard === true,
-                        )
-                        .map((tile) =>
-                            isDashboardChartTileType(tile)
-                                ? tile.properties.savedChartUuid!
-                                : '',
-                        )
-                        .filter(Boolean),
+            // Charts created after the target version have no restore and stay as they are
+            await Promise.all(
+                chartRestores.map((restore) =>
+                    this.savedChartModel.createVersion(
+                        restore.chartUuid,
+                        restore.restored,
+                        user,
+                        tx,
+                        undefined,
+                        agentIdentity,
+                    ),
                 ),
-            ];
-
-            // Rollback each dashboard-owned chart to its version at the target dashboard version time
-            if (uniqueChartUuids.length > 0) {
-                this.logger.info(
-                    `Rolling back ${uniqueChartUuids.length} dashboard-owned charts`,
-                );
-
-                await Promise.all(
-                    uniqueChartUuids.map(async (chartUuid) => {
-                        const result =
-                            await this.savedChartModel.rollbackToVersionAtTimestamp(
-                                chartUuid,
-                                targetVersion.updatedAt,
-                                user,
-                                tx,
-                                agentIdentity,
-                            );
-
-                        if (result) {
-                            this.logger.info(`Rolled back chart ${chartUuid}`);
-                        } else {
-                            this.logger.warn(
-                                `No chart version found for ${chartUuid} at timestamp ${targetVersion.updatedAt}. Chart may have been created after this dashboard version.`,
-                            );
-                        }
-                    }),
-                );
-            } else {
-                this.logger.info('No dashboard-owned charts to rollback');
-            }
+            );
             await rollbackComposerCharts(
                 this.composerChartModel,
                 targetVersion.tiles,
@@ -5141,6 +5228,11 @@ export class DashboardService
                 'Dashboard tile positions must cover every chart within the 36-column grid without overlap.',
             );
         }
+        assertDashboardWithinLimits(
+            { tiles: data.charts.map(() => ({})), tabs: [] },
+            this.lightdashConfig.dashboard,
+            null,
+        );
         // 1. Create empty dashboard
         const emptyDashboard: CreateDashboard = {
             name: data.name,

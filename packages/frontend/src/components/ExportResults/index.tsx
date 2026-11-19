@@ -35,6 +35,8 @@ import { Can } from '../../providers/Ability';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import MantineIcon from '../common/MantineIcon';
 import { NumberInput } from '../common/NumberInput';
+import CellLimitNote from './CellLimitNote';
+import { DEFAULT_CELL_LIMITED_SCOPES } from './exportCellEstimate';
 import classes from './ExportResults.module.css';
 import LargeExportWarning from './LargeExportWarning';
 import { Limit } from './types';
@@ -75,6 +77,13 @@ export type ExportResultsProps = {
     forceShowLimitSelection?: boolean;
     // Saved non-table charts can export XLSX as a rendered image of the chart
     canExportChartImage?: boolean;
+    /**
+     * Result scopes whose download the backend caps at the organization's
+     * cell limit (it reruns the query with the cap). Defaults to "All results"
+     * and "Custom": "Table rows" usually streams the already-run query's stored
+     * results as they are. SQL queries bypass the cap, so they pass none.
+     */
+    cellLimitedScopes?: readonly Limit[];
     renderDialogActions?: (renderProps: ExportCsvRenderProps) => ReactNode;
 };
 
@@ -97,6 +106,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
         hideLimitSelection = false,
         forceShowLimitSelection = false,
         canExportChartImage = false,
+        cellLimitedScopes = DEFAULT_CELL_LIMITED_SCOPES,
         renderDialogActions,
     }) => {
         const lightdashApi = useLightdashApi();
@@ -249,13 +259,6 @@ const ExportResults: FC<ExportResultsProps> = memo(
         const maxColumnLimit = health.data?.pivotTable?.maxColumnLimit || 60;
         const isPivotTable = exportPivotedData && !!pivotConfig;
         const isDialog = !!renderDialogActions;
-        const showLimitNote =
-            !isChartImageExport &&
-            (isPivotTable ||
-                (fileType === DownloadFileType.XLSX &&
-                    (limit === Limit.ALL || limit === Limit.CUSTOM) &&
-                    !isPivotTable));
-
         const xlsxContentSelection =
             canExportChartImage && fileType === DownloadFileType.XLSX ? (
                 <Stack gap="sm">
@@ -543,8 +546,21 @@ const ExportResults: FC<ExportResultsProps> = memo(
                     </Stack>
                 </Paper>
 
-                {showLimitNote && (
+                {!isChartImageExport && (
                     <Stack gap="xs">
+                        {!isPivotTable && (
+                            <CellLimitNote
+                                limit={limit}
+                                customLimit={customLimit}
+                                totalResults={totalResults}
+                                columnOrder={columnOrder}
+                                csvCellsLimit={csvCellsLimit}
+                                cellLimitApplies={cellLimitedScopes.includes(
+                                    limit,
+                                )}
+                            />
+                        )}
+
                         {isPivotTable && (
                             <Group gap="xs" wrap="nowrap" align="flex-start">
                                 <MantineIcon

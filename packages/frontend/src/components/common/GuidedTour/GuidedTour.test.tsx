@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { Button, Popover, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
@@ -22,15 +23,56 @@ const steps: GuidedTourStep[] = [
 describe('GuidedTour', () => {
     it('renders nothing when closed', () => {
         renderWithProviders(
-            <GuidedTour steps={steps} opened={false} onClose={vi.fn()} />,
+            <GuidedTour
+                tracking={null}
+                steps={steps}
+                opened={false}
+                onClose={vi.fn()}
+            />,
         );
         expect(screen.queryByText('Step one')).not.toBeInTheDocument();
+    });
+
+    it('rings every highlighted control of a centered step', async () => {
+        renderWithProviders(
+            <>
+                <button data-tour="first">First</button>
+                <button data-tour="second">Second</button>
+                <GuidedTour
+                    tracking={null}
+                    steps={[
+                        {
+                            target: null,
+                            highlights: [
+                                '[data-tour="first"]',
+                                '[data-tour="second"]',
+                                '[data-tour="missing"]',
+                            ],
+                            title: 'Two places',
+                            body: 'body',
+                        },
+                    ]}
+                    opened
+                    onClose={vi.fn()}
+                />
+            </>,
+        );
+        await waitFor(() =>
+            expect(
+                document.querySelectorAll('[data-tour-highlight]'),
+            ).toHaveLength(2),
+        );
     });
 
     it('walks forward and back through steps', async () => {
         const user = userEvent.setup();
         renderWithProviders(
-            <GuidedTour steps={steps} opened onClose={vi.fn()} />,
+            <GuidedTour
+                tracking={null}
+                steps={steps}
+                opened
+                onClose={vi.fn()}
+            />,
         );
 
         expect(screen.getByText('Step one')).toBeInTheDocument();
@@ -60,6 +102,7 @@ describe('GuidedTour', () => {
                         Create dashboard
                     </Button>
                     <GuidedTour
+                        tracking={null}
                         steps={[
                             {
                                 target: '[data-name-field]',
@@ -99,6 +142,7 @@ describe('GuidedTour', () => {
             <>
                 <textarea aria-label="Model file" data-model-file />
                 <GuidedTour
+                    tracking={null}
                     steps={[
                         {
                             target: '[data-model-file]',
@@ -150,6 +194,7 @@ describe('GuidedTour', () => {
                         }}
                     />
                     <GuidedTour
+                        tracking={null}
                         steps={[
                             {
                                 target: '[data-transient-name]',
@@ -187,7 +232,12 @@ describe('GuidedTour', () => {
         const user = userEvent.setup();
         const onClose = vi.fn();
         renderWithProviders(
-            <GuidedTour steps={steps} opened onClose={onClose} />,
+            <GuidedTour
+                tracking={null}
+                steps={steps}
+                opened
+                onClose={onClose}
+            />,
         );
 
         await user.click(screen.getByRole('button', { name: 'Skip' }));
@@ -198,7 +248,12 @@ describe('GuidedTour', () => {
         const user = userEvent.setup();
         const onClose = vi.fn();
         renderWithProviders(
-            <GuidedTour steps={steps} opened onClose={onClose} />,
+            <GuidedTour
+                tracking={null}
+                steps={steps}
+                opened
+                onClose={onClose}
+            />,
         );
 
         await user.click(screen.getByRole('button', { name: 'Next' }));
@@ -219,6 +274,7 @@ describe('GuidedTour', () => {
         const onFinish = vi.fn(() => calls.push('finish'));
         const { unmount } = renderWithProviders(
             <GuidedTour
+                tracking={null}
                 steps={steps}
                 opened
                 onClose={onClose}
@@ -233,6 +289,7 @@ describe('GuidedTour', () => {
         calls.length = 0;
         renderWithProviders(
             <GuidedTour
+                tracking={null}
                 steps={steps}
                 opened
                 onClose={onClose}
@@ -252,6 +309,7 @@ describe('GuidedTour', () => {
             <>
                 <div data-block-field />
                 <GuidedTour
+                    tracking={null}
                     steps={[
                         {
                             target: '[data-block-field]',
@@ -305,6 +363,7 @@ describe('GuidedTour', () => {
                     <span data-tour-status="true">Failed (exit 1)</span>
                 </div>
                 <GuidedTour
+                    tracking={null}
                     steps={retrySteps}
                     opened
                     onClose={vi.fn()}
@@ -372,7 +431,12 @@ describe('GuidedTour', () => {
                         };
                     }}
                 />
-                <GuidedTour steps={checkSteps} opened onClose={onClose} />
+                <GuidedTour
+                    tracking={null}
+                    steps={checkSteps}
+                    opened
+                    onClose={onClose}
+                />
             </>
         );
         renderWithProviders(<Code />);
@@ -437,7 +501,12 @@ describe('GuidedTour', () => {
                         };
                     }}
                 />
-                <GuidedTour steps={typedSteps} opened onClose={vi.fn()} />
+                <GuidedTour
+                    tracking={null}
+                    steps={typedSteps}
+                    opened
+                    onClose={vi.fn()}
+                />
             </>
         );
         renderWithProviders(<Code />);
@@ -467,6 +536,7 @@ describe('GuidedTour', () => {
             <>
                 <input aria-label="Name" data-plain />
                 <GuidedTour
+                    tracking={null}
                     steps={[
                         {
                             target: '[data-plain]',
@@ -530,6 +600,7 @@ describe('GuidedTour', () => {
                             }
                         />
                         <GuidedTour
+                            tracking={null}
                             steps={invalidSteps}
                             opened
                             onClose={onClose}
@@ -610,6 +681,7 @@ describe('GuidedTour', () => {
                             }
                         />
                         <GuidedTour
+                            tracking={null}
                             steps={exactSteps}
                             opened
                             onClose={onClose}
@@ -652,6 +724,7 @@ describe('GuidedTour', () => {
         try {
             renderWithProviders(
                 <GuidedTour
+                    tracking={null}
                     steps={[
                         { target: null, title: 'Step one', body: '' },
                         {
@@ -725,6 +798,7 @@ describe('GuidedTour', () => {
                         Recently deleted
                     </button>
                     <GuidedTour
+                        tracking={null}
                         steps={[
                             {
                                 target: '[data-edge]',
@@ -879,7 +953,12 @@ describe('GuidedTour', () => {
             );
             try {
                 renderWithProviders(
-                    <GuidedTour steps={detourSteps} opened onClose={vi.fn()} />,
+                    <GuidedTour
+                        tracking={null}
+                        steps={detourSteps}
+                        opened
+                        onClose={vi.fn()}
+                    />,
                 );
                 await waitFor(() => {
                     expect(
@@ -914,6 +993,7 @@ describe('GuidedTour', () => {
             try {
                 renderWithProviders(
                     <GuidedTour
+                        tracking={null}
                         steps={[
                             {
                                 target: '[data-x="name"]',
@@ -970,7 +1050,12 @@ describe('GuidedTour', () => {
             );
             try {
                 renderWithProviders(
-                    <GuidedTour steps={detourSteps} opened onClose={vi.fn()} />,
+                    <GuidedTour
+                        tracking={null}
+                        steps={detourSteps}
+                        opened
+                        onClose={vi.fn()}
+                    />,
                 );
                 await waitFor(() =>
                     expect(
@@ -1012,6 +1097,7 @@ describe('GuidedTour and the menus a step opens', () => {
                 <div data-on-page>The metrics table</div>
                 <OpenMenu />
                 <GuidedTour
+                    tracking={null}
                     steps={[
                         {
                             target: '[data-on-page]',
@@ -1035,6 +1121,7 @@ describe('GuidedTour and the menus a step opens', () => {
             <>
                 <OpenMenu />
                 <GuidedTour
+                    tracking={null}
                     steps={[
                         {
                             target: '[data-in-menu]',
@@ -1058,6 +1145,7 @@ describe('GuidedTour and the menus a step opens', () => {
             <>
                 <OpenMenu />
                 <GuidedTour
+                    tracking={null}
                     steps={[
                         {
                             target: '[data-in-menu]',
@@ -1098,6 +1186,7 @@ describe('GuidedTour and the menus a step opens', () => {
                         <div id="chart-name">Chart name</div>
                     </MantineModal>
                     <GuidedTour
+                        tracking={null}
                         steps={[
                             {
                                 target: '#chart-name',
@@ -1156,7 +1245,12 @@ describe('GuidedTour and the menus a step opens', () => {
             const host = mount();
             try {
                 renderWithProviders(
-                    <GuidedTour steps={steps} opened onClose={vi.fn()} />,
+                    <GuidedTour
+                        tracking={null}
+                        steps={steps}
+                        opened
+                        onClose={vi.fn()}
+                    />,
                 );
                 await screen.findByText('Type the command');
                 // Typed, then Enter at once: the page clicks Run for them.
@@ -1180,7 +1274,12 @@ describe('GuidedTour and the menus a step opens', () => {
             const host = mount();
             try {
                 renderWithProviders(
-                    <GuidedTour steps={steps} opened onClose={vi.fn()} />,
+                    <GuidedTour
+                        tracking={null}
+                        steps={steps}
+                        opened
+                        onClose={vi.fn()}
+                    />,
                 );
                 await screen.findByText('Type the command');
                 const now = Date.now();

@@ -1,122 +1,67 @@
-import {
-    SchedulerJobStatus,
-    type ApiDownloadCsv,
-    type ApiError,
-    type ApiScheduledDownloadCsv,
-    type PivotConfig,
-} from '@lightdash/common';
+import { type ApiScheduledDownloadCsv } from '@lightdash/common';
 import { Button, Stack } from '@mantine/core';
-import { IconArrowLeft, IconFileTypeCsv } from '@tabler/icons-react';
-import { useQuery } from '@tanstack/react-query';
+import { IconClipboardCopy, IconFileTypeCsv } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
 import { ExportToGoogleSheet } from '../../features/export';
 import useHealth from '../../hooks/health/useHealth';
 import MantineIcon from '../common/MantineIcon';
-import ExportResults, { type ExportResultsProps } from '../ExportResults';
 
-const ExportSelector: FC<
-    ExportResultsProps & {
-        getGsheetLink?: () => Promise<ApiScheduledDownloadCsv>;
-        pivotConfig?: PivotConfig;
-    }
-> = memo(
-    ({
-        projectUuid,
-        totalResults,
-        getDownloadQueryUuid,
-        getGsheetLink,
-        columnOrder,
-        customLabels,
-        hiddenFields,
-        showTableNames,
-        chartName,
-        pivotConfig,
-        conditionalFormattings,
-        showColumnTotals,
-        showSubtotals,
-    }) => {
-        const health = useHealth();
-        const hasGoogleDrive =
-            health.data?.auth.google.oauth2ClientId !== undefined &&
-            health.data?.auth.google.googleDriveApiKey !== undefined;
+const ExportSelector: FC<{
+    getGsheetLink?: () => Promise<ApiScheduledDownloadCsv>;
+    /** Opens the download options, which outlive this menu */
+    onDownloadData: () => void;
+    /** Copies the results to the clipboard as CSV, once they have loaded */
+    copyToClipboard?: { onCopy: () => Promise<void>; isLoading: boolean };
+}> = memo(({ getGsheetLink, onDownloadData, copyToClipboard }) => {
+    const [isCopying, setIsCopying] = useState(false);
+    const health = useHealth();
+    const hasGoogleDrive =
+        health.data?.auth.google.oauth2ClientId !== undefined &&
+        health.data?.auth.google.googleDriveApiKey !== undefined;
 
-        const [exportType, setExportType] = useState<string | undefined>();
-
-        const { data } = useQuery<ApiDownloadCsv | undefined, ApiError>({
-            queryKey: [`google-sheets`],
-            enabled: false,
-        });
-
-        const isExportingGoogleSheets =
-            data?.status === SchedulerJobStatus.STARTED;
-
-        if (exportType === 'csv') {
-            return (
-                <>
-                    <Button
-                        size="xs"
-                        mb="xs"
-                        leftSection={<MantineIcon icon={IconArrowLeft} />}
-                        variant="subtle"
-                        onClick={() => setExportType(undefined)}
-                    >
-                        Back
-                    </Button>
-                    <ExportResults
-                        totalResults={totalResults}
-                        getDownloadQueryUuid={getDownloadQueryUuid}
-                        projectUuid={projectUuid}
-                        columnOrder={columnOrder}
-                        customLabels={customLabels}
-                        hiddenFields={hiddenFields}
-                        showTableNames={showTableNames}
-                        chartName={chartName}
-                        pivotConfig={pivotConfig}
-                        conditionalFormattings={conditionalFormattings}
-                        showColumnTotals={showColumnTotals}
-                        showSubtotals={showSubtotals}
-                    />
-                </>
-            );
-        } else if (hasGoogleDrive && getGsheetLink) {
-            return (
-                <Stack gap="xs">
-                    <Button
-                        size="xs"
-                        variant="default"
-                        onClick={() => setExportType('csv')}
-                        leftSection={<MantineIcon icon={IconFileTypeCsv} />}
-                        disabled={isExportingGoogleSheets}
-                        data-testid="chart-export-csv-button"
-                        // Walkthrough detour (manage:ExportCsv): the way to
-                        // the export form when this chooser is shown.
-                        data-tour-anchor="export-choose-download"
-                        data-tour-hint="Click Download data"
-                    >
-                        Download data
-                    </Button>
-                    <ExportToGoogleSheet getGsheetLink={getGsheetLink} />
-                </Stack>
-            );
-        }
-
-        return (
-            <ExportResults
-                totalResults={totalResults}
-                getDownloadQueryUuid={getDownloadQueryUuid}
-                projectUuid={projectUuid}
-                columnOrder={columnOrder}
-                customLabels={customLabels}
-                hiddenFields={hiddenFields}
-                showTableNames={showTableNames}
-                chartName={chartName}
-                pivotConfig={pivotConfig}
-                conditionalFormattings={conditionalFormattings}
-                showColumnTotals={showColumnTotals}
-                showSubtotals={showSubtotals}
-            />
-        );
-    },
-);
+    // Reads as a menu: full-width rows, no borders. The options open in
+    // a modal owned by the caller.
+    return (
+        <Stack gap={2} miw={180}>
+            <Button
+                size="xs"
+                variant="subtle"
+                fullWidth
+                justify="flex-start"
+                onClick={onDownloadData}
+                leftSection={<MantineIcon icon={IconFileTypeCsv} />}
+                data-testid="chart-export-csv-button"
+                // Walkthrough hop (manage:ExportCsv): the way to the
+                // export form.
+                data-tour-anchor="export-choose-download"
+                data-tour-hint="Click Download data"
+            >
+                Download data
+            </Button>
+            {copyToClipboard && (
+                <Button
+                    size="xs"
+                    variant="subtle"
+                    fullWidth
+                    justify="flex-start"
+                    loading={isCopying || copyToClipboard.isLoading}
+                    onClick={() => {
+                        setIsCopying(true);
+                        void copyToClipboard
+                            .onCopy()
+                            .finally(() => setIsCopying(false));
+                    }}
+                    leftSection={<MantineIcon icon={IconClipboardCopy} />}
+                    data-testid="chart-export-copy-csv-button"
+                >
+                    Copy as CSV
+                </Button>
+            )}
+            {hasGoogleDrive && getGsheetLink && (
+                <ExportToGoogleSheet getGsheetLink={getGsheetLink} />
+            )}
+        </Stack>
+    );
+});
 
 export default ExportSelector;

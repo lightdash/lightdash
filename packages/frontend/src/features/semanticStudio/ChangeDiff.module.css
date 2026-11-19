@@ -15,6 +15,13 @@
     --diffs-line-height: 18px;
 }
 
+/* A whole file fills its pane, which must be positioned: the viewport needs a definite height to scroll. */
+.diffViewport.whole {
+    position: absolute;
+    inset: 0;
+    max-height: none;
+}
+
 .diffViewport[data-compact] {
     max-height: 260px;
     --diffs-font-size: 11px;

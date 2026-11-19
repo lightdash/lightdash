@@ -60,7 +60,6 @@ import {
     SnowflakeAuthenticationType,
     SpaceMemberRole,
     SpaceSummary,
-    stripDucklakeNestedSensitive,
     SupportedDbtVersions,
     TablesConfiguration,
     UnexpectedDatabaseError,
@@ -824,8 +823,10 @@ export class ProjectModel {
         // CLI credential refreshes omit project-only settings. Preserve the
         // opt-in unless the update explicitly enables or disables it.
         const warehouseConnection =
-            incomingWarehouse.type === WarehouseTypes.BIGQUERY &&
-            savedWarehouse?.type === WarehouseTypes.BIGQUERY
+            (incomingWarehouse.type === WarehouseTypes.BIGQUERY &&
+                savedWarehouse?.type === WarehouseTypes.BIGQUERY) ||
+            (incomingWarehouse.type === WarehouseTypes.SNOWFLAKE &&
+                savedWarehouse?.type === WarehouseTypes.SNOWFLAKE)
                 ? {
                       ...incomingWarehouse,
                       allowUserCredentials:
@@ -2914,31 +2915,13 @@ export class ProjectModel {
         ) as DbtProjectConfig;
 
         const nonSensitiveCredentials = sensitiveCredentials
-            ? (Object.fromEntries(
-                  Object.entries(sensitiveCredentials).filter(
-                      ([key]) =>
-                          !sensitiveCredentialsFieldNames.includes(
-                              key as AnyType,
-                          ),
-                  ),
-              ) as WarehouseCredentials)
+            ? stripSensitiveWarehouseCredentials(sensitiveCredentials)
             : undefined;
-
-        const scrubbedCredentials =
-            nonSensitiveCredentials &&
-            sensitiveCredentials &&
-            sensitiveCredentials.type === WarehouseTypes.DUCKDB &&
-            sensitiveCredentials.connectionType ===
-                DuckdbConnectionType.DUCKLAKE
-                ? (stripDucklakeNestedSensitive(
-                      sensitiveCredentials,
-                  ) as WarehouseCredentials)
-                : nonSensitiveCredentials;
 
         const nonSensitiveCredentialsWithDefaults =
             ProjectModel.getConnectionWithDefaults(
                 sensitiveCredentials,
-                scrubbedCredentials,
+                nonSensitiveCredentials,
             );
 
         return {

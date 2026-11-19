@@ -1,10 +1,6 @@
 import { type SemanticStudioWorkspace } from '@lightdash/common';
 import { Avatar, Box, Button, Text, UnstyledButton } from '@mantine/core';
-import {
-    IconCheck,
-    IconChevronRight,
-    IconExternalLink,
-} from '@tabler/icons-react';
+import { IconCheck, IconChevronRight } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { type FC, type ReactNode } from 'react';
@@ -14,12 +10,13 @@ import { RunMeta, RunRing } from './StudioRunRing';
 import { needsYou, toStudioRun, type StudioRun } from './studioRuns';
 import classes from './StudioWorkspacesList.module.css';
 import { pullRequestNumberOf } from './urls';
+import { isOpenWorkspace } from './useStudioCheckout';
 import { useStudioRuns, type StudioRunRow } from './useStudioRuns';
 import { useStudioWorkspaces } from './useStudioWorkspaces';
 
 dayjs.extend(relativeTime);
 
-const STAGES = ['Proposed', 'Saved', 'In review', 'Live'] as const;
+const STAGES = ['Proposed', 'Saved', 'In review', 'Published'] as const;
 
 /** How many stages are behind the run, and the one it is on. */
 const stageOf = (run: StudioRun): number => {
@@ -75,21 +72,29 @@ const MineRow: FC<{
     row: StudioRunRow;
     startedAt: string | null;
     onOpen: () => void;
-}> = ({ row: { workspace, run }, startedAt, onOpen }) => (
-    <UnstyledButton
-        className={classes.row}
-        data-current={workspace.isActive || undefined}
-        onClick={onOpen}
-    >
+    /** Null where opening the change already checks it out, or it is checked out. */
+    onCheckOut: (() => void) | null;
+    isCheckingOut: boolean;
+}> = ({
+    row: { workspace, run },
+    startedAt,
+    onOpen,
+    onCheckOut,
+    isCheckingOut,
+}) => (
+    <Box className={classes.row} data-current={workspace.isActive || undefined}>
         <RunRing run={run} size={40} />
         <span className={classes.text}>
             <span className={classes.nameLine}>
-                <Text component="span" className={classes.name}>
-                    {workspace.name}
-                </Text>
-                {workspace.isActive ? (
-                    <span className={classes.here}>You're here</span>
-                ) : null}
+                <UnstyledButton
+                    className={classes.rowLink}
+                    aria-current={workspace.isActive || undefined}
+                    onClick={onOpen}
+                >
+                    <Text component="span" className={classes.name}>
+                        {workspace.name}
+                    </Text>
+                </UnstyledButton>
             </span>
             <span className={classes.meta} data-kind={run.kind}>
                 <RunMeta
@@ -103,7 +108,17 @@ const MineRow: FC<{
             </span>
         </span>
         <StageTrack run={run} />
-        {needsYou(run) ? (
+        {onCheckOut ? (
+            <Button
+                size="compact-sm"
+                variant="default"
+                className={classes.rowAction}
+                loading={isCheckingOut}
+                onClick={onCheckOut}
+            >
+                Check out
+            </Button>
+        ) : needsYou(run) ? (
             <Button
                 component="span"
                 size="compact-sm"
@@ -119,12 +134,15 @@ const MineRow: FC<{
                 className={classes.chevron}
             />
         )}
-    </UnstyledButton>
+    </Box>
 );
 
-const whereItStands = ({ pullRequest }: SemanticStudioWorkspace): string => {
+const whereItStands = ({
+    pullRequest,
+    publishedLive,
+}: SemanticStudioWorkspace): string => {
     const number = pullRequestNumberOf(pullRequest?.url);
-    if (!pullRequest) return 'Not saved yet';
+    if (!pullRequest) return publishedLive ? 'Published' : 'Not saved yet';
     switch (pullRequest.state) {
         case 'merged':
             return number ? `Merged as #${number}` : 'Merged';
@@ -140,18 +158,26 @@ export const StudioWorkspacesList: FC<{
     projectUuid: string;
     saving: StudioPendingChange | null;
     onOpen: (workspace: SemanticStudioWorkspace) => void;
-}> = ({ projectUuid, saving, onOpen }) => {
+    /** Null where opening one of your changes checks it out. */
+    onCheckOut: ((workspace: SemanticStudioWorkspace) => void) | null;
+    isCheckingOut: boolean;
+}> = ({ projectUuid, saving, onOpen, onCheckOut, isCheckingOut }) => {
     const { data, isInitialLoading, error } = useStudioWorkspaces(projectUuid);
     const rows = useStudioRuns(projectUuid, data?.mine ?? [], saving);
     if (isInitialLoading) return null;
     if (error || !data) {
         return (
             <Text fz="sm" c="dimmed" ta="center" py="xl">
-                Changes could not be loaded.
+                Drafts could not be loaded.
             </Text>
         );
     }
-    const { others, recent } = data;
+    const { others } = data;
+    // Discarded work is not listed.
+    const recent = data.recent.filter(
+        ({ pullRequest, publishedLive }) =>
+            publishedLive || pullRequest?.state === 'merged',
+    );
     const waiting = rows.filter(({ run }) => needsYou(run));
     const going = rows.filter(({ run }) => !needsYou(run));
     const mineRow = (row: StudioRunRow) => (
@@ -160,27 +186,26 @@ export const StudioWorkspacesList: FC<{
             row={row}
             startedAt={saving?.startedAt ?? null}
             onOpen={() => onOpen(row.workspace)}
+            onCheckOut={
+                onCheckOut &&
+                !row.workspace.isActive &&
+                isOpenWorkspace(row.workspace)
+                    ? () => onCheckOut(row.workspace)
+                    : null
+            }
+            isCheckingOut={isCheckingOut}
         />
     );
     return (
         <Box className={classes.page}>
             <header className={classes.hero}>
-                <Text className={classes.title}>Changes</Text>
+                <Text className={classes.title}>Drafts</Text>
                 <Text className={classes.lede}>
-                    Each change runs from its first proposal until it is live.
+                    {rows.length === 0
+                        ? 'No drafts yet.'
+                        : 'Pick up where you and your team left off.'}
                 </Text>
             </header>
-            {rows.length === 0 ? (
-                <div className={classes.empty}>
-                    <Text fz="sm" fw={500}>
-                        Nothing in flight
-                    </Text>
-                    <Text fz="xs" c="dimmed">
-                        Start one with New change, or ask for a change in the
-                        chat.
-                    </Text>
-                </div>
-            ) : null}
             {waiting.length > 0 ? (
                 <Section label="Needs you" count={waiting.length}>
                     {waiting.map(mineRow)}
@@ -202,16 +227,7 @@ export const StudioWorkspacesList: FC<{
                             <UnstyledButton
                                 key={workspace.workspaceUuid}
                                 className={classes.row}
-                                disabled={!workspace.pullRequest}
-                                onClick={() => {
-                                    if (workspace.pullRequest) {
-                                        window.open(
-                                            workspace.pullRequest.url,
-                                            '_blank',
-                                            'noopener,noreferrer',
-                                        );
-                                    }
-                                }}
+                                onClick={() => onOpen(workspace)}
                             >
                                 <Avatar
                                     size={40}
@@ -232,22 +248,18 @@ export const StudioWorkspacesList: FC<{
                                     </span>
                                 </span>
                                 <StageTrack run={run} />
-                                {workspace.pullRequest ? (
-                                    <MantineIcon
-                                        icon={IconExternalLink}
-                                        size={16}
-                                        className={classes.chevron}
-                                    />
-                                ) : (
-                                    <span />
-                                )}
+                                <MantineIcon
+                                    icon={IconChevronRight}
+                                    size={16}
+                                    className={classes.chevron}
+                                />
                             </UnstyledButton>
                         );
                     })}
                 </Section>
             ) : null}
             {recent.length > 0 ? (
-                <Section label="Live lately" count={recent.length}>
+                <Section label="Published lately" count={recent.length}>
                     <ol className={classes.timeline}>
                         {recent.map((workspace) => (
                             <li key={workspace.workspaceUuid}>
@@ -268,6 +280,9 @@ export const StudioWorkspacesList: FC<{
                                         {workspace.name}
                                     </Text>
                                     <span className={classes.when}>
+                                        {workspace.isMine
+                                            ? ''
+                                            : `${workspace.owner.name} · `}
                                         {whereItStands(workspace)} ·{' '}
                                         {dayjs(
                                             workspace.finishedAt ??

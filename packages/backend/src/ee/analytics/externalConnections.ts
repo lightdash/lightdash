@@ -2,6 +2,7 @@ import {
     type ApiConnectorType,
     type ExternalConnectionKind,
     type ExternalConnectionMethod,
+    type LiveSourceErrorOrigin,
 } from '@lightdash/common';
 import { Track as AnalyticsTrack } from '@rudderstack/rudder-sdk-node';
 
@@ -15,7 +16,7 @@ type ExternalConnectionBaseProperties = {
 
 type ExternalConnectionKindProperties = {
     connectionKind: ExternalConnectionKind;
-    connector: ApiConnectorType | null;
+    integration: ApiConnectorType | null;
 };
 
 export type ExternalConnectionEvent = BaseTrack &
@@ -53,6 +54,28 @@ export type ExternalConnectionEvent = BaseTrack &
               properties: ExternalConnectionBaseProperties & {
                   appUuid: string;
                   alias: string;
+              };
+          }
+        | {
+              /** One finished live data source query: how many upstream API calls it made, whether a stored result answered it, and how it ended. */
+              event: 'live_source.query_finished';
+              properties: ExternalConnectionBaseProperties & {
+                  integration: ApiConnectorType | null;
+                  context: string;
+                  outcome: string;
+                  /** Who failed; null when the query succeeded. */
+                  errorOrigin: LiveSourceErrorOrigin | null;
+                  errorCode: string | null;
+                  /** True when a stored result answered the query and the integration wasn't called. */
+                  cacheHit: boolean;
+                  /** Upstream API calls made; 0 when the result was reused. */
+                  apiCalls: number;
+                  providerStatus: number | null;
+                  durationMs: number;
+                  rowCount: number | null;
+                  columnCount: number | null;
+                  truncated: boolean | null;
+                  responseBytes: number;
               };
           }
         | {

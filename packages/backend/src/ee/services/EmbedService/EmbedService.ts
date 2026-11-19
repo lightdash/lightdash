@@ -42,6 +42,7 @@ import {
     getDimensionMapFromTables,
     getEmbedExcludedParameterKeys,
     getEmbedParameterValues,
+    getEmbedThreadOwnerIdentifier,
     getEmbedWriteSpaceUuids,
     getExecutableFilterFieldIds,
     getFilterInteractivityValue,
@@ -2252,6 +2253,7 @@ export class EmbedService extends BaseService {
                 dataAppViz.app_id,
             ),
             'embed',
+            dataAppViz.slug,
         );
     }
 
@@ -2382,6 +2384,7 @@ export class EmbedService extends BaseService {
                 dataAppViz.app_id,
             ),
             'embed',
+            dataAppViz.slug,
         );
     }
 
@@ -3295,6 +3298,7 @@ export class EmbedService extends BaseService {
                 canExportPagePdf: false,
             },
             userAttributes: decodedToken.userAttributes,
+            usageAnalytics: decodedToken.usageAnalytics,
             user: decodedToken.user,
             iat: decodedToken.iat,
             exp: decodedToken.exp,
@@ -3375,7 +3379,8 @@ export class EmbedService extends BaseService {
             await this.projectModel.getSummary(projectUuid);
 
         if (isEmbedReadOnlyAiAgentToken(decodedToken)) {
-            const hasExternalUserId = !!decodedToken.user?.externalId;
+            const hasThreadOwner =
+                getEmbedThreadOwnerIdentifier(decodedToken) !== null;
             const aiAgentAccess = EmbedService.getEmbedAiAgentAccess({
                 auditedAbility: this.createAuditedAbility(embedWriteUser),
                 decodedToken,
@@ -3387,12 +3392,12 @@ export class EmbedService extends BaseService {
                 canUpdateSavedChart: false,
                 canCreateSavedChart: false,
                 writableSpaces: [],
-                ...(hasExternalUserId
+                ...(hasThreadOwner
                     ? aiAgentAccess
                     : {
                           canUseAiAgent: false,
                           aiAgentErrorMessage:
-                              'Embed tokens without write spaces must include user.externalId',
+                              'Embed tokens without write spaces must include user.externalId or content.threadOwnershipIdentifier',
                       }),
             };
         }

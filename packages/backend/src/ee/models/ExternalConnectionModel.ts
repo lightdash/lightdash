@@ -29,15 +29,15 @@ import {
 } from '../../database/entities/apps';
 import { SpaceTableName } from '../../database/entities/spaces';
 import {
-    getApiSourceIntegration,
-    parseStoredApiSource,
-} from '../../services/QuerySourceService/api/apiSourceIntegrations';
-import {
     parseLiveSourceFieldState,
     type LiveSourceFieldEdits,
     type LiveSourceFieldState,
     type LiveSourceScan,
-} from '../../services/QuerySourceService/api/liveSourceFields';
+} from '../../services/QuerySourceService/live/explores/fields';
+import {
+    getLiveIntegration,
+    parseStoredApiSource,
+} from '../../services/QuerySourceService/live/registry';
 import {
     normalizeCredentialUrlHref,
     normalizeCredentialUrlOrigin,
@@ -119,7 +119,30 @@ const SERVER_OWNED_API_SOURCE_KEYS = [
     'fields',
     'aiHint',
     'targetLabel',
+    'cache',
 ] as const;
+
+const liveSourceCacheSchema = z.object({
+    cache: z
+        .object({
+            ttlSeconds: z.number().int().nonnegative().nullish().catch(null),
+            purgedAt: z.coerce.date().nullish().catch(null),
+        })
+        .nullish()
+        .catch(null),
+});
+
+/** A live source's cache settings, kept under `cache` in `api_source`. */
+export const readLiveSourceCacheSettings = (
+    value: unknown,
+): { cacheTtlSeconds: number | null; cachePurgedAt: Date | null } => {
+    const parsed = liveSourceCacheSchema.safeParse(value);
+    const cache = parsed.success ? parsed.data.cache : null;
+    return {
+        cacheTtlSeconds: cache?.ttlSeconds ?? null,
+        cachePurgedAt: cache?.purgedAt ?? null,
+    };
+};
 
 const readSourceName = (value: unknown): string | null => {
     const parsed = z.object({ sourceName: z.string() }).safeParse(value);
@@ -134,9 +157,7 @@ const readSourceDetails = (value: unknown) => {
 /** Connector settings only: drops any server-owned key a caller sent. */
 const toApiSourceSettingsJson = (apiSource: ExternalConnectionApiSource) =>
     JSON.stringify(
-        getApiSourceIntegration(apiSource.connector).settingsSchema.parse(
-            apiSource,
-        ),
+        getLiveIntegration(apiSource.connector).settings.parse(apiSource),
     );
 
 /** A deleted live source, kept so a new one can reattach to its name. */
@@ -216,6 +237,9 @@ export class ExternalConnectionModel {
             apiSource: parseApiSource(row.api_source),
             liveSourceName: readSourceName(row.api_source),
             ...readSourceDetails(row.api_source),
+            ...(row.api_source
+                ? readLiveSourceCacheSettings(row.api_source)
+                : {}),
             hasSecret,
             createdByUserUuid: row.created_by_user_uuid,
             updatedByUserUuid: row.updated_by_user_uuid,
@@ -1111,6 +1135,35 @@ export class ExternalConnectionModel {
             });
     }
 
+    /** Null puts the source back on its integration's freshness window. */
+    async setLiveSourceCacheTtl(
+        uuid: string,
+        ttlSeconds: number | null,
+    ): Promise<void> {
+        await this.database(ExternalConnectionsTableName)
+            .where('external_connection_uuid', uuid)
+            .whereNotNull('api_source')
+            .update({
+                api_source: this.database.raw(
+                    `jsonb_set(api_source, '{cache}', COALESCE(api_source->'cache', '{}'::jsonb) || jsonb_build_object('ttlSeconds', ?::int))`,
+                    [ttlSeconds],
+                ) as unknown as string,
+            });
+    }
+
+    /** Results fetched before `at` stop being reused, for everyone. */
+    async purgeLiveSourceCache(uuid: string, at: Date): Promise<void> {
+        await this.database(ExternalConnectionsTableName)
+            .where('external_connection_uuid', uuid)
+            .whereNotNull('api_source')
+            .update({
+                api_source: this.database.raw(
+                    `jsonb_set(api_source, '{cache}', COALESCE(api_source->'cache', '{}'::jsonb) || jsonb_build_object('purgedAt', ?::text))`,
+                    [at.toISOString()],
+                ) as unknown as string,
+            });
+    }
+
     /** Every active live source, in any project. */
     async listLiveSourceRefs(): Promise<
         {
@@ -1816,12 +1869,16 @@ export class ExternalConnectionModel {
                 {
                     external_connection_uuid: string;
                     api_calls: string | null;
+                    cache_hits: string | null;
                     response_bytes: string | null;
                     median_duration_ms: number | null;
                 }[]
             >(
                 'external_connection_uuid',
                 this.database.raw('sum(api_calls) as api_calls'),
+                this.database.raw(
+                    'count(*) filter (where cache_hit) as cache_hits',
+                ),
                 this.database.raw('sum(response_bytes) as response_bytes'),
                 // Reused results never reach the integration, so they'd drag the median to 0.
                 this.database.raw(
@@ -1831,6 +1888,7 @@ export class ExternalConnectionModel {
         return rows.map((row) => ({
             externalConnectionUuid: row.external_connection_uuid,
             apiCalls: Number(row.api_calls ?? 0),
+            cacheHits: Number(row.cache_hits ?? 0),
             responseBytes: Number(row.response_bytes ?? 0),
             medianDurationMs:
                 row.median_duration_ms === null

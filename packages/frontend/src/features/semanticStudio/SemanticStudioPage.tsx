@@ -17,6 +17,7 @@ import {
 import ErrorState from '../../components/common/ErrorState';
 import Page from '../../components/common/Page/Page';
 import ForbiddenPanel from '../../components/ForbiddenPanel';
+import { useDefaultAiAgent } from '../../ee/features/aiCopilot/components/Launcher/useDefaultAiAgent';
 import { useExplores } from '../../hooks/useExplores';
 import { useProject } from '../../hooks/useProject';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
@@ -37,6 +38,11 @@ import {
     type StudioRoute,
 } from './urls';
 import { type StudioPermissions } from './useSemanticStudio';
+import {
+    foldDraftExplores,
+    StudioCheckoutProvider,
+    useStudioCheckoutState,
+} from './useStudioCheckout';
 import { WorkbenchView } from './WorkbenchView';
 
 const SemanticStudioPage: FC = () => {
@@ -103,17 +109,31 @@ const SemanticStudioPage: FC = () => {
             : undefined,
     );
 
+    // Asked for now, so the change and its chat load alongside the explores and not after them.
+    const checkout = useStudioCheckoutState(projectUuid ?? '');
+    const checkedOutDraft = checkout.shown?.draft ?? null;
+    useDefaultAiAgent(projectUuid);
+
     const realProject = useMemo(
         () =>
             project && explores.data
                 ? buildRealProject({
                       project,
-                      explores: explores.data,
+                      explores: foldDraftExplores(
+                          explores.data,
+                          checkedOutDraft,
+                      ),
                       externalSources: externalSources.data ?? [],
                       liveConnections: liveConnections.data ?? [],
                   })
                 : null,
-        [project, explores.data, externalSources.data, liveConnections.data],
+        [
+            project,
+            explores.data,
+            checkedOutDraft,
+            externalSources.data,
+            liveConnections.data,
+        ],
     );
 
     if (
@@ -156,13 +176,15 @@ const SemanticStudioPage: FC = () => {
 
     return (
         <Page title="Semantic Layer" withFullHeight noContentPadding>
-            <WorkbenchView
-                project={realProject}
-                permissions={permissions}
-                canOpenSettings={canOpenSettings}
-                route={route}
-                onNavigate={onNavigate}
-            />
+            <StudioCheckoutProvider value={checkout}>
+                <WorkbenchView
+                    project={realProject}
+                    permissions={permissions}
+                    canOpenSettings={canOpenSettings}
+                    route={route}
+                    onNavigate={onNavigate}
+                />
+            </StudioCheckoutProvider>
         </Page>
     );
 };

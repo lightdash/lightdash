@@ -70,7 +70,7 @@ const SavedExplorerContent = memo(() => {
             sidebarTitle="Fields"
             {...rightSidebarProps}
             withFullHeight
-            withPaddedContent
+            noContentPadding
         >
             <Explorer />
         </Page>
@@ -198,12 +198,11 @@ const SavedExplorer = () => {
         const isExploreChanged =
             currentSavedChart?.tableName !== data.tableName;
         // View mode follows saved versions, e.g. after an agent edit; edit mode keeps staged changes.
-        const isViewedVersionChanged =
-            !isEditMode &&
-            !isEqual(
-                pickSavedChartVersion(currentSavedChart),
-                pickSavedChartVersion(data),
-            );
+        const isVersionChanged = !isEqual(
+            pickSavedChartVersion(currentSavedChart),
+            pickSavedChartVersion(data),
+        );
+        const isViewedVersionChanged = !isEditMode && isVersionChanged;
 
         if (isNewChart || isExploreChanged || isViewedVersionChanged) {
             // Switching charts must never inherit the previous session's
@@ -222,8 +221,11 @@ const SavedExplorer = () => {
                     : urlChartVersion,
             });
             store.dispatch(explorerActions.reset(initialState));
-        } else {
+        } else if (isVersionChanged) {
             store.dispatch(explorerActions.setSavedChart(data));
+        } else {
+            // Only server metadata changed, such as the name: staged edits and their history stay
+            store.dispatch(explorerActions.setSavedChartMetadata(data));
         }
 
         // Keep cleanup independent from store initialization so a later effect

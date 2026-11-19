@@ -87,6 +87,7 @@ describe('Slack image delivery scope', () => {
                     resolveAiDecisionClient(decisions),
             },
             aiAgentModel: {
+                findSlackChannelServiceAccount: vi.fn().mockResolvedValue(null),
                 findSlackPrompt: async () => prompt,
                 getAgent: async () => ({
                     uuid: 'agent',

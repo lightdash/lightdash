@@ -15,6 +15,7 @@ import {
     CacheMetadata,
     CatalogField,
     ChartAsCode,
+    ComposerChartAsCode,
     ComposerNodeColumn,
     CreateSchedulerAndTargetsWithoutIds,
     CustomChartType,
@@ -51,6 +52,8 @@ import {
     SqlChartAsCode,
     TablePartitioning,
     ThreadComposerQueryNode,
+    ToolComposerChartAsCodeContent,
+    ToolComposerChartFromNode,
     ToolFindContentArgs,
     ToolFindFieldsArgs,
     ToolListContentArgs,
@@ -377,6 +380,11 @@ export type ReadContentFn = (
           href: string;
       }
     | {
+          type: 'composer_chart';
+          content: ComposerChartAsCode;
+          href: string;
+      }
+    | {
           type: 'data_app';
           content: DataAppRead;
           href: string;
@@ -400,6 +408,13 @@ export type EditContentFn = (
               patch: unknown;
               // Runs only when the patch changes the SQL, before saving.
               approveSql: ApproveSqlFn;
+          }
+        | {
+              slug: string;
+              type: 'composer_chart';
+              patch: unknown;
+              // Null without SQL mode: an edit that adds warehouse SQL is refused.
+              approveSql: ApproveSqlFn | null;
           }
         | { slug: string; type: 'document'; documentEdit: McpDocumentEdit },
 ) => Promise<
@@ -434,7 +449,23 @@ export type EditContentFn = (
               after: string | null;
           };
       }
+    | {
+          type: 'composer_chart';
+          content: ComposerChartAsCode;
+          uuid: string;
+          href: string;
+          versionUuids: {
+              before: string | null;
+              after: string | null;
+          };
+      }
 >;
+
+/** Runs a composer chart edit's checks without saving; `approvalSql` is the new warehouse SQL, or null. */
+export type PrepareComposerChartEditFn = (args: {
+    slug: string;
+    patch: unknown;
+}) => Promise<{ approvalSql: string | null }>;
 
 type CreateContentArgs =
     | {
@@ -457,10 +488,19 @@ type CreateSqlChartArgs = {
     approveSql: ApproveSqlFn;
 };
 
+/** A composer chart from a query node or from full JSON; SQL in the JSON waits on approveSql. */
+export type CreateComposerChartArgs = {
+    type: 'composer_chart';
+    content: ToolComposerChartFromNode | ToolComposerChartAsCodeContent;
+    // Null without SQL mode: JSON with warehouse SQL is refused.
+    approveSql: ApproveSqlFn | null;
+};
+
 export type CreateContentFn = (
     args:
         | Exclude<CreateContentArgs, { type: 'sql_chart' }>
         | CreateSqlChartArgs
+        | CreateComposerChartArgs
         | { type: 'document'; content: McpDocumentAsCode },
 ) => Promise<
     | DocumentContentResult
@@ -479,6 +519,12 @@ export type CreateContentFn = (
     | {
           type: 'sql_chart';
           content: SqlChartAsCode;
+          uuid: string;
+          href: string;
+      }
+    | {
+          type: 'composer_chart';
+          content: ComposerChartAsCode;
           uuid: string;
           href: string;
       }
@@ -572,6 +618,29 @@ export type RunSqlChartQueryFn = (args: {
     chartSlug: string;
     dashboardSlug: string | null;
 }) => Promise<SqlQueryRows & { sqlChart: SqlChartSummary; limit: number }>;
+
+export type ComposerChartSummary = {
+    uuid: string;
+    slug: string;
+    name: string;
+    terminalNodeId: string;
+};
+
+export type ComposerChartTileRef = {
+    chartSlug: string;
+    dashboardSlug: string;
+};
+
+export type GetComposerChartFn = (
+    tile: ComposerChartTileRef,
+) => Promise<ComposerChartSummary>;
+
+/** Runs a composer chart as its dashboard tile does; returns its terminal node's rows, not a series-split stage. */
+export type RunComposerChartQueryFn = (
+    tile: ComposerChartTileRef,
+) => Promise<
+    SqlQueryRows & { composerChart: ComposerChartSummary; limit: number }
+>;
 
 export type SendFileFn = (args: PostSlackFile) => Promise<string | undefined>;
 
@@ -842,8 +911,8 @@ export type ListWarehouseTablesFn = (
 
 export type DescribeWarehouseTableFn = (args: {
     table: string;
-    schema?: string;
-    database?: string;
+    schema: string | null;
+    database: string | null;
 }) => Promise<{
     columns: Array<{ name: string; type: string; nativeType: string | null }>;
     resolvedSchema: string | null;
@@ -906,9 +975,17 @@ export type EditDbtProjectFn = (args: {
     /** Open a new PR instead of continuing the thread's existing one. */
     startNewPullRequest: boolean | null;
     progressId?: string;
-}) => Promise<{
-    aiWritebackRunUuid: string;
-}>;
+    /** A code mode script; null runs the change in the sandbox. */
+    script: string | null;
+}) => Promise<
+    | {
+          status: 'started';
+          aiWritebackRunUuid: string;
+          /** Saved by a sandbox that runs dbt, which takes minutes rather than seconds. */
+          inSandbox: boolean;
+      }
+    | { status: 'script_failed'; error: string; logs: string[] }
+>;
 
 // Starts a personal data app build; the worker patches the tool result
 // (keyed by toolCallId) when the build ends.
@@ -988,6 +1065,7 @@ export type EditProjectContextFn = (
 /** Checks a change on top of the person's draft and adds what passes to it. */
 export type ProposeSemanticLayerChangeFn = (
     models: SemanticLayerDraftModelInput[],
+    changeName: string | null,
 ) => Promise<SemanticLayerDraftProposal>;
 
 /** The YAML of one model as the person's draft leaves it, and every model's name so a wrong name can be corrected. */
@@ -1032,17 +1110,26 @@ export type DiscoverReposFn = () => Promise<
  * {@link EditDbtProjectFn}, so the agent can route a follow-up to the right one or
  * decide to open a new one. Optionally scoped to a single `owner/repo`.
  */
+export type AiWritebackWorkstream = {
+    repository: string;
+    provider: string;
+    prUrl: string;
+    prNumber: number;
+    summary: string | null;
+};
+
+export type AiWritebackWorkstreams = {
+    /** Pull requests this thread opened. */
+    workstreams: AiWritebackWorkstream[];
+    /** Start time of each run in this thread whose pull request is not open yet. */
+    pendingStartedAt: Date[];
+    /** Pull requests other threads opened on the same project. */
+    otherThreads: AiWritebackWorkstream[];
+};
+
 export type ListWorkstreamsFn = (args: {
     repoTarget: string | null;
-}) => Promise<
-    {
-        repository: string;
-        provider: string;
-        prUrl: string;
-        prNumber: number;
-        summary: string | null;
-    }[]
->;
+}) => Promise<AiWritebackWorkstreams>;
 
 /**
  * Close (without merging) a pull request the chat thread opened with

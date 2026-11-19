@@ -21,7 +21,7 @@ type ThreadMessages = {
  * each case asks for one thing in a fresh thread and scores what lands in the
  * person's draft. Cases run in order and build on the draft so far.
  */
-describe.sequential('Semantic Studio agent', () => {
+describe('Semantic Studio agent', { concurrent: false }, () => {
     let admin: ApiClient;
     let projectUuid: string;
     let agentUuid: string;
@@ -124,6 +124,8 @@ describe.sequential('Semantic Studio agent', () => {
                 userAccess: [],
                 spaceAccess: [],
                 enableDataAccess: true,
+                // Nobody is there to approve a query, and an unanswered approval ends the reply.
+                enableSqlAutoApproval: true,
                 enableSelfImprovement: false,
                 version: 2,
             },

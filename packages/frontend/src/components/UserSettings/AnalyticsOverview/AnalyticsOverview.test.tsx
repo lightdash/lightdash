@@ -1,7 +1,9 @@
 import {
+    FilterOperator,
     ProjectType,
     QueryHistoryStatus,
     getFilterRules,
+    type DashboardBasicDetails,
     type ExecuteAsyncMetricQueryRequestParams,
 } from '@lightdash/common';
 import { act, screen, waitFor, within } from '@testing-library/react';
@@ -72,6 +74,12 @@ const mockQueries = (
                 return { queryUuid };
             }
             if (method === 'POST' && url.endsWith('/cancel')) return undefined;
+            if (method === 'GET' && url.endsWith('/explores/content_inventory'))
+                return {
+                    tables: {
+                        content_health: { dimensions: { project_type: {} } },
+                    },
+                };
             const queryUuid = url.split('/').at(-1) ?? '';
             const query = byId.get(queryUuid);
             if (method === 'GET' && query) return getResult(query, queryUuid);
@@ -81,13 +89,13 @@ const mockQueries = (
     return launched;
 };
 
-const renderOverview = () =>
+const renderOverview = (dashboards: DashboardBasicDetails[] = []) =>
     renderWithProviders(
         <MemoryRouter>
             <AnalyticsOverview
                 projectUuid="analytics"
                 projectUrlIdentifier="analytics-slug"
-                dashboards={[]}
+                dashboards={dashboards}
                 heading={null}
                 actions={null}
             />
@@ -211,6 +219,14 @@ describe('Analytics settings overview', () => {
         await act(async () => finishChart.resolve(ready()));
         await waitFor(() => expect(ninetyDayQueries()).toHaveLength(8));
         const preceding = ninetyDayQueries().slice(5);
+        for (const period of [current, preceding]) {
+            const inventory = period.find(
+                ({ exploreName }) => exploreName === 'content_inventory',
+            );
+            expect(
+                inventory && filterValue(inventory, 'exclude-preview-projects'),
+            ).toBe(ProjectType.PREVIEW);
+        }
         expect(
             preceding.every(
                 (query) =>
@@ -220,7 +236,7 @@ describe('Analytics settings overview', () => {
         ).toBe(true);
     });
 
-    it('waits for the tab summary before loading previous-period comparisons', async () => {
+    it('loads only the tab own queries away from Overview, with no headline comparisons', async () => {
         const finishSummary = Promise.withResolvers<ReturnType<typeof ready>>();
         const launched = mockQueries((query) => {
             const days =
@@ -243,7 +259,8 @@ describe('Analytics settings overview', () => {
                             Date.parse(String(filterValue(query, 'start'))) ===
                         30 * 86_400_000,
                 );
-        await waitFor(() => expect(monthlyQueries()).toHaveLength(6));
+        // The headline numbers and their previous-period comparisons belong to Overview alone
+        await waitFor(() => expect(monthlyQueries()).toHaveLength(3));
         expect(
             monthlyQueries().filter((query) =>
                 query.metrics.includes('ai_usage_unique_users'),
@@ -261,26 +278,158 @@ describe('Analytics settings overview', () => {
                 ]),
             ),
         );
-        await waitFor(() => expect(monthlyQueries()).toHaveLength(9));
+        await waitFor(() =>
+            expect(
+                within(
+                    screen.getByRole('region', { name: 'AI calls' }),
+                ).getByText('13,575'),
+            ).toBeVisible(),
+        );
+        expect(monthlyQueries()).toHaveLength(3);
+    });
+
+    it('shows the dashboard of a tab in place of its charts and filters', async () => {
+        mockQueries();
+        renderOverview([
+            {
+                slug: 'lightdash-analytics-query-activity',
+                name: 'Queries',
+                verification: {},
+            } as DashboardBasicDetails,
+        ]);
+        await userEvent.click(screen.getByRole('tab', { name: 'Queries' }));
+        expect(screen.getByTitle('Queries dashboard')).toHaveAttribute(
+            'src',
+            '/minimal/projects/analytics-slug/dashboards/lightdash-analytics-query-activity?hideTabs=true',
+        );
+        expect(screen.queryByText('Last 30 days')).not.toBeInTheDocument();
         expect(
-            within(screen.getByRole('region', { name: 'AI calls' })).getByText(
-                '13,575',
-            ),
+            screen.queryByRole('region', {
+                name: 'How often are queries served from cache?',
+            }),
+        ).not.toBeInTheDocument();
+        // A tab with no dashboard still draws its own charts
+        await userEvent.click(screen.getByRole('tab', { name: 'Users' }));
+        expect(screen.getByText('Last 30 days')).toBeVisible();
+    });
+
+    it('hands the chosen date range and project to a dashboard that has those filters', async () => {
+        vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-07-23') });
+        mockQueries();
+        const otherRequests = mockedLightdashApi.getMockImplementation()!;
+        mockedLightdashApi.mockImplementation(
+            async (request: LightdashApiProps) =>
+                request.url.includes('/dashboards/')
+                    ? {
+                          tabs: [],
+                          filters: {
+                              dimensions: [
+                                  {
+                                      id: 'date',
+                                      label: 'Date',
+                                      target: {
+                                          fieldId: 'query_events_event_ts_day',
+                                          tableName: 'query_events',
+                                      },
+                                      operator: FilterOperator.IN_THE_PAST,
+                                      values: [30],
+                                      tileTargets: {},
+                                  },
+                                  {
+                                      id: 'project',
+                                      label: 'Project',
+                                      target: {
+                                          fieldId: 'query_events_project_id',
+                                          tableName: 'query_events',
+                                      },
+                                      operator: FilterOperator.EQUALS,
+                                      values: [],
+                                      disabled: true,
+                                      tileTargets: {},
+                                  },
+                              ],
+                          },
+                      }
+                    : otherRequests(request),
+        );
+        renderOverview([
+            {
+                slug: 'lightdash-analytics-query-activity',
+                name: 'Queries',
+                verification: {},
+            } as DashboardBasicDetails,
+        ]);
+        await userEvent.click(screen.getByRole('tab', { name: 'Queries' }));
+        const sent = async () =>
+            JSON.parse(
+                new URL(
+                    (
+                        await screen.findByTitle('Queries dashboard')
+                    ).getAttribute('src')!,
+                    'http://lightdash',
+                ).searchParams.get('filters')!,
+            ).dimensions;
+        expect(await sent()).toEqual([
+            expect.objectContaining({
+                id: 'date',
+                operator: FilterOperator.IN_BETWEEN,
+                values: ['2026-07-16', '2026-07-22'],
+            }),
+        ]);
+        await userEvent.click(screen.getByText('Last 30 days'));
+        await userEvent.click(
+            screen.getByRole('combobox', { name: 'Project' }),
+        );
+        await userEvent.click(
+            await screen.findByRole('option', { name: 'Sales' }),
+        );
+        await waitFor(async () =>
+            expect(await sent()).toEqual([
+                expect.objectContaining({
+                    id: 'date',
+                    values: ['2026-06-23', '2026-07-22'],
+                }),
+                expect.objectContaining({
+                    id: 'project',
+                    values: ['reported-project'],
+                    disabled: false,
+                }),
+            ]),
+        );
+        vi.useRealTimers();
+    });
+
+    it('falls back to the Adoption charts and filters where the app cannot be opened', async () => {
+        // The app lookup fails here, as it does on an instance with data apps switched off
+        const launched = mockQueries();
+        renderOverview();
+        await userEvent.click(screen.getByRole('tab', { name: 'Adoption' }));
+        expect(
+            await screen.findByRole('region', { name: 'Dashboard audiences' }),
         ).toBeVisible();
+        expect(screen.getByText('Last 30 days')).toBeVisible();
+        expect(
+            screen.queryByRole('status', { name: 'Loading Adoption app' }),
+        ).not.toBeInTheDocument();
+        // The tab's four charts are queried, on top of what Overview had already asked for
+        const before = launched.length;
+        await waitFor(() => expect(launched.length).toBeGreaterThanOrEqual(4));
+        expect(before).toBeGreaterThan(0);
     });
 
     it('cancels a superseded query even when its creation response arrives after the project switch', async () => {
         mockQueries();
         const respond = Promise.withResolvers<{ queryUuid: string }>();
-        mockedLightdashApi.mockImplementationOnce(
-            (request: LightdashApiProps) => {
-                expect(request.url).toBe(
-                    '/projects/analytics/query/metric-query',
-                );
-                expect(request.signal).toBeUndefined();
-                return respond.promise;
-            },
-        );
+        const handleRequest = mockedLightdashApi.getMockImplementation()!;
+        let intercepted = false;
+        mockedLightdashApi.mockImplementation((request: LightdashApiProps) => {
+            if (intercepted || !request.url.endsWith('/query/metric-query'))
+                return handleRequest(request);
+            intercepted = true;
+            expect(request.url).toBe('/projects/analytics/query/metric-query');
+            expect(request.signal).toBeUndefined();
+            return respond.promise;
+        });
         renderOverview();
         await userEvent.click(
             screen.getByRole('combobox', { name: 'Project' }),

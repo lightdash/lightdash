@@ -1,0 +1,68 @@
+/* Covers the grid while a copy waits to be placed, so tiles under it neither
+   drag nor open */
+.layer {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    cursor: copy;
+}
+
+.ghost {
+    --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    /* The hint sits by the pointer, which holds the tile's top row */
+    align-items: flex-start;
+    justify-content: center;
+    padding: var(--mantine-spacing-lg) var(--mantine-spacing-xs);
+    pointer-events: none;
+    /* It steps from cell to cell, so a short ease joins the steps without
+       trailing the pointer */
+    transition:
+        transform 120ms var(--ease-out-strong),
+        opacity 150ms var(--ease-out-strong),
+        scale 150ms var(--ease-out-strong);
+
+    @starting-style {
+        opacity: 0;
+        scale: 0.97;
+    }
+
+    /* Inset like a tile, which leaves half a grid gap on every side. Reads as
+       the selected tile, lifted: its ring, over a wash that lets the tiles
+       under it show */
+    &::before {
+        content: '';
+        position: absolute;
+        inset: 5px;
+        border: 2px solid var(--mantine-color-blue-filled);
+        border-radius: var(--dashboard-tile-radius-edit);
+        background: color-mix(
+            in srgb,
+            var(--mantine-color-blue-filled) 8%,
+            color-mix(in srgb, var(--ld-color-tile) 70%, transparent)
+        );
+        box-shadow: var(--tile-lift-shadow);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ghost {
+        transition: opacity 150ms ease;
+
+        @starting-style {
+            scale: 1;
+        }
+    }
+}
+
+.hint {
+    position: relative;
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 500;
+    color: var(--mantine-color-blue-light-color);
+    text-align: center;
+}

@@ -45,8 +45,8 @@ Reset keeps the group restriction. The API returns no per-role matrix. A PUT
 that still sends `systemRoleMatrix` gets no error; the server ignores it.
 GET, PUT and reset omit the old people and project choices. Old browser tabs
 can still save them, but the server ignores them and clears the old columns.
-The Agents page uses the capability-policy API for Same as the person,
-Read and query, and Custom.
+The Agents page uses the capability-policy API for Match the person,
+Read and query only, and Custom scope.
 
 ## Personal CLI admission by surface
 
@@ -166,7 +166,7 @@ capability. The refusal points to the organization Agents settings page.
 New policy defaults contain all eleven capabilities. Custom roles keep their
 own agent permissions. The organization list can only narrow them.
 With every capability ticked, limits on still keeps three safeguards that
-"Same as the person" does not have: actions reserved for people, refusal of
+"Match the person" does not have: actions reserved for people, refusal of
 unmapped operations, and a verified sender on Slack.
 
 A managed save accepts an empty list but rejects explicit `null`. An omitted
@@ -175,12 +175,12 @@ Legacy saves and reset set the list to `null`. Reset keeps the group
 restriction. A stale version rejects the entire save. Rows saved by the
 earlier per-role editor stay in the database, but no check reads them.
 
-The Agents page offers three choices. Same as the person stores `legacy`
-with a null capability list. Read and query stores `managed` with Read and
+The Agents page offers three choices. Match the person stores `legacy`
+with a null capability list. Read and query only stores `managed` with Read and
 discover, Query data, Export results and Raw SQL in the list.
-Custom stores `managed` with the selected list. It starts with
-all eleven capabilities on; an organization that already saved a Custom list
-gets that list back. Capability and group changes require review.
+Custom scope stores `managed` with the selected list. It starts with
+all eleven capabilities on; an organization that already saved a Custom scope
+list gets that list back. Capability and group changes require review.
 Raw SQL follows warehouse permissions; this preset is not a read-only SQL guard.
 
 ## How checks combine

@@ -48,5 +48,15 @@ export const usePreAggregateMaterializations = (
             return undefined;
         },
         enabled: !!projectUuid,
+        // A build reports its end only through this list, so it is read again while one runs.
+        refetchInterval: (data) =>
+            data?.pages.some((page) =>
+                page.data.materializations.some(
+                    (summary) =>
+                        summary.materialization?.status === 'in_progress',
+                ),
+            )
+                ? 5000
+                : false,
     });
 };

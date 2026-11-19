@@ -2,12 +2,15 @@ import {
     getItemId,
     type CustomDimension,
     type Field,
+    type ResultRow,
     type SortField,
     type TableCalculation,
 } from '@lightdash/common';
 import { ActionIcon, Flex, Menu, Text } from '@mantine/core';
-import { IconCheck, IconDots } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
+import { useClipboard } from '@mantine/hooks';
+import { IconCheck, IconCopy, IconDots } from '@tabler/icons-react';
+import { useCallback, useMemo, type FC } from 'react';
+import useToaster from '../../hooks/toaster/useToaster';
 import {
     getSortDirectionOrder,
     getSortIcon,
@@ -16,6 +19,7 @@ import {
 } from '../../utils/sortUtils';
 import MantineIcon from '../common/MantineIcon';
 import { type HeaderProps, type TableColumn } from '../common/Table/types';
+import { getColumnValuesText } from './getColumnValuesText';
 
 type ColumnHeaderSortMenuOptionsProps = {
     item: Field | TableCalculation | CustomDimension;
@@ -81,15 +85,19 @@ const ColumnHeaderSortMenuOptions: FC<ColumnHeaderSortMenuOptionsProps> = ({
 };
 
 type UnderlyingDataHeaderContextMenuProps = HeaderProps & {
+    rows: ResultRow[];
     sorts: SortField[];
     onSortChange: (sorts: SortField[]) => void;
 };
 
 const UnderlyingDataHeaderContextMenu: FC<
     UnderlyingDataHeaderContextMenuProps
-> = ({ header, sorts, onSortChange }) => {
+> = ({ header, rows, sorts, onSortChange }) => {
     const meta = header.column.columnDef.meta as TableColumn['meta'];
     const item = meta?.item;
+    const columnId = header.column.id;
+    const clipboard = useClipboard({ timeout: 2000 });
+    const { showToastSuccess } = useToaster();
 
     const iconSort = useMemo(() => {
         if (item === undefined) return undefined;
@@ -100,6 +108,15 @@ const UnderlyingDataHeaderContextMenu: FC<
         }
         return undefined;
     }, [item, sorts]);
+
+    const handleCopyColumn = useCallback(() => {
+        clipboard.copy(getColumnValuesText(rows, columnId));
+        showToastSuccess({
+            title: `Copied ${rows.length} ${
+                rows.length === 1 ? 'value' : 'values'
+            } to clipboard!`,
+        });
+    }, [clipboard, rows, columnId, showToastSuccess]);
 
     if (item) {
         return (
@@ -130,6 +147,14 @@ const UnderlyingDataHeaderContextMenu: FC<
                             sorts={sorts}
                             onSortChange={onSortChange}
                         />
+                        <Menu.Divider />
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconCopy} />}
+                            disabled={rows.length === 0}
+                            onClick={handleCopyColumn}
+                        >
+                            Copy column
+                        </Menu.Item>
                     </Menu.Dropdown>
                 </Menu>
             </Flex>

@@ -11,9 +11,18 @@ export type SemanticLayerApplyMode =
     | 'pull_request'
     | 'dbt_pull_request';
 
+export type SemanticLayerBlocker =
+    | 'no_access'
+    | 'unsupported_connection'
+    | 'no_repository_access'
+    | 'github_app_missing'
+    | 'models_from_outside'
+    | 'preview_project';
+
 export type SemanticLayerStatus = {
     /** Whether this person can change this project's models from Semantic Studio. */
     enabled: boolean;
+    blocker: SemanticLayerBlocker | null;
     /** How a change lands: `live` applies a draft here, `pull_request` sends a draft to the project's repository, and `dbt_pull_request` has the agent edit the dbt project in a pull request, with no draft. */
     appliesAs: SemanticLayerApplyMode;
 };
@@ -61,6 +70,53 @@ export type SemanticLayerStoredModels = { models: string[] };
 
 export type ApiSemanticLayerStoredModelsResponse =
     ApiSuccess<SemanticLayerStoredModels>;
+
+/** A project's model files in its repository, at a change's pull request or the branch it deploys from. */
+export type SemanticStudioSources = {
+    branch: string;
+    prUrl: string | null;
+    /** Paths relative to the dbt project, YAML and SQL only. */
+    files: string[];
+};
+
+export type ApiSemanticStudioSourcesResponse =
+    ApiSuccess<SemanticStudioSources>;
+
+export type SemanticStudioSourceFile = {
+    revision: string | null;
+    path: string;
+    content: string | null;
+};
+
+export type ApiSemanticStudioSourceFileResponse =
+    ApiSuccess<SemanticStudioSourceFile>;
+
+export type SaveSemanticStudioSourceRequest = {
+    /** The revision the edit was based on, null for a new file; older clients omit it and skip the check. */
+    revision?: string | null;
+    path: string;
+    content: string;
+    /** The change's open pull request to add the commit to, or null to open one. */
+    prUrl: string | null;
+    /** The Studio conversation the change belongs to, so Try it sees the edit. */
+    threadUuid: string | null;
+};
+
+/** `failed` carries why the edit was not saved; `checked` is false when only dbt can check it, such as SQL. */
+export type SemanticStudioSourceSave =
+    | {
+          status: 'saved';
+          prUrl: string;
+          prAction: 'opened' | 'updated';
+          commitSha: string;
+          checked: boolean;
+          /** The revision of the file as saved, for the next save to be based on. */
+          revision: string;
+      }
+    | { status: 'failed'; error: string };
+
+export type ApiSemanticStudioSourceSaveResponse =
+    ApiSuccess<SemanticStudioSourceSave>;
 
 /** How one model's part of a change fared when it was checked on top of a draft. */
 export type SemanticLayerDraftItemResult = {
@@ -144,8 +200,8 @@ export type SemanticLayerDraftModel = {
     reconciliation: SemanticLayerDraftReconciliation | null;
     /** Other people with unpublished changes to this model, and the parts each is changing; never the content. */
     alsoChanging: SemanticLayerDrafter[];
-    /** The latest change someone else published to this model since this draft first touched it; null when none. */
-    publishedSince: { by: string | null; at: Date } | null;
+    /** The latest change published to this model since this draft first touched it, from another person or another of yours; null when none. */
+    publishedSince: { by: string | null; at: Date; isYours: boolean } | null;
 };
 
 /** What became of a change that left the draft. */
@@ -188,6 +244,8 @@ export type SemanticLayerDraftApplyResult = {
     failures: { model: string; error: string }[];
     /** The pull request the draft was sent as, for a project whose models live in a repository; null otherwise. */
     pullRequestUrl: string | null;
+    /** Whether that pull request merged when publishing asked for it, and why not; null when no merge was asked. */
+    merge: { merged: true } | { merged: false; reason: string } | null;
 };
 
 export type ApiSemanticLayerDraftApplyResponse =
@@ -280,7 +338,7 @@ export type SemanticStudioWorkspace = {
     workspaceUuid: string;
     projectUuid: string;
     name: string;
-    threadUuid: string;
+    threadUuid: string | null;
     agentUuid: string | null;
     owner: { userUuid: string; name: string };
     isMine: boolean;
@@ -294,6 +352,8 @@ export type SemanticStudioWorkspace = {
     createdAt: Date;
     updatedAt: Date;
     finishedAt: Date | null;
+    /** Whether any of its draft went live here, without a pull request. */
+    publishedLive: boolean;
 };
 
 export type SemanticStudioWorkspaces = {
@@ -311,8 +371,44 @@ export type ApiSemanticStudioWorkspacesResponse =
 export type ApiSemanticStudioWorkspaceResponse =
     ApiSuccess<SemanticStudioWorkspace>;
 
+export type SemanticStudioBranchCompileStatus =
+    | 'compiling'
+    | 'ready'
+    | 'failed';
+
+/** Where the compile of a dbt change's branch stands. */
+export type SemanticStudioBranchCompile = {
+    status: SemanticStudioBranchCompileStatus;
+    /** Null until a compile has read the branch. */
+    branch: string | null;
+    /** Why the latest compile failed; null otherwise. */
+    error: string | null;
+    /** Whether a compile has succeeded; until one has, Explore shows what is published. */
+    hasExplores: boolean;
+    requestedAt: Date;
+    compiledAt: Date | null;
+};
+
+/** The change a person has checked out in a project, which the whole app shows them. */
+export type SemanticStudioCheckout = {
+    workspaceUuid: string;
+    name: string;
+    appliesAs: SemanticLayerApplyMode;
+    /** Null for a change kept on the server, and for a dbt change with no compile asked for yet. */
+    branchCompile: SemanticStudioBranchCompile | null;
+};
+
+/** The pull request of the checked-out draft, so a stale page cannot publish another one. */
+export type SemanticStudioPublishBody = {
+    prUrl: string;
+};
+
+/** Null when the person is on what is published. */
+export type ApiSemanticStudioCheckoutResponse =
+    ApiSuccess<SemanticStudioCheckout | null>;
+
 export type SemanticStudioWorkspaceStartBody = {
-    threadUuid: string;
+    threadUuid: string | null;
     name: string;
 };
 

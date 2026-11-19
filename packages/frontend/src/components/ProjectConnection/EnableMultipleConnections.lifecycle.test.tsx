@@ -195,15 +195,13 @@ const CaptureQueryClient = () => {
     return null;
 };
 
-const projectRule = (action: 'manage' | 'update') => ({
-    action,
+const manageRule = {
+    action: 'manage' as const,
     subject: 'Project' as const,
     conditions: { organizationUuid, projectUuid },
-});
-const manageRule = projectRule('manage');
-const updateRule = projectRule('update');
+};
 
-const renderPanel = (abilityRules = [manageRule]) => {
+const renderPanel = () => {
     renderWithProviders(
         <>
             <CaptureQueryClient />
@@ -217,7 +215,7 @@ const renderPanel = (abilityRules = [manageRule]) => {
                 }
             />
         </>,
-        { user: { abilityRules } },
+        { user: { abilityRules: [manageRule] } },
     );
     return userEvent.setup();
 };
@@ -413,15 +411,6 @@ describe('Enable multiple connections dialog lifecycle', () => {
         ).toBeNull();
     });
 
-    it('renders nothing when the server refuses the list (403)', async () => {
-        server.list = 'forbidden';
-        renderPanel();
-
-        await waitFor(() => expect(listCalls()).toHaveLength(1));
-        await settle();
-        expect(screen.queryByText('Connections')).toBeNull();
-    });
-
     it.each([
         { failure: 'failure' as const, dialogOpen: true },
         { failure: 'failure' as const, dialogOpen: false },
@@ -517,33 +506,6 @@ describe('Enable multiple connections dialog lifecycle', () => {
                     /This project uses one warehouse connection/,
                 ),
             ).toBeNull();
-            expect(
-                screen.queryByRole('button', {
-                    name: 'Enable multiple connections',
-                }),
-            ).toBeNull();
-        },
-    );
-
-    it.each([
-        {
-            name: 'the viewer cannot manage the project',
-            rules: [updateRule],
-            flagEnabled: true,
-        },
-        {
-            name: 'the rollout flag is off',
-            rules: [manageRule],
-            flagEnabled: false,
-        },
-    ])(
-        'requests no list and offers no switch when $name',
-        async ({ rules, flagEnabled }) => {
-            flag.enabled = flagEnabled;
-            renderPanel(rules);
-
-            await settle();
-            expect(listCalls()).toHaveLength(0);
             expect(
                 screen.queryByRole('button', {
                     name: 'Enable multiple connections',

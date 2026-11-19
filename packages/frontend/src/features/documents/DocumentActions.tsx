@@ -31,8 +31,7 @@ import { FavoriteActionIcon } from '../../components/common/FavoriteActionIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import DocumentDeleteModal from '../../components/common/modal/DocumentDeleteModal';
 import { RequestReviewModal } from '../../ee/features/contentReview';
-import { useFavoriteMutation } from '../../hooks/favorites/useFavoriteMutation';
-import { useFavorites } from '../../hooks/favorites/useFavorites';
+import { useFavoriteToggle } from '../../hooks/favorites/useFavoriteToggle';
 import { useDocumentPinningMutation } from '../../hooks/pinning/useDocumentPinningMutation';
 import {
     useUnverifyDocumentMutation,
@@ -75,12 +74,7 @@ const DocumentActions = ({
         }),
     );
     const [isShareOpen, setShareOpen] = useState(false);
-    const favorites = useFavorites(document.projectUuid);
-    const favoriteMutation = useFavoriteMutation(document.projectUuid);
-    const isFavorite =
-        favorites.data?.some(
-            (item) => item.data.uuid === document.documentUuid,
-        ) ?? false;
+    const favorite = useFavoriteToggle(document.projectUuid);
     const [isDeleteOpen, setDeleteOpen] = useState(false);
     const [isCodeOpen, setCodeOpen] = useState(false);
     const [isDuplicateOpen, setDuplicateOpen] = useState(false);
@@ -135,17 +129,13 @@ const DocumentActions = ({
                     variant="default"
                     size="lg"
                     name={document.name}
-                    isFavorite={isFavorite}
-                    disabled={
-                        favorites.isLoading ||
-                        favorites.isError ||
-                        favoriteMutation.isLoading
-                    }
+                    isFavorite={favorite.isFavorite(document.documentUuid)}
+                    disabled={favorite.isLoading}
                     onToggle={() =>
-                        favoriteMutation.mutate({
-                            contentType: ContentType.DOCUMENT,
-                            contentUuid: document.documentUuid,
-                        })
+                        favorite.toggle(
+                            ContentType.DOCUMENT,
+                            document.documentUuid,
+                        )
                     }
                 />
             )}

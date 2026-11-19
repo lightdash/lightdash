@@ -18,6 +18,8 @@ import {
 import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from '../../../../../components/common/ChartDownload/chartDownloadUtils';
 import { type EChartsReact } from '../../../../../components/EChartsReactWrapper';
 import { useDataAppVizRenderMetadata } from '../../../../../features/chartTypes/hooks/useDataAppVizRender';
+import { AiComposerRunQueryChart } from '../../../../../features/composerCharts/lineage/AiComposerRunQueryChart';
+import { ArtifactLoadingSketch } from '../../../../../features/composerCharts/lineage/ArtifactLoadingSketch';
 import {
     useInfiniteQueryResults,
     type InfiniteQueryResults,
@@ -25,8 +27,6 @@ import {
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { getAiAgentArtifactResultsUrl } from '../../hooks/aiAgentRouting';
-import { AiComposerRunQueryChart } from './AiComposerRunQueryChart';
-import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
 
 const DATA_APP_VIZ_RENDER_TARGET = {
     isEmbedded: false,

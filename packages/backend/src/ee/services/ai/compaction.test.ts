@@ -306,7 +306,7 @@ describe('AI context compaction helpers', () => {
         ]);
 
         expect(serialized).toContain(
-            'element reference [button "Send"] in data app F1 standings (app-1, version 3',
+            'element reference [button "Send"] in data app F1 standings (f1-standings, version 3',
         );
     });
 
@@ -362,6 +362,62 @@ describe('AI context compaction helpers', () => {
 
         expect(serialized).toContain(
             'Document Q3 revenue review (doc-1; read it with readContent)',
+        );
+    });
+
+    it('serializes a pinned SQL chart so the summary keeps its slug', () => {
+        const serialized = Compaction.serializeConversation([
+            {
+                role: 'user',
+                uuid: 'prompt-1',
+                threadUuid: 'thread-1',
+                message: 'Make this a bar chart.',
+                createdAt: new Date().toISOString(),
+                user: { uuid: 'user-1', name: 'Test User' },
+                context: [
+                    {
+                        type: 'sql_chart',
+                        sqlChartUuid: 'sql-1',
+                        sqlChartSlug: 'revenue-sql',
+                        displayName: 'Revenue SQL',
+                        pinnedVersionUuid: null,
+                    },
+                ],
+                steers: [],
+                hidden: false,
+            },
+        ]);
+
+        expect(serialized).toContain(
+            'SQL chart Revenue SQL (revenue-sql; read it with readContent type sql_chart)',
+        );
+    });
+
+    it('serializes a pinned composer chart so the summary keeps its slug', () => {
+        const serialized = Compaction.serializeConversation([
+            {
+                role: 'user',
+                uuid: 'prompt-1',
+                threadUuid: 'thread-1',
+                message: 'Make this a bar chart.',
+                createdAt: new Date().toISOString(),
+                user: { uuid: 'user-1', name: 'Test User' },
+                context: [
+                    {
+                        type: 'composer_chart',
+                        composerChartUuid: 'composer-1',
+                        composerChartSlug: 'revenue-vs-target',
+                        displayName: 'Revenue vs target',
+                        pinnedVersionUuid: null,
+                    },
+                ],
+                steers: [],
+                hidden: false,
+            },
+        ]);
+
+        expect(serialized).toContain(
+            'composer chart Revenue vs target (revenue-vs-target; read it with readContent type composer_chart)',
         );
     });
 

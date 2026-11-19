@@ -23,13 +23,6 @@
     color: var(--mantine-color-dimmed);
 }
 
-.empty {
-    padding: 28px;
-    border: 1px dashed var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-lg);
-    text-align: center;
-}
-
 .section + .section,
 .empty + .section {
     margin-top: 28px;
@@ -69,7 +62,7 @@
 .row {
     position: relative;
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto 64px;
+    grid-template-columns: auto minmax(0, 1fr) auto minmax(64px, auto);
     align-items: center;
     gap: 14px;
     width: 100%;
@@ -80,6 +73,22 @@
 
 .row + .row {
     border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.rowLink {
+    min-width: 0;
+}
+
+/* The whole row opens the change; its own action sits above that. */
+.rowLink::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+}
+
+.rowAction {
+    position: relative;
+    z-index: 1;
 }
 
 .row:not(:disabled):hover {
@@ -123,18 +132,6 @@
     white-space: nowrap;
 }
 
-.here {
-    flex: none;
-    padding: 0 7px;
-    height: 18px;
-    display: inline-grid;
-    place-items: center;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--mantine-color-text) 8%, transparent);
-    font-size: 11px;
-    font-weight: 500;
-}
-
 .meta {
     font-size: var(--mantine-font-size-xs);
     color: var(--mantine-color-dimmed);
@@ -153,40 +150,6 @@
 
 .when {
     color: var(--mantine-color-dimmed);
-}
-
-.track {
-    display: inline-flex;
-    gap: 3px;
-}
-
-.segment {
-    width: 18px;
-    height: 4px;
-    border-radius: 2px;
-    background: var(--mantine-color-default-border);
-}
-
-.segment[data-state='done'] {
-    background: var(--mantine-color-text);
-}
-
-.segment[data-state='draft'],
-.segment[data-state='in_review'] {
-    background: var(--mantine-color-blue-6);
-}
-
-.segment[data-state='saving'] {
-    background: var(--mantine-color-violet-6);
-    animation: breathe 1.4s ease-in-out infinite;
-}
-
-.segment[data-state='ready'] {
-    background: var(--mantine-color-green-6);
-}
-
-.segment[data-state='failing'] {
-    background: var(--mantine-color-red-6);
 }
 
 .chevron {
@@ -248,16 +211,4 @@ li + li .event::before {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-@keyframes breathe {
-    50% {
-        opacity: 0.45;
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .segment[data-state='saving'] {
-        animation: none;
-    }
 }

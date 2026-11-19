@@ -39,6 +39,9 @@ const ExportDataModal: FC<ExportDataModalProps> = ({
                                 await onExport();
                             }}
                             data-testid="chart-export-results-button"
+                            // Walkthrough anchor (data-tour-then): the download.
+                            data-tour-anchor="export-download"
+                            data-tour-hint="Click Download"
                         >
                             Download
                         </Button>

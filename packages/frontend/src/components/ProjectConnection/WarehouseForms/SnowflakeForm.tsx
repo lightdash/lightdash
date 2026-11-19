@@ -8,6 +8,7 @@ import {
     TextInput,
     Anchor,
     Button,
+    Checkbox,
     FileInput,
     Group,
     Stack,
@@ -232,6 +233,28 @@ const SnowflakeForm: FC<{
         form.values.warehouse.authenticationType ?? defaultAuthType;
 
     const isNoneAuth = authenticationType === SnowflakeAuthenticationType.NONE;
+    const hasNoSharedCredentials =
+        isNoneAuth ||
+        authenticationType === SnowflakeAuthenticationType.EXTERNAL_BROWSER;
+    const requiresUserCredentials =
+        isProjectExtraConnection && inheritsPrimaryCredentialRequirement
+            ? (primaryRequiresUserCredentials ??
+                  savedProject?.warehouseConnection?.requireUserCredentials) ===
+              true
+            : !!form.values.warehouse.requireUserCredentials;
+
+    const allowUserCredentials = form.values.warehouse.allowUserCredentials;
+    // The checkbox is locked off here, so the submitted value must be off too
+    useEffect(() => {
+        if (
+            hasNoSharedCredentials &&
+            !requiresUserCredentials &&
+            allowUserCredentials
+        ) {
+            form.setFieldValue('warehouse.allowUserCredentials', false);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hasNoSharedCredentials, requiresUserCredentials, allowUserCredentials]);
 
     // Build base authentication options
     const baseAuthOptions = isSsoEnabled
@@ -618,6 +641,26 @@ const SnowflakeForm: FC<{
                                         disabled={disabled}
                                     />
                                 )}
+                                <Checkbox
+                                    name="warehouse.allowUserCredentials"
+                                    {...form.getInputProps(
+                                        'warehouse.allowUserCredentials',
+                                        { type: 'checkbox' },
+                                    )}
+                                    label="Use personal credentials when available"
+                                    description="Signed-in users with personal Snowflake credentials use them instead of the project connection. Other users use the project connection."
+                                    checked={
+                                        requiresUserCredentials ||
+                                        (!hasNoSharedCredentials &&
+                                            !!form.values.warehouse
+                                                .allowUserCredentials)
+                                    }
+                                    disabled={
+                                        disabled ||
+                                        requiresUserCredentials ||
+                                        hasNoSharedCredentials
+                                    }
+                                />
 
                                 <BooleanSwitch
                                     name="warehouse.clientSessionKeepAlive"

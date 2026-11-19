@@ -37,10 +37,15 @@ import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
 import ExportDataModal from '../../../../../components/DashboardTiles/ExportDataModal';
 import { type EChartsReact } from '../../../../../components/EChartsReactWrapper';
+import { NO_CELL_LIMITED_SCOPES } from '../../../../../components/ExportResults/exportCellEstimate';
 import {
     SaveComposerChartModal,
     type SavedComposerChartLink,
 } from '../../../../../features/composerCharts/components/SaveComposerChartModal';
+import { AiComposerLineage } from '../../../../../features/composerCharts/lineage/AiComposerLineage';
+import { ArtifactLoadingSketch } from '../../../../../features/composerCharts/lineage/ArtifactLoadingSketch';
+import { useArtifactResultRows } from '../../../../../features/composerCharts/lineage/useArtifactResultRows';
+import { useComposerRunNodeStatuses } from '../../../../../features/composerCharts/lineage/useComposerRunNodeStatuses';
 import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
 import useApp from '../../../../../providers/App/useApp';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
@@ -54,21 +59,17 @@ import { AiComposerArtifactVisualization } from './AiComposerArtifactVisualizati
 import { AiComposerNodeResult } from './AiComposerNodeResult';
 import { AiComposerRunQueryVisualization } from './AiComposerRunQueryVisualization';
 import { ArtifactWindowControls } from './ArtifactFocusToggle';
-import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
 import { ArtifactPanelHeading } from './ArtifactPanelHeading';
-import { AiComposerLineage } from './composerPipeline/AiComposerLineage';
 import {
     AiComposerVizConfigPanel,
     type AiComposerVizConfigPanelMode,
 } from './composerVizConfig/AiComposerVizConfigPanel';
-import { useArtifactResultRows } from './useArtifactResultRows';
 import { useComposerChartSaveAction } from './useComposerChartSaveAction';
 import { useComposerMergeChartActions } from './useComposerMergeChartActions';
 import {
     useComposerNodeResults,
     type ComposerPanelSource,
 } from './useComposerNodeResults';
-import { useComposerRunNodeStatuses } from './useComposerRunNodeStatuses';
 
 const SAVE_DELAY_MS = 400;
 const READ_ONLY_REASON =
@@ -475,8 +476,8 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                     />
                 ) : null;
             }}
-            chatNodeIds={chatNodeIds}
-            onAddToChat={onAddToChat}
+            graphAside={null}
+            threadActions={{ chatNodeIds, onAddToChat }}
         />
     );
 
@@ -560,6 +561,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                     columnOrder={columnOrder}
                     chartName={title}
                     hideLimitSelection
+                    cellLimitedScopes={NO_CELL_LIMITED_SCOPES}
                 />
             )}
         </Box>

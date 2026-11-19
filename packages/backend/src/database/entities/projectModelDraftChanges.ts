@@ -20,6 +20,8 @@ export type DbProjectModelDraftChange = {
     applied_pull_request_url: string | null;
     /** The version each model was at when this change was made, by model name; null for a model that was not there. Null on changes made before versions were recorded. */
     base_versions: Record<string, number | null> | null;
+    /** The Studio workspace this change belongs to; null on changes made before drafts had workspaces. */
+    workspace_uuid: string | null;
     created_at: Date;
 };
 
@@ -27,7 +29,10 @@ export type ProjectModelDraftChangesTable = Knex.CompositeTableType<
     DbProjectModelDraftChange,
     Pick<
         DbProjectModelDraftChange,
-        'project_uuid' | 'created_by_user_uuid' | 'prompt_uuid'
+        | 'project_uuid'
+        | 'created_by_user_uuid'
+        | 'prompt_uuid'
+        | 'workspace_uuid'
     > & { models: string; base_versions?: string | null; created_at?: Date },
     Partial<
         Pick<

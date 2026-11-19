@@ -294,11 +294,14 @@ describe('createAnalyticsExplores', () => {
             'agent_requests',
             'agent_request_starts',
             'agent_request_events',
+            'agent_evaluation_runs',
             'semantic_usage',
             'data_app_reach',
             'data_app_outcomes',
             'people_adoption',
+            'people_membership',
             'embed_reach',
+            'embed_view_events',
         ]);
         expect(apps.tables.data_app_events.dimensions.app_id).toBeDefined();
         expect(apps.tables.data_app_events.dimensions.user_id).toBeDefined();

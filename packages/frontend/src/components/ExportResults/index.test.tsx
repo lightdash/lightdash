@@ -13,10 +13,12 @@ import {
 import ExportResults from '.';
 import { renderWithProviders } from '../../testing/testUtils';
 import {
+    ALL_CELL_LIMITED_SCOPES,
     getExportCellEstimate,
     getExportTimeoutMinutes,
     isLargeExport,
     LARGE_EXPORT_CELLS_WARNING_THRESHOLD,
+    NO_CELL_LIMITED_SCOPES,
 } from './exportCellEstimate';
 import { Limit } from './types';
 
@@ -388,6 +390,163 @@ describe('ExportResults large export warning', () => {
         expect(screen.getByText(/10,000,000 cells/)).toBeInTheDocument();
         expect(
             screen.queryByTestId('large-export-warning'),
+        ).not.toBeInTheDocument();
+    });
+});
+
+describe('ExportResults cell limit note', () => {
+    afterEach(() => {
+        healthMock.query = undefined;
+    });
+
+    const renderWithCellLimit = (
+        props: Partial<Parameters<typeof ExportResults>[0]>,
+    ) => {
+        healthMock.query = { csvCellsLimit: 100_000, exportTimeoutMs: 600_000 };
+        return renderWithProviders(
+            <ExportResults
+                projectUuid={PROJECT_UUID}
+                totalResults={1_000}
+                getDownloadQueryUuid={vi.fn().mockResolvedValue(QUERY_UUID)}
+                columnOrder={['a', 'b', 'c', 'd', 'e']}
+                cellLimitedScopes={ALL_CELL_LIMITED_SCOPES}
+                hideLimitSelection
+                {...props}
+            />,
+        );
+    };
+
+    const chooseScope = async (label: string) => {
+        const user = userEvent.setup();
+        await user.click(screen.getByText(label));
+        return user;
+    };
+
+    it('shows the cell limit and the rows it allows', () => {
+        renderWithCellLimit({});
+
+        expect(screen.getByTestId('export-cell-limit-note')).toHaveTextContent(
+            'Export cell limit. Exports are limited to 100,000 cells (rows × columns), up to 20,000 rows with 5 columns.',
+        );
+        expect(
+            screen.queryByTestId('export-cell-limit-warning'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('counts hidden columns, like the backend limit does', () => {
+        renderWithCellLimit({ hiddenFields: ['a', 'b'] });
+
+        expect(screen.getByTestId('export-cell-limit-note')).toHaveTextContent(
+            'up to 20,000 rows with 5 columns.',
+        );
+    });
+
+    it('warns when the table rows will be truncated', () => {
+        renderWithCellLimit({ totalResults: 50_000 });
+
+        const warning = screen.getByTestId('export-cell-limit-warning');
+        expect(warning).toHaveTextContent('This export will be truncated');
+        expect(warning).toHaveTextContent(
+            'With 5 columns, only the first 20,000 of 50,000 rows will be included.',
+        );
+        expect(
+            screen.queryByTestId('export-cell-limit-note'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('compares a Custom limit above the loaded rows with the cap', async () => {
+        renderWithCellLimit({
+            totalResults: 500,
+            hideLimitSelection: false,
+            forceShowLimitSelection: true,
+        });
+        const user = await chooseScope('Custom');
+        const input = screen.getByLabelText(/Rows to export/);
+        await user.clear(input);
+        await user.type(input, '50000');
+
+        expect(
+            screen.getByTestId('export-cell-limit-warning'),
+        ).toHaveTextContent(
+            'With 5 columns, only the first 20,000 of 50,000 rows will be included.',
+        );
+    });
+
+    it('does not warn for All results while the loaded rows fit', async () => {
+        renderWithCellLimit({
+            totalResults: 500,
+            hideLimitSelection: false,
+            forceShowLimitSelection: true,
+        });
+        await chooseScope('All results');
+
+        expect(screen.getByTestId('export-cell-limit-note')).toHaveTextContent(
+            'up to 20,000 rows with 5 columns.',
+        );
+    });
+
+    it('warns for All results once the loaded rows alone exceed the cap', async () => {
+        renderWithCellLimit({
+            totalResults: 30_000,
+            hideLimitSelection: false,
+            forceShowLimitSelection: true,
+        });
+        await chooseScope('All results');
+
+        expect(
+            screen.getByTestId('export-cell-limit-warning'),
+        ).toHaveTextContent(
+            'With 5 columns, only the first 20,000 rows will be included.',
+        );
+    });
+
+    it('treats Table rows as uncapped by default, since they stream stored results', async () => {
+        renderWithCellLimit({
+            totalResults: 500,
+            cellLimitedScopes: undefined,
+            hideLimitSelection: false,
+            forceShowLimitSelection: true,
+        });
+
+        expect(screen.getByTestId('export-cell-limit-note')).toHaveTextContent(
+            "This export isn't capped by your organization's 100,000-cell limit.",
+        );
+
+        await chooseScope('All results');
+        expect(screen.getByTestId('export-cell-limit-note')).toHaveTextContent(
+            'up to 20,000 rows with 5 columns.',
+        );
+    });
+
+    it('says the cap does not apply when no scope is capped', () => {
+        renderWithCellLimit({
+            totalResults: 50_000,
+            cellLimitedScopes: NO_CELL_LIMITED_SCOPES,
+        });
+
+        expect(screen.getByTestId('export-cell-limit-note')).toHaveTextContent(
+            "Export cell limit. This export isn't capped by your organization's 100,000-cell limit.",
+        );
+        expect(
+            screen.queryByTestId('export-cell-limit-warning'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('shows only the cell limit when the columns are unknown', () => {
+        renderWithCellLimit({ columnOrder: undefined });
+
+        expect(screen.getByTestId('export-cell-limit-note')).toHaveTextContent(
+            'Export cell limit. Exports are limited to 100,000 cells (rows × columns).',
+        );
+    });
+
+    it('does not show for pivot table exports', () => {
+        renderWithCellLimit({
+            pivotConfig: { pivotDimensions: ['a'], metricsAsRows: false },
+        });
+
+        expect(
+            screen.queryByTestId('export-cell-limit-note'),
         ).not.toBeInTheDocument();
     });
 });

@@ -1,0 +1,51 @@
+/* Stands in for a chart whose fields no longer match the selection */
+.staleCover {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--mantine-color-body);
+}
+
+/* A closed Chart row names its chart type, in the same quiet voice as the
+   other rows' counts */
+.summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px 2px 8px;
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    color: var(--mantine-color-blue-light-color);
+    background: var(--mantine-color-blue-light);
+    border-radius: var(--mantine-radius-xl);
+    transition: background-color 120ms ease;
+}
+
+.summary:hover {
+    background: var(--mantine-color-blue-light-hover);
+}
+
+/* A ripple a beat after the results land, to mark the next step; then still */
+@media (prefers-reduced-motion: no-preference) {
+    .summary {
+        animation: summary-pulse 900ms ease-out 1400ms 2;
+    }
+}
+
+@keyframes summary-pulse {
+    from {
+        box-shadow: 0 0 0 0
+            color-mix(
+                in srgb,
+                var(--mantine-color-blue-filled) 45%,
+                transparent
+            );
+    }
+
+    to {
+        box-shadow: 0 0 0 8px transparent;
+    }
+}

@@ -5,12 +5,12 @@ import {
 } from '@lightdash/common';
 import { type FC, type ReactNode } from 'react';
 import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
+import { AiComposerResultError } from '../../../../../features/composerCharts/lineage/AiComposerResultError';
+import { AiComposerResultTable } from '../../../../../features/composerCharts/lineage/AiComposerResultTable';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { AiAccessCallout } from './AiAccessCallout';
 import { AiComposerChartVisualization } from './AiComposerChartVisualization';
-import { AiComposerResultError } from './AiComposerResultError';
-import { AiComposerResultTable } from './AiComposerResultTable';
 
 type Props = {
     projectUuid: string;

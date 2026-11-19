@@ -1,54 +1,5 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`MCP tool contracts > matches the 'filter-expression' MCP server instructions snapshot 1`] = `
-"## Query Building Workflow
-
-For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
-
-0. \`get_context\`: select the project, and the agent when agent-scoped; follow production/preview and pinned-scope rules.
-1. \`grep_fields\`: discover fields and select one explore at the right grain.
-2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
-3. \`search_field_values\`: find valid filter values when needed.
-4. \`run_metric_query\`: query governed metrics.
-5. \`get_query_result\`: poll running queries; never resubmit the original query.
-6. \`render_chart\`: render completed metric queries when a chart is wanted.
-7. \`list_content\`: browse accessible content.
-8. \`find_content\`: search dashboards, charts, and Data Apps.
-
-## Rules
-
-- \`run_metric_query\` is registered for this session; if your catalogue lacks it, your client cached an outdated tool list — say so and ask the user to reconnect; never substitute \`run_sql\` for it
-- Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
-- Prefer \`run_metric_query\` for standard analysis; its semantic-layer metric definitions stay consistent. Use \`run_sql\`, in the connected warehouse's SQL dialect, only for ad-hoc queries, cross-table joins not modeled in explores, or explicit raw-SQL requests; it defaults to 500 rows (max 5000), adjustable with \`limit\`
-- Before writing filter expressions, read the shared skill referenced by run_metric_query and search_field_values
-- Never mix fields from different explores in one query; sort only by selected dimensions, metrics, or table calculations; when base and joined tables have similar field names, use the one at the query's semantic level
-"
-`;
-
-exports[`MCP tool contracts > matches the 'structured-filter' MCP server instructions snapshot 1`] = `
-"## Query Building Workflow
-
-For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
-
-0. \`get_context\`: select the project, and the agent when agent-scoped; follow production/preview and pinned-scope rules.
-1. \`grep_fields\`: discover fields and select one explore at the right grain.
-2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
-3. \`search_field_values\`: find valid filter values when needed.
-4. \`run_metric_query\`: query governed metrics.
-5. \`get_query_result\`: poll running queries; never resubmit the original query.
-6. \`render_chart\`: render completed metric queries when a chart is wanted.
-7. \`list_content\`: browse accessible content.
-8. \`find_content\`: search dashboards, charts, and Data Apps.
-
-## Rules
-
-- \`run_metric_query\` is registered for this session; if your catalogue lacks it, your client cached an outdated tool list — say so and ask the user to reconnect; never substitute \`run_sql\` for it
-- Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
-- Prefer \`run_metric_query\` for standard analysis; its semantic-layer metric definitions stay consistent. Use \`run_sql\`, in the connected warehouse's SQL dialect, only for ad-hoc queries, cross-table joins not modeled in explores, or explicit raw-SQL requests; it defaults to 500 rows (max 5000), adjustable with \`limit\`
-- Never mix fields from different explores in one query; sort only by selected dimensions, metrics, or table calculations; when base and joined tables have similar field names, use the one at the query's semantic level
-"
-`;
-
 exports[`MCP tool contracts > matches the agent-identity tools and instructions snapshot 1`] = `
 {
   "instructions": "## Query Building Workflow
@@ -340,7 +291,7 @@ When to use:
 Returns:
 Matching fields as \`explore/fieldId  [kind type]\` lines grouped by explore. Pick the single explore that answers at the right grain before building a query.
 - A description or hint ending in "...(truncated)" is incomplete; read the full text with get_metadata before using that field.
-- A field annotated with \`⚠params: <names>\` depends on those Lightdash parameters; read their definitions with get_metadata on its explore before querying it.
+- A field annotated with \`requires params: <names>\` depends on those Lightdash parameters; read their definitions with get_metadata on its explore before querying it.
 
 Recovery:
 When no field matches literally, the result lists the closest catalog matches (fuzzy search) under "No exact grep matches". Use those rather than re-grepping a long list of synonyms; broaden the patterns only when those miss too.
@@ -1415,7 +1366,7 @@ Usage tips:
         "readOnlyHint": true,
         "title": "Read content",
       },
-      "description": "Read a dashboard, chart, SQL chart or data app as JSON by its slug. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only: a view of what the app shows and its per-explore data references, without code.",
+      "description": "Read a dashboard, chart, SQL chart, composer chart or data app as JSON by its slug. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. A composer_chart tile names a composer chart (a pipeline of queries plus a chart) by chartSlug; read it with type composer_chart, since a chart may share its slug. Data apps are read-only: a view of what the app shows and its per-explore data references, without code. Address a data app by the slug listed or found for it, not the id in its URL.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -1442,6 +1393,7 @@ Usage tips:
               "dashboard",
               "chart",
               "sql_chart",
+              "composer_chart",
               "data_app",
             ],
             "type": "string",
@@ -1510,7 +1462,7 @@ Every other URL, such as "/projects/<uuid>/saved/<uuid>" or "/projects/<uuid>/da
         "readOnlyHint": false,
         "title": "Create content",
       },
-      "description": "Create a dashboard, chart or SQL chart from its JSON; the developing-in-lightdash skill has the shapes. Save into a space whose canEdit is true in find_content or list_content results; a write to any other space is refused. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them.",
+      "description": "Create a dashboard, chart, SQL chart or composer chart from its JSON; the developing-in-lightdash skill has the shapes. Save into a space whose canEdit is true in find_content or list_content results; a write to any other space is refused. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them. A composer chart (type composer_chart) is saved onto an existing dashboard, from a query node (from: "node") or from full pipeline and chart JSON (from: "json"); the composer-chart-reference skill resource has both shapes and when each needs SQL approval.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -1745,6 +1697,340 @@ Every other URL, such as "/projects/<uuid>/saved/<uuid>" or "/projects/<uuid>/da
                 ],
                 "type": "object",
               },
+              {
+                "additionalProperties": false,
+                "description": "Composer chart built from a query node.",
+                "properties": {
+                  "dashboardSlug": {
+                    "description": "The existing dashboard the chart belongs to.",
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "description": {
+                    "type": "string",
+                  },
+                  "from": {
+                    "const": "node",
+                    "type": "string",
+                  },
+                  "name": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "nodeId": {
+                    "description": "A node from a successful query call.",
+                    "type": "string",
+                  },
+                  "sessionId": {
+                    "description": "The query result's sessionId; null in an agent conversation.",
+                    "type": "string",
+                  },
+                  "vizConfig": {
+                    "anyOf": [
+                      {
+                        "properties": {
+                          "groupBy": {
+                            "anyOf": [
+                              {
+                                "items": {
+                                  "description": "A result column reference of the presented node",
+                                  "type": "string",
+                                },
+                                "type": "array",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                            "default": null,
+                            "description": "Columns that split y into one series per value. A reader tells about 6 series apart at a glance, so prefer a coarser split when the choice is yours and keep a split the user asked for. bar/line/area/scatter only. Must not include x.",
+                          },
+                          "horizontal": {
+                            "default": null,
+                            "description": "bar only: draw bars horizontally, for long labels or more than about 12 categories.",
+                            "type": [
+                              "boolean",
+                              "null",
+                            ],
+                          },
+                          "labels": {
+                            "anyOf": [
+                              {
+                                "properties": {
+                                  "x": {
+                                    "default": null,
+                                    "type": [
+                                      "string",
+                                      "null",
+                                    ],
+                                  },
+                                  "y": {
+                                    "default": null,
+                                    "type": [
+                                      "string",
+                                      "null",
+                                    ],
+                                  },
+                                  "y2": {
+                                    "default": null,
+                                    "type": [
+                                      "string",
+                                      "null",
+                                    ],
+                                  },
+                                },
+                                "type": "object",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                            "default": null,
+                            "description": "Axis titles. big_number uses labels.y as its label.",
+                          },
+                          "stack": {
+                            "default": null,
+                            "description": "bar: stack series (several y columns, or a groupBy split) on top of each other, for parts that add up to a total (sums and counts; averages, ratios and distinct counts sit side by side). area always stacks. Ignored elsewhere.",
+                            "type": [
+                              "boolean",
+                              "null",
+                            ],
+                          },
+                          "type": {
+                            "description": "Chart type, chosen by what the reader does with the result:
+- bar: compare or rank categories.
+- line: follow change over time or another ordered x.
+- table: read exact values across several columns, or more rows than a chart can label.
+- area: a filled line, for one total over time or the parts that add up to it.
+- pie: 2 to 6 non-negative parts of one whole; more parts read better as a bar.
+- scatter: how two measures relate, one point per entity.
+- funnel: ordered stages of one process.
+- big_number: one value as a card, when the user asks for the card or wants to save it; a figure otherwise goes in the answer text.
+A custom chart type is chosen the same way: by its own description first, then as the built-in type it most resembles.",
+                            "enum": [
+                              "table",
+                              "big_number",
+                              "bar",
+                              "line",
+                              "area",
+                              "scatter",
+                              "pie",
+                              "funnel",
+                            ],
+                            "type": "string",
+                          },
+                          "x": {
+                            "anyOf": [
+                              {
+                                "description": "A result column reference of the presented node",
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                            "default": null,
+                            "description": "Category or time column. bar/line/area/scatter/pie/funnel. null for table/big_number, or to use the first non-numeric column.",
+                          },
+                          "y": {
+                            "anyOf": [
+                              {
+                                "items": {
+                                  "description": "A result column reference of the presented node",
+                                  "type": "string",
+                                },
+                                "type": "array",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                            "default": null,
+                            "description": "Value columns, one series each on bar/line/area/scatter. big_number, pie and funnel use y[0]. null to use every numeric column not on x or groupBy.",
+                          },
+                          "y2": {
+                            "anyOf": [
+                              {
+                                "description": "A result column reference of the presented node",
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                            "default": null,
+                            "description": "Column on a secondary (right) y axis. bar/line/area (drawn as a line on area). Must not be in y.",
+                          },
+                        },
+                        "required": [
+                          "type",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "properties": {
+                          "customChartTypeSlug": {
+                            "description": "Slug of the custom chart type.",
+                            "type": "string",
+                          },
+                          "fieldMapping": {
+                            "additionalProperties": {
+                              "anyOf": [
+                                {
+                                  "description": "A result column reference of the presented node",
+                                  "type": "string",
+                                },
+                                {
+                                  "items": {
+                                    "description": "A result column reference of the presented node",
+                                    "type": "string",
+                                  },
+                                  "type": "array",
+                                },
+                              ],
+                            },
+                            "description": "Binds each slot of the type, by slot name, to a column, or ordered columns for a multiple slot. The slot's kind sets the column's role: a metric slot is measured, a series slot splits the chart into one series per value, and a dimension or column slot groups, so a numeric column there is grouped, not measured. A measure split by series goes in a metric slot.",
+                            "propertyNames": {
+                              "type": "string",
+                            },
+                            "type": "object",
+                          },
+                          "options": {
+                            "anyOf": [
+                              {
+                                "additionalProperties": {
+                                  "anyOf": [
+                                    {
+                                      "properties": {
+                                        "colors": {
+                                          "items": {
+                                            "type": "string",
+                                          },
+                                          "maxItems": 5,
+                                          "minItems": 2,
+                                          "type": "array",
+                                        },
+                                        "max": {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                            },
+                                            {
+                                              "const": "auto",
+                                              "type": "string",
+                                            },
+                                          ],
+                                        },
+                                        "min": {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                            },
+                                            {
+                                              "const": "auto",
+                                              "type": "string",
+                                            },
+                                          ],
+                                        },
+                                      },
+                                      "required": [
+                                        "colors",
+                                        "min",
+                                        "max",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "number",
+                                    },
+                                    {
+                                      "type": "boolean",
+                                    },
+                                  ],
+                                },
+                                "propertyNames": {
+                                  "type": "string",
+                                },
+                                "type": "object",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                            "default": null,
+                            "description": "Values for the type's options; null for defaults.",
+                          },
+                          "type": {
+                            "const": "custom",
+                            "description": "Renders one of this project's custom chart types.",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "type",
+                          "customChartTypeSlug",
+                          "fieldMapping",
+                        ],
+                        "type": "object",
+                      },
+                    ],
+                  },
+                },
+                "required": [
+                  "from",
+                  "dashboardSlug",
+                  "name",
+                  "nodeId",
+                  "vizConfig",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": {},
+                "properties": {
+                  "chart": {
+                    "additionalProperties": {},
+                    "propertyNames": {
+                      "type": "string",
+                    },
+                    "type": "object",
+                  },
+                  "dashboardSlug": {
+                    "description": "The existing dashboard the chart belongs to.",
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "description": {
+                    "type": "string",
+                  },
+                  "from": {
+                    "const": "json",
+                    "type": "string",
+                  },
+                  "name": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "pipeline": {
+                    "additionalProperties": {},
+                    "propertyNames": {
+                      "type": "string",
+                    },
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "from",
+                  "dashboardSlug",
+                  "name",
+                  "pipeline",
+                  "chart",
+                ],
+                "type": "object",
+              },
             ],
           },
           "projectUuid": {
@@ -1759,6 +2045,7 @@ Every other URL, such as "/projects/<uuid>/saved/<uuid>" or "/projects/<uuid>/da
               "dashboard",
               "chart",
               "sql_chart",
+              "composer_chart",
             ],
             "type": "string",
           },
@@ -1782,7 +2069,7 @@ Every other URL, such as "/projects/<uuid>/saved/<uuid>" or "/projects/<uuid>/da
         "readOnlyHint": false,
         "title": "Edit content",
       },
-      "description": "Edit a dashboard, chart or SQL chart with an RFC6902 patch against its JSON as read_content last returned it; the edited content is validated before it is saved. The content's space must show canEdit true in find_content or list_content results; an edit in any other space is refused. A SQL chart needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL.",
+      "description": "Edit a dashboard, chart, SQL chart or composer chart with an RFC6902 patch against its JSON as read_content last returned it; the edited content is validated before it is saved. The content's space must show canEdit true in find_content or list_content results; an edit in any other space is refused. A SQL chart needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL. A composer chart is saved in place on its dashboard as a new version; new warehouse SQL in its nodes waits for approval the same way.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -1814,6 +2101,7 @@ Every other URL, such as "/projects/<uuid>/saved/<uuid>" or "/projects/<uuid>/da
               "dashboard",
               "chart",
               "sql_chart",
+              "composer_chart",
             ],
             "type": "string",
           },
@@ -1838,7 +2126,7 @@ Every other URL, such as "/projects/<uuid>/saved/<uuid>" or "/projects/<uuid>/da
         "readOnlyHint": false,
         "title": "Create scheduled delivery",
       },
-      "description": "Create a scheduled delivery that sends a saved chart or dashboard to Slack channels or email recipients on a cron schedule. An enabled delivery sends from the moment it is created, so first propose the full configuration to the user (name, schedule in plain words, cron, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation. Content that exists only in this conversation is saved with create_content first, then scheduled by the created uuid: propose the save and the schedule as one plan with a single confirmation.",
+      "description": "Create a scheduled delivery that sends a saved chart or dashboard to Slack channels or email recipients on a cron schedule. SQL charts cannot be scheduled, so tell the user that before saving or proposing one for a delivery. An enabled delivery sends from the moment it is created, so first propose the full configuration to the user (name, schedule in plain words, cron, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation. Content that exists only in this conversation is saved with create_content first, then scheduled by the slug it returns: propose the save and the schedule as one plan with a single confirmation.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -1924,7 +2212,7 @@ Every other URL, such as "/projects/<uuid>/saved/<uuid>" or "/projects/<uuid>/da
             "type": "string",
           },
           "resourceUuidOrSlug": {
-            "description": "UUID (preferred) or project-scoped slug of the saved chart or dashboard to deliver. Use the uuid from the tool result that created or found the content as the canonical identity.",
+            "description": "Slug of the saved chart or dashboard, as the tool that created or found it returned it. A uuid also works.",
             "type": "string",
           },
           "targets": {
@@ -13970,6 +14258,31 @@ Browse the project's custom chart types (including ones installed from the libra
 }
 `;
 
+exports[`MCP tool contracts > matches the filter-expression MCP server instructions snapshot 1`] = `
+"## Query Building Workflow
+
+For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
+
+0. \`get_context\`: select the project, and the agent when agent-scoped; follow production/preview and pinned-scope rules.
+1. \`grep_fields\`: discover fields and select one explore at the right grain.
+2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
+3. \`search_field_values\`: find valid filter values when needed.
+4. \`run_metric_query\`: query governed metrics.
+5. \`get_query_result\`: poll running queries; never resubmit the original query.
+6. \`render_chart\`: render completed metric queries when a chart is wanted.
+7. \`list_content\`: browse accessible content.
+8. \`find_content\`: search dashboards, charts, and Data Apps.
+
+## Rules
+
+- \`run_metric_query\` is registered for this session; if your catalogue lacks it, your client cached an outdated tool list — say so and ask the user to reconnect; never substitute \`run_sql\` for it
+- Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
+- Prefer \`run_metric_query\` for standard analysis; its semantic-layer metric definitions stay consistent. Use \`run_sql\`, in the connected warehouse's SQL dialect, only for ad-hoc queries, cross-table joins not modeled in explores, or explicit raw-SQL requests; it defaults to 500 rows (max 5000), adjustable with \`limit\`
+- Before writing filter expressions, read the shared skill referenced by run_metric_query and search_field_values
+- Never mix fields from different explores in one query; sort only by selected dimensions, metrics, or table calculations; when base and joined tables have similar field names, use the one at the query's semantic level
+"
+`;
+
 exports[`MCP tool contracts > matches the filter-expression run_metric_query tools/list snapshot 1`] = `
 {
   "annotations": {
@@ -14695,4 +15008,28 @@ exports[`MCP tool contracts > matches the shared MCP tool definition names snaps
   "find_custom_chart_types",
   "list_custom_chart_types",
 ]
+`;
+
+exports[`MCP tool contracts > matches the structured-filter MCP server instructions snapshot 1`] = `
+"## Query Building Workflow
+
+For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
+
+0. \`get_context\`: select the project, and the agent when agent-scoped; follow production/preview and pinned-scope rules.
+1. \`grep_fields\`: discover fields and select one explore at the right grain.
+2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
+3. \`search_field_values\`: find valid filter values when needed.
+4. \`run_metric_query\`: query governed metrics.
+5. \`get_query_result\`: poll running queries; never resubmit the original query.
+6. \`render_chart\`: render completed metric queries when a chart is wanted.
+7. \`list_content\`: browse accessible content.
+8. \`find_content\`: search dashboards, charts, and Data Apps.
+
+## Rules
+
+- \`run_metric_query\` is registered for this session; if your catalogue lacks it, your client cached an outdated tool list — say so and ask the user to reconnect; never substitute \`run_sql\` for it
+- Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
+- Prefer \`run_metric_query\` for standard analysis; its semantic-layer metric definitions stay consistent. Use \`run_sql\`, in the connected warehouse's SQL dialect, only for ad-hoc queries, cross-table joins not modeled in explores, or explicit raw-SQL requests; it defaults to 500 rows (max 5000), adjustable with \`limit\`
+- Never mix fields from different explores in one query; sort only by selected dimensions, metrics, or table calculations; when base and joined tables have similar field names, use the one at the query's semantic level
+"
 `;

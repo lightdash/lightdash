@@ -294,11 +294,11 @@ describe('getFieldValuesAsync', () => {
     });
 });
 
-const mockFieldValueSearch = (values: string[]) => {
+const mockFieldValueSearch = (values: string[], cacheHit: boolean = false) => {
     mockedLightdashApi
         .mockResolvedValueOnce({
             queryUuid: 'query-uuid',
-            cacheMetadata: { cacheHit: false },
+            cacheMetadata: { cacheHit },
             valueFieldId: 'orders_status',
             labelFieldId: null,
         } as never)
@@ -404,6 +404,30 @@ describe('useFieldValues', () => {
                 expect(result.current.isError).toBe(true);
             });
             expect(result.current.results).toEqual([]);
+        },
+    );
+
+    it.each([true, false])(
+        'reports cached results when the search was a cache hit: %s',
+        async (cacheHit) => {
+            mockFieldValueSearch(['London'], cacheHit);
+
+            const { result } = renderHookWithProviders(() =>
+                useFieldValues(
+                    '',
+                    [],
+                    'project-uuid',
+                    warehouseField,
+                    undefined,
+                    undefined,
+                    false,
+                ),
+            );
+
+            await waitFor(() => {
+                expect(result.current.results).toEqual([{ value: 'London' }]);
+            });
+            expect(result.current.hasCachedResults).toBe(cacheHit);
         },
     );
 

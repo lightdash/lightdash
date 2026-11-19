@@ -1,0 +1,291 @@
+import {
+    ApiConnectorType,
+    FilterOperator,
+    SupportedDbtAdapter,
+    type FilterRule,
+    type MetricQuery,
+} from '@lightdash/common';
+import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+import { searchConsoleIntegration } from '.';
+import { compileLiveMetricQuery } from '../../explores/build';
+import { buildLiveExplore } from '../../explores/definition';
+import { escapeRe2 } from '../../query/escapeRe2';
+import {
+    compileSearchConsoleQuery,
+    getSearchConsoleEarliestDate,
+} from './compile';
+import { SEARCH_CONSOLE_PERFORMANCE_EXPLORE } from './explores';
+
+const EXPLORE = 'search_console_performance';
+const MAX_ROWS = 24_999;
+
+const explore = buildLiveExplore({
+    definition: SEARCH_CONSOLE_PERFORMANCE_EXPLORE,
+    exploreName: EXPLORE,
+    label: 'lightdash.com',
+    connectionUuid: 'connection-uuid',
+    integration: ApiConnectorType.SEARCH_CONSOLE,
+    baseVersion: 1,
+    capabilities: searchConsoleIntegration.capabilities,
+    warehouseSqlBuilder: warehouseSqlBuilderFromType(
+        SupportedDbtAdapter.DUCKDB,
+    ),
+});
+
+const field = (name: string) => `${EXPLORE}_${name}`;
+
+const rule = (
+    name: string,
+    operator: FilterOperator,
+    values: unknown[],
+): FilterRule => ({
+    id: `${name}-${operator}`,
+    target: { fieldId: field(name) },
+    operator,
+    values,
+});
+
+const query = (overrides: Partial<MetricQuery> = {}): MetricQuery => ({
+    exploreName: EXPLORE,
+    dimensions: [field('query')],
+    metrics: [field('clicks'), field('ctr')],
+    filters: {},
+    sorts: [{ fieldId: field('clicks'), descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    ...overrides,
+});
+
+const compile = (metricQuery: MetricQuery) => {
+    const compiled = compileSearchConsoleQuery({
+        explore,
+        metricQuery,
+        today: '2026-11-04',
+        maxRows: MAX_ROWS,
+    });
+    return { ...compiled, request: JSON.parse(compiled.query) };
+};
+
+const compileLive = (metricQuery: MetricQuery) => {
+    const compiled = compileLiveMetricQuery({
+        explore,
+        metricQuery,
+        timezone: 'UTC',
+        now: new Date('2026-11-04T12:00:00Z'),
+    });
+    return { ...compiled, request: JSON.parse(compiled.query) };
+};
+
+describe('Search Console semantic layer', () => {
+    test('keeps its field ids stable', () => {
+        expect(Object.keys(explore.apiSource?.fields ?? {})).toMatchSnapshot();
+    });
+});
+
+describe('compileSearchConsoleQuery', () => {
+    test('compiles a top-queries question into one request in API order', () => {
+        const { request, fieldIdsByColumn, localSorts, requestLimit, limit } =
+            compileLive(query());
+        expect(request).toEqual({
+            startDate: '2026-10-07',
+            endDate: '2026-11-03',
+            dimensions: ['query'],
+            rowLimit: 10,
+        });
+        expect(fieldIdsByColumn).toEqual({
+            query: field('query'),
+            clicks: field('clicks'),
+            ctr: field('ctr'),
+        });
+        expect(localSorts).toEqual([]);
+        expect([requestLimit, limit]).toEqual([10, 10]);
+    });
+
+    test('fetches every row and sorts locally when ordered by anything but clicks', () => {
+        const sorts = [{ fieldId: field('ctr'), descending: true }];
+        const { request, localSorts, requestLimit, limit } = compileLive(
+            query({ sorts }),
+        );
+        expect(request.rowLimit).toBe(MAX_ROWS);
+        expect(localSorts).toEqual(sorts);
+        expect([requestLimit, limit]).toEqual([MAX_ROWS, 10]);
+    });
+
+    test('sorts locally by clicks when grouping by date, which the API returns by date', () => {
+        const sorts = [{ fieldId: field('clicks'), descending: true }];
+        const { request, localSorts, requestLimit, limit } = compileLive(
+            query({ dimensions: [field('date')], sorts }),
+        );
+        expect(request.rowLimit).toBe(MAX_ROWS);
+        expect(localSorts).toEqual(sorts);
+        expect([requestLimit, limit]).toEqual([MAX_ROWS, 10]);
+    });
+
+    test('sends the date filter as dates and the rest as one AND group', () => {
+        const { request } = compile(
+            query({
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            rule('date', FilterOperator.IN_THE_PAST, [7]),
+                            rule('page', FilterOperator.INCLUDE, ['/docs']),
+                            rule('country', FilterOperator.NOT_EQUALS, [
+                                'usa',
+                                'gbr',
+                            ]),
+                        ],
+                    },
+                },
+            }),
+        );
+        expect(request.startDate).toBe('2026-10-28');
+        expect(request.endDate).toBe('2026-11-04');
+        expect(request.dimensionFilterGroups).toEqual([
+            {
+                groupType: 'and',
+                filters: [
+                    {
+                        dimension: 'page',
+                        operator: 'contains',
+                        expression: '/docs',
+                    },
+                    {
+                        dimension: 'country',
+                        operator: 'notEquals',
+                        expression: 'usa',
+                    },
+                    {
+                        dimension: 'country',
+                        operator: 'notEquals',
+                        expression: 'gbr',
+                    },
+                ],
+            },
+        ]);
+    });
+
+    test('drops "is not null", which every Search Console value meets', () => {
+        const { request } = compile(
+            query({
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [rule('device', FilterOperator.NOT_NULL, [])],
+                    },
+                },
+            }),
+        );
+        expect(request.dimensionFilterGroups).toBeUndefined();
+    });
+    const filtersFor = (...rules: FilterRule[]) =>
+        compile(query({ filters: { dimensions: { id: 'root', and: rules } } }))
+            .request.dimensionFilterGroups[0].filters;
+
+    test.each([
+        [FilterOperator.STARTS_WITH, ['/blog'], 'includingRegex', '^/blog'],
+        [FilterOperator.ENDS_WITH, ['.html'], 'includingRegex', '\\.html$'],
+        [
+            FilterOperator.STARTS_WITH,
+            ['/blog', '/docs'],
+            'includingRegex',
+            '^(/blog|/docs)',
+        ],
+        [FilterOperator.ENDS_WITH, ['/a', '/b'], 'includingRegex', '(/a|/b)$'],
+        [FilterOperator.EQUALS, ['a', 'b'], 'includingRegex', '^(a|b)$'],
+        [FilterOperator.INCLUDE, ['a', 'b'], 'includingRegex', '(a|b)'],
+        [FilterOperator.EQUALS, ['a.b'], 'equals', 'a.b'],
+        [FilterOperator.INCLUDE, ['a.b'], 'contains', 'a.b'],
+    ])(
+        'compiles %s %j to %s %s',
+        (operator, values, apiOperator, expression) => {
+            expect(filtersFor(rule('page', operator, values))).toEqual([
+                { dimension: 'page', operator: apiOperator, expression },
+            ]);
+        },
+    );
+
+    test('ANDs several negative values as separate filters', () => {
+        expect(
+            filtersFor(rule('query', FilterOperator.NOT_EQUALS, ['a', 'b'])),
+        ).toEqual([
+            { dimension: 'query', operator: 'notEquals', expression: 'a' },
+            { dimension: 'query', operator: 'notEquals', expression: 'b' },
+        ]);
+    });
+
+    test('escapes RE2 metacharacters so values match literally', () => {
+        expect(escapeRe2('a.b?c(d|e)')).toBe('a\\.b\\?c\\(d\\|e\\)');
+        expect(escapeRe2('[x]{1}^$*+\\')).toBe(
+            '\\[x\\]\\{1\\}\\^\\$\\*\\+\\\\',
+        );
+        expect(
+            filtersFor(
+                rule('query', FilterOperator.EQUALS, ['what is a.b?', 'x|y']),
+            ),
+        ).toEqual([
+            {
+                dimension: 'query',
+                operator: 'includingRegex',
+                expression: '^(what is a\\.b\\?|x\\|y)$',
+            },
+        ]);
+    });
+
+    test.each([
+        [FilterOperator.GREATER_THAN, '2026-10-02', '2026-11-04'],
+        [FilterOperator.GREATER_THAN_OR_EQUAL, '2026-10-01', '2026-11-04'],
+        [FilterOperator.LESS_THAN, '2025-07-04', '2026-09-30'],
+        [FilterOperator.LESS_THAN_OR_EQUAL, '2025-07-04', '2026-10-01'],
+    ])(
+        'fills the open side of "%s" with today or the earliest retained day',
+        (operator, startDate, endDate) => {
+            const { request } = compile(
+                query({
+                    filters: {
+                        dimensions: {
+                            id: 'root',
+                            and: [rule('date', operator, ['2026-10-01'])],
+                        },
+                    },
+                }),
+            );
+            expect(request).toMatchObject({ startDate, endDate });
+        },
+    );
+
+    test.each([
+        [FilterOperator.GREATER_THAN_OR_EQUAL, '2026-12-01'],
+        [FilterOperator.LESS_THAN, '2025-01-01'],
+    ])(
+        'refuses "%s" %s, which leaves no day to read, with the range it has',
+        (operator, date) => {
+            expect(() =>
+                compile(
+                    query({
+                        filters: {
+                            dimensions: {
+                                id: 'root',
+                                and: [rule('date', operator, [date])],
+                            },
+                        },
+                    }),
+                ),
+            ).toThrow(
+                'Search Console has data from 2025-07-04 to 2026-11-04. Pick a date in that range.',
+            );
+        },
+    );
+});
+
+describe('getSearchConsoleEarliestDate', () => {
+    test('goes back 16 months', () => {
+        expect(getSearchConsoleEarliestDate('2026-11-04')).toBe('2025-07-04');
+    });
+
+    test('keeps to the last day of a shorter month', () => {
+        expect(getSearchConsoleEarliestDate('2026-06-30')).toBe('2025-02-28');
+        expect(getSearchConsoleEarliestDate('2027-06-29')).toBe('2026-02-28');
+        expect(getSearchConsoleEarliestDate('2025-06-29')).toBe('2024-02-29');
+    });
+});

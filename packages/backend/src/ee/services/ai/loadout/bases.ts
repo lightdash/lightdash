@@ -18,7 +18,6 @@ const CORE_TOOLS: readonly AgentToolName[] = [
     'getProjectInfo',
     'listKnowledgeDocuments',
     'getKnowledgeDocumentContent',
-    'readPinnedThread',
     'resolveUrl',
     'runSavedChart',
     'generateHashes',
@@ -92,6 +91,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             'getMetadata',
             'searchSemanticLayer',
             'analyzeFieldImpact',
+            'listChanges',
             ...onlyIf(input.semanticStudioDrafts, [
                 'readSemanticModel',
                 'proposeSemanticLayerChange',
@@ -102,13 +102,14 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
         sections: ['semanticStudio'],
         skills: [],
         accepts: input.semanticStudioDrafts
-            ? ['sqlCatalog', 'projectContext']
+            ? ['sqlCatalog', 'projectContext', 'askUser']
             : [
                   'sqlCatalog',
                   'projectContext',
                   'repoDiscovery',
                   'writeback',
                   'pullRequests',
+                  'askUser',
               ],
     }),
     deep_research_worker: (input) => ({
@@ -140,6 +141,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             'legacyDashboards',
             'sqlCatalog',
             'projectContext',
+            'readPinnedThread',
         ],
     }),
 };

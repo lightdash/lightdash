@@ -18,6 +18,7 @@ import {
     MergeJoinType,
     MetricType,
     OrganizationMemberRole,
+    ParameterError,
     PossibleAbilities,
     PromotionAction,
     reconcileDashboardControlOrder,
@@ -90,6 +91,15 @@ const dashboardAsCode = {
     filters: { dimensions: [], metrics: [], tableCalculations: [] },
     tabs: [],
 } as unknown as DashboardAsCode;
+
+const markdownTile = {
+    type: 'markdown',
+    x: 0,
+    y: 0,
+    w: 6,
+    h: 3,
+    properties: { title: 'Note', content: 'text' },
+};
 
 const buildService = (overrides: AnyType = {}) =>
     new CoderService({
@@ -184,6 +194,60 @@ const buildService = (overrides: AnyType = {}) =>
         ...overrides,
     });
 
+const mockUpdatableDashboard = (
+    service: CoderService,
+    saved: { tiles: AnyType[]; tabs: AnyType[] },
+) => {
+    vi.mocked(service.dashboardModel.find).mockResolvedValue([
+        { uuid: 'dashboard-uuid' } as AnyType,
+    ]);
+    vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
+        uuid: 'dashboard-uuid',
+        slug: 'dashboard',
+        name: 'Dashboard',
+        spaceUuid: SPACE_UUID,
+        filters: { dimensions: [], metrics: [], tableCalculations: [] },
+        ...saved,
+    } as AnyType);
+    vi.mocked(service.promoteService.getPromotedDashboard).mockResolvedValue({
+        promotedDashboard: {
+            dashboard: { uuid: 'dashboard-uuid', name: 'Dashboard' },
+            projectUuid: PROJECT_UUID,
+            space: { name: 'Space' },
+            spaceAccessContext: {
+                organizationUuid: ORG_UUID,
+                projectUuid: PROJECT_UUID,
+                access: [],
+            },
+        },
+        upstreamDashboard: {
+            dashboard: { uuid: 'dashboard-uuid', name: 'Dashboard' },
+            projectUuid: PROJECT_UUID,
+            space: { name: 'Space' },
+            spaceAccessContext: {
+                organizationUuid: ORG_UUID,
+                projectUuid: PROJECT_UUID,
+                access: [],
+            },
+        },
+    } as AnyType);
+    vi.mocked(
+        service.promoteService.getPromotionDashboardChanges,
+    ).mockResolvedValue([
+        {
+            dashboards: [
+                {
+                    action: PromotionAction.UPDATE,
+                    data: { uuid: 'dashboard-uuid' },
+                },
+            ],
+            charts: [],
+            spaces: [],
+        },
+        [],
+    ] as AnyType);
+};
+
 const registerContentAccessTests = (
     contentAsCodeAction: 'create' | 'manage',
 ) => {
@@ -195,6 +259,19 @@ const registerContentAccessTests = (
                     : rule,
             ),
         );
+    const dashboardUpdater = makeUser([
+        { subject: 'ContentAsCode', action: 'create' },
+        {
+            subject: 'Dashboard',
+            action: 'update',
+            conditions: { projectUuid: PROJECT_UUID },
+        },
+        {
+            subject: 'Dashboard',
+            action: 'promote',
+            conditions: { projectUuid: PROJECT_UUID },
+        },
+    ]);
     describe('CoderService dashboard slug rename permissions', () => {
         const request = {
             resourceType: ContentType.DASHBOARD,
@@ -787,6 +864,86 @@ const registerContentAccessTests = (
         expect(service.promoteService.getPromoteCharts).not.toHaveBeenCalled();
     });
 
+    it('rejects an upload over the tiles-per-tab limit before writing', async () => {
+        const service = buildService();
+        const getOrCreateSpace = vi.spyOn(service, 'getOrCreateSpace');
+        const user = makeUser([{ subject: 'ContentAsCode', action: 'manage' }]);
+        await expect(
+            service.upsertDashboard(user, PROJECT_UUID, dashboardAsCode.slug, {
+                ...dashboardAsCode,
+                tiles: Array(
+                    lightdashConfigMock.dashboard.maxTilesPerTab + 1,
+                ).fill(markdownTile),
+            } as unknown as DashboardAsCode),
+        ).rejects.toThrow(ParameterError);
+        expect(getOrCreateSpace).not.toHaveBeenCalled();
+        expect(service.dashboardModel.create).not.toHaveBeenCalled();
+    });
+
+    describe('saved dashboard over the tiles-per-tab limit', () => {
+        const overLimit = lightdashConfigMock.dashboard.maxTilesPerTab + 1;
+        const upload = (tileCount: number) =>
+            ({
+                ...dashboardAsCode,
+                tabs: [{ name: 'Sales', slug: 'sales', order: 0 }],
+                tiles: Array(tileCount).fill({
+                    ...markdownTile,
+                    tabSlug: 'sales',
+                }),
+            }) as unknown as DashboardAsCode;
+        const buildServiceWithSavedDashboard = () => {
+            const service = buildService();
+            mockUpdatableDashboard(service, {
+                tabs: [{ uuid: 'sales-uuid', name: 'Sales', order: 0 }],
+                tiles: Array(overLimit).fill({
+                    ...markdownTile,
+                    tabUuid: 'sales-uuid',
+                }),
+            });
+            return service;
+        };
+
+        it('accepts an upload that keeps the saved tile count', async () => {
+            await expect(
+                buildServiceWithSavedDashboard().upsertDashboard(
+                    dashboardUpdater,
+                    PROJECT_UUID,
+                    dashboardAsCode.slug,
+                    upload(overLimit),
+                ),
+            ).resolves.toMatchObject({
+                dashboards: [{ action: PromotionAction.UPDATE }],
+            });
+        });
+
+        it('rejects an upload that adds a tile', async () => {
+            await expect(
+                buildServiceWithSavedDashboard().upsertDashboard(
+                    dashboardUpdater,
+                    PROJECT_UUID,
+                    dashboardAsCode.slug,
+                    upload(overLimit + 1),
+                ),
+            ).rejects.toThrow(
+                `Tab "Sales" has ${overLimit + 1} tiles, which is over the limit of ${overLimit - 1} tiles per tab`,
+            );
+        });
+
+        it('checks access before the saved tile count', async () => {
+            const user = makeUser([
+                { subject: 'ContentAsCode', action: 'create' },
+            ]);
+            await expect(
+                buildServiceWithSavedDashboard().upsertDashboard(
+                    user,
+                    PROJECT_UUID,
+                    dashboardAsCode.slug,
+                    upload(overLimit + 1),
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        });
+    });
+
     it('does not let ContentAsCode alone create dashboards in a space', async () => {
         const service = buildService();
         vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
@@ -917,6 +1074,8 @@ const registerContentAccessTests = (
             slug: 'dashboard',
             name: 'Dashboard',
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
+            tiles: [],
+            tabs: [],
         } as AnyType);
         vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
             space: { uuid: SPACE_UUID } as AnyType,
@@ -939,72 +1098,11 @@ const registerContentAccessTests = (
 
     it('allows write-only callers to update dashboards in accessible spaces', async () => {
         const service = buildService();
-        vi.mocked(service.dashboardModel.find).mockResolvedValue([
-            { uuid: 'dashboard-uuid' } as AnyType,
-        ]);
-        vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
-            uuid: 'dashboard-uuid',
-            slug: 'dashboard',
-            name: 'Dashboard',
-            spaceUuid: SPACE_UUID,
-            filters: { dimensions: [], metrics: [], tableCalculations: [] },
-        } as AnyType);
-        vi.mocked(
-            service.promoteService.getPromotedDashboard,
-        ).mockResolvedValue({
-            promotedDashboard: {
-                dashboard: { uuid: 'dashboard-uuid', name: 'Dashboard' },
-                projectUuid: PROJECT_UUID,
-                space: { name: 'Space' },
-                spaceAccessContext: {
-                    organizationUuid: ORG_UUID,
-                    projectUuid: PROJECT_UUID,
-                    access: [],
-                },
-            },
-            upstreamDashboard: {
-                dashboard: { uuid: 'dashboard-uuid', name: 'Dashboard' },
-                projectUuid: PROJECT_UUID,
-                space: { name: 'Space' },
-                spaceAccessContext: {
-                    organizationUuid: ORG_UUID,
-                    projectUuid: PROJECT_UUID,
-                    access: [],
-                },
-            },
-        } as AnyType);
-        vi.mocked(
-            service.promoteService.getPromotionDashboardChanges,
-        ).mockResolvedValue([
-            {
-                dashboards: [
-                    {
-                        action: PromotionAction.UPDATE,
-                        data: { uuid: 'dashboard-uuid' },
-                    },
-                ],
-                charts: [],
-                spaces: [],
-            },
-            [],
-        ] as AnyType);
-        const user = makeUser([
-            { subject: 'ContentAsCode', action: 'create' },
-            {
-                subject: 'Dashboard',
-                action: 'update',
-                conditions: { projectUuid: PROJECT_UUID },
-            },
-            {
-                subject: 'Dashboard',
-                action: 'promote',
-                conditions: { projectUuid: PROJECT_UUID },
-            },
-        ]);
+        mockUpdatableDashboard(service, { tiles: [], tabs: [] });
 
         await expect(
             service.upsertDashboard(
-                user,
+                dashboardUpdater,
                 PROJECT_UUID,
                 dashboardAsCode.slug,
                 dashboardAsCode,
@@ -1046,6 +1144,8 @@ const registerContentAccessTests = (
                 spaceUuid: SPACE_UUID,
                 filters: { dimensions: [], metrics: [], tableCalculations: [] },
                 config: { isDateZoomDisabled: false, controlOrder: savedOrder },
+                tiles: [],
+                tabs: [],
             } as AnyType);
             vi.mocked(
                 service.promoteService.getPromotedDashboard,
@@ -1136,6 +1236,7 @@ const registerContentAccessTests = (
                 metrics: [],
                 tableCalculations: [],
             },
+            tabs: [],
         } as AnyType);
         vi.mocked(
             service.promoteService.getPromotedDashboard,
@@ -1192,6 +1293,7 @@ const registerContentAccessTests = (
                 metrics: [],
                 tableCalculations: [],
             },
+            tabs: [],
         } as AnyType);
         vi.mocked(service.dashboardModel.create).mockRejectedValue(
             new Error('stop after filters'),
@@ -1236,6 +1338,8 @@ const registerContentAccessTests = (
             name: 'Dashboard',
             spaceUuid: OTHER_SPACE_UUID,
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
+            tiles: [],
+            tabs: [],
         } as AnyType);
         vi.mocked(
             service.spacePermissionService.resolveAccessBatch,
@@ -1296,6 +1400,8 @@ const registerContentAccessTests = (
             name: 'Dashboard',
             spaceUuid: OTHER_SPACE_UUID,
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
+            tiles: [],
+            tabs: [],
         } as AnyType);
         vi.mocked(
             service.spacePermissionService.resolveAccessBatch,
@@ -1649,6 +1755,8 @@ const registerContentAccessTests = (
             name: 'Dashboard',
             spaceUuid: SPACE_UUID,
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
+            tiles: [],
+            tabs: [],
         } as AnyType);
         vi.mocked(service.savedChartModel.find).mockResolvedValue([
             {
@@ -2016,6 +2124,7 @@ describe('CoderService upsertDashboard tile chart versions', () => {
             spaceUuid: SPACE_UUID,
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
             tiles: [existingTile],
+            tabs: [],
         } as AnyType);
         vi.mocked(
             service.promoteService.getPromotedDashboard,
@@ -2300,6 +2409,7 @@ describe('bound grant upload effects', () => {
                     metrics: {},
                 },
             },
+            tabs: [],
         } as AnyType);
         Object.assign(service.projectModel, {
             getConnectionRoute: vi.fn().mockResolvedValue('original'),
@@ -5577,5 +5687,156 @@ describe('CoderService dashboard control order as code', () => {
             expect(file.config?.dateZoomConfig).toEqual(shippedZooms);
             expect(JSON.stringify(file)).not.toMatch(/controlSlug|dateZoom"/);
         });
+    });
+});
+
+describe('CoderService custom metric SQL uploads', () => {
+    const metric = {
+        name: 'total',
+        label: 'Total',
+        table: 'orders',
+        type: 'sum',
+        sql: '(SELECT 1)',
+    };
+    const chartWithMetric = {
+        ...chartAsCode,
+        metricQuery: {
+            ...chartAsCode.metricQuery,
+            additionalMetrics: [metric],
+        },
+    } as unknown as ChartAsCode;
+    const createRules: RawRuleOf<Ability<PossibleAbilities>>[] = [
+        { subject: 'ContentAsCode', action: 'create' },
+        {
+            subject: 'SavedChart',
+            action: ['create', 'update'],
+            conditions: { projectUuid: PROJECT_UUID },
+        },
+    ];
+    const prepare = (needingPermission: unknown[]) => {
+        const service = buildService();
+        vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
+            space: { uuid: SPACE_UUID } as AnyType,
+            created: false,
+        });
+        vi.mocked(service.savedChartModel.create).mockResolvedValue({
+            uuid: 'chart-uuid',
+        } as AnyType);
+        const getCustomMetricsNeedingPermission = vi.fn(
+            async () => needingPermission,
+        );
+        service.projectService = {
+            getCustomMetricsNeedingPermission,
+        } as AnyType;
+        return { service, getCustomMetricsNeedingPermission };
+    };
+
+    it('refuses a new chart with custom metrics that need permission', async () => {
+        const { service, getCustomMetricsNeedingPermission } = prepare([
+            metric,
+        ]);
+
+        await expect(
+            service.upsertChart(
+                makeSessionUser(createRules),
+                PROJECT_UUID,
+                chartWithMetric.slug,
+                chartWithMetric,
+            ),
+        ).rejects.toThrow(
+            'Custom metrics written in SQL need permission to manage custom fields: Total (chart slug "chart")',
+        );
+        expect(getCustomMetricsNeedingPermission).toHaveBeenCalledWith({
+            account: expect.anything(),
+            projectUuid: PROJECT_UUID,
+            exploreName: 'orders',
+            additionalMetrics: [metric],
+            savedAdditionalMetrics: [],
+        });
+        expect(service.savedChartModel.create).not.toHaveBeenCalled();
+    });
+
+    it('creates a chart when no custom metric needs permission', async () => {
+        const { service } = prepare([]);
+
+        await expect(
+            service.upsertChart(
+                makeSessionUser(createRules),
+                PROJECT_UUID,
+                chartWithMetric.slug,
+                chartWithMetric,
+            ),
+        ).resolves.toMatchObject({ charts: [{ action: 'create' }] });
+    });
+
+    it('refuses space access before checking custom metrics', async () => {
+        const { service, getCustomMetricsNeedingPermission } = prepare([
+            metric,
+        ]);
+
+        await expect(
+            service.upsertChart(
+                makeSessionUser([
+                    { subject: 'ContentAsCode', action: 'create' },
+                ]),
+                PROJECT_UUID,
+                chartWithMetric.slug,
+                chartWithMetric,
+            ),
+        ).rejects.toThrow(
+            'You don\'t have access to create charts in space "space"',
+        );
+        expect(getCustomMetricsNeedingPermission).not.toHaveBeenCalled();
+    });
+
+    it('skips the check for a user who can manage custom fields', async () => {
+        const { service, getCustomMetricsNeedingPermission } = prepare([
+            metric,
+        ]);
+
+        await expect(
+            service.upsertChart(
+                makeSessionUser([
+                    ...createRules,
+                    { subject: 'CustomFields', action: 'manage' },
+                ]),
+                PROJECT_UUID,
+                chartWithMetric.slug,
+                chartWithMetric,
+            ),
+        ).resolves.toMatchObject({ charts: [{ action: 'create' }] });
+        expect(getCustomMetricsNeedingPermission).not.toHaveBeenCalled();
+    });
+
+    it('checks an updated chart against the metrics it saved', async () => {
+        const { service, getCustomMetricsNeedingPermission } = prepare([
+            metric,
+        ]);
+        vi.mocked(service.savedChartModel.find).mockResolvedValue([
+            { uuid: 'chart-uuid', spaceUuid: SPACE_UUID } as AnyType,
+        ]);
+        const savedMetric = { ...metric, sql: '(SELECT 2)' };
+        vi.mocked(service.savedChartModel.get).mockResolvedValue({
+            uuid: 'chart-uuid',
+            metricQuery: {
+                ...chartAsCode.metricQuery,
+                additionalMetrics: [savedMetric],
+            },
+        } as AnyType);
+
+        await expect(
+            service.upsertChart(
+                makeSessionUser(createRules),
+                PROJECT_UUID,
+                chartWithMetric.slug,
+                chartWithMetric,
+            ),
+        ).rejects.toThrow(
+            'Custom metrics written in SQL need permission to manage custom fields: Total (chart slug "chart")',
+        );
+        expect(getCustomMetricsNeedingPermission).toHaveBeenCalledWith(
+            expect.objectContaining({ savedAdditionalMetrics: [savedMetric] }),
+        );
+        expect(service.promoteService.getPromoteCharts).not.toHaveBeenCalled();
     });
 });

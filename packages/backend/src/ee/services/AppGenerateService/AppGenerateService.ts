@@ -86,6 +86,7 @@ import {
     type AppBuildFromSourceJobPayload,
     type AppChartReference,
     type AppClarification,
+    type AppClarifyResult,
     type AppDashboardReference,
     type AppExternalConnectionLink,
     type AppExternalConnectionReference,
@@ -100,6 +101,7 @@ import {
     type AppVersionStatusHistoryEntry,
     type AppVersionStatusHistoryEntryKind,
     type AppVizBuildContext,
+    type CaptureTranscriptWord,
     type ChartConfig,
     type ChartReference,
     type ChartRegistryEntry,
@@ -217,8 +219,10 @@ import {
     type PreviewChartVizBindingMapping,
 } from '../../../models/AppModel';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
+import { type ContentDraftModel } from '../../../models/ContentDraftModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
+import { type OnContentVersionCreated } from '../../../models/OnContentVersionCreated';
 import { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
 import { type OrganizationSettingsModel } from '../../../models/OrganizationSettingsModel';
 import { PinnedListModel } from '../../../models/PinnedListModel';
@@ -246,6 +250,7 @@ import type { DocumentService } from '../../../services/DocumentService/Document
 import { omittedThemeFontGuidance } from '../../../services/OrganizationDesignService/restrictedAppleFonts';
 import type { ProjectService } from '../../../services/ProjectService/ProjectService';
 import type { PromoteService } from '../../../services/PromoteService/PromoteService';
+import { applyOpenChartDraft } from '../../../services/SavedChartsService/chartDraftOverlay';
 import type { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import {
@@ -310,6 +315,11 @@ import {
     assertDataAppQueryAllowed,
     type DataAppQueryInputs,
 } from './appQueryAuthorization';
+import {
+    audioFilenameForMimeType,
+    transcribeCaptureAudio,
+    transcriptionLanguage,
+} from './captureTranscription';
 import {
     CLARIFY_APP_SYSTEM_PROMPT,
     CLARIFY_VIZ_SYSTEM_PROMPT,
@@ -520,6 +530,7 @@ type AppGenerateServiceDeps = {
     appThumbnailClient: AppThumbnailClient;
     chartRegistryClient: ChartRegistryClient;
     contentVerificationModel: ContentVerificationModel;
+    contentDraftModel: Pick<ContentDraftModel, 'findOpenDraft'>;
 };
 
 // Inputs for the AI agent's code-free data app read: manifest fields, the
@@ -815,6 +826,12 @@ const STARTER_CHART_TYPE_SLUGS: readonly string[] = [
     'boxplot',
 ];
 
+// Internal content installs pin the target and skip user upload telemetry.
+type ManagedAppImport = {
+    expectedAppUuid: string | null;
+    onNewAppVersionCreated?: OnContentVersionCreated;
+};
+
 type ImportAppCodeResult = {
     appUuid: string;
     version: number;
@@ -893,6 +910,11 @@ export class AppGenerateService extends BaseService {
 
     private readonly contentVerificationModel: ContentVerificationModel;
 
+    private readonly contentDraftModel: Pick<
+        ContentDraftModel,
+        'findOpenDraft'
+    >;
+
     private readonly appThumbnailClient: AppThumbnailClient;
 
     private sandboxManager: SandboxManagerPort | undefined;
@@ -938,6 +960,7 @@ export class AppGenerateService extends BaseService {
         appThumbnailClient,
         chartRegistryClient,
         contentVerificationModel,
+        contentDraftModel,
     }: AppGenerateServiceDeps) {
         super();
         this.agentActionLogModel = agentActionLogModel;
@@ -972,6 +995,7 @@ export class AppGenerateService extends BaseService {
         this.appRuntimeS3 = appRuntimeS3;
         this.chartRegistryClient = chartRegistryClient;
         this.contentVerificationModel = contentVerificationModel;
+        this.contentDraftModel = contentDraftModel;
         this.appThumbnailClient = appThumbnailClient;
     }
 
@@ -2546,6 +2570,85 @@ export class AppGenerateService extends BaseService {
         throw new ParameterError(
             `Unsupported file type: ${declaredMimeType}. Supported: images (PNG, JPEG, GIF, WEBP), PDF, and text-based files (JSON, CSV, Markdown, XML/TWB, YAML, code, …)`,
         );
+    }
+
+    /** Voice Design is behind its feature flag on every surface that uses it. */
+    private async assertVoiceDesignEnabled(user: SessionUser): Promise<void> {
+        const { enabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.DataAppCapture,
+        });
+        if (!enabled) {
+            throw new ForbiddenError('Voice Design is not enabled');
+        }
+    }
+
+    /**
+     * Transcribes the audio of a Voice Design recording into timed words.
+     * The audio is sent to the transcription provider and not stored.
+     */
+    async transcribeCapture(
+        user: SessionUser,
+        projectUuid: string,
+        declaredMimeType: string,
+        body: Readable,
+        contentLength: number,
+        locale?: string,
+    ): Promise<CaptureTranscriptWord[]> {
+        await this.assertAnyAppsEnabled(user);
+        const { organizationUuid } = await this.assertDataAppAbility(
+            user,
+            'create',
+            projectUuid,
+            'Insufficient permissions to transcribe a capture',
+        );
+        await this.assertDataAppCapturesEnabled(organizationUuid);
+        await this.assertVoiceDesignEnabled(user);
+
+        const filename = audioFilenameForMimeType(declaredMimeType);
+        if (!filename) {
+            throw new ParameterError(
+                `Unsupported audio type: ${declaredMimeType}`,
+            );
+        }
+        const maxSize = 10 * 1024 * 1024; // 10 MB
+        if (contentLength > maxSize) {
+            throw new ParameterError(
+                `Audio too large: ${contentLength} bytes. Maximum: ${maxSize} bytes`,
+            );
+        }
+        const { openai } = this.lightdashConfig.ai.copilot.providers;
+        if (!openai) {
+            throw new MissingConfigError(
+                'Capture transcription needs an OpenAI API key',
+            );
+        }
+
+        const chunks: Buffer[] = [];
+        let received = 0;
+        for await (const chunk of body) {
+            const buffer = Buffer.from(chunk);
+            received += buffer.length;
+            if (received > maxSize) {
+                throw new ParameterError(
+                    `Audio too large. Maximum: ${maxSize} bytes`,
+                );
+            }
+            chunks.push(buffer);
+        }
+
+        const words = await transcribeCaptureAudio({
+            apiKey: openai.apiKey,
+            baseUrl: openai.baseUrl ?? null,
+            audio: Buffer.concat(chunks),
+            filename,
+            mimeType: declaredMimeType,
+            language: transcriptionLanguage(locale),
+        });
+        this.logger.debug(
+            `Capture transcription: ${received} bytes of ${declaredMimeType}, ${words.length} words`,
+        );
+        return words;
     }
 
     async uploadFile(
@@ -7362,7 +7465,7 @@ export class AppGenerateService extends BaseService {
         charts?: AppChartReference[],
         dashboard?: AppDashboardReference,
         fileIds?: string[],
-    ): Promise<{ questions: string[] }> {
+    ): Promise<AppClarifyResult> {
         await this.assertAppsEnabled(user, template ?? null);
         AppGenerateService.assertChartTypeCreateInputs(template ?? null, {
             spaceUuid: undefined,
@@ -7397,7 +7500,7 @@ export class AppGenerateService extends BaseService {
             this.logger.info(
                 `Skipping app clarification: no LLM provider configured (${getErrorMessage(err)})`,
             );
-            return { questions: [] };
+            return { questions: [], items: [] };
         }
 
         const modelAttribution = getLanguageModelAttribution(
@@ -7430,12 +7533,27 @@ export class AppGenerateService extends BaseService {
         // rejects `maxItems` in the schema. The prompt already pins the
         // 1–4 cap and we slice client-side after the response.
         const clarifySchema = z.object({
-            questions: z.array(z.string()).describe(
-                // Deliberately says "what gets built", not "the app" — this
-                // description reaches the model alongside a system prompt
-                // that may be insisting it is building a viz, not an app.
-                '0–4 short clarifying questions, each a single sentence (5–15 words). Default to empty — only include questions whose answers would materially change what gets built.',
-            ),
+            questions: z
+                .array(
+                    z.object({
+                        question: z
+                            .string()
+                            .describe(
+                                'A single sentence (5–15 words) the user can answer in one short line.',
+                            ),
+                        options: z
+                            .array(z.string())
+                            .describe(
+                                '2–3 likely answers, 1–5 words each, most likely first. Empty only when no short answer fits.',
+                            ),
+                    }),
+                )
+                .describe(
+                    // Deliberately says "what gets built", not "the app": this
+                    // description reaches the model alongside a system prompt
+                    // that may be insisting it is building a viz, not an app.
+                    '0–4 short clarifying questions. Default to empty. Only include questions whose answers would materially change what gets built.',
+                ),
         });
 
         // Cap the LLM call so a stalled provider can't pin the chat input
@@ -7509,21 +7627,27 @@ export class AppGenerateService extends BaseService {
             this.logger.warn(
                 `App clarify failed after ${AppGenerateService.elapsed(start)}ms (project=${projectUuid}, template=${template ?? 'custom'}, llm=${llmProvider}): ${getErrorMessage(err)}`,
             );
-            return { questions: [] };
+            return { questions: [], items: [] };
         }
         emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
         const elapsedMs = AppGenerateService.elapsed(start);
 
-        const questions = output.questions
-            .map((q) => q.trim())
-            .filter((q) => q.length > 0)
+        const items = output.questions
+            .map((q) => ({
+                question: q.question.trim(),
+                options: q.options
+                    .map((o) => o.trim())
+                    .filter((o) => o.length > 0)
+                    .slice(0, 3),
+            }))
+            .filter((q) => q.question.length > 0)
             .slice(0, 4);
 
         this.logger.info(
-            `App clarify: ${questions.length} question(s) in ${elapsedMs}ms (project=${projectUuid}, template=${template ?? 'custom'}, llm=${llmProvider})`,
+            `App clarify: ${items.length} question(s) in ${elapsedMs}ms (project=${projectUuid}, template=${template ?? 'custom'}, llm=${llmProvider})`,
         );
 
-        return { questions };
+        return { questions: items.map((q) => q.question), items };
     }
 
     /**
@@ -11363,7 +11487,8 @@ export class AppGenerateService extends BaseService {
     /**
      * Viewing a saved chart that renders this viz. Authorization follows the
      * chart, so space-private charts stay private, and the chart must actually
-     * reference the requested viz.
+     * reference the requested viz, in its published config or, on request,
+     * in the requester's own open draft.
      */
     private async getAuthorizedDataAppVizForChart(
         user: SessionUser,
@@ -11371,6 +11496,7 @@ export class AppGenerateService extends BaseService {
         savedChartUuid: string,
         dataAppVizUuid: string,
         chartVersionUuid?: string,
+        includeUnpublishedDraft: boolean = false,
     ) {
         const dataAppViz = await resolveDataAppVisualizationForRender(
             this.appModel,
@@ -11386,11 +11512,24 @@ export class AppGenerateService extends BaseService {
 
         // Version history previews an older config, so authorize against the
         // version actually being rendered rather than the latest one.
-        const chart = await this.savedChartModel.get(
+        const publishedChart = await this.savedChartModel.get(
             savedChartUuid,
             chartVersionUuid,
             { projectUuid },
         );
+        const chart =
+            includeUnpublishedDraft && !chartVersionUuid
+                ? await applyOpenChartDraft(
+                      this.contentDraftModel,
+                      user.userUuid,
+                      publishedChart,
+                      (draftUuid, error) =>
+                          this.logger.warn(
+                              `Ignoring invalid chart draft ${draftUuid} while rendering its chart type`,
+                              error,
+                          ),
+                  )
+                : publishedChart;
         if (
             chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||
             chart.chartConfig.config?.dataAppVizUuid !== dataAppVizUuid
@@ -11439,6 +11578,7 @@ export class AppGenerateService extends BaseService {
                 chartContext.savedChartUuid,
                 dataAppVizUuid,
                 chartContext.chartVersionUuid,
+                chartContext.includeUnpublishedDraft === true,
             );
         } else {
             await this.getAuthorizedDataAppVizForAuthoring(
@@ -11580,6 +11720,7 @@ export class AppGenerateService extends BaseService {
                 dataAppViz.app_id,
             ),
             viewContext,
+            dataAppViz.slug,
         );
     }
 
@@ -11589,6 +11730,7 @@ export class AppGenerateService extends BaseService {
         savedChartUuid: string,
         dataAppVizUuid: string,
         chartVersionUuid?: string,
+        includeUnpublishedDraft?: boolean,
     ): Promise<DataAppVizRenderMetadata> {
         const { dataAppViz, chart } =
             await this.getAuthorizedDataAppVizForChart(
@@ -11597,6 +11739,7 @@ export class AppGenerateService extends BaseService {
                 savedChartUuid,
                 dataAppVizUuid,
                 chartVersionUuid,
+                includeUnpublishedDraft,
             );
         const pinnedVersion = getDataAppVizVersionPin(chart.chartConfig);
         return this.resolveVizRenderMetadata(dataAppViz.app_id, pinnedVersion);
@@ -11609,6 +11752,7 @@ export class AppGenerateService extends BaseService {
         dataAppVizUuid: string,
         version: number,
         chartVersionUuid?: string,
+        includeUnpublishedDraft?: boolean,
     ): Promise<string> {
         const { dataAppViz, chart } =
             await this.getAuthorizedDataAppVizForChart(
@@ -11617,6 +11761,7 @@ export class AppGenerateService extends BaseService {
                 savedChartUuid,
                 dataAppVizUuid,
                 chartVersionUuid,
+                includeUnpublishedDraft,
             );
 
         await assertDataAppVizPreviewVersionAllowed(
@@ -11637,6 +11782,7 @@ export class AppGenerateService extends BaseService {
                 dataAppViz.app_id,
             ),
             'chart',
+            dataAppViz.slug,
         );
     }
 
@@ -11692,6 +11838,7 @@ export class AppGenerateService extends BaseService {
                 dataAppViz.app_id,
             ),
             'chart',
+            dataAppViz.slug,
         );
     }
 
@@ -11745,6 +11892,7 @@ export class AppGenerateService extends BaseService {
                 dataAppViz.app_id,
             ),
             'chart',
+            dataAppViz.slug,
         );
     }
 
@@ -12679,6 +12827,7 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             await this.externalConnectionModel.getBrowserImageOrigins(appUuid),
             viewContext,
+            app.slug,
         );
     }
 
@@ -12740,6 +12889,7 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             await this.externalConnectionModel.getBrowserImageOrigins(appUuid),
             'embed',
+            app.slug,
         );
 
         return { token, version: latestReady.version };
@@ -14601,8 +14751,19 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         body: ImportAppCodeRequestBody,
+        managedImport?: ManagedAppImport,
     ): Promise<ImportAppCodeResult> {
         const code = validateDataAppCode(body.code);
+        if (
+            managedImport &&
+            (code.manifest.slug === undefined ||
+                code.manifest.registry !== undefined ||
+                body.createNew)
+        ) {
+            throw new ParameterError(
+                'A guarded import requires an exact app slug',
+            );
+        }
         const sourceFiles = code.files.filter((f) => f.path.startsWith('src/'));
         if (sourceFiles.length === 0) {
             throw new ParameterError(
@@ -14870,6 +15031,13 @@ export class AppGenerateService extends BaseService {
                 );
             }
         }
+        if (
+            managedImport &&
+            ((existingApp?.app_id ?? null) !== managedImport.expectedAppUuid ||
+                (existingApp && existingApp.slug !== manifestSlug))
+        ) {
+            throw new ConflictError('The data app import target has changed');
+        }
         // Registry-managed apps never receive uploads, including the
         // identical-bundle short-circuit below that only patches metadata.
         if (existingApp && existingApp.registry_slug !== null) {
@@ -14962,33 +15130,42 @@ export class AppGenerateService extends BaseService {
                         directAccessAssignments,
                     );
                 }
-                this.analytics.track({
-                    event: 'data_app.uploaded',
-                    userId: user.userUuid,
-                    properties: {
-                        organizationId: organizationUuid,
-                        projectId: projectUuid,
-                        appUuid: existingApp.app_id,
-                        version: latestVersion.version,
-                        action: 'unchanged',
-                        template: code.manifest.template,
-                        sourceFileCount: sourceFiles.length,
-                        sourceBytes: sourceFiles.reduce(
-                            (total, file) =>
-                                total +
-                                Buffer.byteLength(file.contentBase64, 'base64'),
-                            0,
-                        ),
-                        hasCustomDependencies: dependencySummary !== undefined,
-                        customDependencyCount:
-                            dependencySummary?.custom.length ?? 0,
-                        customDependencies: dependencySummary?.custom ?? [],
-                        identitySource,
-                        ...(dependencySummary !== undefined
-                            ? { lockfileHash: dependencySummary.lockfileHash }
-                            : {}),
-                    },
-                });
+                if (!managedImport) {
+                    this.analytics.track({
+                        event: 'data_app.uploaded',
+                        userId: user.userUuid,
+                        properties: {
+                            organizationId: organizationUuid,
+                            projectId: projectUuid,
+                            appUuid: existingApp.app_id,
+                            version: latestVersion.version,
+                            action: 'unchanged',
+                            template: code.manifest.template,
+                            sourceFileCount: sourceFiles.length,
+                            sourceBytes: sourceFiles.reduce(
+                                (total, file) =>
+                                    total +
+                                    Buffer.byteLength(
+                                        file.contentBase64,
+                                        'base64',
+                                    ),
+                                0,
+                            ),
+                            hasCustomDependencies:
+                                dependencySummary !== undefined,
+                            customDependencyCount:
+                                dependencySummary?.custom.length ?? 0,
+                            customDependencies: dependencySummary?.custom ?? [],
+                            identitySource,
+                            ...(dependencySummary !== undefined
+                                ? {
+                                      lockfileHash:
+                                          dependencySummary.lockfileHash,
+                                  }
+                                : {}),
+                        },
+                    });
+                }
                 return {
                     appUuid: existingApp.app_id,
                     version: latestVersion.version,
@@ -15167,6 +15344,10 @@ export class AppGenerateService extends BaseService {
                 );
             }
             newVersion = 1;
+            const creationHookArgs: [null?, OnContentVersionCreated?] =
+                managedImport?.onNewAppVersionCreated
+                    ? [null, managedImport.onNewAppVersionCreated]
+                    : [];
             const { app } = await this.appModel.createWithVersion(
                 {
                     project_uuid: projectUuid,
@@ -15208,6 +15389,7 @@ export class AppGenerateService extends BaseService {
                             ? manifestPreview
                             : null,
                 },
+                ...creationHookArgs,
             );
             newAppUuid = app.app_id;
             newAppSlug = app.slug;
@@ -15330,28 +15512,30 @@ export class AppGenerateService extends BaseService {
                 userUuid: user.userUuid,
             });
 
-            this.analytics.track({
-                event: 'data_app.uploaded',
-                userId: user.userUuid,
-                properties: {
-                    organizationId: organizationUuid,
-                    projectId: projectUuid,
-                    appUuid: newAppUuid,
-                    version: newVersion,
-                    action,
-                    template: code.manifest.template,
-                    sourceFileCount: sourceFiles.length,
-                    sourceBytes: sourceTar.length,
-                    hasCustomDependencies: dependencySummary !== undefined,
-                    customDependencyCount:
-                        dependencySummary?.custom.length ?? 0,
-                    customDependencies: dependencySummary?.custom ?? [],
-                    identitySource,
-                    ...(dependencySummary !== undefined
-                        ? { lockfileHash: dependencySummary.lockfileHash }
-                        : {}),
-                },
-            });
+            if (!managedImport) {
+                this.analytics.track({
+                    event: 'data_app.uploaded',
+                    userId: user.userUuid,
+                    properties: {
+                        organizationId: organizationUuid,
+                        projectId: projectUuid,
+                        appUuid: newAppUuid,
+                        version: newVersion,
+                        action,
+                        template: code.manifest.template,
+                        sourceFileCount: sourceFiles.length,
+                        sourceBytes: sourceTar.length,
+                        hasCustomDependencies: dependencySummary !== undefined,
+                        customDependencyCount:
+                            dependencySummary?.custom.length ?? 0,
+                        customDependencies: dependencySummary?.custom ?? [],
+                        identitySource,
+                        ...(dependencySummary !== undefined
+                            ? { lockfileHash: dependencySummary.lockfileHash }
+                            : {}),
+                    },
+                });
+            }
         } catch (error) {
             await this.markError(
                 newAppUuid,

@@ -1,4 +1,8 @@
-import { ForbiddenError, type CreateSavedChart } from '@lightdash/common';
+import {
+    ForbiddenError,
+    ParameterError,
+    type CreateSavedChart,
+} from '@lightdash/common';
 import { fromSession } from '../../auth/account/account';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { DashboardService } from './DashboardService';
@@ -97,6 +101,24 @@ describe('creating a dashboard with placed charts', () => {
             expect(update).not.toHaveBeenCalled();
         },
     );
+
+    it('rejects more charts than the tiles-per-tab limit before any writes', async () => {
+        const { service, createChart, create, update } = setup();
+        const charts = Array.from(
+            { length: lightdashConfigMock.dashboard.maxTilesPerTab + 1 },
+            (_, i) => ({ name: `chart-${i}` }),
+        ) as CreateSavedChart[];
+        await expect(
+            service.createDashboardWithCharts(
+                fromSession(user),
+                'projectUuid',
+                { ...data, charts },
+            ),
+        ).rejects.toThrow(ParameterError);
+        expect(create).not.toHaveBeenCalled();
+        expect(createChart).not.toHaveBeenCalled();
+        expect(update).not.toHaveBeenCalled();
+    });
 
     it('still requires dashboard creation permission before creating charts', async () => {
         const { service, createChart, create } = setup();

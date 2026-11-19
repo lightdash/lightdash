@@ -69,6 +69,7 @@ export const AGENT_TOOL_CAPABILITIES = {
     editDbtProject: [AgentCapability.DbtWriteback],
     editProjectContext: [AgentCapability.DbtWriteback],
     proposeSemanticLayerChange: [AgentCapability.DbtWriteback],
+    listChanges: [AgentCapability.ReadDiscover],
     readSemanticModel: [AgentCapability.ReadDiscover],
     exploreRepo: [AgentCapability.ReadDiscover],
     exportChartAsCode: [AgentCapability.Export],
@@ -130,6 +131,14 @@ export const AGENT_TOOL_EFFECT_CAPABILITIES = {
         AgentCapability.RawSql,
     ],
     'editContent.sql_chart': [
+        AgentCapability.ContentWrite,
+        AgentCapability.RawSql,
+    ],
+    'createContent.composer_chart_sql': [
+        AgentCapability.ContentWrite,
+        AgentCapability.RawSql,
+    ],
+    'editContent.composer_chart_sql': [
         AgentCapability.ContentWrite,
         AgentCapability.RawSql,
     ],
@@ -635,6 +644,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'AppGenerateController.promoteApp': [AgentCapability.Publish],
     'AppGenerateController.restoreAppVersion': [AgentCapability.ContentWrite],
     'AppGenerateController.toggleAppPinning': [AgentCapability.ContentWrite],
+    'AppGenerateController.transcribeCapture': [AgentCapability.ContentWrite],
     'AppGenerateController.unverifyDataApp': [AgentCapability.Publish],
     'AppGenerateController.updateApp': [AgentCapability.ContentWrite],
     'AppGenerateController.upgradeApp': [AgentCapability.ContentWrite],
@@ -928,6 +938,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ExternalConnectionController.proposeExternalConnectionConfig': [
         AgentCapability.Administration,
     ],
+    'ExternalConnectionController.purgeLiveSourceCache': [
+        AgentCapability.Administration,
+    ],
     'ExternalConnectionController.reattachLiveSource': [
         AgentCapability.Administration,
     ],
@@ -950,6 +963,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.Administration,
     ],
     'ExternalConnectionController.updateExternalConnection': [
+        AgentCapability.Administration,
+    ],
+    'ExternalConnectionController.updateLiveSourceCache': [
         AgentCapability.Administration,
     ],
     'ExternalConnectionController.updateLiveSourceFields': [
@@ -1051,6 +1067,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'SemanticStudioController.applyDraft': [AgentCapability.DbtWriteback],
     'SemanticStudioController.applyDraftModel': [AgentCapability.DbtWriteback],
     'SemanticStudioController.checkDraftImpact': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.compileCheckout': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.getCheckout': [AgentCapability.ReadDiscover],
+    'SemanticStudioController.publishCheckout': [AgentCapability.DbtWriteback],
     'SemanticStudioController.discardDraftModel': [
         AgentCapability.DbtWriteback,
     ],
@@ -1071,10 +1090,16 @@ export const REST_OPERATION_CAPABILITIES = {
     'SemanticStudioController.getFieldUsage': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getModel': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getStoredModels': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.listSources': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.readSource': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.saveSource': [AgentCapability.DbtWriteback],
     'SemanticStudioController.listWorkspaces': [AgentCapability.ReadDiscover],
     'SemanticStudioController.startWorkspace': [AgentCapability.DbtWriteback],
     'SemanticStudioController.leaveWorkspace': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getWorkspace': [AgentCapability.ReadDiscover],
+    'SemanticStudioController.getWorkspaceDraft': [
+        AgentCapability.DbtWriteback,
+    ],
     'SemanticStudioController.renameWorkspace': [AgentCapability.DbtWriteback],
     'SemanticStudioController.activateWorkspace': [
         AgentCapability.DbtWriteback,
@@ -1100,6 +1125,9 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'MetricsExplorerController.runMetricSeries': [AgentCapability.Query],
     'MetricsExplorerController.runMetricTotal': [AgentCapability.Query],
+    'MobileAppAccessController.getMobileAppAccess': [
+        AgentCapability.ReadDiscover,
+    ],
     'MobilePushNotificationController.getMobilePushNotificationStatus': [
         AgentCapability.ReadDiscover,
     ],

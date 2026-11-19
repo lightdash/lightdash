@@ -67,6 +67,7 @@ import type {
     ApiAppendInstructionResponse,
     ApiAppImageUploadResponse,
     ApiAppThumbnailUrlResponse,
+    ApiCaptureTranscriptResponse,
     ApiCloneAiAgentThreadShareResponse,
     ApiCreateEvaluationResponse,
     ApiDataAppActivityResponse,
@@ -132,6 +133,7 @@ import type {
     ApiAppStateAdminOverviewResponse,
     ApiAppStateHistoryResponse,
 } from '../ee/apps/appState';
+import type { AppClarifyResult } from '../ee/apps/types';
 import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { ApiScimRequestLogListResponse } from '../ee/scim/requestLogs';
 import type { ApiQueryCostEstimateResponse } from '../utils/queryCostEstimate';
@@ -485,6 +487,10 @@ import {
     type ApiSemanticLayerDraftResponse,
     type ApiSemanticLayerDraftStateResponse,
     type ApiSemanticLayerDraftUsageResponse,
+    type ApiSemanticStudioCheckoutResponse,
+    type ApiSemanticStudioSourceFileResponse,
+    type ApiSemanticStudioSourceSaveResponse,
+    type ApiSemanticStudioSourcesResponse,
     type ApiSemanticStudioWorkspaceResponse,
     type ApiSemanticStudioWorkspacesResponse,
 } from './semanticStudio';
@@ -887,6 +893,7 @@ export type HealthState = {
     hasHeadlessBrowser: boolean;
     hasManagedAnalytics?: boolean;
     hasExtendedUsageAnalytics: boolean;
+    /** @deprecated Always false. Autocomplete caching follows each project's results cache setting. */
     hasCacheAutocompleResults: boolean;
     appearance: {
         overrideColorPalette: string[] | undefined;
@@ -913,6 +920,8 @@ export type HealthState = {
         isAmbientAiEnabled: boolean;
         threadDumpEnabled: boolean;
         fastDecisionsEnabled: boolean;
+        /** Instance can turn recorded speech into text (Voice Design). */
+        voiceTranscriptionAvailable: boolean;
     };
     echarts6: {
         enabled: boolean;
@@ -1467,6 +1476,7 @@ type ApiResults =
     | ApiQueryCostEstimateResponse['results']
     | ApiAppStateAdminOverviewResponse['results']
     | ApiAppStateHistoryResponse['results']
+    | AppClarifyResult
     | ReleaseHighlightsResult
     | AgentConnectionApprovalReviewResponse['results']
     | AgentConnectionApprovalDecisionResponse['results']
@@ -1867,6 +1877,7 @@ type ApiResults =
     | ApiPromoteAppDiffResponse['results']
     | ApiPreviewTokenResponse['results']
     | ApiAppImageUploadResponse['results']
+    | ApiCaptureTranscriptResponse['results']
     | ApiAppThumbnailUrlResponse['results']
     | ApiOrganizationDesignResponse['results']
     | ApiOrganizationDesignsResponse['results']
@@ -1909,6 +1920,10 @@ type ApiResults =
     | ApiSemanticLayerDraftedModelsResponse['results']
     | ApiSemanticLayerDraftStateResponse['results']
     | ApiSemanticStudioWorkspacesResponse['results']
+    | ApiSemanticStudioCheckoutResponse['results']
+    | ApiSemanticStudioSourcesResponse['results']
+    | ApiSemanticStudioSourceFileResponse['results']
+    | ApiSemanticStudioSourceSaveResponse['results']
     | ApiSemanticStudioWorkspaceResponse['results']
     | ApiSemanticLayerDraftApplyResponse['results']
     | ApiSemanticLayerDraftImpactResponse['results']

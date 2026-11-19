@@ -3,6 +3,7 @@ import {
     AgentActorSurface,
     ChartType,
     DashboardTileTypes,
+    ForbiddenError,
     OrganizationMemberRole,
     ParameterError,
     PossibleAbilities,
@@ -60,9 +61,20 @@ const connectionState = vi.hoisted(() => ({
 }));
 
 const projectModel = {
-    getSummary: vi.fn(async () => ({
-        upstreamProjectUuid: existingUpstreamDashboard.projectUuid,
-    })),
+    getSummary: vi.fn(
+        async (
+            projectUuid: string,
+        ): Promise<
+            Pick<
+                Awaited<ReturnType<ProjectModel['getSummary']>>,
+                'projectUuid' | 'organizationUuid' | 'upstreamProjectUuid'
+            >
+        > => ({
+            projectUuid,
+            organizationUuid: user.organizationUuid!,
+            upstreamProjectUuid: existingUpstreamDashboard.projectUuid,
+        }),
+    ),
     getUpstreamChartUuidFromPreview: vi.fn(async () => null),
     getUpstreamDashboardUuidFromPreview: vi.fn(
         async (): Promise<string | null> => null,
@@ -297,6 +309,8 @@ describe('PromoteService chart changes', () => {
         warehouseConnectionModel: warehouseConnectionModel as never,
         getDocumentService: () => ({}) as never,
         appModel: {} as never,
+        composerChartModel: {} as never,
+        getComposerChartService: () => ({}) as never,
     });
     afterEach(() => {
         vi.clearAllMocks();
@@ -567,6 +581,8 @@ describe('PromoteService dashboard changes', () => {
         warehouseConnectionModel: warehouseConnectionModel as never,
         getDocumentService: () => ({}) as never,
         appModel: {} as never,
+        composerChartModel: {} as never,
+        getComposerChartService: () => ({}) as never,
     });
     afterEach(() => {
         vi.clearAllMocks();
@@ -1054,6 +1070,8 @@ describe('PromoteService promoting and mutating changes', () => {
         warehouseConnectionModel: warehouseConnectionModel as never,
         getDocumentService: () => ({}) as never,
         appModel: {} as never,
+        composerChartModel: {} as never,
+        getComposerChartService: () => ({}) as never,
     });
     afterEach(() => {
         vi.clearAllMocks();
@@ -1763,11 +1781,6 @@ describe('PromoteService promoting and mutating changes', () => {
         };
 
         (
-            projectModel.getSummary as import('vitest').Mock
-        ).mockImplementationOnce(async () => ({
-            upstreamProjectUuid: existingUpstreamDashboard.projectUuid,
-        }));
-        (
             dashboardModel.getByIdOrSlug as import('vitest').Mock
         ).mockImplementationOnce(async () => dashboardWithOnlySqlTile);
         (dashboardModel.find as import('vitest').Mock).mockImplementationOnce(
@@ -1784,7 +1797,7 @@ describe('PromoteService promoting and mutating changes', () => {
         );
 
         const changes = await service.getPromoteDashboardDiff(
-            userWithPromotePermissions,
+            fromSession(userWithPromotePermissions),
             dashboardWithOnlySqlTile.uuid,
             { projectUuid: promotedDashboardWithSqlTile.projectUuid },
         );
@@ -1824,6 +1837,30 @@ describe('PromoteService promoting and mutating changes', () => {
             /you don't have access to edit this chart in the origin project/,
         );
     });
+
+    test.each(['promoteChart', 'getPromoteChartDiff'] as const)(
+        '%s checks the destination project before loading upstream content',
+        async (method) => {
+            const upstreamProjectUuid = existingUpstreamDashboard.projectUuid;
+            projectModel.getSummary
+                .mockResolvedValueOnce({
+                    projectUuid: promotedChart.projectUuid,
+                    organizationUuid: user.organizationUuid!,
+                    upstreamProjectUuid,
+                })
+                .mockResolvedValueOnce({
+                    projectUuid: upstreamProjectUuid,
+                    organizationUuid: 'other-organization',
+                    upstreamProjectUuid,
+                });
+
+            await expect(
+                service[method](user, promotedChart.chart.uuid),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(savedChartModel.find).not.toHaveBeenCalled();
+            expect(savedChartModel.create).not.toHaveBeenCalled();
+        },
+    );
 
     test('getPromoteSqlChartDiff rejects users without SQL chart promote permissions', async () => {
         const userWithoutPromotePermissions = userWithAbilities([
@@ -1866,7 +1903,7 @@ describe('PromoteService promoting and mutating changes', () => {
 
         await expect(
             service.getPromoteDashboardDiff(
-                userWithoutPromotePermissions,
+                fromSession(userWithoutPromotePermissions),
                 dashboardWithoutTiles.uuid,
                 { projectUuid: promotedDashboard.projectUuid },
             ),
@@ -1874,52 +1911,6 @@ describe('PromoteService promoting and mutating changes', () => {
             /You do not have the right access permissions on the origin space and dashboard/,
         );
     });
-
-    test.each(['getPromoteDashboardDiff', 'promoteDashboard'] as const)(
-        '%s refuses a dashboard with a composer chart tile',
-        async (method) => {
-            const dashboardWithComposerTile = {
-                ...promotedDashboard.dashboard,
-                tiles: [
-                    ...promotedDashboard.dashboard.tiles,
-                    {
-                        uuid: 'composer-tile',
-                        type: DashboardTileTypes.COMPOSER_CHART,
-                        x: 0,
-                        y: 0,
-                        h: 3,
-                        w: 6,
-                        tabUuid: undefined,
-                        properties: {
-                            title: 'Composer',
-                            composerChartUuid: 'composer-chart-1',
-                        },
-                    },
-                ],
-            };
-            (
-                dashboardModel.getByIdOrSlug as import('vitest').Mock
-            ).mockImplementationOnce(async () => dashboardWithComposerTile);
-            (
-                dashboardModel.find as import('vitest').Mock
-            ).mockImplementationOnce(async () => [
-                existingUpstreamDashboard.dashboard,
-            ]);
-            (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
-                async () => [existingUpstreamDashboard.space],
-            );
-
-            await expect(
-                service[method](
-                    userWithPromotePermissions,
-                    dashboardWithComposerTile.uuid,
-                    { projectUuid: promotedDashboard.projectUuid },
-                ),
-            ).rejects.toThrow(
-                /Dashboards with composer charts cannot be promoted yet/,
-            );
-        },
-    );
 
     test('getPromoteDashboardDiff rejects an unscoped slug matching multiple dashboards', async () => {
         (dashboardModel.find as import('vitest').Mock).mockImplementationOnce(
@@ -1931,7 +1922,7 @@ describe('PromoteService promoting and mutating changes', () => {
 
         await expect(
             service.getPromoteDashboardDiff(
-                userWithPromotePermissions,
+                fromSession(userWithPromotePermissions),
                 'duplicated-slug',
             ),
         ).rejects.toThrow(/Multiple dashboards match slug 'duplicated-slug'/);
@@ -1950,7 +1941,7 @@ describe('PromoteService promoting and mutating changes', () => {
 
         await expect(
             service.getPromoteDashboardDiff(
-                userWithPromotePermissions,
+                fromSession(userWithPromotePermissions),
                 'unknown-slug',
             ),
         ).rejects.toThrow(/Dashboard not found/);
@@ -1977,7 +1968,11 @@ describe('PromoteService promoting and mutating changes', () => {
 
         await expect(
             service.getPromoteDashboardDiff(
-                userWithAbilities([{ subject: 'Project', action: ['view'] }]),
+                fromSession(
+                    userWithAbilities([
+                        { subject: 'Project', action: ['view'] },
+                    ]),
+                ),
                 dashboardWithoutTiles.slug,
             ),
         ).rejects.toThrow(
@@ -2007,7 +2002,11 @@ describe('PromoteService promoting and mutating changes', () => {
 
         await expect(
             service.getPromoteDashboardDiff(
-                userWithAbilities([{ subject: 'Project', action: ['view'] }]),
+                fromSession(
+                    userWithAbilities([
+                        { subject: 'Project', action: ['view'] },
+                    ]),
+                ),
                 dashboardWithoutTiles.slug,
                 { projectUuid: promotedDashboard.projectUuid },
             ),
@@ -2030,15 +2029,15 @@ describe('PromoteService promoting and mutating changes', () => {
         (
             dashboardModel.getByIdOrSlug as import('vitest').Mock
         ).mockImplementationOnce(async () => dashboardWithoutTiles);
-        (
-            projectModel.getSummary as import('vitest').Mock
-        ).mockImplementationOnce(async () => ({
+        projectModel.getSummary.mockImplementationOnce(async (projectUuid) => ({
+            projectUuid,
+            organizationUuid: user.organizationUuid!,
             upstreamProjectUuid: undefined,
         }));
 
         await expect(
             service.getPromoteDashboardDiff(
-                userWithPromotePermissions,
+                fromSession(userWithPromotePermissions),
                 dashboardWithoutTiles.uuid,
                 { projectUuid: promotedDashboard.projectUuid },
             ),
@@ -2110,7 +2109,7 @@ describe('PromoteService promoting and mutating changes', () => {
         const promoteSqlTile = () =>
             service
                 .promoteDashboard(
-                    userWithPromotePermissions,
+                    fromSession(userWithPromotePermissions),
                     promotedDashboardWithSqlTile.dashboard.uuid,
                     { projectUuid: promotedDashboardWithSqlTile.projectUuid },
                 )
@@ -2395,6 +2394,8 @@ describe('PromoteService data app promotion', () => {
         warehouseConnectionModel: warehouseConnectionModel as never,
         getDocumentService: () => ({}) as never,
         appModel: {} as never,
+        composerChartModel: {} as never,
+        getComposerChartService: () => ({}) as never,
     };
 
     const serviceWithApps = new PromoteService({
@@ -2597,6 +2598,8 @@ describe('agent content writes', () => {
         warehouseConnectionModel: warehouseConnectionModel as never,
         getDocumentService: () => ({}) as never,
         appModel: {} as never,
+        composerChartModel: {} as never,
+        getComposerChartService: () => ({}) as never,
     });
     afterEach(() => vi.restoreAllMocks());
     test.each([

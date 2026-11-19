@@ -21,13 +21,19 @@ const mergeCompiledSql = {
     errors: [],
 };
 
-vi.mock('./useCanViewAiAgentSql', () => ({ useCanViewAiAgentSql: () => true }));
+vi.mock(
+    '../../../../features/composerCharts/hooks/useCanViewAiAgentSql',
+    () => ({ useCanViewAiAgentSql: () => true }),
+);
 vi.mock('../../../../hooks/useCompiledSql', () => ({
     useCompiledSqlFromMetricQuery: () => ({ data: undefined }),
 }));
-vi.mock('./useAiMergeCompiledSql', () => ({
-    useAiMergeCompiledSql: () => ({ data: mergeCompiledSql }),
-}));
+vi.mock(
+    '../../../../features/composerCharts/hooks/useAiMergeCompiledSql',
+    () => ({
+        useAiMergeCompiledSql: () => ({ data: mergeCompiledSql }),
+    }),
+);
 
 describe('useAiArtifactCompiledSql', () => {
     it('builds the merged SQL text once across rerenders', () => {

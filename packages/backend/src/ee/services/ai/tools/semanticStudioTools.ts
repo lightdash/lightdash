@@ -1,7 +1,9 @@
 import {
+    listChangesToolDefinition,
     proposeSemanticLayerChangeToolDefinition,
     readSemanticModelToolDefinition,
     type SemanticLayerDraftItemResult,
+    type StudioChangeSummary,
     type ToolProposeSemanticLayerChangeOutput,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -40,6 +42,10 @@ const renderProposedModel = (
         ...advice.map((line) => `  advice: ${line}`),
     ].join('\n');
 
+/** A model can escape the quotes inside a string it writes; the card shows text, so they are plain again. */
+const unescapeQuotes = (text: string | null): string | null =>
+    text === null ? null : text.replaceAll('\\"', '"');
+
 export const getProposeSemanticLayerChange = ({
     proposeSemanticLayerChange,
 }: {
@@ -47,31 +53,38 @@ export const getProposeSemanticLayerChange = ({
 }) =>
     tool({
         ...proposeSemanticLayerChangeToolDefinition.for('agent'),
-        execute: async ({ models }) => {
+        execute: async ({ models, changeName, note, options }) => {
             try {
-                const { results, diffs, draftChangeUuid } =
-                    await proposeSemanticLayerChange(models);
+                const { results, diffs, draftChangeUuid, startedChange } =
+                    await proposeSemanticLayerChange(models, changeName);
+                const advised = results.map((result) => {
+                    const created = diffs.find(
+                        ({ model, contentBefore }) =>
+                            model === result.model && contentBefore === null,
+                    );
+                    return {
+                        result,
+                        advice:
+                            result.status === 'ready' && created?.contentAfter
+                                ? findNewModelAdvice(
+                                      result.model,
+                                      created.contentAfter,
+                                  )
+                                : [],
+                    };
+                });
                 const output: ToolProposeSemanticLayerChangeOutput = {
                     result: [
-                        ...results.map((result) => {
-                            const created = diffs.find(
-                                ({ model, contentBefore }) =>
-                                    model === result.model &&
-                                    contentBefore === null,
-                            );
-                            return renderProposedModel(
-                                result,
-                                result.status === 'ready' &&
-                                    created?.contentAfter
-                                    ? findNewModelAdvice(
-                                          result.model,
-                                          created.contentAfter,
-                                      )
-                                    : [],
-                            );
-                        }),
+                        ...advised.map(({ result, advice }) =>
+                            renderProposedModel(result, advice),
+                        ),
+                        ...(startedChange
+                            ? [
+                                  `Started draft "${startedChange.name}" and checked it out.`,
+                              ]
+                            : []),
                         draftChangeUuid
-                            ? "This joined the person's draft and they see its diff. Nothing is live until they publish the draft."
+                            ? "This joined the person's draft, and its card shows them what changed, your note and your options, so write nothing more. Nothing is published until they publish the draft."
                             : 'Nothing joined the draft.',
                     ].join('\n'),
                     metadata: {
@@ -79,6 +92,16 @@ export const getProposeSemanticLayerChange = ({
                         models: results,
                         diffs,
                         draftChangeUuid,
+                        startedChange,
+                        needsFollowUp: advised.some(
+                            ({ advice }) => advice.length > 0,
+                        ),
+                        note: draftChangeUuid ? unescapeQuotes(note) : null,
+                        options: draftChangeUuid
+                            ? options.map(
+                                  (option) => unescapeQuotes(option) ?? option,
+                              )
+                            : [],
                     },
                     structuredContent: { models: results },
                 };
@@ -120,6 +143,25 @@ export const getReadSemanticModel = ({
                     error,
                     'Error reading the semantic model.',
                 );
+            }
+        },
+    });
+
+export const getListChanges = (
+    listChanges: () => Promise<StudioChangeSummary[]>,
+) =>
+    tool({
+        ...listChangesToolDefinition.for('agent'),
+        execute: async () => {
+            try {
+                const changes = await listChanges();
+                return {
+                    result: JSON.stringify(changes),
+                    structuredContent: { changes },
+                    metadata: { status: 'success' as const },
+                };
+            } catch (error) {
+                return toolErrorOutput(error, 'Error listing your changes.');
             }
         },
     });
