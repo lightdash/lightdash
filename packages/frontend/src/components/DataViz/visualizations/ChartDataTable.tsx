@@ -7,7 +7,11 @@ import {
 } from '@lightdash/common';
 import { Badge, Flex, Group, Tooltip, type FlexProps } from '@mantine/core';
 import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
-import { flexRender, type TableOptions } from '@tanstack/react-table';
+import {
+    createCell,
+    flexRender,
+    type TableOptions,
+} from '@tanstack/react-table';
 import { clsx } from 'clsx';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable/constants';
 import MantineIcon from '../../common/MantineIcon';
@@ -53,7 +57,7 @@ export const ResultsTable = ({
         viewport,
         headers,
         virtualRows,
-        rowModelRows,
+        table,
         paddingTop,
         paddingBottom,
         columnWindow,
@@ -141,7 +145,8 @@ export const ResultsTable = ({
     };
 
     const renderRow = (index: number) => {
-        const cells = rowModelRows[index].getVisibleCells();
+        const row = table.getRowModel().rows[index];
+        const cells = columnWindow ? undefined : row.getVisibleCells();
         return (
             <Tr key={index} $index={index}>
                 {renderColumns(columnWindow, columnCount, (columnIndex) => {
@@ -156,8 +161,11 @@ export const ResultsTable = ({
                             </td>
                         );
                     }
-                    const cell =
-                        cells[isCompact ? columnIndex - 1 : columnIndex];
+                    const dataIndex = isCompact ? columnIndex - 1 : columnIndex;
+                    const { column } = headers[dataIndex];
+                    const cell = cells
+                        ? cells[dataIndex]
+                        : createCell(table, row, column, column.id);
                     const value = cell.getValue() as RawResultRow[0];
                     const isNull = value === null || value === undefined;
 

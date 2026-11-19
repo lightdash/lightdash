@@ -1,29 +1,28 @@
 import { type RawResultRow } from '@lightdash/common';
+import { ColumnGrouping } from '@tanstack/react-table';
 import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BaseResultsRunner } from '../../../features/queryRunner/BaseResultsRunner';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { ChartDataTable } from './ChartDataTable';
 import { Table } from './Table';
 
 describe('wide SQL results', () => {
+    afterEach(() => vi.restoreAllMocks());
     beforeEach(() => {
-        const width = vi
-            .spyOn(HTMLElement.prototype, 'offsetWidth', 'get')
-            .mockReturnValue(400);
-        const height = vi
-            .spyOn(HTMLElement.prototype, 'offsetHeight', 'get')
-            .mockReturnValue(200);
-        return () => {
-            width.mockRestore();
-            height.mockRestore();
-        };
+        vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(
+            400,
+        );
+        vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(
+            200,
+        );
     });
 
     it.each(['chart data', 'compact results'])(
         'scrolls headers and values together in %s',
         async (view) => {
+            const created = vi.spyOn(ColumnGrouping, 'createCell');
             const columnNames = Array.from(
                 { length: 100 },
                 (_, i) => `field_${i}`,
@@ -68,6 +67,10 @@ describe('wide SQL results', () => {
             expect(grid.getByText('value_field_0')).toBeInTheDocument();
             expect(grid.queryByText('field_99')).not.toBeInTheDocument();
             expect(grid.queryByText('value_field_99')).not.toBeInTheDocument();
+            const createdColumnIds = () =>
+                created.mock.calls.map(([cell]) => cell.column.id);
+            expect(createdColumnIds()).toContain('field_0');
+            expect(createdColumnIds()).not.toContain('field_99');
 
             const getWidth = () =>
                 parseFloat(
@@ -86,6 +89,8 @@ describe('wide SQL results', () => {
             expect(grid.queryByText('field_0')).not.toBeInTheDocument();
             expect(grid.queryByText('value_field_0')).not.toBeInTheDocument();
             expect(getWidth()).toBe(width);
+            expect(createdColumnIds()).toContain('field_99');
+            expect(createdColumnIds()).not.toContain('field_50');
         },
     );
 });

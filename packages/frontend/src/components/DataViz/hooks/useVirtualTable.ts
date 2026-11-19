@@ -73,7 +73,7 @@ export const useVirtualTable = ({
         columnWindow,
         columnCount: layout.length,
         virtualRows,
-        rowModelRows: table.getRowModel().rows,
+        table,
         paddingTop: virtualRows[0]?.start ?? 0,
         paddingBottom: virtualRows.length
             ? rowVirtualizer.getTotalSize() -
