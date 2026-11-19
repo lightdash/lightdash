@@ -9,14 +9,8 @@ import {
     type DbHeadingTileConfig,
 } from './headingTileConfig';
 
-const DEFAULTS = {
-    size: DashboardHeadingSize.MD,
-    textAlign: DashboardHeadingTextAlign.LEFT,
-    verticalAlign: DashboardHeadingVerticalAlign.CENTER,
-};
-
 describe('heading tile config', () => {
-    it('stores every setting under the current version', () => {
+    it('stores the chosen settings under the current version', () => {
         expect(
             toDbHeadingTileConfig({
                 text: 'Revenue',
@@ -26,9 +20,15 @@ describe('heading tile config', () => {
         ).toEqual({
             version: 1,
             size: DashboardHeadingSize.XS,
-            textAlign: DashboardHeadingTextAlign.LEFT,
+            textAlign: null,
             verticalAlign: DashboardHeadingVerticalAlign.BOTTOM,
         });
+    });
+
+    it('stores nothing for a heading with no setting chosen', () => {
+        expect(
+            toDbHeadingTileConfig({ text: 'Revenue', showDivider: true }),
+        ).toBeNull();
     });
 
     it('reads back what it stored', () => {
@@ -45,12 +45,25 @@ describe('heading tile config', () => {
         });
     });
 
-    it('reads a heading saved before the column existed as the defaults', () => {
-        expect(fromDbHeadingTileConfig(null)).toEqual(DEFAULTS);
+    it('reads back only the settings that were chosen', () => {
+        const stored = toDbHeadingTileConfig({
+            text: 'Revenue',
+            textAlign: DashboardHeadingTextAlign.CENTER,
+        });
+        expect(fromDbHeadingTileConfig(stored)).toEqual({
+            textAlign: DashboardHeadingTextAlign.CENTER,
+        });
     });
 
-    it('reads a version it does not know as the defaults', () => {
-        const future = { version: 2 } as unknown as DbHeadingTileConfig;
-        expect(fromDbHeadingTileConfig(future)).toEqual(DEFAULTS);
+    it('adds nothing to a heading saved before the column existed', () => {
+        expect(fromDbHeadingTileConfig(null)).toEqual({});
+    });
+
+    it('adds nothing from a version it does not know', () => {
+        const future = {
+            version: 2,
+            size: DashboardHeadingSize.LG,
+        } as unknown as DbHeadingTileConfig;
+        expect(fromDbHeadingTileConfig(future)).toEqual({});
     });
 });

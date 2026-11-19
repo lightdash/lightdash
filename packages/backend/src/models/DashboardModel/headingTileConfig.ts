@@ -1,7 +1,4 @@
 import {
-    DEFAULT_DASHBOARD_HEADING_SIZE,
-    DEFAULT_DASHBOARD_HEADING_TEXT_ALIGN,
-    DEFAULT_DASHBOARD_HEADING_VERTICAL_ALIGN,
     type DashboardHeadingSize,
     type DashboardHeadingTextAlign,
     type DashboardHeadingTileProperties,
@@ -10,46 +7,46 @@ import {
 
 type HeadingTileConfigV1 = {
     version: 1;
-    size: DashboardHeadingSize;
-    textAlign: DashboardHeadingTextAlign;
-    verticalAlign: DashboardHeadingVerticalAlign;
+    size: DashboardHeadingSize | null;
+    textAlign: DashboardHeadingTextAlign | null;
+    verticalAlign: DashboardHeadingVerticalAlign | null;
 };
 
 /** What the `config` column of a heading tile holds. Add a version to change its shape */
 export type DbHeadingTileConfig = HeadingTileConfigV1;
 
-type HeadingTileFormat = Required<
-    Pick<
-        DashboardHeadingTileProperties['properties'],
-        'size' | 'textAlign' | 'verticalAlign'
-    >
+type HeadingTileFormat = Pick<
+    DashboardHeadingTileProperties['properties'],
+    'size' | 'textAlign' | 'verticalAlign'
 >;
 
-const DEFAULT_FORMAT: HeadingTileFormat = {
-    size: DEFAULT_DASHBOARD_HEADING_SIZE,
-    textAlign: DEFAULT_DASHBOARD_HEADING_TEXT_ALIGN,
-    verticalAlign: DEFAULT_DASHBOARD_HEADING_VERTICAL_ALIGN,
-};
+// A heading with no setting chosen keeps a null config, so it stays the same
+// row, and the same API response, as before the column existed
+export const toDbHeadingTileConfig = ({
+    size,
+    textAlign,
+    verticalAlign,
+}: DashboardHeadingTileProperties['properties']): DbHeadingTileConfig | null =>
+    size === undefined && textAlign === undefined && verticalAlign === undefined
+        ? null
+        : {
+              version: 1,
+              size: size ?? null,
+              textAlign: textAlign ?? null,
+              verticalAlign: verticalAlign ?? null,
+          };
 
-export const toDbHeadingTileConfig = (
-    properties: DashboardHeadingTileProperties['properties'],
-): DbHeadingTileConfig => ({
-    version: 1,
-    size: properties.size ?? DEFAULT_FORMAT.size,
-    textAlign: properties.textAlign ?? DEFAULT_FORMAT.textAlign,
-    verticalAlign: properties.verticalAlign ?? DEFAULT_FORMAT.verticalAlign,
-});
-
-// A row written before the column existed, or by a version this build does
-// not know, reads as the defaults
+// Only the settings that were chosen are returned: the rest stay omitted, and
+// so does everything in a version this build does not know
 export const fromDbHeadingTileConfig = (
     config: DbHeadingTileConfig | null,
 ): HeadingTileFormat =>
     config?.version === 1
         ? {
-              size: config.size ?? DEFAULT_FORMAT.size,
-              textAlign: config.textAlign ?? DEFAULT_FORMAT.textAlign,
-              verticalAlign:
-                  config.verticalAlign ?? DEFAULT_FORMAT.verticalAlign,
+              ...(config.size ? { size: config.size } : {}),
+              ...(config.textAlign ? { textAlign: config.textAlign } : {}),
+              ...(config.verticalAlign
+                  ? { verticalAlign: config.verticalAlign }
+                  : {}),
           }
-        : DEFAULT_FORMAT;
+        : {};
