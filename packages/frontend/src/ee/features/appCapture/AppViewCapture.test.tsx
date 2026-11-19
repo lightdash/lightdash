@@ -16,7 +16,9 @@ vi.mock('../capture', () => ({
 }));
 
 vi.mock('../dashboardCapture/useSendCaptureToAgent', () => ({
-    useSendCaptureToAgent: () => mocks.sendToAgent,
+    useSendCaptureToAgent: () => ({
+        send: mocks.sendToAgent,
+    }),
 }));
 
 vi.mock('../../../hooks/toaster/useToaster', () => ({
@@ -43,8 +45,8 @@ describe('AppViewCapture', () => {
         render(
             <AppViewCapture
                 projectUuid="project-1"
+                appUuid="app-1"
                 appName="Sales pulse"
-                agentUuid="agent-1"
                 getRegion={() => new DOMRect(0, 0, 100, 100)}
                 onRecordingChange={() => {}}
             />,
@@ -73,13 +75,12 @@ describe('AppViewCapture', () => {
 
         await vi.waitFor(() =>
             expect(mocks.sendToAgent).toHaveBeenCalledWith({
-                agentUuid: 'agent-1',
                 prompt: [
                     'These questions are about the data app "Sales pulse".',
                     '',
                     '- ① (0:02) circled, top left: "why is this so low"',
                 ].join('\n'),
-                context: [],
+                context: [{ type: 'data_app', appUuid: 'app-1' }],
             }),
         );
     });
