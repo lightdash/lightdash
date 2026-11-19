@@ -804,6 +804,7 @@ describe('signed analytics file manifests', () => {
             'lightdash_projects',
             'lightdash_content',
             'lightdash_people',
+            'lightdash_agent_evaluation_runs',
             'ai_usage',
             'data_app_events',
             'export_events',

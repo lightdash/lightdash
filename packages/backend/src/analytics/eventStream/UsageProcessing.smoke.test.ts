@@ -197,7 +197,7 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                     partitionsDiscovered: 30,
                     partitionsCompacted: 7,
                     partitionsFailed: 0,
-                    dimensions: { refreshed: 7, failed: 0 },
+                    dimensions: { refreshed: 8, failed: 0 },
                     users: { published: 7, failed: 0 },
                 });
                 expect(await processing.find(org)).toMatchObject({
