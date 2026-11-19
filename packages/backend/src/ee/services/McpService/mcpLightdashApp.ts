@@ -7,7 +7,7 @@ export const mcpOpenLightdashTool = {
     name: 'open_lightdash',
     title: 'Open Lightdash',
     description:
-        'Open the Lightdash app beside the conversation so the user and you can work in it together. Pass a Lightdash URL from another tool (an Explore, chart or dashboard link) to open that page, or omit it to open the Lightdash home page.',
+        'Open the Lightdash app beside the conversation so the user and you can work in it together. Pass a Lightdash URL from another tool (an Explore, chart or dashboard link) to open that page, or omit it to open the Lightdash home page. While the view is open, use its show_lightdash_page and get_lightdash_page tools to change or read the page the user sees.',
     inputSchema: z.object({
         url: z
             .string()
