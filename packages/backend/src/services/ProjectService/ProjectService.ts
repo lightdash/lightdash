@@ -194,6 +194,7 @@ import {
     MergeQueryErrorKind,
     MergeQueryField,
     MergeQueryMetricSource,
+    mergeReservedDefinitions,
     mergeWarehouseCredentials,
     MetricQuery,
     MetricType,
@@ -10460,8 +10461,11 @@ export class ProjectService
             projectUuid,
             { kind: 'explore', exploreName: explore.name },
         );
+        // As QueryComposer: the reserved parameters, such as date_zoom, are available too
         const availableParameters = Object.keys(
-            await this.getAvailableParameters(projectUuid, explore),
+            mergeReservedDefinitions(
+                await this.getAvailableParameters(projectUuid, explore),
+            ),
         );
         return updateExploreWithDateZoom(
             explore,
