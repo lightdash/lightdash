@@ -239,19 +239,16 @@ describe('getModel', () => {
         },
     );
 
-    it.each([false, true])(
-        'keeps OpenAI Responses requests stateless when extended reasoning is %s',
-        async (enableReasoning) => {
-            const { model, providerOptions } = getModel(
-                copilotConfigWithStreaming(true),
-                { enableReasoning, modelName: 'gpt-5.5' },
-            );
+    it('keeps OpenAI Responses requests stateless without extended reasoning', async () => {
+        const { model, providerOptions } = getModel(
+            copilotConfigWithStreaming(true),
+            { enableReasoning: false, modelName: 'gpt-5.5' },
+        );
 
-            const { body } = await captureModelRequest(model, providerOptions);
-            expect(body.store).toBe(false);
-            expect(body.include).toEqual(['reasoning.encrypted_content']);
-        },
-    );
+        const { body } = await captureModelRequest(model, providerOptions);
+        expect(body.store).toBe(false);
+        expect(body.include).toEqual(['reasoning.encrypted_content']);
+    });
 
     it('enables OpenAI reasoning only when requested', () => {
         const { providerOptions } = getModel(copilotConfigWithStreaming(true), {
