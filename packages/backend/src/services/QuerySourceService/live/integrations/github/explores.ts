@@ -68,7 +68,7 @@ const SEARCH_COUNT: LiveMetricDefinition = {
     apiName: 'total_count',
     label: 'Count',
     description:
-        'How many match the filters, counted from the listed items (or the search total with a Title or Search text filter).',
+        "How many match the filters. Exact and fast from GitHub's own total when filtered only by State and Labels (and Author and Assignee on issues); otherwise counted from the listed items, or the search total with a Title or Search text filter.",
     type: MetricType.NUMBER,
     filterOperators: [],
     aggregation: { aggregation: 'additive' },

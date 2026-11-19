@@ -272,6 +272,54 @@ const toListFilter = (
 
 type SearchColumns = Extract<GithubRequest, { kind: 'list' }>['columns'];
 
+const COUNT_FILTER_COLUMNS = {
+    pr: ['state', 'labels'],
+    issue: ['state', 'labels', 'author', 'assignee'],
+} as const;
+
+/**
+ * A GraphQL count when every filter is one GraphQL applies: one exact call.
+ * Null otherwise, and the count reads the lists.
+ */
+const toCountRequest = (
+    type: 'pr' | 'issue',
+    filters: GithubListFilter[],
+): Extract<GithubRequest, { kind: 'count' }> | null => {
+    const allowed: readonly string[] = COUNT_FILTER_COLUMNS[type];
+    const columns = filters.map(({ column }) => column);
+    const isMappable = filters.every(
+        (filter) =>
+            allowed.includes(filter.column) &&
+            filter.op === 'eq' &&
+            !(
+                type === 'issue' &&
+                filter.column === 'state' &&
+                filter.value === 'merged'
+            ),
+    );
+    if (!isMappable || new Set(columns).size !== columns.length) {
+        return null;
+    }
+    const valueOf = (column: string) => {
+        const filter = filters.find((candidate) => candidate.column === column);
+        return filter && 'value' in filter && typeof filter.value === 'string'
+            ? filter.value
+            : undefined;
+    };
+    const state = valueOf('state') as 'open' | 'closed' | 'merged' | undefined;
+    const label = valueOf('labels');
+    const author = valueOf('author');
+    const assignee = valueOf('assignee');
+    return {
+        kind: 'count',
+        type,
+        ...(state ? { state } : {}),
+        ...(label ? { label } : {}),
+        ...(author ? { author } : {}),
+        ...(assignee ? { assignee } : {}),
+    };
+};
+
 /**
  * Pull requests and issues come from the REST lists, which cover the whole
  * history. Word filters need search, whose index misses older items.
@@ -302,7 +350,7 @@ const compileIssues = ({
     );
     // Count with a dimension is refused by the shared check
     if (metricQuery.metrics.length > 0) {
-        const request: GithubRequest = {
+        const request: GithubRequest = toCountRequest(type, filters) ?? {
             kind: 'list',
             type,
             filters,

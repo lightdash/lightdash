@@ -3,6 +3,7 @@ import {
     getGithubContributorsPath,
     getGithubIssuesPath,
     getGithubPullsPath,
+    GITHUB_GRAPHQL_PATH,
     GITHUB_ORIGIN,
     GITHUB_SEARCH_PATH,
     LIVE_INTEGRATION_CATALOG,
@@ -53,8 +54,10 @@ export const githubIntegration = defineLiveIntegration({
             getGithubPullsPath(owner, repo),
             getGithubIssuesPath(owner, repo),
             getGithubContributorsPath(owner, repo),
+            GITHUB_GRAPHQL_PATH,
         ],
-        methods: ['GET'],
+        // POST is for GraphQL counts only; run sends no other POST
+        methods: ['GET', 'POST'],
         headers: {
             Accept: 'application/vnd.github+json',
             'X-GitHub-Api-Version': '2022-11-28',

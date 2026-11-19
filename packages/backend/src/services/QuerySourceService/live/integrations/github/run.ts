@@ -4,6 +4,7 @@ import {
     getGithubContributorsPath,
     getGithubIssuesPath,
     getGithubPullsPath,
+    GITHUB_GRAPHQL_PATH,
     GITHUB_SEARCH_PATH,
     ParameterError,
     WarehouseQueryError,
@@ -177,6 +178,23 @@ const listRequestSchema = z
     })
     .strict();
 
+/**
+ * An exact count from GraphQL's totalCount, one call whatever the
+ * repository's size. Only filters GraphQL applies itself; anything else is
+ * counted from the lists.
+ */
+const countRequestSchema = z
+    .object({
+        kind: z.literal('count'),
+        type: z.enum(['pr', 'issue']),
+        state: z.enum(['open', 'closed', 'merged']).optional(),
+        label: z.string().min(1).optional(),
+        // Issues only: GraphQL's pull request connection can't filter by people
+        author: z.string().min(1).optional(),
+        assignee: z.string().min(1).optional(),
+    })
+    .strict();
+
 const contributorsRequestSchema = z
     .object({
         kind: z.literal('contributors'),
@@ -192,12 +210,14 @@ const contributorsRequestSchema = z
 export const githubRequestSchema = z.discriminatedUnion('kind', [
     searchRequestSchema,
     listRequestSchema,
+    countRequestSchema,
     contributorsRequestSchema,
 ]);
 
 export type GithubRequest = z.infer<typeof githubRequestSchema>;
 type GithubSearchRequest = z.infer<typeof searchRequestSchema>;
 type GithubListRequest = z.infer<typeof listRequestSchema>;
+type GithubCountRequest = z.infer<typeof countRequestSchema>;
 type GithubContributorsRequest = z.infer<typeof contributorsRequestSchema>;
 
 const userSchema = z.object({ login: z.string() }).nullable().optional();
@@ -613,6 +633,98 @@ const runList = async ({
     };
 };
 
+const PULL_REQUEST_COUNT_QUERY = `query ($owner: String!, $repo: String!, $states: [PullRequestState!], $labels: [String!]) {
+  repository(owner: $owner, name: $repo) { pullRequests(states: $states, labels: $labels) { totalCount } }
+}`;
+
+const ISSUE_COUNT_QUERY = `query ($owner: String!, $repo: String!, $filterBy: IssueFilters) {
+  repository(owner: $owner, name: $repo) { issues(filterBy: $filterBy) { totalCount } }
+}`;
+
+const totalCountSchema = z.object({ totalCount: z.number() });
+
+const graphqlCountResponseSchema = z.object({
+    data: z
+        .object({
+            repository: z
+                .object({
+                    pullRequests: totalCountSchema.optional(),
+                    issues: totalCountSchema.optional(),
+                })
+                .nullable(),
+        })
+        .nullable()
+        .optional(),
+    errors: z.array(z.object({ message: z.string() })).optional(),
+});
+
+/** Counts pull requests or issues with one GraphQL call. */
+const runCount = async ({
+    settings: { owner, repo },
+    request,
+    calls,
+}: {
+    settings: { owner: string; repo: string };
+    request: GithubCountRequest;
+    calls: LiveCalls;
+}): Promise<LiveRunResult> => {
+    const canCount =
+        request.type === 'issue'
+            ? request.state !== 'merged'
+            : request.author === undefined && request.assignee === undefined;
+    if (!canCount) {
+        throw new ParameterError(
+            'GitHub counts pull requests by state and label, and issues by open or closed state, label, author and assignee.',
+        );
+    }
+    const states = request.state ? [request.state.toUpperCase()] : undefined;
+    const labels = request.label ? [request.label] : undefined;
+    const body =
+        request.type === 'pr'
+            ? {
+                  query: PULL_REQUEST_COUNT_QUERY,
+                  variables: { owner, repo, states, labels },
+              }
+            : {
+                  query: ISSUE_COUNT_QUERY,
+                  variables: {
+                      owner,
+                      repo,
+                      filterBy: {
+                          ...(states ? { states } : {}),
+                          ...(labels ? { labels } : {}),
+                          ...(request.author
+                              ? { createdBy: request.author }
+                              : {}),
+                          ...(request.assignee
+                              ? { assignee: request.assignee }
+                              : {}),
+                      },
+                  },
+              };
+    const response = await calls.fetch(
+        { method: 'POST', path: GITHUB_GRAPHQL_PATH, body },
+        graphqlCountResponseSchema,
+    );
+    const connection =
+        request.type === 'pr'
+            ? response.data?.repository?.pullRequests
+            : response.data?.repository?.issues;
+    if (!connection) {
+        const detail = (response.errors ?? [])
+            .map(({ message }) => message)
+            .join(': ');
+        throw new WarehouseQueryError(
+            `GitHub couldn't count ${owner}/${repo}${detail ? `: ${detail}` : ''}.`,
+        );
+    }
+    return {
+        columns: [{ name: 'total_count', type: DimensionType.NUMBER }],
+        rows: [{ total_count: connection.totalCount }],
+        hasMoreRows: false,
+    };
+};
+
 const wait = (ms: number) =>
     new Promise<void>((resolve) => {
         setTimeout(resolve, ms);
@@ -742,7 +854,7 @@ const runContributors = async ({
     };
 };
 
-/** Runs one GitHub request: a list, a search, or contributor statistics. */
+/** Runs one GitHub request: a list, a count, a search, or contributor statistics. */
 export const runGithubQuery = async ({
     settings,
     request,
@@ -758,6 +870,8 @@ export const runGithubQuery = async ({
             return runSearch({ settings, request, limit, calls });
         case 'list':
             return runList({ settings, request, limit, calls });
+        case 'count':
+            return runCount({ settings, request, calls });
         case 'contributors':
             return runContributors({ settings, request, limit, calls });
         default:

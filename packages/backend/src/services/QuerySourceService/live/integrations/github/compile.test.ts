@@ -166,6 +166,44 @@ describe('compileGithubQuery on pull requests', () => {
         expect(compiled.requestLimit).toBe(GITHUB_MAX_QUERY_ROWS);
     });
 
+    it('counts with one GraphQL total when GraphQL applies every filter', () => {
+        const { request } = compile(
+            PULL_REQUESTS,
+            query('github_pull_requests', {
+                metrics: [pr('count')],
+                filters: filters(
+                    rule(pr('state'), FilterOperator.EQUALS, ['merged']),
+                    rule(pr('labels'), FilterOperator.EQUALS, ['🐛 bug']),
+                ),
+            }),
+        );
+        expect(request).toEqual({
+            kind: 'count',
+            type: 'pr',
+            state: 'merged',
+            label: '🐛 bug',
+        });
+        expect(
+            compile(
+                PULL_REQUESTS,
+                query('github_pull_requests', { metrics: [pr('count')] }),
+            ).request,
+        ).toEqual({ kind: 'count', type: 'pr' });
+    });
+
+    it('counts from the list when GraphQL cannot apply a filter', () => {
+        const { request } = compile(
+            PULL_REQUESTS,
+            query('github_pull_requests', {
+                metrics: [pr('count')],
+                filters: filters(
+                    rule(pr('labels'), FilterOperator.NOT_EQUALS, ['chore']),
+                ),
+            }),
+        );
+        expect(request.kind).toBe('list');
+    });
+
     it('maps closed to closed without merging in a search', () => {
         const { request } = compile(
             PULL_REQUESTS,
@@ -282,6 +320,27 @@ describe('the shared check on pull requests', () => {
 });
 
 describe('compileGithubQuery on issues', () => {
+    it('counts issues by author and assignee with one GraphQL total', () => {
+        const { request } = compile(
+            ISSUES,
+            query('github_issues', {
+                metrics: [issue('count')],
+                filters: filters(
+                    rule(issue('state'), FilterOperator.EQUALS, ['open']),
+                    rule(issue('author'), FilterOperator.EQUALS, ['octocat']),
+                    rule(issue('assignee'), FilterOperator.EQUALS, ['jo']),
+                ),
+            }),
+        );
+        expect(request).toEqual({
+            kind: 'count',
+            type: 'issue',
+            state: 'open',
+            author: 'octocat',
+            assignee: 'jo',
+        });
+    });
+
     it('lists issues with state and state reason filters', () => {
         const { request } = compile(
             ISSUES,

@@ -129,6 +129,7 @@ export const getMetaAdsInsightsPath = (adAccountId: string) =>
 
 export const GITHUB_ORIGIN = 'https://api.github.com';
 export const GITHUB_SEARCH_PATH = '/search/issues';
+export const GITHUB_GRAPHQL_PATH = '/graphql';
 
 export const getGithubContributorsPath = (owner: string, repo: string) =>
     `/repos/${owner}/${repo}/stats/contributors`;

@@ -447,6 +447,95 @@ describe('githubIntegration list', () => {
     });
 });
 
+describe('githubIntegration count', () => {
+    it('counts pull requests with one GraphQL call', async () => {
+        const { source, send } = connect(
+            response({
+                data: { repository: { pullRequests: { totalCount: 31_480 } } },
+            }),
+        );
+
+        const result = await run(source, {
+            kind: 'count',
+            type: 'pr',
+            state: 'merged',
+            label: 'bug',
+        });
+
+        expect(send).toHaveBeenCalledTimes(1);
+        expect(send).toHaveBeenCalledWith({
+            method: 'POST',
+            path: '/graphql',
+            body: {
+                query: expect.stringContaining(
+                    'pullRequests(states: $states, labels: $labels)',
+                ),
+                variables: {
+                    owner: 'lightdash',
+                    repo: 'lightdash',
+                    states: ['MERGED'],
+                    labels: ['bug'],
+                },
+            },
+        });
+        expect(result.rows).toEqual([{ total_count: 31_480 }]);
+    });
+
+    it('counts issues through filterBy', async () => {
+        const { source, send } = connect(
+            response({ data: { repository: { issues: { totalCount: 12 } } } }),
+        );
+
+        const result = await run(source, {
+            kind: 'count',
+            type: 'issue',
+            state: 'closed',
+            author: 'octocat',
+            assignee: 'jo',
+        });
+
+        expect(send.mock.calls[0][0].body.variables.filterBy).toEqual({
+            states: ['CLOSED'],
+            createdBy: 'octocat',
+            assignee: 'jo',
+        });
+        expect(result.rows).toEqual([{ total_count: 12 }]);
+    });
+
+    it('refuses filters GraphQL cannot count by', async () => {
+        const { source, send } = connect();
+
+        await expect(
+            run(source, {
+                kind: 'count',
+                type: 'pr',
+                author: 'octocat',
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(send).not.toHaveBeenCalled();
+    });
+
+    it("says why GitHub couldn't count", async () => {
+        const { source } = connect(
+            response({
+                data: { repository: null },
+                errors: [
+                    {
+                        message:
+                            "Could not resolve to a Repository with the name 'lightdash/lightdash'.",
+                    },
+                ],
+            }),
+        );
+
+        await expect(
+            run(source, { kind: 'count', type: 'pr' }),
+        ).rejects.toThrow(
+            "GitHub couldn't count lightdash/lightdash: Could not resolve to a Repository with the name 'lightdash/lightdash'.",
+        );
+    });
+});
+
 describe('githubIntegration contributors', () => {
     afterEach(() => {
         vi.useRealTimers();
