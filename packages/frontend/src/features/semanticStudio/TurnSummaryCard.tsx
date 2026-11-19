@@ -23,7 +23,9 @@ import {
     describeModelChange,
     DRAFT_PARAM,
     DRAFT_REVIEW,
+    CHANGE_KIND_LABELS,
     getChangeKind,
+    type ChangeKind,
     getModelCodeSearch,
     listFieldChanges,
     type FieldChange,
@@ -49,11 +51,34 @@ const ApplyModal = lazy(() =>
     })),
 );
 
-const KIND_LABELS: Record<FieldChange['kind'], string> = {
-    dimension: 'dimension',
-    metric: 'metric',
-    join: 'join to',
-    model: 'model',
+/** What was done to a part of a model, as the start of a sentence its name ends. */
+const ACTIONS: Record<FieldChange['kind'], Record<ChangeKind, string>> = {
+    dimension: {
+        new: 'Added the dimension',
+        changed: 'Changed the dimension',
+        removed: 'Removed the dimension',
+    },
+    metric: {
+        new: 'Added the metric',
+        changed: 'Changed the metric',
+        removed: 'Removed the metric',
+    },
+    join: {
+        new: 'Joined to',
+        changed: 'Changed the join to',
+        removed: 'Removed the join to',
+    },
+    model: { new: 'Added', changed: 'Changed', removed: 'Removed' },
+};
+
+/** "New · 12 dimensions · 1 metric" beside a name reads as a sentence under it: "Created with 12 dimensions and 1 metric". */
+const describeWholeModel = (subtitle: string | null): string | null => {
+    if (subtitle === null) return null;
+    const [state, ...counts] = subtitle.split(' · ');
+    if (state === CHANGE_KIND_LABELS.removed) return 'Removed from the layer';
+    return counts.length > 0
+        ? `Created with ${counts.join(' and ')}`
+        : 'Created';
 };
 
 type ModelGroup = {
@@ -101,9 +126,7 @@ const groupByModel = (proposals: SemanticLayerProposal[]): ModelGroup[] => {
         return {
             model,
             title,
-            // "New" and "Removed" stand beside a model's name elsewhere; alone on a card they need their noun.
-            subtitle:
-                subtitle?.replace(/^(\w+)/, (word) => `${word} model`) ?? null,
+            subtitle: describeWholeModel(subtitle),
             removed: span !== null && getChangeKind(span) === 'removed',
             fields: [...fields.values()],
         };
@@ -433,13 +456,22 @@ export const TurnSummaryCard: FC<{
                 rows: fields.map((field) => ({
                     id: `${field.kind}:${field.name}`,
                     change: field.change,
-                    kind: KIND_LABELS[field.kind],
+                    action: ACTIONS[field.kind][field.change],
                     icon: <FieldChangeIcon field={field} />,
-                    // A join to a model this turn touched reads by that model's name.
-                    label:
-                        (field.kind === 'join'
-                            ? groups.find((g) => g.model === field.name)?.title
-                            : undefined) ?? field.label,
+                    label: (() => {
+                        // A model's own keys have no name of their own to show.
+                        if (field.kind === 'model') {
+                            return `its ${field.detail ?? 'settings'}`;
+                        }
+                        // A join to a model this turn touched reads by that model's name.
+                        if (field.kind === 'join') {
+                            return (
+                                groups.find((g) => g.model === field.name)
+                                    ?.title ?? field.label
+                            );
+                        }
+                        return field.label;
+                    })(),
                     // How it is defined waits on hover and in the review; the card names what changed.
                     detail: null,
                     title: [field.name, field.detail]

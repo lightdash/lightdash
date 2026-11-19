@@ -24,18 +24,12 @@ import { ISSUE_KINDS, type Issue } from './proposalIssues';
 import { TaskIcon, type TaskState } from './TaskRow';
 import classes from './TurnSummaryCard.module.css';
 
-const CHANGE_WORDS: Record<ChangeKind, string> = {
-    new: 'New',
-    changed: 'Changed',
-    removed: 'Removed',
-};
-
 /** One changed part of a model, linking to where it can be looked at. */
 export type TurnRow = {
     id: string;
     change: ChangeKind;
-    /** What it is, as it reads after "New", "Changed" or "Removed": "metric", "join to", "YAML file". */
-    kind: string;
+    /** What was done, as the start of a sentence the label ends: "Added the metric", "Joined to". */
+    action: string;
     icon: ReactNode;
     label: string;
     detail: string | null;
@@ -64,7 +58,7 @@ const Row: FC<{ row: TurnRow }> = ({ row }) => (
         <Box className={classes.rowIcon}>{row.icon}</Box>
         <Text span fz="sm" truncate className={classes.label}>
             <Text span inherit c="dimmed">
-                {`${CHANGE_WORDS[row.change]} ${row.kind} `}
+                {`${row.action} `}
             </Text>
             {row.label}
         </Text>
@@ -285,13 +279,14 @@ export const TurnCard: FC<{
                                     fz="sm"
                                     flex={1}
                                     miw={0}
-                                    lineClamp={3}
+                                    lineClamp={4}
                                     title={note}
                                 >
-                                    <Text span inherit fw={500}>
-                                        Check
+                                    <Text span inherit c="dimmed">
+                                        One thing to confirm before you
+                                        publish:{' '}
                                     </Text>
-                                    {` · ${note}`}
+                                    {note}
                                 </Text>
                             </Group>
                         ) : null}
@@ -335,7 +330,7 @@ export const TurnCard: FC<{
                                         color="dimmed"
                                     />
                                     <Text fz="sm" c="dimmed">
-                                        Suggested next
+                                        You could ask next
                                     </Text>
                                 </Group>
                             ) : null}
