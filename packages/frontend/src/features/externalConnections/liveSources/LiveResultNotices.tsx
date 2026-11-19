@@ -23,7 +23,7 @@ export const LiveResultNotices: FC<{
         >
             <Stack gap={2}>
                 {notices.map((notice) => (
-                    <Text key={notice.type} fz="xs">
+                    <Text key={notice.message} fz="xs">
                         {notice.message}
                     </Text>
                 ))}
