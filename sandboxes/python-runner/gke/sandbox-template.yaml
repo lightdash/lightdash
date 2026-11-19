@@ -1,0 +1,33 @@
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxTemplate
+metadata: {name: python-runner, namespace: sandboxes}
+spec:
+  podTemplate:
+    metadata:
+      labels: {app: python-runner}
+    spec:
+      runtimeClassName: gvisor
+      nodeSelector: {sandbox.gke.io/runtime: gvisor}
+      tolerations: [{key: sandbox.gke.io/runtime, operator: Equal, value: gvisor, effect: NoSchedule}]
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 0
+      securityContext: {runAsUser: 1000, runAsGroup: 1000, runAsNonRoot: true}
+      containers:
+      - name: runner
+        image: us-central1-docker.pkg.dev/<PROJECT_ID>/sandbox-bench/python-runner:bench1
+        command: ["python3","-I","-c","import numpy, pandas, scipy.stats, pyarrow; from pathlib import Path; import time; Path('/tmp/python-warm-ready').touch(); time.sleep(10**9)"]
+        readinessProbe:
+          exec: {command: ["test","-f","/tmp/python-warm-ready"]}
+          periodSeconds: 1
+        resources:
+          requests: {cpu: "1", memory: 1Gi}
+          limits: {cpu: "1", memory: 1Gi}
+        securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: ["ALL"]}}
+---
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxWarmPool
+metadata: {name: python-runner, namespace: sandboxes}
+spec:
+  replicas: 20
+  sandboxTemplateRef: {name: python-runner}
