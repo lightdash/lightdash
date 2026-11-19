@@ -1,4 +1,4 @@
-import { SEMANTIC_STUDIO_MODEL_TIER } from '../../SemanticStudioService/modelPreference';
+import { findSemanticStudioPreset } from '../../SemanticStudioService/modelPreference';
 import { findPreferredPreset, getOrgModelCatalogue } from './index';
 import { MODEL_PRESETS } from './presets';
 
@@ -17,7 +17,7 @@ describe('findPreferredPreset', () => {
         ...MODEL_PRESETS.google,
     ]);
     const prefer = (provider: string) =>
-        findPreferredPreset(everything, provider, SEMANTIC_STUDIO_MODEL_TIER);
+        findPreferredPreset(everything, provider, 'frontier');
 
     it('prefers the frontier preset of each provider that has one', () => {
         expect(prefer('anthropic')?.name).toBe('claude-opus-5-5');
@@ -40,7 +40,7 @@ describe('findPreferredPreset', () => {
             findPreferredPreset(
                 catalogueOf([newer, older]),
                 'openai',
-                SEMANTIC_STUDIO_MODEL_TIER,
+                'frontier',
             )?.name,
         ).toBe('a-newer-frontier-model');
     });
@@ -52,7 +52,7 @@ describe('findPreferredPreset', () => {
             findPreferredPreset(
                 catalogueOf(MODEL_PRESETS.google),
                 'anthropic',
-                SEMANTIC_STUDIO_MODEL_TIER,
+                'frontier',
             ),
         ).toBeNull();
     });
@@ -62,5 +62,55 @@ describe('findPreferredPreset', () => {
             .flat()
             .filter(({ deprecated }) => deprecated)
             .forEach(({ tier }) => expect(tier).toBeUndefined());
+    });
+});
+
+describe('findSemanticStudioPreset', () => {
+    const offered = (...providers: (keyof typeof MODEL_PRESETS)[]) =>
+        catalogueOf(
+            providers.flatMap(
+                (provider): Parameters<typeof catalogueOf>[0] =>
+                    MODEL_PRESETS[provider],
+            ),
+        );
+
+    it('runs on the strongest Claude model the org is offered, whatever provider is in use', () => {
+        const preset = findSemanticStudioPreset(
+            offered('openai', 'anthropic'),
+            'openai',
+        );
+        expect(preset).toMatchObject({
+            provider: 'anthropic',
+            name: 'claude-opus-5-5',
+        });
+    });
+
+    it('takes the balanced Claude model when the strongest is not offered', () => {
+        const withoutOpus = catalogueOf([
+            ...MODEL_PRESETS.openai,
+            ...MODEL_PRESETS.anthropic.filter(
+                ({ tier }) => tier !== 'frontier',
+            ),
+        ]);
+        expect(findSemanticStudioPreset(withoutOpus, 'openai')?.name).toBe(
+            'claude-sonnet-5-5',
+        );
+    });
+
+    it('keeps an org on Bedrock on Bedrock', () => {
+        expect(
+            findSemanticStudioPreset(offered('anthropic', 'bedrock'), 'bedrock')
+                ?.provider,
+        ).toBe('bedrock');
+    });
+
+    it('falls back to the strongest model of the provider in use when no Claude model is offered', () => {
+        expect(
+            findSemanticStudioPreset(offered('openai'), 'openai')?.name,
+        ).toBe('gpt-6.1-sol');
+        expect(
+            findSemanticStudioPreset(offered('google'), 'google'),
+        ).toBeNull();
+        expect(findSemanticStudioPreset(offered('openai'), null)).toBeNull();
     });
 });

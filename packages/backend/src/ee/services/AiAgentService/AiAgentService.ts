@@ -526,7 +526,6 @@ import { getPreviousAnswer } from '../ai/decisions/previousAnswer';
 import { classifyResponseSignals } from '../ai/decisions/responseSignals';
 import { selectVerifiedAnswers } from '../ai/decisions/verifiedAnswers';
 import {
-    findPreferredPreset,
     getCompactionModelMetadata,
     getDefaultModel,
     getModel,
@@ -536,7 +535,6 @@ import {
     resolveKeyManagement,
     resolveModelConfigForPrompt,
 } from '../ai/models';
-import { type ModelTier } from '../ai/models/presets';
 import {
     OrgAiCopilotConfigResolver,
     type AiConfigScope,
@@ -736,7 +734,7 @@ import { type ExternalConnectionService } from '../ExternalConnectionService/Ext
 import { type MobilePushNotificationService } from '../MobilePushNotificationService/MobilePushNotificationService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
 import { createReviewRemediationAgentWorkGuard } from '../reviewRemediationAgentWork';
-import { SEMANTIC_STUDIO_MODEL_TIER } from '../SemanticStudioService/modelPreference';
+import { findSemanticStudioPreset } from '../SemanticStudioService/modelPreference';
 import { type SemanticStudioService } from '../SemanticStudioService/SemanticStudioService';
 import {
     parseAgentSelectionValue,
@@ -1538,7 +1536,7 @@ export class AiAgentService extends BaseService {
         threadModelConfig,
         agentModelConfig,
         requestedModelConfig,
-        preferredTier,
+        prefersStudioModel,
     }: {
         organizationUuid: string;
         projectUuid: string;
@@ -1546,8 +1544,8 @@ export class AiAgentService extends BaseService {
         threadModelConfig: AiAgentModelConfig | null;
         agentModelConfig: AiAgentModelConfig | null;
         requestedModelConfig: AiAgentModelConfig | null;
-        /** The tier to prefer when nobody chose a model; null to take the default. */
-        preferredTier: ModelTier | null;
+        /** Whether the thread is a Studio one, which has its own model when nobody chose one. */
+        prefersStudioModel: boolean;
     }): Promise<AiAgentModelConfig | null> {
         if (threadModelConfig) return threadModelConfig;
         const pickedModelConfig = requestedModelConfig ?? agentModelConfig;
@@ -1556,7 +1554,7 @@ export class AiAgentService extends BaseService {
             (await this.aiOrganizationSettingsService.getDefaultModelConfig(
                 organizationUuid,
             ));
-        if (!modelConfig && !preferredTier) return null;
+        if (!modelConfig && !prefersStudioModel) return null;
         const { catalogue, copilotConfig } =
             await this.orgAiCopilotConfigResolver.getOrgModelCatalogue({
                 organizationUuid,
@@ -1573,14 +1571,15 @@ export class AiAgentService extends BaseService {
         const inherited = resolved
             ? reconcileInheritedModelConfig(copilotConfig, resolved)
             : null;
-        // A preference only replaces a model nobody chose, and only within the provider already in use.
-        const provider =
-            inherited?.modelProvider ??
-            getDefaultModel(copilotConfig)?.provider;
-        const preferred =
-            preferredTier && provider
-                ? findPreferredPreset(catalogue, provider, preferredTier)
-                : null;
+        // A preference only replaces a model nobody chose, among those the org is offered.
+        const preferred = prefersStudioModel
+            ? findSemanticStudioPreset(
+                  catalogue,
+                  inherited?.modelProvider ??
+                      getDefaultModel(copilotConfig)?.provider ??
+                      null,
+              )
+            : null;
         if (!preferred) return inherited;
         this.logger.info(
             `Running a thread on preferred model "${preferred.provider}/${preferred.name}" in place of ${inherited ? `"${inherited.modelProvider}/${inherited.modelName}"` : 'the instance default'}`,
@@ -5969,10 +5968,7 @@ export class AiAgentService extends BaseService {
             threadModelConfig: null,
             agentModelConfig: agent.modelConfig,
             requestedModelConfig: body.modelConfig ?? null,
-            preferredTier:
-                body.createdFrom === 'semantic_studio'
-                    ? SEMANTIC_STUDIO_MODEL_TIER
-                    : null,
+            prefersStudioModel: body.createdFrom === 'semantic_studio',
         });
 
         if (body.prompt) {
@@ -6199,10 +6195,7 @@ export class AiAgentService extends BaseService {
                 await this.aiAgentModel.findThreadModelConfig(threadUuid),
             agentModelConfig: agent.modelConfig,
             requestedModelConfig: body.modelConfig ?? null,
-            preferredTier:
-                thread.createdFrom === 'semantic_studio'
-                    ? SEMANTIC_STUDIO_MODEL_TIER
-                    : null,
+            prefersStudioModel: thread.createdFrom === 'semantic_studio',
         });
 
         const messageUuid = await this.aiAgentModel.createWebAppPrompt({
@@ -19332,7 +19325,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 : null,
             agentModelConfig: agent?.modelConfig ?? null,
             requestedModelConfig: data.modelConfig ?? null,
-            preferredTier: null,
+            prefersStudioModel: false,
         });
 
         if (!threadUuid) {
