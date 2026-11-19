@@ -294,8 +294,6 @@ type SearchContentResult = Awaited<
 
 // A failed node's error, e.g. a Python traceback, as the model sees it.
 const COMPOSER_NODE_ERROR_MAX_CHARS = 4096;
-// Most warehouses describe one table per request, so one search reads a bounded number of them.
-const MAX_TABLES_PER_COLUMN_READ = 500;
 const WAREHOUSE_COLUMNS_TTL_MS = 10 * 60 * 1000;
 const MAX_KEPT_TABLE_COLUMNS = 20_000;
 
@@ -6302,9 +6300,8 @@ export class AiAgentToolsService extends BaseService {
                                 })),
                             ),
                 );
-                const tables = listed.slice(0, MAX_TABLES_PER_COLUMN_READ);
                 // Columns were read with this person's credentials, so they are kept for this person only.
-                const keyOf = (table: (typeof tables)[number]) =>
+                const keyOf = (table: (typeof listed)[number]) =>
                     [
                         context.projectUuid,
                         context.user.userUuid,
@@ -6313,19 +6310,24 @@ export class AiAgentToolsService extends BaseService {
                         table.table,
                     ].join('|');
                 const now = Date.now();
-                const unread = tables.filter((table) => {
+                const isKept = (table: (typeof listed)[number]) => {
                     const kept = this.warehouseColumns.get(keyOf(table));
-                    return !kept || now - kept.at > WAREHOUSE_COLUMNS_TTL_MS;
-                });
-                if (unread.length > 0) {
-                    const read = await this.projectService.getWarehouseColumns(
-                        context.user,
-                        context.projectUuid,
-                        context.defaultQueryExecutionContext,
-                        unread,
-                        context.querySurface,
+                    return (
+                        kept !== undefined &&
+                        now - kept.at <= WAREHOUSE_COLUMNS_TTL_MS
                     );
-                    unread.forEach((table) => {
+                };
+                const unread = listed.filter((table) => !isKept(table));
+                if (unread.length > 0) {
+                    const { catalog: read, tables: readTables } =
+                        await this.projectService.getWarehouseColumns(
+                            context.user,
+                            context.projectUuid,
+                            context.defaultQueryExecutionContext,
+                            unread,
+                            context.querySurface,
+                        );
+                    readTables.forEach((table) => {
                         const key = keyOf(table);
                         // Deleted first so a refreshed table moves to the end, and the oldest is always first.
                         this.warehouseColumns.delete(key);
@@ -6348,6 +6350,7 @@ export class AiAgentToolsService extends BaseService {
                         this.warehouseColumns.delete(oldest);
                     }
                 }
+                const tables = listed.filter(isKept);
                 return {
                     tables: tables.map((table) => ({
                         ...table,
@@ -6355,6 +6358,7 @@ export class AiAgentToolsService extends BaseService {
                             this.warehouseColumns.get(keyOf(table))?.columns ??
                             [],
                     })),
+                    // Only a warehouse read table by table leaves any out.
                     unreadTableCount: listed.length - tables.length,
                 };
             },

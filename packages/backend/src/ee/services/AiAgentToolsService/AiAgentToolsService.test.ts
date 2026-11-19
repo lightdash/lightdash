@@ -1001,14 +1001,17 @@ describe('AiAgentToolsService', () => {
                 _context: unknown,
                 tables: { database: string; schema: string; table: string }[],
             ) => ({
-                analytics: {
-                    jaffle: Object.fromEntries(
-                        tables.map(({ table }) => [
-                            table,
-                            { id: DimensionType.NUMBER },
-                        ]),
-                    ),
+                catalog: {
+                    analytics: {
+                        jaffle: Object.fromEntries(
+                            tables.map(({ table }) => [
+                                table,
+                                { id: DimensionType.NUMBER },
+                            ]),
+                        ),
+                    },
                 },
+                tables,
             }),
         );
         const makeColumnsRuntime = (schemas: string[]) =>
