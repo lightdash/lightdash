@@ -635,11 +635,39 @@
 }
 
 /* Lets long change names truncate inside the picker's items. */
+.pickerItem {
+    padding: 6px 10px;
+}
+
 .pickerLabel {
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
+}
+
+.pickerDot {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--mantine-color-yellow-5);
+}
+
+.pickerDot[data-kind='published'] {
+    background: var(--mantine-color-green-6);
+}
+
+.pickerSection {
+    padding: 10px 10px 4px;
+}
+
+.pickerLink {
+    flex: none;
     white-space: nowrap;
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-dimmed);
+}
+
+.pickerLink:hover {
+    color: var(--mantine-color-text);
 }
 
 /* The change you are on, after the views: its name and where it stands. */

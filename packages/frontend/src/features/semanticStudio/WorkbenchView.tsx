@@ -13,9 +13,10 @@ import {
     Anchor,
     Avatar,
     Box,
-    Menu,
     Button,
     Group,
+    Loader,
+    Menu,
     Paper,
     Text,
     Title,
@@ -931,6 +932,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 name: target.name,
                 isCurrent:
                     !!sourcesPrUrl && sourcesPrUrl === target.pullRequest?.url,
+                updatedAt: target.updatedAt,
             }))}
             isBusy={false}
             status={null}
@@ -1163,7 +1165,38 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     />
                 );
             case 'sources':
-                return !sourceFile && sourcesPrUrl ? (
+                if (!sourceFile && !sourcesPrUrl) {
+                    // No file is open and the draft has no pull request to show: say where things stand.
+                    const empty = saving
+                        ? {
+                              icon: <Loader size="sm" color="gray" />,
+                              title: 'Saving your change',
+                              description:
+                                  'Its files show here when the save finishes.',
+                          }
+                        : !isOnLive && (workspace || isStartingChange)
+                          ? {
+                                icon: null,
+                                title: 'Nothing in this draft yet',
+                                description:
+                                    'Ask for a change in the chat, or open a file from the list and edit it.',
+                            }
+                          : {
+                                icon: null,
+                                title: 'Pick a file',
+                                description:
+                                    'Open one from the list to read it. Editing a file starts a draft.',
+                            };
+                    return (
+                        <EmptyState
+                            {...empty}
+                            maw={460}
+                            titleProps={{ order: 5 }}
+                            descriptionProps={{ fz: 'sm' }}
+                        />
+                    );
+                }
+                return !sourceFile ? (
                     <StudioChanges
                         header={null}
                         projectUuid={view.project.id}

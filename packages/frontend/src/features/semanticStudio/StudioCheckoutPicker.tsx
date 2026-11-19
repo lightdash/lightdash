@@ -5,15 +5,16 @@ import {
     Loader,
     Menu,
     Text,
+    UnstyledButton,
     VisuallyHidden,
 } from '@mantine/core';
 import {
     IconAlertTriangle,
-    IconCheck,
     IconChevronDown,
-    IconGitBranch,
     IconPlus,
 } from '@tabler/icons-react';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import {
@@ -24,7 +25,34 @@ import {
 import { useStudioWorkspaces } from './useStudioWorkspaces';
 import classes from './WorkbenchView.module.css';
 
-type PickerDraft = { id: string; name: string; isCurrent: boolean };
+dayjs.extend(relativeTime);
+
+type PickerDraft = {
+    id: string;
+    name: string;
+    isCurrent: boolean;
+    /** When it was last changed, as a date. */
+    updatedAt: Date;
+};
+
+/** One line of the menu: a dot for what it is, its name, and when a draft last changed. */
+const PickerRow: FC<{
+    kind: 'published' | 'draft';
+    name: string;
+    updatedAt: Date | null;
+}> = ({ kind, name, updatedAt }) => (
+    <Group gap="sm" wrap="nowrap">
+        <Box component="span" className={classes.pickerDot} data-kind={kind} />
+        <Text fz="xs" truncate flex={1} miw={0}>
+            {name}
+        </Text>
+        {updatedAt ? (
+            <Text fz="xs" c="dimmed" flex="none">
+                {dayjs(updatedAt).fromNow(true)}
+            </Text>
+        ) : null}
+    </Group>
+);
 
 /** The one menu that says where you are, Published or a draft, and takes you to another. */
 export const DraftPickerMenu: FC<{
@@ -50,100 +78,122 @@ export const DraftPickerMenu: FC<{
     onPick,
     onNew,
     onShowAll,
-}) => (
-    <Menu
-        position="bottom-start"
-        width={260}
-        classNames={{ itemLabel: classes.pickerLabel }}
-    >
-        <Menu.Target>
-            <Button
-                size="xs"
-                variant="subtle"
-                color="gray"
-                flex="0 1 auto"
-                miw={0}
-                maw={420}
-                className={classes.pickerTitle}
-                aria-busy={isBusy}
-                aria-label={
-                    currentName === null ? 'Published' : `Draft: ${currentName}`
-                }
-                leftSection={
-                    currentName === null ? (
-                        <Box component="span" className={classes.liveDot} />
-                    ) : (
-                        <MantineIcon icon={IconGitBranch} size={14} />
-                    )
-                }
-                rightSection={
-                    <Group gap={6} wrap="nowrap">
-                        {isBusy ? <Loader size={12} color="gray" /> : status}
-                        <MantineIcon icon={IconChevronDown} size={12} />
-                    </Group>
-                }
-            >
-                <Text span inherit truncate>
-                    {currentName ?? 'Published'}
-                </Text>
-            </Button>
-        </Menu.Target>
-        <Menu.Dropdown>
-            {header ? (
-                <>
-                    {header}
-                    <Menu.Divider />
-                </>
-            ) : null}
-            <Menu.Item
-                leftSection={
-                    <Box component="span" className={classes.liveDot} />
-                }
-                rightSection={
-                    currentName === null ? (
-                        <MantineIcon icon={IconCheck} size={14} />
-                    ) : null
-                }
-                aria-current={currentName === null ? true : undefined}
-                disabled={isBusy}
-                onClick={onPublished}
-            >
-                Published
-            </Menu.Item>
-            {drafts.length > 0 ? <Menu.Label>Your drafts</Menu.Label> : null}
-            {drafts.map((draft) => (
-                <Menu.Item
-                    key={draft.id}
-                    leftSection={<MantineIcon icon={IconGitBranch} size={14} />}
-                    rightSection={
-                        draft.isCurrent ? (
-                            <MantineIcon icon={IconCheck} size={14} />
-                        ) : null
+}) => {
+    // The trigger already says where you are, so the menu lists only where you can go.
+    const others = drafts.filter(({ isCurrent }) => !isCurrent);
+    return (
+        <Menu
+            position="bottom-start"
+            width={300}
+            classNames={{
+                item: classes.pickerItem,
+                itemLabel: classes.pickerLabel,
+            }}
+        >
+            <Menu.Target>
+                <Button
+                    size="xs"
+                    variant="subtle"
+                    color="gray"
+                    flex="0 1 auto"
+                    miw={0}
+                    maw={420}
+                    className={classes.pickerTitle}
+                    aria-busy={isBusy}
+                    aria-label={
+                        currentName === null
+                            ? 'Published'
+                            : `Draft: ${currentName}`
                     }
-                    aria-current={draft.isCurrent || undefined}
-                    disabled={isBusy}
-                    onClick={() => onPick(draft.id)}
-                    title={draft.name}
+                    leftSection={
+                        <Box
+                            component="span"
+                            className={classes.pickerDot}
+                            data-kind={
+                                currentName === null ? 'published' : 'draft'
+                            }
+                        />
+                    }
+                    rightSection={
+                        <Group gap={6} wrap="nowrap">
+                            {isBusy ? (
+                                <Loader size={12} color="gray" />
+                            ) : (
+                                status
+                            )}
+                            <MantineIcon icon={IconChevronDown} size={12} />
+                        </Group>
+                    }
                 >
                     <Text span inherit truncate>
-                        {draft.name}
+                        {currentName ?? 'Published'}
                     </Text>
+                </Button>
+            </Menu.Target>
+            <Menu.Dropdown>
+                {header ? (
+                    <>
+                        {header}
+                        <Menu.Divider />
+                    </>
+                ) : null}
+                {currentName === null ? null : (
+                    <Menu.Item disabled={isBusy} onClick={onPublished}>
+                        <PickerRow
+                            kind="published"
+                            name="Back to Published"
+                            updatedAt={null}
+                        />
+                    </Menu.Item>
+                )}
+                {others.length > 0 ? (
+                    <Group
+                        justify="space-between"
+                        wrap="nowrap"
+                        className={classes.pickerSection}
+                    >
+                        <Text fz="xs" c="dimmed">
+                            Your drafts
+                        </Text>
+                        {onShowAll ? (
+                            <UnstyledButton
+                                className={classes.pickerLink}
+                                onClick={onShowAll}
+                            >
+                                View all
+                            </UnstyledButton>
+                        ) : null}
+                    </Group>
+                ) : null}
+                {others.map((draft) => (
+                    <Menu.Item
+                        key={draft.id}
+                        disabled={isBusy}
+                        onClick={() => onPick(draft.id)}
+                        title={draft.name}
+                    >
+                        <PickerRow
+                            kind="draft"
+                            name={draft.name}
+                            updatedAt={draft.updatedAt}
+                        />
+                    </Menu.Item>
+                ))}
+                {currentName !== null || others.length > 0 ? (
+                    <Menu.Divider />
+                ) : null}
+                <Menu.Item
+                    fz="xs"
+                    leftSection={<MantineIcon icon={IconPlus} size={14} />}
+                    disabled={isBusy}
+                    onClick={onNew}
+                >
+                    New draft
                 </Menu.Item>
-            ))}
-            <Menu.Divider />
-            {onShowAll ? (
-                <Menu.Item onClick={onShowAll}>All drafts</Menu.Item>
-            ) : null}
-            <Menu.Item
-                leftSection={<MantineIcon icon={IconPlus} size={14} />}
-                disabled={isBusy}
-                onClick={onNew}
-            >
-                New draft
-            </Menu.Item>
-        </Menu.Dropdown>
-    </Menu>
-);
+            </Menu.Dropdown>
+        </Menu>
+    );
+};
 
 /** Which of your drafts Models and Code show, or Published. */
 export const StudioCheckoutPicker: FC<{
@@ -169,6 +219,7 @@ export const StudioCheckoutPicker: FC<{
                     id: target.workspaceUuid,
                     name: target.name,
                     isCurrent: target.workspaceUuid === current?.workspaceUuid,
+                    updatedAt: target.updatedAt,
                 }))}
                 isBusy={isBusy}
                 status={
