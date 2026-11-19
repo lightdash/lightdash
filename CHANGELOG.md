@@ -1,3 +1,11 @@
+## [3.337.1](https://github.com/lightdash/lightdash/compare/3.337.0...3.337.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **queries:** align pivot calculation references ([#32488](https://github.com/lightdash/lightdash/issues/32488)) ([b5c99a5](https://github.com/lightdash/lightdash/commit/b5c99a534e744de94603f727d0fdb79ff157911d))
+* **scheduler:** resume workers after a failed drain on db disconnect ([#32974](https://github.com/lightdash/lightdash/issues/32974)) ([46d14e7](https://github.com/lightdash/lightdash/commit/46d14e79993d86191ee725ce7ce3ab83dadfae37)), closes [#32145](https://github.com/lightdash/lightdash/issues/32145) [#32145](https://github.com/lightdash/lightdash/issues/32145)
+
 # [3.337.0](https://github.com/lightdash/lightdash/compare/3.336.2...3.337.0) (2026-11-19)
 
 
