@@ -1219,35 +1219,67 @@ const IframeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
         return () => window.removeEventListener('message', handleMessage);
     }, [agentUuid, instanceOrigin, onThreadChange, tokenContext]);
 
-    if (!tokenContext) {
-        return null;
-    }
-
     const threadSetup = getEmbedAiAgentThreadSetup({ binding, threadContext });
     const newThreadPrompt = getNewThreadPrompt(initialPrompt, threadUuid);
+    const embedUrlOptions = tokenContext
+        ? {
+              agentUuid,
+              disableNavigation,
+              instanceUrl,
+              projectUuid: tokenContext.projectUuid,
+              targetOrigin,
+              theme: iframeTheme,
+              followSystemTheme: theme === 'system',
+              threadSetup,
+              threadUuid,
+              token: tokenContext.token,
+          }
+        : null;
+    const baseUrl = embedUrlOptions
+        ? getAiAgentEmbedUrl(embedUrlOptions)
+        : null;
+    // The iframe keeps the prompt it loaded with: clearing the prop must not
+    // change src or key, or the viewer loses their thread
+    const [loaded, setLoaded] = useState({
+        baseUrl,
+        seenPrompt: newThreadPrompt,
+        prompt: newThreadPrompt,
+        generation: 0,
+    });
+    let current = loaded;
+    if (baseUrl !== loaded.baseUrl) {
+        current = {
+            ...loaded,
+            baseUrl,
+            seenPrompt: newThreadPrompt,
+            prompt: newThreadPrompt,
+        };
+    } else if (newThreadPrompt !== loaded.seenPrompt) {
+        current = newThreadPrompt
+            ? {
+                  ...loaded,
+                  seenPrompt: newThreadPrompt,
+                  prompt: newThreadPrompt,
+                  generation: loaded.generation + 1,
+              }
+            : { ...loaded, seenPrompt: undefined };
+    }
+    if (current !== loaded) {
+        setLoaded(current);
+    }
+
+    if (!embedUrlOptions) {
+        return null;
+    }
 
     return (
         <iframe
             // A hash-only src change doesn't reload the embed, so remount it
-            key={buildEmbedHash(
-                '',
-                threadSetup,
-                disableNavigation,
-                newThreadPrompt,
-            )}
+            key={`${buildEmbedHash('', threadSetup, disableNavigation)}:${current.generation}`}
             title="AI agent"
             src={getAiAgentEmbedUrl({
-                agentUuid,
-                disableNavigation,
-                instanceUrl,
-                projectUuid: tokenContext.projectUuid,
-                targetOrigin,
-                theme: iframeTheme,
-                followSystemTheme: theme === 'system',
-                initialPrompt: newThreadPrompt,
-                threadSetup,
-                threadUuid,
-                token: tokenContext.token,
+                ...embedUrlOptions,
+                initialPrompt: current.prompt,
             })}
             style={{
                 width: '100%',

@@ -1265,6 +1265,56 @@ describe('SDK AI agent', () => {
         expect(parseEmbedHash(iframeSrc.hash).aiAgentInitialPrompt).toBeNull();
     });
 
+    it('keeps the iframe when the host clears the initial prompt', async () => {
+        const props = {
+            token: mockToken,
+            instanceUrl: mockInstanceUrl,
+            agentUuid: 'test-agent-uuid',
+        };
+        const { container, rerender } = render(
+            <AiAgent {...props} initialPrompt="Why did margin drop?" />,
+        );
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+        const iframe = container.querySelector('iframe');
+        const src = iframe?.getAttribute('src');
+
+        rerender(<AiAgent {...props} />);
+
+        expect(container.querySelector('iframe')).toBe(iframe);
+        expect(iframe?.getAttribute('src')).toBe(src);
+    });
+
+    it('reloads the iframe when the host passes another initial prompt', async () => {
+        const props = {
+            token: mockToken,
+            instanceUrl: mockInstanceUrl,
+            agentUuid: 'test-agent-uuid',
+        };
+        const { container, rerender } = render(
+            <AiAgent {...props} initialPrompt="Why did margin drop?" />,
+        );
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+        const iframe = container.querySelector('iframe');
+
+        rerender(<AiAgent {...props} />);
+        rerender(<AiAgent {...props} initialPrompt="Why did margin drop?" />);
+
+        expect(container.querySelector('iframe')).not.toBe(iframe);
+
+        rerender(<AiAgent {...props} initialPrompt="What changed in Q3?" />);
+
+        const reloaded = new URL(
+            container.querySelector('iframe')?.getAttribute('src') ?? '',
+        );
+        expect(parseEmbedHash(reloaded.hash).aiAgentInitialPrompt).toBe(
+            'What changed in Q3?',
+        );
+    });
+
     it('passes disableNavigation in the iframe hash', async () => {
         const { container } = render(
             <AiAgent
