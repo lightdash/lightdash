@@ -127,10 +127,31 @@ describe('Slack channel service account on the real schema', () => {
                 slackChannelId: 'C_SHARED',
             }),
         ).toEqual({
+            agentUuid,
             serviceAccountUuid,
             serviceAccountUserUuid,
             name: 'slack-analytics-bot',
         });
+
+        await database.raw(
+            "update service_accounts set expires_at = now() - interval '1 minute' where service_account_uuid = ?",
+            [serviceAccountUuid],
+        );
+        expect(
+            await model.findSlackChannelServiceAccount({
+                organizationUuid,
+                slackChannelId: 'C_SHARED',
+            }),
+        ).toBeNull();
+        expect(
+            await model.findUsableServiceAccountUuids(organizationUuid, [
+                serviceAccountUuid,
+            ]),
+        ).toEqual([]);
+        await database.raw(
+            'update service_accounts set expires_at = null where service_account_uuid = ?',
+            [serviceAccountUuid],
+        );
         expect(
             await model.findSlackChannelServiceAccount({
                 organizationUuid,

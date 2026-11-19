@@ -1237,7 +1237,12 @@ export class AiAgentModel {
             .select('service_account_uuid')
             .where('organization_uuid', organizationUuid)
             .whereIn('service_account_uuid', serviceAccountUuids)
-            .whereNotNull('service_account_user_uuid');
+            .whereNotNull('service_account_user_uuid')
+            .where((query) =>
+                query
+                    .whereNull('expires_at')
+                    .orWhere('expires_at', '>', this.database.fn.now()),
+            );
         return rows.map((row) => row.service_account_uuid);
     }
 
@@ -1248,6 +1253,7 @@ export class AiAgentModel {
         organizationUuid: string;
         slackChannelId: string;
     }): Promise<{
+        agentUuid: string;
         serviceAccountUuid: string;
         serviceAccountUserUuid: string;
         name: string;
@@ -1258,7 +1264,13 @@ export class AiAgentModel {
                 `${ServiceAccountsTableName}.service_account_uuid`,
                 `${AiAgentSlackIntegrationTableName}.service_account_uuid`,
             )
+            .innerJoin(
+                AiAgentIntegrationTableName,
+                `${AiAgentIntegrationTableName}.ai_agent_integration_uuid`,
+                `${AiAgentSlackIntegrationTableName}.ai_agent_integration_uuid`,
+            )
             .select({
+                agentUuid: `${AiAgentIntegrationTableName}.ai_agent_uuid`,
                 serviceAccountUuid: `${ServiceAccountsTableName}.service_account_uuid`,
                 serviceAccountUserUuid: `${ServiceAccountsTableName}.service_account_user_uuid`,
                 name: `${ServiceAccountsTableName}.description`,
@@ -1278,8 +1290,18 @@ export class AiAgentModel {
             .whereNotNull(
                 `${ServiceAccountsTableName}.service_account_user_uuid`,
             )
+            .where((query) =>
+                query
+                    .whereNull(`${ServiceAccountsTableName}.expires_at`)
+                    .orWhere(
+                        `${ServiceAccountsTableName}.expires_at`,
+                        '>',
+                        this.database.fn.now(),
+                    ),
+            )
             .first<
                 | {
+                      agentUuid: string;
                       serviceAccountUuid: string;
                       serviceAccountUserUuid: string;
                       name: string;

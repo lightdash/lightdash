@@ -35,6 +35,7 @@ const buildService = ({
             findSlackChannelServiceAccount: vi.fn().mockResolvedValue(
                 serviceAccount
                     ? {
+                          agentUuid: 'agent',
                           serviceAccountUuid: 'sa-uuid',
                           serviceAccountUserUuid: SERVICE_ACCOUNT_USER_UUID,
                           name: 'slack-analytics-bot',
@@ -174,5 +175,66 @@ describe('Slack channel service account', () => {
         expect(createSlackPrompt).toHaveBeenCalledWith(
             expect.objectContaining({ userUuid: 'linked-user' }),
         );
+    });
+});
+
+describe('agent lookup for Slack prompts', () => {
+    const restrictedAgent = {
+        uuid: 'agent',
+        organizationUuid: 'org',
+        projectUuid: 'project',
+        adminOnly: true,
+    };
+    const prompt = {
+        organizationUuid: 'org',
+        projectUuid: 'project',
+        slackChannelId: CHANNEL_ID,
+        createdByUserUuid: SERVICE_ACCOUNT_USER_UUID,
+    };
+    const build = (mappedAgentUuid: string | null) => {
+        const service = new AiAgentService({
+            aiAgentModel: {
+                findSlackChannelServiceAccount: vi.fn().mockResolvedValue(
+                    mappedAgentUuid
+                        ? {
+                              agentUuid: mappedAgentUuid,
+                              serviceAccountUuid: 'sa-uuid',
+                              serviceAccountUserUuid: SERVICE_ACCOUNT_USER_UUID,
+                              name: 'slack-analytics-bot',
+                          }
+                        : null,
+                ),
+                getAgent: vi.fn().mockResolvedValue(restrictedAgent),
+            },
+            analytics: { track: vi.fn() },
+            lightdashConfig: { siteUrl: 'https://app.example.com', ai: {} },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any);
+        /* eslint-disable @typescript-eslint/no-explicit-any */
+        vi.spyOn(service as any, 'getIsCopilotEnabled').mockResolvedValue(true);
+        const getAgent = vi
+            .spyOn(service, 'getAgent')
+            .mockRejectedValue(new Error('Forbidden'));
+        const lookup = () =>
+            (service as any).getAgentForSlackPrompt(
+                { userUuid: SERVICE_ACCOUNT_USER_UUID },
+                prompt,
+                'agent',
+            );
+        /* eslint-enable @typescript-eslint/no-explicit-any */
+        return { lookup, getAgent };
+    };
+
+    it("skips the agent's access lists for the channel's service account", async () => {
+        const { lookup, getAgent } = build('agent');
+        await expect(lookup()).resolves.toEqual(restrictedAgent);
+        expect(getAgent).not.toHaveBeenCalled();
+    });
+
+    it('keeps the access check for another agent or a regular prompt', async () => {
+        await expect(build('other-agent').lookup()).rejects.toThrow(
+            'Forbidden',
+        );
+        await expect(build(null).lookup()).rejects.toThrow('Forbidden');
     });
 });

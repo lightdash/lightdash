@@ -2342,10 +2342,10 @@ export class AiAgentService extends BaseService {
                           prompt.createdByUserUuid,
                           prompt.organizationUuid,
                       );
-            agent = await this.getAgent(
+            agent = await this.getAgentForSlackPrompt(
                 user,
+                prompt,
                 prompt.agentUuid,
-                prompt.projectUuid,
             );
         } catch (error) {
             const failure = deliveryGuard.getFailure();
@@ -21236,7 +21236,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             }
 
             if (thread.agentUuid) {
-                agent = await this.getAgent(user, thread.agentUuid);
+                agent = await this.getAgentForSlackPrompt(
+                    user,
+                    slackPrompt,
+                    thread.agentUuid,
+                );
             }
 
             const installation =
@@ -23966,6 +23970,40 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             serviceAccount !== null &&
             serviceAccount.serviceAccountUserUuid === prompt.createdByUserUuid
         );
+    }
+
+    // The admin's channel mapping grants the service account this agent, so the
+    // agent's own user and group access lists don't apply to it.
+    private async getAgentForSlackPrompt(
+        user: SessionUser,
+        prompt: SlackPrompt,
+        agentUuid: string,
+    ): Promise<AiAgent> {
+        const serviceAccount =
+            await this.aiAgentModel.findSlackChannelServiceAccount({
+                organizationUuid: prompt.organizationUuid,
+                slackChannelId: prompt.slackChannelId,
+            });
+        if (
+            serviceAccount === null ||
+            serviceAccount.serviceAccountUserUuid !==
+                prompt.createdByUserUuid ||
+            serviceAccount.agentUuid !== agentUuid
+        ) {
+            return this.getAgent(user, agentUuid, prompt.projectUuid);
+        }
+        if (!(await this.getIsCopilotEnabled(user))) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid: prompt.organizationUuid,
+            agentUuid,
+            projectUuid: prompt.projectUuid,
+        });
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+        return agent;
     }
 
     private async handleAiAgentAuth(
