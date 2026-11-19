@@ -46,9 +46,9 @@ import {
 } from './splitPatch';
 
 const FILE_KINDS: Record<string, string> = {
-    yml: 'YAML',
-    yaml: 'YAML',
-    sql: 'SQL',
+    yml: 'YAML file',
+    yaml: 'YAML file',
+    sql: 'SQL file',
 };
 
 const changeOfFile = ({ patch }: DiffFile): ChangeKind => {
@@ -165,7 +165,7 @@ export const DbtTurnSummaryCard: FC<{
                               kind:
                                   FILE_KINDS[
                                       file.path.split('.').pop() ?? ''
-                                  ] ?? 'File',
+                                  ] ?? 'file',
                               icon: (
                                   <MantineIcon
                                       icon={IconFileCode}
@@ -188,7 +188,7 @@ export const DbtTurnSummaryCard: FC<{
                       {
                           id: model,
                           change: 'changed',
-                          kind: 'Model',
+                          kind: 'model',
                           icon: <MantineIcon icon={IconTable} color="dimmed" />,
                           label: model,
                           detail: null,

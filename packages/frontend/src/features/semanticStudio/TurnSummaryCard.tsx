@@ -50,10 +50,10 @@ const ApplyModal = lazy(() =>
 );
 
 const KIND_LABELS: Record<FieldChange['kind'], string> = {
-    dimension: 'Dimension',
-    metric: 'Metric',
-    join: 'Join',
-    model: 'Model',
+    dimension: 'dimension',
+    metric: 'metric',
+    join: 'join to',
+    model: 'model',
 };
 
 type ModelGroup = {
@@ -97,9 +97,13 @@ const groupByModel = (proposals: SemanticLayerProposal[]): ModelGroup[] => {
                       contentAfter: diffs[diffs.length - 1].contentAfter,
                   }
                 : null;
+        const { title, subtitle } = describeModelChange(model, span);
         return {
             model,
-            ...describeModelChange(model, span),
+            title,
+            // "New" and "Removed" stand beside a model's name elsewhere; alone on a card they need their noun.
+            subtitle:
+                subtitle?.replace(/^(\w+)/, (word) => `${word} model`) ?? null,
             removed: span !== null && getChangeKind(span) === 'removed',
             fields: [...fields.values()],
         };
@@ -357,7 +361,7 @@ export const TurnSummaryCard: FC<{
                       }
                     : {
                           icon: <MantineIcon icon={IconGitBranch} size={14} />,
-                          status: 'Draft',
+                          status: 'Saved to your draft',
                       };
             case 'published':
                 return {

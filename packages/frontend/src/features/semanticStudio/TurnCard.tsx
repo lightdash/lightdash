@@ -7,7 +7,6 @@ import {
     Stack,
     Text,
     UnstyledButton,
-    VisuallyHidden,
 } from '@mantine/core';
 import {
     IconChevronDown,
@@ -24,17 +23,17 @@ import { ISSUE_KINDS, type Issue } from './proposalIssues';
 import { TaskIcon, type TaskState } from './TaskRow';
 import classes from './TurnSummaryCard.module.css';
 
-const GLYPHS: Record<ChangeKind, { glyph: string; word: string }> = {
-    new: { glyph: '+', word: 'Added' },
-    changed: { glyph: '~', word: 'Changed' },
-    removed: { glyph: '−', word: 'Removed' },
+const CHANGE_WORDS: Record<ChangeKind, string> = {
+    new: 'New',
+    changed: 'Changed',
+    removed: 'Removed',
 };
 
 /** One changed part of a model, linking to where it can be looked at. */
 export type TurnRow = {
     id: string;
     change: ChangeKind;
-    /** What it is, for a reader who cannot see its icon. */
+    /** What it is, as it reads after "New", "Changed" or "Removed": "metric", "join to", "YAML file". */
     kind: string;
     icon: ReactNode;
     label: string;
@@ -53,34 +52,28 @@ export type TurnGroup = {
 
 export type Safety = { state: TaskState; text: string; why: string | null };
 
-const Row: FC<{ row: TurnRow }> = ({ row }) => {
-    const { glyph, word } = GLYPHS[row.change];
-    return (
-        <UnstyledButton
-            component={Link}
-            to={row.to}
-            className={classes.row}
-            data-change={row.change}
-            title={row.title}
-        >
-            <Text span fz="xs" className={classes.glyph} aria-hidden>
-                {glyph}
+/** One change as a short sentence: "New join to Merchants". */
+const Row: FC<{ row: TurnRow }> = ({ row }) => (
+    <UnstyledButton
+        component={Link}
+        to={row.to}
+        className={classes.row}
+        title={row.title}
+    >
+        <Box className={classes.kindIcon}>{row.icon}</Box>
+        <Text span fz="xs" truncate className={classes.label}>
+            <Text span inherit c="dimmed">
+                {`${CHANGE_WORDS[row.change]} ${row.kind} `}
             </Text>
-            <Box className={classes.kindIcon}>{row.icon}</Box>
-            <Text span fz="xs" truncate className={classes.label}>
-                <VisuallyHidden>
-                    {word} {row.kind}{' '}
-                </VisuallyHidden>
-                {row.label}
+            {row.label}
+        </Text>
+        {row.detail ? (
+            <Text span fz="xs" c="dimmed" truncate className={classes.sub}>
+                {row.detail}
             </Text>
-            {row.detail ? (
-                <Text span fz="xs" c="dimmed" truncate className={classes.sub}>
-                    {row.detail}
-                </Text>
-            ) : null}
-        </UnstyledButton>
-    );
-};
+        ) : null}
+    </UnstyledButton>
+);
 
 /** Stands in for a turn's card while the change it will show is still being checked. */
 export const TurnCardSkeleton: FC = () => (
@@ -133,8 +126,20 @@ export const TurnCard: FC<{
 }) => {
     const [isOpened, setIsOpened] = useState(false);
     const isOpen = isLatest || isOpened;
-    const heading = (
-        <Text fz="sm" fw={500} truncate flex={1} title={name ?? undefined}>
+    // The latest card has room to say where the change went on its own line; a folded one stays one line.
+    const heading = isLatest ? (
+        <Box flex={1} miw={0}>
+            <Text fz="sm" fw={500} truncate>
+                {status}
+            </Text>
+            {name ? (
+                <Text fz="xs" c="dimmed" truncate title={name}>
+                    {name}
+                </Text>
+            ) : null}
+        </Box>
+    ) : (
+        <Text fz="xs" fw={500} truncate flex={1}>
             {status}
             {name ? (
                 <Text span inherit fw={400} c="dimmed">
@@ -146,8 +151,13 @@ export const TurnCard: FC<{
     return (
         <Paper mt="xs" className={classes.card} data-gone={isGone}>
             {isLatest ? (
-                <Group className={classes.section} gap={6} wrap="nowrap">
-                    {icon}
+                <Group
+                    className={classes.section}
+                    gap={6}
+                    wrap="nowrap"
+                    align="flex-start"
+                >
+                    <Box className={classes.headIcon}>{icon}</Box>
                     {heading}
                     {headerAction}
                 </Group>
@@ -192,18 +202,19 @@ export const TurnCard: FC<{
                                                 title={model}
                                             >
                                                 {title}
-                                                {subtitle ? (
-                                                    <Text
-                                                        span
-                                                        inherit
-                                                        fw={400}
-                                                        c="dimmed"
-                                                    >
-                                                        {` · ${subtitle}`}
-                                                    </Text>
-                                                ) : null}
                                             </Text>
                                         </Group>
+                                        {subtitle ? (
+                                            <Text
+                                                fz="xs"
+                                                c="dimmed"
+                                                truncate
+                                                title={subtitle}
+                                                className={classes.modelNote}
+                                            >
+                                                {subtitle}
+                                            </Text>
+                                        ) : null}
                                         {rows.map((row) => (
                                             <Row key={row.id} row={row} />
                                         ))}
