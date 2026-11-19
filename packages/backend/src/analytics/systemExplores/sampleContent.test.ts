@@ -185,7 +185,7 @@ describe('analytics sample content', () => {
             ]);
             expect(analyticsLibraryChartBindings.get(slug)).toMatchObject({
                 slug: 'heatmap',
-                minVersion: '0.4.0',
+                minVersion: '0.4.1',
             });
         });
 

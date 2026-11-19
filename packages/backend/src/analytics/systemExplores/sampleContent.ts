@@ -283,7 +283,7 @@ const aiUsageContent = {
                 axisLabel: 'Calls',
                 libraryChart: {
                     slug: 'customizable-cartesian-chart',
-                    minVersion: '0.17.0',
+                    minVersion: '0.17.1',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
                         m1: 'ai_usage_total_ai_calls',
@@ -322,7 +322,7 @@ const aiUsageContent = {
                 axisLabel: 'Tokens',
                 libraryChart: {
                     slug: 'customizable-cartesian-chart',
-                    minVersion: '0.17.0',
+                    minVersion: '0.17.1',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
                         m1: 'ai_usage_total_tokens_used',
@@ -392,7 +392,7 @@ const aiUsageContent = {
                     'Tokens by feature over the selected period. Token volume is not monetary cost.',
                 libraryChart: {
                     slug: 'heatmap',
-                    minVersion: '0.4.0',
+                    minVersion: '0.4.1',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
                         y: 'ai_usage_feature',

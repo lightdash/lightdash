@@ -465,7 +465,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'heatmap',
-            minVersion: '0.4.0',
+            minVersion: '0.4.1',
             fieldMapping: {
                 x: 'agent_requests_requested_at_day',
                 y: 'agent_requests_agent_name',
@@ -492,7 +492,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'vega-trellis',
-            minVersion: '0.6.0',
+            minVersion: '0.6.1',
             fieldMapping: {
                 x: 'agent_requests_requested_at_day',
                 value: 'agent_requests_total_requests',
@@ -582,7 +582,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.17.0',
+            minVersion: '0.17.1',
             fieldMapping: {
                 x: 'agent_requests_agent_name',
                 m1: 'agent_requests_total_requests',
@@ -621,7 +621,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         yFields: ['agent_requests_total_requests'],
         libraryChart: {
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.17.0',
+            minVersion: '0.17.1',
             fieldMapping: {
                 x: 'agent_requests_requested_at_day',
                 m1: 'agent_requests_total_requests',
@@ -677,7 +677,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.17.0',
+            minVersion: '0.17.1',
             fieldMapping: {
                 x: 'agent_requests_retry_count',
                 m1: 'agent_requests_total_requests',
@@ -731,7 +731,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.17.0',
+            minVersion: '0.17.1',
             fieldMapping: {
                 x: 'ai_usage_user_name',
                 m1: 'ai_usage_total_tokens_used',
@@ -776,7 +776,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'heatmap',
-            minVersion: '0.4.0',
+            minVersion: '0.4.1',
             fieldMapping: {
                 x: 'ai_usage_model',
                 y: 'ai_usage_feature',
