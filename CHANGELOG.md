@@ -1,3 +1,10 @@
+## [3.329.1](https://github.com/lightdash/lightdash/compare/3.329.0...3.329.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **billing:** hide billing portal button when no link can be fetched ([#32949](https://github.com/lightdash/lightdash/issues/32949)) ([53ae304](https://github.com/lightdash/lightdash/commit/53ae304257bc7980492dab54c4566322c67240b5))
+
 # [3.329.0](https://github.com/lightdash/lightdash/compare/3.328.3...3.329.0) (2026-11-19)
 
 
