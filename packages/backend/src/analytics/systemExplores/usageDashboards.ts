@@ -11,6 +11,7 @@ import {
 } from '@lightdash/common';
 import { adoptionChartSpecs, adoptionDashboardSpec } from './adoptionDashboard';
 import { analyticsColorPalette } from './analyticsColorPalette';
+import { contentChartSpecs, contentDashboardSpec } from './contentDashboard';
 import { embedChartSpecs, embedDashboardSpec } from './embedDashboard';
 import { homeChartSpecs, homeDashboardSpec } from './homeDashboard';
 import type { LibraryChartBinding } from './libraryCharts';
@@ -462,6 +463,7 @@ export const note = (
 const dashboardSpecs = [
     ...usageDashboardSpecs,
     peopleDashboardSpec,
+    contentDashboardSpec,
     adoptionDashboardSpec,
     embedDashboardSpec,
     homeDashboardSpec,
@@ -471,10 +473,18 @@ const allChartSpecs: UsageChartSpec[] = [
     ...homeChartSpecs,
     ...usageChartSpecs,
     ...peopleChartSpecs,
+    ...contentChartSpecs,
     ...adoptionChartSpecs,
     ...embedChartSpecs,
     ...peopleNoActivityChartSpecs,
 ];
+
+// A chart is found by its key alone, so two charts with one key would silently share a definition
+const duplicateKey = allChartSpecs
+    .map(({ key }) => key)
+    .find((key, index, keys) => keys.indexOf(key) !== index);
+if (duplicateKey)
+    throw new Error(`Duplicate built-in chart key: ${duplicateKey}`);
 
 export const usageLibraryChartBindings: ReadonlyMap<
     string,

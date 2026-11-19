@@ -334,6 +334,7 @@ export const ranking = ({
     libraryLimit = 500,
     libraryDescription,
     visualization,
+    extraMetrics = [],
     ...spec
 }: Base &
     Partial<Pick<UsageChartSpec, 'visualization' | 'xField' | 'yFields'>> & {
@@ -347,12 +348,14 @@ export const ranking = ({
         limit?: number;
         libraryLimit?: number;
         libraryDescription?: string;
+        // Measures only the plain table shows, such as a date
+        extraMetrics?: string[];
     }): UsageChartSpec => {
     const grouped = [by, ...(then ? [then] : []), ...(series ? [series] : [])];
     return {
         ...spec,
         dimensions: dimensions ?? grouped,
-        metrics,
+        metrics: [...metrics, ...extraMetrics],
         limit,
         sorts: [{ fieldId: metrics[0], descending: true }],
         ...(visualization ? { visualization } : {}),

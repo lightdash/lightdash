@@ -947,69 +947,6 @@ export const usageChartSpecs: UsageChartSpec[] = [
         flipAxes: true,
     },
     {
-        key: 'content-creation-by-month',
-        name: 'Content created by month',
-        description:
-            'Items in the latest inventory by the month they were created, including deleted items (recoverable). This is not a full history of all content. The date filter does not apply.',
-        explore: 'content_inventory',
-        dimensions: ['content_health_created_at_month'],
-        metrics: ['content_health_total_content'],
-        limit: 500,
-        sorts: [
-            {
-                descending: false,
-                fieldId: 'content_health_created_at_month',
-            },
-        ],
-        visualization: 'line',
-        xField: 'content_health_created_at_month',
-        yFields: ['content_health_total_content'],
-    },
-    {
-        key: 'content-ownership-current-snapshot',
-        name: 'Content ownership (current)',
-        description:
-            'Owner status reflects current Lightdash membership, not whether the person is still employed. Schedule ownership is not fully recorded.',
-        explore: 'content_inventory',
-        dimensions: ['content_health_owner_status'],
-        metrics: ['content_health_total_content'],
-        limit: 30,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'content_health_total_content',
-            },
-        ],
-        visualization: 'bar',
-        xField: 'content_health_owner_status',
-        yFields: ['content_health_total_content'],
-        flipAxes: true,
-    },
-    {
-        key: 'content-reach-distinct-people-not-just-views',
-        name: 'Viewers and views by content',
-        description:
-            'Distinct people who viewed each item, with the number of views.',
-        explore: 'content_reach',
-        dimensions: [
-            'content_reach_content_type',
-            'content_reach_content_name',
-            'content_reach_content_id',
-            'content_reach_project_id',
-        ],
-        metrics: [
-            'content_reach_distinct_viewers',
-            'content_reach_qualifying_views',
-        ],
-        limit: 50,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'content_reach_distinct_viewers',
-            },
-        ],
-    },
-    {
         key: 'data-app-builders-creation-and-iterations-by-week',
         name: 'Data app builders: creations and iterations by week',
         description:
@@ -1068,39 +1005,6 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
     },
     {
-        key: 'high-compute-dashboards-audience-versus-warehouse-time',
-        name: 'High-compute dashboards: viewers versus warehouse time',
-        description:
-            'Top 25 dashboards by warehouse execution time (ms), across all recorded history. The date filter does not apply. Each point is a dashboard; open the underlying results to see names.',
-        explore: 'content_health',
-        dimensions: [
-            'content_health_content_name',
-            'content_health_observed_viewers',
-            'content_health_content_id',
-            'content_health_project_id',
-        ],
-        metrics: [
-            'content_health_total_observed_queries',
-            'content_health_total_warehouse_execution_time_ms',
-        ],
-        limit: 25,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'content_health_total_warehouse_execution_time_ms',
-            },
-        ],
-        visualization: 'scatter',
-        xField: 'content_health_observed_viewers',
-        yFields: ['content_health_total_warehouse_execution_time_ms'],
-        filters: [
-            {
-                field: 'content_health_content_type',
-                values: ['dashboard'],
-            },
-        ],
-    },
-    {
         key: 'mcp-users-clients-tools-and-error-rates',
         name: 'MCP tool calls by user, client and tool',
         description: 'Latency is in milliseconds.',
@@ -1129,30 +1033,6 @@ export const usageChartSpecs: UsageChartSpec[] = [
             {
                 field: 'tool_activity_source',
                 values: ['mcp'],
-            },
-        ],
-    },
-    {
-        key: 'new-content-adoption-creation-week-proxy',
-        name: 'New content adoption after the first week',
-        description:
-            'Creation date stands in for launch date. Return activity after the first seven days only shows when enough history has been recorded. Older content may have been created before recording began.',
-        explore: 'content_reach',
-        dimensions: [
-            'content_reach_content_name',
-            'content_reach_content_created_at_day',
-            'content_reach_content_id',
-            'content_reach_project_id',
-        ],
-        metrics: [
-            'content_reach_distinct_viewers',
-            'content_reach_first_week_returning_viewers',
-        ],
-        limit: 30,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'content_reach_distinct_viewers',
             },
         ],
     },
@@ -1368,36 +1248,6 @@ export const usageChartSpecs: UsageChartSpec[] = [
             {
                 descending: true,
                 fieldId: 'query_events_total_queries',
-            },
-        ],
-    },
-    {
-        key: 'who-visited-which-dashboard',
-        name: 'Dashboard views by person',
-        description: '',
-        explore: 'content_reach',
-        dimensions: [
-            'content_reach_content_name',
-            'content_reach_user_name',
-            'content_reach_user_id',
-            'content_reach_content_id',
-            'content_reach_project_id',
-        ],
-        metrics: [
-            'content_reach_qualifying_views',
-            'content_reach_last_viewed_at',
-        ],
-        limit: 100,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'content_reach_qualifying_views',
-            },
-        ],
-        filters: [
-            {
-                field: 'content_reach_content_type',
-                values: ['dashboard'],
             },
         ],
     },
