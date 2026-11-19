@@ -1329,6 +1329,7 @@ export const useCreateAgentThreadMutation = (
             agentUuid: string;
             optimisticContext?: AiPromptContext;
             enableSqlMode?: boolean;
+            autoApproveSql?: boolean;
             toolHints?: string[];
             skipAgentResponse?: boolean;
         }
@@ -1337,12 +1338,13 @@ export const useCreateAgentThreadMutation = (
             agentUuid,
             optimisticContext: _optimisticContext,
             enableSqlMode: _enableSqlMode,
+            autoApproveSql: _autoApproveSql,
             toolHints: _toolHints,
             skipAgentResponse: _skipAgentResponse,
             ...data
         }) => createAgentThread(lightdashApi, projectUuid, agentUuid, data),
-        onMutate: ({ skipAgentResponse }) => {
-            if (!isEmbed && !skipAgentResponse) {
+        onMutate: ({ skipAgentResponse, autoApproveSql }) => {
+            if (!isEmbed && !skipAgentResponse && !autoApproveSql) {
                 requestSqlApprovalNotificationPermission();
             }
         },
@@ -1422,6 +1424,7 @@ export const useCreateAgentThreadMutation = (
                     threadUuid: thread.uuid,
                     messageUuid: thread.firstMessage.uuid,
                     enableSqlMode: variables.enableSqlMode,
+                    autoApproveSql: variables.autoApproveSql,
                     toolHints: variables.toolHints,
                     onFinish: () =>
                         queryClient.invalidateQueries({

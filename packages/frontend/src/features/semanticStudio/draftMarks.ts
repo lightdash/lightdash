@@ -8,6 +8,8 @@ export type DraftMarks = {
     kinds: Map<string, ChangeKind>;
     /** Who else has unpublished changes to each model. */
     others: Map<string, string[]>;
+    /** The open pull request holding this person's sent changes to each model. */
+    inReview: Map<string, string>;
 };
 
 // Read once for the page: every row asking the draft itself costs a subscription per row.
@@ -15,4 +17,5 @@ export const DraftMarksContext = createContext<DraftMarks>({
     labels: new Map(),
     kinds: new Map(),
     others: new Map(),
+    inReview: new Map(),
 });

@@ -472,7 +472,6 @@ export const DbtTurnSummaryCard: FC<{
             }
             groups={groups}
             safety={state === 'open' ? getSafety(latestCompile) : null}
-            note={state === 'open' ? note : null}
             isLatest={isLatestTurn}
             actions={actions}
             isGone={state === 'closed'}

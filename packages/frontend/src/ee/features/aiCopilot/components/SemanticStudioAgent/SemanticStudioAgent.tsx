@@ -154,6 +154,8 @@ const useStartThread = (
                 agentUuid: agent.uuid,
                 createdFrom: 'semantic_studio',
                 enableSqlMode: sqlMode,
+                // Studio runs the agent's SQL without asking for approval.
+                autoApproveSql: true,
                 ...withOpenModel(openModel, attached, submitted),
             });
             onAttachedSent();
@@ -288,16 +290,32 @@ const ExistingThread: FC<
     const send = (submitted: Submitted) => {
         void sendMessage({
             enableSqlMode: sqlMode,
+            autoApproveSql: true,
             ...withOpenModel({ modelName, fieldName }, attached, submitted),
         });
         onAttachedSent();
     };
     useAskedPrompt({ prompt, onPromptTaken }, (message) => send({ message }));
+    // The composer stays put while the conversation loads, so opening one never blanks the panel.
     if (isLoading || !thread) {
         return (
-            <Center flex={1}>
-                <Loader size="sm" color="gray" />
-            </Center>
+            <>
+                <Center flex={1}>
+                    <Loader size="sm" color="gray" />
+                </Center>
+                <StudioChatRefChips refs={attached} onRemove={onDetach} />
+                <AgentChatInput
+                    allowAttachments={false}
+                    accessCalloutVariant="inline"
+                    loading
+                    onSubmit={send}
+                    placeholder="What should I build or change?"
+                    projectUuid={projectUuid}
+                    agentUuid={agent.uuid}
+                    threadUuid={threadUuid}
+                    fullWidth
+                />
+            </>
         );
     }
     const isBusy = isSending || isStreaming || isThreadPending;

@@ -1,51 +1,17 @@
 import { Box } from '@mantine/core';
 import { type FC } from 'react';
 import classes from './ExploreIdleIllustration.module.css';
+import { getFaces, project, type Solid } from './isometric';
 
 type Tone = 'neutral' | 'dimension' | 'metric' | 'ghost';
 type Variant = 'chart' | 'table' | 'fields' | 'tables';
-// A box on the isometric floor: x runs down-right, y down-left, z up
-type Piece = {
-    x: number;
-    y: number;
-    z: number;
-    w: number;
-    d: number;
-    h: number;
+type Piece = Solid & {
     tone: Tone;
     // Rising pieces move on hover and while loading
     rises: boolean;
 };
 
 const FLOOR = 96;
-const ORIGIN = { x: 120, y: 44 };
-
-const project = (x: number, y: number, z: number) =>
-    `${ORIGIN.x + x - y},${ORIGIN.y + (x + y) / 2 - z}`;
-
-const getFaces = ({ x, y, z, w, d, h }: Piece) => {
-    const t = z + h;
-    return {
-        top: [
-            project(x, y, t),
-            project(x + w, y, t),
-            project(x + w, y + d, t),
-            project(x, y + d, t),
-        ].join(' '),
-        left: [
-            project(x, y + d, t),
-            project(x + w, y + d, t),
-            project(x + w, y + d, z),
-            project(x, y + d, z),
-        ].join(' '),
-        right: [
-            project(x + w, y, t),
-            project(x + w, y + d, t),
-            project(x + w, y + d, z),
-            project(x + w, y, z),
-        ].join(' '),
-    };
-};
 
 const PLATE: Piece = {
     x: 0,
