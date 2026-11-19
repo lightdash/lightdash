@@ -1,3 +1,10 @@
+# [3.345.0](https://github.com/lightdash/lightdash/compare/3.344.0...3.345.0) (2026-11-19)
+
+
+### Features
+
+* **semantic-studio:** a quieter draft picker, a page frame while loading, and a Code tab that says where a draft stands ([#33014](https://github.com/lightdash/lightdash/issues/33014)) ([dbbf5f5](https://github.com/lightdash/lightdash/commit/dbbf5f5b7c58e32330cdb64cda66019698c589dd))
+
 # [3.344.0](https://github.com/lightdash/lightdash/compare/3.343.1...3.344.0) (2026-11-19)
 
 
