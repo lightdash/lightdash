@@ -290,7 +290,7 @@ describe('withZoomedColumnLabels', () => {
                     { reference: 'revenue', type: DimensionType.NUMBER },
                     { reference: 'constructor', type: DimensionType.STRING },
                 ],
-                JSON.parse('{"orders_order_date_day":"Order date month"}'),
+                { orders_order_date_day: 'Order date month' },
             ),
         ).toEqual([
             {
