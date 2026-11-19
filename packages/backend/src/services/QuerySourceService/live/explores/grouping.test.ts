@@ -5,7 +5,7 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import { ATTIO_MAX_GROUPED_RECORDS } from '../integrations/attio/explores';
-import { GITHUB_MAX_QUERY_ROWS } from '../integrations/github/run';
+import { GITHUB_MAX_GROUPED_ROWS } from '../integrations/github/run';
 import { PYLON_MAX_QUERY_ROWS } from '../integrations/pylon/run';
 import {
     assertLiveResultComplete,
@@ -76,8 +76,8 @@ const sources = [
             }),
         dimension: 'author',
         column: 'author',
-        maxRows: GITHUB_MAX_QUERY_ROWS,
-        message: 'more than 999 rows',
+        maxRows: GITHUB_MAX_GROUPED_ROWS,
+        message: 'more than 299 rows',
     },
     {
         name: 'Pylon',

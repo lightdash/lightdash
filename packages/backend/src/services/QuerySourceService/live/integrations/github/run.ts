@@ -29,6 +29,15 @@ export const GITHUB_SEARCH_MAX_PAGES = SEARCH_RESULT_CAP / SEARCH_PAGE_SIZE;
  */
 export const GITHUB_MAX_QUERY_ROWS = SEARCH_RESULT_CAP - 1;
 
+/**
+ * Results a grouped search reads: three pages, one fewer than their 300 to
+ * detect more. Search allows 30 calls a minute per token, so a grouping that
+ * read all ten pages would spend a third of it.
+ */
+const GITHUB_GROUPED_SEARCH_PAGES = 3;
+export const GITHUB_MAX_GROUPED_ROWS =
+    SEARCH_PAGE_SIZE * GITHUB_GROUPED_SEARCH_PAGES - 1;
+
 /** Waits between asks while GitHub computes contributor statistics. */
 export const GITHUB_STATS_RETRY_DELAYS_MS = [1_000, 2_000, 4_000];
 

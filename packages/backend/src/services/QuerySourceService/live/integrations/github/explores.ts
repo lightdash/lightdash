@@ -68,7 +68,7 @@ const SEARCH_COUNT: LiveMetricDefinition = {
     apiName: 'total_count',
     label: 'Count',
     description:
-        'How many match the filters: the total GitHub reports for the search, or, split by a dimension, counted from up to 999 results read.',
+        'How many match the filters: the total GitHub reports for the search, or, split by a dimension, counted from at most 299 results read; more is refused.',
     type: MetricType.NUMBER,
     filterOperators: [],
     aggregation: { aggregation: 'additive' },
@@ -160,7 +160,7 @@ export const GITHUB_PULL_REQUESTS_EXPLORE: LiveExploreDefinition = {
     name: 'pull_requests',
     label: 'Pull requests',
     description:
-        'Pull requests of one GitHub repository, read live from GitHub search. Count alone is the total for the filters; listing, or Count split by a dimension, reads at most 999 pull requests.',
+        'Pull requests of one GitHub repository, read live from GitHub search. Count alone is the total for the filters; listing reads at most 999 pull requests, and Count split by a dimension at most 299.',
     dimensions: PULL_REQUEST_DIMENSIONS,
     metrics: [SEARCH_COUNT],
     maxDimensions: null,
@@ -191,7 +191,7 @@ export const GITHUB_ISSUES_EXPLORE: LiveExploreDefinition = {
     name: 'issues',
     label: 'Issues',
     description:
-        'Issues of one GitHub repository, without pull requests, read live from GitHub search. Count alone is the total for the filters; listing, or Count split by a dimension, reads at most 999 issues.',
+        'Issues of one GitHub repository, without pull requests, read live from GitHub search. Count alone is the total for the filters; listing reads at most 999 issues, and Count split by a dimension at most 299.',
     dimensions: ISSUE_DIMENSIONS,
     metrics: [SEARCH_COUNT],
     maxDimensions: null,
