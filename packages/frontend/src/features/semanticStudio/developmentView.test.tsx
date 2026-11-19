@@ -9,6 +9,7 @@ import {
     DEVELOPMENT_VIEW_HEADER,
     getDevelopmentViewHeaders,
     pinDevelopmentView,
+    PUBLISHED_VIEW,
     useCheckedOutView,
     useDevelopmentView,
 } from './developmentView';
@@ -104,6 +105,26 @@ describe('the development view of a checked-out draft', () => {
             queryClient.getQueryData(['semantic-studio-checkout', 'p-1']),
         ).toBe('a');
         clearDevelopmentView();
+        expect(queryClient.getQueryData(key)).toBe('published');
+    });
+
+    it('reads one draft in either view, so leaving a draft never brings back an older copy of it', () => {
+        const queryClient = createQueryClient();
+        const key = ['semantic-layer-draft', 'p-1'];
+        at('/projects/p-1/semantic-layer');
+        queryClient.setQueryData(key, 'one change');
+        localStorage.setItem('lightdash-checked-out-project', 'p-1');
+        queryClient.setQueryData(key, 'discarded');
+        clearDevelopmentView();
+        expect(queryClient.getQueryData(key)).toBe('discarded');
+    });
+
+    it('reads a query that names what is published the same on and off a draft', () => {
+        const queryClient = createQueryClient();
+        const key = ['tables', 'p-1', 'filtered', PUBLISHED_VIEW];
+        at('/projects/p-1/semantic-layer');
+        queryClient.setQueryData(key, 'published');
+        localStorage.setItem('lightdash-checked-out-project', 'p-1');
         expect(queryClient.getQueryData(key)).toBe('published');
     });
 
