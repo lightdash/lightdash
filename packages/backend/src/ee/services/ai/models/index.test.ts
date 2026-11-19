@@ -109,6 +109,9 @@ const captureModelRequest = async (
     model: Exclude<LanguageModel, string>,
     providerOptions: Record<string, Record<string, JSONValue>> | undefined,
     tools: ModelCallOptions['tools'] = [],
+    prompt: ModelCallOptions['prompt'] = [
+        { role: 'user', content: [{ type: 'text', text: 'hi' }] },
+    ],
 ) => {
     if (model.specificationVersion !== 'v4') {
         throw new Error('expected a v4 language model');
@@ -117,7 +120,7 @@ const captureModelRequest = async (
     vi.stubGlobal('fetch', fetchSpy);
     try {
         await model.doGenerate({
-            prompt: [{ role: 'user', content: [{ type: 'text', text: 'hi' }] }],
+            prompt,
             providerOptions,
             tools,
         });
@@ -136,22 +139,8 @@ const captureModelRequest = async (
     };
 };
 
-const copilotConfigWithZeroDataRetention = () => {
-    const config = copilotConfigWithStreaming(true);
-    return {
-        ...config,
-        providers: {
-            ...config.providers,
-            openai: {
-                ...config.providers.openai,
-                zeroDataRetention: true,
-            },
-        },
-    };
-};
-
 const copilotConfigWithChatCompletions = () => {
-    const config = copilotConfigWithZeroDataRetention();
+    const config = copilotConfigWithStreaming(true);
     return {
         ...config,
         providers: {
@@ -251,10 +240,10 @@ describe('getModel', () => {
     );
 
     it.each([false, true])(
-        'keeps OpenAI zero data retention stateless when extended reasoning is %s',
+        'keeps OpenAI Responses requests stateless when extended reasoning is %s',
         (enableReasoning) => {
             const { providerOptions } = getModel(
-                copilotConfigWithZeroDataRetention(),
+                copilotConfigWithStreaming(true),
                 {
                     enableReasoning,
                     modelName: 'gpt-5.5',
@@ -307,9 +296,59 @@ describe('getModel', () => {
         expect(providerOptions.openai.reasoningEffort).toBe('minimal');
     });
 
+    it('resends earlier steps in full instead of by item ID', async () => {
+        // Zero Data Retention accounts reject `item_reference` inputs.
+        const { model, providerOptions } = getModel(
+            copilotConfigWithStreaming(true),
+            { modelName: 'gpt-6.1-sol' },
+        );
+
+        const { body } = await captureModelRequest(
+            model,
+            providerOptions,
+            [],
+            [
+                { role: 'user', content: [{ type: 'text', text: 'hi' }] },
+                {
+                    role: 'assistant',
+                    content: [
+                        {
+                            type: 'reasoning',
+                            text: '',
+                            providerOptions: {
+                                openai: {
+                                    itemId: 'rs_1',
+                                    reasoningEncryptedContent: 'encrypted',
+                                },
+                            },
+                        },
+                        {
+                            type: 'text',
+                            text: 'Looking it up.',
+                            providerOptions: { openai: { itemId: 'msg_1' } },
+                        },
+                    ],
+                },
+                { role: 'user', content: [{ type: 'text', text: 'go on' }] },
+            ],
+        );
+
+        expect(body.input).toEqual([
+            { role: 'user', content: [{ type: 'input_text', text: 'hi' }] },
+            {
+                type: 'reasoning',
+                id: 'rs_1',
+                encrypted_content: 'encrypted',
+                summary: [],
+            },
+            { role: 'assistant', content: 'Looking it up.' },
+            { role: 'user', content: [{ type: 'input_text', text: 'go on' }] },
+        ]);
+    });
+
     it('sends OpenAI requests to the Responses API by default', async () => {
         const { model, providerOptions } = getModel(
-            copilotConfigWithZeroDataRetention(),
+            copilotConfigWithStreaming(true),
             { enableReasoning: true, modelName: 'gpt-5.5' },
         );
 

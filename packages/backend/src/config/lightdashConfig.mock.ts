@@ -349,7 +349,6 @@ export const lightdashConfigMock: LightdashConfig = {
                     apiKey: 'mock_api_key',
                     modelName: 'gpt-5.4',
                     embeddingModelName: 'text-embedding-3-small',
-                    zeroDataRetention: false,
                     useChatCompletions: false,
                     customHeaders: {},
                     supportsStreaming: true,

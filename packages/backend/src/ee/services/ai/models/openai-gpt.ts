@@ -56,15 +56,15 @@ export const getOpenaiGptmodel = (
                 // agent stalls.
                 parallelToolCalls: false,
                 ...reasoningProviderOptions,
-                // OpenAI Zero Data Retention (ZDR) organizations do not persist
-                // reasoning IDs; return encrypted content for stateless follow-ups.
+                // Stateless Responses: with `store` on, the SDK resends earlier
+                // steps by item ID, which Zero Data Retention accounts reject.
                 // Chat Completions is stateless already and rejects `include`.
-                ...(config.zeroDataRetention &&
-                    supportsReasoning &&
-                    !config.useChatCompletions && {
-                        store: false,
+                ...(!config.useChatCompletions && {
+                    store: false,
+                    ...(supportsReasoning && {
                         include: ['reasoning.encrypted_content'],
                     }),
+                }),
                 ...(!extendedReasoningEnabled &&
                     options?.minimalReasoning &&
                     preset.minimalReasoningProviderOptions),
