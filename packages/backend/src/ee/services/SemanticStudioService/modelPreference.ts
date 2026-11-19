@@ -2,11 +2,12 @@ import { findPreferredPreset, type ModelCatalogue } from '../ai/models';
 import { type ModelTier } from '../ai/models/presets';
 
 const CLAUDE_PROVIDERS = ['anthropic', 'bedrock'];
-const CLAUDE_TIERS: ModelTier[] = ['frontier', 'balanced'];
+// People wait on each Studio turn, so the quicker model goes first.
+const CLAUDE_TIERS: ModelTier[] = ['balanced', 'frontier'];
 
 /**
  * A Studio thread nobody chose a model for runs on Claude where the org is offered it,
- * strongest first, and otherwise on the strongest model of the provider already in use.
+ * and otherwise on the strongest model of the provider already in use.
  */
 export const findSemanticStudioPreset = (
     catalogue: ModelCatalogue,

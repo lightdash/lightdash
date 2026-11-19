@@ -74,26 +74,26 @@ describe('findSemanticStudioPreset', () => {
             ),
         );
 
-    it('runs on the strongest Claude model the org is offered, whatever provider is in use', () => {
+    it('runs on the balanced Claude model the org is offered, whatever provider is in use', () => {
         const preset = findSemanticStudioPreset(
             offered('openai', 'anthropic'),
             'openai',
         );
         expect(preset).toMatchObject({
             provider: 'anthropic',
-            name: 'claude-opus-5-5',
+            name: 'claude-sonnet-5-5',
         });
     });
 
-    it('takes the balanced Claude model when the strongest is not offered', () => {
-        const withoutOpus = catalogueOf([
+    it('takes the strongest Claude model when the balanced one is not offered', () => {
+        const withoutSonnet = catalogueOf([
             ...MODEL_PRESETS.openai,
             ...MODEL_PRESETS.anthropic.filter(
-                ({ tier }) => tier !== 'frontier',
+                ({ tier }) => tier !== 'balanced',
             ),
         ]);
-        expect(findSemanticStudioPreset(withoutOpus, 'openai')?.name).toBe(
-            'claude-sonnet-5-5',
+        expect(findSemanticStudioPreset(withoutSonnet, 'openai')?.name).toBe(
+            'claude-opus-5-5',
         );
     });
 
