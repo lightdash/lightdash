@@ -1010,24 +1010,6 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
     },
     {
-        key: 'daily-observed-active-people',
-        name: 'People with any recorded activity by day',
-        description: 'Distinct people with any recorded activity each day.',
-        explore: 'user_activity',
-        dimensions: ['user_activity_activity_date_day'],
-        metrics: ['user_activity_unique_users'],
-        limit: 500,
-        sorts: [
-            {
-                descending: false,
-                fieldId: 'user_activity_activity_date_day',
-            },
-        ],
-        visualization: 'line',
-        xField: 'user_activity_activity_date_day',
-        yFields: ['user_activity_unique_users'],
-    },
-    {
         key: 'data-app-builders-creation-and-iterations-by-week',
         name: 'Data app builders: creations and iterations by week',
         description:
@@ -1082,32 +1064,6 @@ export const usageChartSpecs: UsageChartSpec[] = [
             {
                 descending: true,
                 fieldId: 'export_events_total_events',
-            },
-        ],
-    },
-    {
-        key: 'google-sheets-query-audience',
-        name: 'People querying from Google Sheets',
-        description:
-            'Recorded Google Sheets queries only. The first recorded activity is not necessarily when the person joined or first used the integration.',
-        explore: 'query_events',
-        dimensions: [
-            'query_events_user_name',
-            'query_events_user_id',
-            'query_events_event_ts_week',
-        ],
-        metrics: ['query_events_total_queries'],
-        limit: 100,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'query_events_total_queries',
-            },
-        ],
-        filters: [
-            {
-                field: 'query_events_context',
-                values: ['gsheets'],
             },
         ],
     },
@@ -1197,88 +1153,6 @@ export const usageChartSpecs: UsageChartSpec[] = [
             {
                 descending: true,
                 fieldId: 'content_reach_distinct_viewers',
-            },
-        ],
-    },
-    {
-        key: 'observed-active-people',
-        name: 'People with any recorded activity',
-        description:
-            'Distinct people with any recorded activity. This is not the percentage of people with access who use Lightdash.',
-        explore: 'user_activity',
-        dimensions: [],
-        metrics: ['user_activity_unique_users'],
-        limit: 20,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'user_activity_unique_users',
-            },
-        ],
-        visualization: 'number',
-    },
-    {
-        key: 'observed-activity-by-person-and-week',
-        name: 'Recorded activity by person and week',
-        description: '',
-        explore: 'user_activity',
-        dimensions: [
-            'user_activity_user_name',
-            'user_activity_user_id',
-            'user_activity_activity_date_week',
-        ],
-        metrics: [
-            'user_activity_total_events',
-            'user_activity_total_queries',
-            'user_activity_total_ai_calls',
-        ],
-        limit: 100,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'user_activity_activity_date_week',
-            },
-        ],
-    },
-    {
-        key: 'observed-history-stable-user-and-project-uuids',
-        name: 'Activity history by person, date and activity stream',
-        description:
-            'Recorded activity in the selected period by person, day and activity stream, most recent first. Shows up to 500 rows.',
-        explore: 'user_activity',
-        dimensions: [
-            'user_activity_user_name',
-            'user_activity_user_id',
-            'user_activity_project_id',
-            'user_activity_activity_date_day',
-            'user_activity_stream',
-        ],
-        metrics: ['user_activity_total_events', 'user_activity_unique_users'],
-        limit: 500,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'user_activity_activity_date_day',
-            },
-        ],
-    },
-    {
-        key: 'power-users-queries-ai-and-exports',
-        name: 'Power users: queries, AI and exports',
-        description: '',
-        explore: 'user_activity',
-        dimensions: ['user_activity_user_name', 'user_activity_user_id'],
-        metrics: [
-            'user_activity_total_queries',
-            'user_activity_total_ai_calls',
-            'user_activity_total_downloads',
-            'user_activity_total_tokens_used',
-        ],
-        limit: 20,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'user_activity_total_queries',
             },
         ],
     },

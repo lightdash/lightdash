@@ -84,6 +84,57 @@ export const libraryChartFields: Record<
     },
 };
 
+// Option names each supported type accepts. An option added after the type was first bound carries the
+// version that introduced it: a binding that sets it must ask for at least that version.
+const sinceFirstBinding = (names: string): Record<string, string | null> =>
+    Object.fromEntries(names.split(' ').map((name) => [name, null]));
+
+export const libraryChartOptions: Record<
+    string,
+    Record<string, string | null>
+> = {
+    heatmap: {
+        ...sinceFirstBinding(
+            'colorScheme reverseScheme cellGap showLegend labelSpacing',
+        ),
+        xTitle: '0.5.0',
+        yTitle: '0.5.0',
+        legendTitle: '0.5.0',
+        legendFormat: '0.5.0',
+    },
+    'vega-trellis': {
+        ...sinceFirstBinding(
+            'arrangement columns minPanelHeight sharedY markType curve fillOpacity showLine showPoints syncedHover xLabelAngle',
+        ),
+        showPeakLabel: '0.7.0',
+        zeroFillGaps: '0.7.0',
+    },
+    'sortable-pivot-table': {
+        ...sinceFirstBinding(
+            'showTotalsRow groupSubtotals defaultCollapsed valueDisplay showRowTotals totalsPosition stickyFirstColumn resizableColumns stripedRows stickyHeader fitMode columnBorders columnGroupBy hideColumns density cellColorMode formatTotals showMiniBars decimalPlaces useFieldFormats rowOrder columnOrder defaultSortDirection highlightColor',
+        ),
+        initialSort: '0.14.0',
+    },
+    'customizable-cartesian-chart': {
+        ...sinceFirstBinding(
+            'seriesType m2Type m3Type m4Type m1LineStyle m2LineStyle m3LineStyle m4LineStyle stack splitOtherAgg splitTopN layout panelArrangement panelColumns sharedY maxPanels smooth showSymbols symbolSize lineWidth areaOpacity barBorderRadius lightdashLabels showDataLabels dataLabelPoints stackTotalLabels showBand bandPercent bandOpacity xAxisType xTimeFormat xTimeFormatCustom xCustomOrder yAxisType yMin yMax yRange percentZeroBaseline yInverse dualAxis m2Right m3Right farRightAxisMetric m4Right showAxisTitles xName yName yRightName axisLabelFontSize xLabelAutoRotate xLabelRotate showSplitLines xBoundaryGap markLineType markLineValue markLineFormula markLineStyle markLineWidth markLineMetric markLineFrom markLineTo markLineLabel markLineOpacity markLineBehind trendLine markMaxMin markAreaFrom markAreaTo shadeFuture title showLegend legendPosition showTooltip tooltipStackPercent tooltipTrigger dataZoom showToolbox animation',
+        ),
+        m1Name: '0.18.0',
+        m2Name: '0.18.0',
+        m3Name: '0.18.0',
+    },
+    'big-number-with-sparkline-trend': {
+        ...sinceFirstBinding(
+            'valueAggregation label showLabel style bigNumberSize alignment sizeMode customValueSize longTextHandling valuePrefix valueSuffix valueColor fontFamily valueFontWeight letterSpacing labelSize labelColor labelTransform backgroundMode backgroundColor backgroundColor2 gradientDirection autoContrastText showCardBorder cardBorderColor cardBorderRadius showCardShadow cardPadding contentGap outerMargin verticalAlign secondaryLabel secondarySize secondaryColor showComparison comparisonFormat comparisonLabel flipColors positiveColor negativeColor comparisonDecimals showComparisonArrow comparisonSize comparison2Label comparison2Format comparison3Label comparison3Format targetDisplay targetLabel progressColor rule1Operator rule1Threshold rule1Color rule1Apply rule2Operator rule2Threshold rule2Color rule2Apply colorSparklineByTrend sparklineColor showSparklineArea sparklineStrokeWidth sparklineLength sparklinePosition sparklineCurve sparklineHeight',
+        ),
+        showHighLow: '0.8.0',
+        comparisonSource: '0.8.0',
+    },
+    'word-cloud': sinceFirstBinding(
+        'colorMode singleColor rotationMode spiral minFontSize maxFontSize sizeScale maxWords caseMode showLegend',
+    ),
+};
+
 // Swaps a chart to its library type only when the installed version meets its binding and the binding is valid.
 export const withLibraryCharts = (
     charts: ChartAsCode[],

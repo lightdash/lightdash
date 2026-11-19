@@ -1,5 +1,4 @@
 import { FilterOperator } from '@lightdash/common';
-import { peopleNoActivitySections } from './peopleNoActivityCharts';
 import type { UsageDashboardSpec } from './usageDashboardTypes';
 
 export const usageDashboardSpecs: UsageDashboardSpec[] = [
@@ -192,62 +191,6 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         description:
                             'How much field detail was recorded for each query. Recording starts once the feature is switched on.',
                         charts: ['field-capture-coverage'],
-                    },
-                ],
-            },
-        ],
-    },
-    {
-        key: 'lightdash-analytics-people',
-        name: 'People',
-        description: 'Active people, returning people and channels.',
-        tabs: [
-            {
-                key: 'activity',
-                name: 'Activity',
-                sections: [
-                    {
-                        title: 'Active people',
-                        description:
-                            "People with any recorded activity. Includes scheduled deliveries and other automated runs in the person's name.",
-                        charts: [
-                            'observed-active-people',
-                            'daily-observed-active-people',
-                            'power-users-queries-ai-and-exports',
-                        ],
-                    },
-                ],
-            },
-            {
-                key: 'returning',
-                name: 'Returning & inactive people',
-                sections: [
-                    ...peopleNoActivitySections,
-                    {
-                        title: 'Activity over time',
-                        description:
-                            "Recorded activity by person, week by week. Includes scheduled deliveries and other automated runs in the person's name.",
-                        charts: ['observed-activity-by-person-and-week'],
-                    },
-                ],
-            },
-            {
-                key: 'channels',
-                name: 'Channels & history',
-                sections: [
-                    {
-                        title: 'Google Sheets',
-                        description:
-                            'Queries run through the Google Sheets integration. This does not count everyone who reads the spreadsheet.',
-                        charts: ['google-sheets-query-audience'],
-                    },
-                    {
-                        title: 'Activity history',
-                        description:
-                            'Recent recorded activity by person and project. This does not show past access or group membership.',
-                        charts: [
-                            'observed-history-stable-user-and-project-uuids',
-                        ],
                     },
                 ],
             },

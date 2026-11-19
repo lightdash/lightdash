@@ -1,0 +1,415 @@
+import type { LibraryChartBinding } from './libraryCharts';
+import type { UsageChartSpec } from './usageDashboardTypes';
+
+// The chart shapes the built-in dashboards share. Each one is a plain chart that every instance can
+// draw, with the library chart that replaces it once that chart type is installed.
+
+type Base = Pick<UsageChartSpec, 'key' | 'name' | 'description' | 'explore'> &
+    Partial<Pick<UsageChartSpec, 'filters' | 'timezone' | 'fieldLabels'>>;
+
+// A headline card: the plain version is a big number, the library version adds the daily trend behind it.
+// A sum is safe to total over days. A distinct count or an average is not, so it shows the latest day in
+// both versions.
+export const card = ({
+    day,
+    metric,
+    latestDay = false,
+    hero = false,
+    period = 'Selected period',
+    description,
+    ...spec
+}: Base & {
+    day: string;
+    metric: string;
+    latestDay?: boolean;
+    // The one wide card of a dashboard that also marks its highest and lowest day
+    hero?: boolean;
+    // What a summed card covers, when it is not the period of the Date filter
+    period?: string;
+}): UsageChartSpec => ({
+    ...spec,
+    description,
+    // Newest day first: the big number reads the first row, so it shows the latest day.
+    dimensions: latestDay ? [day] : [],
+    metrics: [metric],
+    limit: 1,
+    sorts: [{ fieldId: latestDay ? day : metric, descending: true }],
+    visualization: 'number',
+    libraryChart: {
+        slug: 'big-number-with-sparkline-trend',
+        minVersion: latestDay && !hero ? '0.7.1' : '0.8.0',
+        fieldMapping: { value: metric, sparklineMetric: metric, time: day },
+        optionValues: {
+            ...(latestDay
+                ? { valueAggregation: 'latest', showComparison: false }
+                : {
+                      valueAggregation: 'sum',
+                      style: 'compact',
+                      showComparison: true,
+                      comparisonSource: 'previousPeriod',
+                  }),
+            ...(hero ? { showHighLow: true } : {}),
+            colorSparklineByTrend: false,
+            showSparklineArea: true,
+            showLabel: true,
+            label: latestDay ? 'Latest day' : period,
+            showCardBorder: false,
+            showCardShadow: false,
+        },
+        query: {
+            dimensions: [day],
+            metrics: [metric],
+            sorts: [{ fieldId: day, descending: false }],
+            limit: 500,
+            description: latestDay
+                ? `${description} The line shows each day.`
+                : description,
+        },
+    },
+});
+
+// Smooth filled lines in full-width rows over a shared date axis, each row on its own scale.
+const rows = (zeroFill: boolean): LibraryChartBinding['optionValues'] => ({
+    arrangement: 'rows',
+    minPanelHeight: 70,
+    sharedY: false,
+    markType: 'area',
+    curve: 'smooth',
+    fillOpacity: 25,
+    showLine: true,
+    showPoints: false,
+    showPeakLabel: true,
+    // A day with no rows is a day with nothing to count. Not for averages: no value is not zero.
+    ...(zeroFill ? { zeroFillGaps: true } : {}),
+});
+
+// One measure by day as a single full-width row.
+export const trend = ({
+    day,
+    metric,
+    zeroFill = true,
+    tableCalculations,
+    metrics,
+    ...spec
+}: Base &
+    Partial<Pick<UsageChartSpec, 'tableCalculations'>> & {
+        day: string;
+        // The measure drawn: a metric, or a table calculation over `metrics`
+        metric: string;
+        metrics?: string[];
+        zeroFill?: boolean;
+    }): UsageChartSpec => ({
+    ...spec,
+    dimensions: [day],
+    metrics: metrics ?? [metric],
+    ...(tableCalculations ? { tableCalculations } : {}),
+    limit: 500,
+    sorts: [{ fieldId: day, descending: false }],
+    visualization: 'line',
+    xField: day,
+    yFields: [metric],
+    libraryChart: {
+        slug: 'vega-trellis',
+        minVersion: '0.7.0',
+        fieldMapping: { x: day, value: metric },
+        optionValues: rows(zeroFill),
+        query: null,
+    },
+});
+
+// One measure by day, one row per category. `top` keeps the categories with the largest totals.
+export const trendByCategory = ({
+    day,
+    metric,
+    category,
+    top,
+    identity = [],
+    ...spec
+}: Base & {
+    day: string;
+    metric: string;
+    category: string;
+    top?: number;
+    // Columns that tell apart two categories with the same name, kept in the plain table
+    identity?: string[];
+}): UsageChartSpec => ({
+    ...spec,
+    dimensions: [day, category, ...identity],
+    metrics: [metric],
+    limit: 5000,
+    sorts: [
+        { fieldId: category, descending: false },
+        { fieldId: day, descending: false },
+    ],
+    ...(top ? { topCategories: { category, metric, count: top } } : {}),
+    libraryChart: {
+        slug: 'vega-trellis',
+        minVersion: '0.7.0',
+        fieldMapping: { x: day, value: metric, panel: category },
+        optionValues: rows(true),
+        query: null,
+    },
+});
+
+// How much of one measure each category had on each day.
+export const heatmapByDay = ({
+    day,
+    metric,
+    category,
+    top,
+    titles,
+    identity = [],
+    ...spec
+}: Base & {
+    day: string;
+    metric: string;
+    category: string;
+    top?: number;
+    identity?: string[];
+    titles: { category: string; metric: string };
+}): UsageChartSpec => ({
+    ...spec,
+    dimensions: [category, ...identity, day],
+    metrics: [metric],
+    limit: 5000,
+    sorts: [
+        { fieldId: category, descending: false },
+        { fieldId: day, descending: false },
+    ],
+    ...(top ? { topCategories: { category, metric, count: top } } : {}),
+    libraryChart: {
+        slug: 'heatmap',
+        minVersion: '0.5.0',
+        fieldMapping: { x: day, y: category, value: metric },
+        optionValues: {
+            xTitle: 'Day',
+            yTitle: titles.category,
+            legendTitle: titles.metric,
+            legendFormat: 'compact',
+        },
+        query: null,
+    },
+});
+
+const dayAxis = {
+    xAxisType: 'time',
+    xTimeFormat: '{MMM} {d}',
+    xName: 'Day',
+};
+
+// One measure by day, stacked by a category. The plain version is the total by day. The library version
+// keeps the largest categories and groups the rest as Other.
+export const stackedByDay = ({
+    day,
+    metric,
+    splitBy,
+    yName,
+    top = 5,
+    splitDescription,
+    xAxis = dayAxis,
+    ...spec
+}: Base & {
+    day: string;
+    metric: string;
+    splitBy: string;
+    yName: string;
+    top?: number;
+    // What the stacked version shows, for its own description
+    splitDescription: string;
+    xAxis?: LibraryChartBinding['optionValues'];
+}): UsageChartSpec => ({
+    ...spec,
+    dimensions: [day],
+    metrics: [metric],
+    limit: 500,
+    sorts: [{ fieldId: day, descending: false }],
+    visualization: 'line',
+    xField: day,
+    yFields: [metric],
+    libraryChart: {
+        slug: 'customizable-cartesian-chart',
+        minVersion: '0.17.1',
+        fieldMapping: { x: day, m1: metric, splitBy },
+        optionValues: {
+            seriesType: 'bar',
+            stack: 'normal',
+            ...xAxis,
+            yName,
+            splitTopN: top,
+        },
+        query: {
+            dimensions: [day, splitBy],
+            metrics: [metric],
+            sorts: [
+                { fieldId: splitBy, descending: false },
+                { fieldId: day, descending: false },
+            ],
+            limit: 5000,
+            description: splitDescription,
+        },
+    },
+});
+
+// Up to three measures by day, each with a plain series name.
+export const seriesByDay = ({
+    day,
+    series,
+    yName,
+    stacked = false,
+    seriesType = 'bar',
+    rightAxis,
+    ...spec
+}: Base & {
+    day: string;
+    series: { metric: string; name: string }[];
+    yName: string;
+    stacked?: boolean;
+    seriesType?: 'bar' | 'line';
+    // Draws the last measure as a line on its own axis on the right
+    rightAxis?: string;
+}): UsageChartSpec => {
+    const metrics = series.map(({ metric }) => metric);
+    const slots = ['m1', 'm2', 'm3'].slice(0, series.length);
+    const last = slots[slots.length - 1];
+    return {
+        ...spec,
+        dimensions: [day],
+        metrics,
+        limit: 500,
+        sorts: [{ fieldId: day, descending: false }],
+        visualization: 'line',
+        xField: day,
+        // A measure on its own axis cannot share the plain chart's single axis
+        yFields: rightAxis ? metrics.slice(0, -1) : metrics,
+        fieldLabels: {
+            ...spec.fieldLabels,
+            ...Object.fromEntries(
+                series.map(({ metric, name }) => [metric, name]),
+            ),
+        },
+        libraryChart: {
+            slug: 'customizable-cartesian-chart',
+            minVersion: '0.18.0',
+            fieldMapping: {
+                x: day,
+                ...Object.fromEntries(
+                    slots.map((slot, index) => [slot, metrics[index]]),
+                ),
+            },
+            optionValues: {
+                seriesType,
+                ...(stacked ? { stack: 'normal' } : {}),
+                ...(seriesType === 'line' ? { showSymbols: true } : {}),
+                ...dayAxis,
+                yName,
+                ...Object.fromEntries(
+                    slots.map((slot, index) => [
+                        `${slot}Name`,
+                        series[index].name,
+                    ]),
+                ),
+                ...(rightAxis
+                    ? {
+                          [`${last}Type`]: 'line',
+                          dualAxis: true,
+                          [`${last}Right`]: true,
+                          yRightName: rightAxis,
+                      }
+                    : {}),
+            },
+            query: null,
+        },
+    };
+};
+
+// A ranking or a per-item breakdown. The plain version is a table that keeps the identifying columns.
+// The library version groups by one or two names, with a bar in each cell, sorted by the first measure.
+export const ranking = ({
+    by,
+    then,
+    series,
+    metrics,
+    dimensions,
+    limit = 50,
+    libraryLimit = 500,
+    libraryDescription,
+    visualization,
+    ...spec
+}: Base &
+    Partial<Pick<UsageChartSpec, 'visualization' | 'xField' | 'yFields'>> & {
+        by: string;
+        then?: string;
+        // A category shown as one column per value
+        series?: string;
+        metrics: string[];
+        // Columns of the plain table, when it shows more than the names the library version groups by
+        dimensions?: string[];
+        limit?: number;
+        libraryLimit?: number;
+        libraryDescription?: string;
+    }): UsageChartSpec => {
+    const grouped = [by, ...(then ? [then] : []), ...(series ? [series] : [])];
+    return {
+        ...spec,
+        dimensions: dimensions ?? grouped,
+        metrics,
+        limit,
+        sorts: [{ fieldId: metrics[0], descending: true }],
+        ...(visualization ? { visualization } : {}),
+        libraryChart: {
+            slug: 'sortable-pivot-table',
+            minVersion: '0.14.0',
+            fieldMapping: {
+                rowDimension: by,
+                ...(then ? { rowDimension2: then } : {}),
+                ...(series ? { series } : {}),
+                metric: metrics,
+            },
+            // A total over the rows shown is not the total for everything, so there is no totals row.
+            optionValues: {
+                showMiniBars: true,
+                showTotalsRow: false,
+                decimalPlaces: 0,
+                density: 'compact',
+                initialSort: 'firstValue',
+                ...(then ? { defaultCollapsed: 'collapsed' } : {}),
+            },
+            query: {
+                dimensions: grouped,
+                metrics,
+                sorts: [{ fieldId: metrics[0], descending: true }],
+                limit: libraryLimit,
+                description: libraryDescription ?? spec.description,
+            },
+        },
+    };
+};
+
+// Names sized by a count. The plain version is a bar chart of the largest.
+export const cloud = ({
+    word,
+    metric,
+    ...spec
+}: Base & { word: string; metric: string }): UsageChartSpec => ({
+    ...spec,
+    dimensions: [word],
+    metrics: [metric],
+    limit: 20,
+    sorts: [{ fieldId: metric, descending: true }],
+    visualization: 'bar',
+    xField: word,
+    flipAxes: true,
+    libraryChart: {
+        slug: 'word-cloud',
+        minVersion: '0.4.0',
+        fieldMapping: { word, size: metric },
+        optionValues: { showLegend: false },
+        query: {
+            dimensions: [word],
+            metrics: [metric],
+            sorts: [{ fieldId: metric, descending: true }],
+            limit: 80,
+            description: spec.description,
+        },
+    },
+});

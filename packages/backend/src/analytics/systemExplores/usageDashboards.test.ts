@@ -364,7 +364,7 @@ describe('built-in usage dashboards', () => {
                 ('org','project','','2026-01-05',19,NULL),
                 ('org','project','   ','2026-01-05',23,'data_app_events')`);
             const chart = charts.find(({ slug }) =>
-                slug.endsWith('-observed-activity-by-person-and-week'),
+                slug.endsWith('-power-users-queries-ai-and-exports'),
             )!;
             const rows = (
                 await db.runAndReadAll(compile(chart).query)

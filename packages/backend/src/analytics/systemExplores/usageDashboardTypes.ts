@@ -34,6 +34,9 @@ export type UsageChartSpec = {
     xField?: string;
     yFields?: string[];
     flipAxes?: boolean;
+    // Keeps only the categories with the largest totals of a summed metric, for charts that draw one row
+    // or column per category. Not for distinct counts: their totals over days mean nothing.
+    topCategories?: { category: string; metric: string; count: number };
     libraryChart?: LibraryChartBinding;
 };
 
@@ -53,6 +56,8 @@ export type UsageDashboardSpec = {
             note?: false;
             layout?: 'row';
             rowHeight?: number;
+            // Grid columns per chart of a row, summing to 36. Without it the row is split evenly
+            widths?: number[];
             charts: string[];
         }[];
     }[];
