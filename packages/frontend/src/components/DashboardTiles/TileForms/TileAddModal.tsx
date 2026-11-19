@@ -4,24 +4,17 @@ import {
     defaultTileSize,
     type Dashboard,
     type DashboardDataAppTileProperties,
-    type DashboardHeadingTileProperties,
     type DashboardLoomTileProperties,
     type DashboardMarkdownTile,
     type DashboardMarkdownTileProperties,
 } from '@lightdash/common';
 import { Button, Stack, Text } from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
-import {
-    IconAppWindow,
-    IconHeading,
-    IconMarkdown,
-    IconVideo,
-} from '@tabler/icons-react';
+import { IconAppWindow, IconMarkdown, IconVideo } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { v4 as uuid4 } from 'uuid';
 import MantineModal from '../../common/MantineModal';
 import DataAppTileForm from './DataAppTileForm';
-import HeadingTileForm from './HeadingTileForm';
 import LoomTileForm from './LoomTileForm';
 import MarkdownTileForm from './MarkdownTileForm';
 import { getLoomId, markdownTileContentTransform } from './utils';
@@ -35,7 +28,6 @@ type AddProps = {
     type:
         | DashboardTileTypes.LOOM
         | DashboardTileTypes.MARKDOWN
-        | DashboardTileTypes.HEADING
         | DashboardTileTypes.DATA_APP;
     onConfirm: (tile: Tile) => void;
 };
@@ -57,24 +49,19 @@ export const TileAddModal: FC<AddProps> = ({
             title: (value: string | undefined) =>
                 !value || !value.length ? 'Required field' : null,
         };
-        const textValidator = {
-            text: (value: string | undefined) =>
-                !value || !value.length ? 'Required field' : null,
-        };
         const appUuidValidator = {
             appUuid: (value: string | undefined) =>
                 !value || !value.length ? 'Required field' : null,
         };
         if (type === DashboardTileTypes.LOOM)
             return { ...urlValidator, ...titleValidator };
-        if (type === DashboardTileTypes.HEADING) return textValidator;
         if (type === DashboardTileTypes.DATA_APP)
             return { ...titleValidator, ...appUuidValidator };
     };
 
     const form = useForm<TileProperties>({
         validate: getValidators(),
-        validateInputOnChange: ['title', 'url', 'content', 'text'],
+        validateInputOnChange: ['title', 'url', 'content'],
         transformValues(values) {
             if (type === DashboardTileTypes.MARKDOWN) {
                 return markdownTileContentTransform(
@@ -92,8 +79,6 @@ export const TileAddModal: FC<AddProps> = ({
                 return IconMarkdown;
             case DashboardTileTypes.LOOM:
                 return IconVideo;
-            case DashboardTileTypes.HEADING:
-                return IconHeading;
             case DashboardTileTypes.DATA_APP:
                 return IconAppWindow;
             default:
@@ -107,8 +92,6 @@ export const TileAddModal: FC<AddProps> = ({
                 return 'Add markdown tile';
             case DashboardTileTypes.LOOM:
                 return 'Add loom tile';
-            case DashboardTileTypes.HEADING:
-                return 'Add heading tile';
             case DashboardTileTypes.DATA_APP:
                 return 'Add data app tile';
             default:
@@ -127,21 +110,12 @@ export const TileAddModal: FC<AddProps> = ({
             }
         }
 
-        let size = defaultTileSize;
-
-        if (type === DashboardTileTypes.HEADING) {
-            size = {
-                ...defaultTileSize,
-                h: 1,
-                w: 36,
-            };
-        }
         onConfirm({
             uuid: uuid4(),
             properties: properties as any,
             type,
             tabUuid: undefined,
-            ...size,
+            ...defaultTileSize,
         });
 
         form.reset();
@@ -193,14 +167,6 @@ export const TileAddModal: FC<AddProps> = ({
                                 >
                             }
                             withHideTitle={false}
-                        />
-                    ) : type === DashboardTileTypes.HEADING ? (
-                        <HeadingTileForm
-                            form={
-                                form as UseFormReturnType<
-                                    DashboardHeadingTileProperties['properties']
-                                >
-                            }
                         />
                     ) : type === DashboardTileTypes.DATA_APP ? (
                         <DataAppTileForm
