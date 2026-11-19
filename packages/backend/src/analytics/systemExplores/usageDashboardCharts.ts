@@ -712,6 +712,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 m2Right: true,
                 xAxisType: 'category',
                 showSymbols: true,
+                xName: 'Retries',
+                yName: 'Requests',
+                yRightName: 'Average latency (ms)',
             },
             query: {
                 dimensions: ['agent_requests_retry_count'],
@@ -1305,14 +1308,25 @@ export const usageChartSpecs: UsageChartSpec[] = [
             fieldMapping: {
                 x: 'agent_requests_status',
                 m1: 'agent_requests_total_request_tokens',
-                splitBy: 'agent_requests_feedback_score',
             },
             optionValues: {
                 seriesType: 'bar',
                 stack: 'normal',
                 xAxisType: 'category',
             },
-            query: null,
+            query: {
+                dimensions: ['agent_requests_status'],
+                metrics: ['agent_requests_total_request_tokens'],
+                sorts: [
+                    {
+                        fieldId: 'agent_requests_total_request_tokens',
+                        descending: true,
+                    },
+                ],
+                limit: 30,
+                description:
+                    'Request-linked tokens by technical outcome over the selected period. Tokens linked to captured requests only; unlinked calls and unknown token accounting are not zero cost.',
+            },
         },
     },
     {

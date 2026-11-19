@@ -14,6 +14,7 @@ import { buildQueryCalendarChart } from './queryCalendarChart';
 import {
     buildUsageDashboards,
     usageLibraryChartBindings,
+    wholeMillisecondOverrides,
 } from './usageDashboards';
 
 type SampleChart = Omit<
@@ -60,6 +61,7 @@ const chart = (
             exploreName: tableName,
             dimensions: dimensionId ? [dimensionId] : [],
             metrics,
+            metricOverrides: wholeMillisecondOverrides(metrics),
             filters: {},
             sorts: [
                 {

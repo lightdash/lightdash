@@ -1434,3 +1434,62 @@ describe('built-in usage dashboards', () => {
         }
     });
 });
+
+describe('display fixes', () => {
+    const prefix = 'lightdash-analytics-overview-';
+    const byKey = (key: string) =>
+        charts.find(({ slug }) => slug === `${prefix}${key}`)!;
+
+    it('shows millisecond metrics as whole numbers and leaves others alone', () => {
+        const retries = byKey('agent-retries-latency-and-consumption');
+        expect(retries.metricQuery.metricOverrides).toEqual({
+            agent_requests_total_retry_overhead_ms: {
+                formatOptions: { type: 'number', round: 0 },
+            },
+            agent_requests_average_request_latency_ms: {
+                formatOptions: { type: 'number', round: 0 },
+            },
+        });
+        expect(
+            byKey('agent-requests-trend').metricQuery.metricOverrides,
+        ).toEqual({});
+    });
+
+    it('keeps percent formatting for rate metrics', () => {
+        const rated = charts.flatMap(({ metricQuery }) =>
+            metricQuery.metrics
+                .filter((field) => field.endsWith('_rate'))
+                .map((field) => metricQuery.metricOverrides?.[field]),
+        );
+        expect(rated.length).toBeGreaterThan(0);
+        rated.forEach((override) =>
+            expect(override).toEqual({
+                formatOptions: { type: 'percent', round: 1 },
+            }),
+        );
+    });
+
+    it('titles the retries axes', () => {
+        expect(
+            analyticsLibraryChartBindings.get(
+                `${prefix}agent-retries-latency-and-consumption`,
+            )?.optionValues,
+        ).toMatchObject({
+            xName: 'Retries',
+            yName: 'Requests',
+            yRightName: 'Average latency (ms)',
+        });
+    });
+
+    it('splits request consumption by outcome only, without a feedback legend', () => {
+        const binding = analyticsLibraryChartBindings.get(
+            `${prefix}request-consumption-by-outcome-and-feedback`,
+        )!;
+        expect(binding.fieldMapping).toEqual({
+            x: 'agent_requests_status',
+            m1: 'agent_requests_total_request_tokens',
+        });
+        expect(binding.query?.dimensions).toEqual(['agent_requests_status']);
+        expect(binding.query?.limit).toBe(30);
+    });
+});

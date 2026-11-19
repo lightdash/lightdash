@@ -270,6 +270,22 @@ const chartConfig = (spec: UsageChartSpec): ChartAsCode['chartConfig'] => {
     };
 };
 
+/** Millisecond metrics show as whole numbers: decimals add noise, not signal. */
+export const wholeMillisecondOverrides = (metrics: string[]) =>
+    Object.fromEntries(
+        metrics
+            .filter((field) => field.endsWith('_ms'))
+            .map((field) => [
+                field,
+                {
+                    formatOptions: {
+                        type: CustomFormatType.NUMBER,
+                        round: 0,
+                    },
+                },
+            ]),
+    );
+
 const buildChart = (
     spec: UsageChartSpec,
     dashboardSlug: string,
@@ -286,23 +302,26 @@ const buildChart = (
         exploreName: spec.explore,
         dimensions: spec.dimensions,
         metrics: spec.metrics,
-        metricOverrides: Object.fromEntries(
-            spec.metrics
-                .filter((field) =>
-                    ['_rate', '_coverage', '_share'].some((suffix) =>
-                        field.endsWith(suffix),
-                    ),
-                )
-                .map((field) => [
-                    field,
-                    {
-                        formatOptions: {
-                            type: CustomFormatType.PERCENT,
-                            round: 1,
+        metricOverrides: {
+            ...Object.fromEntries(
+                spec.metrics
+                    .filter((field) =>
+                        ['_rate', '_coverage', '_share'].some((suffix) =>
+                            field.endsWith(suffix),
+                        ),
+                    )
+                    .map((field) => [
+                        field,
+                        {
+                            formatOptions: {
+                                type: CustomFormatType.PERCENT,
+                                round: 1,
+                            },
                         },
-                    },
-                ]),
-        ),
+                    ]),
+            ),
+            ...wholeMillisecondOverrides(spec.metrics),
+        },
         filters: spec.filters
             ? {
                   dimensions: {
