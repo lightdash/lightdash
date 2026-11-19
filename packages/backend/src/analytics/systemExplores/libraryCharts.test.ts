@@ -597,6 +597,12 @@ describe('legacyLibraryChartBindings', () => {
                     default: true,
                 },
                 {
+                    type: 'text',
+                    name: 'label',
+                    label: 'label',
+                    default: '',
+                },
+                {
                     type: 'boolean',
                     name: 'showCardBorder',
                     label: 'showCardBorder',
