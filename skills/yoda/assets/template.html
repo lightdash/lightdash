@@ -48,7 +48,8 @@ a:hover { color: var(--text); }
 .verdict-notes, .heads-up { color: var(--heads); }
 .verdict-changes, .fix, .missing { color: var(--fix); }
 .finding + .finding { margin-top: 12px; }
-.finding p { margin: 0; color: var(--muted); }
+.finding p, .summary { margin: 0; color: var(--muted); }
+.finding p code, .summary code { font-family: inherit; font-size: inherit; color: var(--text); }
 .thin { color: var(--heads); }
 .check .mark { color: var(--ok); }
 .gap .mark { color: var(--heads); }
@@ -85,9 +86,14 @@ a:hover { color: var(--text); }
   </section>
 
   <section>
+    <div class="label">Summary</div>
+    <p class="summary">A DuckDB failure no longer marks a pre-aggregate query errored, so dashboards keep loading while the warehouse fallback runs.</p>
+  </section>
+
+  <section>
     <div class="finding">
-      <div class="label"><span class="heads-up">Heads-up</span><span>Core</span></div>
-      <p>Nothing fails if this change is reverted. The fix sits in the <code>catch</code> of <code>runAsyncWarehouseQuery</code>, reached only from the DuckDB fallback in <code>runAsyncPreAggregateQuery</code>, which the existing tests spy on and never run. Add a test with a throwing DuckDB client and a succeeding warehouse that asserts <code>updateStatusToError</code> is never called.</p>
+      <div class="label">Core<span class="heads-up">heads-up</span></div>
+      <p>No test fails if this is reverted. Add one where DuckDB throws and the warehouse succeeds, asserting <code>updateStatusToError</code> is never called.</p>
     </div>
   </section>
 

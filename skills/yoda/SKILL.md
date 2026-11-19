@@ -2,6 +2,7 @@
 name: yoda
 description: Review a Lightdash PR, branch or diff through lenses, or explain a system, bug or change. /yoda [review|json|explain|triage] [text|json|html|github] [quick|deep] [lens names] <PR(s), topic or question>
 disable-model-invocation: true
+version: 1795104641
 ---
 
 # yoda
@@ -31,11 +32,12 @@ Use triage only when its tag list is wanted.
 
 Formats: **html** (default) is one compact segmented card ([formats/html.md](formats/html.md)), shown inline or published when a shareable link is requested; **text** is Markdown, used where HTML cannot render (a terminal, or another agent reading the review); **json** is data; **github** writes the PR description and keeps it synced ([formats/github.md](formats/github.md)).
 A PR whose description holds a yoda block is synced whenever yoda reviews it, whatever the format.
-Reformat an existing review from context without reviewing again.
+Reformat an existing review from context or its saved JSON in `~/.yoda/reviews/` ([review.md](review.md#save)) without reviewing again.
 
 Depth: **quick** (default) or **deep**, as the mode specifies.
 Lens file names (`security`, `live-data-sources`) select lenses directly under triage's selection rules.
 Yoda sets neither model nor effort.
+`version` above is the Unix epoch of the skill's last edit: set it to `date +%s` whenever any file in this skill changes.
 
 ## Copy
 
