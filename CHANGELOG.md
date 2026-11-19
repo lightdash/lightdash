@@ -1,3 +1,10 @@
+## [3.327.3](https://github.com/lightdash/lightdash/compare/3.327.2...3.327.3) (2026-11-19)
+
+
+### Bug Fixes
+
+* **ai-agent:** offer the SQL chart choice on dashboards that already hold SQL charts ([#32882](https://github.com/lightdash/lightdash/issues/32882)) ([ae7e18e](https://github.com/lightdash/lightdash/commit/ae7e18efde38c5816514d59a586c1b2723ed9684))
+
 ## [3.327.2](https://github.com/lightdash/lightdash/compare/3.327.1...3.327.2) (2026-11-19)
 
 
