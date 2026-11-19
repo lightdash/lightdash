@@ -1291,6 +1291,55 @@ describe('Agents & AI feedback table', () => {
     });
 });
 
+describe('Agents & AI failed-request card', () => {
+    const all = analyticsContentAsCode.flatMap((bundle) => bundle.charts);
+    const failedSlug =
+        'lightdash-analytics-overview-request-consumption-by-outcome-and-feedback';
+    const draw = (types: Map<string, UsableLibraryChartType>) => {
+        const { charts: drawn, rejected } = withLibraryCharts(
+            all,
+            analyticsLibraryChartBindings,
+            types,
+        );
+        return {
+            rejected,
+            failed: drawn.find((chart) => chart.slug === failedSlug)!,
+        };
+    };
+
+    it('draws a plain big number when the library type is missing', () => {
+        const { failed, rejected } = draw(new Map());
+        expect(rejected).toEqual([]);
+        expect(failed.chartConfig.type).toBe(ChartType.BIG_NUMBER);
+        expect(failed.metricQuery.dimensions).toEqual([]);
+    });
+
+    it('draws the card with one point per day when the library type is installed', () => {
+        const { failed, rejected } = draw(installedTypes());
+        expect(rejected).toEqual([]);
+        expect(failed.chartConfig).toMatchObject({
+            type: ChartType.DATA_APP_VIZ,
+            config: { dataAppVizSlug: 'big-number-with-sparkline-trend' },
+        });
+        expect(failed.metricQuery.dimensions).toEqual([
+            'agent_requests_requested_at_day',
+        ]);
+        // The card keeps the outcome filter of the plain number, so both show the same total
+        expect(failed.metricQuery.filters).toEqual(
+            all.find((chart) => chart.slug === failedSlug)!.metricQuery.filters,
+        );
+        expect(sqlOf(failed)).toContain("IN ('error','cancelled')");
+    });
+
+    it('falls back to the plain big number on an older library type', () => {
+        const { failed, rejected } = draw(installedTypes('0.0.1'));
+        expect(rejected.map(({ chartSlug }) => chartSlug)).toContain(
+            failedSlug,
+        );
+        expect(failed.chartConfig.type).toBe(ChartType.BIG_NUMBER);
+    });
+});
+
 describe('library chart options', () => {
     const entries = [...analyticsLibraryChartBindings.entries()];
 

@@ -79,15 +79,6 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                 name: 'Retries & tokens',
                 sections: [
                     {
-                        title: 'Retries',
-                        caption: true,
-                        description:
-                            'Requests and average request latency by retry count. The exact tokens added by each attempt are not recorded.',
-                        charts: ['agent-retries-latency-and-consumption'],
-                        layout: 'row',
-                        rowHeight: 7,
-                    },
-                    {
                         title: 'AI consumption',
                         caption: true,
                         description:
@@ -100,11 +91,17 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         rowHeight: 8,
                     },
                     {
-                        title: 'Consumption by outcome',
+                        title: 'Failed requests and retries',
                         caption: true,
                         description:
-                            'Tokens linked to requests, by technical outcome. Some AI calls cannot be linked to a request.',
-                        charts: ['request-consumption-by-outcome-and-feedback'],
+                            'Tokens spent on agent requests that failed or were cancelled, next to requests and average request latency by retry count. The exact tokens added by each attempt are not recorded.',
+                        charts: [
+                            'request-consumption-by-outcome-and-feedback',
+                            'agent-retries-latency-and-consumption',
+                        ],
+                        layout: 'row',
+                        widths: [12, 24],
+                        rowHeight: 6,
                     },
                 ],
             },

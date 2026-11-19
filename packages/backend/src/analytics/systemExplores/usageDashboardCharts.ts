@@ -3,6 +3,7 @@ import {
     FilterOperator,
     TableCalculationType,
 } from '@lightdash/common';
+import { card } from './chartBuilders';
 import { monthlyQueryComparisonCharts } from './monthlyQueryComparisonCharts';
 import type { UsageChartSpec } from './usageDashboardTypes';
 
@@ -727,54 +728,21 @@ export const usageChartSpecs: UsageChartSpec[] = [
             },
         ],
     },
-    {
+    card({
         key: 'request-consumption-by-outcome-and-feedback',
-        name: 'Tokens linked to requests by outcome',
+        name: 'Tokens spent on failed or cancelled requests',
         description:
-            'Requests, tokens and AI calls by outcome and feedback rating. Only tokens linked to recorded requests are counted. Unlinked AI calls and unknown token counts are not zero tokens.',
+            'Tokens from AI calls linked to agent requests that ended in an error or were cancelled. Requests still pending or waiting for a clarification are not counted. Unlinked AI calls and unknown token counts are not zero tokens.',
         explore: 'agent_requests',
-        dimensions: ['agent_requests_status', 'agent_requests_feedback_score'],
-        metrics: [
-            'agent_requests_total_requests',
-            'agent_requests_total_request_tokens',
-            'agent_requests_total_ai_calls',
-        ],
-        limit: 30,
-        sorts: [
+        day: 'agent_requests_requested_at_day',
+        metric: 'agent_requests_total_request_tokens',
+        filters: [
             {
-                descending: true,
-                fieldId: 'agent_requests_total_requests',
+                field: 'agent_requests_status',
+                values: ['error', 'cancelled'],
             },
         ],
-        libraryChart: {
-            slug: 'customizable-cartesian-chart',
-            minVersion: '0.17.1',
-            fieldMapping: {
-                x: 'agent_requests_status',
-                m1: 'agent_requests_total_request_tokens',
-            },
-            optionValues: {
-                xName: 'Outcome',
-                yName: 'Tokens linked to requests',
-                seriesType: 'bar',
-                stack: 'normal',
-                xAxisType: 'category',
-            },
-            query: {
-                dimensions: ['agent_requests_status'],
-                metrics: ['agent_requests_total_request_tokens'],
-                sorts: [
-                    {
-                        fieldId: 'agent_requests_total_request_tokens',
-                        descending: true,
-                    },
-                ],
-                limit: 30,
-                description:
-                    'Tokens linked to requests by technical outcome in the selected period. Unlinked AI calls and unknown token counts are not zero tokens.',
-            },
-        },
-    },
+    }),
     {
         key: 'review-candidates-activity-and-known-dependencies',
         name: 'Review candidates: activity and known dependencies',

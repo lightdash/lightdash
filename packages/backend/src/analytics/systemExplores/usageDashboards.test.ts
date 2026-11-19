@@ -679,10 +679,10 @@ describe('built-in usage dashboards', () => {
         );
         expect(slugsFor('consumption')).toEqual(
             [
-                'agent-retries-latency-and-consumption',
                 'ai-consumption-by-person-feature-and-model',
                 'ai-tokens-by-feature-and-model',
                 'request-consumption-by-outcome-and-feedback',
+                'agent-retries-latency-and-consumption',
             ].map((key) => `${prefix}${key}`),
         );
         const find = (key: string) =>
@@ -725,10 +725,14 @@ describe('built-in usage dashboards', () => {
             )?.slug,
         ).toBe('sortable-pivot-table');
         expect(
+            find('request-consumption-by-outcome-and-feedback').chartConfig
+                .type,
+        ).toBe(ChartType.BIG_NUMBER);
+        expect(
             analyticsLibraryChartBindings.get(
                 `${prefix}request-consumption-by-outcome-and-feedback`,
             )?.slug,
-        ).toBe('customizable-cartesian-chart');
+        ).toBe('big-number-with-sparkline-trend');
     });
 
     it('lays out the Outcomes and Retries sections as explicit rows', () => {
@@ -750,11 +754,6 @@ describe('built-in usage dashboards', () => {
         ].map((key) => tile('outcomes', key));
         expect([a.x, b.x, a.w, b.w, a.h, b.h]).toEqual([0, 18, 18, 18, 8, 8]);
         expect(a.y).toBe(b.y);
-        const retries = tile(
-            'consumption',
-            'agent-retries-latency-and-consumption',
-        );
-        expect([retries.x, retries.w, retries.h]).toEqual([0, 36, 7]);
         const feedback = tile(
             'outcomes',
             'agent-feedback-rating-and-sample-coverage',
@@ -769,6 +768,17 @@ describe('built-in usage dashboards', () => {
         ]);
         expect([person.h, tokens.h]).toEqual([8, 8]);
         expect(person.y).toBe(tokens.y);
+        // The card shares the last row with the retries chart, so it never sits alone on a full-width row
+        const [failed, retries] = [
+            'request-consumption-by-outcome-and-feedback',
+            'agent-retries-latency-and-consumption',
+        ].map((key) => tile('consumption', key));
+        expect([failed.x, retries.x, failed.w, retries.w]).toEqual([
+            0, 12, 12, 24,
+        ]);
+        expect([failed.h, retries.h]).toEqual([6, 6]);
+        expect(failed.y).toBe(retries.y);
+        expect(failed.y).toBeGreaterThan(person.y);
     });
 
     it('renders Agents & AI sections as one-line captions and leaves other dashboards headed', () => {
@@ -1853,15 +1863,52 @@ describe('display fixes', () => {
         }
     });
 
-    it('splits request consumption by outcome only, without a feedback legend', () => {
-        const binding = analyticsLibraryChartBindings.get(
-            `${prefix}request-consumption-by-outcome-and-feedback`,
-        )!;
-        expect(binding.fieldMapping).toEqual({
-            x: 'agent_requests_status',
-            m1: 'agent_requests_total_request_tokens',
+    it('totals the tokens of failed or cancelled requests on a card', () => {
+        const failed = byKey('request-consumption-by-outcome-and-feedback');
+        expect(failed.name).toBe(
+            'Tokens spent on failed or cancelled requests',
+        );
+        expect(failed.chartConfig).toMatchObject({
+            type: ChartType.BIG_NUMBER,
+            config: {
+                selectedField: 'agent_requests_total_request_tokens',
+            },
         });
-        expect(binding.query?.dimensions).toEqual(['agent_requests_status']);
-        expect(binding.query?.limit).toBe(30);
+        expect(failed.metricQuery.dimensions).toEqual([]);
+        expect(failed.metricQuery.metrics).toEqual([
+            'agent_requests_total_request_tokens',
+        ]);
+        // Clarification and pending are not failures
+        expect(failed.metricQuery.filters.dimensions).toMatchObject({
+            and: [
+                {
+                    target: { fieldId: 'agent_requests_status' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['error', 'cancelled'],
+                },
+            ],
+        });
+        expect(compile(failed).query).toContain("IN ('error','cancelled')");
+        const binding = analyticsLibraryChartBindings.get(failed.slug)!;
+        expect(binding).toMatchObject({
+            slug: 'big-number-with-sparkline-trend',
+            fieldMapping: {
+                value: 'agent_requests_total_request_tokens',
+                sparklineMetric: 'agent_requests_total_request_tokens',
+                time: 'agent_requests_requested_at_day',
+            },
+            optionValues: {
+                valueAggregation: 'sum',
+                label: 'Selected period',
+                showSparklineArea: true,
+            },
+            query: {
+                dimensions: ['agent_requests_requested_at_day'],
+                metrics: ['agent_requests_total_request_tokens'],
+            },
+        });
+        // A share of all linked tokens cannot come from a query that keeps only the failed requests
+        expect(binding.fieldMapping).not.toHaveProperty('secondary');
+        expect(binding.optionValues).not.toHaveProperty('secondaryLabel');
     });
 });
