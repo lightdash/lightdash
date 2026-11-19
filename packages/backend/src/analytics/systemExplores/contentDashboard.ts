@@ -78,6 +78,7 @@ export const contentChartSpecs: UsageChartSpec[] = [
             { field: 'content_reach_content_type', values: ['dashboard'] },
         ],
         limit: 100,
+        fieldLabels: { content_reach_content_name: 'Dashboard' },
         libraryDescription:
             'Views of each dashboard, with the people who viewed it. Open a dashboard to see its people.',
     }),
@@ -167,6 +168,7 @@ export const contentChartSpecs: UsageChartSpec[] = [
         ],
         limit: 25,
         libraryLimit: 25,
+        fieldLabels: { content_health_content_name: 'Dashboard' },
         visualization: 'scatter',
         xField: 'content_health_observed_viewers',
         yFields: ['content_health_total_warehouse_execution_time_ms'],

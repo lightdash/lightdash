@@ -114,6 +114,8 @@ export const libraryChartOptions: Record<
             'showTotalsRow groupSubtotals defaultCollapsed valueDisplay showRowTotals totalsPosition stickyFirstColumn resizableColumns stripedRows stickyHeader fitMode columnBorders columnGroupBy hideColumns density cellColorMode formatTotals showMiniBars decimalPlaces useFieldFormats rowOrder columnOrder defaultSortDirection highlightColor',
         ),
         initialSort: '0.14.0',
+        rowHeaderName: '0.14.0',
+        valueNames: '0.14.0',
     },
     'customizable-cartesian-chart': {
         ...sinceFirstBinding(
@@ -122,6 +124,7 @@ export const libraryChartOptions: Record<
         m1Name: '0.18.0',
         m2Name: '0.18.0',
         m3Name: '0.18.0',
+        m4Name: '0.18.0',
     },
     'big-number-with-sparkline-trend': {
         ...sinceFirstBinding(

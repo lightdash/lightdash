@@ -1,5 +1,6 @@
 import type { LibraryChartBinding } from './libraryCharts';
 import type { UsageChartSpec } from './usageDashboardTypes';
+import { usageFieldLabels } from './usageFieldLabels';
 
 // The chart shapes the built-in dashboards share. Each one is a plain chart that every instance can
 // draw, with the library chart that replaces it once that chart type is installed.
@@ -69,7 +70,7 @@ export const card = ({
 });
 
 // Smooth filled lines in full-width rows over a shared date axis, each row on its own scale.
-const rows = (zeroFill: boolean): LibraryChartBinding['optionValues'] => ({
+const rows = (panels: boolean): LibraryChartBinding['optionValues'] => ({
     arrangement: 'rows',
     minPanelHeight: 70,
     sharedY: false,
@@ -79,15 +80,14 @@ const rows = (zeroFill: boolean): LibraryChartBinding['optionValues'] => ({
     showLine: true,
     showPoints: false,
     showPeakLabel: true,
-    // A day with no rows is a day with nothing to count. Not for averages: no value is not zero.
-    ...(zeroFill ? { zeroFillGaps: true } : {}),
+    // A day with no rows for a category is a day with nothing to count. Only acts across panels.
+    ...(panels ? { zeroFillGaps: true } : {}),
 });
 
 // One measure by day as a single full-width row.
 export const trend = ({
     day,
     metric,
-    zeroFill = true,
     tableCalculations,
     metrics,
     ...spec
@@ -97,7 +97,6 @@ export const trend = ({
         // The measure drawn: a metric, or a table calculation over `metrics`
         metric: string;
         metrics?: string[];
-        zeroFill?: boolean;
     }): UsageChartSpec => ({
     ...spec,
     dimensions: [day],
@@ -112,7 +111,7 @@ export const trend = ({
         slug: 'vega-trellis',
         minVersion: '0.7.0',
         fieldMapping: { x: day, value: metric },
-        optionValues: rows(zeroFill),
+        optionValues: rows(false),
         query: null,
     },
 });
@@ -250,7 +249,7 @@ export const stackedByDay = ({
     },
 });
 
-// Up to three measures by day, each with a plain series name.
+// Up to four measures by day, each with a plain series name.
 export const seriesByDay = ({
     day,
     series,
@@ -269,7 +268,7 @@ export const seriesByDay = ({
     rightAxis?: string;
 }): UsageChartSpec => {
     const metrics = series.map(({ metric }) => metric);
-    const slots = ['m1', 'm2', 'm3'].slice(0, series.length);
+    const slots = ['m1', 'm2', 'm3', 'm4'].slice(0, series.length);
     const last = slots[slots.length - 1];
     return {
         ...spec,
@@ -352,6 +351,13 @@ export const ranking = ({
         extraMetrics?: string[];
     }): UsageChartSpec => {
     const grouped = [by, ...(then ? [then] : []), ...(series ? [series] : [])];
+    // The table takes its headers from these names, not from the field labels of the explore
+    const labelOf = (field: string) => {
+        const label = spec.fieldLabels?.[field] ?? usageFieldLabels[field];
+        if (!label || label.includes(','))
+            throw new Error(`No plain column name for ${field}`);
+        return label;
+    };
     return {
         ...spec,
         dimensions: dimensions ?? grouped,
@@ -375,6 +381,10 @@ export const ranking = ({
                 decimalPlaces: 0,
                 density: 'compact',
                 initialSort: 'firstValue',
+                rowHeaderName: [by, ...(then ? [then] : [])]
+                    .map(labelOf)
+                    .join(' / '),
+                valueNames: metrics.map(labelOf).join(','),
                 ...(then ? { defaultCollapsed: 'collapsed' } : {}),
             },
             query: {

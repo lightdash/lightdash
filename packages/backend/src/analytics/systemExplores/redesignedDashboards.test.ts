@@ -760,6 +760,17 @@ describe.each(Object.entries(redesigned))('%s', (slug, tabs) => {
                 ]);
                 if (fieldMapping.rowDimension2)
                     expect(optionValues.defaultCollapsed).toBe('collapsed');
+                // Plain headers: one name for the row header and one for each measure
+                expect(String(optionValues.rowHeaderName)).toMatch(
+                    fieldMapping.rowDimension2
+                        ? /^[A-Z][^/_]+ \/ [A-Z][^/_]+$/
+                        : /^[A-Z][^/_]+$/,
+                );
+                const names = String(optionValues.valueNames).split(',');
+                expect(names).toHaveLength(
+                    (fieldMapping.metric as string[]).length,
+                );
+                names.forEach((name) => expect(name).toMatch(/^[A-Z][^_]+$/));
             });
     });
 
