@@ -3,6 +3,8 @@
     display: flex;
     flex-direction: column;
     max-height: 280px;
+    /* The shared result panel is sized for a wide chat; here its heading, menu and table all step down together. */
+    zoom: 0.82;
 }
 
 .fitted > * {
