@@ -459,6 +459,7 @@ describe('getModel', () => {
 
         const { body } = await captureStreamRequest(model);
         expect(body.stream).toBe(true);
+        expect(body.store).toBe(false);
     });
 
     it('stamps lightdash-managed when the resolved provider is declared Lightdash-managed and not BYO', () => {
@@ -690,6 +691,7 @@ describe('getModel', () => {
 
         const { body } = await captureStreamRequest(model);
         expect(body.stream).toBeUndefined();
+        expect(body.store).toBe(false);
     });
 });
 
