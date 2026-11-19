@@ -1,0 +1,10 @@
+/* Long lines (a signed embed URL runs to hundreds of characters) wrap, so the
+   modal never scrolls sideways. */
+.content {
+    min-width: 0;
+}
+
+.content :global(.mantine-CodeHighlight-code) {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}

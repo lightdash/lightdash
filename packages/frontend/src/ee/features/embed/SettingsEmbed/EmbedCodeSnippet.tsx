@@ -1610,7 +1610,19 @@ export const EmbeddedAiAgent = ({ embedJwt }: EmbeddedAiAgentProps) => {
     }
 };
 
-const CodeSnippetTabs: FC<{
+export const ReactSdkFrontendCodeBlock: FC<{
+    data: CreateEmbedJwt;
+    siteUrl: string;
+    onCopy: () => void;
+}> = ({ data, siteUrl, onCopy }) => (
+    <CodeBlock
+        code={getReactSdkFrontendSnippet({ data, siteUrl })}
+        language="tsx"
+        onCopy={onCopy}
+    />
+);
+
+export const CodeSnippetTabs: FC<{
     data: CreateEmbedJwt;
     mode: EmbedMethod;
     onCopySnippet: () => void;
@@ -1757,12 +1769,9 @@ const EmbedCodeSnippet: FC<{
                             backend.
                         </Text>
                     </Stack>
-                    <CodeBlock
-                        code={getReactSdkFrontendSnippet({
-                            data,
-                            siteUrl,
-                        })}
-                        language="tsx"
+                    <ReactSdkFrontendCodeBlock
+                        data={data}
+                        siteUrl={siteUrl}
                         onCopy={handleCopySnippet}
                     />
                 </Stack>
