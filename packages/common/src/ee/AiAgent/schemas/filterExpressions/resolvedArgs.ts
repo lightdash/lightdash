@@ -132,9 +132,9 @@ export const filterExpressionResolvedFiltersSchemaTransformed = z.union([
 ]);
 
 const resolvedQueryConfigSchema = queryConfigBaseSchema.extend({
-    customMetrics: customMetricsSchema,
-    tableCalculations: tableCalcsSchema,
-    filters: filterExpressionResolvedFiltersSchema.nullable(),
+    customMetrics: customMetricsSchema.default(null),
+    tableCalculations: tableCalcsSchema.default(null),
+    filters: filterExpressionResolvedFiltersSchema.nullable().default(null),
 });
 
 const resolvedMergeSourceQueryConfigSchema = resolvedQueryConfigSchema.omit({
