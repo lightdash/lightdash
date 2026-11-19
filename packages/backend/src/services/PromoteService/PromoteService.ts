@@ -1996,25 +1996,21 @@ export class PromoteService extends BaseService {
             ),
         );
 
-        await preflightComposerChartChanges(
-            this.composerChartModel,
-            this.getComposerChartService(),
+        const composerCharts = await this.getAuthorizedComposerChartChanges(
             account,
-            {
-                organizationUuid: user.organizationUuid!,
-                projectUuid: upstreamProjectUuid,
-            },
-            promotionChanges.composerCharts ?? [],
+            dashboard,
+            upstreamDashboard,
         );
 
         const dataApps = await this.getDataAppDiffChanges(
             user,
             dashboard.projectUuid,
-            promotionChanges,
+            { ...promotionChanges, composerCharts },
         );
 
         return {
             ...promotionChanges,
+            composerCharts,
             sqlCharts: sqlCharts.map((sqlChartChange) => ({
                 action: sqlChartChange.action,
                 data: PromoteService.toPromotedSqlChartChange(sqlChartChange),
@@ -2929,31 +2925,43 @@ export class PromoteService extends BaseService {
         // TODO return charts within dashboards that are going to be deleted after the promotion
         // For this we'll need to get all the tiles for the upstreamDashboard and compare against the promotedDashboard.tiles
 
-        // Content-as-code upload reuses this path within one project and resolves composer tiles itself
-        const composerChartChanges =
-            promotedDashboard.projectUuid === upstreamProjectUuid
-                ? []
-                : await getComposerChartChanges(
-                      this.composerChartModel,
-                      promotedDashboard.dashboard.tiles,
-                      {
-                          projectUuid: upstreamProjectUuid,
-                          dashboardUuid:
-                              upstreamDashboard.dashboard?.uuid ?? null,
-                      },
-                  );
-
         return [
             {
                 spaces: spaceChanges,
                 dashboards: dashboardChanges,
                 charts: chartChanges,
-                composerCharts: composerChartChanges,
             },
             charts, // For permission checks
             sqlCharts, // For permission checks
             sqlChartChanges,
         ];
+    }
+
+    /** Runs after the promote permission checks, so a refusal reveals nothing upstream. */
+    private async getAuthorizedComposerChartChanges(
+        account: RegisteredAccount,
+        dashboard: DashboardDAO,
+        upstreamDashboard: UpstreamDashboard,
+    ) {
+        const changes = await getComposerChartChanges(
+            this.composerChartModel,
+            dashboard.tiles,
+            {
+                projectUuid: upstreamDashboard.projectUuid,
+                dashboardUuid: upstreamDashboard.dashboard?.uuid ?? null,
+            },
+        );
+        await preflightComposerChartChanges(
+            this.composerChartModel,
+            this.getComposerChartService(),
+            account,
+            {
+                organizationUuid: account.organization.organizationUuid!,
+                projectUuid: upstreamDashboard.projectUuid,
+            },
+            changes,
+        );
+        return changes;
     }
 
     async getPromotedDashboard(
@@ -3120,16 +3128,14 @@ export class PromoteService extends BaseService {
                     ),
             );
 
-            await preflightComposerChartChanges(
-                this.composerChartModel,
-                this.getComposerChartService(),
-                account,
-                {
-                    organizationUuid: user.organizationUuid!,
-                    projectUuid: upstreamProjectUuid,
-                },
-                promotionChanges.composerCharts ?? [],
-            );
+            promotionChanges = {
+                ...promotionChanges,
+                composerCharts: await this.getAuthorizedComposerChartChanges(
+                    account,
+                    dashboard,
+                    upstreamDashboard,
+                ),
+            };
 
             const sqlChartBindings = await this.getPromotedSqlChartBindings(
                 dashboard.projectUuid,
