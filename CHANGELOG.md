@@ -1,3 +1,10 @@
+# [3.327.0](https://github.com/lightdash/lightdash/compare/3.326.0...3.327.0) (2026-11-19)
+
+
+### Features
+
+* **semantic-studio:** make a dbt draft's states agree, and refresh after an outside merge ([#32934](https://github.com/lightdash/lightdash/issues/32934)) ([fb684d4](https://github.com/lightdash/lightdash/commit/fb684d4191f207641610d8ba5c35a28d8dcbf853))
+
 # [3.326.0](https://github.com/lightdash/lightdash/compare/3.325.0...3.326.0) (2026-11-19)
 
 
