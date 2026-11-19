@@ -4,6 +4,7 @@ import {
     UnitOfTime,
     type ChartAsCode,
 } from '@lightdash/common';
+import { analyticsColorPalette } from './analyticsColorPalette';
 import type { UsageChartSpec, UsageDashboardSpec } from './usageDashboardTypes';
 
 const dashboardKey = 'lightdash-analytics-embed';
@@ -319,7 +320,7 @@ export const withEmbedRankingPresentation = (
                     autosize: { type: 'fit', contains: 'padding' },
                     mark: {
                         type: 'bar',
-                        color: '#4263EB',
+                        color: analyticsColorPalette.colors[0],
                         cornerRadiusEnd: 3,
                         tooltip: true,
                     },

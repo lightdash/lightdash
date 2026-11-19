@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { buildAiTokenDashboard } from './aiTokenDashboard';
 import { withAnalyticsChartPresentation } from './analyticsChartPresentation';
+import { analyticsColorPalette } from './analyticsColorPalette';
 import { withEmbedRankingPresentation } from './embedDashboard';
 import type { LibraryChartBinding } from './libraryCharts';
 import { buildQueryCalendarChart } from './queryCalendarChart';
@@ -95,7 +96,9 @@ const chart = (
                                   ? CartesianSeriesType.BAR
                                   : CartesianSeriesType.LINE,
                               name: options.seriesNames?.[index] ?? name,
-                              color: options.colors?.[index] ?? '#5C7CFA',
+                              color:
+                                  options.colors?.[index] ??
+                                  analyticsColorPalette.colors[0],
                               showSymbol: false,
                               smooth: false,
                               encode: {
@@ -135,9 +138,9 @@ const chart = (
                 },
                 groupColorOverrides: {
                     true: '#12B886',
-                    false: '#5C7CFA',
+                    false: analyticsColorPalette.colors[0],
                     True: '#12B886',
-                    False: '#5C7CFA',
+                    False: analyticsColorPalette.colors[0],
                 },
             },
         };

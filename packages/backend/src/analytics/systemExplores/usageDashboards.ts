@@ -10,6 +10,7 @@ import {
     type DashboardAsCode,
 } from '@lightdash/common';
 import { adoptionChartSpecs, adoptionDashboardSpec } from './adoptionDashboard';
+import { analyticsColorPalette } from './analyticsColorPalette';
 import { embedChartSpecs, embedDashboardSpec } from './embedDashboard';
 import type { LibraryChartBinding } from './libraryCharts';
 import { peopleNoActivityChartSpecs } from './peopleNoActivityCharts';
@@ -239,7 +240,7 @@ const chartConfig = (spec: UsageChartSpec): ChartAsCode['chartConfig'] => {
                             ? { name: spec.fieldLabels[field] }
                             : {}),
                         type: seriesType,
-                        color: ['#5C7CFA', '#12B886'][index % 2],
+                        color: analyticsColorPalette.colors[index % 2],
                         showSymbol: true,
                         smooth: false,
                         yAxisIndex: 0,

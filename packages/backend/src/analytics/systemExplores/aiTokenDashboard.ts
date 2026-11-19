@@ -11,6 +11,7 @@ import {
     type ChartAsCode,
     type DashboardAsCode,
 } from '@lightdash/common';
+import { analyticsColorPalette } from './analyticsColorPalette';
 import type { AnalyticsContentBundle } from './usageDashboardTypes';
 
 const dashboardSlug = ANALYTICS_AI_USAGE_DASHBOARD_SLUG;
@@ -18,14 +19,8 @@ const spaceSlug = 'lightdash-usage-overview';
 const tokens = 'ai_usage_total_tokens_used';
 const day = 'ai_usage_event_ts_day';
 const queryLimit = 5000;
-const colors = [
-    '#4263eb',
-    '#0ca678',
-    '#7950f2',
-    '#e67700',
-    '#d6336c',
-    '#868e96',
-];
+// The top five groups take the Analytics palette; grey marks "Other".
+const colors = [...analyticsColorPalette.colors.slice(0, 5), '#868e96'];
 const scopeDescription =
     'Complete usage on Lightdash-managed keys for Ask AI, deep research, subtasks, compaction and Data Apps, including unpriced models. These tokens are not credits or the priced billable-token total in Settings.';
 const periodDescription =
