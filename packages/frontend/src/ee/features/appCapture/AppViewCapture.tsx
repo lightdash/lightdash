@@ -14,7 +14,8 @@ import { useSendCaptureToAgent } from '../dashboardCapture/useSendCaptureToAgent
 
 type Props = {
     projectUuid: string;
-    appUuid: string;
+    /** The app to attach to the message, or null to send text only. */
+    attachedAppUuid: string | null;
     appName: string;
     /** The app's frame: the part of the page that can be drawn on. */
     getRegion: () => DOMRect;
@@ -23,7 +24,10 @@ type Props = {
 
 /** Voice Design on a published app: the recording becomes one agent thread. */
 const AppViewCapture = forwardRef<CaptureHostHandle, Props>(
-    ({ projectUuid, appUuid, appName, getRegion, onRecordingChange }, ref) => {
+    (
+        { projectUuid, attachedAppUuid, appName, getRegion, onRecordingChange },
+        ref,
+    ) => {
         const { showToastInfo, showToastError } = useToaster();
         const { send: sendToAgent } = useSendCaptureToAgent(projectUuid);
 
@@ -37,7 +41,9 @@ const AppViewCapture = forwardRef<CaptureHostHandle, Props>(
                             summary: result.summary,
                             hasImages: false,
                         }),
-                        context: [{ type: 'data_app', appUuid }],
+                        context: attachedAppUuid
+                            ? [{ type: 'data_app', appUuid: attachedAppUuid }]
+                            : [],
                     });
                 } catch {
                     showToastError({
@@ -45,7 +51,13 @@ const AppViewCapture = forwardRef<CaptureHostHandle, Props>(
                     });
                 }
             },
-            [appName, appUuid, sendToAgent, showToastError, showToastInfo],
+            [
+                appName,
+                attachedAppUuid,
+                sendToAgent,
+                showToastError,
+                showToastInfo,
+            ],
         );
         const handleCaptureRef = useRef(handleCapture);
         handleCaptureRef.current = handleCapture;

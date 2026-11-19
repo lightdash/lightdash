@@ -45,7 +45,7 @@ describe('AppViewCapture', () => {
         render(
             <AppViewCapture
                 projectUuid="project-1"
-                appUuid="app-1"
+                attachedAppUuid="app-1"
                 appName="Sales pulse"
                 getRegion={() => new DOMRect(0, 0, 100, 100)}
                 onRecordingChange={() => {}}

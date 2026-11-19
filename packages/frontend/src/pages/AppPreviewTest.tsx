@@ -1,4 +1,8 @@
-import { FeatureFlags, isAppVersionInProgress } from '@lightdash/common';
+import {
+    DATA_APP_VIZ_TEMPLATE,
+    FeatureFlags,
+    isAppVersionInProgress,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -559,11 +563,17 @@ export default function AppPreviewTest() {
                 ref={previewBodyRef}
                 className={classes.previewBody}
             >
-                {captureAvailable && appUuid && (
+                {captureAvailable && (
                     <AppViewCapture
                         ref={captureRef}
                         projectUuid={projectUuid}
-                        appUuid={appUuid}
+                        // The server refuses chart types as attachments.
+                        attachedAppUuid={
+                            !firstPage ||
+                            firstPage.template === DATA_APP_VIZ_TEMPLATE
+                                ? null
+                                : firstPage.appUuid
+                        }
                         appName={appName}
                         getRegion={getCaptureRegion}
                         onRecordingChange={setIsCaptureRecording}
