@@ -1,3 +1,10 @@
+## [3.328.3](https://github.com/lightdash/lightdash/compare/3.328.2...3.328.3) (2026-11-19)
+
+
+### Bug Fixes
+
+* **ai:** keep OpenAI Responses requests stateless for Zero Data Retention ([#32947](https://github.com/lightdash/lightdash/issues/32947)) ([41e94e7](https://github.com/lightdash/lightdash/commit/41e94e7e940fe96bdf27d02b84dbc39cc92920af))
+
 ## [3.328.2](https://github.com/lightdash/lightdash/compare/3.328.1...3.328.2) (2026-11-19)
 
 
