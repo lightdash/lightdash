@@ -7,22 +7,17 @@
 import {
     assertUnreachable,
     DbtProjectType,
-    type PreAggregateMaterializationSummary,
     type SemanticLayerBlocker,
 } from '@lightdash/common';
 import {
     Anchor,
     Avatar,
     Box,
-    Breadcrumbs,
     Menu,
     Button,
-    Center,
     Group,
-    Loader,
     Paper,
     Text,
-    TextInput,
     Title,
     Tooltip,
     UnstyledButton,
@@ -30,30 +25,21 @@ import {
 import {
     IconArrowLeft,
     IconArrowUpRight,
-    IconBolt,
-    IconChevronRight,
-    IconFileCode,
     IconMessage,
     IconRefresh,
-    IconSearch,
 } from '@tabler/icons-react';
-import { useVirtualizer } from '@tanstack/react-virtual';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import {
-    createContext,
-    Fragment,
     lazy,
     Suspense,
     useCallback,
-    useContext,
     useEffect,
     useMemo,
     useRef,
     useState,
     type FC,
     type ReactNode,
-    type KeyboardEvent,
 } from 'react';
 import {
     createSearchParams,
@@ -82,38 +68,15 @@ import {
 } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useStudioPullRequest';
 import { useSyncStudioWorkspace } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSyncStudioWorkspace';
 import { useProject } from '../../hooks/useProject';
-import { LiveSourceBetaBadge } from '../externalConnections/liveSources/LiveSourceBetaBadge';
 import { useDevelopmentView } from './developmentView';
-import { useExternalSourceActions } from './externalSources/externalSourceActions';
+import { DraftMarksContext, type DraftMarks } from './draftMarks';
 import { ExternalSourceManager } from './externalSources/ExternalSourceManager';
-import {
-    ExternalSourceHeaderActions,
-    ExternalSourceSummary,
-    ExternalSourcesTable,
-} from './externalSources/ExternalSourcesView';
-import { useManagedExternalSource } from './externalSources/useManagedExternalSource';
-import { JoinDiagram } from './JoinDiagram';
-import { useLiveSourceActions } from './liveSources/liveSourceActions';
 import { LiveSourceManager } from './liveSources/LiveSourceManager';
-import {
-    LiveSourceHeaderActions,
-    LiveSourceSummary,
-    LiveSourcesTable,
-} from './liveSources/LiveSourcesView';
-import { useManagedLiveSource } from './liveSources/useManagedLiveSource';
 import {
     ancestorKeys,
     containerOf,
-    fieldGroups,
-    findNode,
-    pageNodes,
-    flattenTree,
-    getExplore,
     getSource,
     nodeKey,
-    searchResultId,
-    summaryOf,
-    trailTo,
     type NodeRef,
     type TreeNode,
 } from './model';
@@ -121,30 +84,15 @@ import {
     DRAFT_PARAM,
     DRAFT_REVIEW,
     FIELD_PARAM,
-    getModelCodeSearch,
     VIEW_PARAM,
 } from './modelCode';
-import { ModelCodeView, ModelTabs } from './ModelTabs';
-import { getPreAggregateStatus } from './preAggregateSummary';
+import { ModelCodeView } from './ModelTabs';
 import { DraftDevelopmentBar, DraftReview } from './SemanticLayerDraft';
-import {
-    AddSourceButton,
-    BuildFirstModel,
-    EmptyProject,
-    FieldDetailModal,
-    FieldList,
-    FieldListToolbar,
-    NodeIcon,
-    SearchResultsList,
-    SemanticLayerNudge,
-    SettingsLink,
-} from './shared';
+import { BuildFirstModel, EmptyProject } from './shared';
 import { type SourcesTarget } from './SourcesView';
 import {
     AddToStudioChatContext,
-    useAddToStudioChat,
     sameStudioChatRef,
-    startStudioChatRefDrag,
     type StudioChatRef,
 } from './studioChatRefs';
 import { DraftPickerMenu, StudioCheckoutPicker } from './StudioCheckoutPicker';
@@ -156,7 +104,6 @@ import {
     parseSemanticStudioWorkspaceUuid,
     pullRequestNumberOf,
 } from './urls';
-import { useExploreFields } from './useExploreFields';
 import { useGoingLive } from './useGoingLive';
 import { usePreAggregatesByModel } from './usePreAggregatesByModel';
 import {
@@ -168,18 +115,13 @@ import {
     useSemanticLayerStatus,
     useDraftFreshness,
     useSemanticLayerDraft,
-    useSemanticLayerModel,
     useSemanticLayerStoredModels,
 } from './useSemanticLayerModel';
 import {
-    useFieldListState,
-    useProjectSearch,
     useSemanticStudio,
     type SemanticStudioProps,
-    type ViewModel,
 } from './useSemanticStudio';
 import {
-    findCheckedOutModel,
     isOpenWorkspace,
     useCheckOut,
     useStudioCheckout,
@@ -189,6 +131,8 @@ import {
     useStudioWorkspaceAction,
     useStudioWorkspaces,
 } from './useStudioWorkspaces';
+import { MainPane } from './WorkbenchMainPane';
+import { CodeRail, Rail } from './WorkbenchRail';
 import classes from './WorkbenchView.module.css';
 
 dayjs.extend(relativeTime);
@@ -201,8 +145,6 @@ const SourcesRail = lazy(() =>
     import('./SourcesView').then((module) => ({ default: module.SourcesRail })),
 );
 
-const ROW_HEIGHT = 28;
-
 /** What the workspace shows beside the rail. */
 type Pane =
     | 'code'
@@ -214,41 +156,6 @@ type Pane =
     | 'browse'
     | 'buildFirst'
     | 'empty';
-
-type DraftMarks = {
-    /** Each drafted model's name as the draft leaves it. */
-    labels: Map<string, string>;
-    /** Who else has unpublished changes to each model. */
-    others: Map<string, string[]>;
-};
-
-// Read once for the page: every row asking the draft itself costs a subscription per row.
-const DraftMarksContext = createContext<DraftMarks>({
-    labels: new Map(),
-    others: new Map(),
-});
-
-/** Says whose unpublished work a model has: this person's, someone else's, or both. */
-const DraftMarker: FC<{ model: string; isMine: boolean }> = ({
-    model,
-    isMine,
-}) => {
-    const others = useContext(DraftMarksContext).others.get(model) ?? [];
-    if (!isMine && others.length === 0) return null;
-    const whose = [...(isMine ? ['you'] : []), ...others].join(', ');
-    return (
-        <Tooltip label={`Draft by ${whose}. Not published yet.`}>
-            <Box
-                className={classes.draftDot}
-                data-others={!isMine || undefined}
-            />
-        </Tooltip>
-    );
-};
-
-/** A model's name as this person's draft leaves it, so the list and the review say the same thing. */
-const ModelLabel: FC<{ model: string; label: string }> = ({ model, label }) =>
-    useContext(DraftMarksContext).labels.get(model) ?? label;
 
 /** Why the models cannot be changed here, for someone who would otherwise expect to. */
 const BlockedNotice: FC<{ blocker: SemanticLayerBlocker }> = ({ blocker }) => {
@@ -290,765 +197,6 @@ const BlockedNotice: FC<{ blocker: SemanticLayerBlocker }> = ({ blocker }) => {
         </Group>
     ) : null;
 };
-
-const Tree: FC<{
-    view: ViewModel;
-    expanded: Set<string>;
-    /** Models this person's draft touches. */
-    drafted: Set<string>;
-    onToggle: (key: string) => void;
-    onSelect: (node: TreeNode) => void;
-}> = ({ view, expanded, drafted, onToggle, onSelect }) => {
-    const canDrag = useAddToStudioChat() !== null;
-    const parentRef = useRef<HTMLDivElement>(null);
-    const rows = useMemo(
-        () => flattenTree(view.tree.nodes, expanded),
-        [view.tree.nodes, expanded],
-    );
-    const virtualizer = useVirtualizer({
-        count: rows.length,
-        getScrollElement: () => parentRef.current,
-        estimateSize: () => ROW_HEIGHT,
-        overscan: 20,
-    });
-    const selectedTreeKey = view.selected
-        ? nodeKey(containerOf(view.selected))
-        : null;
-    const selectedIndex = rows.findIndex(
-        ({ node }) => node.key === selectedTreeKey,
-    );
-    const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-        const current = rows[selectedIndex];
-        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-            event.preventDefault();
-            const step = event.key === 'ArrowDown' ? 1 : -1;
-            const next =
-                rows[
-                    Math.min(rows.length - 1, Math.max(0, selectedIndex + step))
-                ];
-            if (next) {
-                // Arrowing through the tree shouldn't fill the back button.
-                view.select(next.node.ref, { replace: true });
-                virtualizer.scrollToIndex(rows.indexOf(next));
-            }
-        } else if (current && event.key === 'ArrowRight') {
-            if (!expanded.has(current.node.key) && current.node.children.length)
-                onToggle(current.node.key);
-        } else if (current && event.key === 'ArrowLeft') {
-            if (expanded.has(current.node.key)) onToggle(current.node.key);
-        }
-    };
-
-    return (
-        <Box
-            ref={parentRef}
-            className={classes.treeScroll}
-            tabIndex={0}
-            role="tree"
-            aria-label="Semantic Layer"
-            onKeyDown={onKeyDown}
-        >
-            <Box className={classes.treeInner} h={virtualizer.getTotalSize()}>
-                {virtualizer.getVirtualItems().map((item) => {
-                    const { node, depth } = rows[item.index];
-                    const isContainer = node.children.length > 0;
-                    const isOpen = expanded.has(node.key);
-                    return (
-                        <Box
-                            key={node.key}
-                            role="treeitem"
-                            aria-level={depth + 1}
-                            aria-expanded={isContainer ? isOpen : undefined}
-                            aria-selected={node.key === selectedTreeKey}
-                            className={classes.treeRow}
-                            data-selected={node.key === selectedTreeKey}
-                            top={item.start}
-                            pl={depth * 14 + 4}
-                            draggable={canDrag && node.ref.type === 'explore'}
-                            onDragStart={(event) => {
-                                if (node.ref.type !== 'explore') return;
-                                startStudioChatRefDrag(event.dataTransfer, {
-                                    modelName: node.ref.exploreId,
-                                    fieldName: null,
-                                    modelLabel: node.label,
-                                    fieldLabel: null,
-                                    code: null,
-                                });
-                            }}
-                            onClick={() => {
-                                onSelect(node);
-                                if (isContainer) onToggle(node.key);
-                            }}
-                        >
-                            <Box className={classes.chevron} data-open={isOpen}>
-                                {isContainer ? (
-                                    <MantineIcon
-                                        icon={IconChevronRight}
-                                        size={12}
-                                    />
-                                ) : null}
-                            </Box>
-                            <Box flex="none" display="flex">
-                                <NodeIcon
-                                    project={view.project}
-                                    nodeRef={node.ref}
-                                    size={14}
-                                />
-                            </Box>
-                            <Text truncate className={classes.treeLabel}>
-                                {node.ref.type === 'explore' ? (
-                                    <ModelLabel
-                                        model={node.ref.exploreId}
-                                        label={node.label}
-                                    />
-                                ) : (
-                                    node.label
-                                )}
-                            </Text>
-                            {node.ref.type === 'explore' ? (
-                                <DraftMarker
-                                    model={node.ref.exploreId}
-                                    isMine={drafted.has(node.ref.exploreId)}
-                                />
-                            ) : null}
-                        </Box>
-                    );
-                })}
-            </Box>
-        </Box>
-    );
-};
-
-const CHILD_ROW_HEIGHT = 40;
-
-/** Every child of the selection, virtualised: a folder can hold thousands. */
-const ChildrenList: FC<{
-    view: ViewModel;
-    nodes: TreeNode[];
-    onOpen: (node: TreeNode) => void;
-}> = ({ view, nodes, onOpen }) => {
-    const parentRef = useRef<HTMLDivElement>(null);
-    const virtualizer = useVirtualizer({
-        count: nodes.length,
-        getScrollElement: () => parentRef.current,
-        estimateSize: () => CHILD_ROW_HEIGHT,
-        overscan: 12,
-    });
-    // Explores have no contents to count; they show their description,
-    // when any has one.
-    const exploresOnly = nodes.every(({ ref }) => ref.type === 'explore');
-    const descriptionOf = (node: TreeNode) =>
-        node.ref.type === 'explore'
-            ? summaryOf(
-                  getExplore(view.project, node.ref.exploreId).description,
-              )
-            : '';
-    const describe = exploresOnly && nodes.some(descriptionOf);
-    return (
-        <Box className={classes.table}>
-            <Box
-                className={classes.childRow}
-                data-head
-                data-describe={describe}
-                data-name-only={exploresOnly && !describe}
-            >
-                <span>Name</span>
-                {describe ? (
-                    <span>Description</span>
-                ) : exploresOnly ? null : (
-                    <span className={classes.alignRight}>Contents</span>
-                )}
-            </Box>
-            <Box ref={parentRef} className={classes.childScroll}>
-                <Box
-                    className={classes.childInner}
-                    h={virtualizer.getTotalSize()}
-                >
-                    {virtualizer.getVirtualItems().map((item) => {
-                        const node = nodes[item.index];
-                        return (
-                            <Box
-                                key={node.key}
-                                className={classes.childRow}
-                                data-virtual
-                                data-describe={describe}
-                                data-name-only={exploresOnly && !describe}
-                                top={item.start}
-                                onClick={() => onOpen(node)}
-                            >
-                                <Group gap={10} wrap="nowrap" miw={0}>
-                                    <Box flex="none" display="flex">
-                                        <NodeIcon
-                                            project={view.project}
-                                            nodeRef={node.ref}
-                                        />
-                                    </Box>
-                                    <Text
-                                        truncate
-                                        className={classes.childLabel}
-                                        title={node.label}
-                                    >
-                                        {node.label}
-                                    </Text>
-                                </Group>
-                                {describe ? (
-                                    <Text
-                                        truncate
-                                        className={classes.childDescription}
-                                    >
-                                        {descriptionOf(node)}
-                                    </Text>
-                                ) : exploresOnly ? null : (
-                                    <Text className={classes.count} ta="right">
-                                        {node.ref.type === 'explore'
-                                            ? ''
-                                            : `${node.exploreCount.toLocaleString()} explore${node.exploreCount === 1 ? '' : 's'}`}
-                                    </Text>
-                                )}
-                            </Box>
-                        );
-                    })}
-                </Box>
-            </Box>
-        </Box>
-    );
-};
-
-const ExploreBody: FC<{
-    view: ViewModel;
-    exploreId: string;
-    openFieldId: string | null;
-}> = ({ view, exploreId, openFieldId }) => {
-    const explore = getExplore(view.project, exploreId);
-    const source = getSource(view.project, explore.sourceId);
-    const { data: draft } = useSemanticLayerDraft(view.project.id);
-    const modelDraft = findCheckedOutModel(
-        useStudioCheckout().shown,
-        exploreId,
-    );
-    const othersHere =
-        draft?.othersDrafting.find(({ model }) => model === exploreId)
-            ?.drafters ?? [];
-    const {
-        fields: loaded,
-        isLoading,
-        error,
-    } = useExploreFields({
-        projectUuid: view.project.id,
-        explore,
-        source,
-        canManageLive: view.permissions.live,
-        draft: modelDraft,
-    });
-    const allFields = useMemo(() => loaded ?? [], [loaded]);
-    const groups = useMemo(() => fieldGroups(allFields), [allFields]);
-    const { fields, hiddenCount, onShowHidden, toolbarProps } =
-        useFieldListState(allFields, openFieldId);
-    const openField = openFieldId
-        ? allFields.find(({ id }) => id === openFieldId)
-        : undefined;
-    const closeField = () =>
-        view.select({ type: 'explore', exploreId }, { replace: true });
-    const navigate = useNavigate();
-    const { data: model } = useSemanticLayerModel(view.project.id, exploreId);
-    // A joined field is defined in its own model, which has its own page.
-    const viewFieldCode =
-        model &&
-        openField &&
-        view.project.explores.some(({ id }) => id === openField.table)
-            ? () =>
-                  void navigate({
-                      pathname: getSemanticStudioUrl(view.project.id, {
-                          ref: { type: 'explore', exploreId: openField.table },
-                      }),
-                      search: getModelCodeSearch(openField.name),
-                  })
-            : null;
-    // A link to a field this explore doesn't have opens the explore.
-    const missingField = loaded !== undefined && openFieldId && !openField;
-    useEffect(() => {
-        if (missingField) closeField();
-        // closeField is new each render; the check is what matters.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [missingField]);
-
-    if (isLoading) {
-        return (
-            <Center py="xl">
-                <Loader size="sm" color="gray" />
-            </Center>
-        );
-    }
-    if (error || !loaded) {
-        return (
-            <Text fz="sm" c="dimmed" ta="center" py="xl">
-                {error ?? 'Could not load the fields of this explore.'}
-            </Text>
-        );
-    }
-    return (
-        <>
-            {modelDraft || othersHere.length > 0 ? (
-                <Group gap="sm" mb="sm" wrap="nowrap">
-                    <Text fz="xs" c="dimmed">
-                        {[
-                            modelDraft
-                                ? 'Only you see this until you publish.'
-                                : null,
-                            ...othersHere.map(
-                                ({ name, paths }) =>
-                                    `${name} is changing ${paths.length > 0 ? paths.join(', ') : 'this model'}, in a draft.`,
-                            ),
-                        ]
-                            .filter(Boolean)
-                            .join(' ')}
-                    </Text>
-                </Group>
-            ) : null}
-            <FieldList
-                view={view}
-                explore={explore}
-                fields={fields}
-                hiddenCount={hiddenCount}
-                onShowHidden={onShowHidden}
-                openFieldId={openFieldId}
-                toolbar={<FieldListToolbar {...toolbarProps} />}
-                // The open field is in the URL; opening and closing replaces
-                // the entry rather than stacking up the back button.
-                onOpen={(field) =>
-                    view.select(
-                        { type: 'field', exploreId, fieldId: field.id },
-                        { replace: true },
-                    )
-                }
-            />
-            {openField ? (
-                <FieldDetailModal
-                    key={openField.id}
-                    view={view}
-                    explore={explore}
-                    field={openField}
-                    groups={groups}
-                    onClose={closeField}
-                    onViewCode={viewFieldCode}
-                />
-            ) : null}
-        </>
-    );
-};
-
-/** The way back up: the project, then each level above this page. */
-const Crumbs: FC<{
-    view: ViewModel;
-    trail: TreeNode[];
-    onOpen: (ref: NodeRef | null) => void;
-}> = ({ view, trail, onOpen }) => (
-    <Breadcrumbs
-        separator="/"
-        separatorMargin={6}
-        classNames={{ root: classes.crumbs, separator: classes.crumbSeparator }}
-    >
-        <Anchor
-            component="button"
-            className={classes.crumb}
-            onClick={() => onOpen(null)}
-        >
-            {view.project.name}
-        </Anchor>
-        {trail.map((node) => (
-            <Anchor
-                key={node.key}
-                component="button"
-                className={classes.crumb}
-                title={node.label}
-                onClick={() => onOpen(node.ref)}
-            >
-                {node.label}
-            </Anchor>
-        ))}
-    </Breadcrumbs>
-);
-
-const MainPane: FC<{
-    view: ViewModel;
-    onOpen: (ref: NodeRef | null) => void;
-    onOpenNode: (node: TreeNode) => void;
-    onBuildModel: (() => void) | null;
-}> = ({ view, onOpen, onOpenNode, onBuildModel }) => {
-    const canDrag = useAddToStudioChat() !== null;
-    const selected = view.selected;
-    const ref = selected ? containerOf(selected) : null;
-    const node = ref ? findNode(view.tree.nodes, nodeKey(ref)) : undefined;
-    const nodes = pageNodes(view.project, view.tree, ref);
-    const explore =
-        ref?.type === 'explore'
-            ? getExplore(view.project, ref.exploreId)
-            : null;
-    const openFieldId = selected?.type === 'field' ? selected.fieldId : null;
-    // A model the checked-out change adds has no live explore to draw joins from yet.
-    const { shown: checkout } = useStudioCheckout();
-    const isAdded =
-        !!explore &&
-        findCheckedOutModel(checkout, explore.id)?.contentBefore === null;
-    // The source whose settings this page links to. Every source of a kind
-    // shares one settings page, so a kind links to it too.
-    const source =
-        ref?.type === 'source' || ref?.type === 'group'
-            ? getSource(view.project, ref.sourceId)
-            : explore
-              ? getSource(view.project, explore.sourceId)
-              : ref?.type === 'kind'
-                ? (view.project.sources.find(({ kind }) => kind === ref.kind) ??
-                  null)
-                : !ref
-                  ? (view.tree.rootSource ?? null)
-                  : null;
-    // Admins manage live data sources here: the list on their kind's page,
-    // and each source's usage and controls above its explores and fields.
-    const liveActions = useLiveSourceActions();
-    const isLiveSourcesPage =
-        !!liveActions && ref?.type === 'kind' && ref.kind === 'live';
-    const sourceExploreLabels = source
-        ? view.project.explores
-              .filter(({ sourceId }) => sourceId === source.id)
-              .map(({ label }) => label)
-        : [];
-    // A source with several explores shows its usage and controls on its own
-    // page, not on each explore's
-    const isLiveSourcePage =
-        ref?.type !== 'kind' &&
-        (ref?.type !== 'explore' || sourceExploreLabels.length === 1);
-    const liveConnection = useManagedLiveSource(
-        view.project.id,
-        isLiveSourcePage && source?.kind === 'live'
-            ? source.connectionUuid
-            : undefined,
-    );
-    // External sources likewise: the list on their kind's page, and each
-    // file's or sheet's state and controls above its fields.
-    const externalActions = useExternalSourceActions();
-    const isExternalSourcesPage =
-        !!externalActions && ref?.type === 'kind' && ref.kind === 'files';
-    const externalSource = useManagedExternalSource(
-        view.project.id,
-        ref?.type !== 'kind' && source?.kind === 'files'
-            ? source.id
-            : undefined,
-    );
-    const trail = node ? trailTo(view.tree.nodes, node.key) : [];
-    // A page sits under its parent.
-    const crumbs = trail.slice(0, -1);
-    const showCrumbs = ref !== null;
-
-    const title =
-        node?.label ??
-        (isLiveSourcesPage
-            ? 'Live data sources'
-            : isExternalSourcesPage
-              ? 'External sources'
-              : ref?.type === 'source' && source
-                ? source.name
-                : view.project.name);
-    const icon = ref ? (
-        <NodeIcon project={view.project} nodeRef={ref} size={20} />
-    ) : null;
-
-    return (
-        <Box className={classes.main}>
-            <Box className={classes.mainHeader}>
-                {showCrumbs ? (
-                    <Crumbs view={view} trail={crumbs} onOpen={onOpen} />
-                ) : null}
-                <Group justify="space-between" wrap="nowrap" gap="md">
-                    <Group gap={10} wrap="nowrap" miw={0}>
-                        {icon ? (
-                            <Box flex="none" display="flex">
-                                {icon}
-                            </Box>
-                        ) : null}
-                        <Title
-                            order={3}
-                            className={classes.title}
-                            title={title}
-                            draggable={canDrag && ref?.type === 'explore'}
-                            onDragStart={(event) => {
-                                if (ref?.type !== 'explore') return;
-                                startStudioChatRefDrag(event.dataTransfer, {
-                                    modelName: ref.exploreId,
-                                    fieldName: null,
-                                    modelLabel: title,
-                                    fieldLabel: null,
-                                    code: null,
-                                });
-                            }}
-                        >
-                            {title}
-                        </Title>
-                        {isLiveSourcesPage ? <LiveSourceBetaBadge /> : null}
-                    </Group>
-                    <Group gap={4} wrap="nowrap" flex="none">
-                        {liveConnection ? (
-                            <LiveSourceHeaderActions
-                                projectUuid={view.project.id}
-                                connection={liveConnection}
-                            />
-                        ) : null}
-                        {externalSource ? (
-                            <ExternalSourceHeaderActions
-                                projectUuid={view.project.id}
-                                source={externalSource}
-                            />
-                        ) : null}
-                        {source && ref?.type !== 'explore' ? (
-                            <SettingsLink
-                                view={view}
-                                source={source}
-                                variant="subtle"
-                            />
-                        ) : null}
-                    </Group>
-                </Group>
-            </Box>
-            <Box className={classes.mainBody}>
-                {onBuildModel && !ref ? (
-                    <SemanticLayerNudge onBuild={onBuildModel} />
-                ) : null}
-                {liveConnection ? (
-                    <LiveSourceSummary
-                        projectUuid={view.project.id}
-                        connection={liveConnection}
-                        exploreLabels={sourceExploreLabels}
-                    />
-                ) : null}
-                {externalSource ? (
-                    <ExternalSourceSummary source={externalSource} />
-                ) : null}
-                {isLiveSourcesPage ? (
-                    <LiveSourcesTable
-                        projectUuid={view.project.id}
-                        onOpen={(connectionUuid) =>
-                            onOpen({ type: 'source', sourceId: connectionUuid })
-                        }
-                    />
-                ) : isExternalSourcesPage ? (
-                    <ExternalSourcesTable
-                        projectUuid={view.project.id}
-                        onOpen={(sourceUuid) =>
-                            onOpen({ type: 'source', sourceId: sourceUuid })
-                        }
-                    />
-                ) : explore ? (
-                    <ModelTabs
-                        key={explore.id}
-                        projectUuid={view.project.id}
-                        modelName={explore.id}
-                        exploreName={explore.name}
-                        isModelled={source?.kind === 'modelled'}
-                        lineage={
-                            source?.kind === 'modelled' && !isAdded ? (
-                                <JoinDiagram
-                                    projectUuid={view.project.id}
-                                    exploreName={explore.name}
-                                />
-                            ) : null
-                        }
-                        fields={
-                            <ExploreBody
-                                key={explore.id}
-                                view={view}
-                                exploreId={explore.id}
-                                openFieldId={openFieldId}
-                            />
-                        }
-                    />
-                ) : nodes.length > 0 ? (
-                    <ChildrenList
-                        view={view}
-                        nodes={nodes}
-                        onOpen={onOpenNode}
-                    />
-                ) : null}
-            </Box>
-        </Box>
-    );
-};
-
-/**
- * The left rail: search, add and the tree. The search lives here, so
- * typing re-renders only the rail, never the page beside it. The search box
- * drives the results: arrows move, Enter opens, Esc clears.
- */
-const Rail: FC<{
-    view: ViewModel;
-    expanded: Set<string>;
-    drafted: Set<string>;
-    onToggle: (key: string) => void;
-    onOpen: (ref: NodeRef) => void;
-}> = ({ view, expanded, drafted, onToggle, onOpen }) => {
-    const search = useProjectSearch(view.project, view.tree);
-    const [activeResult, setActiveResult] = useState(0);
-    const { results } = search.results;
-    // Result rows are memoised, so they get one stable handler.
-    const onOpenRef = useRef(onOpen);
-    useEffect(() => {
-        onOpenRef.current = onOpen;
-    });
-    const { setSearch } = search;
-    const openResult = useCallback(
-        (ref: NodeRef) => {
-            onOpenRef.current(ref);
-            setSearch('');
-        },
-        [setSearch],
-    );
-    const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-        if (event.key === 'Escape') {
-            search.setSearch('');
-            return;
-        }
-        if (!search.isSearching || results.length === 0) return;
-        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-            event.preventDefault();
-            const step = event.key === 'ArrowDown' ? 1 : -1;
-            setActiveResult((index) =>
-                Math.min(Math.max(index + step, 0), results.length - 1),
-            );
-        } else if (event.key === 'Enter') {
-            event.preventDefault();
-            const result = results[Math.min(activeResult, results.length - 1)];
-            if (result) openResult(result.ref);
-        }
-    };
-
-    return (
-        <Box className={classes.rail}>
-            <Box className={classes.railHeader}>
-                <TextInput
-                    size="xs"
-                    flex={1}
-                    placeholder="Search"
-                    aria-label="Search explores and fields"
-                    leftSection={<MantineIcon icon={IconSearch} size={14} />}
-                    value={search.search}
-                    onChange={(event) => {
-                        search.setSearch(event.currentTarget.value);
-                        setActiveResult(0);
-                    }}
-                    onKeyDown={handleSearchKeyDown}
-                    role="combobox"
-                    aria-expanded={search.isSearching}
-                    aria-controls="semantic-search-results"
-                    aria-activedescendant={
-                        search.isSearching && results.length > 0
-                            ? searchResultId(activeResult)
-                            : undefined
-                    }
-                />
-                <AddSourceButton view={view} />
-            </Box>
-            {search.isSearching ? (
-                <SearchResultsList
-                    view={view}
-                    search={search}
-                    activeIndex={activeResult}
-                    onOpen={openResult}
-                />
-            ) : (
-                <Tree
-                    view={view}
-                    expanded={expanded}
-                    drafted={drafted}
-                    onToggle={onToggle}
-                    onSelect={(node) => view.select(node.ref)}
-                />
-            )}
-        </Box>
-    );
-};
-
-/**
- * The Code view's rail: every model with YAML behind it, and any the draft adds.
- * Not virtualised; only native YAML projects get here, so add it if one reaches thousands of models.
- */
-const CodeRail: FC<{
-    files: string[];
-    selected: string | null;
-    drafted: Set<string>;
-    /** The pre-aggregate open in the file, so its row reads as selected and not the file's. */
-    selectedPart: string | null;
-    preAggregates: Map<string, PreAggregateMaterializationSummary[]>;
-    onOpen: (file: string, part: string | null) => void;
-}> = ({ files, selected, selectedPart, drafted, preAggregates, onOpen }) => (
-    <Box className={classes.rail}>
-        <Box className={classes.treeScroll}>
-            {files.map((file) => (
-                <Fragment key={file}>
-                    <Box
-                        component="button"
-                        className={classes.fileRow}
-                        data-selected={file === selected && !selectedPart}
-                        onClick={() => onOpen(file, null)}
-                    >
-                        <MantineIcon
-                            icon={IconFileCode}
-                            size={14}
-                            color="dimmed"
-                        />
-                        <Text
-                            truncate
-                            className={classes.treeLabel}
-                            title={file}
-                        >
-                            {file}.yml
-                        </Text>
-                        <DraftMarker model={file} isMine={drafted.has(file)} />
-                    </Box>
-                    {/* A pre-aggregate lives in its model's file; its row jumps to where it is defined. */}
-                    {(preAggregates.get(file) ?? []).map((summary) => {
-                        const status = getPreAggregateStatus(summary);
-                        return (
-                            <Tooltip
-                                key={summary.preAggregateDefinitionUuid}
-                                label={`Pre-aggregate · ${status.label}`}
-                                position="right"
-                            >
-                                <Box
-                                    component="button"
-                                    className={classes.fileRow}
-                                    data-part
-                                    data-selected={
-                                        file === selected &&
-                                        selectedPart ===
-                                            summary.preAggregateName
-                                    }
-                                    onClick={() =>
-                                        onOpen(file, summary.preAggregateName)
-                                    }
-                                >
-                                    <MantineIcon
-                                        icon={IconBolt}
-                                        size={14}
-                                        color="dimmed"
-                                    />
-                                    <Text
-                                        truncate
-                                        className={classes.treeLabel}
-                                    >
-                                        {summary.preAggregateName}
-                                    </Text>
-                                    <Box
-                                        className={classes.statusDot}
-                                        data-status={status.color ?? 'none'}
-                                    />
-                                </Box>
-                            </Tooltip>
-                        );
-                    })}
-                </Fragment>
-            ))}
-        </Box>
-    </Box>
-);
 
 const FILE_PARAM = 'file';
 
