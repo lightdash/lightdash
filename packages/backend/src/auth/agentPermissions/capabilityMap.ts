@@ -63,6 +63,7 @@ export const AGENT_TOOL_CAPABILITIES = {
     ],
     delegateResearchTask: [AgentCapability.Query],
     describeWarehouseTable: [AgentCapability.RawSql],
+    grepWarehouseColumns: [AgentCapability.RawSql],
     discoverFields: [AgentCapability.ReadDiscover],
     discoverRepos: [AgentCapability.ReadDiscover],
     editContent: [AgentCapability.ContentWrite],

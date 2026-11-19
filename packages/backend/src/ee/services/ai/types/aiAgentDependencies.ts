@@ -921,6 +921,20 @@ export type DescribeWarehouseTableFn = (args: {
     warehouseType: WarehouseTypes;
 }>;
 
+export type ListWarehouseColumnsFn = (args: {
+    /** Null reads every schema. */
+    schema: string | null;
+}) => Promise<{
+    tables: {
+        database: string;
+        schema: string;
+        table: string;
+        columns: { name: string; type: string }[];
+    }[];
+    /** Tables left out because one call reads a bounded number of them. */
+    unreadTableCount: number;
+}>;
+
 export type ListKnowledgeDocumentsFn = () => Promise<AiAgentDocumentSummary[]>;
 
 export type GetKnowledgeDocumentContentFn = (args: {

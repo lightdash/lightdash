@@ -18,6 +18,7 @@ const DUMP_TOOL_RESULT_POLICIES = {
     analyzeFieldImpact: 'keep',
     listWarehouseTables: 'keep',
     describeWarehouseTable: 'keep',
+    grepWarehouseColumns: 'keep',
     getProjectInfo: 'keep',
     listProjects: 'keep',
     findContent: 'keep',

@@ -987,6 +987,73 @@ describe('AiAgentToolsService', () => {
         expect(executeMetricQueryAndGetResults).not.toHaveBeenCalled();
     });
 
+    describe('listWarehouseColumns', () => {
+        const catalog = {
+            analytics: {
+                jaffle: { orders: {}, customers: {} },
+                retired: { old_orders: {} },
+            },
+        };
+        const getWarehouseColumns = vi.fn(
+            async (
+                _user: unknown,
+                _projectUuid: unknown,
+                _context: unknown,
+                tables: { database: string; schema: string; table: string }[],
+            ) => ({
+                analytics: {
+                    jaffle: Object.fromEntries(
+                        tables.map(({ table }) => [
+                            table,
+                            { id: DimensionType.NUMBER },
+                        ]),
+                    ),
+                },
+            }),
+        );
+        const makeColumnsRuntime = (schemas: string[]) =>
+            makeService({
+                projectService: {
+                    getWarehouseTables: vi.fn().mockResolvedValue(catalog),
+                    getWarehouseColumns,
+                },
+            }).createRuntime(
+                makeRuntimeContext({
+                    sqlScope: { schemas, deniedCatalogs: [] },
+                }),
+            );
+
+        beforeEach(() => {
+            getWarehouseColumns.mockClear();
+        });
+
+        it('reads only the tables the agent may list, and reads them once', async () => {
+            const runtime = makeColumnsRuntime(['jaffle']);
+
+            const first = await runtime.listWarehouseColumns({ schema: null });
+            expect(first.tables.map(({ table }) => table).sort()).toEqual([
+                'customers',
+                'orders',
+            ]);
+            expect(first.tables[0].columns).toEqual([
+                { name: 'id', type: 'number' },
+            ]);
+            expect(first.unreadTableCount).toBe(0);
+
+            await runtime.listWarehouseColumns({ schema: 'jaffle' });
+            expect(getWarehouseColumns).toHaveBeenCalledOnce();
+        });
+
+        it('reads nothing for a schema outside the agent scope', async () => {
+            const runtime = makeColumnsRuntime(['jaffle']);
+
+            await expect(
+                runtime.listWarehouseColumns({ schema: 'retired' }),
+            ).resolves.toEqual({ tables: [], unreadTableCount: 0 });
+            expect(getWarehouseColumns).not.toHaveBeenCalled();
+        });
+    });
+
     describe('describeWarehouseTable scope', () => {
         it('keeps a credential refusal in the describe tool output', async () => {
             const refusal = new AiAccessRefusedError(

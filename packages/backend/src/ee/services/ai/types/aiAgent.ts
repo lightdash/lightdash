@@ -84,6 +84,7 @@ import {
     ListProjectsFn,
     ListSqlApprovalDecisionsFn,
     ListThreadComposerQueryNodesFn,
+    ListWarehouseColumnsFn,
     ListWarehouseTablesFn,
     ListWorkstreamsFn,
     LoadAgentSkillFn,
@@ -460,6 +461,7 @@ export type AiAgentDependencies = {
     runComposerQueries: RunComposerQueriesFn;
     listWarehouseTables: ListWarehouseTablesFn;
     describeWarehouseTable: DescribeWarehouseTableFn;
+    listWarehouseColumns: ListWarehouseColumnsFn;
     listKnowledgeDocuments: ListKnowledgeDocumentsFn;
     getKnowledgeDocumentContent: GetKnowledgeDocumentContentFn;
     readPinnedThread: ReadPinnedThreadFn;

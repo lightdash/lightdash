@@ -292,6 +292,7 @@ import {
     validateMergeQuery,
     VizAggregationOptions,
     VizColumn,
+    WarehouseCatalog,
     WarehouseClient,
     WarehouseConnection,
     WarehouseConnectionError,
@@ -15516,6 +15517,50 @@ export class ProjectService
                 ]);
                 return { ...fields, partitioning, warehouseType };
             },
+        );
+    }
+
+    /** The columns of many tables in one read; the caller names tables it has already been allowed to list. */
+    async getWarehouseColumns(
+        user: SessionUser,
+        projectUuid: string,
+        queryContext: QueryExecutionContext,
+        tables: { database: string; schema: string; table: string }[],
+        querySurface?: QuerySurface,
+    ): Promise<WarehouseCatalog> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('SqlRunner', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.assertConnectionDiscovery(user, projectUuid);
+        return this.warehouseClientFactory.withWarehouseClient(
+            {
+                kind: 'binding',
+                projectUuid,
+                binding: { kind: 'connection', warehouseConnectionUuid: null },
+            },
+            connectionContextFromUser(
+                { userUuid: user.userUuid, isRegisteredUser: true },
+                {
+                    organizationUuid,
+                    queryContext,
+                    surface:
+                        querySurface === undefined
+                            ? undefined
+                            : connectionSurfaceFromQuerySurface(
+                                  querySurface,
+                                  queryContext,
+                              ),
+                },
+            ),
+            ({ warehouseClient }) => warehouseClient.getCatalog(tables),
         );
     }
 

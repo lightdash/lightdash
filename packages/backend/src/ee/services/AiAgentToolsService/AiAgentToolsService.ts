@@ -227,6 +227,7 @@ import {
     ListExploresFn,
     ListKnowledgeDocumentsFn,
     ListProjectsFn,
+    ListWarehouseColumnsFn,
     ListWarehouseTablesFn,
     LoadAgentSkillFn,
     PrepareComposerChartEditFn,
@@ -293,6 +294,10 @@ type SearchContentResult = Awaited<
 
 // A failed node's error, e.g. a Python traceback, as the model sees it.
 const COMPOSER_NODE_ERROR_MAX_CHARS = 4096;
+// Most warehouses describe one table per request, so one search reads a bounded number of them.
+const MAX_TABLES_PER_COLUMN_READ = 500;
+const WAREHOUSE_COLUMNS_TTL_MS = 10 * 60 * 1000;
+const MAX_KEPT_TABLE_COLUMNS = 20_000;
 
 const isDataAppSearchResult = (
     item: SearchContentResult,
@@ -406,6 +411,7 @@ export type AiAgentToolsRuntime = {
     runComposerQueriesUntilDeadline: RunComposerQueriesUntilDeadlineFn;
     listWarehouseTables: ListWarehouseTablesFn;
     describeWarehouseTable: DescribeWarehouseTableFn;
+    listWarehouseColumns: ListWarehouseColumnsFn;
     listContent: ListContentFn;
     getDashboardCharts: GetDashboardChartsFn;
     readContent: ReadContentFn;
@@ -459,6 +465,7 @@ const AGENT_RUNTIME_TOOL_NAMES = {
     runComposerQueriesUntilDeadline: 'query',
     listWarehouseTables: 'listWarehouseTables',
     describeWarehouseTable: 'describeWarehouseTable',
+    listWarehouseColumns: 'grepWarehouseColumns',
     listContent: 'listContent',
     getDashboardCharts: 'getDashboardCharts',
     readContent: 'readContent',
@@ -622,6 +629,12 @@ export class AiAgentToolsService extends BaseService {
     private readonly runtimePromiseCache = new WeakMap<
         AiAgentToolsRuntimeContext,
         Map<string, Promise<unknown>>
+    >();
+
+    // Kept in this process only: another instance reads the warehouse again.
+    private readonly warehouseColumns = new Map<
+        string,
+        { at: number; columns: { name: string; type: string }[] }
     >();
 
     private readonly appModel: AppModel;
@@ -1132,6 +1145,8 @@ export class AiAgentToolsService extends BaseService {
                 this.listWarehouseTables(context, queryContext),
             describeWarehouseTable: (args) =>
                 this.describeWarehouseTable(context, args),
+            listWarehouseColumns: (args) =>
+                this.listWarehouseColumns(context, args),
             listContent: (args) => this.listContent(context, args),
             getDashboardCharts: (args) =>
                 this.getDashboardCharts(context, args),
@@ -6259,6 +6274,88 @@ export class AiAgentToolsService extends BaseService {
                     resolvedDatabase,
                     partitioning,
                     warehouseType,
+                };
+            },
+        );
+    }
+
+    /** The columns of the tables the agent may list, read in one go and kept so a second search reads nothing. */
+    private listWarehouseColumns(
+        context: AiAgentToolsRuntimeContext,
+        { schema }: Parameters<ListWarehouseColumnsFn>[0],
+    ): ReturnType<ListWarehouseColumnsFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.listWarehouseColumns`,
+            { projectUuid: context.projectUuid, schema },
+            async () => {
+                // Listed fresh each time, so a table that left the agent's scope leaves the search too.
+                const catalog = await this.listWarehouseTables(context);
+                const listed = Object.entries(catalog).flatMap(
+                    ([database, schemas]) =>
+                        Object.entries(schemas)
+                            .filter(([name]) => !schema || name === schema)
+                            .flatMap(([schemaName, tables]) =>
+                                Object.keys(tables).map((table) => ({
+                                    database,
+                                    schema: schemaName,
+                                    table,
+                                })),
+                            ),
+                );
+                const tables = listed.slice(0, MAX_TABLES_PER_COLUMN_READ);
+                // Columns were read with this person's credentials, so they are kept for this person only.
+                const keyOf = (table: (typeof tables)[number]) =>
+                    [
+                        context.projectUuid,
+                        context.user.userUuid,
+                        table.database,
+                        table.schema,
+                        table.table,
+                    ].join('|');
+                const now = Date.now();
+                const unread = tables.filter((table) => {
+                    const kept = this.warehouseColumns.get(keyOf(table));
+                    return !kept || now - kept.at > WAREHOUSE_COLUMNS_TTL_MS;
+                });
+                if (unread.length > 0) {
+                    const read = await this.projectService.getWarehouseColumns(
+                        context.user,
+                        context.projectUuid,
+                        context.defaultQueryExecutionContext,
+                        unread,
+                        context.querySurface,
+                    );
+                    unread.forEach((table) => {
+                        const key = keyOf(table);
+                        // Deleted first so a refreshed table moves to the end, and the oldest is always first.
+                        this.warehouseColumns.delete(key);
+                        this.warehouseColumns.set(key, {
+                            at: now,
+                            columns: Object.entries(
+                                read[table.database]?.[table.schema]?.[
+                                    table.table
+                                ] ?? {},
+                            ).map(([name, type]) => ({
+                                name,
+                                type: String(type),
+                            })),
+                        });
+                    });
+                    while (
+                        this.warehouseColumns.size > MAX_KEPT_TABLE_COLUMNS
+                    ) {
+                        const [oldest] = this.warehouseColumns.keys();
+                        this.warehouseColumns.delete(oldest);
+                    }
+                }
+                return {
+                    tables: tables.map((table) => ({
+                        ...table,
+                        columns:
+                            this.warehouseColumns.get(keyOf(table))?.columns ??
+                            [],
+                    })),
+                    unreadTableCount: listed.length - tables.length,
                 };
             },
         );

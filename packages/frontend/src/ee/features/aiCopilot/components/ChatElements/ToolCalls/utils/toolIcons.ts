@@ -94,6 +94,7 @@ export const getToolIcon = (toolName: AiAgentToolName) => {
         visualize: IconChartHistogram,
         listWarehouseTables: IconDatabase,
         describeWarehouseTable: IconDatabase,
+        grepWarehouseColumns: IconDatabase,
         listKnowledgeDocuments: IconBooks,
         getKnowledgeDocumentContent: IconFileText,
         readPinnedThread: IconMessages,
