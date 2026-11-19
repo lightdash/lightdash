@@ -3,15 +3,15 @@
 }
 
 .section {
-    padding: var(--mantine-spacing-sm);
+    padding: var(--mantine-spacing-xs);
 }
 
 /* What changed, what to check and whether it is safe read as one block, with no rules between them. */
 .body {
     display: flex;
     flex-direction: column;
-    gap: var(--mantine-spacing-sm);
-    padding: var(--mantine-spacing-sm) 0;
+    gap: var(--mantine-spacing-xs);
+    padding: var(--mantine-spacing-xs) 0;
 }
 
 .body:empty {
@@ -19,7 +19,7 @@
 }
 
 .line {
-    padding: 0 var(--mantine-spacing-sm);
+    padding: 0 var(--mantine-spacing-xs);
 }
 
 .card > * + * {
@@ -38,8 +38,8 @@
 .modelNote,
 .row,
 .offers {
-    padding-left: calc(var(--mantine-spacing-sm) + 24px);
-    padding-right: var(--mantine-spacing-sm);
+    padding-left: calc(var(--mantine-spacing-xs) + 20px);
+    padding-right: var(--mantine-spacing-xs);
 }
 
 /* What happened to the whole model, on the line under its name. */
@@ -50,8 +50,8 @@
 
 .row {
     display: grid;
-    grid-template-columns: 16px minmax(0, 1fr) auto;
-    column-gap: 8px;
+    grid-template-columns: 14px minmax(0, 1fr) auto;
+    column-gap: 6px;
     align-items: center;
     width: 100%;
     padding-top: 3px;
@@ -77,7 +77,7 @@
 }
 
 .issue {
-    padding: 3px var(--mantine-spacing-sm);
+    padding: 3px var(--mantine-spacing-xs);
 }
 
 /* What to do next: the agent's offers, each sent as the person's message, then the card's own actions. */
@@ -85,11 +85,11 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    padding: var(--mantine-spacing-sm) 0;
+    padding: var(--mantine-spacing-xs) 0;
 }
 
 .actions {
-    padding: var(--mantine-spacing-sm) var(--mantine-spacing-sm) 0;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0;
 }
 
 /* With nothing offered above them, the actions need no extra room. */
@@ -120,7 +120,7 @@
     align-items: center;
     gap: 6px;
     width: 100%;
-    padding: var(--mantine-spacing-sm);
+    padding: var(--mantine-spacing-xs);
 }
 
 .fold:hover,

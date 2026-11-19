@@ -55,14 +55,14 @@ const Row: FC<{ row: TurnRow }> = ({ row }) => (
         title={row.title}
     >
         <Box className={classes.rowIcon}>{row.icon}</Box>
-        <Text span fz="sm" truncate className={classes.label}>
+        <Text span fz="xs" truncate className={classes.label}>
             <Text span inherit c="dimmed">
                 {`${row.action} `}
             </Text>
             {row.label}
         </Text>
         {row.detail ? (
-            <Text span fz="sm" c="dimmed" truncate className={classes.sub}>
+            <Text span fz="xs" c="dimmed" truncate className={classes.sub}>
                 {row.detail}
             </Text>
         ) : null}
@@ -74,11 +74,11 @@ export const TurnCardSkeleton: FC = () => (
     <Paper mt="xs" className={classes.card} aria-busy>
         <Group className={classes.section} gap={6} wrap="nowrap">
             <Loader size={12} color="gray" />
-            <Text fz="sm" fw={500}>
+            <Text fz="xs" fw={500}>
                 Checking the change
             </Text>
         </Group>
-        <Stack className={classes.section} gap={8}>
+        <Stack className={classes.section} gap={6}>
             <Skeleton h={8} w="45%" />
             <Skeleton h={8} w="70%" />
             <Skeleton h={8} w="55%" />
@@ -127,13 +127,13 @@ export const TurnCard: FC<{
                 {status}
             </Text>
             {name ? (
-                <Text fz="sm" c="dimmed" truncate title={name}>
+                <Text fz="xs" c="dimmed" truncate title={name}>
                     {name}
                 </Text>
             ) : null}
         </Box>
     ) : (
-        <Text fz="sm" fw={500} truncate flex={1}>
+        <Text fz="xs" fw={500} truncate flex={1}>
             {status}
             {name ? (
                 <Text span inherit fw={400} c="dimmed">
@@ -147,7 +147,7 @@ export const TurnCard: FC<{
             {isLatest ? (
                 <Group
                     className={classes.section}
-                    gap={8}
+                    gap={6}
                     wrap="nowrap"
                     align="flex-start"
                 >
@@ -182,16 +182,17 @@ export const TurnCard: FC<{
                                 !subtitle ? null : (
                                     <Box key={model} className={classes.model}>
                                         <Group
-                                            gap={8}
+                                            gap={6}
                                             wrap="nowrap"
                                             className={classes.line}
                                         >
                                             <MantineIcon
                                                 icon={IconTable}
+                                                size={14}
                                                 color="green"
                                             />
                                             <Text
-                                                fz="sm"
+                                                fz="xs"
                                                 fw={500}
                                                 truncate
                                                 title={model}
@@ -201,7 +202,7 @@ export const TurnCard: FC<{
                                         </Group>
                                         {subtitle ? (
                                             <Text
-                                                fz="sm"
+                                                fz="xs"
                                                 c="dimmed"
                                                 className={classes.modelNote}
                                             >
@@ -230,7 +231,7 @@ export const TurnCard: FC<{
                                                 />
                                                 {/* A warehouse error runs long; its start says what went wrong and the rest is on hover. */}
                                                 <Text
-                                                    fz="sm"
+                                                    fz="xs"
                                                     fw={500}
                                                     flex={1}
                                                     miw={0}
@@ -249,7 +250,7 @@ export const TurnCard: FC<{
                                                     {ISSUE_KINDS[kind].label}
                                                     <Text
                                                         span
-                                                        fz="sm"
+                                                        fz="xs"
                                                         fw={400}
                                                         c="dimmed"
                                                     >
@@ -264,18 +265,19 @@ export const TurnCard: FC<{
                         {note ? (
                             <Group
                                 className={classes.line}
-                                gap={8}
+                                gap={6}
                                 wrap="nowrap"
                                 align="flex-start"
                             >
                                 <Box className={classes.icon}>
                                     <MantineIcon
                                         icon={IconInfoCircle}
+                                        size={14}
                                         color="yellow"
                                     />
                                 </Box>
                                 <Text
-                                    fz="sm"
+                                    fz="xs"
                                     flex={1}
                                     miw={0}
                                     lineClamp={4}
@@ -300,14 +302,14 @@ export const TurnCard: FC<{
                                     <TaskIcon state={safety.state} />
                                 </Box>
                                 <Text
-                                    fz="sm"
+                                    fz="xs"
                                     flex={1}
                                     miw={0}
                                     className={classes.wrap}
                                 >
                                     {safety.text}
                                     {safety.why ? (
-                                        <Text span fz="sm" c="dimmed">
+                                        <Text span fz="xs" c="dimmed">
                                             {` · ${safety.why}`}
                                         </Text>
                                     ) : null}
@@ -323,7 +325,7 @@ export const TurnCard: FC<{
                                     {options.map((option) => (
                                         <Button
                                             key={option}
-                                            size="compact-sm"
+                                            size="compact-xs"
                                             variant="light"
                                             color="indigo"
                                             maw="100%"

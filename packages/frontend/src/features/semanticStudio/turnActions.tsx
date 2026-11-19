@@ -8,7 +8,7 @@ export const fixAction = (
     onAsk: ((message: string) => void) | null,
 ): ReactNode =>
     onAsk ? (
-        <Button key="fix" size="compact-sm" onClick={() => onAsk(message)}>
+        <Button key="fix" size="compact-xs" onClick={() => onAsk(message)}>
             Fix with agent
         </Button>
     ) : null;
@@ -25,7 +25,7 @@ export const draftActions = ({
 }): ReactNode[] => [
     <Button
         key="view"
-        size="compact-sm"
+        size="compact-xs"
         variant="subtle"
         color="gray"
         component={Link}

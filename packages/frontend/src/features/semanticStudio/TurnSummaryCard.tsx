@@ -325,7 +325,7 @@ export const TurnSummaryCard: FC<{
                     canPublish ? (
                         <Button
                             key="publish"
-                            size="compact-sm"
+                            size="compact-xs"
                             onClick={() => setPublishing(true)}
                         >
                             {asPullRequest ? publishLabel : 'Publish'}
@@ -337,7 +337,7 @@ export const TurnSummaryCard: FC<{
                     ? [
                           <Button
                               key="open"
-                              size="compact-sm"
+                              size="compact-xs"
                               component={Link}
                               to={modelUrl(phase.model)}
                           >
@@ -349,7 +349,7 @@ export const TurnSummaryCard: FC<{
                 return [
                     <Button
                         key="pr"
-                        size="compact-sm"
+                        size="compact-xs"
                         component="a"
                         href={phase.url}
                         target="_blank"
@@ -388,6 +388,7 @@ export const TurnSummaryCard: FC<{
                           icon: (
                               <MantineIcon
                                   icon={IconGitBranch}
+                                  size={14}
                                   color="indigo"
                               />
                           ),
@@ -470,9 +471,17 @@ export const TurnSummaryCard: FC<{
                         field.kind === 'metric' ? (
                             <FieldChangeIcon field={field} />
                         ) : field.kind === 'join' ? (
-                            <MantineIcon icon={IconArrowsJoin} color="blue" />
+                            <MantineIcon
+                                icon={IconArrowsJoin}
+                                size={14}
+                                color="blue"
+                            />
                         ) : (
-                            <MantineIcon icon={IconTable} color="green" />
+                            <MantineIcon
+                                icon={IconTable}
+                                size={14}
+                                color="green"
+                            />
                         ),
                     label: (() => {
                         // A model's own keys have no name of their own to show.
