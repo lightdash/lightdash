@@ -1,3 +1,12 @@
+# [3.338.0](https://github.com/lightdash/lightdash/compare/3.337.1...3.338.0) (2026-11-19)
+
+
+### Features
+
+* **ai:** let the Studio agent run metrics on the draft ([#32993](https://github.com/lightdash/lightdash/issues/32993)) ([6252b69](https://github.com/lightdash/lightdash/commit/6252b69cfb3f680e19638de15424d13ff627ac36))
+* **ai:** search warehouse columns from the Studio agent ([#32994](https://github.com/lightdash/lightdash/issues/32994)) ([6d9a600](https://github.com/lightdash/lightdash/commit/6d9a60028b06a190d0f68872fa69189b67270aa9))
+* **semantic-studio:** a clearer Studio chat and review ([#32979](https://github.com/lightdash/lightdash/issues/32979)) ([d4f3664](https://github.com/lightdash/lightdash/commit/d4f36642cfd99d2fa0971942e3455e1d6b38c23a))
+
 ## [3.337.1](https://github.com/lightdash/lightdash/compare/3.337.0...3.337.1) (2026-11-19)
 
 
