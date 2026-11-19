@@ -4,6 +4,7 @@ import {
     ParameterError,
     type Explore,
     type FilterRule,
+    type LiveResultNotice,
     type MetricQuery,
 } from '@lightdash/common';
 import {
@@ -69,6 +70,45 @@ const toFilters = (
     }
 };
 
+/**
+ * How Google counts once a query splits or filters by page or query, per
+ * https://support.google.com/webmasters/answer/7042828: by page, a result
+ * showing two of the site's pages counts twice; by query, searches Google
+ * hides for privacy drop out. A totals row grouped without them counts the
+ * site's way, so it won't match the rows.
+ */
+const COUNTING_NOTICES: Record<'page' | 'query', string> = {
+    page: 'Google counts per page when a query splits or filters by Page: a search showing two of your pages counts twice, so impressions and clicks run higher than the site total.',
+    query: 'Google leaves out searches it hides for privacy when a query splits or filters by Query, so clicks and impressions add up to less than the site total.',
+};
+
+const getCountingNotices = (
+    metricQuery: MetricQuery,
+    filterRules: FilterRule[],
+    apiName: (fieldId: string) => string,
+): LiveResultNotice[] =>
+    (['page', 'query'] as const).flatMap((name) => {
+        const fieldIds = [
+            ...new Set([
+                ...metricQuery.dimensions.filter(
+                    (fieldId) => apiName(fieldId) === name,
+                ),
+                ...filterRules
+                    .map((rule) => rule.target.fieldId)
+                    .filter((fieldId) => apiName(fieldId) === name),
+            ]),
+        ];
+        return fieldIds.length > 0
+            ? [
+                  {
+                      type: 'providerCounting' as const,
+                      fieldIds,
+                      message: COUNTING_NOTICES[name],
+                  },
+              ]
+            : [];
+    });
+
 /** Months of data Search Console keeps, per Google's help pages. */
 const SEARCH_CONSOLE_RETENTION_MONTHS = 16;
 
@@ -126,9 +166,12 @@ export const compileSearchConsoleQuery = ({
             `Search Console has data from ${earliestDate} to ${today}. Pick a date in that range.`,
         );
     }
-    const filters = (otherFilters ? flattenFilterGroup(otherFilters) : [])
-        .filter((rule) => !rule.disabled && (rule.values ?? []).length > 0)
-        .flatMap((rule) => toFilters(apiName(rule.target.fieldId), rule));
+    const filterRules = (
+        otherFilters ? flattenFilterGroup(otherFilters) : []
+    ).filter((rule) => !rule.disabled && (rule.values ?? []).length > 0);
+    const filters = filterRules.flatMap((rule) =>
+        toFilters(apiName(rule.target.fieldId), rule),
+    );
 
     // The API returns rows by clicks descending, except that rows grouped by
     // date come back by date ascending.
@@ -151,8 +194,10 @@ export const compileSearchConsoleQuery = ({
             : {}),
         rowLimit: getLiveRequestLimit(metricQuery.limit, localSorts, maxRows),
     };
+    const notices = getCountingNotices(metricQuery, filterRules, apiName);
     return {
         query: JSON.stringify(request),
         localSorts,
+        ...(notices.length > 0 ? { notices } : {}),
     };
 };

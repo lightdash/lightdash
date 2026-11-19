@@ -22,6 +22,7 @@ import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type { RunAsyncQueryFn } from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
 import { populateCustomMetricsSQL } from '../utils/populateCustomMetricsSQL';
+import { getLiveResultNoticesNote } from '../utils/queryResultSummary';
 import { serializeData } from '../utils/serializeData';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
@@ -160,7 +161,9 @@ export const getRunMetricQuery = ({
                           })
                         : NO_RESULTS_RETRY_PROMPT;
                     return {
-                        result,
+                        result: `${result}${getLiveResultNoticesNote(
+                            results.liveResultNotices,
+                        )}`,
                         metadata: {
                             status: 'success',
                             queryCacheHit:
@@ -203,7 +206,9 @@ export const getRunMetricQuery = ({
                 });
 
                 return {
-                    result: `${serializeData(csv, 'csv')}${review}`,
+                    result: `${serializeData(csv, 'csv')}${review}${getLiveResultNoticesNote(
+                        results.liveResultNotices,
+                    )}`,
                     metadata: {
                         status: 'success',
                         queryCacheHit: results.cacheMetadata?.cacheHit === true,

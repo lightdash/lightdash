@@ -1,4 +1,7 @@
-import type { WarehouseExecutionStats } from '@lightdash/common';
+import type {
+    LiveResultNotice,
+    WarehouseExecutionStats,
+} from '@lightdash/common';
 
 // States the row count and the limit behind it, so the agent never infers one.
 export const getQueryResultSummary = ({
@@ -90,3 +93,16 @@ export const getExecutionStatsNote = (
         ? ''
         : ` Warehouse execution stats: ${parts.join(', ')}.`;
 };
+
+/**
+ * What a live data source result leaves out or counts its own way, as the
+ * results panel shows it, so the agent qualifies its answer the same way.
+ */
+export const getLiveResultNoticesNote = (
+    notices: LiveResultNotice[] | undefined,
+): string =>
+    notices && notices.length > 0
+        ? ` Live data source notes, tell the user: ${notices
+              .map(({ message }) => message)
+              .join(' ')}`
+        : '';

@@ -387,6 +387,7 @@ describe('toLiveResult', () => {
             sessions,
         },
         localSorts: [{ fieldId: sessions, descending: true }],
+        notices: [],
     };
 
     test('keys rows by field id, sorts them locally with missing values last and applies the limit', () => {

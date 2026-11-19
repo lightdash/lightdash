@@ -741,6 +741,10 @@ export class QuerySourceService extends BaseService {
                         queryHistory.status === QueryHistoryStatus.READY
                             ? queryHistory.columns
                             : null,
+                    ...(queryHistory.status === QueryHistoryStatus.READY &&
+                    queryHistory.liveResultNotices
+                        ? { liveResultNotices: queryHistory.liveResultNotices }
+                        : {}),
                 };
                 return status;
             }),

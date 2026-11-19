@@ -1,6 +1,7 @@
 import {
     hasReachedSourceQueryLimit,
     interpolateUiString,
+    type LiveResultNotice,
     type SourceQuery,
     type UiStringKey,
 } from '@lightdash/common';
@@ -42,7 +43,11 @@ export const useComposerNodeStatusLabel = () => {
 export const useComposerNodeRowsLabel = () => {
     const uiStrings = useUiStrings();
     return useCallback(
-        (query: SourceQuery, rowCount: number) => {
+        (
+            query: SourceQuery,
+            rowCount: number,
+            liveResultNotices: LiveResultNotice[] = [],
+        ) => {
             const rows = interpolateUiString(
                 uiStrings(
                     rowCount === 1
@@ -51,7 +56,11 @@ export const useComposerNodeRowsLabel = () => {
                 ),
                 { count: rowCount.toLocaleString() },
             );
-            return hasReachedSourceQueryLimit(query, rowCount)
+            return hasReachedSourceQueryLimit(
+                query,
+                rowCount,
+                liveResultNotices,
+            )
                 ? interpolateUiString(
                       uiStrings('aiAgent.composer.node.rowsReachedLimit'),
                       { rows },

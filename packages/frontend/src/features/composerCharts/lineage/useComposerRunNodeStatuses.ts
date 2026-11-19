@@ -3,6 +3,7 @@ import {
     QueryHistoryStatus,
     type ApiError,
     type ApiGetSourceQueryStatusResults,
+    type LiveResultNotice,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -15,6 +16,8 @@ export type ComposerRunNodeStatus = {
     error: string | null;
     totalRowCount: number | null;
     durationMs: number | null;
+    /** What a live data source node's result leaves out, e.g. rows past its cap. */
+    liveResultNotices?: LiveResultNotice[];
 };
 
 const POLL_INTERVAL_MS = 1000;
@@ -97,6 +100,8 @@ export const useComposerRunNodeStatuses = ({
                                   totalRowCount: status.totalRowCount ?? null,
                                   durationMs:
                                       status.warehouseExecutionTimeMs ?? null,
+                                  liveResultNotices:
+                                      status.liveResultNotices ?? [],
                               },
                           ],
                       ]

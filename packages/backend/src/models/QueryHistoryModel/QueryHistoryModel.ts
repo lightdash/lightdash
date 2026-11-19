@@ -32,6 +32,7 @@ import {
     sleep,
     SQL_LANGUAGE_REQUEST_PARAMETER_KEYS,
     type AgentConnectionGrantRef,
+    type LiveResultNotice,
 } from '@lightdash/common';
 import crypto from 'crypto';
 import { Knex } from 'knex';
@@ -113,6 +114,7 @@ function convertDbQueryHistoryToQueryHistory(
         preAggregateExecution: queryHistory.pre_aggregate_execution,
         preAggregateFallbackReason: queryHistory.pre_aggregate_fallback_reason,
         processingStartedAt: queryHistory.processing_started_at,
+        liveResultNotices: queryHistory.live_result_notices ?? null,
         warehouseConnectionUuid: queryHistory.warehouse_connection_uuid ?? null,
     };
 }
@@ -473,6 +475,17 @@ export class QueryHistoryModel {
             .andWhere('project_uuid', projectUuid)
             .update({
                 ...update,
+                // pg sends a JS array as a Postgres array, not JSON
+                ...(update.live_result_notices !== undefined
+                    ? {
+                          live_result_notices:
+                              update.live_result_notices === null
+                                  ? null
+                                  : (JSON.stringify(
+                                        update.live_result_notices,
+                                    ) as unknown as LiveResultNotice[]),
+                      }
+                    : {}),
                 ...(update.warehouse_execution_stats !== undefined
                     ? {
                           warehouse_bytes_billed:

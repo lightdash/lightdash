@@ -17,6 +17,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { LiveResultNotices } from '../../../features/externalConnections/liveSources/LiveResultNotices';
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { resolveMergeColumnOrder } from '../../../features/mergeQuery/utils/resolveMergeColumnOrder';
 import { useColumnTotalsEnabledByDefault } from '../../../hooks/useAsyncCalculateTotal';
@@ -610,6 +611,11 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
                 data-tour-return="none"
                 data-tour-resultdocs="explore/explore-view.mdx#the-explore-page:li4"
             >
+                {status === 'success' && !previous && (
+                    <LiveResultNotices
+                        notices={queryResults.metadata?.liveResultNotices}
+                    />
+                )}
                 {status === 'loading' && !showGroupedView && (
                     <RunningBar
                         label={getQueryLoadingStateCopy(queryStatus).title}

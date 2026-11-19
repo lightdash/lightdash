@@ -32,6 +32,7 @@ import {
     Filters,
     ItemsMap,
     KnexPaginateArgs,
+    LiveResultNotice,
     McpDocumentAsCode,
     McpDocumentEdit,
     McpDocumentRead,
@@ -530,6 +531,8 @@ export type RunAsyncQueryFn = (
     cacheMetadata: CacheMetadata;
     fields: ItemsMap;
     executionStats: WarehouseExecutionStats | null;
+    /** What a live data source result leaves out; absent for other queries. */
+    liveResultNotices?: LiveResultNotice[];
 }>;
 
 export type RunSavedChartQueryFn = (args: {

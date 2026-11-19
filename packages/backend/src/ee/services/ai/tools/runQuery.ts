@@ -92,6 +92,7 @@ import {
 import {
     getContextTruncationNote,
     getExecutionStatsNote,
+    getLiveResultNoticesNote,
     getQueryResultSummary,
 } from '../utils/queryResultSummary';
 import { serializeData } from '../utils/serializeData';
@@ -903,6 +904,9 @@ export const getRunQuery = ({
                                 projectParameterDefinitions,
                                 metricQuery,
                                 queryTool.queryConfig.parameters,
+                            ) +
+                            getLiveResultNoticesNote(
+                                queryResults.liveResultNotices,
                             ),
                         metadata: { status: 'success' },
                         structuredContent: {
@@ -1028,7 +1032,8 @@ export const getRunQuery = ({
                         metricQuery,
                         queryTool.queryConfig.parameters,
                     ) +
-                    getExecutionStatsNote(queryResults.executionStats);
+                    getExecutionStatsNote(queryResults.executionStats) +
+                    getLiveResultNoticesNote(queryResults.liveResultNotices);
 
                 const queryReference = getQueryReference({
                     prompt,

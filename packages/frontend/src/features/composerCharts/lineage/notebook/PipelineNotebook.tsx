@@ -178,7 +178,11 @@ const NotebookCell: FC<CellProps> = ({
             ? [
                   status.totalRowCount === null
                       ? null
-                      : rowsLabel(node.query, status.totalRowCount),
+                      : rowsLabel(
+                            node.query,
+                            status.totalRowCount,
+                            status.liveResultNotices,
+                        ),
                   status.durationMs === null
                       ? null
                       : formatDuration(status.durationMs),

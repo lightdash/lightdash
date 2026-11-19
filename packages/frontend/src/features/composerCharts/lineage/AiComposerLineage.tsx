@@ -89,7 +89,7 @@ const NodeFacts: FC<{
     if (status.totalRowCount === null) return null;
     return (
         <Text component="span" fz="xs" c="dimmed" className={styles.facts}>
-            {rowsLabel(query, status.totalRowCount)}
+            {rowsLabel(query, status.totalRowCount, status.liveResultNotices)}
         </Text>
     );
 };
