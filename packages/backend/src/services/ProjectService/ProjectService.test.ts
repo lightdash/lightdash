@@ -16125,6 +16125,134 @@ describe('ProjectService', () => {
             );
         });
 
+        describe('over live data source explores', () => {
+            const [liveExplore] = buildLiveExplores({
+                connectionUuid: '03386598-7a51-45b2-b1f9-5ef55bd09016',
+                sourceName: 'ga4_03386598',
+                name: 'Marketing site',
+                apiSource: {
+                    connector: ApiConnectorType.GA4,
+                    propertyId: '123',
+                },
+                scannedFields: [],
+                edits: {},
+            });
+            const channel = `${liveExplore.name}_session_default_channel_group`;
+            const liveSource = (
+                id: string,
+                tableCalculations: MergeQuery['tableCalculations'] = [],
+            ): MergeQueryMetricSource => ({
+                id,
+                metricQuery: {
+                    exploreName: liveExplore.name,
+                    dimensions: [channel],
+                    metrics: [`${liveExplore.name}_sessions`],
+                    filters: {},
+                    sorts: [],
+                    limit: 500,
+                    tableCalculations,
+                },
+            });
+            const liveMerge = (sources: MergeQueryMetricSource[]) =>
+                mergeQuery({
+                    sources,
+                    joinKey: [
+                        {
+                            name: 'channel',
+                            fieldIdBySourceId: { a: channel, b: 'a_dim1' },
+                        },
+                    ],
+                });
+
+            afterEach(() => {
+                vi.restoreAllMocks();
+            });
+
+            beforeEach(() => {
+                vi.spyOn(service, 'getExplore').mockImplementation(
+                    async (_account, _projectUuid, exploreName) =>
+                        exploreName === liveExplore.name
+                            ? liveExplore
+                            : validExplore,
+                );
+            });
+
+            test('joins a live data source node in DuckDB when sources run as nodes', async () => {
+                const compileQuery = vi.spyOn(service, 'compileQuery');
+
+                const result = await service.compileMergeQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    mergeQuery: liveMerge([liveSource('a'), source('b')]),
+                    sourcesRunAsNodes: true,
+                });
+
+                expect(result.errors).toEqual([]);
+                expect(result.sql).not.toBeNull();
+                expect(result.legs[0]).toMatchObject({
+                    sourceId: 'a',
+                    sql: null,
+                    metricQuery: { exploreName: liveExplore.name },
+                });
+                expect(result.legs[1].sql).not.toBeNull();
+                expect(
+                    compileQuery.mock.calls.map(
+                        ([args]) => args.body.exploreName,
+                    ),
+                ).toEqual([validExplore.name]);
+            });
+
+            test('refuses what the live data source refuses on its own', async () => {
+                await expect(
+                    service.compileMergeQuery({
+                        account: sessionAccount,
+                        projectUuid,
+                        mergeQuery: liveMerge([
+                            liveSource('a', [
+                                {
+                                    name: 'doubled',
+                                    displayName: 'Doubled',
+                                    sql: '1',
+                                },
+                            ]),
+                            source('b'),
+                        ]),
+                        sourcesRunAsNodes: true,
+                    }),
+                ).rejects.toMatchObject({
+                    data: {
+                        liveSourceErrorCode:
+                            'live_source.refused.table_calculation',
+                    },
+                });
+            });
+
+            test('refuses a live data source node asking for more rows than one query returns', async () => {
+                const tooMany = liveSource('a');
+                tooMany.metricQuery.limit = 25_000;
+                await expect(
+                    service.compileMergeQuery({
+                        account: sessionAccount,
+                        projectUuid,
+                        mergeQuery: liveMerge([tooMany, source('b')]),
+                        sourcesRunAsNodes: true,
+                    }),
+                ).rejects.toThrow(
+                    'Merge source "a" asks for 25,000 rows, but one Google Analytics query returns at most 24,999.',
+                );
+            });
+
+            test('keeps refusing a live data source in an Explorer merge', async () => {
+                await expect(
+                    service.compileMergeQuery({
+                        account: sessionAccount,
+                        projectUuid,
+                        mergeQuery: liveMerge([liveSource('a'), source('b')]),
+                    }),
+                ).rejects.toThrow('is a live data source');
+            });
+        });
+
         describe('merge calculation SQL authorization', () => {
             const withAbility = (
                 rules: ConstructorParameters<
