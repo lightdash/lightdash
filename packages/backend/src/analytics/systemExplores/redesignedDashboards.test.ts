@@ -49,7 +49,7 @@ const sqlOf = (chart: ChartAsCode) => {
         timezone: 'UTC',
     }).compileQuery().query;
 };
-const metricTypes = new Map(
+const metricTypes = new Map<string, string>(
     explores.flatMap((explore) =>
         Object.values(explore.tables).flatMap((table) =>
             Object.values(table.metrics).map(
@@ -1145,7 +1145,7 @@ describe.each(Object.entries(redesigned))('%s', (slug, tabs) => {
         });
         expect(
             copy
-                .filter((text) => banned.test(text))
+                .filter((text): text is string => !!text && banned.test(text))
                 // Existing descriptions of charts this redesign did not touch
                 .filter((text) => !untouchedCopy.includes(text)),
         ).toEqual([]);

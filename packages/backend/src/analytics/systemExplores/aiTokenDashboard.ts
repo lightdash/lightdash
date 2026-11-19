@@ -628,7 +628,7 @@ export const aiTokenLibraryChartBindings = (
                             metrics: [metric],
                             sorts: [{ fieldId: day, descending: false }],
                             limit: 31,
-                            description: item.description,
+                            description: item.description ?? '',
                         },
                     },
                 ],
