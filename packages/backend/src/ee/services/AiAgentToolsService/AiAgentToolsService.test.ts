@@ -1047,6 +1047,7 @@ describe('AiAgentToolsService', () => {
                 runtime.describeWarehouseTable({
                     table: 'customer_order_payments',
                     schema: 'jaffle',
+                    database: null,
                 }),
             ).rejects.toThrow(
                 'reads from catalog `postgres3`, which is explicitly excluded',
@@ -1174,7 +1175,11 @@ describe('AiAgentToolsService', () => {
             });
             const runtime = service.createRuntime(makeRuntimeContext());
 
-            await runtime.describeWarehouseTable({ table: 'orders' });
+            await runtime.describeWarehouseTable({
+                table: 'orders',
+                schema: null,
+                database: null,
+            });
 
             expect(describeWarehouseTable).toHaveBeenCalledWith(
                 user,

@@ -20,13 +20,13 @@ export const toolDescribeWarehouseTableArgsSchema = createToolSchema()
             ),
         schema: z
             .string()
-            .optional()
+            .nullish()
             .describe(
                 'Schema name, e.g. "jaffle". Omit for the project\'s default schema.',
             ),
         database: z
             .string()
-            .optional()
+            .nullish()
             .describe(
                 "Database or catalog from listWarehouseTables, for a table outside the default database. Omit for the project's default database.",
             ),

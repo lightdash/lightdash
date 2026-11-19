@@ -242,9 +242,9 @@ export const mcpReadContentArgsSchema = toolReadContentArgsSchema.extend({
 
 export const mcpEditContentArgsSchema = toolEditContentArgsSchema.extend({
     type: z.enum(['dashboard', 'chart', 'sql_chart', 'document']),
-    patch: toolEditContentArgsSchema.shape.patch.optional(),
+    patch: toolEditContentArgsSchema.shape.patch.nullish(),
     documentEdit: mcpDocumentEditSchema
-        .optional()
+        .nullish()
         .describe(
             'A Document edit: replace the Markdown (content), patch one chart (chart), or update metadata (metadata).',
         ),

@@ -111,12 +111,15 @@ export const executeEditContent = async (
     args: z.infer<typeof mcpEditContentArgsSchema>,
     approveSql: ApproveSqlFn | null = null,
 ) => {
-    const { slug, type, patch, documentEdit } = args;
+    const { slug, type } = args;
+    // Models send null for the one of these they leave unused
+    const patch = args.patch ?? null;
+    const documentEdit = args.documentEdit ?? null;
     try {
         getToolVariant(documentsEnabled, chartsEnabled).schema.parse(args);
         const getEditArgs = async (): Promise<Parameters<EditContentFn>[0]> => {
             if (type === 'document') {
-                if (patch !== undefined || documentEdit === undefined) {
+                if (patch !== null || documentEdit === null) {
                     throw new ParameterError(
                         'Documents require documentEdit instead of patch.',
                     );
@@ -136,7 +139,7 @@ export const executeEditContent = async (
                             : documentEdit,
                 };
             }
-            if (documentEdit !== undefined || patch === undefined) {
+            if (documentEdit !== null || patch === null) {
                 throw new ParameterError(
                     'Charts and dashboards require patch instead of documentEdit.',
                 );
