@@ -636,6 +636,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'AppGenerateController.promoteApp': [AgentCapability.Publish],
     'AppGenerateController.restoreAppVersion': [AgentCapability.ContentWrite],
     'AppGenerateController.toggleAppPinning': [AgentCapability.ContentWrite],
+    'AppGenerateController.transcribeCapture': [AgentCapability.ContentWrite],
     'AppGenerateController.unverifyDataApp': [AgentCapability.Publish],
     'AppGenerateController.updateApp': [AgentCapability.ContentWrite],
     'AppGenerateController.upgradeApp': [AgentCapability.ContentWrite],
