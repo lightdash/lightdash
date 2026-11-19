@@ -1,6 +1,7 @@
 import { type AiAccessRefusal } from '@lightdash/common';
 import {
     createSlice,
+    nanoid,
     prepareAutoBatched,
     type PayloadAction,
 } from '@reduxjs/toolkit';
@@ -110,6 +111,7 @@ export interface AiAgentThreadStreamingState {
     content: string;
     parts: StreamPart[];
     connection: AiAgentThreadStreamConnection;
+    interruptionId: string | null;
     toolCalls: ToolCall[];
     reasoning: Reasoning[];
     decidedToolCallIds: string[];
@@ -145,6 +147,7 @@ const initialThread: Omit<
     content: '',
     parts: [],
     connection: { status: 'streaming' },
+    interruptionId: null,
     toolCalls: [],
     reasoning: [],
     decidedToolCallIds: [],
@@ -257,14 +260,23 @@ export const aiAgentThreadStreamSlice = createSlice({
                 toolCallId: string;
             }>(),
         },
-        markStreamRecovering: (
-            state,
-            action: PayloadAction<{ threadUuid: string }>,
-        ) => {
-            const streamingThread = state[action.payload.threadUuid];
-            if (streamingThread?.connection.status === 'streaming') {
-                streamingThread.connection = { status: 'recovering' };
-            }
+        markStreamRecovering: {
+            reducer: (
+                state,
+                action: PayloadAction<{
+                    threadUuid: string;
+                    interruptionId: string;
+                }>,
+            ) => {
+                const stream = state[action.payload.threadUuid];
+                if (stream?.connection.status === 'streaming') {
+                    stream.connection = { status: 'recovering' };
+                    stream.interruptionId = action.payload.interruptionId;
+                }
+            },
+            prepare: ({ threadUuid }: { threadUuid: string }) => ({
+                payload: { threadUuid, interruptionId: nanoid() },
+            }),
         },
         markStreamPolling: (
             state,

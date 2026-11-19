@@ -62,6 +62,7 @@ import { type UserWithAbility } from '../../../../hooks/user/useUser';
 import useApp from '../../../../providers/App/useApp';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
+import { consumeEmbedAgentContentEvents } from '../streaming/agentContentEvents';
 import { useAiAgentThreadStreamMutation } from '../streaming/useAiAgentThreadStreamMutation';
 import {
     type AiAgentToolCallHandler,
@@ -1714,6 +1715,7 @@ export const useCreateAgentThreadMessageMutation = (
 };
 
 export const useRetryAiAgentThreadMessageMutation = () => {
+    const isEmbed = useIsEmbedded();
     const { streamMessage } = useAiAgentThreadStreamMutation();
     const queryClient = useQueryClient();
 
@@ -1728,6 +1730,25 @@ export const useRetryAiAgentThreadMessageMutation = () => {
             enableSqlMode?: boolean;
         }
     >({
+        onMutate: ({ projectUuid, agentUuid, threadUuid, messageUuid }) => {
+            if (!isEmbed) return;
+            const thread = queryClient.getQueryData<
+                ApiAiAgentThreadResponse['results']
+            >(getAiAgentThreadQueryKey(projectUuid, agentUuid, threadUuid));
+            const message = thread?.messages.find(
+                (item) =>
+                    item.role === 'assistant' && item.uuid === messageUuid,
+            );
+            // Retry reuses this prompt, including the previous attempt's persisted writes.
+            if (message?.role === 'assistant') {
+                consumeEmbedAgentContentEvents(
+                    projectUuid,
+                    agentUuid,
+                    [],
+                    message,
+                );
+            }
+        },
         mutationFn: ({
             projectUuid,
             agentUuid,

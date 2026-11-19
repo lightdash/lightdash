@@ -35,6 +35,7 @@ const stream = (
     projectUuid: 'project-1',
     agentUuid: 'agent-1',
     autoApproveSql: false,
+    interruptionId: null,
     content: '',
     parts: [],
     connection: { status: 'streaming' },
