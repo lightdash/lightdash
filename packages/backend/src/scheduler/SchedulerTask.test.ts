@@ -2795,6 +2795,7 @@ describe('dashboard CSV and XLSX delivery with a composer chart tile', () => {
                 parameters: { region: 'EU' },
                 excludedParameterKeys: [],
                 invalidateCache: true,
+                dateZoom: null,
             },
             QueryExecutionContext.SCHEDULED_DELIVERY,
         );

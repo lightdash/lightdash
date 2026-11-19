@@ -68,7 +68,7 @@ import {
 } from '../hooks/useComposerChartRun';
 import {
     useComposerTileDateZoom,
-    useReportComposerTileDateZoomApplied,
+    useReportComposerTileDateZoom,
 } from '../hooks/useComposerTileDateZoom';
 import { getComposerTileFilterItems } from '../utils/composerTileFilterItems';
 import { getComposerTileParameterItems } from '../utils/composerTileParameterItems';
@@ -182,7 +182,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
     });
     const chart = chartQuery.data;
     const run = runQuery.data;
-    useReportComposerTileDateZoomApplied(tile.uuid, run?.dateZoomApplied);
+    useReportComposerTileDateZoom(tile.uuid, run);
     const dispatch = useDashboardDispatch();
     const hasReportedSqlColumns = useDashboardSelector(
         (state) => selectSqlChartTilesMetadata(state)[tile.uuid] !== undefined,

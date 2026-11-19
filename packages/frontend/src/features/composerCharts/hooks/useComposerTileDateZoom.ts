@@ -1,4 +1,8 @@
-import { resolveTileDateZoom, type DateZoom } from '@lightdash/common';
+import {
+    resolveTileDateZoom,
+    type ComposerChartRunResults,
+    type DateZoom,
+} from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
 import {
     dashboardDateZoomActions,
@@ -29,19 +33,27 @@ export const useComposerTileDateZoom = (tileUuid: string): DateZoom | null => {
     );
 };
 
-/** Reports whether the run re-grained the tile, as classic chart tiles do. */
-export const useReportComposerTileDateZoomApplied = (
+/** Reports the tile's zoomable fields and whether the run re-grained it, as classic chart tiles do. */
+export const useReportComposerTileDateZoom = (
     tileUuid: string,
-    dateZoomApplied: boolean | undefined,
+    run:
+        | Pick<ComposerChartRunResults, 'dateZoomApplied' | 'zoomableFields'>
+        | undefined,
 ) => {
     const dispatch = useDashboardDispatch();
     useEffect(() => {
-        if (dateZoomApplied === undefined) return;
+        if (!run) return;
+        dispatch(
+            dashboardDateZoomActions.setChartZoomableFields({
+                tileUuid,
+                fields: run.zoomableFields,
+            }),
+        );
         dispatch(
             dashboardDateZoomActions.setTileDateZoomApplied({
                 tileUuid,
-                isApplied: dateZoomApplied,
+                isApplied: run.dateZoomApplied,
             }),
         );
-    }, [dispatch, dateZoomApplied, tileUuid]);
+    }, [dispatch, run, tileUuid]);
 };

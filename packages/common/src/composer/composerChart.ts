@@ -26,6 +26,7 @@ import { type ResultColumn } from '../types/results';
 import { ChartType, type ChartConfig } from '../types/savedCharts';
 import { getHandWrittenAdditionalMetrics } from '../utils/additionalMetrics';
 import assertUnreachable from '../utils/assertUnreachable';
+import { type ChartZoomableField } from '../utils/dateZoom';
 import { getItemLabelWithoutTableName } from '../utils/item';
 
 type StoredNode<T> = T & {
@@ -624,6 +625,8 @@ export type ComposerChartRunResults = {
     usedParameterValuesByNodeId: Record<string, ParametersValuesMap>;
     /** Whether the date zoom re-grained at least one semantic-layer node. */
     dateZoomApplied: boolean;
+    /** The date fields the tile can be zoomed on, so the dashboard offers its date zoom. */
+    zoomableFields: ChartZoomableField[];
 };
 
 /** The query a composer chart tile draws, and so exports: its series-split stage, else its terminal node. */

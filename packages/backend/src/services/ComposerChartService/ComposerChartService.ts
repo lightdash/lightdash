@@ -61,6 +61,7 @@ import {
     getComposerNodeDateZooms,
     getComposerParameterReferences,
     getComposerSavedParameterValues,
+    getComposerZoomableFields,
     getSemanticExploreNames,
     getStoredChartXField,
     withSqlColumnFilters,
@@ -919,6 +920,10 @@ export class ComposerChartService extends BaseService {
                 ]),
             ),
             dateZoomApplied: Object.keys(dateZoomByNodeId).length > 0,
+            zoomableFields: getComposerZoomableFields(
+                chart.pipeline.nodes,
+                exploreByNodeId,
+            ),
         };
     }
 }

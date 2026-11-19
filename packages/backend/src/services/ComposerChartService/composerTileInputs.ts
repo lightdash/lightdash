@@ -4,6 +4,7 @@ import {
     DimensionType,
     getAllDimensionsMap,
     getAvailableParametersFromTables,
+    getChartZoomableFields,
     getDashboardFilterRulesForTileAndReferences,
     getDashboardFiltersForTile,
     getDashboardTileParameterOverrides,
@@ -18,6 +19,7 @@ import {
     metricQueryOfSemanticNode,
     QuerySourceType,
     resolveToBaseTimeDimension,
+    type ChartZoomableField,
     type ComposerChartPipelineNode,
     type ComposerStoredChart,
     type DashboardFilters,
@@ -250,15 +252,16 @@ export const getComposerParameterReferences = (
     ),
 ];
 
+type SemanticNode = Extract<
+    ComposerChartPipelineNode,
+    { sourceType: QuerySourceType.SEMANTIC_LAYER }
+>;
+
 const getNodeDateZoomFieldId = (
-    node: Extract<
-        ComposerChartPipelineNode,
-        { sourceType: QuerySourceType.SEMANTIC_LAYER }
-    >,
+    node: SemanticNode,
     explore: Explore,
     { granularity, xAxisFieldId }: DateZoom & { granularity: string },
 ): string | null => {
-    if (isDateZoomRefusedOnExplore(explore)) return null;
     const allDimensions = getAllDimensionsMap(explore);
     const timeDimensions = getTimeDimensionsMap(explore);
     const dateDimensions = node.dimensions.flatMap((fieldId) => {
@@ -295,6 +298,45 @@ export const getStoredChartXField = (
         : undefined;
 
 /** Merge legs stay unzoomed: the merge compiles against their saved fields. */
+const getZoomableSemanticNodes = (
+    nodes: ComposerChartPipelineNode[],
+    exploreByNodeId: ComposerNodeExplores,
+): Array<{ node: SemanticNode; explore: Explore }> => {
+    const mergeLegs = new Set(
+        nodes.flatMap((node) =>
+            node.sourceType === QuerySourceType.MERGE
+                ? node.sources.map((source) => source.nodeId)
+                : [],
+        ),
+    );
+    return nodes.flatMap((node) => {
+        const explore = exploreByNodeId[node.nodeId];
+        return node.sourceType === QuerySourceType.SEMANTIC_LAYER &&
+            explore &&
+            !mergeLegs.has(node.nodeId) &&
+            !isDateZoomRefusedOnExplore(explore)
+            ? [{ node, explore }]
+            : [];
+    });
+};
+
+/** The date fields a composer tile can be zoomed on, one per field id. */
+export const getComposerZoomableFields = (
+    nodes: ComposerChartPipelineNode[],
+    exploreByNodeId: ComposerNodeExplores,
+): ChartZoomableField[] => [
+    ...new Map(
+        getZoomableSemanticNodes(nodes, exploreByNodeId)
+            .flatMap(({ node, explore }) =>
+                getChartZoomableFields(
+                    explore,
+                    metricQueryOfSemanticNode(node),
+                ),
+            )
+            .map((field) => [field.fieldId, field]),
+    ).values(),
+];
+
 export const getComposerNodeDateZooms = ({
     nodes,
     exploreByNodeId,
@@ -306,29 +348,17 @@ export const getComposerNodeDateZooms = ({
 }): Record<string, DateZoom> => {
     const granularity = dateZoom?.granularity;
     if (!granularity) return {};
-    const mergeLegs = new Set(
-        nodes.flatMap((node) =>
-            node.sourceType === QuerySourceType.MERGE
-                ? node.sources.map((source) => source.nodeId)
-                : [],
-        ),
-    );
     return Object.fromEntries(
-        nodes.flatMap((node) => {
-            const explore = exploreByNodeId[node.nodeId];
-            if (
-                node.sourceType !== QuerySourceType.SEMANTIC_LAYER ||
-                !explore ||
-                mergeLegs.has(node.nodeId)
-            )
-                return [];
-            const xAxisFieldId = getNodeDateZoomFieldId(node, explore, {
-                ...dateZoom,
-                granularity,
-            });
-            return xAxisFieldId
-                ? [[node.nodeId, { granularity, xAxisFieldId }]]
-                : [];
-        }),
+        getZoomableSemanticNodes(nodes, exploreByNodeId).flatMap(
+            ({ node, explore }) => {
+                const xAxisFieldId = getNodeDateZoomFieldId(node, explore, {
+                    ...dateZoom,
+                    granularity,
+                });
+                return xAxisFieldId
+                    ? [[node.nodeId, { granularity, xAxisFieldId }]]
+                    : [];
+            },
+        ),
     );
 };

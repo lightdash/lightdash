@@ -796,6 +796,13 @@ describe('ComposerChartService.run', () => {
             },
         });
         expect(zoomed.dateZoomApplied).toBe(true);
+        expect(zoomed.zoomableFields).toEqual([
+            {
+                fieldId: 'orders_created_at',
+                label: 'orders_created_at',
+                tableName: 'orders',
+            },
+        ]);
 
         const unzoomed = await service.run(
             viewer(),
@@ -808,6 +815,7 @@ describe('ComposerChartService.run', () => {
             submitComposerRun.mock.calls[1][0].binding.dateZoomByNodeId,
         ).toEqual({});
         expect(unzoomed.dateZoomApplied).toBe(false);
+        expect(unzoomed.zoomableFields).toEqual(zoomed.zoomableFields);
     });
 
     test("zooms the stored chart's x-axis field when the tile names none", async () => {
