@@ -1,4 +1,9 @@
-import { DimensionType, FilterOperator, MetricType } from '@lightdash/common';
+import {
+    DimensionType,
+    FilterOperator,
+    MetricType,
+    TimeFrames,
+} from '@lightdash/common';
 import type {
     LiveDimensionDefinition,
     LiveExploreDefinition,
@@ -73,11 +78,70 @@ const count = (noun: string): LiveMetricDefinition => ({
     computed: { type: 'count' },
 });
 
+/**
+ * Worked out from the issues read; it can't be summed across groups, so
+ * totals read the issues again.
+ */
+const summary =
+    (type: 'average' | 'median') =>
+    (
+        name: string,
+        label: string,
+        column: string,
+        description: string,
+    ): LiveMetricDefinition => ({
+        name,
+        apiName: name,
+        label,
+        description,
+        type: MetricType.NUMBER,
+        format: '#,##0.##',
+        filterOperators: [],
+        aggregation: { aggregation: 'non_additive' },
+        computed: { type, column },
+    });
+
+const average = summary('average');
+const median = summary('median');
+
+/** A date of an issue with its week and month, worked out from the day. */
+const withGrains = (
+    name: string,
+    label: string,
+    description: string,
+): LiveDimensionDefinition[] => [
+    {
+        ...date(name, label, description),
+        // The day is its own grain, grouped with the coarser ones
+        timeInterval: { base: name, grain: TimeFrames.DAY },
+    },
+    {
+        ...dimension(
+            `${name}_week`,
+            `${label} week`,
+            DimensionType.DATE,
+            [],
+            `Monday of the week, in UTC. Filter ${label} to choose the weeks.`,
+        ),
+        timeInterval: { base: name, grain: TimeFrames.WEEK },
+    },
+    {
+        ...dimension(
+            `${name}_month`,
+            `${label} month`,
+            DimensionType.DATE,
+            [],
+            `First day of the month, in UTC. Filter ${label} to choose the months.`,
+        ),
+        timeInterval: { base: name, grain: TimeFrames.MONTH },
+    },
+];
+
 export const PYLON_ISSUES_EXPLORE: LiveExploreDefinition = {
     name: 'issues',
     label: 'Issues',
     description:
-        'Support issues (conversations and tickets) of one Pylon workspace, read live from issue search, one row per issue, or grouped by the selected dimensions when Count is selected. One query reads at most 9,999 issues, created in the last 30 days unless the Created filter says otherwise. Dates are UTC days.',
+        'Support issues (conversations and tickets) of one Pylon workspace, read live from issue search, one row per issue, or grouped by the selected dimensions when a metric is selected. Metrics are worked out from the issues read. One query reads at most 9,999 issues, created in the last 30 days unless the Created filter says otherwise. Dates are UTC days.',
     dimensions: [
         dimension(
             'number',
@@ -136,13 +200,17 @@ export const PYLON_ISSUES_EXPLORE: LiveExploreDefinition = {
             PYLON_VALUE_FILTERS,
             'The issue tags, comma separated. "Is" keeps issues with any of the tags.',
         ),
-        date('created_at', 'Created', 'The day the issue was created, in UTC.'),
-        date(
+        ...withGrains(
+            'created_at',
+            'Created',
+            'The day the issue was created, in UTC.',
+        ),
+        ...withGrains(
             'updated_at',
             'Updated',
             'The day the issue last changed, in UTC.',
         ),
-        date(
+        ...withGrains(
             'resolved_at',
             'Resolved',
             'The day the issue was last resolved, in UTC.',
@@ -176,7 +244,39 @@ export const PYLON_ISSUES_EXPLORE: LiveExploreDefinition = {
             'The CSAT score the customer gave, when they answered the survey.',
         ),
     ],
-    metrics: [count('issues')],
+    metrics: [
+        count('issues'),
+        average(
+            'average_first_response_minutes',
+            'Average first response (minutes)',
+            'first_response_minutes',
+            'Average minutes to the first team reply, over the issues read that have one.',
+        ),
+        median(
+            'median_first_response_minutes',
+            'Median first response (minutes)',
+            'first_response_minutes',
+            'Median minutes to the first team reply, over the issues read that have one.',
+        ),
+        average(
+            'average_resolution_hours',
+            'Average resolution time (hours)',
+            'resolution_hours',
+            'Average hours from creation to resolution, over the resolved issues read.',
+        ),
+        median(
+            'median_resolution_hours',
+            'Median resolution time (hours)',
+            'resolution_hours',
+            'Median hours from creation to resolution, over the resolved issues read.',
+        ),
+        average(
+            'average_csat_score',
+            'Average CSAT score',
+            'csat_score',
+            'Average CSAT score, over the issues read whose customer answered the survey.',
+        ),
+    ],
     maxDimensions: null,
     maxMetrics: null,
     dateRange: { dimension: 'created_at', defaultDays: 30 },

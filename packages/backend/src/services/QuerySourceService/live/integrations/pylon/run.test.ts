@@ -291,6 +291,44 @@ describe('pylonIntegration issues', () => {
     });
 });
 
+describe('pylonIntegration date grains', () => {
+    it('reads the Monday of the week and the first of the month, in UTC', async () => {
+        const { source } = connect(
+            page([
+                issue(1, { resolution_time: '2026-11-04T23:00:00Z' }),
+                issue(2, { created_at: '2026-10-31T23:59:00Z' }),
+            ]),
+        );
+
+        const { rows } = await run(source, {
+            kind: 'issues',
+            filters: [LAST_30_DAYS],
+            columns: [
+                'created_at_week',
+                'created_at_month',
+                'resolved_at_week',
+                'resolved_at_month',
+            ],
+        });
+
+        // 2026-11-01 is a Sunday
+        expect(rows).toEqual([
+            {
+                created_at_week: '2026-10-26',
+                created_at_month: '2026-11-01',
+                resolved_at_week: '2026-11-02',
+                resolved_at_month: '2026-11-01',
+            },
+            {
+                created_at_week: '2026-10-26',
+                created_at_month: '2026-10-01',
+                resolved_at_week: null,
+                resolved_at_month: null,
+            },
+        ]);
+    });
+});
+
 describe('pylonIntegration people', () => {
     it('reads assignee emails from the teammates', async () => {
         const { source, send } = connect(

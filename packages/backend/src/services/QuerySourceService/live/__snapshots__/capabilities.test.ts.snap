@@ -263,8 +263,23 @@ exports[`connector capability declarations > the summable tags 1`] = `
     },
   },
   "pylon": {
+    "average_csat_score": {
+      "aggregation": "non_additive",
+    },
+    "average_first_response_minutes": {
+      "aggregation": "non_additive",
+    },
+    "average_resolution_hours": {
+      "aggregation": "non_additive",
+    },
     "count": {
       "aggregation": "additive",
+    },
+    "median_first_response_minutes": {
+      "aggregation": "non_additive",
+    },
+    "median_resolution_hours": {
+      "aggregation": "non_additive",
     },
   },
   "search_console": {
