@@ -399,6 +399,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             },
             optionValues: {
                 valueAggregation: 'sum',
+                style: 'compact',
                 colorSparklineByTrend: false,
                 showLabel: false,
                 showCardBorder: false,
@@ -506,8 +507,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'agent_requests_agent_name',
         ],
         metrics: ['agent_requests_total_requests'],
-        limit: 1000,
+        limit: 5000,
         sorts: [
+            { fieldId: 'agent_requests_agent_name', descending: false },
             { fieldId: 'agent_requests_requested_at_day', descending: false },
         ],
         libraryChart: {

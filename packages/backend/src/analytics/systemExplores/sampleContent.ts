@@ -162,6 +162,7 @@ const aiUsageContent = {
                 },
                 optionValues: {
                     valueAggregation: 'sum',
+                    style: 'compact',
                     colorSparklineByTrend: false,
                     showLabel: false,
                     showCardBorder: false,
@@ -195,6 +196,7 @@ const aiUsageContent = {
                     },
                     optionValues: {
                         valueAggregation: 'sum',
+                        style: 'compact',
                         colorSparklineByTrend: false,
                         showLabel: false,
                         showCardBorder: false,
@@ -272,6 +274,7 @@ const aiUsageContent = {
                     },
                     optionValues: {
                         valueAggregation: 'sum',
+                        style: 'compact',
                         colorSparklineByTrend: false,
                         showLabel: false,
                         showCardBorder: false,

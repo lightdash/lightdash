@@ -417,13 +417,17 @@ export const buildUsageDashboards = (
             });
             let y = 0;
             for (const section of tab.sections) {
-                const noteHeight = section.noteHeight ?? 2;
+                const noteHeight = section.caption
+                    ? 1
+                    : (section.noteHeight ?? 2);
                 dashboard.tiles.push(
                     note(
                         tab.key,
                         y,
                         noteHeight,
-                        `### ${section.title}\n\n${section.description}`,
+                        section.caption
+                            ? section.description
+                            : `### ${section.title}\n\n${section.description}`,
                     ),
                 );
                 y += noteHeight;

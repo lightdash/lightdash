@@ -28,6 +28,7 @@ import {
     analyticsContentAsCode,
     analyticsLibraryChartBindings,
 } from './sampleContent';
+import { usageDashboardSpecs } from './usageDashboardDefinitions';
 
 const charts = analyticsContentAsCode.flatMap((bundle) => bundle.charts);
 const explores = createAnalyticsExplores();
@@ -738,6 +739,75 @@ describe('built-in usage dashboards', () => {
         ]);
         expect([person.h, tokens.h]).toEqual([8, 8]);
         expect(person.y).toBe(tokens.y);
+    });
+
+    it('renders Agents & AI sections as one-line captions and leaves other dashboards headed', () => {
+        const dashboardBySlug = (slug: string) =>
+            analyticsContentAsCode.find(
+                ({ dashboard }) => dashboard.slug === slug,
+            )!.dashboard;
+        const spec = usageDashboardSpecs.find(
+            ({ key }) => key === 'lightdash-analytics-overview',
+        )!;
+        const overview = dashboardBySlug('lightdash-analytics-overview');
+        spec.tabs.forEach((tab) => {
+            const notes = overview.tiles.filter(
+                (tile) =>
+                    tile.tabSlug === tab.key &&
+                    tile.type === DashboardTileTypes.MARKDOWN,
+            );
+            expect(notes).toHaveLength(tab.sections.length);
+            tab.sections.forEach((section, index) => {
+                expect(section.caption).toBe(true);
+                expect(notes[index].h).toBe(1);
+                expect(
+                    (notes[index].properties as { content: string }).content,
+                ).toBe(section.description);
+            });
+        });
+        const [firstNote] = overview.tiles.filter(
+            (tile) =>
+                tile.tabSlug === 'adoption' &&
+                tile.type === DashboardTileTypes.MARKDOWN,
+        );
+        const firstChart = overview.tiles.find(
+            (tile) =>
+                tile.tabSlug === 'adoption' &&
+                tile.type === DashboardTileTypes.SAVED_CHART,
+        )!;
+        expect([firstNote.y, firstChart.y]).toEqual([0, 1]);
+        const adoption = dashboardBySlug('lightdash-analytics-adoption');
+        const [heading] = adoption.tiles.filter(
+            (tile) =>
+                tile.tabSlug === 'app-outcomes' &&
+                tile.type === DashboardTileTypes.MARKDOWN,
+        );
+        expect(heading.h).toBe(2);
+        expect((heading.properties as { content: string }).content).toMatch(
+            /^### /,
+        );
+    });
+
+    it('orders the per-agent panels by agent then day and shows summed totals compactly', () => {
+        const trellis = charts.find(
+            ({ slug }) =>
+                slug ===
+                'lightdash-analytics-overview-agent-daily-requests-per-agent',
+        )!;
+        expect(trellis.metricQuery.sorts).toEqual([
+            { fieldId: 'agent_requests_agent_name', descending: false },
+            { fieldId: 'agent_requests_requested_at_day', descending: false },
+        ]);
+        expect(trellis.metricQuery.limit).toBe(5000);
+        const summed = [...analyticsLibraryChartBindings.values()].filter(
+            (binding) =>
+                binding.slug === 'big-number-with-sparkline-trend' &&
+                binding.optionValues.valueAggregation === 'sum',
+        );
+        expect(summed.length).toBeGreaterThan(0);
+        summed.forEach((binding) =>
+            expect(binding.optionValues.style).toBe('compact'),
+        );
     });
 
     it('keeps tile geometry for sections without a layout hint', () => {

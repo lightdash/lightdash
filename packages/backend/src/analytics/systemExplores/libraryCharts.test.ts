@@ -579,6 +579,12 @@ describe('legacyLibraryChartBindings', () => {
                     default: 'last',
                 },
                 {
+                    type: 'text',
+                    name: 'style',
+                    label: 'Number format',
+                    default: 'default',
+                },
+                {
                     type: 'boolean',
                     name: 'colorSparklineByTrend',
                     label: 'Colour by trend',
