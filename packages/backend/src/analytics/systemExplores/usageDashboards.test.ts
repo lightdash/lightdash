@@ -628,8 +628,28 @@ describe('built-in usage dashboards', () => {
         const heatmap = tile('agent-requests-by-agent-and-day');
         expect([heatmap.x, heatmap.w, heatmap.h]).toEqual([0, 36, 7]);
         const trellis = tile('agent-daily-requests-per-agent');
-        expect([trellis.x, trellis.w, trellis.h]).toEqual([0, 36, 9]);
+        expect([trellis.x, trellis.w, trellis.h]).toEqual([0, 36, 14]);
         expect(tile('agent-adoption-by-week').w).toBe(36);
+    });
+
+    it('draws Daily requests per agent as one smooth filled row per agent', () => {
+        expect(
+            analyticsLibraryChartBindings.get(
+                'lightdash-analytics-overview-agent-daily-requests-per-agent',
+            ),
+        ).toMatchObject({
+            slug: 'vega-trellis',
+            optionValues: {
+                arrangement: 'rows',
+                minPanelHeight: 70,
+                sharedY: false,
+                markType: 'area',
+                curve: 'smooth',
+                fillOpacity: 25,
+                showLine: true,
+                showPoints: false,
+            },
+        });
     });
 
     it('lists the Outcomes and Retries & consumption charts in order with their fallback types', () => {

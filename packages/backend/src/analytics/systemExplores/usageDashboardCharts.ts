@@ -564,10 +564,18 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 value: 'agent_requests_total_requests',
                 panel: 'agent_requests_agent_name',
             },
+            // One full-width row per agent over a shared date axis, each a
+            // smooth filled line in its own palette colour. Points stay
+            // hidden: at up to 90 daily points they would bury the line.
             optionValues: {
-                markType: 'bar',
-                arrangement: 'grid',
-                columns: '4',
+                arrangement: 'rows',
+                minPanelHeight: 70,
+                sharedY: false,
+                markType: 'area',
+                curve: 'smooth',
+                fillOpacity: 25,
+                showLine: true,
+                showPoints: false,
             },
             query: null,
         },

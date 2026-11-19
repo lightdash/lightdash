@@ -37,10 +37,11 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         title: 'Daily requests per agent',
                         caption: true,
                         description:
-                            'One panel per agent, each on its own scale. All retained captured history. Recent capture is not a full historical census.',
+                            'One row per agent, each on its own scale. All retained captured history. Recent capture is not a full historical census.',
                         charts: ['agent-daily-requests-per-agent'],
                         layout: 'row',
-                        rowHeight: 9,
+                        // Fits seven or eight agent rows of about 70 to 90px.
+                        rowHeight: 14,
                     },
                     {
                         title: 'Requests by person',
