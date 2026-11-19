@@ -1,3 +1,10 @@
+# [3.348.0](https://github.com/lightdash/lightdash/compare/3.347.0...3.348.0) (2026-11-19)
+
+
+### Features
+
+* **semantic-studio:** show a scripted save's change while it is being saved ([#33018](https://github.com/lightdash/lightdash/issues/33018)) ([36f2b0f](https://github.com/lightdash/lightdash/commit/36f2b0f1515f7184e470275fd0fe61abea1a9ed3))
+
 # [3.347.0](https://github.com/lightdash/lightdash/compare/3.346.0...3.347.0) (2026-11-19)
 
 
