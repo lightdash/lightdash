@@ -112,13 +112,15 @@ const ActiveMcpAppFrameExplorerBridge: FC = () => {
         isFiltersExpanded,
         fetchResults,
     });
-    latest.current = {
-        state,
-        filters,
-        explore,
-        isFiltersExpanded,
-        fetchResults,
-    };
+    useEffect(() => {
+        latest.current = {
+            state,
+            filters,
+            explore,
+            isFiltersExpanded,
+            fetchResults,
+        };
+    }, [state, filters, explore, isFiltersExpanded, fetchResults]);
 
     useEffect(() => {
         const timeout = window.setTimeout(() => {
