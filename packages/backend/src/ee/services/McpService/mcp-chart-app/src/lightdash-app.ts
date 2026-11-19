@@ -106,11 +106,18 @@ function describeExplore(explore: ExploreState): string {
     return `Explore ${explore.tableName}: fields ${fields.length > 0 ? fields.join(', ') : 'none'}; ${explore.filterCount} filter(s); chart type ${explore.chartType}; ${explore.isRunning ? 'query running' : rows}.`;
 }
 
+function pagePath(url: string): string {
+    try {
+        return new URL(url).pathname;
+    } catch {
+        return url;
+    }
+}
+
 function describeContext(): string {
     if (!currentPage) return 'The Lightdash view is not open yet.';
-    const page = currentPage.title
-        ? `${currentPage.title} (${currentPage.url})`
-        : currentPage.url;
+    const path = pagePath(currentPage.url);
+    const page = currentPage.title ? `${currentPage.title} (${path})` : path;
     const explore = currentExplore ? ` ${describeExplore(currentExplore)}` : '';
     return `The user has this Lightdash page open beside the conversation: ${page}.${explore}`;
 }

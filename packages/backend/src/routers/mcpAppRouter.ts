@@ -8,6 +8,7 @@ import { getMcpAppRedirectPath } from './mcpAppRedirectPath';
 export const mcpAppRouter: Router = express.Router({ mergeParams: true });
 
 mcpAppRouter.get('/sign-in', async (req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store');
     try {
         const { token } = req.query;
         if (typeof token !== 'string') {

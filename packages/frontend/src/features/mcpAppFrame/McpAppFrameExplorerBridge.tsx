@@ -24,6 +24,7 @@ import {
     selectDimensions,
     selectFilters,
     selectIsFiltersExpanded,
+    selectIsVisualizationExpanded,
     selectMetrics,
     selectTableName,
     useExplorerDispatch,
@@ -80,6 +81,7 @@ const ActiveMcpAppFrameExplorerBridge: FC = () => {
     const filters = useExplorerSelector(selectFilters);
     const chartType = useExplorerSelector(selectChartType);
     const isFiltersExpanded = useExplorerSelector(selectIsFiltersExpanded);
+    const isChartExpanded = useExplorerSelector(selectIsVisualizationExpanded);
     const { data: explore } = useExplore(tableName);
     const { fetchResults, queryResults, isLoading } = useExplorerQuery();
     const rowCount = queryResults.totalResults ?? null;
@@ -110,6 +112,7 @@ const ActiveMcpAppFrameExplorerBridge: FC = () => {
         filters,
         explore,
         isFiltersExpanded,
+        isChartExpanded,
         fetchResults,
     });
     useEffect(() => {
@@ -118,9 +121,17 @@ const ActiveMcpAppFrameExplorerBridge: FC = () => {
             filters,
             explore,
             isFiltersExpanded,
+            isChartExpanded,
             fetchResults,
         };
-    }, [state, filters, explore, isFiltersExpanded, fetchResults]);
+    }, [
+        state,
+        filters,
+        explore,
+        isFiltersExpanded,
+        isChartExpanded,
+        fetchResults,
+    ]);
 
     useEffect(() => {
         const timeout = window.setTimeout(() => {
@@ -232,6 +243,13 @@ const ActiveMcpAppFrameExplorerBridge: FC = () => {
                             chartType: requested as ChartType,
                         }),
                     );
+                    if (!current.isChartExpanded) {
+                        dispatch(
+                            explorerActions.toggleExpandedSection(
+                                ExplorerSection.VISUALIZATION,
+                            ),
+                        );
+                    }
                     return { chartType: requested };
                 }
                 case 'runQuery':
