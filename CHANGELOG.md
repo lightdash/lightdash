@@ -1,3 +1,10 @@
+# [3.339.0](https://github.com/lightdash/lightdash/compare/3.338.1...3.339.0) (2026-11-19)
+
+
+### Features
+
+* **sdk:** start an embedded AI agent thread with an initial prompt ([#33000](https://github.com/lightdash/lightdash/issues/33000)) ([01c32a9](https://github.com/lightdash/lightdash/commit/01c32a9f829ed9be3f473efaf58272bb99db178e))
+
 ## [3.338.1](https://github.com/lightdash/lightdash/compare/3.338.0...3.338.1) (2026-11-19)
 
 
