@@ -2937,12 +2937,22 @@ export class PromoteService extends BaseService {
         ];
     }
 
-    /** Runs after the promote permission checks, so a refusal reveals nothing upstream. */
     private async getAuthorizedComposerChartChanges(
         account: RegisteredAccount,
         dashboard: DashboardDAO,
         upstreamDashboard: UpstreamDashboard,
     ) {
+        // The promote checks match the upstream space by path, not where the dashboard is now
+        if (
+            upstreamDashboard.dashboard &&
+            dashboard.tiles.some(isDashboardComposerChartTile)
+        ) {
+            await this.getComposerChartService().preflightDashboard(
+                account,
+                upstreamDashboard.projectUuid,
+                upstreamDashboard.dashboard.uuid,
+            );
+        }
         const changes = await getComposerChartChanges(
             this.composerChartModel,
             dashboard.tiles,

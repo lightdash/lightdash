@@ -179,6 +179,7 @@ const setup = ({
         deleteOrphans: vi.fn(async () => undefined),
     };
     const composerChartService = {
+        preflightDashboard: vi.fn(async () => undefined),
         preflightPipeline: vi.fn(async () => undefined),
         writeFromCode: vi.fn(async () => upstreamChartUuid),
     };
@@ -384,6 +385,35 @@ describe('promoting a dashboard with composer charts', () => {
             service.promoteDashboard(account, sourceDashboard.uuid, scoped),
         ).rejects.toThrow('You need SQL runner permission');
         expect(dashboardModel.create).not.toHaveBeenCalled();
+        expect(composerChartService.writeFromCode).not.toHaveBeenCalled();
+    });
+
+    test('refuses without reading upstream charts when the user cannot update the upstream dashboard', async () => {
+        const { service, composerChartModel, composerChartService } = setup({
+            upstreamDashboardExists: true,
+        });
+        composerChartService.preflightDashboard.mockRejectedValue(
+            new ForbiddenError(
+                "You don't have permission to update this dashboard",
+            ),
+        );
+
+        await expect(
+            service.getPromoteDashboardDiff(
+                account,
+                sourceDashboard.uuid,
+                scoped,
+            ),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        await expect(
+            service.promoteDashboard(account, sourceDashboard.uuid, scoped),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(composerChartService.preflightDashboard).toHaveBeenCalledWith(
+            account,
+            upstreamProjectUuid,
+            upstreamDashboardUuid,
+        );
+        expect(composerChartModel.findIdentityBySlug).not.toHaveBeenCalled();
         expect(composerChartService.writeFromCode).not.toHaveBeenCalled();
     });
 

@@ -18,7 +18,7 @@ export type PromoteComposerChartModel = Pick<
 
 export type PromoteComposerChartService = Pick<
     ComposerChartService,
-    'preflightPipeline' | 'writeFromCode'
+    'preflightDashboard' | 'preflightPipeline' | 'writeFromCode'
 >;
 
 type ComposerChartChange = NonNullable<
