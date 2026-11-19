@@ -1,10 +1,4 @@
-import {
-    isStepCount,
-    readUIMessageStream,
-    streamText,
-    tool,
-    wrapLanguageModel,
-} from 'ai';
+import { isStepCount, readUIMessageStream, streamText, tool } from 'ai';
 import type { JSONValue, LanguageModel } from 'ai';
 import { MockLanguageModelV3 } from 'ai/test';
 import { z } from 'zod';
@@ -28,14 +22,6 @@ import {
     type OrgModelOverrides,
 } from './index';
 import type { ModelPreset, ModelPresetProvider } from './presets';
-
-vi.mock('ai', async () => {
-    const actual = await vi.importActual<typeof import('ai')>('ai');
-    return {
-        ...actual,
-        wrapLanguageModel: vi.fn(actual.wrapLanguageModel),
-    };
-});
 
 const baseCopilotConfig = lightdashConfigMock.ai.copilot;
 
@@ -105,25 +91,11 @@ type V4Model = Extract<
 >;
 type ModelCallOptions = Parameters<V4Model['doGenerate']>[0];
 
-const captureModelRequest = async (
-    model: Exclude<LanguageModel, string>,
-    providerOptions: Record<string, Record<string, JSONValue>> | undefined,
-    tools: ModelCallOptions['tools'] = [],
-    prompt: ModelCallOptions['prompt'] = [
-        { role: 'user', content: [{ type: 'text', text: 'hi' }] },
-    ],
-) => {
-    if (model.specificationVersion !== 'v4') {
-        throw new Error('expected a v4 language model');
-    }
+const captureRequest = async (call: () => PromiseLike<unknown>) => {
     const fetchSpy = vi.fn(async () => new Response('{}', { status: 500 }));
     vi.stubGlobal('fetch', fetchSpy);
     try {
-        await model.doGenerate({
-            prompt,
-            providerOptions,
-            tools,
-        });
+        await call();
     } catch {
         // The stubbed upstream always fails; only the request matters.
     } finally {
@@ -138,6 +110,32 @@ const captureModelRequest = async (
         body: JSON.parse(String(init.body)) as Record<string, unknown>,
     };
 };
+
+const asV4Model = (model: Exclude<LanguageModel, string>) => {
+    if (model.specificationVersion !== 'v4') {
+        throw new Error('expected a v4 language model');
+    }
+    return model;
+};
+
+const captureModelRequest = async (
+    model: Exclude<LanguageModel, string>,
+    providerOptions: Record<string, Record<string, JSONValue>> | undefined,
+    tools: ModelCallOptions['tools'] = [],
+    prompt: ModelCallOptions['prompt'] = [
+        { role: 'user', content: [{ type: 'text', text: 'hi' }] },
+    ],
+) =>
+    captureRequest(() =>
+        asV4Model(model).doGenerate({ prompt, providerOptions, tools }),
+    );
+
+const captureStreamRequest = async (model: Exclude<LanguageModel, string>) =>
+    captureRequest(() =>
+        asV4Model(model).doStream({
+            prompt: [{ role: 'user', content: [{ type: 'text', text: 'hi' }] }],
+        }),
+    );
 
 const copilotConfigWithChatCompletions = () => {
     const config = copilotConfigWithStreaming(true);
@@ -239,13 +237,13 @@ describe('getModel', () => {
         },
     );
 
-    it('keeps OpenAI Responses requests stateless without extended reasoning', async () => {
-        const { model, providerOptions } = getModel(
-            copilotConfigWithStreaming(true),
-            { enableReasoning: false, modelName: 'gpt-5.5' },
-        );
+    it('keeps OpenAI Responses requests stateless when callers pass no provider options', async () => {
+        // e.g. agent routing and eval judges call with the model alone.
+        const { model } = getModel(copilotConfigWithStreaming(true), {
+            modelName: 'gpt-5.5',
+        });
 
-        const { body } = await captureModelRequest(model, providerOptions);
+        const { body } = await captureModelRequest(model, undefined);
         expect(body.store).toBe(false);
         expect(body.include).toEqual(['reasoning.encrypted_content']);
     });
@@ -456,10 +454,11 @@ describe('getModel', () => {
         expect(body.reasoning).toEqual({ effort: 'low', summary: 'auto' });
     });
 
-    it('does not wrap the model when the provider supports streaming', () => {
-        getModel(copilotConfigWithStreaming(true));
+    it('streams natively when the provider supports streaming', async () => {
+        const { model } = getModel(copilotConfigWithStreaming(true));
 
-        expect(wrapLanguageModel).not.toHaveBeenCalled();
+        const { body } = await captureStreamRequest(model);
+        expect(body.stream).toBe(true);
     });
 
     it('stamps lightdash-managed when the resolved provider is declared Lightdash-managed and not BYO', () => {
@@ -686,11 +685,11 @@ describe('getModel', () => {
         expect(keyManagement).toBe('self-managed');
     });
 
-    it('wraps the model with simulateStreamingMiddleware when the provider does not support streaming', () => {
+    it('serves streams as non-streaming requests when the provider does not support streaming', async () => {
         const { model } = getModel(copilotConfigWithStreaming(false));
 
-        expect(wrapLanguageModel).toHaveBeenCalledTimes(1);
-        expect(model).toBe(vi.mocked(wrapLanguageModel).mock.results[0].value);
+        const { body } = await captureStreamRequest(model);
+        expect(body.stream).toBeUndefined();
     });
 });
 
