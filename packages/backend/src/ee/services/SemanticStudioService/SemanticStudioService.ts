@@ -26,6 +26,7 @@ import {
     type ExploreError,
     type LightdashError,
     type LightdashModelWithSource,
+    type ModelFragmentChange,
     type ModelFragmentRefusal,
     type ModelFragmentRefusalReason,
     type Project,
@@ -44,6 +45,7 @@ import {
     type SemanticLayerDraftReconciliation,
     type SemanticLayerDraftState,
     type SemanticLayerDraftUsage,
+    type SemanticLayerInReviewModel,
     type SemanticLayerModelCode,
     type SemanticLayerStatus,
     type SemanticLayerStoredModels,
@@ -59,6 +61,7 @@ import {
     type SessionUser,
     type WritebackMergeResult,
 } from '@lightdash/common';
+import { groupBy } from 'es-toolkit/compat';
 import { createHash } from 'node:crypto';
 import { text } from 'node:stream/consumers';
 import { type FileStorageClient } from '../../../clients/FileStorage/FileStorageClient';
@@ -168,6 +171,7 @@ export type SemanticStudioServiceArguments = {
         | 'rebaseDraftChanges'
         | 'findDocumentsAt'
         | 'findPublishedSince'
+        | 'findInReviewDraftChanges'
         | 'findSettledDraftChanges'
         | 'createCheckedOutDraftChange'
         | 'updateDraftChangeStatus'
@@ -304,6 +308,7 @@ const EMPTY_DRAFT: SemanticLayerDraft = {
     models: [],
     errors: [],
     settled: [],
+    inReview: [],
     othersDrafting: [],
 };
 
@@ -1907,6 +1912,13 @@ export class SemanticStudioService extends BaseService {
                 projectUuid,
                 user.userUuid,
             );
+        const inReview = SemanticStudioService.describeInReview(
+            draft.live,
+            await this.projectModelDocumentModel.findInReviewDraftChanges(
+                projectUuid,
+                user.userUuid,
+            ),
+        );
         const others = SemanticStudioService.describeOtherDrafts(
             draft.live,
             await this.projectModelDocumentModel.findOtherDrafters(
@@ -1919,7 +1931,7 @@ export class SemanticStudioService extends BaseService {
             drafters,
         }));
         if (draft.changes.length === 0) {
-            return { ...EMPTY_DRAFT, settled, othersDrafting };
+            return { ...EMPTY_DRAFT, settled, inReview, othersDrafting };
         }
         // When each model first joined the draft: what was published after that happened under it.
         const startedAt = new Map<string, Date>();
@@ -1981,8 +1993,40 @@ export class SemanticStudioService extends BaseService {
                 message: errors.map(({ message }) => message).join('; '),
             })),
             settled,
+            inReview,
             othersDrafting,
         };
+    }
+
+    /** What each open pull request's changes do to the models they touch, replayed on what is live. */
+    private static describeInReview(
+        live: Map<string, string>,
+        sent: {
+            pullRequestUrl: string;
+            models: SemanticLayerDraftModelInput[];
+        }[],
+    ): SemanticLayerInReviewModel[] {
+        return Object.entries(groupBy(sent, 'pullRequestUrl')).flatMap(
+            ([pullRequestUrl, changes]) => {
+                const { writes, results } = foldDraft(
+                    live,
+                    changes.map(({ models }) => models),
+                );
+                const made = new Map<string, ModelFragmentChange[]>();
+                results.flat().forEach(({ model, changes: parts }) => {
+                    made.set(model, [...(made.get(model) ?? []), ...parts]);
+                });
+                return [...made]
+                    .filter(([, parts]) => parts.length > 0)
+                    .map(([model, parts]) => ({
+                        model,
+                        pullRequestUrl,
+                        changes: parts,
+                        contentBefore: live.get(model) ?? null,
+                        contentAfter: writes.get(model) ?? null,
+                    }));
+            },
+        );
     }
 
     /** Leaves one part of this person's drafted model as it is live, by adding the changes that put it back. */

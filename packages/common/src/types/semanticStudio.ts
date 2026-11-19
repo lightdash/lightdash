@@ -232,8 +232,17 @@ export type SemanticLayerSettledDraftChange = {
     status: 'applied' | 'discarded' | 'undone';
     /** The pull request an applied change was sent as; null when it went live on the server. */
     pullRequestUrl: string | null;
-    /** The models the change touched. */
-    models: string[];
+};
+
+/** What this person's changes waiting in an open pull request do to one model, against what is live. */
+export type SemanticLayerInReviewModel = {
+    model: string;
+    pullRequestUrl: string;
+    changes: ModelFragmentChange[];
+    /** Null when the pull request creates the model. */
+    contentBefore: string | null;
+    /** Null when the pull request removes the model. */
+    contentAfter: string | null;
 };
 
 export type SemanticLayerDraft = {
@@ -243,6 +252,7 @@ export type SemanticLayerDraft = {
     /** Models the draft leaves unable to compile. */
     errors: { model: string; message: string }[];
     settled: SemanticLayerSettledDraftChange[];
+    inReview: SemanticLayerInReviewModel[];
     /** Every model other people have unpublished changes to, whether or not this draft touches it. */
     othersDrafting: { model: string; drafters: SemanticLayerDrafter[] }[];
 };

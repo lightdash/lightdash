@@ -46,9 +46,16 @@ const DraftMarker: FC<{ model: string; isMine: boolean }> = ({
     const marks = useContext(DraftMarksContext);
     const others = marks.others.get(model) ?? [];
     if (!isMine && others.length === 0) {
-        return marks.inReview.has(model) ? (
-            <Tooltip label="Your changes to this model are in an open pull request. Not published yet.">
-                <Box className={classes.draftDot} data-review />
+        if (marks.inReview.has(model)) {
+            return (
+                <Tooltip label="Your changes to this model are in an open pull request. Not published yet.">
+                    <Box className={classes.draftDot} data-mark="review" />
+                </Tooltip>
+            );
+        }
+        return marks.published.has(model) ? (
+            <Tooltip label="You published changes to this model.">
+                <Box className={classes.draftDot} data-mark="published" />
             </Tooltip>
         ) : null;
     }

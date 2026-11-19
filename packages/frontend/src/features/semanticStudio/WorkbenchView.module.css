@@ -286,8 +286,12 @@
 }
 
 /* Sent as a pull request that is still open. */
-.draftDot[data-review] {
+.draftDot[data-mark='review'] {
     background: var(--mantine-color-blue-6);
+}
+
+.draftDot[data-mark='published'] {
+    background: var(--mantine-color-green-6);
 }
 
 /* What the draft does to a model, beside its name in a list. */

@@ -70,7 +70,11 @@ import {
 import { useSyncStudioWorkspace } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSyncStudioWorkspace';
 import { useProject } from '../../hooks/useProject';
 import { useDevelopmentView } from './developmentView';
-import { DraftMarksContext, type DraftMarks } from './draftMarks';
+import {
+    DraftMarksContext,
+    MarkPublishedContext,
+    type DraftMarks,
+} from './draftMarks';
 import { ExternalSourceManager } from './externalSources/ExternalSourceManager';
 import { LiveSourceManager } from './liveSources/LiveSourceManager';
 import {
@@ -87,6 +91,7 @@ import {
     DRAFT_REVIEW,
     FIELD_PARAM,
     getChangeKind,
+    listFieldChanges,
     VIEW_PARAM,
 } from './modelCode';
 import { ModelCodeView } from './ModelTabs';
@@ -304,16 +309,14 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const agentAvailable = hasChat && !!studioAgent;
     const hasDraft = (draft?.changes.length ?? 0) > 0;
     const { data: workspaces } = useStudioWorkspaces(view.project.id);
-    const openPullRequests = useMemo(
-        () =>
-            new Set(
-                [...(workspaces?.mine ?? []), ...(workspaces?.recent ?? [])]
-                    .filter(({ pullRequest }) => pullRequest?.state === 'open')
-                    .flatMap(({ pullRequest }) =>
-                        pullRequest ? [pullRequest.url] : [],
-                    ),
-            ),
-        [workspaces],
+    // Kept only while Studio is open: the marks are a receipt for a publish, not a record of it.
+    const [published, setPublished] = useState<DraftMarks['published']>(
+        () => new Map(),
+    );
+    const markPublished = useCallback(
+        (next: DraftMarks['published']) =>
+            setPublished((current) => new Map([...current, ...next])),
+        [],
     );
     const draftMarks = useMemo<DraftMarks>(
         () => ({
@@ -338,17 +341,21 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 ),
             ),
             inReview: new Map(
-                (draft?.settled ?? []).flatMap(
-                    ({ status, pullRequestUrl, models }): [string, string][] =>
-                        status === 'applied' &&
-                        pullRequestUrl &&
-                        openPullRequests.has(pullRequestUrl)
-                            ? models.map((model) => [model, pullRequestUrl])
-                            : [],
-                ),
+                (draft?.inReview ?? []).map((entry) => [
+                    entry.model,
+                    {
+                        pullRequestUrl: entry.pullRequestUrl,
+                        fields: listFieldChanges(
+                            entry.model,
+                            entry.changes,
+                            entry,
+                        ),
+                    },
+                ]),
             ),
+            published,
         }),
-        [checkedOutDraft, draft, openPullRequests],
+        [checkedOutDraft, draft, published],
     );
     // With nothing live, what the draft adds is the page.
     const isBuildingFirstModel = isEmpty && hasDraft;
@@ -1322,255 +1329,281 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
 
     return (
         <DraftMarksContext.Provider value={draftMarks}>
-            <LiveSourceManager
-                projectUuid={view.project.id}
-                enabled={view.permissions.live}
-                onRemoved={() =>
-                    view.select(
-                        { type: 'kind', kind: 'live' },
-                        { replace: true },
-                    )
-                }
-            >
-                <ExternalSourceManager
+            <MarkPublishedContext.Provider value={markPublished}>
+                <LiveSourceManager
                     projectUuid={view.project.id}
-                    enabled={view.permissions.files}
+                    enabled={view.permissions.live}
                     onRemoved={() =>
                         view.select(
-                            { type: 'kind', kind: 'files' },
+                            { type: 'kind', kind: 'live' },
                             { replace: true },
                         )
                     }
                 >
-                    <Box
-                        className={classes.shell}
-                        data-no-chat={
-                            !hasChat ||
-                            (!isLoadingAgents && (!studioAgent || !isChatOpen))
+                    <ExternalSourceManager
+                        projectUuid={view.project.id}
+                        enabled={view.permissions.files}
+                        onRemoved={() =>
+                            view.select(
+                                { type: 'kind', kind: 'files' },
+                                { replace: true },
+                            )
                         }
                     >
-                        {hasChat && (
-                            <SemanticStudioAgent
-                                projectUuid={view.project.id}
-                                {...openModel}
-                                attached={attached}
-                                onAttach={attachToChat}
-                                onDetach={(ref) =>
-                                    setAttached((current) =>
-                                        current.filter(
-                                            (item) =>
-                                                !sameStudioChatRef(item, ref),
-                                        ),
-                                    )
-                                }
-                                onAttachedSent={() => setAttached([])}
-                                prompt={askedPrompt}
-                                onPromptTaken={() => setAskedPrompt(null)}
-                                showStarters={canBuildFirstModel}
-                            />
-                        )}
-                        <Box className={classes.workspace}>
-                            {!hasChat ? (
-                                status?.blocker ? (
-                                    <BlockedNotice blocker={status.blocker} />
-                                ) : null
-                            ) : (
-                                <>
-                                    <Group
-                                        className={classes.toolbar}
-                                        justify="space-between"
-                                        wrap="nowrap"
-                                        gap="sm"
-                                    >
-                                        <div
-                                            className={classes.views}
-                                            role="tablist"
-                                            aria-label="Views"
+                        <Box
+                            className={classes.shell}
+                            data-no-chat={
+                                !hasChat ||
+                                (!isLoadingAgents &&
+                                    (!studioAgent || !isChatOpen))
+                            }
+                        >
+                            {hasChat && (
+                                <SemanticStudioAgent
+                                    projectUuid={view.project.id}
+                                    {...openModel}
+                                    attached={attached}
+                                    onAttach={attachToChat}
+                                    onDetach={(ref) =>
+                                        setAttached((current) =>
+                                            current.filter(
+                                                (item) =>
+                                                    !sameStudioChatRef(
+                                                        item,
+                                                        ref,
+                                                    ),
+                                            ),
+                                        )
+                                    }
+                                    onAttachedSent={() => setAttached([])}
+                                    prompt={askedPrompt}
+                                    onPromptTaken={() => setAskedPrompt(null)}
+                                    showStarters={canBuildFirstModel}
+                                />
+                            )}
+                            <Box className={classes.workspace}>
+                                {!hasChat ? (
+                                    status?.blocker ? (
+                                        <BlockedNotice
+                                            blocker={status.blocker}
+                                        />
+                                    ) : null
+                                ) : (
+                                    <>
+                                        <Group
+                                            className={classes.toolbar}
+                                            justify="space-between"
+                                            wrap="nowrap"
+                                            gap="sm"
                                         >
-                                            <UnstyledButton
-                                                role="tab"
-                                                className={classes.view}
-                                                aria-selected={
-                                                    !isCodeTab && !isChangesView
-                                                }
-                                                onClick={() =>
-                                                    switchView('models')
-                                                }
+                                            <div
+                                                className={classes.views}
+                                                role="tablist"
+                                                aria-label="Views"
                                             >
-                                                Models
-                                            </UnstyledButton>
-                                            {hasCodeView ? (
                                                 <UnstyledButton
                                                     role="tab"
                                                     className={classes.view}
-                                                    aria-selected={isCodeTab}
-                                                    onClick={showSources}
+                                                    aria-selected={
+                                                        !isCodeTab &&
+                                                        !isChangesView
+                                                    }
+                                                    onClick={() =>
+                                                        switchView('models')
+                                                    }
                                                 >
-                                                    Code
+                                                    Models
                                                 </UnstyledButton>
+                                                {hasCodeView ? (
+                                                    <UnstyledButton
+                                                        role="tab"
+                                                        className={classes.view}
+                                                        aria-selected={
+                                                            isCodeTab
+                                                        }
+                                                        onClick={showSources}
+                                                    >
+                                                        Code
+                                                    </UnstyledButton>
+                                                ) : null}
+                                            </div>
+                                            {changePicker ? (
+                                                <Group
+                                                    gap="xs"
+                                                    wrap="nowrap"
+                                                    miw={0}
+                                                    className={
+                                                        classes.toolbarChange
+                                                    }
+                                                >
+                                                    {changePicker}
+                                                    {/* The bar says how an open draft is doing, so the pill shows only once it ends. */}
+                                                    {stage &&
+                                                    (keepsDraft
+                                                        ? stage.step !==
+                                                          'proposed'
+                                                        : isChangeInSources &&
+                                                          stage.step !==
+                                                              'in_review' &&
+                                                          stage.step !==
+                                                              'saving') ? (
+                                                        <StudioStageLine
+                                                            stage={stage}
+                                                            href={changeUrl}
+                                                        />
+                                                    ) : null}
+                                                </Group>
                                             ) : null}
-                                        </div>
-                                        {changePicker ? (
                                             <Group
                                                 gap="xs"
                                                 wrap="nowrap"
                                                 miw={0}
-                                                className={
-                                                    classes.toolbarChange
-                                                }
+                                                ml="auto"
                                             >
-                                                {changePicker}
-                                                {/* The bar says how an open draft is doing, so the pill shows only once it ends. */}
-                                                {stage &&
-                                                (keepsDraft
-                                                    ? stage.step !== 'proposed'
-                                                    : isChangeInSources &&
-                                                      stage.step !==
-                                                          'in_review' &&
-                                                      stage.step !==
-                                                          'saving') ? (
-                                                    <StudioStageLine
-                                                        stage={stage}
-                                                        href={changeUrl}
-                                                    />
+                                                {showsDraftActions ? (
+                                                    <>
+                                                        {changeLinks}
+                                                        {changeActions}
+                                                    </>
+                                                ) : null}
+                                                {agentAvailable &&
+                                                !isChatOpen ? (
+                                                    <Button
+                                                        size="xs"
+                                                        variant="subtle"
+                                                        color="gray"
+                                                        flex="none"
+                                                        leftSection={
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconMessage
+                                                                }
+                                                                size={14}
+                                                            />
+                                                        }
+                                                        onClick={() =>
+                                                            setIsChatOpen(true)
+                                                        }
+                                                    >
+                                                        Chat
+                                                    </Button>
+                                                ) : null}
+                                                {!studioAgent &&
+                                                !isLoadingAgents ? (
+                                                    <Button
+                                                        size="xs"
+                                                        variant="subtle"
+                                                        color="gray"
+                                                        flex="none"
+                                                        component={Link}
+                                                        to={`/projects/${view.project.id}/ai-agents/new`}
+                                                    >
+                                                        Create an agent
+                                                    </Button>
                                                 ) : null}
                                             </Group>
-                                        ) : null}
-                                        <Group
-                                            gap="xs"
-                                            wrap="nowrap"
-                                            miw={0}
-                                            ml="auto"
-                                        >
-                                            {showsDraftActions ? (
-                                                <>
-                                                    {changeLinks}
-                                                    {changeActions}
-                                                </>
-                                            ) : null}
-                                            {agentAvailable && !isChatOpen ? (
-                                                <Button
-                                                    size="xs"
-                                                    variant="subtle"
-                                                    color="gray"
-                                                    flex="none"
-                                                    leftSection={
-                                                        <MantineIcon
-                                                            icon={IconMessage}
-                                                            size={14}
-                                                        />
-                                                    }
-                                                    onClick={() =>
-                                                        setIsChatOpen(true)
-                                                    }
-                                                >
-                                                    Chat
-                                                </Button>
-                                            ) : null}
-                                            {!studioAgent &&
-                                            !isLoadingAgents ? (
-                                                <Button
-                                                    size="xs"
-                                                    variant="subtle"
-                                                    color="gray"
-                                                    flex="none"
-                                                    component={Link}
-                                                    to={`/projects/${view.project.id}/ai-agents/new`}
-                                                >
-                                                    Create an agent
-                                                </Button>
-                                            ) : null}
                                         </Group>
-                                    </Group>
-                                </>
-                            )}
-                            <Box
-                                className={classes.workspaceBody}
-                                data-sources={pane === 'sources' || undefined}
-                                data-no-rail={
-                                    isReviewPane ||
-                                    ((pane === 'code' || pane === 'review') &&
-                                        !showsCodeRail) ||
-                                    (!isCodeTab && isEmpty)
-                                }
-                            >
-                                {(pane === 'code' || pane === 'review') &&
-                                !showsCodeRail ? null : showsCodeRail ? (
-                                    <CodeRail
-                                        files={files}
-                                        overview={
-                                            hasDraft
-                                                ? {
-                                                      isOpen: pane === 'review',
-                                                      onOpen: () =>
-                                                          switchView('changes'),
-                                                  }
-                                                : null
-                                        }
-                                        selected={
-                                            pane === 'review' ? null : file
-                                        }
-                                        selectedPart={searchParams.get(
-                                            FIELD_PARAM,
-                                        )}
-                                        drafted={drafted}
-                                        lineCounts={lineCounts}
-                                        preAggregates={preAggregatesByModel}
-                                        onOpen={(next, part) =>
-                                            setSearchParams({
-                                                [VIEW_PARAM]: 'code',
-                                                [FILE_PARAM]: next,
-                                                ...(part
-                                                    ? { [FIELD_PARAM]: part }
-                                                    : {}),
-                                            })
-                                        }
-                                    />
-                                ) : pane === 'sources' ? (
-                                    <Suspense fallback={null}>
-                                        <SourcesRail
-                                            target={sourcesTarget}
-                                            proposal={shownProposal}
-                                            isSaving={isSavingProposal}
-                                            hasOverview={!!sourcesPrUrl}
-                                        />
-                                    </Suspense>
-                                ) : isEmpty || isReviewPane ? null : (
-                                    <AddToStudioChatContext.Provider
-                                        value={
-                                            agentAvailable ? attachToChat : null
-                                        }
-                                    >
-                                        <Rail
-                                            view={view}
-                                            expanded={expanded}
+                                    </>
+                                )}
+                                <Box
+                                    className={classes.workspaceBody}
+                                    data-sources={
+                                        pane === 'sources' || undefined
+                                    }
+                                    data-no-rail={
+                                        isReviewPane ||
+                                        ((pane === 'code' ||
+                                            pane === 'review') &&
+                                            !showsCodeRail) ||
+                                        (!isCodeTab && isEmpty)
+                                    }
+                                >
+                                    {(pane === 'code' || pane === 'review') &&
+                                    !showsCodeRail ? null : showsCodeRail ? (
+                                        <CodeRail
+                                            files={files}
+                                            overview={
+                                                hasDraft
+                                                    ? {
+                                                          isOpen:
+                                                              pane === 'review',
+                                                          onOpen: () =>
+                                                              switchView(
+                                                                  'changes',
+                                                              ),
+                                                      }
+                                                    : null
+                                            }
+                                            selected={
+                                                pane === 'review' ? null : file
+                                            }
+                                            selectedPart={searchParams.get(
+                                                FIELD_PARAM,
+                                            )}
                                             drafted={drafted}
-                                            onToggle={toggle}
-                                            onOpen={open}
+                                            lineCounts={lineCounts}
+                                            preAggregates={preAggregatesByModel}
+                                            onOpen={(next, part) =>
+                                                setSearchParams({
+                                                    [VIEW_PARAM]: 'code',
+                                                    [FILE_PARAM]: next,
+                                                    ...(part
+                                                        ? {
+                                                              [FIELD_PARAM]:
+                                                                  part,
+                                                          }
+                                                        : {}),
+                                                })
+                                            }
                                         />
-                                    </AddToStudioChatContext.Provider>
-                                )}
-                                {pane === 'browse' ? (
-                                    renderPaneWithChat()
-                                ) : (
-                                    <Box
-                                        className={classes.main}
-                                        data-full={
-                                            pane === 'code' ||
-                                            pane === 'review' ||
-                                            pane === 'sources' ||
-                                            pane === 'changes' ||
-                                            pane === 'changeSummary'
-                                        }
-                                    >
-                                        {renderPaneWithChat()}
-                                    </Box>
-                                )}
+                                    ) : pane === 'sources' ? (
+                                        <Suspense fallback={null}>
+                                            <SourcesRail
+                                                target={sourcesTarget}
+                                                proposal={shownProposal}
+                                                isSaving={isSavingProposal}
+                                                hasOverview={!!sourcesPrUrl}
+                                            />
+                                        </Suspense>
+                                    ) : isEmpty || isReviewPane ? null : (
+                                        <AddToStudioChatContext.Provider
+                                            value={
+                                                agentAvailable
+                                                    ? attachToChat
+                                                    : null
+                                            }
+                                        >
+                                            <Rail
+                                                view={view}
+                                                expanded={expanded}
+                                                drafted={drafted}
+                                                onToggle={toggle}
+                                                onOpen={open}
+                                            />
+                                        </AddToStudioChatContext.Provider>
+                                    )}
+                                    {pane === 'browse' ? (
+                                        renderPaneWithChat()
+                                    ) : (
+                                        <Box
+                                            className={classes.main}
+                                            data-full={
+                                                pane === 'code' ||
+                                                pane === 'review' ||
+                                                pane === 'sources' ||
+                                                pane === 'changes' ||
+                                                pane === 'changeSummary'
+                                            }
+                                        >
+                                            {renderPaneWithChat()}
+                                        </Box>
+                                    )}
+                                </Box>
                             </Box>
                         </Box>
-                    </Box>
-                </ExternalSourceManager>
-            </LiveSourceManager>
+                    </ExternalSourceManager>
+                </LiveSourceManager>
+            </MarkPublishedContext.Provider>
         </DraftMarksContext.Provider>
     );
 };
