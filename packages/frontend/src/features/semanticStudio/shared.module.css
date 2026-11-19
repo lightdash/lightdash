@@ -165,6 +165,23 @@
     color: var(--mantine-color-dimmed);
 }
 
+/* A field the draft or a fresh publish touched stands out in the list. */
+.fieldRow[data-change='new'] {
+    background: color-mix(
+        in srgb,
+        var(--mantine-color-green-6) 8%,
+        transparent
+    );
+}
+
+.fieldRow[data-change='changed'] {
+    background: color-mix(
+        in srgb,
+        var(--mantine-color-yellow-6) 8%,
+        transparent
+    );
+}
+
 .fieldUnsaved {
     flex: none;
     font-size: 12px;

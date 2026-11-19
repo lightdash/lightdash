@@ -155,6 +155,7 @@ const BRANCH_EXPLORE: ExploreError = {
 const setup = ({
     stored = [{ name: 'orders', content: orders }],
     otherDrafters = [],
+    inReview = [],
     baseContents = [],
     usedFields = [],
     previewOf = PROJECT_UUID,
@@ -183,6 +184,11 @@ const setup = ({
         name: string;
         models: string[];
         changes: ReturnType<typeof draftModel>[][];
+    }[];
+    /** Changes sent as pull requests that are still open. */
+    inReview?: {
+        pullRequestUrl: string;
+        models: ReturnType<typeof draftModel>[];
     }[];
     baseContents?: [string, string | null][];
     /** Field ids a saved chart reads. */
@@ -638,6 +644,7 @@ const setup = ({
                 [drafts[a], drafts[b]] = [drafts[b], drafts[a]];
             },
             findPublishedSince: async () => publishedSince,
+            findInReviewDraftChanges: async () => inReview,
             findSettledDraftChanges: async () => [],
             createCheckedOutDraftChange: async ({
                 workspaceUuid,
@@ -1889,6 +1896,29 @@ dimensions:
                 }),
             ]);
         });
+    });
+
+    test('a change waiting in an open pull request is described against what is live', async () => {
+        const pullRequestUrl = 'https://github.example/acme/analytics/pull/7';
+        const context = setup({
+            inReview: [{ pullRequestUrl, models: [draftModel(REVENUE_YAML)] }],
+        });
+        const draft = await context.service.getDraft(deployer, PROJECT_UUID);
+        expect(draft.changes).toEqual([]);
+        expect(draft.inReview).toEqual([
+            {
+                model: 'orders',
+                pullRequestUrl,
+                changes: [
+                    {
+                        path: 'dimensions.amount.metrics.revenue',
+                        action: 'added',
+                    },
+                ],
+                contentBefore: orders,
+                contentAfter: expect.stringContaining('revenue:'),
+            },
+        ]);
     });
 
     describe('reconciling the draft with live', () => {

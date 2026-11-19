@@ -546,6 +546,49 @@ export class ProjectModelDocumentModel {
         );
     }
 
+    /** A person's changes sent as pull requests that are still open, oldest first. */
+    async findInReviewDraftChanges(
+        projectUuid: string,
+        userUuid: string,
+    ): Promise<
+        { pullRequestUrl: string; models: SemanticLayerDraftModelInput[] }[]
+    > {
+        return this.database(ProjectModelDraftChangesTableName)
+            .innerJoin(
+                SemanticStudioWorkspacesTableName,
+                `${SemanticStudioWorkspacesTableName}.semantic_studio_workspace_uuid`,
+                `${ProjectModelDraftChangesTableName}.workspace_uuid`,
+            )
+            .select<
+                {
+                    pullRequestUrl: string;
+                    models: SemanticLayerDraftModelInput[];
+                }[]
+            >({
+                pullRequestUrl: `${ProjectModelDraftChangesTableName}.applied_pull_request_url`,
+                models: `${ProjectModelDraftChangesTableName}.models`,
+            })
+            .where(
+                `${ProjectModelDraftChangesTableName}.project_uuid`,
+                projectUuid,
+            )
+            .where(
+                `${ProjectModelDraftChangesTableName}.created_by_user_uuid`,
+                userUuid,
+            )
+            .where(`${ProjectModelDraftChangesTableName}.status`, 'applied')
+            .where(
+                `${SemanticStudioWorkspacesTableName}.pull_request_state`,
+                'open',
+            )
+            .whereRaw('?? = ??', [
+                `${SemanticStudioWorkspacesTableName}.pull_request_url`,
+                `${ProjectModelDraftChangesTableName}.applied_pull_request_url`,
+            ])
+            .orderBy(`${ProjectModelDraftChangesTableName}.created_at`, 'asc')
+            .limit(SETTLED_DRAFT_CHANGES_LIMIT);
+    }
+
     /** What became of a person's recent draft changes, newest first. */
     async findSettledDraftChanges(
         projectUuid: string,
