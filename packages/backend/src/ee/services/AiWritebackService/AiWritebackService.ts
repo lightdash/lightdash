@@ -2529,6 +2529,14 @@ export class AiWritebackService extends BaseService {
         return this.aiWritebackRunModel.markError(aiWritebackRunUuid, message);
     }
 
+    /** Fails a run its worker is shutting down on, with the same words the sweep uses. */
+    async markRunInterrupted(aiWritebackRunUuid: string): Promise<boolean> {
+        return this.aiWritebackRunModel.markError(
+            aiWritebackRunUuid,
+            STALE_RUN_ERROR_MESSAGE,
+        );
+    }
+
     /**
      * Out-of-band recovery for runs orphaned by a dead worker: mark every
      * run stuck non-terminal past the stale threshold as errored, and return

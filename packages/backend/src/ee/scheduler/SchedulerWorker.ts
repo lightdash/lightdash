@@ -133,6 +133,38 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
 };
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
+    // Saves this worker is running, so one a shutdown cuts short fails now and not when the sweep finds it.
+    private readonly activeWritebackRuns = new Map<
+        string,
+        { promptUuid: string; toolCallId: string }
+    >();
+
+    async stop() {
+        await super.stop();
+        await Promise.all(
+            [...this.activeWritebackRuns].map(
+                async ([aiWritebackRunUuid, { promptUuid, toolCallId }]) => {
+                    try {
+                        const marked =
+                            await this.aiWritebackService.markRunInterrupted(
+                                aiWritebackRunUuid,
+                            );
+                        if (!marked) return;
+                        await this.aiAgentService.markEditDbtProjectToolResultError(
+                            promptUuid,
+                            toolCallId,
+                            'Error running AI writeback: the run stopped unexpectedly before it finished.',
+                        );
+                    } catch (error) {
+                        Logger.warn(
+                            `Failed to fail interrupted writeback run ${aiWritebackRunUuid}: ${getErrorMessage(error)}`,
+                        );
+                    }
+                },
+            ),
+        );
+    }
+
     protected readonly analyticsProjectService: CommercialSchedulerWorkerArguments['analyticsProjectService'];
 
     protected readonly aiAgentService: AiAgentService;
@@ -1153,9 +1185,19 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         helpers.job.run_at,
                         payload,
                         async () => {
-                            await this.aiAgentService.runEditDbtProjectPipeline(
+                            this.activeWritebackRuns.set(
+                                payload.aiWritebackRunUuid,
                                 payload,
                             );
+                            try {
+                                await this.aiAgentService.runEditDbtProjectPipeline(
+                                    payload,
+                                );
+                            } finally {
+                                this.activeWritebackRuns.delete(
+                                    payload.aiWritebackRunUuid,
+                                );
+                            }
                         },
                     ),
                     helpers.job,
