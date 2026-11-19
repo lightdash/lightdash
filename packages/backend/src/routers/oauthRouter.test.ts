@@ -906,7 +906,7 @@ describe('OAuth authorize redirects', () => {
         expect(response.body).toContain('Write access');
         expect(response.body).toContain('name="scope" value="read write"');
         expect(createHash('sha256').update(response.body).digest('hex')).toBe(
-            '4024bbd204a967c2d904f5bc906bc24bfc452ce18e459292fe89dce7e3c318cf',
+            'ec0a08ec3bb7eccbb1d1d335877dde07f3e2a05fed4027dc403bad6c1e2c4dfc',
         );
         expect(oauthService.getClientDisplayName).toHaveBeenCalledWith(
             'client-id',
@@ -971,6 +971,36 @@ describe('OAuth authorize redirects', () => {
         expect(redirect.searchParams.get('error')).toBe('invalid_scope');
         expect(redirect.searchParams.get('state')).toBe('request-state');
         expect(response.body).not.toContain('action="/api/v1/oauth/authorize"');
+        expect(oauthService.getClientDisplayName).not.toHaveBeenCalled();
+    });
+
+    it('shows the redirect destination on the approve page', async () => {
+        const response = await requestAuthorizePage({
+            query: {
+                client_id: 'mcp-registered',
+                redirect_uri: 'https://attacker.example/callback?x=1',
+                state: 'request-state',
+            },
+            oauthService: createOAuthService(),
+        });
+
+        expect(response.status).toBe(200);
+        expect(response.body).toContain(
+            'You will be redirected to <strong>https://attacker.example</strong> after you authorize.',
+        );
+    });
+
+    it('rejects a repeated redirect_uri before rendering the approve page', async () => {
+        const oauthService = createOAuthService();
+
+        const response = await requestAuthorizePage({
+            query: {},
+            rawQuery:
+                'client_id=client-id&redirect_uri=https%3A%2F%2Fregistered.example%2Fcallback&redirect_uri=https%3A%2F%2Fattacker.example%2Fcallback',
+            oauthService,
+        });
+
+        expect(response.status).toBe(400);
         expect(oauthService.getClientDisplayName).not.toHaveBeenCalled();
     });
 
