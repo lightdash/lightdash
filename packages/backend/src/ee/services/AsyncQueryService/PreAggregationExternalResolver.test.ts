@@ -382,6 +382,36 @@ describe('PreAggregationExternalResolver', () => {
         expect(result.query).not.toContain('pivot_offset');
     });
 
+    test('resolves row_total() from pivotDimensions when no pivotConfiguration is sent', async () => {
+        const { resolver } = getResolver();
+        const share: TableCalculation = {
+            name: 'share',
+            displayName: 'Share',
+            type: TableCalculationType.NUMBER,
+            sql: '${orders.total_order_amount} / row_total(${orders.total_order_amount})',
+        };
+
+        const result = await resolver.resolve({
+            ...baseResolveArgs,
+            metricQuery: {
+                ...metricQuery,
+                tableCalculations: [share],
+            },
+            fieldsMap: { share },
+            pivotConfiguration: undefined,
+            pivotDimensions: ['orders_status'],
+        });
+
+        expect(result.resolved).toBe(true);
+        if (!result.resolved) throw new Error('unreachable');
+        expect(result.query).toContain(
+            '"orders_total_order_amount__row_total"',
+        );
+        expect(result.query).not.toContain(
+            '"orders_total_order_amount" / "orders_total_order_amount"',
+        );
+    });
+
     test('returns unresolved when pre-aggregates are disabled', async () => {
         const { resolver, projectModel } = getResolver({ enabled: false });
 
