@@ -17,6 +17,7 @@ export const card = ({
     latestDay = false,
     hero = false,
     period = 'Selected period',
+    history = 500,
     description,
     ...spec
 }: Base & {
@@ -27,6 +28,8 @@ export const card = ({
     hero?: boolean;
     // What a summed card covers, when it is not the period of the Date filter
     period?: string;
+    // Days of trend to draw, for a dashboard whose Date filter does not reach the card
+    history?: number;
 }): UsageChartSpec => ({
     ...spec,
     description,
@@ -61,7 +64,7 @@ export const card = ({
             dimensions: [day],
             metrics: [metric],
             sorts: [{ fieldId: day, descending: false }],
-            limit: 500,
+            limit: history,
             description: latestDay
                 ? `${description} The line shows each day.`
                 : description,
@@ -70,7 +73,9 @@ export const card = ({
 });
 
 // Smooth filled lines in full-width rows over a shared date axis, each row on its own scale.
-const rows = (panels: boolean): LibraryChartBinding['optionValues'] => ({
+export const trendRows = (
+    panels: boolean,
+): LibraryChartBinding['optionValues'] => ({
     arrangement: 'rows',
     minPanelHeight: 70,
     sharedY: false,
@@ -90,6 +95,7 @@ export const trend = ({
     metric,
     tableCalculations,
     metrics,
+    limit = 500,
     ...spec
 }: Base &
     Partial<Pick<UsageChartSpec, 'tableCalculations'>> & {
@@ -97,12 +103,13 @@ export const trend = ({
         // The measure drawn: a metric, or a table calculation over `metrics`
         metric: string;
         metrics?: string[];
+        limit?: number;
     }): UsageChartSpec => ({
     ...spec,
     dimensions: [day],
     metrics: metrics ?? [metric],
     ...(tableCalculations ? { tableCalculations } : {}),
-    limit: 500,
+    limit,
     sorts: [{ fieldId: day, descending: false }],
     visualization: 'line',
     xField: day,
@@ -111,7 +118,7 @@ export const trend = ({
         slug: 'vega-trellis',
         minVersion: '0.7.0',
         fieldMapping: { x: day, value: metric },
-        optionValues: rows(false),
+        optionValues: trendRows(false),
         query: null,
     },
 });
@@ -145,7 +152,7 @@ export const trendByCategory = ({
         slug: 'vega-trellis',
         minVersion: '0.7.0',
         fieldMapping: { x: day, value: metric, panel: category },
-        optionValues: rows(true),
+        optionValues: trendRows(true),
         query: null,
     },
 });

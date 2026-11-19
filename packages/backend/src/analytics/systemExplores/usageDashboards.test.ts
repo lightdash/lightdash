@@ -1274,7 +1274,10 @@ describe('built-in usage dashboards', () => {
                     .get('active-people-week')
                     ?.map((row) => Number(row.user_activity_unique_users)),
             ).toEqual([2]);
-            expect(rows.get('people-history')).toHaveLength(3);
+            // The newest day has one person: the card never adds the two days together
+            expect(rows.get('active-people-latest-day')).toEqual([
+                expect.objectContaining({ user_activity_unique_users: 1n }),
+            ]);
             expect(rows.get('app-outcome-trend')).toEqual([
                 expect.objectContaining({
                     data_app_outcomes_html_error: 1n,
