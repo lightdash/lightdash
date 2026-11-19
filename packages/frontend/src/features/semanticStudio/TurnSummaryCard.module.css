@@ -1,32 +1,56 @@
 .card {
     overflow: hidden;
-}
-
-.section {
-    padding: var(--mantine-spacing-xs);
-}
-
-/* What changed, what to check and whether it is safe read as one block, with no rules between them. */
-.body {
-    display: flex;
-    flex-direction: column;
-    gap: var(--mantine-spacing-xs);
-    padding: var(--mantine-spacing-xs) 0;
-}
-
-.body:empty {
-    display: none;
-}
-
-.line {
-    padding: 0 var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-lg);
 }
 
 .card > * + * {
     border-top: 1px solid var(--mantine-color-default-border);
 }
 
-.card[data-gone='true'] .model {
+.head,
+.foot,
+.section {
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+}
+
+/* Each model the turn touched is a step, on a line that runs from one icon to the next. */
+.steps {
+    display: flex;
+    flex-direction: column;
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+}
+
+.step {
+    position: relative;
+    display: flex;
+    gap: var(--mantine-spacing-sm);
+    padding-bottom: var(--mantine-spacing-sm);
+}
+
+.step:last-child {
+    padding-bottom: 0;
+}
+
+.step:not(:last-child)::before {
+    position: absolute;
+    top: 20px;
+    bottom: 2px;
+    left: 6.5px;
+    width: 1px;
+    background: var(--mantine-color-default-border);
+    content: '';
+}
+
+/* Holds an icon on the first line of the text beside it. */
+.node {
+    display: flex;
+    flex: none;
+    align-items: center;
+    width: 14px;
+    height: 18px;
+}
+
+.card[data-gone='true'] .steps {
     opacity: 0.6;
 }
 
@@ -34,80 +58,22 @@
     text-decoration: line-through;
 }
 
-/* Lines without an icon of their own start under the text of the lines that have one. */
-.modelNote,
-.row,
-.offers {
-    padding-left: calc(var(--mantine-spacing-xs) + 20px);
-    padding-right: var(--mantine-spacing-xs);
-}
-
-/* What happened to the whole model, on the line under its name. */
-.modelNote {
-    padding-top: 3px;
-    padding-bottom: 3px;
-}
-
 .row {
-    display: grid;
-    grid-template-columns: 14px minmax(0, 1fr) auto;
-    column-gap: 6px;
-    align-items: center;
-    width: 100%;
-    padding-top: 3px;
-    padding-bottom: 3px;
-}
-
-.row:hover,
-.row:focus-visible {
-    background: var(--mantine-color-default-hover);
-}
-
-.rowIcon {
     display: flex;
+    gap: var(--mantine-spacing-xs);
+    align-items: baseline;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.row:hover .label,
+.row:focus-visible .label {
+    color: var(--mantine-color-text);
+    text-decoration: underline;
 }
 
 .label {
     min-width: 0;
-}
-
-/* How much of a file moved, at the row's end. */
-.sub {
-    min-width: 0;
-}
-
-.issue {
-    padding: 3px var(--mantine-spacing-xs);
-}
-
-/* What to do next: the agent's offers, each sent as the person's message, then the card's own actions. */
-.next {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: var(--mantine-spacing-xs) 0;
-}
-
-.actions {
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0;
-}
-
-/* With nothing offered above them, the actions need no extra room. */
-.actions:first-child {
-    padding-top: 0;
-}
-
-.icon {
-    display: flex;
-    flex: none;
-    margin-top: 1px;
-}
-
-/* Centres the header's icon on its title's line. */
-.headIcon {
-    display: flex;
-    flex: none;
-    margin-top: 3px;
 }
 
 .wrap {
@@ -120,7 +86,7 @@
     align-items: center;
     gap: 6px;
     width: 100%;
-    padding: var(--mantine-spacing-xs);
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
 }
 
 .fold:hover,

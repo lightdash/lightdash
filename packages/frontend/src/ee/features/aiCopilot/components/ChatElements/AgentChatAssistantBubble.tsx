@@ -1017,11 +1017,13 @@ const AssistantBubbleContent: FC<{
                     threadUuid={message.threadUuid}
                     startedAt={message.createdAt}
                     isLatest={isLastMessage}
-                    {...getEditDbtProjectCardExtras(
-                        message.toolCalls.findLast(
-                            ({ toolName }) => toolName === 'editDbtProject',
-                        )?.toolArgs,
-                    )}
+                    note={
+                        getEditDbtProjectCardExtras(
+                            message.toolCalls.findLast(
+                                ({ toolName }) => toolName === 'editDbtProject',
+                            )?.toolArgs,
+                        ).note
+                    }
                 />
             )}
             {editRepoMetadata && (

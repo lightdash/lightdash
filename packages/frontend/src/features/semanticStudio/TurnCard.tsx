@@ -1,6 +1,5 @@
 import {
     Box,
-    Button,
     Group,
     Loader,
     Paper,
@@ -10,6 +9,7 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import {
+    IconCheck,
     IconChevronDown,
     IconChevronRight,
     IconInfoCircle,
@@ -18,7 +18,7 @@ import {
 import { useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
-import { type ChangeKind } from './modelCode';
+import { CHANGE_KIND_LABELS, type ChangeKind } from './modelCode';
 import { ISSUE_KINDS, type Issue } from './proposalIssues';
 import { TaskIcon, type TaskState } from './TaskRow';
 import classes from './TurnSummaryCard.module.css';
@@ -38,6 +38,8 @@ export type TurnRow = {
 
 export type TurnGroup = {
     model: string;
+    /** What happened to the model as a whole. */
+    change: ChangeKind;
     title: string;
     subtitle: string | null;
     rows: TurnRow[];
@@ -46,7 +48,35 @@ export type TurnGroup = {
 
 export type Safety = { state: TaskState; text: string; why: string | null };
 
-/** One change as a short sentence: "New join to Merchants". */
+const CHANGE_COLORS: Record<ChangeKind, string> = {
+    new: 'green',
+    changed: 'blue',
+    removed: 'red',
+};
+
+/** One stop on the card's line: an icon, what it is, and what there is to say about it. */
+const Step: FC<{
+    icon: ReactNode;
+    title: string;
+    hint?: string;
+    aside?: ReactNode;
+    children?: ReactNode;
+}> = ({ icon, title, hint, aside, children }) => (
+    <Box className={classes.step}>
+        <Box className={classes.node}>{icon}</Box>
+        <Box miw={0} flex={1}>
+            <Group gap="xs" wrap="nowrap" justify="space-between">
+                <Text fz="xs" fw={500} truncate title={hint}>
+                    {title}
+                </Text>
+                {aside}
+            </Group>
+            {children}
+        </Box>
+    </Box>
+);
+
+/** One change as a short sentence: "Joined to Merchants". */
 const Row: FC<{ row: TurnRow }> = ({ row }) => (
     <UnstyledButton
         component={Link}
@@ -54,31 +84,96 @@ const Row: FC<{ row: TurnRow }> = ({ row }) => (
         className={classes.row}
         title={row.title}
     >
-        <Box className={classes.rowIcon}>{row.icon}</Box>
-        <Text span fz="xs" truncate className={classes.label}>
-            <Text span inherit c="dimmed">
-                {`${row.action} `}
-            </Text>
-            {row.label}
+        <Text span fz="xs" c="dimmed" truncate className={classes.label}>
+            {`${row.action} ${row.label}`}
         </Text>
         {row.detail ? (
-            <Text span fz="xs" c="dimmed" truncate className={classes.sub}>
+            <Text span fz="xs" c="dimmed" flex="none">
                 {row.detail}
             </Text>
         ) : null}
     </UnstyledButton>
 );
 
+const ModelStep: FC<{ group: TurnGroup }> = ({
+    group: { model, change, title, subtitle, rows, issues },
+}) => (
+    <Step
+        // A model with one change takes that change's icon; otherwise it is the table itself.
+        icon={
+            rows.length === 1 && subtitle === null ? (
+                rows[0].icon
+            ) : (
+                <MantineIcon icon={IconTable} size={14} color="green" />
+            )
+        }
+        title={title}
+        hint={model}
+        aside={
+            <Group gap={4} wrap="nowrap" flex="none">
+                <MantineIcon
+                    icon={IconCheck}
+                    size={12}
+                    color={CHANGE_COLORS[change]}
+                />
+                <Text fz="xs" c="dimmed">
+                    {CHANGE_KIND_LABELS[change]}
+                </Text>
+            </Group>
+        }
+    >
+        {subtitle ? (
+            <Text fz="xs" c="dimmed">
+                {subtitle}
+            </Text>
+        ) : null}
+        {rows.map((row) => (
+            <Row key={row.id} row={row} />
+        ))}
+        {issues.map(({ kind, detail }) => (
+            <Group
+                key={`${kind}|${detail}`}
+                gap={6}
+                wrap="nowrap"
+                align="flex-start"
+            >
+                <Box className={classes.node}>
+                    <MantineIcon
+                        icon={ISSUE_KINDS[kind].icon}
+                        size={14}
+                        color={ISSUE_KINDS[kind].color}
+                    />
+                </Box>
+                {/* A warehouse error runs long; its start says what went wrong and the rest is on hover. */}
+                <Text
+                    fz="xs"
+                    fw={500}
+                    flex={1}
+                    miw={0}
+                    className={classes.wrap}
+                    lineClamp={kind === 'failed' ? 2 : undefined}
+                    title={kind === 'failed' ? detail : undefined}
+                >
+                    {ISSUE_KINDS[kind].label}
+                    <Text span inherit fw={400} c="dimmed">
+                        {` · ${detail}`}
+                    </Text>
+                </Text>
+            </Group>
+        ))}
+    </Step>
+);
+
 /** Stands in for a turn's card while the change it will show is still being checked. */
 export const TurnCardSkeleton: FC = () => (
     <Paper mt="xs" className={classes.card} aria-busy>
-        <Group className={classes.section} gap={6} wrap="nowrap">
+        <Group className={classes.head} gap={6} wrap="nowrap">
             <Loader size={12} color="gray" />
             <Text fz="xs" fw={500}>
                 Checking the change
             </Text>
         </Group>
-        <Stack className={classes.section} gap={6}>
+        <Stack className={classes.steps} gap={6}>
             <Skeleton h={8} w="45%" />
             <Skeleton h={8} w="70%" />
             <Skeleton h={8} w="55%" />
@@ -86,8 +181,9 @@ export const TurnCardSkeleton: FC = () => (
     </Paper>
 );
 
-/** The shell of a turn's card: status, what changed by model, whether it is safe, and what to do next. */
+/** A turn's card: where the change went, then each model it touched as a step on a line, and what to do next. */
 export const TurnCard: FC<{
+    /** Shown only when the turn's state needs one, such as a draft that does not compile. */
     icon: ReactNode;
     status: string;
     name: string | null;
@@ -95,9 +191,6 @@ export const TurnCard: FC<{
     groups: TurnGroup[];
     safety: Safety | null;
     note: string | null;
-    /** What the agent offers to do next instead; each is sent as the person's message. */
-    options: string[];
-    onAsk: ((message: string) => void) | null;
     /** Only the latest turn's card is open and offers anything; earlier ones fold to their header. */
     isLatest: boolean;
     actions: ReactNode[];
@@ -111,8 +204,6 @@ export const TurnCard: FC<{
     groups,
     safety,
     note,
-    options,
-    onAsk,
     isLatest,
     actions,
     isGone,
@@ -120,41 +211,26 @@ export const TurnCard: FC<{
 }) => {
     const [isOpened, setIsOpened] = useState(false);
     const isOpen = isLatest || isOpened;
-    // The latest card has room to say where the change went on its own line; a folded one stays one line.
-    const heading = isLatest ? (
-        <Box flex={1} miw={0}>
-            <Text fz="sm" fw={500} truncate>
-                {status}
-            </Text>
-            {name ? (
-                <Text fz="xs" c="dimmed" truncate title={name}>
-                    {name}
-                </Text>
-            ) : null}
-        </Box>
-    ) : (
-        <Text fz="xs" fw={500} truncate flex={1}>
-            {status}
-            {name ? (
-                <Text span inherit fw={400} c="dimmed">
-                    {` · ${name}`}
-                </Text>
-            ) : null}
-        </Text>
+    const shown = groups.filter(
+        ({ rows, issues, subtitle }) =>
+            rows.length > 0 || issues.length > 0 || subtitle !== null,
     );
+    const needsCheck = safety !== null && safety.state !== 'done';
     return (
         <Paper mt="xs" className={classes.card} data-gone={isGone}>
             {isLatest ? (
-                <Group
-                    className={classes.section}
-                    gap={6}
-                    wrap="nowrap"
-                    align="flex-start"
-                >
-                    {icon ? (
-                        <Box className={classes.headIcon}>{icon}</Box>
-                    ) : null}
-                    {heading}
+                <Group className={classes.head} gap="xs" wrap="nowrap">
+                    {icon}
+                    <Box flex={1} miw={0}>
+                        <Text fz="sm" fw={500} truncate>
+                            {status}
+                        </Text>
+                        {name ? (
+                            <Text fz="xs" c="dimmed" truncate title={name}>
+                                {name}
+                            </Text>
+                        ) : null}
+                    </Box>
                     {headerAction}
                 </Group>
             ) : (
@@ -164,7 +240,14 @@ export const TurnCard: FC<{
                     onClick={() => setIsOpened(!isOpened)}
                 >
                     {icon}
-                    {heading}
+                    <Text fz="xs" fw={500} truncate flex={1}>
+                        {status}
+                        {name ? (
+                            <Text span inherit fw={400} c="dimmed">
+                                {` · ${name}`}
+                            </Text>
+                        ) : null}
+                    </Text>
                     <MantineIcon
                         icon={isOpen ? IconChevronDown : IconChevronRight}
                         size={12}
@@ -172,188 +255,51 @@ export const TurnCard: FC<{
                     />
                 </UnstyledButton>
             )}
-            {isOpen ? (
-                <>
-                    <Box className={classes.body}>
-                        {groups.map(
-                            ({ model, title, subtitle, rows, issues }) =>
-                                rows.length === 0 &&
-                                issues.length === 0 &&
-                                !subtitle ? null : (
-                                    <Box key={model} className={classes.model}>
-                                        <Group
-                                            gap={6}
-                                            wrap="nowrap"
-                                            className={classes.line}
-                                        >
-                                            <MantineIcon
-                                                icon={IconTable}
-                                                size={14}
-                                                color="green"
-                                            />
-                                            <Text
-                                                fz="xs"
-                                                fw={500}
-                                                truncate
-                                                title={model}
-                                            >
-                                                {title}
-                                            </Text>
-                                        </Group>
-                                        {subtitle ? (
-                                            <Text
-                                                fz="xs"
-                                                c="dimmed"
-                                                className={classes.modelNote}
-                                            >
-                                                {subtitle}
-                                            </Text>
-                                        ) : null}
-                                        {rows.map((row) => (
-                                            <Row key={row.id} row={row} />
-                                        ))}
-                                        {issues.map(({ kind, detail }) => (
-                                            <Group
-                                                key={`${kind}|${detail}`}
-                                                className={classes.issue}
-                                                gap={6}
-                                                wrap="nowrap"
-                                                align="flex-start"
-                                            >
-                                                <MantineIcon
-                                                    icon={
-                                                        ISSUE_KINDS[kind].icon
-                                                    }
-                                                    size={14}
-                                                    color={
-                                                        ISSUE_KINDS[kind].color
-                                                    }
-                                                />
-                                                {/* A warehouse error runs long; its start says what went wrong and the rest is on hover. */}
-                                                <Text
-                                                    fz="xs"
-                                                    fw={500}
-                                                    flex={1}
-                                                    miw={0}
-                                                    className={classes.wrap}
-                                                    lineClamp={
-                                                        kind === 'failed'
-                                                            ? 2
-                                                            : undefined
-                                                    }
-                                                    title={
-                                                        kind === 'failed'
-                                                            ? detail
-                                                            : undefined
-                                                    }
-                                                >
-                                                    {ISSUE_KINDS[kind].label}
-                                                    <Text
-                                                        span
-                                                        fz="xs"
-                                                        fw={400}
-                                                        c="dimmed"
-                                                    >
-                                                        {` · ${detail}`}
-                                                    </Text>
-                                                </Text>
-                                            </Group>
-                                        ))}
-                                    </Box>
-                                ),
-                        )}
-                        {note ? (
-                            <Group
-                                className={classes.line}
-                                gap={6}
-                                wrap="nowrap"
-                                align="flex-start"
-                            >
-                                <Box className={classes.icon}>
-                                    <MantineIcon
-                                        icon={IconInfoCircle}
-                                        size={14}
-                                        color="yellow"
-                                    />
-                                </Box>
+            {isOpen && (shown.length > 0 || note || needsCheck) ? (
+                <Box className={classes.steps}>
+                    {shown.map((group) => (
+                        <ModelStep key={group.model} group={group} />
+                    ))}
+                    {note ? (
+                        <Step
+                            icon={
+                                <MantineIcon
+                                    icon={IconInfoCircle}
+                                    size={14}
+                                    color="yellow"
+                                />
+                            }
+                            title="Confirm before you publish"
+                        >
+                            <Text fz="xs" c="dimmed" lineClamp={4} title={note}>
+                                {note}
+                            </Text>
+                        </Step>
+                    ) : null}
+                    {safety && needsCheck ? (
+                        <Step
+                            icon={<TaskIcon state={safety.state} />}
+                            title={safety.text}
+                        >
+                            {safety.why ? (
                                 <Text
                                     fz="xs"
-                                    flex={1}
-                                    miw={0}
-                                    lineClamp={4}
-                                    title={note}
-                                >
-                                    <Text span inherit c="dimmed">
-                                        One thing to confirm before you
-                                        publish:{' '}
-                                    </Text>
-                                    {note}
-                                </Text>
-                            </Group>
-                        ) : null}
-                        {safety && safety.state !== 'done' ? (
-                            <Group
-                                className={classes.line}
-                                gap={6}
-                                wrap="nowrap"
-                                align="flex-start"
-                            >
-                                <Box className={classes.icon}>
-                                    <TaskIcon state={safety.state} />
-                                </Box>
-                                <Text
-                                    fz="xs"
-                                    flex={1}
-                                    miw={0}
+                                    c="dimmed"
                                     className={classes.wrap}
                                 >
-                                    {safety.text}
-                                    {safety.why ? (
-                                        <Text span fz="xs" c="dimmed">
-                                            {` · ${safety.why}`}
-                                        </Text>
-                                    ) : null}
+                                    {safety.why}
                                 </Text>
-                            </Group>
-                        ) : null}
-                    </Box>
-                    {isLatest &&
-                    (actions.some(Boolean) || (onAsk && options.length > 0)) ? (
-                        <Box className={classes.next}>
-                            {onAsk && options.length > 0 ? (
-                                <Group className={classes.offers} gap={4}>
-                                    {options.map((option) => (
-                                        <Button
-                                            key={option}
-                                            size="compact-xs"
-                                            variant="light"
-                                            color="indigo"
-                                            maw="100%"
-                                            title={option}
-                                            onClick={() => onAsk(option)}
-                                        >
-                                            <Text span inherit truncate>
-                                                {option}
-                                            </Text>
-                                        </Button>
-                                    ))}
-                                </Group>
                             ) : null}
-                            {actions.some(Boolean) ? (
-                                <Group
-                                    className={classes.actions}
-                                    gap="xs"
-                                    justify="flex-end"
-                                    wrap="wrap"
-                                >
-                                    {actions}
-                                </Group>
-                            ) : null}
-                        </Box>
+                        </Step>
                     ) : null}
-                    {children}
-                </>
+                </Box>
             ) : null}
+            {isLatest && actions.some(Boolean) ? (
+                <Group className={classes.foot} gap="xs" justify="flex-end">
+                    {actions}
+                </Group>
+            ) : null}
+            {isOpen ? children : null}
         </Paper>
     );
 };
