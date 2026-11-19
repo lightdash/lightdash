@@ -1440,7 +1440,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.17.0',
+            minVersion: '0.17.1',
             fieldMapping: {
                 x: 'query_events_dashboard_name',
                 m1: 'query_events_total_queries',
