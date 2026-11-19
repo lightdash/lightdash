@@ -12772,8 +12772,9 @@ export class AsyncQueryService extends ProjectService {
             await this.projectModel.getSummary(projectUuid);
 
         const { maxLimit } = this.lightdashConfig.query;
-        // Unset, a node reads all one query can; a cap it hits is reported
-        // as a truncated notice, never silently
+        // Unset, a node reads as many rows as one query can return (the
+        // lower of the integration's and the instance's cap); a cap it hits
+        // is reported as a truncated notice, never silently
         const effectiveLimit =
             limit ?? Math.min(source.integration.limits.maxRows, maxLimit);
         if (!Number.isInteger(effectiveLimit) || effectiveLimit < 1) {
@@ -13399,8 +13400,10 @@ export class AsyncQueryService extends ProjectService {
                                   getTruncatedNotice({
                                       label: source.integration.label,
                                       rowCount: shaped.rows.length,
-                                      maxRows:
+                                      maxRows: Math.min(
                                           source.integration.limits.maxRows,
+                                          this.lightdashConfig.query.maxLimit,
+                                      ),
                                   }),
                               ]
                             : []),

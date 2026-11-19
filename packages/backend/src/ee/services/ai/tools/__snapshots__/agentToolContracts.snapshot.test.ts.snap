@@ -18689,15 +18689,29 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                         "description": "Columns of a node submitted in this call; null for reused nodes and for the terminal node, whose columns are in columns.",
                       },
                       "limit": {
-                        "description": "Row limit this node ran with. A rowCount equal to it means the node reached its limit, so more rows may exist.",
-                        "exclusiveMinimum": 0,
-                        "maximum": 9007199254740991,
-                        "type": "integer",
+                        "anyOf": [
+                          {
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991,
+                            "type": "integer",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                        "description": "Row limit this node ran with. A rowCount equal to it means the node reached its limit, so more rows may exist. Null for a live data source node with no limit, which reads as many rows as its integration allows.",
                       },
                       "nodeId": {
                         "description": "Names this node so other nodes can read its result.",
                         "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
                         "type": "string",
+                      },
+                      "notices": {
+                        "description": "Live data source notes about this node's rows (more rows exist, a default date window applied, or how the provider counts); tell the user.",
+                        "items": {
+                          "type": "string",
+                        },
+                        "type": "array",
                       },
                       "rowCount": {
                         "anyOf": [

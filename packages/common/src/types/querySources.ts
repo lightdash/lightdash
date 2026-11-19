@@ -298,7 +298,7 @@ export type ApiSourceQuery = {
     /** The project connection that runs the payload, such as a PostHog connection. */
     connectionUuid: string;
     payload: ApiSourcePayload;
-    /** Max rows to keep. Defaults to the standard query row limit. */
+    /** Max rows to keep. Defaults to as many as one query of its integration can return. */
     limit?: number;
     /** Api queries refuse a pivot; pivot in a referencing duckdb query. */
     pivotConfiguration?: PivotConfiguration;

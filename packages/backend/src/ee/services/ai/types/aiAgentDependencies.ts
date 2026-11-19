@@ -775,6 +775,8 @@ export type ComposerNodeStatus = {
     columns: ResultColumns | null;
     /** First rows of a node asked to be sampled; null otherwise or when the read fails. */
     sample: Record<string, AnyType>[] | null;
+    /** Notes a live data source node's result carries, such as more rows existing. */
+    liveResultNotices?: LiveResultNotice[];
 };
 
 /** Every submitted node's status, read once after the terminal node settles. */

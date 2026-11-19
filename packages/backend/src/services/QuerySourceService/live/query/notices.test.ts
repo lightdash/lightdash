@@ -24,7 +24,7 @@ describe('getTruncatedNotice', () => {
                 maxRows: 24_999,
             }).message,
         ).toBe(
-            'Showing the first 24,999 rows, the most one Search Console query reads. Search Console has more: add filters to see the rest.',
+            'Showing the first 24,999 rows, the most one query can return. Search Console has more: add filters to see the rest.',
         );
     });
 });

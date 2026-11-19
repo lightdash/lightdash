@@ -10,7 +10,7 @@ import { splitDateRangeFilter } from './dateRange';
 const formatCount = (count: number) =>
     new Intl.NumberFormat('en-US').format(count);
 
-/** Rows past the ones returned: by the query's limit, or by the most one query reads. */
+/** Rows past the ones returned: by the query's limit, or by maxRows, the most one query can return (the integration's or the instance's cap, whichever is lower). */
 export const getTruncatedNotice = ({
     label,
     rowCount,
@@ -24,7 +24,7 @@ export const getTruncatedNotice = ({
     rowCount,
     message:
         rowCount >= maxRows
-            ? `Showing the first ${formatCount(rowCount)} rows, the most one ${label} query reads. ${label} has more: add filters to see the rest.`
+            ? `Showing the first ${formatCount(rowCount)} rows, the most one query can return. ${label} has more: add filters to see the rest.`
             : `Showing the first ${formatCount(rowCount)} rows. ${label} has more: raise the row limit or add filters to see the rest.`,
 });
 
