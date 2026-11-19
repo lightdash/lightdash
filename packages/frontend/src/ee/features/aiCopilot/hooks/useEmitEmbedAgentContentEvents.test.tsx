@@ -4,7 +4,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { useContext, type PropsWithChildren } from 'react';
 import { Provider } from 'react-redux';
-import { MemoryRouter } from 'react-router';
+import {
+    MemoryRouter,
+    Route,
+    Routes,
+    useNavigate,
+    useParams,
+} from 'react-router';
 import { expect, it, vi } from 'vitest';
 import { mockedLightdashApi } from '../../../../testing/mockedLightdashApi';
 import EmbedProviderContext from '../../../providers/Embed/context';
@@ -119,7 +125,11 @@ const setup = (
             hasListener() ? onEvent : undefined,
         );
         return (
-            <MemoryRouter>
+            <MemoryRouter
+                initialEntries={[
+                    threadUuid ? `/threads/${threadUuid}` : '/threads',
+                ]}
+            >
                 <QueryClientProvider client={client}>
                     <Provider store={store}>
                         <EmbedProviderContext.Provider
@@ -131,7 +141,15 @@ const setup = (
                             }}
                         >
                             <AiAgentThreadStreamAbortControllerContextProvider>
-                                {children}
+                                <Routes>
+                                    <Route path="threads" element={children}>
+                                        <Route index element={null} />
+                                        <Route
+                                            path=":threadUuid"
+                                            element={null}
+                                        />
+                                    </Route>
+                                </Routes>
                             </AiAgentThreadStreamAbortControllerContextProvider>
                         </EmbedProviderContext.Provider>
                     </Provider>
@@ -140,9 +158,11 @@ const setup = (
         );
     };
     const hook = renderHook(
-        ({ threadUuid }) => {
+        () => {
+            const navigate = useNavigate();
+            const { threadUuid } = useParams();
             const query = useAiAgentThread(projectUuid, agentUuid, threadUuid);
-            useEmitEmbedAgentContentEvents({
+            const onThreadCreated = useEmitEmbedAgentContentEvents({
                 projectUuid,
                 agentUuid,
                 threadUuid,
@@ -154,12 +174,18 @@ const setup = (
                 query.refetch,
             );
             const { mutate: retry } = useRetryAiAgentThreadMessageMutation();
-            return { ...query, retry };
+            return { ...query, retry, onThreadCreated, navigate };
         },
-        { wrapper: Wrapper, initialProps: { threadUuid } },
+        { wrapper: Wrapper },
     );
 
-    return { onEvent, store, ...hook, respond };
+    const open = (uuid: string | undefined) =>
+        act(() => {
+            void hook.result.current.navigate(
+                uuid ? `/threads/${uuid}` : '/threads',
+            );
+        });
+    return { onEvent, store, ...hook, respond, open };
 };
 
 it.each(['pending', 'idle'] as const)(
@@ -305,7 +331,7 @@ it('delivers only the new save when an interrupted retry updates the same dashbo
         'retry-update',
     );
     listening = true;
-    rerender({ threadUuid });
+    rerender();
     response.resolve({
         uuid: threadUuid,
         agentUuid,
@@ -331,7 +357,7 @@ it('keeps a late save quiet after leaving and reopening an interrupted thread', 
         messageUuid: 'left-turn',
     };
     const { threadUuid, messageUuid } = ids;
-    const { onEvent, result, store, rerender } = setup(threadUuid, [
+    const { onEvent, result, store, open } = setup(threadUuid, [
         assistant(messageUuid, 'pending'),
     ]);
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -347,7 +373,7 @@ it('keeps a late save quiet after leaving and reopening an interrupted thread', 
     });
     const otherThread = { uuid: 'other-thread', agentUuid, messages: [] };
     mockedLightdashApi.mockResolvedValue(otherThread);
-    rerender({ threadUuid: otherThread.uuid });
+    open(otherThread.uuid);
     await waitFor(() => expect(result.current.data).toEqual(otherThread));
 
     const saved = save(messageUuid, 'left', 'dashboard', 'editContent');
@@ -360,10 +386,56 @@ it('keeps a late save quiet after leaving and reopening an interrupted thread', 
     expect(onEvent).not.toHaveBeenCalled();
 
     mockedLightdashApi.mockResolvedValue(completed);
-    rerender({ threadUuid });
+    open(threadUuid);
     await waitFor(() => expect(result.current.data).toEqual(completed));
     expect(onEvent).not.toHaveBeenCalled();
 });
+
+it.each(['sidebar', 'back'] as const)(
+    'keeps a delayed follow-up quiet when reopening its thread via %s from compose',
+    async (via) => {
+        const threadUuid = 'existing-thread';
+        const messageUuid = 'delayed-follow-up';
+        const { onEvent, result, store, open } = setup(threadUuid, []);
+        await waitFor(() => expect(result.current.isSuccess).toBe(true));
+        open(undefined);
+
+        act(() => {
+            store.dispatch(
+                startStreaming({
+                    projectUuid,
+                    agentUuid,
+                    threadUuid,
+                    messageUuid,
+                    autoApproveSql: false,
+                }),
+            );
+            store.dispatch(markStreamRecovering({ threadUuid }));
+        });
+        const completed = {
+            uuid: threadUuid,
+            agentUuid,
+            messages: [
+                assistant(
+                    messageUuid,
+                    'idle',
+                    save(messageUuid, 'background', 'chart', 'editContent'),
+                ),
+            ],
+        };
+        mockedLightdashApi.mockResolvedValue(completed);
+        if (via === 'back') {
+            act(() => {
+                void result.current.navigate(-1);
+            });
+        } else {
+            open(threadUuid);
+        }
+
+        await waitFor(() => expect(result.current.data).toEqual(completed));
+        expect(onEvent).not.toHaveBeenCalled();
+    },
+);
 
 it('delivers saves when a new thread loses its stream before its route opens', async () => {
     const ids = {
@@ -373,7 +445,8 @@ it('delivers saves when a new thread loses its stream before its route opens', a
         messageUuid: 'first-turn',
     };
     const { threadUuid, messageUuid } = ids;
-    const { onEvent, store, rerender } = setup(undefined, []);
+    const { onEvent, store, open, result } = setup(undefined, []);
+    result.current.onThreadCreated(threadUuid);
 
     act(() => {
         store.dispatch(startStreaming({ ...ids, autoApproveSql: false }));
@@ -390,7 +463,7 @@ it('delivers saves when a new thread loses its stream before its route opens', a
         agentUuid,
         messages: [assistant(messageUuid, 'idle', saved)],
     });
-    rerender({ threadUuid });
+    open(threadUuid);
 
     await waitFor(() =>
         expect(onEvent).toHaveBeenCalledExactlyOnceWith({

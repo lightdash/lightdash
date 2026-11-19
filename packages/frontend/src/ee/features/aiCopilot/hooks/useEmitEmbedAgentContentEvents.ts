@@ -1,6 +1,7 @@
 import { type ApiAiAgentThreadResponse } from '@lightdash/common';
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { shallowEqual, useStore } from 'react-redux';
+import { useLocation } from 'react-router';
 import useEmbed from '../../../providers/Embed/useEmbed';
 import { type AiAgentStoreState } from '../store';
 import { useAiAgentStoreSelector } from '../store/hooks';
@@ -38,21 +39,24 @@ export const useEmitEmbedAgentContentEvents = ({
         };
     }, shallowEqual);
     const interruptionOnEntry = useRef<string | null>(null);
-    const threadsBeforeCreation = useRef<Set<string> | null>(null);
+    const location = useLocation();
+    const composeKey = threadUuid ? null : location.key;
+    const composeVisit = useMemo<{ createdThreadUuid: string | null } | null>(
+        () => (composeKey === null ? null : { createdThreadUuid: null }),
+        [composeKey],
+    );
+    const previousCompose = useRef(composeVisit);
     useLayoutEffect(() => {
-        const streams = store.getState().aiAgentThreadStream;
-        if (!threadUuid) {
-            threadsBeforeCreation.current = new Set(Object.keys(streams));
-            return;
-        }
-        // A new thread can lose its stream before navigation from the compose page finishes.
         const justCreated =
-            threadsBeforeCreation.current?.has(threadUuid) === false;
-        interruptionOnEntry.current = justCreated
-            ? null
-            : (streams[threadUuid]?.interruptionId ?? null);
-        threadsBeforeCreation.current = null;
-    }, [store, projectUuid, agentUuid, threadUuid]);
+            threadUuid &&
+            previousCompose.current?.createdThreadUuid === threadUuid;
+        interruptionOnEntry.current =
+            !threadUuid || justCreated
+                ? null
+                : (store.getState().aiAgentThreadStream[threadUuid]
+                      ?.interruptionId ?? null);
+        previousCompose.current = composeVisit;
+    }, [store, projectUuid, agentUuid, threadUuid, composeVisit]);
 
     useEffect(() => {
         if (!isEmbedEventReady || !projectUuid || !agentUuid) return;
@@ -86,4 +90,8 @@ export const useEmitEmbedAgentContentEvents = ({
         isEmbedEventReady,
         dispatchEmbedEvent,
     ]);
+
+    return (uuid: string) => {
+        if (composeVisit) composeVisit.createdThreadUuid = uuid;
+    };
 };

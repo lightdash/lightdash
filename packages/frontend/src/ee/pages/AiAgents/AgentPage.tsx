@@ -78,7 +78,7 @@ const AgentPage = () => {
         agentUuid,
         threadUuid,
     );
-    useEmitEmbedAgentContentEvents({
+    const onThreadCreated = useEmitEmbedAgentContentEvents({
         projectUuid,
         agentUuid,
         threadUuid,
@@ -385,6 +385,7 @@ const AgentPage = () => {
                         agent,
                         agents: agentsList ?? [],
                         navigateFromAgentChat: handleMinimize,
+                        onThreadCreated,
                     }}
                 />
             </AiThreadChartEditContext.Provider>
@@ -395,6 +396,7 @@ const AgentPage = () => {
 export interface AgentContext {
     agent: AiAgent;
     agents: AiAgent[];
+    onThreadCreated: (threadUuid: string) => void;
     navigateFromAgentChat: (
         targetUrl: string,
         options?: NavigateFromAgentChatOptions,
