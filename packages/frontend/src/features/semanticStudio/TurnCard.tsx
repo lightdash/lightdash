@@ -1,5 +1,6 @@
 import {
     Box,
+    Button,
     Group,
     Loader,
     Paper,
@@ -8,13 +9,7 @@ import {
     Text,
     UnstyledButton,
 } from '@mantine/core';
-import {
-    IconChevronDown,
-    IconChevronRight,
-    IconCornerDownRight,
-    IconEye,
-    IconTable,
-} from '@tabler/icons-react';
+import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -35,7 +30,6 @@ export type TurnRow = {
     change: ChangeKind;
     /** What it is, as it reads after "New", "Changed" or "Removed": "metric", "join to", "YAML file". */
     kind: string;
-    icon: ReactNode;
     label: string;
     detail: string | null;
     title: string;
@@ -60,7 +54,6 @@ const Row: FC<{ row: TurnRow }> = ({ row }) => (
         className={classes.row}
         title={row.title}
     >
-        <Box className={classes.kindIcon}>{row.icon}</Box>
         <Text span fz="xs" truncate className={classes.label}>
             <Text span inherit c="dimmed">
                 {`${CHANGE_WORDS[row.change]} ${row.kind} `}
@@ -185,25 +178,15 @@ export const TurnCard: FC<{
                                 issues.length === 0 &&
                                 !subtitle ? null : (
                                     <Box key={model} className={classes.model}>
-                                        <Group
-                                            gap={6}
-                                            wrap="nowrap"
+                                        <Text
+                                            fz="xs"
+                                            fw={500}
+                                            truncate
+                                            title={model}
                                             className={classes.modelName}
                                         >
-                                            <MantineIcon
-                                                icon={IconTable}
-                                                size={14}
-                                                color="dimmed"
-                                            />
-                                            <Text
-                                                fz="xs"
-                                                fw={500}
-                                                truncate
-                                                title={model}
-                                            >
-                                                {title}
-                                            </Text>
-                                        </Group>
+                                            {title}
+                                        </Text>
                                         {subtitle ? (
                                             <Text
                                                 fz="xs"
@@ -269,32 +252,17 @@ export const TurnCard: FC<{
                                 ),
                         )}
                         {note ? (
-                            <Group
-                                className={classes.line}
-                                gap={6}
-                                wrap="nowrap"
-                                align="flex-start"
+                            <Text
+                                className={classes.text}
+                                fz="xs"
+                                lineClamp={3}
+                                title={note}
                             >
-                                <Box className={classes.icon}>
-                                    <MantineIcon
-                                        icon={IconEye}
-                                        size={14}
-                                        color="dimmed"
-                                    />
-                                </Box>
-                                <Text
-                                    fz="xs"
-                                    flex={1}
-                                    miw={0}
-                                    lineClamp={3}
-                                    title={note}
-                                >
-                                    <Text span inherit fw={500}>
-                                        Check
-                                    </Text>
-                                    {` · ${note}`}
+                                <Text span inherit fw={500}>
+                                    Check
                                 </Text>
-                            </Group>
+                                {` · ${note}`}
+                            </Text>
                         ) : null}
                         {safety && safety.state !== 'done' ? (
                             <Group
@@ -325,23 +293,25 @@ export const TurnCard: FC<{
                     {isLatest &&
                     (actions.some(Boolean) || (onAsk && options.length > 0)) ? (
                         <Box className={classes.next}>
-                            {(onAsk ? options : []).map((option) => (
-                                <UnstyledButton
-                                    key={option}
-                                    className={classes.option}
-                                    title={option}
-                                    onClick={() => onAsk?.(option)}
-                                >
-                                    <MantineIcon
-                                        icon={IconCornerDownRight}
-                                        size={14}
-                                        color="dimmed"
-                                    />
-                                    <Text span fz="xs" truncate>
-                                        {option}
-                                    </Text>
-                                </UnstyledButton>
-                            ))}
+                            {onAsk && options.length > 0 ? (
+                                <Group className={classes.offers} gap={4}>
+                                    {options.map((option) => (
+                                        <Button
+                                            key={option}
+                                            size="compact-xs"
+                                            variant="light"
+                                            color="gray"
+                                            maw="100%"
+                                            title={option}
+                                            onClick={() => onAsk(option)}
+                                        >
+                                            <Text span inherit truncate>
+                                                {option}
+                                            </Text>
+                                        </Button>
+                                    ))}
+                                </Group>
+                            ) : null}
                             {actions.some(Boolean) ? (
                                 <Group
                                     className={classes.actions}

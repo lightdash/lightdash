@@ -34,34 +34,39 @@
     text-decoration: line-through;
 }
 
+/* Every line of text starts under the title, past the header's icon. */
+.text,
+.modelName,
+.modelNote,
+.row,
+.offers {
+    padding-left: calc(var(--mantine-spacing-xs) + 20px);
+    padding-right: var(--mantine-spacing-xs);
+}
+
 .modelName {
-    padding: 0 var(--mantine-spacing-xs) 2px;
+    padding-bottom: 2px;
 }
 
 /* What happened to the whole model, on the line under its name. */
 .modelNote {
-    padding: 3px var(--mantine-spacing-xs) 3px
-        calc(var(--mantine-spacing-xs) + 20px);
+    padding-top: 3px;
+    padding-bottom: 3px;
 }
 
 .row {
     display: grid;
-    grid-template-columns: 16px minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     column-gap: 6px;
     align-items: center;
     width: 100%;
-    /* Sits under its model's name, past the model's icon. */
-    padding: 3px var(--mantine-spacing-xs) 3px
-        calc(var(--mantine-spacing-xs) + 20px);
+    padding-top: 3px;
+    padding-bottom: 3px;
 }
 
 .row:hover,
 .row:focus-visible {
     background: var(--mantine-color-default-hover);
-}
-
-.kindIcon {
-    display: flex;
 }
 
 .label {
@@ -80,29 +85,16 @@
 
 /* What to do next: the agent's offers, each sent as the person's message, then the card's own actions. */
 .next {
-    padding: 4px 0;
+    padding: var(--mantine-spacing-xs) 0;
 }
 
 .actions {
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 4px;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0;
 }
 
 /* With nothing offered above them, the actions need no extra room. */
 .actions:first-child {
-    padding-top: 4px;
-}
-
-.option {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    width: 100%;
-    padding: 4px var(--mantine-spacing-xs);
-}
-
-.option:hover,
-.option:focus-visible {
-    background: var(--mantine-color-default-hover);
+    padding-top: 0;
 }
 
 .icon {

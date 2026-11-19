@@ -7,10 +7,8 @@ import { Box, Button } from '@mantine/core';
 import {
     IconCircleCheck,
     IconCircleMinus,
-    IconFileCode,
     IconGitBranch,
     IconGitPullRequest,
-    IconTable,
 } from '@tabler/icons-react';
 import { useContext, type FC } from 'react';
 import { Link } from 'react-router';
@@ -166,12 +164,6 @@ export const DbtTurnSummaryCard: FC<{
                                   FILE_KINDS[
                                       file.path.split('.').pop() ?? ''
                                   ] ?? 'file',
-                              icon: (
-                                  <MantineIcon
-                                      icon={IconFileCode}
-                                      color="dimmed"
-                                  />
-                              ),
                               label: file.path.split('/').pop() ?? file.path,
                               detail: `+${file.additions} −${file.deletions}`,
                               title: file.path,
@@ -189,7 +181,6 @@ export const DbtTurnSummaryCard: FC<{
                           id: model,
                           change: 'changed',
                           kind: 'model',
-                          icon: <MantineIcon icon={IconTable} color="dimmed" />,
                           label: model,
                           detail: null,
                           title: model,
