@@ -15206,12 +15206,6 @@ export class AppGenerateService extends BaseService {
                             : null,
                 },
             );
-            await this.unverifyAppIfNotPreserved({
-                user,
-                appUuid: existingApp.app_id,
-                projectUuid,
-                organizationUuid: existingApp.organization_uuid,
-            });
         } else {
             await this.assertDataAppAbility(
                 user,
@@ -15315,6 +15309,15 @@ export class AppGenerateService extends BaseService {
         // pending: it would count against the per-project build cap with
         // no job behind it. Mark it error and surface the original cause.
         try {
+            if (action === 'append' && existingApp !== undefined) {
+                await this.unverifyAppIfNotPreserved({
+                    user,
+                    appUuid: existingApp.app_id,
+                    projectUuid,
+                    organizationUuid: existingApp.organization_uuid,
+                });
+            }
+
             // Reconcile links only when the manifest carries the field — bundles
             // downloaded before link support must leave existing links untouched.
             if (manifestLinks !== undefined) {
