@@ -707,11 +707,18 @@ export class SchedulerWorker extends SchedulerTask {
     ): Promise<void> {
         Logger.info(`Draining scheduler workers: ${reason}`);
         // Migration resume keeps this process alive, so never unlock live jobs.
-        await Promise.all(
+        // Wait for every runner so a failed stop never leaves one mid-drain.
+        const stops = await Promise.allSettled(
             [...this.managedRunners].map((managedRunner) =>
                 this.stopManagedRunner(managedRunner),
             ),
         );
+        const failedStop = stops.find(
+            (stop): stop is PromiseRejectedResult => stop.status === 'rejected',
+        );
+        if (failedStop) {
+            throw failedStop.reason;
+        }
     }
 
     private async startResumeWorkers(): Promise<void> {

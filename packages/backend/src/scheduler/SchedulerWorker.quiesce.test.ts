@@ -236,6 +236,27 @@ describe('SchedulerWorker migration quiesce', () => {
         },
     );
 
+    it('resumes workers after a runner stop fails on a dropped connection', async () => {
+        vi.spyOn(Math, 'random').mockReturnValue(0);
+        let active = false;
+        const worker = makeWorker(() => active);
+        await worker.run();
+        vi.mocked(fakeRunners[0].runner.stop).mockRejectedValueOnce(
+            new Error('Connection terminated unexpectedly'),
+        );
+
+        active = true;
+        await vi.advanceTimersByTimeAsync(10);
+        active = false;
+        await vi.advanceTimersByTimeAsync(250);
+
+        expect(runnerOptions.map(({ concurrency }) => concurrency)).toEqual([
+            3, 1, 2,
+        ]);
+        expect(worker.isQuiesced).toBe(false);
+        await worker.stop();
+    });
+
     it('joins an ongoing migration drain on shutdown without restarting workers', async () => {
         let active = false;
         const worker = makeWorker(() => active);
