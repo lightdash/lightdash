@@ -153,7 +153,6 @@ export const getComposerChartDraw = ({
     chart,
     columns,
     fields,
-    zoomedFieldLabels,
 }: {
     pipeline: ComposerChartPipeline;
     chart: ComposerStoredChart;
@@ -161,8 +160,6 @@ export const getComposerChartDraw = ({
     columns: ResultColumn[];
     /** The run's fields map for the terminal node. */
     fields: ItemsMap;
-    /** Labels of fields a date zoom re-grained, by field id; a result column of that name shows it. */
-    zoomedFieldLabels: Record<string, string>;
 }): ComposerChartDraw => {
     assertDrawablePivot(chart);
     const node = getTerminalNode(pipeline);
@@ -181,17 +178,7 @@ export const getComposerChartDraw = ({
             case QuerySourceType.SQL:
             case QuerySourceType.DUCKDB:
             case QuerySourceType.PYTHON:
-                return getResultColumnsQuery(
-                    chart,
-                    columns.map((column) =>
-                        zoomedFieldLabels[column.reference]
-                            ? {
-                                  ...column,
-                                  label: zoomedFieldLabels[column.reference],
-                              }
-                            : column,
-                    ),
-                );
+                return getResultColumnsQuery(chart, columns);
             default:
                 return assertUnreachable(node, 'Unknown composer node kind');
         }
@@ -207,6 +194,16 @@ export const getComposerChartDraw = ({
         pivotColumns: getSplitColumns(chart).columns,
     };
 };
+
+/** A date zoom keeps column names, so a column whose name is a zoomed field gets that field's zoomed label. */
+export const withZoomedColumnLabels = (
+    columns: ResultColumn[],
+    zoomedFieldLabels: Record<string, string>,
+): ResultColumn[] =>
+    columns.map((column) => {
+        const label = zoomedFieldLabels[column.reference];
+        return label ? { ...column, label } : column;
+    });
 
 /** Rows reduced to the chart's columns: builders read any extra key as data (funnel labels). */
 export const pickComposerChartRows = (

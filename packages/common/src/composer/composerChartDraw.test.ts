@@ -18,6 +18,7 @@ import {
     getComposerChartDraw,
     getComposerChartPivotStage,
     pickComposerChartRows,
+    withZoomedColumnLabels,
 } from './composerChartDraw';
 
 const sqlPipeline: ComposerChartPipeline = {
@@ -129,7 +130,6 @@ describe('getComposerChartDraw', () => {
             chart: storedChart(),
             columns: sqlColumns,
             fields: {},
-            zoomedFieldLabels: {},
         });
 
         expect(draw.metricQuery.dimensions).toEqual(['status']);
@@ -146,29 +146,12 @@ describe('getComposerChartDraw', () => {
         expect(draw.pivotColumns).toEqual([]);
     });
 
-    test('a sql result shows the zoomed label over a column a date zoom re-grained, keeping its id', () => {
-        const draw = getComposerChartDraw({
-            pipeline: sqlPipeline,
-            chart: storedChart(),
-            columns: sqlColumns,
-            fields: {},
-            zoomedFieldLabels: { status: 'Order date month' },
-        });
-
-        expect(draw.fields.status).toMatchObject({
-            name: 'status',
-            label: 'Order date month',
-        });
-        expect(draw.fields.revenue).toMatchObject({ label: 'Revenue' });
-    });
-
     test('a semantic-layer result draws the run’s own fields, so labels and formats are current', () => {
         const draw = getComposerChartDraw({
             pipeline: semanticPipeline,
             chart: semanticChart,
             columns: semanticColumns,
             fields: semanticFields,
-            zoomedFieldLabels: {},
         });
 
         expect(draw.fields).toEqual(semanticFields);
@@ -204,7 +187,6 @@ describe('getComposerChartDraw', () => {
             chart: semanticChart,
             columns: semanticColumns,
             fields: semanticFields,
-            zoomedFieldLabels: {},
         });
 
         expect(draw.fields).toEqual(semanticFields);
@@ -225,13 +207,7 @@ describe('getComposerChartDraw', () => {
         'a %s result missing a mapped column errors naming it',
         (_, pipeline, chart, columns, fields, missing) => {
             expect(() =>
-                getComposerChartDraw({
-                    pipeline,
-                    chart,
-                    columns,
-                    fields,
-                    zoomedFieldLabels: {},
-                }),
+                getComposerChartDraw({ pipeline, chart, columns, fields }),
             ).toThrow(`Column "${missing}" is missing from the result`);
         },
     );
@@ -246,7 +222,6 @@ describe('getComposerChartDraw', () => {
                     { reference: 'revenue', type: DimensionType.STRING },
                 ],
                 fields: {},
-                zoomedFieldLabels: {},
             }),
         ).toThrow('Column "revenue" is no longer numeric');
     });
@@ -264,7 +239,6 @@ describe('getComposerChartDraw', () => {
                     ...semanticFields,
                     orders_total: { ...statusDimension, name: 'total' },
                 },
-                zoomedFieldLabels: {},
             }),
         ).toThrow('Column "orders_total" is no longer numeric');
     });
@@ -284,7 +258,6 @@ describe('getComposerChartDraw', () => {
                 { reference: 'method', type: DimensionType.STRING },
             ],
             fields: {},
-            zoomedFieldLabels: {},
         });
 
         expect(draw.pivotColumns).toEqual(['method']);
@@ -300,9 +273,32 @@ describe('getComposerChartDraw', () => {
                 }),
                 columns: sqlColumns,
                 fields: {},
-                zoomedFieldLabels: {},
             }),
         ).toThrow('Group-by is only drawn on bar, line, area and scatter');
+    });
+});
+
+describe('withZoomedColumnLabels', () => {
+    test('heads a column a date zoom re-grained with its zoomed label, keeping its name', () => {
+        expect(
+            withZoomedColumnLabels(
+                [
+                    {
+                        reference: 'orders_order_date_day',
+                        type: DimensionType.DATE,
+                    },
+                    { reference: 'revenue', type: DimensionType.NUMBER },
+                ],
+                { orders_order_date_day: 'Order date month' },
+            ),
+        ).toEqual([
+            {
+                reference: 'orders_order_date_day',
+                type: DimensionType.DATE,
+                label: 'Order date month',
+            },
+            { reference: 'revenue', type: DimensionType.NUMBER },
+        ]);
     });
 });
 
@@ -316,7 +312,6 @@ describe('pickComposerChartRows', () => {
             chart: storedChart(),
             columns: sqlColumns,
             fields: {},
-            zoomedFieldLabels: {},
         });
 
         expect(

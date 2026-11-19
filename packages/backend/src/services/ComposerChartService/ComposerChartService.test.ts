@@ -228,14 +228,16 @@ const usedParametersByQuery: Record<string, ParametersValuesMap> = {
     'other-query': { region: 'UK' },
 };
 
-// The orders run's history labels its date field at the grain it ran
-const ordersRunFields = {
-    orders_created_at: {
-        fieldType: FieldType.DIMENSION,
-        type: DimensionType.DATE,
-        name: 'created_at',
-        table: 'orders',
-        label: 'Created at month',
+// The fields each node query's history row records beside its own; the orders run labels its date at the grain it ran
+const runFieldsByQuery: Record<string, object> = {
+    'orders-query': {
+        orders_created_at: {
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.DATE,
+            name: 'created_at',
+            table: 'orders',
+            label: 'Created at month',
+        },
     },
 };
 
@@ -371,7 +373,7 @@ const setup = ({ flagEnabled = true } = {}) => {
                 queryUuid,
                 fields: {
                     [`${queryUuid}_field`]: {},
-                    ...(queryUuid === 'orders-query' ? ordersRunFields : {}),
+                    ...runFieldsByQuery[queryUuid],
                 },
                 usedParameters: usedParametersByQuery[queryUuid] ?? null,
             })),
