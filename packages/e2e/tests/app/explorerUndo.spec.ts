@@ -350,7 +350,9 @@ test.describe('Explorer undo sweep', () => {
                     name: chartType,
                     exact: true,
                 });
-                if ((await typeButton.count()) === 0)
+                // The sidebar shows either the gallery or the config it left open
+                await expect(typeButton.or(gallery.first())).toBeVisible();
+                if (!(await typeButton.isVisible()))
                     await gallery.first().click();
                 const before = await settledExplorer(page, { quietMs: 1500 });
                 await typeButton.click();
