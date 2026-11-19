@@ -197,12 +197,23 @@ export const TurnCard: FC<{
                                             size={14}
                                             color={ISSUE_KINDS[kind].color}
                                         />
+                                        {/* A warehouse error runs long; its start says what went wrong and the rest is on hover. */}
                                         <Text
                                             fz="xs"
                                             fw={500}
                                             flex={1}
                                             miw={0}
                                             className={classes.wrap}
+                                            lineClamp={
+                                                kind === 'failed'
+                                                    ? 2
+                                                    : undefined
+                                            }
+                                            title={
+                                                kind === 'failed'
+                                                    ? detail
+                                                    : undefined
+                                            }
                                         >
                                             {ISSUE_KINDS[kind].label}
                                             <Text

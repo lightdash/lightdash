@@ -29,7 +29,7 @@ import {
 } from './modelCode';
 import { listTurnIssues } from './proposalIssues';
 import { TaskIcon } from './TaskRow';
-import { draftActions } from './turnActions';
+import { draftActions, fixAction } from './turnActions';
 import { TurnCard, type Safety } from './TurnCard';
 import { getSemanticStudioUrl } from './urls';
 import {
@@ -256,14 +256,25 @@ export const TurnSummaryCard: FC<{
         ({ reconciliation }) => reconciliation?.state === 'conflict',
     ).length;
     const safety = isDraft ? getSafety(phase.error, impact, conflicts) : null;
+    // A model the agent could not add, and did not go on to fix, is one more thing to hand back to it.
+    const failure = issues.find(({ kind }) => kind === 'failed');
+    const fixFailure = failure
+        ? fixAction(
+              `${failure.model} was not added: ${failure.detail}. Fix it.`,
+              onAsk,
+          )
+        : null;
     const actions = (() => {
         switch (phase.kind) {
             case 'draft':
-                return draftActions({
-                    error: phase.error,
-                    reviewTo: reviewUrl,
-                    onAsk,
-                });
+                return [
+                    ...draftActions({
+                        error: phase.error,
+                        reviewTo: reviewUrl,
+                        onAsk,
+                    }),
+                    phase.error ? null : fixFailure,
+                ];
             case 'published':
                 return phase.model
                     ? [
@@ -293,9 +304,10 @@ export const TurnSummaryCard: FC<{
                         View pull request
                     </Button>,
                 ];
+            case 'none':
+                return [fixFailure];
             case 'gone':
             case 'loading':
-            case 'none':
                 return [];
             default:
                 return assertUnreachable(phase, 'Unknown turn phase');
