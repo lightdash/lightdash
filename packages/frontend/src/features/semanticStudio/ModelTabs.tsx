@@ -69,6 +69,9 @@ export const ModelCodeView: FC<{
     const block =
         fieldName && content ? findFieldBlock(content, fieldName) : null;
     const line = block?.start ?? null;
+    // A changed file shows the draft's lines marked; a new one would be marked whole, and a field asked for is shown alone.
+    const marksDraft =
+        drafted !== null && drafted.contentBefore !== null && block === null;
     const editor = useRef<HTMLDivElement>(null);
     // The viewer marks the line but does not bring it into view, and it renders after this does.
     useEffect(() => {
@@ -98,28 +101,27 @@ export const ModelCodeView: FC<{
     }
     return (
         <Box className={classes.codePane}>
-            <Group
-                className={classes.codeToolbar}
-                justify="space-between"
-                wrap="nowrap"
-            >
-                <Text fz="xs" c="dimmed" truncate>
-                    {modelName}.yml
-                    {isDraft
-                        ? ', not published yet'
-                        : `, version ${model?.version}`}
-                </Text>
-                <Group gap="xs" wrap="nowrap" flex="none">
-                    {content !== null ? (
-                        <CopyActionIcon value={content} copyLabel="Copy YAML" />
-                    ) : null}
-                </Group>
-            </Group>
+            {content !== null ? (
+                <Box className={classes.codeCopy}>
+                    <CopyActionIcon value={content} copyLabel="Copy YAML" />
+                </Box>
+            ) : null}
             <Box className={classes.codeEditor} ref={editor}>
                 {content === null ? (
                     <Text fz="sm" c="dimmed" p="md">
                         This draft removes this model.
                     </Text>
+                ) : marksDraft ? (
+                    <WorkerPoolContextProvider
+                        poolOptions={PIERRE_POOL_OPTIONS}
+                        highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
+                    >
+                        <ChangeDiff
+                            modelName={modelName}
+                            change={drafted}
+                            variant="whole"
+                        />
+                    </WorkerPoolContextProvider>
                 ) : (
                     <WorkerPoolContextProvider
                         poolOptions={PIERRE_POOL_OPTIONS}

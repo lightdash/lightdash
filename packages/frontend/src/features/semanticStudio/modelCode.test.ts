@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+    countChangedLines,
     getChangeKind,
     describeModelChange,
     findPeekStart,
@@ -314,5 +315,19 @@ describe('listFieldChanges', () => {
                 },
             ),
         ).toEqual([]);
+    });
+});
+
+describe('countChangedLines', () => {
+    it('counts the lines a change adds and removes', () => {
+        expect(
+            countChangedLines({
+                contentBefore: 'a\nb\nc\n',
+                contentAfter: 'a\nB\nc\nd\n',
+            }),
+        ).toEqual({ additions: 2, deletions: 1 });
+        expect(
+            countChangedLines({ contentBefore: null, contentAfter: 'a\nb\n' }),
+        ).toEqual({ additions: 2, deletions: 0 });
     });
 });
