@@ -1,3 +1,10 @@
+# [3.330.0](https://github.com/lightdash/lightdash/compare/3.329.1...3.330.0) (2026-11-19)
+
+
+### Features
+
+* **semantic-studio:** show what a draft changes across the models view, chat card and overview ([#32952](https://github.com/lightdash/lightdash/issues/32952)) ([44a0ee5](https://github.com/lightdash/lightdash/commit/44a0ee55feaf070dbb75024bb7e058a0dd97e753))
+
 ## [3.329.1](https://github.com/lightdash/lightdash/compare/3.329.0...3.329.1) (2026-11-19)
 
 
