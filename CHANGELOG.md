@@ -1,3 +1,10 @@
+# [3.347.0](https://github.com/lightdash/lightdash/compare/3.346.0...3.347.0) (2026-11-19)
+
+
+### Features
+
+* **semantic-studio:** show a reply's copy action on hover in the Studio chat ([#33020](https://github.com/lightdash/lightdash/issues/33020)) ([b1af4da](https://github.com/lightdash/lightdash/commit/b1af4dac67b6fe35df2840e6baf2ef26f9909916))
+
 # [3.346.0](https://github.com/lightdash/lightdash/compare/3.345.0...3.346.0) (2026-11-19)
 
 
