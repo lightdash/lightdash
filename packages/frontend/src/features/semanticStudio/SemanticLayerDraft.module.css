@@ -1,7 +1,8 @@
+/* Fills its pane edge to edge, as a file in the Code view does. */
 .review {
     flex: 1;
     min-height: 0;
-    padding-block: var(--mantine-spacing-md);
+    padding-bottom: var(--mantine-spacing-md);
     overflow: auto;
 }
 
@@ -9,15 +10,28 @@
     flex: none;
 }
 
+/* Everything but a file keeps clear of the pane's edges. */
+.review > :not(.model) {
+    margin-inline: var(--mantine-spacing-md);
+}
+
+.review > :not(.model):first-child {
+    margin-top: var(--mantine-spacing-md);
+}
+
 /* One changed file: flat like an editor pane, ruled off from the next rather than boxed. */
 .model {
-    border-block: 1px solid var(--mantine-color-default-border);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.model:not(:first-child) {
+    border-top: 1px solid var(--mantine-color-default-border);
 }
 
 /* Stays in view while its diff scrolls under it. */
 .modelHead {
     position: sticky;
-    top: calc(-1 * var(--mantine-spacing-md));
+    top: 0;
     z-index: 1;
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
     border-bottom: 1px solid var(--mantine-color-default-border);

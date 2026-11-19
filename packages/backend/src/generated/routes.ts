@@ -27352,6 +27352,28 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        composerChartSlug: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        composerChartUuid: {
+                            dataType: 'string',
+                            required: true,
+                        },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['composer_chart'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
                         promptUuid: {
                             dataType: 'union',
                             subSchemas: [
@@ -32094,6 +32116,14 @@ const models: TsoaRoute.Models = {
                         array: {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                serviceAccountUuid: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { dataType: 'string' },
+                                        { dataType: 'enum', enums: [null] },
+                                        { dataType: 'undefined' },
+                                    ],
+                                },
                                 channelId: {
                                     dataType: 'string',
                                     required: true,
@@ -33241,6 +33271,14 @@ const models: TsoaRoute.Models = {
                         array: {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                serviceAccountUuid: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { dataType: 'string' },
+                                        { dataType: 'enum', enums: [null] },
+                                        { dataType: 'undefined' },
+                                    ],
+                                },
                                 channelId: {
                                     dataType: 'string',
                                     required: true,
@@ -34162,6 +34200,14 @@ const models: TsoaRoute.Models = {
                         array: {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                serviceAccountUuid: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { dataType: 'string' },
+                                        { dataType: 'enum', enums: [null] },
+                                        { dataType: 'undefined' },
+                                    ],
+                                },
                                 channelId: {
                                     dataType: 'string',
                                     required: true,
@@ -34324,6 +34370,17 @@ const models: TsoaRoute.Models = {
                                 array: {
                                     dataType: 'nestedObjectLiteral',
                                     nestedProperties: {
+                                        serviceAccountUuid: {
+                                            dataType: 'union',
+                                            subSchemas: [
+                                                { dataType: 'string' },
+                                                {
+                                                    dataType: 'enum',
+                                                    enums: [null],
+                                                },
+                                                { dataType: 'undefined' },
+                                            ],
+                                        },
                                         channelId: {
                                             dataType: 'string',
                                             required: true,
@@ -35166,6 +35223,44 @@ const models: TsoaRoute.Models = {
                         type: {
                             dataType: 'enum',
                             enums: ['sql_chart'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        displayName: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        pinnedVersionUuid: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        composerChartSlug: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        composerChartUuid: {
+                            dataType: 'string',
+                            required: true,
+                        },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['composer_chart'],
                             required: true,
                         },
                     },
@@ -54638,6 +54733,14 @@ const models: TsoaRoute.Models = {
                         array: {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                serviceAccountUuid: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { dataType: 'string' },
+                                        { dataType: 'enum', enums: [null] },
+                                        { dataType: 'undefined' },
+                                    ],
+                                },
                                 channelId: {
                                     dataType: 'string',
                                     required: true,

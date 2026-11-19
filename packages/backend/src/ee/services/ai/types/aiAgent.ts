@@ -60,6 +60,7 @@ import {
     FindCustomChartTypesFn,
     FindExploresFn,
     GenerateDataAppFn,
+    GetComposerChartFn,
     GetDashboardChartsFn,
     GetExploreFn,
     GetKnowledgeDocumentContentFn,
@@ -86,6 +87,7 @@ import {
     ListWarehouseTablesFn,
     ListWorkstreamsFn,
     LoadAgentSkillFn,
+    PrepareComposerChartEditFn,
     ProposeSemanticLayerChangeFn,
     ReadAttachmentsFn,
     ReadContentFn,
@@ -98,6 +100,7 @@ import {
     ResolveCustomChartTypeFn,
     ResolveUrlFn,
     RunAsyncQueryFn,
+    RunComposerChartQueryFn,
     RunComposerQueriesFn,
     RunSavedChartQueryFn,
     RunSqlChartQueryFn,
@@ -432,6 +435,7 @@ export type AiAgentDependencies = {
     readContent: ReadContentFn;
     resolveUrl: ResolveUrlFn;
     editContent: EditContentFn;
+    prepareComposerChartEdit: PrepareComposerChartEditFn;
     recordSqlChartRefusal?: (
         action: 'create' | 'update',
         reasonCode: string,
@@ -451,6 +455,7 @@ export type AiAgentDependencies = {
     runAsyncQuery: RunAsyncQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;
     runSqlChartQuery: RunSqlChartQueryFn;
+    runComposerChartQuery: RunComposerChartQueryFn;
     runSqlJob: RunSqlJobFn;
     runComposerQueries: RunComposerQueriesFn;
     listWarehouseTables: ListWarehouseTablesFn;
@@ -461,6 +466,7 @@ export type AiAgentDependencies = {
     readAttachments: ReadAttachmentsFn;
     getSavedChart: GetSavedChartFn;
     getSqlChart: GetSqlChartFn;
+    getComposerChart: GetComposerChartFn;
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;
     deferSlackVisualization?: import('./aiAgentDependencies').DeferSlackVisualizationFn;

@@ -13,6 +13,7 @@ import { useEmbedAiAgentDashboardOpener } from '../../hooks/useEmbedAiAgentDashb
 import { useIsAiAgentNavigationDisabled } from '../../hooks/useIsAiAgentNavigationDisabled';
 import { ContentReferenceLink } from '../ChatElements/ContentReferenceLink';
 import {
+    getComposerChartContextItemLabel,
     getDataAppContextItemLabel,
     getPromptContextItemHref,
     getSqlChartContextItemLabel,
@@ -294,6 +295,12 @@ export const PinnedContextCard: FC<Props> = ({
                 </ContentReferenceLink>
             );
         }
+        case 'composer_chart':
+            return (
+                <ContentReferenceLink kind="composer_chart" showArrow={false}>
+                    {getComposerChartContextItemLabel(item)}
+                </ContentReferenceLink>
+            );
         case 'pull_request':
         case 'proposed_change':
         case 'review_finding':

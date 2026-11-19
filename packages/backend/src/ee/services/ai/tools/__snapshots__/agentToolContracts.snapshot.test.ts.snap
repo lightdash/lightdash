@@ -724,7 +724,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
     },
   },
   {
-    "description": "Create a dashboard, chart or SQL chart from its JSON; the developing-in-lightdash skill has the shapes. Save into a space whose canEdit is true in findContent or listContent results; a write to any other space is refused. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them.",
+    "description": "Create a dashboard, chart, SQL chart or composer chart from its JSON; the developing-in-lightdash skill has the shapes. Save into a space whose canEdit is true in findContent or listContent results; a write to any other space is refused. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them. A composer chart (type composer_chart) is saved onto an existing dashboard, from a query node (from: "node") or from full pipeline and chart JSON (from: "json"); the composer-chart-reference skill resource has both shapes and when each needs SQL approval.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -970,6 +970,319 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
               ],
               "type": "object",
             },
+            {
+              "additionalProperties": false,
+              "description": "Composer chart built from a query node.",
+              "properties": {
+                "dashboardSlug": {
+                  "description": "The existing dashboard the chart belongs to.",
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "from": {
+                  "const": "node",
+                  "type": "string",
+                },
+                "name": {
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "nodeId": {
+                  "description": "A node from a successful query call.",
+                  "type": "string",
+                },
+                "sessionId": {
+                  "description": "The query result's sessionId; null in an agent conversation.",
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "vizConfig": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "groupBy": {
+                          "default": null,
+                          "description": "Columns that split y into one series per value. A reader tells about 6 series apart at a glance, so prefer a coarser split when the choice is yours and keep a split the user asked for. bar/line/area/scatter only. Must not include x.",
+                          "items": {
+                            "description": "A result column reference of the presented node",
+                            "type": "string",
+                          },
+                          "type": [
+                            "array",
+                            "null",
+                          ],
+                        },
+                        "horizontal": {
+                          "default": null,
+                          "description": "bar only: draw bars horizontally, for long labels or more than about 12 categories.",
+                          "type": [
+                            "boolean",
+                            "null",
+                          ],
+                        },
+                        "labels": {
+                          "additionalProperties": false,
+                          "default": null,
+                          "description": "Axis titles. big_number uses labels.y as its label.",
+                          "properties": {
+                            "x": {
+                              "default": null,
+                              "type": [
+                                "string",
+                                "null",
+                              ],
+                            },
+                            "y": {
+                              "default": null,
+                              "type": [
+                                "string",
+                                "null",
+                              ],
+                            },
+                            "y2": {
+                              "default": null,
+                              "type": [
+                                "string",
+                                "null",
+                              ],
+                            },
+                          },
+                          "type": [
+                            "object",
+                            "null",
+                          ],
+                        },
+                        "stack": {
+                          "default": null,
+                          "description": "bar: stack series on top of each other, for parts that add up to a total (sums and counts; averages, ratios and distinct counts sit side by side). area always stacks. Ignored elsewhere.",
+                          "type": [
+                            "boolean",
+                            "null",
+                          ],
+                        },
+                        "type": {
+                          "description": "Chart type, chosen by what the reader does with the result:
+- bar: compare or rank categories.
+- line: follow change over time or another ordered x.
+- table: read exact values across several columns, or more rows than a chart can label.
+- area: a filled line, for one total over time or the parts that add up to it.
+- pie: 2 to 6 non-negative parts of one whole; more parts read better as a bar.
+- scatter: how two measures relate, one point per entity.
+- funnel: ordered stages of one process.
+- big_number: one value as a card, when the user asks for the card or wants to save it; a figure otherwise goes in the answer text.
+A custom chart type is chosen the same way: by its own description first, then as the built-in type it most resembles.",
+                          "enum": [
+                            "table",
+                            "big_number",
+                            "bar",
+                            "line",
+                            "area",
+                            "scatter",
+                            "pie",
+                            "funnel",
+                          ],
+                          "type": "string",
+                        },
+                        "x": {
+                          "default": null,
+                          "description": "Category or time column. bar/line/area/scatter/pie/funnel. null for table/big_number, or to use the first non-numeric column.",
+                          "type": [
+                            "string",
+                            "null",
+                          ],
+                        },
+                        "y": {
+                          "default": null,
+                          "description": "Value columns. big_number, pie and funnel use y[0]. null to use every numeric column not on x or groupBy.",
+                          "items": {
+                            "description": "A result column reference of the presented node",
+                            "type": "string",
+                          },
+                          "type": [
+                            "array",
+                            "null",
+                          ],
+                        },
+                        "y2": {
+                          "default": null,
+                          "description": "Column on a secondary (right) y axis. bar/line/area (drawn as a line on area). Must not be in y.",
+                          "type": [
+                            "string",
+                            "null",
+                          ],
+                        },
+                      },
+                      "required": [
+                        "type",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "customChartTypeSlug": {
+                          "description": "Slug of the custom chart type.",
+                          "type": "string",
+                        },
+                        "fieldMapping": {
+                          "additionalProperties": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                              },
+                              {
+                                "items": {
+                                  "description": "A result column reference of the presented node",
+                                  "type": "string",
+                                },
+                                "type": "array",
+                              },
+                            ],
+                            "description": "A result column reference of the presented node",
+                          },
+                          "description": "Binds each slot of the type, by slot name, to a column, or ordered columns for a multiple slot. The slot's kind sets the column's role: a metric slot is measured, a series slot splits the chart into one series per value, and a dimension or column slot groups, so a numeric column there is grouped, not measured. A measure split by series goes in a metric slot.",
+                          "type": "object",
+                        },
+                        "options": {
+                          "additionalProperties": {
+                            "anyOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "colors": {
+                                    "items": {
+                                      "type": "string",
+                                    },
+                                    "maxItems": 5,
+                                    "minItems": 2,
+                                    "type": "array",
+                                  },
+                                  "max": {
+                                    "anyOf": [
+                                      {
+                                        "type": "number",
+                                      },
+                                      {
+                                        "const": "auto",
+                                        "type": "string",
+                                      },
+                                    ],
+                                  },
+                                  "min": {
+                                    "anyOf": [
+                                      {
+                                        "type": "number",
+                                      },
+                                      {
+                                        "const": "auto",
+                                        "type": "string",
+                                      },
+                                    ],
+                                  },
+                                },
+                                "required": [
+                                  "colors",
+                                  "min",
+                                  "max",
+                                ],
+                                "type": "object",
+                              },
+                              {
+                                "type": "string",
+                              },
+                              {
+                                "type": "number",
+                              },
+                              {
+                                "type": "boolean",
+                              },
+                            ],
+                          },
+                          "default": null,
+                          "description": "Values for the type's options; null for defaults.",
+                          "type": [
+                            "object",
+                            "null",
+                          ],
+                        },
+                        "type": {
+                          "const": "custom",
+                          "description": "Renders one of this project's custom chart types.",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "type",
+                        "customChartTypeSlug",
+                        "fieldMapping",
+                      ],
+                      "type": "object",
+                    },
+                  ],
+                },
+              },
+              "required": [
+                "from",
+                "dashboardSlug",
+                "name",
+                "description",
+                "nodeId",
+                "sessionId",
+                "vizConfig",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": {},
+              "description": "Composer chart from full pipeline and chart JSON.",
+              "properties": {
+                "chart": {
+                  "additionalProperties": {},
+                  "type": "object",
+                },
+                "dashboardSlug": {
+                  "description": "The existing dashboard the chart belongs to.",
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "from": {
+                  "const": "json",
+                  "type": "string",
+                },
+                "name": {
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "pipeline": {
+                  "additionalProperties": {},
+                  "type": "object",
+                },
+              },
+              "required": [
+                "from",
+                "dashboardSlug",
+                "name",
+                "description",
+                "pipeline",
+                "chart",
+              ],
+              "type": "object",
+            },
           ],
         },
         "type": {
@@ -978,6 +1291,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
             "dashboard",
             "chart",
             "sql_chart",
+            "composer_chart",
           ],
           "type": "string",
         },
@@ -1191,6 +1505,55 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                     },
                     "type": {
                       "const": "sql_chart",
+                      "type": "string",
+                    },
+                    "uuid": {
+                      "description": "UUID of the created content.",
+                      "type": "string",
+                    },
+                    "warnings": {
+                      "description": "Non-fatal problems with the created content, e.g. metricQuery dimensions the chart does not use.",
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "type",
+                    "href",
+                    "uuid",
+                    "slug",
+                    "name",
+                    "content",
+                    "warnings",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "content": {
+                      "additionalProperties": {},
+                      "description": "The persisted content as code, as shown in \`result\`.",
+                      "propertyNames": {
+                        "type": "string",
+                      },
+                      "type": "object",
+                    },
+                    "href": {
+                      "description": "Canonical link to the created content.",
+                      "type": "string",
+                    },
+                    "name": {
+                      "type": "string",
+                    },
+                    "slug": {
+                      "description": "Final persisted slug; may differ from the requested slug when it was already taken.",
+                      "type": "string",
+                    },
+                    "type": {
+                      "const": "composer_chart",
                       "type": "string",
                     },
                     "uuid": {
@@ -1973,7 +2336,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
     },
   },
   {
-    "description": "Edit a dashboard, chart or SQL chart with an RFC6902 patch against its JSON as readContent last returned it; the edited content is validated before it is saved. The content's space must show canEdit true in findContent or listContent results; an edit in any other space is refused. A SQL chart needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL.",
+    "description": "Edit a dashboard, chart, SQL chart or composer chart with an RFC6902 patch against its JSON as readContent last returned it; the edited content is validated before it is saved. The content's space must show canEdit true in findContent or listContent results; an edit in any other space is refused. A SQL chart needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL. A composer chart is saved in place on its dashboard as a new version; new warehouse SQL in its nodes waits for approval the same way.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -1994,6 +2357,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
             "dashboard",
             "chart",
             "sql_chart",
+            "composer_chart",
           ],
           "type": "string",
         },
@@ -2129,6 +2493,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                         "dashboard",
                         "chart",
                         "sql_chart",
+                        "composer_chart",
                       ],
                       "type": "string",
                     },
@@ -13543,7 +13908,7 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
     },
   },
   {
-    "description": "Read a dashboard, chart, SQL chart or data app as JSON by its slug. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only: a view of what the app shows and its per-explore data references, without code. Address a data app by the slug listed or found for it, not the id in its URL.",
+    "description": "Read a dashboard, chart, SQL chart, composer chart or data app as JSON by its slug. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. A composer_chart tile names a composer chart (a pipeline of queries plus a chart) by chartSlug; read it with type composer_chart, since a chart may share its slug. Data apps are read-only: a view of what the app shows and its per-explore data references, without code. Address a data app by the slug listed or found for it, not the id in its URL.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -13559,6 +13924,7 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
             "dashboard",
             "chart",
             "sql_chart",
+            "composer_chart",
             "data_app",
           ],
           "type": "string",
@@ -13723,6 +14089,43 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                     },
                     "type": {
                       "const": "sql_chart",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "slug",
+                    "name",
+                    "href",
+                    "type",
+                    "content",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "content": {
+                      "additionalProperties": {},
+                      "description": "Composer chart as code JSON (pipeline and chart), exactly as shown in \`result\`.",
+                      "propertyNames": {
+                        "type": "string",
+                      },
+                      "type": "object",
+                    },
+                    "href": {
+                      "description": "Canonical Lightdash URL of the content.",
+                      "type": "string",
+                    },
+                    "name": {
+                      "description": "Display name of the content.",
+                      "type": "string",
+                    },
+                    "slug": {
+                      "description": "Slug of the content that was read.",
+                      "type": "string",
+                    },
+                    "type": {
+                      "const": "composer_chart",
                       "type": "string",
                     },
                   },
@@ -13921,7 +14324,7 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
 Sources:
 - metricQuery: an unsaved chart-as-code metricQuery with its tableName, exactly as the chart will save it, limit included.
 - chart: a saved chart by chartSlug. Set chartType "sql_chart" for a saved SQL chart; it runs without SQL approval.
-- dashboardChart: a saved chart by chartSlug in a dashboardSlug context, with the dashboard filters applied. chartType works the same.
+- dashboardChart: a saved chart by chartSlug in a dashboardSlug context, with the dashboard filters applied. chartType works the same, and "composer_chart" runs a composer chart as its dashboard tile does, returning its final node's rows; a composer chart runs only here.
 - sql: a raw SELECT, to check a SQL chart's sql before saving it. The user approves the SQL first; saving the same SQL in a SQL chart in this response needs no second approval.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -14028,10 +14431,11 @@ Sources:
                   "type": "string",
                 },
                 "chartType": {
-                  "description": "Content type of the saved chart, as in readContent: "chart" (explore chart) or "sql_chart". Null means "chart".",
+                  "description": "Content type of the dashboard chart, as in readContent: "chart" (explore chart), "sql_chart" or "composer_chart". Null means "chart".",
                   "enum": [
                     "chart",
                     "sql_chart",
+                    "composer_chart",
                     null,
                   ],
                   "type": [
@@ -14263,7 +14667,7 @@ Sources:
                           "type": "null",
                         },
                       ],
-                      "description": "The saved explore chart that was run; null for an unsaved metricQuery, SQL or a saved SQL chart.",
+                      "description": "The saved explore chart that was run; null for an unsaved metricQuery, SQL, a saved SQL chart or a composer chart.",
                     },
                     "columns": {
                       "description": "Ordered columns: \`fieldId\` keys saved explore chart rows and is null otherwise; \`label\` is the CSV header shown to the model.",
@@ -14287,6 +14691,39 @@ Sources:
                         "type": "object",
                       },
                       "type": "array",
+                    },
+                    "composerChart": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "chartUuid": {
+                              "type": "string",
+                            },
+                            "name": {
+                              "type": "string",
+                            },
+                            "slug": {
+                              "type": "string",
+                            },
+                            "terminalNodeId": {
+                              "description": "The node whose rows are returned.",
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "chartUuid",
+                            "slug",
+                            "name",
+                            "terminalNodeId",
+                          ],
+                          "type": "object",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "The composer chart that was run; null for other sources.",
                     },
                     "outcome": {
                       "const": "rows",
@@ -14375,6 +14812,7 @@ Sources:
                     "outcome",
                     "chart",
                     "sqlChart",
+                    "composerChart",
                     "rowCount",
                     "shownRowCount",
                     "columns",
@@ -14452,6 +14890,39 @@ Sources:
                       ],
                       "description": "Structure of the saved explore chart; null for other sources.",
                     },
+                    "composerChart": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "chartUuid": {
+                              "type": "string",
+                            },
+                            "name": {
+                              "type": "string",
+                            },
+                            "slug": {
+                              "type": "string",
+                            },
+                            "terminalNodeId": {
+                              "description": "The node whose rows are returned.",
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "chartUuid",
+                            "slug",
+                            "name",
+                            "terminalNodeId",
+                          ],
+                          "type": "object",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "The composer chart that was run; null for other sources.",
+                    },
                     "outcome": {
                       "const": "dataAccessDisabled",
                       "description": "Data access is disabled for this agent; no rows were fetched.",
@@ -14494,6 +14965,7 @@ Sources:
                     "outcome",
                     "chart",
                     "sqlChart",
+                    "composerChart",
                   ],
                   "type": "object",
                 },
@@ -23555,7 +24027,7 @@ The user sees all of your text: your reasoning ("thinking"), your final response
 
 ## Content tools
 
-- Use the content tools when the user's intent is to create or edit saved content: charts, dashboards and SQL charts kept in the project. Answers and ad hoc charts come from runQuery and generateVisualization.
+- Use the content tools when the user's intent is to create or edit saved content: charts, dashboards and SQL charts kept in the project, and composer charts on dashboards (read and edit only). Answers and ad hoc charts come from runQuery and generateVisualization.
 - For chart and dashboard JSON, follow the developing-in-lightdash skill: it holds their shapes and the chart-type references.
 - Before creating a SQL chart, read sql-chart-reference in the developing-in-lightdash skill: it says when to create one.
 - Before saving each new or changed chart, check it once with runContentQuery.

@@ -261,7 +261,7 @@ export const TurnCard: FC<{
                             {note}
                         </Text>
                     ) : null}
-                    {safety ? (
+                    {safety && safety.state !== 'done' ? (
                         <Group
                             className={classes.section}
                             gap={6}

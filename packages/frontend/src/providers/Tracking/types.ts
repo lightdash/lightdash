@@ -12,6 +12,7 @@ import {
     type TableCalculationType,
     type TimeFrames,
     type WarehouseTypes,
+    type UserOnboardingTour,
 } from '@lightdash/common';
 import type * as rudderSDK from 'rudder-sdk-js';
 import { type PlaygroundSetupFailure } from '../../components/ProjectConnection/ProjectConnectFlow/playgroundSetupFailure';
@@ -616,6 +617,7 @@ export type AiAgentAskClickedSource =
     | 'dashboard_header'
     | 'dashboard_chart_tile'
     | 'dashboard_sql_chart_tile'
+    | 'dashboard_composer_chart_tile'
     | 'saved_chart_header'
     | 'resource_action_menu'
     | 'data_app_header'
@@ -1303,6 +1305,41 @@ type LearnWalkthroughDismissedEvent = {
     };
 };
 
+type GuidedTourProperties = {
+    tour: UserOnboardingTour;
+};
+
+type GuidedTourStartedEvent = {
+    name: EventName.GUIDED_TOUR_STARTED;
+    properties: GuidedTourProperties;
+};
+
+type GuidedTourStepViewedEvent = {
+    name: EventName.GUIDED_TOUR_STEP_VIEWED;
+    properties: GuidedTourProperties & {
+        /** Zero-based. */
+        stepIndex: number;
+        stepCount: number;
+    };
+};
+
+type GuidedTourEndedProperties = GuidedTourProperties & {
+    /** Zero-based; null when the tour closed before any step was shown. */
+    furthestStepIndex: number | null;
+    stepCount: number;
+    durationSeconds: number;
+};
+
+type GuidedTourCompletedEvent = {
+    name: EventName.GUIDED_TOUR_COMPLETED;
+    properties: GuidedTourEndedProperties;
+};
+
+type GuidedTourDismissedEvent = {
+    name: EventName.GUIDED_TOUR_DISMISSED;
+    properties: GuidedTourEndedProperties;
+};
+
 export type SqlRunnerConnectionKind = 'primary' | 'extra';
 
 type SqlRunnerConnectionProperties = {
@@ -1485,6 +1522,10 @@ export type EventData =
     | LearnWalkthroughStartedEvent
     | LearnWalkthroughCompletedEvent
     | LearnWalkthroughDismissedEvent
+    | GuidedTourStartedEvent
+    | GuidedTourStepViewedEvent
+    | GuidedTourCompletedEvent
+    | GuidedTourDismissedEvent
     | SqlRunnerConnectionSwitchedEvent
     | SqlRunnerConnectionHintResolvedEvent
     | SqlRunnerShareLinkOpenedEvent

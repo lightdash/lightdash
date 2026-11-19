@@ -807,6 +807,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     dashboardModel: models.getDashboardModel(),
                     savedChartService: repository.getSavedChartService(),
                     savedSqlService: repository.getSavedSqlService(),
+                    composerChartService: repository.getComposerChartService(),
                     savedChartModel: models.getSavedChartModel(),
                     coderService: repository.getCoderService(),
                     contentService: repository.getContentService(),
@@ -896,6 +897,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     documentService: repository.getDocumentService(),
                     savedChartService: repository.getSavedChartService(),
                     savedSqlService: repository.getSavedSqlService(),
+                    composerChartService: repository.getComposerChartService(),
                     contentService: repository.getContentService(),
                     aiCreditService:
                         repository.getAiCreditService<AiCreditService>(),
@@ -1127,8 +1129,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiAgentService<AiAgentService>(),
                     aiService: repository.getAiService<AiService>(),
                 }),
-            appStateService: ({ models, repository }) =>
+            appStateService: ({ models, repository, context }) =>
                 new AppStateService({
+                    analytics: context.lightdashAnalytics,
                     appStateModel: models.getAppStateModel<AppStateModel>(),
                     appModel: models.getAppModel(),
                     projectModel: models.getProjectModel(),

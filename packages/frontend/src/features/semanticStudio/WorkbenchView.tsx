@@ -1191,18 +1191,14 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 );
             case 'review':
                 return draft ? (
-                    <>
-                        <Box className={classes.mainBody}>
-                            <DraftReview
-                                projectUuid={view.project.id}
-                                draft={draft}
-                                onAskAgent={(prompt) => {
-                                    setIsChatOpen(true);
-                                    setAskedPrompt(prompt);
-                                }}
-                            />
-                        </Box>
-                    </>
+                    <DraftReview
+                        projectUuid={view.project.id}
+                        draft={draft}
+                        onAskAgent={(prompt) => {
+                            setIsChatOpen(true);
+                            setAskedPrompt(prompt);
+                        }}
+                    />
                 ) : null;
             case 'browse':
                 return (
@@ -1470,6 +1466,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                         className={classes.main}
                                         data-full={
                                             pane === 'code' ||
+                                            pane === 'review' ||
                                             pane === 'sources' ||
                                             pane === 'changes' ||
                                             pane === 'changeSummary'

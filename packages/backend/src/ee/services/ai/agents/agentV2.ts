@@ -2085,6 +2085,7 @@ export const getAgentTools = (
         editContent: () =>
             getEditContent({
                 editContent: dependencies.editContent,
+                prepareComposerChartEdit: dependencies.prepareComposerChartEdit,
                 siteUrl: args.siteUrl,
                 documentsEnabled,
                 chartsEnabled: args.enableContentTools,
@@ -2119,6 +2120,8 @@ export const getAgentTools = (
                 getSavedChart: dependencies.getSavedChart,
                 runSqlChartQuery: queryDependencies.runSqlChartQuery,
                 getSqlChart: dependencies.getSqlChart,
+                runComposerChartQuery: queryDependencies.runComposerChartQuery,
+                getComposerChart: dependencies.getComposerChart,
                 validateContent: dependencies.validateContent,
                 maxLimit: args.maxQueryLimit,
                 maxContextRows: args.maxContextRows,

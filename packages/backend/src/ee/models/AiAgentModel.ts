@@ -139,7 +139,10 @@ import {
     type DbApp,
     type DbAppVersion,
 } from '../../database/entities/apps';
-import { ComposerChartsTableName } from '../../database/entities/composerCharts';
+import {
+    ComposerChartsTableName,
+    ComposerChartVersionsTableName,
+} from '../../database/entities/composerCharts';
 import { ContentAsCodeSnapshotsTableName } from '../../database/entities/contentAsCodeSnapshots';
 import {
     DashboardsTableName,
@@ -7852,6 +7855,50 @@ export class AiAgentModel {
             ).map((r) => [r.saved_sql_uuid, r] as const),
         );
 
+        const composerChartUuids = context.flatMap((c) =>
+            c.type === 'composer_chart' ? [c.composerChartUuid] : [],
+        );
+        const composerChartLookup = new Map(
+            (composerChartUuids.length === 0
+                ? []
+                : await trx(ComposerChartsTableName)
+                      .leftJoin(
+                          ComposerChartVersionsTableName,
+                          `${ComposerChartsTableName}.composer_chart_uuid`,
+                          `${ComposerChartVersionsTableName}.composer_chart_uuid`,
+                      )
+                      .whereIn(
+                          `${ComposerChartsTableName}.composer_chart_uuid`,
+                          composerChartUuids,
+                      )
+                      .whereNull(`${ComposerChartsTableName}.deleted_at`)
+                      .distinctOn(
+                          `${ComposerChartsTableName}.composer_chart_uuid`,
+                      )
+                      .orderBy([
+                          {
+                              column: `${ComposerChartsTableName}.composer_chart_uuid`,
+                          },
+                          {
+                              column: `${ComposerChartVersionsTableName}.created_at`,
+                              order: 'desc',
+                              nulls: 'last',
+                          },
+                      ])
+                      .select<
+                          {
+                              composer_chart_uuid: string;
+                              name: string;
+                              composer_chart_version_uuid: string | null;
+                          }[]
+                      >({
+                          composer_chart_uuid: `${ComposerChartsTableName}.composer_chart_uuid`,
+                          name: `${ComposerChartsTableName}.name`,
+                          composer_chart_version_uuid: `${ComposerChartVersionsTableName}.composer_chart_version_uuid`,
+                      })
+            ).map((r) => [r.composer_chart_uuid, r] as const),
+        );
+
         const threadUuids = context.flatMap((c) =>
             c.type === 'thread' ? [c.threadUuid] : [],
         );
@@ -8000,6 +8047,20 @@ export class AiAgentModel {
                         pinned_version_uuid:
                             sqlChart?.saved_sql_version_uuid ?? null,
                         display_name: sqlChart?.name ?? null,
+                    };
+                }
+                case 'composer_chart': {
+                    const composerChart = composerChartLookup.get(
+                        ctx.composerChartUuid,
+                    );
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type:
+                            'composer_chart' as AiPromptContextEntityType,
+                        entity_uuid: ctx.composerChartUuid,
+                        pinned_version_uuid:
+                            composerChart?.composer_chart_version_uuid ?? null,
+                        display_name: composerChart?.name ?? null,
                     };
                 }
                 case 'document': {
@@ -8386,6 +8447,23 @@ export class AiAgentModel {
             ).map((r) => [r.saved_sql_uuid, r.slug] as const),
         );
 
+        const composerChartUuids = rows
+            .filter((r) => r.entity_type === 'composer_chart')
+            .map((r) => r.entity_uuid)
+            .filter((u): u is string => u !== null);
+        const composerChartSlugByUuid = new Map(
+            (composerChartUuids.length === 0
+                ? []
+                : await this.database(ComposerChartsTableName)
+                      .whereIn('composer_chart_uuid', composerChartUuids)
+                      .whereNull('deleted_at')
+                      .select<{ composer_chart_uuid: string; slug: string }[]>(
+                          'composer_chart_uuid',
+                          'slug',
+                      )
+            ).map((r) => [r.composer_chart_uuid, r.slug] as const),
+        );
+
         // review_finding / proposed_change pins resolve live finding data,
         // scoped by the org of the prompt they hang off. Only worth the extra
         // prompt -> thread -> org lookup when such a pin is actually present.
@@ -8545,6 +8623,7 @@ export class AiAgentModel {
                     dashboardSlugByUuid,
                     documentSlugByUuid,
                     sqlChartSlugByUuid,
+                    composerChartSlugByUuid,
                     reviewItem,
                     projectNameByUuid,
                     appDataByUuid,
@@ -8593,6 +8672,7 @@ export class AiAgentModel {
         dashboardSlugByUuid: Map<string, string>,
         documentSlugByUuid: Map<string, string>,
         sqlChartSlugByUuid: Map<string, string>,
+        composerChartSlugByUuid: Map<string, string>,
         reviewItem: AiAgentReviewItemSummary | null,
         projectNameByUuid: Map<string, string>,
         appDataByUuid: Map<
@@ -8638,6 +8718,17 @@ export class AiAgentModel {
                     displayName: row.display_name,
                     runtimeOverrides:
                         row.runtime_overrides as AiDashboardRuntimeOverrides | null,
+                };
+            }
+            case 'composer_chart': {
+                const entityUuid = requireEntityUuid();
+                return {
+                    type: 'composer_chart',
+                    composerChartUuid: entityUuid,
+                    composerChartSlug:
+                        composerChartSlugByUuid.get(entityUuid) ?? null,
+                    pinnedVersionUuid: row.pinned_version_uuid,
+                    displayName: row.display_name,
                 };
             }
             case 'sql_chart': {

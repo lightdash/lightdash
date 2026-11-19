@@ -6,12 +6,12 @@ import { toolNameFor } from './discoveryToolNames';
 export const TOOL_EDIT_CONTENT_DESCRIPTION = ({
     runtime,
 }: ToolDescriptionContext): string =>
-    `Edit a dashboard, chart or SQL chart with an RFC6902 patch against its JSON as ${toolNameFor('readContent', runtime)} last returned it; the edited content is validated before it is saved. The content's space must show canEdit true in ${toolNameFor('findContent', runtime)} or ${toolNameFor('listContent', runtime)} results; an edit in any other space is refused. A SQL chart needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL.`;
+    `Edit a dashboard, chart, SQL chart or composer chart with an RFC6902 patch against its JSON as ${toolNameFor('readContent', runtime)} last returned it; the edited content is validated before it is saved. The content's space must show canEdit true in ${toolNameFor('findContent', runtime)} or ${toolNameFor('listContent', runtime)} results; an edit in any other space is refused. A SQL chart needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL. A composer chart is saved in place on its dashboard as a new version; new warehouse SQL in its nodes waits for approval the same way.`;
 
 export const toolEditContentArgsSchema = z.object({
     slug: z.string().min(1).describe('Exact slug of the content to edit'),
     type: z
-        .enum(['dashboard', 'chart', 'sql_chart'])
+        .enum(['dashboard', 'chart', 'sql_chart', 'composer_chart'])
         .describe('Type of Lightdash content to edit'),
     patch: z
         .array(z.unknown())
@@ -49,7 +49,7 @@ export const toolEditContentStructuredContentSchema = z.discriminatedUnion(
     'type',
     [
         z.object({
-            type: z.enum(['dashboard', 'chart', 'sql_chart']),
+            type: z.enum(['dashboard', 'chart', 'sql_chart', 'composer_chart']),
             href: editedContentHrefSchema,
             content: z
                 .record(z.string(), z.unknown())

@@ -29,4 +29,6 @@ if git diff --cached --name-only | grep -q "examples/full-jaffle-shop-demo/profi
 fi
 
 pnpm exec lint-staged
-pnpm -F frontend unused-exports
+if git diff --cached --name-only -- packages/frontend | grep -q .; then
+  pnpm -F frontend unused-exports
+fi

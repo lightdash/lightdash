@@ -135,6 +135,7 @@ const AiAgentNewThreadPage: FC = () => {
     const [searchParams] = useSearchParams();
     const chartUuid = searchParams.get('chartUuid');
     const sqlChartUuid = searchParams.get('sqlChartUuid');
+    const composerChartUuid = searchParams.get('composerChartUuid');
     const dashboardUuid = searchParams.get('dashboardUuid');
     const dataAppUuid = searchParams.get('dataAppUuid');
     const documentUuid = searchParams.get('documentUuid');
@@ -151,6 +152,7 @@ const AiAgentNewThreadPage: FC = () => {
         dataAppUuidOrSlug: dataAppUuid,
         documentUuid,
         sqlChartUuid,
+        composerChartUuid,
     });
     const boundDashboardUuid =
         aiAgentThreadSetup?.binding?.type === 'dashboard'

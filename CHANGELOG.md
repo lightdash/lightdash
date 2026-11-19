@@ -1,3 +1,40 @@
+# [3.334.0](https://github.com/lightdash/lightdash/compare/3.333.0...3.334.0) (2026-11-19)
+
+
+### Bug Fixes
+
+* align dbt project environment settings ([#32966](https://github.com/lightdash/lightdash/issues/32966)) ([a128d8a](https://github.com/lightdash/lightdash/commit/a128d8a9c1a384fa9710e9e8441abcbf463839b9))
+* **frontend:** pass tracking={null} to VoiceDesignTour GuidedTour ([#32969](https://github.com/lightdash/lightdash/issues/32969)) ([91e777a](https://github.com/lightdash/lightdash/commit/91e777a67cdd141ad0c23758b84ada070c57661b))
+
+
+### Features
+
+* **data-apps:** track saved app state usage ([#32962](https://github.com/lightdash/lightdash/issues/32962)) ([94e08fe](https://github.com/lightdash/lightdash/commit/94e08fe3704009068172973938c267db48a68503))
+
+# [3.333.0](https://github.com/lightdash/lightdash/compare/3.332.1...3.333.0) (2026-11-19)
+
+
+### Features
+
+* **ai:** agent edits composer charts ([#32719](https://github.com/lightdash/lightdash/issues/32719)) ([de49409](https://github.com/lightdash/lightdash/commit/de49409448f254cb9d645fe6af87277c513a7bbe))
+* **ai:** agent reads and runs composer charts ([#32712](https://github.com/lightdash/lightdash/issues/32712)) ([f26ad96](https://github.com/lightdash/lightdash/commit/f26ad96737ea5f5cbac32b2425b8b33a748cbe86))
+* **ai:** Ask AI on composer chart dashboard tiles ([#32755](https://github.com/lightdash/lightdash/issues/32755)) ([1ea7c1b](https://github.com/lightdash/lightdash/commit/1ea7c1b456d269021619fd752fbba6bbd21b4cbb))
+* **ai:** create composer charts with createContent ([#32844](https://github.com/lightdash/lightdash/issues/32844)) ([c0edafa](https://github.com/lightdash/lightdash/commit/c0edafaf7518213d145263d04691e4075614a772))
+
+## [3.332.1](https://github.com/lightdash/lightdash/compare/3.332.0...3.332.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **semantic-studio:** open Try it on a checked-out draft, fill the overview pane, quiet the card and offer changes as a choice ([#32964](https://github.com/lightdash/lightdash/issues/32964)) ([679f9c4](https://github.com/lightdash/lightdash/commit/679f9c46554697a73628c26b0e9eac4594e032e8))
+
+# [3.332.0](https://github.com/lightdash/lightdash/compare/3.331.0...3.332.0) (2026-11-19)
+
+
+### Features
+
+* **ai:** let Slack channels use a shared service account's permissions ([#32948](https://github.com/lightdash/lightdash/issues/32948)) ([71b42d6](https://github.com/lightdash/lightdash/commit/71b42d65b18abb7e5745b9e776058930e6e049f8))
+
 # [3.331.0](https://github.com/lightdash/lightdash/compare/3.330.1...3.331.0) (2026-11-19)
 
 
