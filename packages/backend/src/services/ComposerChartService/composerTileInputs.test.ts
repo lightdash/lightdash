@@ -558,29 +558,26 @@ describe('getComposerNodeDateZooms', () => {
         });
     });
 
-    it("zooms a merge's legs together, or none when one has a date it cannot zoom", () => {
+    it("leaves a merge's legs unzoomed, since the merge compiles against their saved fields", () => {
         const merged: ComposerChartPipelineNode = {
             sourceType: QuerySourceType.MERGE,
             nodeId: 'merged',
             title: 'Merged',
-            sources: [
-                { nodeId: 'events' },
-                { nodeId: 'visits' },
-                { nodeId: 'payments' },
-            ],
+            sources: [{ nodeId: 'events' }, { nodeId: 'payments' }],
             joinKey: [],
             joinType: MergeJoinType.FULL,
         };
-        const zoom = (granularity: DateGranularity) =>
+        expect(
             getComposerNodeDateZooms({
                 nodes: [eventsNode, visitsNode, paymentsNode, merged],
                 exploreByNodeId: zoomExplores,
-                dateZoom: { granularity },
-            });
-        expect(Object.keys(zoom(DateGranularity.MONTH))).toEqual([
-            'events',
-            'visits',
-        ]);
-        expect(zoom(DateGranularity.HOUR)).toEqual({});
+                dateZoom: { granularity: DateGranularity.MONTH },
+            }),
+        ).toEqual({
+            visits: {
+                granularity: DateGranularity.MONTH,
+                xAxisFieldId: 'visits_day',
+            },
+        });
     });
 });

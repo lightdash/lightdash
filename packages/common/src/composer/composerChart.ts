@@ -590,7 +590,7 @@ const runRequestSchema = z.strictObject({
             xAxisFieldId: z.string().optional(),
         })
         .nullable()
-        .default(null),
+        .optional(),
 });
 
 /** Strict parse of a run request: nothing it carries can add or change a node. */

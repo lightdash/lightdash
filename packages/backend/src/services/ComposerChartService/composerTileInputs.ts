@@ -250,19 +250,16 @@ export const getComposerParameterReferences = (
     ),
 ];
 
-type NodeDateZoomTarget =
-    | { kind: 'zoom'; fieldId: string }
-    // Has a date dimension it cannot re-grain
-    | { kind: 'refused' };
-
-const getNodeDateZoomTarget = (
+// The dimension a node re-grains, null when it has none it can zoom
+const getNodeDateZoomFieldId = (
     node: Extract<
         ComposerChartPipelineNode,
         { sourceType: QuerySourceType.SEMANTIC_LAYER }
     >,
     explore: Explore,
     { granularity, xAxisFieldId }: DateZoom & { granularity: string },
-): NodeDateZoomTarget | null => {
+): string | null => {
+    if (isDateZoomRefusedOnExplore(explore)) return null;
     const allDimensions = getAllDimensionsMap(explore);
     const timeDimensions = getTimeDimensionsMap(explore);
     const dateDimensions = node.dimensions.flatMap((fieldId) => {
@@ -273,11 +270,10 @@ const getNodeDateZoomTarget = (
         );
         return base ? [{ fieldId, base }] : [];
     });
-    if (dateDimensions.length === 0) return null;
-    if (isDateZoomRefusedOnExplore(explore)) return { kind: 'refused' };
     const target =
         dateDimensions.find(({ fieldId }) => fieldId === xAxisFieldId) ??
         dateDimensions[0];
+    if (!target) return null;
     // As updateExploreWithDateZoom: a custom grain needs its precompiled dimension
     const canZoom = isStandardDateGranularity(granularity)
         ? !(
@@ -288,9 +284,7 @@ const getNodeDateZoomTarget = (
               (table) =>
                   !!table.dimensions[`${target.base.name}_${granularity}`],
           );
-    return canZoom
-        ? { kind: 'zoom', fieldId: target.fieldId }
-        : { kind: 'refused' };
+    return canZoom ? target.fieldId : null;
 };
 
 /** The field a stored chart plots on its x axis, if it is a cartesian chart. */
@@ -301,7 +295,7 @@ export const getStoredChartXField = (
         ? chart.chartConfig.config.layout?.xField
         : undefined;
 
-/** The date zoom each semantic-layer node runs with, naming the dimension it re-grains; a merge's legs zoom together or not at all. */
+/** The date zoom each semantic-layer node runs with, naming the dimension it re-grains; a merge's legs stay unzoomed, as the merge compiles against their saved fields. */
 export const getComposerNodeDateZooms = ({
     nodes,
     exploreByNodeId,
@@ -313,38 +307,29 @@ export const getComposerNodeDateZooms = ({
 }): Record<string, DateZoom> => {
     const granularity = dateZoom?.granularity;
     if (!granularity) return {};
-    const targets = new Map<string, NodeDateZoomTarget>();
-    nodes.forEach((node) => {
-        const explore = exploreByNodeId[node.nodeId];
-        if (node.sourceType !== QuerySourceType.SEMANTIC_LAYER || !explore)
-            return;
-        const target = getNodeDateZoomTarget(node, explore, {
-            ...dateZoom,
-            granularity,
-        });
-        if (target) targets.set(node.nodeId, target);
-    });
-    const merges = nodes.flatMap((node) =>
-        node.sourceType === QuerySourceType.MERGE ? [node] : [],
-    );
-    const hasRefusedAndZoomedLegs = (legs: string[]) =>
-        legs.some((leg) => targets.get(leg)?.kind === 'refused') &&
-        legs.some((leg) => targets.get(leg)?.kind === 'zoom');
-    // Refusing one merge's legs may leave another merge mixed
-    let mixed;
-    do {
-        mixed = merges.find(({ sources }) =>
-            hasRefusedAndZoomedLegs(sources.map((source) => source.nodeId)),
-        );
-        for (const { nodeId } of mixed?.sources ?? []) {
-            if (targets.has(nodeId)) targets.set(nodeId, { kind: 'refused' });
-        }
-    } while (mixed);
-    return Object.fromEntries(
-        [...targets].flatMap(([nodeId, target]) =>
-            target.kind === 'zoom'
-                ? [[nodeId, { granularity, xAxisFieldId: target.fieldId }]]
+    const mergeLegs = new Set(
+        nodes.flatMap((node) =>
+            node.sourceType === QuerySourceType.MERGE
+                ? node.sources.map((source) => source.nodeId)
                 : [],
         ),
+    );
+    return Object.fromEntries(
+        nodes.flatMap((node) => {
+            const explore = exploreByNodeId[node.nodeId];
+            if (
+                node.sourceType !== QuerySourceType.SEMANTIC_LAYER ||
+                !explore ||
+                mergeLegs.has(node.nodeId)
+            )
+                return [];
+            const xAxisFieldId = getNodeDateZoomFieldId(node, explore, {
+                ...dateZoom,
+                granularity,
+            });
+            return xAxisFieldId
+                ? [[node.nodeId, { granularity, xAxisFieldId }]]
+                : [];
+        }),
     );
 };
