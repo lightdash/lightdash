@@ -87,6 +87,21 @@ export type HubspotApiSource = {
     connector: ApiConnectorType.HUBSPOT;
 };
 
+/** The Salesforce objects a source can read, one per source. */
+export const SALESFORCE_OBJECTS = [
+    'Opportunity',
+    'Account',
+    'Lead',
+    'Contact',
+] as const;
+export type SalesforceObject = (typeof SALESFORCE_OBJECTS)[number];
+
+export type SalesforceApiSource = {
+    connector: ApiConnectorType.SALESFORCE;
+    /** The standard object the source reads, by its API name. */
+    object: SalesforceObject;
+};
+
 /** Connector settings of a live source; the server fixes its access rules. */
 export type ExternalConnectionApiSource =
     | PostHogApiSource
@@ -99,7 +114,8 @@ export type ExternalConnectionApiSource =
     | GithubApiSource
     | PylonApiSource
     | AttioApiSource
-    | HubspotApiSource;
+    | HubspotApiSource
+    | SalesforceApiSource;
 
 /** The settings of one integration's sources. */
 export type ApiSourceOf<C extends ApiConnectorType> = Extract<
@@ -164,6 +180,32 @@ export const getHubspotPropertiesPath = (object: string) =>
 
 export const getHubspotSearchPath = (object: string) =>
     `/crm/v3/objects/${object}/search`;
+/** Every Salesforce call goes to this REST API version, so responses keep one shape. */
+export const SALESFORCE_API_VERSION = 'v62.0';
+
+/** Where people sign in to a Salesforce org (sandboxes aren't supported). */
+export const SALESFORCE_LOGIN_ORIGIN = 'https://login.salesforce.com';
+export const SALESFORCE_TOKEN_URL = `${SALESFORCE_LOGIN_ORIGIN}/services/oauth2/token`;
+
+export const SALESFORCE_QUERY_PATH = `/services/data/${SALESFORCE_API_VERSION}/query`;
+export const SALESFORCE_LIMITS_PATH = `/services/data/${SALESFORCE_API_VERSION}/limits`;
+
+export const getSalesforceDescribePath = (object: string) =>
+    `/services/data/${SALESFORCE_API_VERSION}/sobjects/${object}/describe`;
+
+/** Salesforce's shared login hosts, which never serve an org's API. */
+const SALESFORCE_SHARED_LOGIN_ORIGINS = [
+    SALESFORCE_LOGIN_ORIGIN,
+    'https://test.salesforce.com',
+];
+
+/** An org's own API host, as its sign-in returns it: a My Domain such as https://acme.my.salesforce.com. */
+const SALESFORCE_INSTANCE_ORIGIN =
+    /^https:\/\/[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*\.salesforce\.com$/;
+
+export const isSalesforceInstanceOrigin = (origin: string) =>
+    SALESFORCE_INSTANCE_ORIGIN.test(origin.toLowerCase()) &&
+    !SALESFORCE_SHARED_LOGIN_ORIGINS.includes(origin.toLowerCase());
 
 /** HTTP methods an admin can opt a connection into. Single source of truth for
  *  the backend validation allowlist and the frontend method pickers. */

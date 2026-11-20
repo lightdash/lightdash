@@ -1946,6 +1946,11 @@ export type LightdashConfig = {
             oauthClientId: string | undefined;
             oauthClientSecret: string | undefined;
         };
+        /** The consumer key and secret of a Salesforce Connected App. */
+        salesforce: {
+            oauthClientId: string | undefined;
+            oauthClientSecret: string | undefined;
+        };
     };
     contentAsCode: {
         maxDownloads: number;
@@ -4228,6 +4233,12 @@ export const parseConfig = (): LightdashConfig => {
                     process.env.LINKEDIN_ADS_OAUTH_CLIENT_ID || undefined,
                 oauthClientSecret:
                     process.env.LINKEDIN_ADS_OAUTH_CLIENT_SECRET || undefined,
+            },
+            salesforce: {
+                oauthClientId:
+                    process.env.SALESFORCE_OAUTH_CLIENT_ID || undefined,
+                oauthClientSecret:
+                    process.env.SALESFORCE_OAUTH_CLIENT_SECRET || undefined,
             },
         },
         contentAsCode: {

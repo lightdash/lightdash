@@ -113,8 +113,12 @@ export const validateLiveConnection = <C extends ApiConnectorType>(
     { apiSource, type, origin, oauthTokenUrl }: LiveConnectionSettings<C>,
 ) => {
     integration.validate(apiSource);
-    const { origins, label } = integration;
-    if (!origins.includes(origin.replace(/\/+$/, ''))) {
+    const { origins, acceptsOrigin, label } = integration;
+    const trimmed = origin.replace(/\/+$/, '');
+    const isAccepted = acceptsOrigin
+        ? acceptsOrigin(trimmed)
+        : origins.includes(trimmed);
+    if (!isAccepted) {
         throw new ParameterError(
             `${label} connections must use ${origins.join(' or ')}`,
         );

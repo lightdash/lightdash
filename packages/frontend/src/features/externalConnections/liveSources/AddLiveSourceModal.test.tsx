@@ -28,7 +28,10 @@ vi.mock('../../../providers/App/useApp', () => ({
 
 const onPick = vi.fn();
 
-const renderModal = ({ canUseLinkedInAds = true } = {}) =>
+const renderModal = ({
+    canUseLinkedInAds = true,
+    canUseSalesforce = true,
+} = {}) =>
     renderWithProviders(
         <MemoryRouter>
             <AddLiveSourceModal
@@ -37,6 +40,7 @@ const renderModal = ({ canUseLinkedInAds = true } = {}) =>
                 projectUuid="project-1"
                 canUseGoogle
                 canUseLinkedInAds={canUseLinkedInAds}
+                canUseSalesforce={canUseSalesforce}
                 onPick={onPick}
             />
         </MemoryRouter>,
