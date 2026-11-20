@@ -1,6 +1,5 @@
 import {
     FeatureFlags,
-    type AiPromptContextInput,
     type Dashboard,
     type DashboardTile,
 } from '@lightdash/common';
@@ -22,27 +21,16 @@ import useApp from '../../../providers/App/useApp';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import useIsEmbedded from '../../providers/Embed/useIsEmbedded';
-import BubbleReplyPoster, {
-    type BubbleReplyPost,
-} from '../aiCopilot/components/BubbleThread/BubbleReplyPoster';
-import { BubbleThread } from '../aiCopilot/components/BubbleThread/BubbleThread';
 import launcherClasses from '../aiCopilot/components/Launcher/AiAgentsLauncher.module.css';
-import { LauncherAgentPicker } from '../aiCopilot/components/Launcher/LauncherAgentPicker';
 import { useLauncherDockExtras } from '../aiCopilot/components/Launcher/launcherDockExtras';
-import { buildDesignPrompt } from '../capture/buildDesignPrompt';
 import { chipLabel } from '../capture/chipLabel';
-import {
-    activeCollection,
-    isInProgress,
-    type Bubble,
-    type DesignSession,
-} from '../capture/designSession';
+import { type Bubble } from '../capture/designSession';
 import {
     type DesignPayload,
     type DesignSendResult,
     type DesignSurface,
 } from '../capture/types';
-import { useBubbleSend } from '../capture/useBubbleSend';
+import { useBubbleConversations } from '../capture/useBubbleConversations';
 import { useDesignMode } from '../capture/useDesignMode';
 import classes from './DashboardDesignMode.module.css';
 import {
@@ -81,17 +69,8 @@ const DashboardDesignSurface: FC<Props> = ({
     tilesRef.current = dashboardTiles ?? [];
     const activeTabRef = useRef<Tab | null>(null);
     activeTabRef.current = activeTab;
-    const sessionRef = useRef<DesignSession | null>(null);
-    // How to reply in each sent bubble's conversation.
-    const postersRef = useRef(new Map<string, BubbleReplyPost>());
-    // What was mentioned in a reply's composer, kept until that reply is sent.
-    const replyContextRef = useRef(new Map<string, AiPromptContextInput>());
-
-    const {
-        send: sendBubble,
-        cancel: cancelSend,
-        picker,
-    } = useBubbleSend(projectUuid);
+    const conversations = useBubbleConversations(projectUuid);
+    const { send: sendMessage } = conversations;
 
     const voiceTranscriptionAvailable =
         health.data?.ai.voiceTranscriptionAvailable;
@@ -125,138 +104,52 @@ const DashboardDesignSurface: FC<Props> = ({
     }, [lightdashApi, projectUuid, voiceTranscriptionAvailable]);
 
     const onSend = useCallback(
-        async (payload: DesignPayload): Promise<DesignSendResult> => {
-            const charts = chartUuidsForMarks(
-                payload.marks,
-                tilesRef.current,
-            ).map((chartUuid) => ({ type: 'chart' as const, chartUuid }));
-            const prompt = (surfaceHeading: string) => (hasImages: boolean) =>
-                buildDesignPrompt({
-                    surfaceHeading,
-                    summary: payload.summary,
-                    typed: payload.typed,
-                    hasImages,
-                });
-
-            const bubble = sessionRef.current?.bubbles.find(
-                (b) => b.id === payload.bubbleId,
-            );
-            if (bubble?.threadId && bubble.agentUuid) {
-                // A reply: the conversation already knows its dashboard.
-                const post = postersRef.current.get(bubble.id);
-                if (!post) throw new Error('The conversation is not open');
-                const mentioned = replyContextRef.current.get(bubble.id) ?? [];
-                replyContextRef.current.delete(bubble.id);
-                await post({
-                    buildPrompt: prompt(''),
-                    images: payload.images,
-                    context: [...mentioned, ...charts],
-                });
-                return {
-                    threadId: bubble.threadId,
-                    agentUuid: bubble.agentUuid,
-                };
-            }
-
-            return sendBubble({
-                bubbleId: payload.bubbleId,
-                buildPrompt: prompt(
-                    `These requests are about the dashboard "${dashboardName}".`,
+        (payload: DesignPayload): Promise<DesignSendResult> =>
+            sendMessage(payload, {
+                heading: `These requests are about the dashboard "${dashboardName}".`,
+                about: [{ type: 'dashboard', dashboardUuid }],
+                marked: chartUuidsForMarks(payload.marks, tilesRef.current).map(
+                    (chartUuid) => ({ type: 'chart' as const, chartUuid }),
                 ),
-                images: payload.images,
-                context: [{ type: 'dashboard', dashboardUuid }, ...charts],
-            });
-        },
-        [dashboardName, dashboardUuid, sendBubble],
+            }),
+        [dashboardName, dashboardUuid, sendMessage],
     );
 
-    // Set below, once the hook that needs this function has run.
-    const designRef = useRef<ReturnType<typeof useDesignMode> | null>(null);
-
-    const renderBubbleBody = (
-        bubble: Bubble,
-        session: DesignSession,
-    ): ReactNode => {
-        if (bubble.status === 'picking-agent') {
-            return picker?.bubbleId === bubble.id ? (
-                <LauncherAgentPicker
-                    candidates={picker.candidates}
-                    onPick={picker.onPick}
-                    waitingPrompt={null}
-                />
-            ) : null;
-        }
-        const { threadId, agentUuid } = bubble;
-        if (bubble.status !== 'thread' || !threadId || !agentUuid) return null;
-
-        const active = activeCollection(session);
-        const armed =
-            session.active.kind === 'bubble' &&
-            session.active.bubbleId === bubble.id;
-        const collecting =
-            active !== null &&
-            (active.bubble.input === 'mic' || isInProgress(active.collection));
+    // Marks made on another tab are not on screen beside their bubble.
+    const marksElsewhere = (bubble: Bubble): ReactNode => {
         const homeTab = tabs.find((tab) => tab.uuid === bubble.homeTabUuid);
-        // Marks made on another tab are not on screen beside this bubble.
         const elsewhere = bubble.sentMarks.flatMap((mark) => {
             const tab = tabs.find(
                 (candidate) => candidate.name === mark.tabName,
             );
             return tab && tab.uuid !== homeTab?.uuid ? [{ mark, tab }] : [];
         });
-
+        if (elsewhere.length === 0) return null;
         return (
-            <>
-                {elsewhere.length > 0 && (
-                    <Group gap={4} mb={6}>
-                        {elsewhere.map(({ mark, tab }) => (
-                            <Button
-                                key={mark.number}
-                                size="compact-xs"
-                                variant="light"
-                                color="red"
-                                onClick={() => setActiveTab(tab)}
-                            >
-                                {`${chipLabel(mark.number)} on ${tab.name}`}
-                            </Button>
-                        ))}
-                    </Group>
-                )}
-                <BubbleThread
-                    projectUuid={projectUuid}
-                    agentUuid={agentUuid}
-                    threadId={threadId}
-                    armed={armed}
-                    onArm={(input) => designRef.current?.arm(bubble.id, input)}
-                    replyCollecting={collecting}
-                    onSendReply={(prompt, context) => {
-                        replyContextRef.current.set(bubble.id, context);
-                        designRef.current?.send(bubble.id, prompt);
-                        return Promise.resolve();
-                    }}
-                    // The bubble draws its own close button.
-                    onClose={null}
-                />
-            </>
+            <Group gap={4} mb={6}>
+                {elsewhere.map(({ mark, tab }) => (
+                    <Button
+                        key={mark.number}
+                        size="compact-xs"
+                        variant="light"
+                        color="red"
+                        onClick={() => setActiveTab(tab)}
+                    >
+                        {`${chipLabel(mark.number)} on ${tab.name}`}
+                    </Button>
+                ))}
+            </Group>
         );
     };
 
     const design = useDesignMode(surface, {
         onSend,
-        renderBubbleBody,
-        picker,
-        cancelSend,
+        renderBubbleBody: (bubble, session) =>
+            conversations.renderBody(bubble, session, marksElsewhere(bubble)),
+        picker: conversations.picker,
+        cancelSend: conversations.cancelSend,
     });
-    designRef.current = design;
-    sessionRef.current = design.session;
-
-    const registerPoster = useCallback(
-        (bubbleId: string, post: BubbleReplyPost | null) => {
-            if (post) postersRef.current.set(bubbleId, post);
-            else postersRef.current.delete(bubbleId);
-        },
-        [],
-    );
+    conversations.attach(design);
 
     const toggle = (
         <Tooltip label="Design Mode" position="top">
@@ -274,18 +167,7 @@ const DashboardDesignSurface: FC<Props> = ({
     return (
         <>
             {design.element}
-            {design.session.bubbles.map((bubble) =>
-                bubble.threadId && bubble.agentUuid ? (
-                    <BubbleReplyPoster
-                        key={bubble.id}
-                        projectUuid={projectUuid}
-                        agentUuid={bubble.agentUuid}
-                        threadId={bubble.threadId}
-                        bubbleId={bubble.id}
-                        register={registerPoster}
-                    />
-                ) : null,
-            )}
+            {conversations.renderPosters(design.session)}
             {dockExtras ? (
                 createPortal(toggle, dockExtras)
             ) : (

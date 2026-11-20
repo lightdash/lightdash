@@ -103,6 +103,10 @@ const grabFrame = (
     return grabAppFrame(surface.grabAppImage, region);
 };
 
+// An app is picked by a click inside its own frame, which this page cannot see.
+const picksInFrame = (surface: DesignSurface | null): boolean =>
+    surface?.frameSource === 'app';
+
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
 const boxInRegion = (rect: DOMRect, region: DOMRect): Box => {
@@ -146,6 +150,10 @@ export const useDesignMode = (
     discard: (bubbleId: string) => void;
     close: (bubbleId: string) => void;
     holding: DesignTool | null;
+    /** An app's own element picker reported a click, at this viewport point. */
+    framePick: (at: { x: number; y: number }) => void;
+    /** A hold key went down or came up inside an app frame. */
+    frameHold: (tool: DesignTool, phase: 'down' | 'up') => void;
     element: ReactNode;
 } => {
     // Read through refs so the callbacks below keep a stable identity.
@@ -665,11 +673,11 @@ export const useDesignMode = (
         refreshInk();
     }, [refreshInk]);
 
-    const onPick = useCallback(
-        (point: Point) => {
+    const framePick = useCallback(
+        (at: { x: number; y: number }) => {
             const hold = holdRef.current;
             if (!hold || hold.tool !== 'cursor' || hold.picked) return;
-            const hit = surfaceRef.current?.pickAt?.(holdPoint(hold, point));
+            const hit = surfaceRef.current?.pickAt?.(at);
             if (!hit) return;
             hold.picked = true;
             setHover(null);
@@ -678,10 +686,29 @@ export const useDesignMode = (
                 target: hit.target,
                 rect: hit.rect,
                 endAbs: performance.now(),
-                pointer: holdPoint(hold, point),
+                pointer: at,
             });
         },
         [commit],
+    );
+
+    const onPick = useCallback(
+        (point: Point) => {
+            const hold = holdRef.current;
+            if (hold) framePick(holdPoint(hold, point));
+        },
+        [framePick],
+    );
+
+    const frameHold = useCallback(
+        (tool: DesignTool, phase: 'down' | 'up') => {
+            if (phase === 'up') {
+                if (holdRef.current?.tool === tool) endHold();
+                return;
+            }
+            if (downKeysRef.current.size === 0) beginHold(tool);
+        },
+        [beginHold, endHold],
     );
 
     const finish = useCallback(
@@ -1044,10 +1071,19 @@ export const useDesignMode = (
         };
         // A sealed iframe swallows keys once clicked, so take focus back.
         const onBlur = () => {
-            endHold();
+            // Picking in an app means clicking into its frame: the hold stays.
+            const picking =
+                holdRef.current?.tool === 'cursor' &&
+                picksInFrame(surfaceRef.current);
+            if (!picking) endHold();
             downKeys.clear();
             window.setTimeout(() => {
-                if (document.activeElement?.tagName !== 'IFRAME') return;
+                if (document.activeElement?.tagName !== 'IFRAME') {
+                    if (picking && holdRef.current?.tool === 'cursor') {
+                        endHold();
+                    }
+                    return;
+                }
                 window.focus();
                 toolbarRef.current?.focus({ preventScroll: true });
             }, 0);
@@ -1088,6 +1124,9 @@ export const useDesignMode = (
 
     const tabUuid = surface?.getTab()?.uuid ?? null;
     const passthrough = holding !== null;
+    // The app's own picker takes the click, so the ink layer stays out of the way.
+    const inkTakesPointer =
+        passthrough && !(holding === 'cursor' && picksInFrame(surface));
 
     // A bubble shows once its first mark has landed and it has a place.
     const shownBubbles = visibleBubbles(session, tabUuid).filter(
@@ -1107,7 +1146,7 @@ export const useDesignMode = (
                   <>
                       <InkOverlay
                           rect={rect}
-                          holding={passthrough}
+                          holding={inkTakesPointer}
                           inkVisible
                           strokes={ink}
                           fading={null}
@@ -1168,6 +1207,8 @@ export const useDesignMode = (
         discard,
         close,
         holding,
+        framePick,
+        frameHold,
         element,
     };
 };

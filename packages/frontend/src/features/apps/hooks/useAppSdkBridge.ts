@@ -1,5 +1,6 @@
 import {
     APP_SDK_APP_STATE_MESSAGE,
+    APP_SDK_CAPTURE_HOLD_MESSAGE,
     APP_SDK_CAPTURE_HOTKEY_MESSAGE,
     APP_SDK_APP_STATE_RESPONSE_MESSAGE,
     APP_SDK_COLOR_SCHEME_MESSAGE,
@@ -36,6 +37,7 @@ import {
     LightdashSignedDownloadHeader,
     parseAppSdkExploreBaseTableRequest,
     type AppColorScheme,
+    type AppSdkCaptureHold,
     type AppSdkSpaceChartsResult,
     type AppSdkExploreBaseTableResult,
     type DashboardFilters,
@@ -469,9 +471,37 @@ export type SdkManifest = {
     navigationId?: string;
 };
 
+export type ElementRect = {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+};
+
 export type ElementSelectedEvent = {
     /** Bracketed reference produced by the iframe inspector, e.g. `[button "Save"]`. */
     label: string;
+    /** The element's bounds in the iframe's viewport. Bundles built before
+     *  the SDK sent them leave it out. */
+    rect?: ElementRect;
+};
+
+const parseElementRect = (value: unknown): ElementRect | null => {
+    if (!value || typeof value !== 'object') return null;
+    const { x, y, width, height } = value as Record<string, unknown>;
+    return [x, y, width, height].every(Number.isFinite)
+        ? ({ x, y, width, height } as ElementRect)
+        : null;
+};
+
+const parseCaptureHold = (data: {
+    tool?: unknown;
+    phase?: unknown;
+}): AppSdkCaptureHold | null => {
+    const { tool, phase } = data;
+    if (tool !== 'stylus' && tool !== 'cursor') return null;
+    if (phase !== 'down' && phase !== 'up') return null;
+    return { tool, phase };
 };
 
 /**
@@ -663,6 +693,12 @@ export type UseAppSdkBridgeParams = {
      * the SDK forwarded the hotkey never send it.
      */
     onCaptureHotkey?: () => void;
+    /**
+     * A Design Mode hold key (Option/Alt or Control, on its own) went down or
+     * came up while focus was inside the app. Absent = dropped. Bundles built
+     * before the SDK forwarded the hold keys never send it.
+     */
+    onCaptureHold?: (hold: AppSdkCaptureHold) => void;
 };
 
 export function useAppSdkBridge({
@@ -709,6 +745,7 @@ export function useAppSdkBridge({
     onInsightAnalyseOnLoadChange,
     onMountedQueriesChange,
     onCaptureHotkey,
+    onCaptureHold,
 }: UseAppSdkBridgeParams) {
     const lightdashApi = useLightdashApi();
     // Embed mode adapts the bridge's outgoing fetches in two ways:
@@ -896,6 +933,12 @@ export function useAppSdkBridge({
                 return;
             }
 
+            if (data?.type === APP_SDK_CAPTURE_HOLD_MESSAGE) {
+                const hold = parseCaptureHold(data);
+                if (hold) onCaptureHold?.(hold);
+                return;
+            }
+
             if (data?.type === APP_SDK_INSIGHTS_REQUEST_MESSAGE) {
                 const { inUse, instructions, analyseOnLoad } = data as {
                     inUse?: unknown;
@@ -992,7 +1035,8 @@ export function useAppSdkBridge({
             if (data?.type === 'lightdash:inspect:selected') {
                 const label = typeof data.label === 'string' ? data.label : '';
                 if (label && onElementSelected) {
-                    onElementSelected({ label });
+                    const rect = parseElementRect(data.rect);
+                    onElementSelected(rect ? { label, rect } : { label });
                 }
                 return;
             }
@@ -1925,6 +1969,7 @@ export function useAppSdkBridge({
             onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
             onCaptureHotkey,
+            onCaptureHold,
             lightdashApi,
         ],
     );

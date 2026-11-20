@@ -1468,12 +1468,14 @@ export type ApiDataAppVizPreviewTokenResponse = ApiSuccess<{
 }>;
 
 export {
+    APP_SDK_CAPTURE_HOLD_MESSAGE,
     APP_SDK_CAPTURE_HOTKEY_MESSAGE,
     APP_SDK_COLOR_SCHEME_MESSAGE,
     APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE,
     APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
     type AppColorScheme,
+    type AppSdkCaptureHold,
 } from './sdkMessages';
 
 // AI analysis pushed into a running app (mirrors packages/query-sdk/src/insights.ts).

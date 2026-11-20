@@ -33,6 +33,11 @@ vi.mock('./domFrame', () => ({
     grabDomFrame: (...args: unknown[]) => grabDomFrame(...args),
 }));
 
+const grabAppFrame = vi.fn();
+vi.mock('./appFrame', () => ({
+    grabAppFrame: (...args: unknown[]) => grabAppFrame(...args),
+}));
+
 vi.mock('./composeImage', () => ({
     INK_COLOR: '#e03131',
     composeImage: vi.fn(async () => new File(['x'], 'capture-1.png')),
@@ -319,6 +324,137 @@ describe('useDesignMode', () => {
         } finally {
             surface.pickAt = null;
         }
+    });
+
+    describe('on an app, which is picked from inside its own frame', () => {
+        const element = {
+            target: { kind: 'element', id: 'save', label: '[button "Save"]' },
+            rect: new DOMRect(20, 20, 30, 10),
+        };
+        const useAppSurface = (picked: { current: typeof element | null }) => {
+            surface.frameSource = 'app';
+            surface.grabAppImage = async () => new Blob();
+            surface.pickAt = () => picked.current;
+        };
+        const restoreSurface = () => {
+            surface.frameSource = 'dom';
+            surface.grabAppImage = null;
+            surface.pickAt = null;
+        };
+
+        beforeEach(() => {
+            grabAppFrame.mockReset();
+            grabAppFrame.mockImplementation(async () => fakeFrame());
+        });
+
+        it('a Control hold leaves the pointer to the app, and its click is the pick', async () => {
+            useAppSurface({ current: element });
+            try {
+                await turnOn();
+                await keyDown({ key: 'Control', ctrlKey: true });
+                expect(api.holding).toBe('cursor');
+                // The click has to reach the app's own element picker.
+                expect(
+                    document.querySelector('[data-holding="true"]'),
+                ).toBeNull();
+
+                await act(async () => {
+                    api.framePick({ x: 35, y: 25 });
+                    api.framePick({ x: 35, y: 25 });
+                });
+                await waitFor(() =>
+                    expect(api.session.bubbles).toHaveLength(1),
+                );
+                const capture = api.session.bubbles[0].collection?.capture;
+                const marks =
+                    capture?.status === 'recording' ? capture.marks : [];
+                expect(marks).toHaveLength(1);
+                expect(marks[0]).toMatchObject({
+                    tool: 'cursor',
+                    shape: 'pick',
+                    target: element.target,
+                    box: {
+                        x: expect.closeTo(0.2),
+                        y: expect.closeTo(0.2),
+                        width: expect.closeTo(0.3),
+                        height: expect.closeTo(0.1),
+                    },
+                });
+                expect(grabAppFrame).toHaveBeenCalledTimes(1);
+                await keyUp({ key: 'Control' });
+            } finally {
+                restoreSurface();
+            }
+        });
+
+        it('the click moving focus into the app does not end the hold', async () => {
+            useAppSurface({ current: element });
+            const focused = vi.spyOn(document, 'activeElement', 'get');
+            const blurWindow = () =>
+                act(async () => {
+                    window.dispatchEvent(new Event('blur'));
+                    await new Promise((resolve) => setTimeout(resolve, 0));
+                });
+            try {
+                await turnOn();
+                await keyDown({ key: 'Control', ctrlKey: true });
+                focused.mockReturnValue(document.createElement('iframe'));
+                await blurWindow();
+                expect(api.holding).toBe('cursor');
+
+                // Focus leaving for anywhere else ends it as before.
+                focused.mockReturnValue(document.body);
+                await blurWindow();
+                expect(api.holding).toBeNull();
+            } finally {
+                focused.mockRestore();
+                restoreSurface();
+            }
+        });
+
+        it('a pick with no Control hold is ignored', async () => {
+            useAppSurface({ current: element });
+            try {
+                await turnOn();
+                await act(async () => {
+                    api.framePick({ x: 35, y: 25 });
+                });
+                expect(api.session.bubbles).toHaveLength(0);
+                expect(grabAppFrame).not.toHaveBeenCalled();
+            } finally {
+                restoreSurface();
+            }
+        });
+
+        it('hold keys pressed inside the app start and end a hold', async () => {
+            useAppSurface({ current: null });
+            try {
+                await turnOn();
+                await act(async () => {
+                    api.frameHold('stylus', 'down');
+                });
+                expect(api.holding).toBe('stylus');
+                // The release of the other key is not this hold's.
+                await act(async () => {
+                    api.frameHold('cursor', 'up');
+                });
+                expect(api.holding).toBe('stylus');
+                await act(async () => {
+                    api.frameHold('stylus', 'up');
+                });
+                expect(api.holding).toBeNull();
+            } finally {
+                restoreSurface();
+            }
+        });
+
+        it('hold keys from the app do nothing while Design Mode is off', async () => {
+            renderWithProviders(<Harness />);
+            await act(async () => {
+                api.frameHold('stylus', 'down');
+            });
+            expect(api.holding).toBeNull();
+        });
     });
 
     it('an empty hold that ends before the mic starts still stops it, before the next start', async () => {
