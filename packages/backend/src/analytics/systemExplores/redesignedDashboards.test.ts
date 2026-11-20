@@ -1283,7 +1283,7 @@ describe('Agents & AI failed-request card', () => {
                 );
             }
             await db.run(
-                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR)',
+                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR, is_active BOOLEAN)',
             );
             await db.run(
                 'CREATE TABLE lightdash_agents (org_id VARCHAR, agent_id VARCHAR, name VARCHAR)',
@@ -1412,6 +1412,94 @@ describe('Tokens by feature and model', () => {
     });
 });
 
+describe('names of people who have left', () => {
+    it('keeps a deactivated member by name, marked, and tells an unknown ID from no ID', async () => {
+        const all = analyticsContentAsCode.flatMap((bundle) => bundle.charts);
+        const { charts: drawn } = withLibraryCharts(
+            all,
+            analyticsLibraryChartBindings,
+            installedTypes(),
+        );
+        const slug = 'lightdash-analytics-home-most-active-people';
+        const instance = await DuckDBInstance.create(':memory:', {
+            threads: '1',
+            memory_limit: '128MB',
+        });
+        const db = await instance.connect();
+        try {
+            const { userActivityColumns } =
+                await import('../eventStream/userActivity');
+            const { usageDimensionSchemas } =
+                await import('../eventStream/usageDimensions');
+            await db.run(
+                `CREATE TABLE user_activity (${userActivityColumns.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
+            );
+            await db.run(
+                `CREATE TABLE lightdash_users (${usageDimensionSchemas.users.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
+            );
+            await db.run(`INSERT INTO lightdash_users (org_id,user_id,name,email,is_active) VALUES
+                ('org','active','Alex Active','alex@example.com',true),
+                ('org','left','Dana Whitcombe','dana@example.com',false),
+                ('org','old-snapshot','Sam Before','sam@example.com',NULL)`);
+            await db.run(`INSERT INTO user_activity (org_id,project_id,user_id,activity_date,event_count,stream) VALUES
+                ('org','project','active',CURRENT_DATE - 2,5,'query_events'),
+                ('org','project','left',CURRENT_DATE - 2,4,'query_events'),
+                ('org','project','old-snapshot',CURRENT_DATE - 2,3,'query_events'),
+                ('org','project','not-a-member',CURRENT_DATE - 2,2,'query_events'),
+                ('org','project',NULL,CURRENT_DATE - 2,1,'query_events')`);
+            // The ranked table as the library chart reads it: one row per name
+            const ranked = (
+                await db.runAndReadAll(
+                    sqlOf(drawn.find((chart) => chart.slug === slug)!),
+                )
+            ).getRowObjectsJS();
+            expect(
+                ranked.map((row) => [
+                    row.user_activity_user_name,
+                    Number(row.user_activity_total_events),
+                ]),
+            ).toEqual([
+                ['Alex Active', 5],
+                ['Dana Whitcombe (deactivated)', 4],
+                // A snapshot written before the column existed says nothing either way
+                ['Sam Before', 3],
+                ['Unknown user', 2],
+                ['No user recorded', 1],
+            ]);
+            // The plain table shows the same names in its person column
+            const plain = (
+                await db.runAndReadAll(
+                    sqlOf(all.find((chart) => chart.slug === slug)!),
+                )
+            ).getRowObjectsJS();
+            expect(
+                plain.map((row) => [
+                    row.user_activity_user_id,
+                    row.user_display_name,
+                ]),
+            ).toEqual([
+                ['active', 'Alex Active'],
+                ['left', 'Dana Whitcombe (deactivated)'],
+                ['old-snapshot', 'Sam Before'],
+                ['not-a-member', 'User not-a-member'],
+                [null, 'No user recorded'],
+            ]);
+            // A count of people is a count: no marker, nobody dropped
+            const card = all.find(
+                (chart) =>
+                    chart.slug === 'lightdash-analytics-home-active-people',
+            )!;
+            const [latest] = (
+                await db.runAndReadAll(sqlOf(card))
+            ).getRowObjectsJS();
+            expect(Number(latest.user_activity_unique_users)).toBe(4);
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
+    });
+});
+
 describe('MCP tool calls by person and tool', () => {
     it('lists each service account by itself, not together under Unknown user', async () => {
         const chart = analyticsContentAsCode
@@ -1431,13 +1519,13 @@ describe('MCP tool calls by person and tool', () => {
                 );
             }
             await db.run(
-                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR)',
+                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR, is_active BOOLEAN)',
             );
             await db.run(
                 'CREATE TABLE lightdash_agents (org_id VARCHAR, agent_id VARCHAR, name VARCHAR)',
             );
             await db.run(
-                "INSERT INTO lightdash_users VALUES ('org','person-1','Alex',NULL)",
+                "INSERT INTO lightdash_users (org_id,user_id,name) VALUES ('org','person-1','Alex')",
             );
             await db.run(`INSERT INTO mcp_tool_calls (org_id, user_id, actor_id, actor_type, tool_name, tool_call_id, status, event_ts) VALUES
                 ('org','person-1','person-1','user','run_sql','1','success',CURRENT_TIMESTAMP),
@@ -1699,12 +1787,12 @@ describe('top categories', () => {
                 `CREATE TABLE user_activity (${userActivityColumns.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
             );
             await db.run(
-                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR)',
+                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR, is_active BOOLEAN)',
             );
             // Twenty people; person n has n activities on each of two days
             for (let n = 1; n <= 20; n += 1) {
                 await db.run(
-                    `INSERT INTO lightdash_users VALUES ('org','u${n}','Person ${n}',NULL)`,
+                    `INSERT INTO lightdash_users (org_id,user_id,name) VALUES ('org','u${n}','Person ${n}')`,
                 );
                 await db.run(`INSERT INTO user_activity (org_id,project_id,user_id,activity_date,event_count,stream) VALUES
                     ('org','project','u${n}',CURRENT_DATE - 3,${n},'query_events'),

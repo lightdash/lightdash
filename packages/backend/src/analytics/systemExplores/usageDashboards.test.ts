@@ -348,9 +348,9 @@ describe('built-in usage dashboards', () => {
                 `CREATE TABLE user_activity (${userActivityColumns.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
             );
             await db.run(
-                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR)',
+                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR, is_active BOOLEAN)',
             );
-            await db.run(`INSERT INTO lightdash_users VALUES
+            await db.run(`INSERT INTO lightdash_users (org_id,user_id,name,email) VALUES
                 ('org','named-a','Alex','shared@example.com'), ('org','named-b','Alex','shared@example.com'),
                 ('org','unnamed-a',NULL,'unnamed@example.com'), ('org','unnamed-b','  ','  '),
                 ('org','empty-name','',' trimmed@example.com '), ('other','missing-name','Other tenant','other@example.com')`);
@@ -468,9 +468,15 @@ describe('built-in usage dashboards', () => {
                 filtered.map(
                     ({ user_activity_user_id }) => user_activity_user_id,
                 ),
-            ).toEqual(
-                expect.arrayContaining(['missing-name', null, '', '   ']),
-            );
+            )
+                // An ID that matches no member, or a member with no name. Activity with no ID is "No
+                // user recorded" and is not part of this group.
+                .toEqual(expect.arrayContaining(['missing-name', 'unnamed-a']));
+            expect(
+                filtered.map(
+                    ({ user_activity_user_id }) => user_activity_user_id,
+                ),
+            ).not.toEqual(expect.arrayContaining([null]));
             expect(
                 filtered.some(
                     ({ user_display_name }) => user_display_name === 'Alex',
@@ -493,7 +499,7 @@ describe('built-in usage dashboards', () => {
                 `CREATE TABLE data_app_events (${compactedStreamSchemas.data_app_events.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
             );
             await db.run(
-                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR)',
+                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR, is_active BOOLEAN)',
             );
             await db.run(`INSERT INTO data_app_events (org_id,project_id,user_id,app_id,event_name,view_context) VALUES
                 ('org','project',NULL,'app','data_app.view','embed'),
@@ -1574,7 +1580,7 @@ describe('built-in usage dashboards', () => {
             expect(semanticRows.get(`${prefix}people-using-fields`)).toEqual(
                 expect.arrayContaining([
                     expect.objectContaining({
-                        semantic_usage_user_name: 'Unknown user',
+                        semantic_usage_user_name: 'No user recorded',
                         semantic_usage_user_id: null,
                         semantic_usage_total_queries: 1n,
                     }),
