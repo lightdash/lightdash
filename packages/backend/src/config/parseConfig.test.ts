@@ -488,14 +488,22 @@ describe('scheduler query polling timeout', () => {
         });
     });
 
-    it.each(['0', '-1', 'invalid', '2147483648'])(
-        'rejects an invalid timeout: %s',
-        (value) => {
-            process.env.SCHEDULER_QUERY_POLLING_TIMEOUT = value;
+    it.each([
+        '0',
+        '-1',
+        'invalid',
+        '2147483648',
+        '1.5',
+        '60000abc',
+        '1e3',
+        '0x100',
+        ' 60000',
+        '60000 ',
+    ])('rejects an invalid timeout: %s', (value) => {
+        process.env.SCHEDULER_QUERY_POLLING_TIMEOUT = value;
 
-            expect(() => parseConfig()).toThrow(ParseError);
-        },
-    );
+        expect(() => parseConfig()).toThrow(ParseError);
+    });
 
     it.each([
         ['equal to the job timeout', undefined, '600000'],
@@ -511,15 +519,72 @@ describe('scheduler query polling timeout', () => {
         );
     });
 
-    it.each(['0', '-1', 'invalid'])(
-        'rejects an invalid job timeout: %s',
-        (value) => {
-            process.env.SCHEDULER_JOB_TIMEOUT = value;
+    it.each([
+        '0',
+        '-1',
+        'invalid',
+        '2147483648',
+        '9999999999',
+        '1.5',
+        '60000abc',
+        '1e3',
+        '0x100',
+        ' 60000',
+        '60000 ',
+    ])('rejects an invalid job timeout: %s', (value) => {
+        process.env.SCHEDULER_JOB_TIMEOUT = value;
 
-            expect(() => parseConfig()).toThrow(ParseError);
-            expect(() => parseConfig()).toThrow(/SCHEDULER_JOB_TIMEOUT/);
-        },
-    );
+        expect(() => parseConfig()).toThrow(ParseError);
+        expect(() => parseConfig()).toThrow(/SCHEDULER_JOB_TIMEOUT/);
+    });
+
+    it('accepts the largest Node timer and its polling ceiling', () => {
+        process.env.SCHEDULER_JOB_TIMEOUT = '2147483647';
+        process.env.SCHEDULER_QUERY_POLLING_TIMEOUT = '1932735282';
+
+        expect(parseConfig().scheduler).toMatchObject({
+            jobTimeout: 2_147_483_647,
+            queryPollingTimeout: 1_932_735_282,
+        });
+    });
+
+    it('rejects one millisecond above the largest job timeout polling ceiling', () => {
+        process.env.SCHEDULER_JOB_TIMEOUT = '2147483647';
+        process.env.SCHEDULER_QUERY_POLLING_TIMEOUT = '1932735283';
+
+        expect(() => parseConfig()).toThrow(
+            /SCHEDULER_QUERY_POLLING_TIMEOUT.*SCHEDULER_JOB_TIMEOUT/,
+        );
+    });
+
+    it('preserves the minimum job timeout and its default polling wait', () => {
+        process.env.SCHEDULER_JOB_TIMEOUT = '1';
+
+        expect(parseConfig().scheduler).toMatchObject({
+            jobTimeout: 1,
+            queryPollingTimeout: 1,
+        });
+    });
+
+    it('preserves empty settings as defaults', () => {
+        process.env.SCHEDULER_JOB_TIMEOUT = '';
+        process.env.SCHEDULER_QUERY_POLLING_TIMEOUT = '';
+
+        expect(parseConfig().scheduler).toMatchObject({
+            jobTimeout: 600_000,
+            queryPollingTimeout: 300_000,
+        });
+    });
+
+    it('preserves integer settings with leading zeros', () => {
+        process.env.SCHEDULER_JOB_TIMEOUT = '0600000';
+        process.env.SCHEDULER_QUERY_POLLING_TIMEOUT = '0300000';
+
+        expect(parseConfig().scheduler).toMatchObject({
+            jobTimeout: 600_000,
+            queryPollingTimeout: 300_000,
+        });
+    });
 });
 
 describe('usage events storage endpoint', () => {

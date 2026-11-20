@@ -2732,19 +2732,30 @@ const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
 const DEFAULT_SCHEDULER_QUERY_POLLING_TIMEOUT = 1000 * 60 * 5; // 5 minutes
 const SCHEDULER_QUERY_POLLING_MAX_SHARE_OF_JOB_TIMEOUT = 0.9;
 
+const getSchedulerTimeoutFromEnvironmentVariable = (
+    name: string,
+    defaultValue: number,
+): number => {
+    const value = getNonNegativeIntegerFromEnvironmentVariable(
+        name,
+        defaultValue,
+    );
+    if (value < 1 || value > MAX_TIMER_MS) {
+        throw new ParseError(
+            `Cannot parse environment variable "${name}". Value must be an integer between 1 and ${MAX_TIMER_MS} but ${name}=${value}`,
+        );
+    }
+    return value;
+};
+
 const parseSchedulerTimeouts = (): {
     jobTimeout: number;
     queryPollingTimeout: number;
 } => {
-    const rawJobTimeout = process.env.SCHEDULER_JOB_TIMEOUT;
-    const jobTimeout = rawJobTimeout
-        ? parseInt(rawJobTimeout, 10)
-        : DEFAULT_JOB_TIMEOUT;
-    if (!Number.isSafeInteger(jobTimeout) || jobTimeout < 1) {
-        throw new ParseError(
-            `Cannot parse environment variable "SCHEDULER_JOB_TIMEOUT". Value must be a positive integer but SCHEDULER_JOB_TIMEOUT=${rawJobTimeout}`,
-        );
-    }
+    const jobTimeout = getSchedulerTimeoutFromEnvironmentVariable(
+        'SCHEDULER_JOB_TIMEOUT',
+        DEFAULT_JOB_TIMEOUT,
+    );
     const maxQueryPollingTimeout = Math.max(
         1,
         Math.floor(
@@ -2760,10 +2771,9 @@ const parseSchedulerTimeouts = (): {
             ),
         };
     }
-    const queryPollingTimeout = getPositiveIntegerFromEnvironmentVariable(
+    const queryPollingTimeout = getSchedulerTimeoutFromEnvironmentVariable(
         'SCHEDULER_QUERY_POLLING_TIMEOUT',
         DEFAULT_SCHEDULER_QUERY_POLLING_TIMEOUT,
-        MAX_TIMER_MS,
     );
     if (queryPollingTimeout > maxQueryPollingTimeout) {
         throw new ParseError(
