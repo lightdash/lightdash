@@ -1551,7 +1551,13 @@ describe('built-in usage dashboards', () => {
                 ('org-a','project-a','app-b','person-b','data_app.view',CURRENT_TIMESTAMP),
                 ('org-a','project-b','app-a','person-a','data_app.view',CURRENT_TIMESTAMP),
                 ('org-a','project-a',NULL,NULL,'data_app.view',CURRENT_TIMESTAMP)`);
+            // A custom chart type drawing a chart tile is not a data app being used
+            await db.run(`INSERT INTO data_app_events (org_id, project_id, app_id, user_id, event_name, event_ts, view_context) VALUES
+                ('org-a','project-a','chart-type','person-a','data_app.view',CURRENT_TIMESTAMP,'chart'),
+                ('org-a','project-a','chart-type','person-b','data_app.view',CURRENT_TIMESTAMP,'chart'),
+                ('org-a','project-a','app-a','person-a','data_app.view',CURRENT_TIMESTAMP,'chart')`);
             await db.run(`INSERT INTO lightdash_content (org_id, project_id, content_type, content_id, content_name) VALUES
+                ('org-a','project-a','data_app','chart-type','Big Number With Sparkline Trend'),
                 ('org-a','project-a','data_app','app-a','Shared name'),
                 ('org-a','project-a','data_app','app-b','Shared name'),
                 ('org-a','project-b','data_app','app-a','Other project'),
@@ -1585,6 +1591,31 @@ describe('built-in usage dashboards', () => {
             expect(
                 rows.map((row) => row.data_app_events_app_name),
             ).not.toContain('Other organization');
+            expect(
+                rows.map((row) => row.data_app_events_app_name),
+            ).not.toContain('Big Number With Sparkline Trend');
+            // Every tile that counts loads, viewers or data apps leaves chart tiles out
+            const loadCharts = charts.filter(
+                ({ slug, metricQuery }) =>
+                    slug.startsWith('lightdash-analytics-apps-') &&
+                    JSON.stringify(metricQuery.filters).includes(
+                        'data_app.view',
+                    ),
+            );
+            expect(loadCharts.length).toBeGreaterThanOrEqual(6);
+            loadCharts.forEach(({ metricQuery }) =>
+                expect(metricQuery.filters.dimensions).toMatchObject({
+                    and: expect.arrayContaining([
+                        expect.objectContaining({
+                            target: {
+                                fieldId: 'data_app_events_view_context',
+                            },
+                            operator: FilterOperator.NOT_EQUALS,
+                            values: ['chart'],
+                        }),
+                    ]),
+                }),
+            );
             await db.run('DELETE FROM lightdash_content');
             const withoutInventory = (
                 await db.runAndReadAll(compile(appChart).query)

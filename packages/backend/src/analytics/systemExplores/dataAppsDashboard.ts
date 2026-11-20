@@ -1,3 +1,4 @@
+import { FilterOperator } from '@lightdash/common';
 import {
     card,
     ranking,
@@ -8,8 +9,16 @@ import {
 import type { UsageChartSpec, UsageDashboardSpec } from './usageDashboardTypes';
 
 const day = 'data_app_events_event_ts_day';
+// A custom chart type is drawn by a data app behind the scenes, and each chart tile records a load with
+// the context "chart". That is a chart being viewed, not a data app being used, so it is left out here.
+// Older loads with no recorded context are kept.
 const loads: NonNullable<UsageChartSpec['filters']> = [
     { field: 'data_app_events_event_name', values: ['data_app.view'] },
+    {
+        field: 'data_app_events_view_context',
+        values: ['chart'],
+        operator: FilterOperator.NOT_EQUALS,
+    },
 ];
 const builds: NonNullable<UsageChartSpec['filters']> = [
     {
@@ -38,7 +47,7 @@ export const dataAppsChartSpecs: UsageChartSpec[] = [
         key: 'total-loads',
         name: 'Data app loads',
         description:
-            'Number of times a data app was loaded. Reloads count. Unknown or deleted data apps are included.',
+            'Number of times a data app was loaded. Reloads count. Unknown or deleted data apps are included. Custom chart types shown as chart tiles are not counted.',
         explore: 'data_app_events',
         day,
         metric: 'data_app_events_total_views',
