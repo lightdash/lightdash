@@ -1,12 +1,14 @@
 import {
     BinType,
     CompiledExploreJoin,
+    CompileError,
     CustomDimensionType,
     DimensionType,
     Explore,
     ForbiddenError,
     isCustomBinDimension,
     JoinRelationship,
+    MAX_FIXED_NUMBER_BINS,
     MetricType,
     SupportedDbtAdapter,
     TableCalculationTotalMode,
@@ -444,7 +446,7 @@ describe('with custom dimensions', () => {
             }),
         ).toStrictEqual({
             ctes: [
-                ` age_range_cte AS (
+                ` \`age_range_cte\` AS (
                     SELECT
                         FLOOR(MIN("table1".dim1)) AS min_id,
                         CEIL(MAX("table1".dim1)) AS max_id,
@@ -452,27 +454,27 @@ describe('with custom dimensions', () => {
                     FROM "db"."schema"."table1" AS \`table1\`
                 )`,
             ],
-            join: 'CROSS JOIN age_range_cte',
+            join: 'CROSS JOIN `age_range_cte`',
             exprs: {
                 age_range: `CASE
                     WHEN "table1".dim1 IS NULL THEN NULL
-WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 0 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 1 THEN CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 0, ' - ', age_range_cte.min_id + age_range_cte.bin_width * 1)
-WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 1 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 2 THEN CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 1, ' - ', age_range_cte.min_id + age_range_cte.bin_width * 2)
-ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range_cte.max_id)
+WHEN "table1".dim1 >= \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 0 AND "table1".dim1 < \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 1 THEN CONCAT(\`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 0, ' - ', \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 1)
+WHEN "table1".dim1 >= \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 1 AND "table1".dim1 < \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 2 THEN CONCAT(\`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 1, ' - ', \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 2)
+ELSE CONCAT(\`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 2, ' - ', \`age_range_cte\`.max_id)
                     END`,
             },
             selects: {
                 age_range: `CASE
                     WHEN "table1".dim1 IS NULL THEN NULL
-WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 0 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 1 THEN CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 0, ' - ', age_range_cte.min_id + age_range_cte.bin_width * 1)
-WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 1 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 2 THEN CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 1, ' - ', age_range_cte.min_id + age_range_cte.bin_width * 2)
-ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range_cte.max_id)
+WHEN "table1".dim1 >= \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 0 AND "table1".dim1 < \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 1 THEN CONCAT(\`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 0, ' - ', \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 1)
+WHEN "table1".dim1 >= \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 1 AND "table1".dim1 < \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 2 THEN CONCAT(\`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 1, ' - ', \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 2)
+ELSE CONCAT(\`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 2, ' - ', \`age_range_cte\`.max_id)
                     END
                     AS \`age_range\``,
                 age_range_order: `CASE
                         WHEN "table1".dim1 IS NULL THEN 3
-WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 0 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 1 THEN 0
-WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 1 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 2 THEN 1
+WHEN "table1".dim1 >= \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 0 AND "table1".dim1 < \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 1 THEN 0
+WHEN "table1".dim1 >= \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 1 AND "table1".dim1 < \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 2 THEN 1
 ELSE 2
                         END
                         AS \`age_range_order\``,
@@ -503,7 +505,7 @@ ELSE 2
             }),
         ).toStrictEqual({
             ctes: [
-                ` age_range_cte AS (
+                ` \`age_range_cte\` AS (
                     SELECT
                         FLOOR(MIN("table1".dim1)) AS min_id,
                         CEIL(MAX("table1".dim1)) AS max_id,
@@ -511,12 +513,12 @@ ELSE 2
                     FROM "db"."schema"."table1" AS \`table1\`
                 )`,
             ],
-            join: 'CROSS JOIN age_range_cte',
+            join: 'CROSS JOIN `age_range_cte`',
             exprs: {
-                age_range: `CONCAT(age_range_cte.min_id, ' - ', age_range_cte.max_id)`,
+                age_range: `CONCAT(\`age_range_cte\`.min_id, ' - ', \`age_range_cte\`.max_id)`,
             },
             selects: {
-                age_range: `CONCAT(age_range_cte.min_id, ' - ', age_range_cte.max_id) AS \`age_range\``,
+                age_range: `CONCAT(\`age_range_cte\`.min_id, ' - ', \`age_range_cte\`.max_id) AS \`age_range\``,
             },
             tables: ['table1'],
         });
@@ -536,7 +538,7 @@ ELSE 2
             }),
         ).toStrictEqual({
             ctes: [
-                ` age_range_cte AS (
+                ` \`age_range_cte\` AS (
                     SELECT
                         FLOOR(MIN("table1".dim1)) AS min_id,
                         CEIL(MAX("table1".dim1)) AS max_id,
@@ -544,33 +546,106 @@ ELSE 2
                     FROM "db"."schema"."table1" AS \`table1\`
                 )`,
             ],
-            join: 'CROSS JOIN age_range_cte',
+            join: 'CROSS JOIN `age_range_cte`',
             exprs: {
                 age_range: `CASE
                     WHEN "table1".dim1 IS NULL THEN NULL
-WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 0 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 1 THEN CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 0, ' - ', age_range_cte.min_id + age_range_cte.bin_width * 1)
-WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 1 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 2 THEN CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 1, ' - ', age_range_cte.min_id + age_range_cte.bin_width * 2)
-ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range_cte.max_id)
+WHEN "table1".dim1 >= \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 0 AND "table1".dim1 < \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 1 THEN CONCAT(\`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 0, ' - ', \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 1)
+WHEN "table1".dim1 >= \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 1 AND "table1".dim1 < \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 2 THEN CONCAT(\`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 1, ' - ', \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 2)
+ELSE CONCAT(\`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 2, ' - ', \`age_range_cte\`.max_id)
                     END`,
             },
             selects: {
                 age_range: `CASE
                     WHEN "table1".dim1 IS NULL THEN NULL
-WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 0 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 1 THEN CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 0, ' - ', age_range_cte.min_id + age_range_cte.bin_width * 1)
-WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 1 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 2 THEN CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 1, ' - ', age_range_cte.min_id + age_range_cte.bin_width * 2)
-ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range_cte.max_id)
+WHEN "table1".dim1 >= \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 0 AND "table1".dim1 < \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 1 THEN CONCAT(\`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 0, ' - ', \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 1)
+WHEN "table1".dim1 >= \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 1 AND "table1".dim1 < \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 2 THEN CONCAT(\`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 1, ' - ', \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 2)
+ELSE CONCAT(\`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 2, ' - ', \`age_range_cte\`.max_id)
                     END
                     AS \`age_range\``,
                 age_range_order: `CASE
                         WHEN "table1".dim1 IS NULL THEN 3
-WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 0 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 1 THEN 0
-WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 1 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 2 THEN 1
+WHEN "table1".dim1 >= \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 0 AND "table1".dim1 < \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 1 THEN 0
+WHEN "table1".dim1 >= \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 1 AND "table1".dim1 < \`age_range_cte\`.min_id + \`age_range_cte\`.bin_width * 2 THEN 1
 ELSE 2
                         END
                         AS \`age_range_order\``,
             },
             tables: ['table1'],
         });
+    });
+
+    it.each([0, 2.5, 1001, 1e9])(
+        'getCustomDimensionSql rejects bin number %s',
+        (binNumber) => {
+            expect(() =>
+                getCustomBinDimensionSql({
+                    warehouseSqlBuilder: bigqueryClientMock,
+                    explore: EXPLORE,
+                    customDimensions: [
+                        {
+                            id: 'age_range',
+                            name: 'Age range',
+                            type: CustomDimensionType.BIN,
+                            dimensionId: 'table1_dim1',
+                            table: 'table1',
+                            binType: BinType.FIXED_NUMBER,
+                            binNumber,
+                        },
+                    ],
+                    userAttributes: {},
+                    intrinsicUserAttributes: {},
+                }),
+            ).toThrow(CompileError);
+        },
+    );
+
+    it('getCustomDimensionSql accepts the maximum bin number', () => {
+        const result = getCustomBinDimensionSql({
+            warehouseSqlBuilder: bigqueryClientMock,
+            explore: EXPLORE,
+            customDimensions: [
+                {
+                    id: 'age_range',
+                    name: 'Age range',
+                    type: CustomDimensionType.BIN,
+                    dimensionId: 'table1_dim1',
+                    table: 'table1',
+                    binType: BinType.FIXED_NUMBER,
+                    binNumber: MAX_FIXED_NUMBER_BINS,
+                },
+            ],
+            userAttributes: {},
+            intrinsicUserAttributes: {},
+        });
+        expect(result?.selects.age_range).toContain(
+            `* ${MAX_FIXED_NUMBER_BINS - 1}`,
+        );
+    });
+
+    it('getCustomDimensionSql quotes the fixed number cte reference', () => {
+        const result = getCustomBinDimensionSql({
+            warehouseSqlBuilder: bigqueryClientMock,
+            explore: EXPLORE,
+            customDimensions: [
+                {
+                    id: 'x AS (SELECT 1), y',
+                    name: 'Injected',
+                    type: CustomDimensionType.BIN,
+                    dimensionId: 'table1_dim1',
+                    table: 'table1',
+                    binType: BinType.FIXED_NUMBER,
+                    binNumber: 1,
+                },
+            ],
+            userAttributes: {},
+            intrinsicUserAttributes: {},
+        });
+        expect(result?.ctes[0]).toMatch(/^ `x AS \(SELECT 1\), y_cte` AS \(/);
+        expect(result?.join).toBe('CROSS JOIN `x AS (SELECT 1), y_cte`');
+        expect(result?.exprs['x AS (SELECT 1), y']).toBe(
+            "CONCAT(`x AS (SELECT 1), y_cte`.min_id, ' - ', `x AS (SELECT 1), y_cte`.max_id)",
+        );
     });
 });
 

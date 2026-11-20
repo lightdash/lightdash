@@ -6,6 +6,7 @@ import {
     CompiledDimension,
     CompiledExploreJoin,
     CompiledMetric,
+    CompileError,
     convertFieldRefToFieldId,
     CustomBinDimension,
     CustomDimension,
@@ -35,11 +36,13 @@ import {
     isSqlTableCalculation,
     JoinRelationship,
     lightdashVariablePattern,
+    MAX_FIXED_NUMBER_BINS,
     MetricQuery,
     MetricType,
     NestedTableProvenance,
     parseAllReferences,
     QueryWarning,
+    quoteFieldReference,
     SupportedDbtAdapter,
     TableCalculation,
     TableCalculationTotalMode,
@@ -693,11 +696,28 @@ export const getCustomBinDimensionSql = ({
     if (customDimensions === undefined || customDimensions.length === 0)
         return undefined;
 
-    const getCteReference = (customDimension: CustomDimension) =>
-        `${getItemId(customDimension)}_cte`;
+    customDimensions.forEach((customDimension) => {
+        if (
+            customDimension.binType === BinType.FIXED_NUMBER &&
+            (!Number.isInteger(customDimension.binNumber) ||
+                customDimension.binNumber < 1 ||
+                customDimension.binNumber > MAX_FIXED_NUMBER_BINS)
+        ) {
+            throw new CompileError(
+                `Invalid bin number for custom dimension "${customDimension.name}": must be a whole number between 1 and ${MAX_FIXED_NUMBER_BINS}.`,
+            );
+        }
+    });
 
     const adapterType: SupportedDbtAdapter =
         warehouseSqlBuilder.getAdapterType();
+
+    const getCteReference = (customDimension: CustomDimension) =>
+        quoteFieldReference(
+            `${getItemId(customDimension)}_cte`,
+            fieldQuoteChar,
+            adapterType,
+        );
     const dimensions = getDimensionMapFromTables(explore.tables);
     const dimensionsWithoutAccess = getDimensionMapFromTables(
         explore.unfilteredTables ?? {},
