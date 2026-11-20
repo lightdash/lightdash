@@ -1,3 +1,16 @@
+# [3.351.0](https://github.com/lightdash/lightdash/compare/3.350.1...3.351.0) (2026-11-20)
+
+
+### Bug Fixes
+
+* **composer:** head zoomed DuckDB and Python columns with the zoomed label ([#32989](https://github.com/lightdash/lightdash/issues/32989)) ([74aede0](https://github.com/lightdash/lightdash/commit/74aede066212ec9316f0c17ec53545763d527775))
+
+
+### Features
+
+* **composer:** dashboard date zoom reaches composer chart tiles ([#32978](https://github.com/lightdash/lightdash/issues/32978)) ([c771356](https://github.com/lightdash/lightdash/commit/c771356e820aea71eb8c97eb27d17a643f71a052))
+* **composer:** dashboard date zoom reaches composer merge nodes ([#32988](https://github.com/lightdash/lightdash/issues/32988)) ([2a342d5](https://github.com/lightdash/lightdash/commit/2a342d55346155f5e25bb177f706ea2c517c1f00))
+
 ## [3.350.1](https://github.com/lightdash/lightdash/compare/3.350.0...3.350.1) (2026-11-19)
 
 

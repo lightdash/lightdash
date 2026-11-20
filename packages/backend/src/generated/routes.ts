@@ -85177,11 +85177,34 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ChartZoomableField: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                tableName: { dataType: 'string', required: true },
+                label: { dataType: 'string', required: true },
+                fieldId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ComposerChartRunResults: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                zoomedFieldLabels: {
+                    ref: 'Record_string.string_',
+                    required: true,
+                },
+                zoomableFields: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'ChartZoomableField' },
+                    required: true,
+                },
+                dateZoomApplied: { dataType: 'boolean', required: true },
                 usedParameterValuesByNodeId: {
                     ref: 'Record_string.ParametersValuesMap_',
                     required: true,
@@ -85250,6 +85273,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                dateZoom: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DateZoom' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 invalidateCache: { dataType: 'boolean', required: true },
                 excludedParameterKeys: {
                     dataType: 'array',

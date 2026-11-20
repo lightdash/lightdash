@@ -79789,8 +79789,38 @@
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
+            "ChartZoomableField": {
+                "properties": {
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "fieldId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["tableName", "label", "fieldId"],
+                "type": "object"
+            },
             "ComposerChartRunResults": {
                 "properties": {
+                    "zoomedFieldLabels": {
+                        "$ref": "#/components/schemas/Record_string.string_",
+                        "description": "Each zoomed field's label at the zoomed grain, by field id."
+                    },
+                    "zoomableFields": {
+                        "items": {
+                            "$ref": "#/components/schemas/ChartZoomableField"
+                        },
+                        "type": "array",
+                        "description": "The date fields the tile can be zoomed on, so the dashboard offers its date zoom."
+                    },
+                    "dateZoomApplied": {
+                        "type": "boolean",
+                        "description": "Whether the date zoom re-grained at least one semantic-layer node."
+                    },
                     "usedParameterValuesByNodeId": {
                         "$ref": "#/components/schemas/Record_string.ParametersValuesMap_",
                         "description": "The parameter values each node query ran with, keyed by node; nodes can run different values."
@@ -79846,6 +79876,9 @@
                     }
                 },
                 "required": [
+                    "zoomedFieldLabels",
+                    "zoomableFields",
+                    "dateZoomApplied",
                     "usedParameterValuesByNodeId",
                     "sqlColumns",
                     "parameterReferences",
@@ -79873,6 +79906,15 @@
             },
             "ComposerChartRunRequest": {
                 "properties": {
+                    "dateZoom": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DateZoom"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The tile's resolved date zoom; optional for clients that predate it."
+                    },
                     "invalidateCache": {
                         "type": "boolean"
                     },
@@ -81034,7 +81076,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.350.1",
+        "version": "3.351.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
