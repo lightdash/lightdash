@@ -213,23 +213,18 @@ export const withAnalyticsChartPresentation = (
             chartConfig: {
                 type: ChartType.PIE,
                 config: {
-                    groupFieldIds: ['content_health_owner_status'],
+                    groupFieldIds: ['content_health_owner_status_name'],
                     metricId: 'content_health_total_content',
                     isDonut: true,
                     showLegend: true,
-                    groupLabelOverrides: {
-                        'Active organization member': 'Active member',
-                        'Not an organization member': 'Not a member',
-                        'Unknown user': 'Unknown owner',
-                        Unassigned: 'No owner',
-                    },
+                    // The slices are named by the plain-name field
                     groupColorOverrides: {
-                        'Active organization member': positive,
+                        'Active member': positive,
                         Deactivated: caution,
-                        Unassigned: colors[0],
-                        'Not an organization member': colors[2],
-                        'Unknown user': '#868E96',
-                        'Not recorded': '#ADB5BD',
+                        'No owner': colors[0],
+                        'Not a member': colors[2],
+                        'Unknown owner': '#868E96',
+                        'Has no owner (chart or data app)': '#ADB5BD',
                     },
                 },
             },

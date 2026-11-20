@@ -172,7 +172,7 @@ describe('Content inventory charts', () => {
             slug.endsWith('-content-ownership-current-snapshot'),
         )!;
         expect(chart.metricQuery.dimensions).toEqual([
-            'content_health_owner_status',
+            'content_health_owner_status_name',
         ]);
         expect(chart.metricQuery.metrics).toEqual([
             'content_health_total_content',
@@ -227,7 +227,9 @@ describe('Content inventory charts', () => {
     it.each(charts)('preserves the results of $slug', async (chart) => {
         expect(chart.tableName).toBe('content_inventory');
         const creation = chart.slug.endsWith('-content-creation-by-month');
-        const legacyDimension = creation ? 'created_at_month' : 'owner_status';
+        const legacyDimension = creation
+            ? 'created_at_month'
+            : 'owner_status_name';
         for (const scenario of ['all', 'active', 'project', 'empty']) {
             if (scenario === 'empty')
                 await db.run('DELETE FROM lightdash_content');
@@ -321,7 +323,7 @@ describe('Content inventory charts', () => {
         expect(ownership.chartConfig.type).toBe(ChartType.PIE);
         if (ownership.chartConfig.type === ChartType.PIE) {
             expect(ownership.chartConfig.config).toMatchObject({
-                groupFieldIds: ['content_health_owner_status'],
+                groupFieldIds: ['content_health_owner_status_name'],
                 metricId: 'content_health_total_content',
                 isDonut: true,
             });

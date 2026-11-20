@@ -202,6 +202,7 @@ const plainNameLabels: Record<string, string> = {
     field_kind: 'Kind',
     field_origin: 'Defined in',
     is_deleted: 'Deleted',
+    owner_status: 'Owner status',
 };
 const contentTypeNames = {
     saved_chart: 'Chart',
@@ -681,6 +682,18 @@ export const createAnalyticsExplores = (): Explore[] => {
             name === 'content_reach'
         ) {
             addPlainName('content_type', { names: contentTypeNames });
+            // Only dashboards have an owner. "Not recorded" is every other type of content, which has no
+            // owner to record, not an owner that went missing.
+            addPlainName('owner_status', {
+                names: {
+                    'Active organization member': 'Active member',
+                    Deactivated: 'Deactivated',
+                    'Not an organization member': 'Not a member',
+                    Unassigned: 'No owner',
+                    'Unknown user': 'Unknown owner',
+                    'Not recorded': 'Has no owner (chart or data app)',
+                },
+            });
             addPlainName('is_deleted', {
                 names: { true: 'Deleted', false: 'Not deleted' },
             });

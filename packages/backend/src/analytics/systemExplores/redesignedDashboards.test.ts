@@ -240,7 +240,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'content-ownership-current-snapshot',
                 0,
-                1,
+                2,
                 36,
                 7,
                 'sortable-pivot-table',
@@ -249,7 +249,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'content-owners-needing-review',
                 0,
-                8,
+                9,
                 36,
                 8,
                 'sortable-pivot-table',
@@ -258,7 +258,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'high-compute-dashboards-audience-versus-warehouse-time',
                 0,
-                17,
+                18,
                 36,
                 8,
                 'sortable-pivot-table',

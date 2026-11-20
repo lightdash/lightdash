@@ -340,9 +340,9 @@ export const contentChartSpecs: UsageChartSpec[] = [
         description:
             'Owner status reflects current Lightdash membership, not whether the person is still employed. Schedule ownership is not fully recorded.',
         explore: 'content_inventory',
-        by: 'content_health_owner_status',
+        by: 'content_health_owner_status_name',
         then: 'content_health_content_type_name',
-        dimensions: ['content_health_owner_status'],
+        dimensions: ['content_health_owner_status_name'],
         metrics: ['content_health_total_content'],
         limit: 30,
         // Drawn as a donut: see withAnalyticsChartPresentation
@@ -352,13 +352,13 @@ export const contentChartSpecs: UsageChartSpec[] = [
     }),
     ranking({
         key: 'content-owners-needing-review',
-        name: 'Content with a missing or inactive owner',
-        description: `Content whose owner is deactivated, not a member, unknown or not set, most-viewed first. ${allHistory}`,
+        name: 'Dashboards with a missing or inactive owner',
+        description: `Dashboards whose owner is deactivated, not a member, unknown or not set, most-viewed first. ${allHistory}`,
         explore: 'content_health',
-        by: 'content_health_owner_status',
+        by: 'content_health_owner_status_name',
         then: 'content_health_content_name',
         dimensions: [
-            'content_health_owner_status',
+            'content_health_owner_status_name',
             'content_health_content_name',
             'content_health_content_type_name',
             'content_health_owner_name',
@@ -373,7 +373,8 @@ export const contentChartSpecs: UsageChartSpec[] = [
         filters: [
             {
                 field: 'content_health_owner_status',
-                values: ['Active organization member'],
+                // Charts, SQL charts and data apps have no owner, so they are not missing one
+                values: ['Active organization member', 'Not recorded'],
                 operator: FilterOperator.NOT_EQUALS,
             },
         ],
@@ -384,7 +385,7 @@ export const contentChartSpecs: UsageChartSpec[] = [
             content_health_owner_name: 'Owner',
             content_health_last_viewed_at_day: 'Last viewed',
         },
-        libraryDescription: `Content whose owner is deactivated, not a member, unknown or not set, by owner status; open a status to see its items, most-viewed first. ${allHistory}`,
+        libraryDescription: `Dashboards whose owner is deactivated, not a member, unknown or not set, by owner status; open a status to see them, most-viewed first. ${allHistory}`,
     }),
     ranking({
         key: 'high-compute-dashboards-audience-versus-warehouse-time',
@@ -511,7 +512,7 @@ export const contentDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'Current ownership',
                     description:
-                        'Owner status comes from current Lightdash membership. Content with a missing or inactive owner needs review.',
+                        'Only dashboards have an owner; charts, SQL charts and data apps do not, so there is nothing to fix for those. Give a new owner to the dashboards listed below, whose owner is deactivated, not a member or missing.',
                     charts: ['content-ownership-current-snapshot'],
                     layout: 'row',
                     rowHeight: 7,
