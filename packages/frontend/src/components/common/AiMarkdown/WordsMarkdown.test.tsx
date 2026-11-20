@@ -124,6 +124,16 @@ describe('WordsMarkdown', () => {
         expect(container.querySelectorAll('p')).toHaveLength(2);
     });
 
+    it('passes custom code renderers the source text of tags inside a long fence', () => {
+        renderWithProviders(
+            <WordsMarkdown isStreaming={false} codeBlocks={codeBlocks}>
+                {['````sql', '```', "select '<br>'", '````'].join('\n')}
+            </WordsMarkdown>,
+        );
+
+        expect(screen.getByTestId('sql')).toHaveTextContent("select '<br>'");
+    });
+
     it('keeps line breaks the model writes as <br> in table cells', () => {
         const { container } = renderWithProviders(
             <WordsMarkdown isStreaming={false}>

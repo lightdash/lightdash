@@ -57,11 +57,11 @@ import { Link } from 'react-router';
 import { type CustomRendererProps, type StreamdownProps } from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import { AiMarkdownErrorBoundary } from '../../../../../components/common/AiMarkdown/AiMarkdownErrorBoundary';
+import { LazyWordsMarkdown } from '../../../../../components/common/AiMarkdown/LazyWordsMarkdown';
 import {
     type WordsCodeBlockRenderer,
     type WordsLinkProps,
 } from '../../../../../components/common/AiMarkdown/wordsContext';
-import { WordsMarkdown } from '../../../../../components/common/AiMarkdown/WordsMarkdown';
 import { CopyActionIcon } from '../../../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SemanticLayerProposalCard } from '../../../../../features/semanticStudio/SemanticLayerProposalCard';
@@ -842,9 +842,53 @@ const AssistantBubbleContent: FC<{
                             s.kind === 'text',
                     );
                     const latestTextSeg = textSegments[textSegments.length - 1];
+                    const streamdownAnswerMd = latestTextSeg ? (
+                        <AiMarkdown
+                            isStreaming={isStreaming}
+                            allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
+                            className={clsx(
+                                styles.answerMarkdown,
+                                isStreaming && styles.streamingNarration,
+                            )}
+                            rehypePlugins={answerRehypePlugins}
+                            plugins={markdownPlugins}
+                            components={{
+                                ...MEMORY_CITATION_COMPONENTS,
+                                a: ({ node, children, ...props }) => {
+                                    const contentType =
+                                        'data-content-type' in props &&
+                                        isContentType(
+                                            props['data-content-type'],
+                                        )
+                                            ? props['data-content-type']
+                                            : undefined;
+                                    return (
+                                        <ContentLink
+                                            contentType={contentType}
+                                            props={props}
+                                            message={message}
+                                            projectUuid={projectUuid}
+                                            agentUuid={agentUuid}
+                                            sqlRunnerLinkState={
+                                                sqlRunnerLinkState
+                                            }
+                                            onDashboardLinkClick={
+                                                onDashboardLinkClick
+                                            }
+                                        >
+                                            {children}
+                                        </ContentLink>
+                                    );
+                                },
+                            }}
+                        >
+                            {latestTextSeg.text}
+                        </AiMarkdown>
+                    ) : null;
                     const finalAnswerMd =
-                        !latestTextSeg ? null : isWordsMarkdown ? (
-                            <WordsMarkdown
+                        latestTextSeg && isWordsMarkdown ? (
+                            <LazyWordsMarkdown
+                                fallback={streamdownAnswerMd}
                                 isStreaming={isStreaming}
                                 className={clsx(
                                     styles.answerMarkdown,
@@ -855,49 +899,9 @@ const AssistantBubbleContent: FC<{
                                 inlineTags={wordsInlineTags}
                             >
                                 {latestTextSeg.text}
-                            </WordsMarkdown>
+                            </LazyWordsMarkdown>
                         ) : (
-                            <AiMarkdown
-                                isStreaming={isStreaming}
-                                allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
-                                className={clsx(
-                                    styles.answerMarkdown,
-                                    isStreaming && styles.streamingNarration,
-                                )}
-                                rehypePlugins={answerRehypePlugins}
-                                plugins={markdownPlugins}
-                                components={{
-                                    ...MEMORY_CITATION_COMPONENTS,
-                                    a: ({ node, children, ...props }) => {
-                                        const contentType =
-                                            'data-content-type' in props &&
-                                            isContentType(
-                                                props['data-content-type'],
-                                            )
-                                                ? props['data-content-type']
-                                                : undefined;
-                                        return (
-                                            <ContentLink
-                                                contentType={contentType}
-                                                props={props}
-                                                message={message}
-                                                projectUuid={projectUuid}
-                                                agentUuid={agentUuid}
-                                                sqlRunnerLinkState={
-                                                    sqlRunnerLinkState
-                                                }
-                                                onDashboardLinkClick={
-                                                    onDashboardLinkClick
-                                                }
-                                            >
-                                                {children}
-                                            </ContentLink>
-                                        );
-                                    },
-                                }}
-                            >
-                                {latestTextSeg.text}
-                            </AiMarkdown>
+                            streamdownAnswerMd
                         );
                     return (
                         <Stack
@@ -1027,78 +1031,86 @@ const AssistantBubbleContent: FC<{
                                 data-tour-label="Read the answer"
                                 data-tour-docs="agents.mdx#intro:2"
                             >
-                                {isWordsMarkdown ? (
-                                    <WordsMarkdown
-                                        isStreaming={false}
-                                        className={clsx(
-                                            styles.answerMarkdown,
-                                            styles.persistedAnswer,
-                                        )}
-                                        renderLink={renderWordsLink}
-                                        codeBlocks={wordsCodeBlocks}
-                                        inlineTags={wordsInlineTags}
-                                    >
-                                        {messageContent}
-                                    </WordsMarkdown>
-                                ) : (
-                                    <AiMarkdown
-                                        key={citationResolutionKey}
-                                        className={clsx(
-                                            styles.answerMarkdown,
-                                            styles.persistedAnswer,
-                                        )}
-                                        allowedTags={
-                                            MEMORY_CITATION_ALLOWED_TAGS
-                                        }
-                                        rehypePlugins={answerRehypePlugins}
-                                        plugins={markdownPlugins}
-                                        components={{
-                                            ...MEMORY_CITATION_COMPONENTS,
-                                            a: ({
-                                                node,
-                                                children,
-                                                ...props
-                                            }) => {
-                                                const contentType =
-                                                    'data-content-type' in
-                                                        props &&
-                                                    isContentType(
-                                                        props[
-                                                            'data-content-type'
-                                                        ],
-                                                    )
-                                                        ? props[
-                                                              'data-content-type'
-                                                          ]
-                                                        : undefined;
+                                {(() => {
+                                    const persistedStreamdownMd = (
+                                        <AiMarkdown
+                                            key={citationResolutionKey}
+                                            className={clsx(
+                                                styles.answerMarkdown,
+                                                styles.persistedAnswer,
+                                            )}
+                                            allowedTags={
+                                                MEMORY_CITATION_ALLOWED_TAGS
+                                            }
+                                            rehypePlugins={answerRehypePlugins}
+                                            plugins={markdownPlugins}
+                                            components={{
+                                                ...MEMORY_CITATION_COMPONENTS,
+                                                a: ({
+                                                    node,
+                                                    children,
+                                                    ...props
+                                                }) => {
+                                                    const contentType =
+                                                        'data-content-type' in
+                                                            props &&
+                                                        isContentType(
+                                                            props[
+                                                                'data-content-type'
+                                                            ],
+                                                        )
+                                                            ? props[
+                                                                  'data-content-type'
+                                                              ]
+                                                            : undefined;
 
-                                                return (
-                                                    <ContentLink
-                                                        contentType={
-                                                            contentType
-                                                        }
-                                                        props={props}
-                                                        message={message}
-                                                        projectUuid={
-                                                            projectUuid
-                                                        }
-                                                        agentUuid={agentUuid}
-                                                        sqlRunnerLinkState={
-                                                            sqlRunnerLinkState
-                                                        }
-                                                        onDashboardLinkClick={
-                                                            onDashboardLinkClick
-                                                        }
-                                                    >
-                                                        {children}
-                                                    </ContentLink>
-                                                );
-                                            },
-                                        }}
-                                    >
-                                        {messageContent}
-                                    </AiMarkdown>
-                                )}
+                                                    return (
+                                                        <ContentLink
+                                                            contentType={
+                                                                contentType
+                                                            }
+                                                            props={props}
+                                                            message={message}
+                                                            projectUuid={
+                                                                projectUuid
+                                                            }
+                                                            agentUuid={
+                                                                agentUuid
+                                                            }
+                                                            sqlRunnerLinkState={
+                                                                sqlRunnerLinkState
+                                                            }
+                                                            onDashboardLinkClick={
+                                                                onDashboardLinkClick
+                                                            }
+                                                        >
+                                                            {children}
+                                                        </ContentLink>
+                                                    );
+                                                },
+                                            }}
+                                        >
+                                            {messageContent}
+                                        </AiMarkdown>
+                                    );
+                                    return isWordsMarkdown ? (
+                                        <LazyWordsMarkdown
+                                            fallback={persistedStreamdownMd}
+                                            isStreaming={false}
+                                            className={clsx(
+                                                styles.answerMarkdown,
+                                                styles.persistedAnswer,
+                                            )}
+                                            renderLink={renderWordsLink}
+                                            codeBlocks={wordsCodeBlocks}
+                                            inlineTags={wordsInlineTags}
+                                        >
+                                            {messageContent}
+                                        </LazyWordsMarkdown>
+                                    ) : (
+                                        persistedStreamdownMd
+                                    );
+                                })()}
                             </Box>
                         ) : null}
                     </>

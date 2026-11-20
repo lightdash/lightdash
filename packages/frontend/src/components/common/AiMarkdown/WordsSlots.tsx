@@ -1,6 +1,6 @@
 import { type FC, type ReactNode } from 'react';
 import {
-    TOKEN_REGEX,
+    restoreTokens,
     useWordsContext,
     type WordsCodeBlockProps,
     type WordsLinkProps,
@@ -22,17 +22,17 @@ export const InlineTagSlot: FC<{ index: number }> = ({ index }) => {
 export const CodeBlockSlot: FC<
     WordsCodeBlockProps & { fallback: ReactNode }
 > = ({ fallback, ...block }) => {
-    const { codeBlocks } = useWordsContext();
+    const { codeBlocks, tokens } = useWordsContext();
     const renderer = codeBlocks.find(({ languages }) =>
         languages.includes(block.language),
     );
-    return renderer ? <renderer.component {...block} /> : <>{fallback}</>;
+    if (!renderer) return <>{fallback}</>;
+    const code = restoreTokens(block.code, tokens);
+    return <renderer.component {...block} code={code} />;
 };
 
 /** Inline tags written inside code show as their source text. */
 export const RawTokenText: FC<{ text: string }> = ({ text }) => {
     const { tokens } = useWordsContext();
-    return (
-        <>{text.replace(TOKEN_REGEX, (_, i) => tokens[Number(i)]?.raw ?? '')}</>
-    );
+    return <>{restoreTokens(text, tokens)}</>;
 };

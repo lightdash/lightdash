@@ -1,3 +1,4 @@
+import { Box } from '@mantine/core';
 import { emojify } from 'node-emoji';
 import {
     createElement,
@@ -176,9 +177,9 @@ function convertNode(node: Node, key: number, inCode: boolean): ReactNode {
 
     if (tag === 'table') {
         return (
-            <div key={key} data-markdown="table-wrapper">
-                <div>{element}</div>
-            </div>
+            <Box key={key} data-markdown="table-wrapper">
+                <Box>{element}</Box>
+            </Box>
         );
     }
     if (node.getAttribute('data-markdown') === 'code-block') {

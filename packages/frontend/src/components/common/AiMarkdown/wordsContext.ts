@@ -45,6 +45,10 @@ export const TOKEN_START = String.fromCharCode(0xe000);
 export const TOKEN_END = String.fromCharCode(0xe001);
 export const TOKEN_REGEX = new RegExp(`${TOKEN_START}(\\d+)${TOKEN_END}`, 'g');
 
+/** Puts back the source text of tokens that ended up inside code. */
+export const restoreTokens = (text: string, tokens: InlineTagToken[]) =>
+    text.replace(TOKEN_REGEX, (_, i) => tokens[Number(i)]?.raw ?? '');
+
 export const WordsContext = createContext<WordsRenderContext | null>(null);
 
 export const useWordsContext = (): WordsRenderContext => {
