@@ -16015,6 +16015,7 @@ export class AsyncQueryService extends ProjectService {
             sourceTitleById,
             dateZoomBySourceId,
             authority,
+            sourcesRunAsNodes: true,
         });
         if (!isRunnableCompiledMergeQuery(compiled)) {
             throw new ParameterError(
