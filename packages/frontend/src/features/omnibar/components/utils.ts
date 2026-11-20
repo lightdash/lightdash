@@ -8,16 +8,18 @@ import {
 import {
     IconNumber123,
     IconAbc,
-    IconAppWindow,
     IconBrowser,
+    IconLayoutNavbarInactive,
+    IconSettings,
+} from '@tabler/icons-react';
+import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
+import {
+    IconAppWindow,
     IconFolder,
     IconFileText,
     IconLayoutDashboard,
-    IconLayoutNavbarInactive,
-    IconSettings,
     IconTable,
-} from '@tabler/icons-react';
-import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
+} from '../../iconLab/switchableIcons';
 import { type SearchItem } from '../types/searchItem';
 import { type SearchResultMap } from '../types/searchResultMap';
 

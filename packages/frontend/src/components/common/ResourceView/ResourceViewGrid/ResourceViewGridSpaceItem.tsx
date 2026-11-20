@@ -1,14 +1,14 @@
 import { FeatureFlags, type ResourceViewSpaceItem } from '@lightdash/common';
 import { Box, Flex, Group, Paper, Stack, Text } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
+import { type FC, type ReactNode } from 'react';
 import {
     IconAppWindow,
     IconChartBar,
     IconFolder,
     IconLayoutDashboard,
     IconFileText,
-} from '@tabler/icons-react';
-import { type FC, type ReactNode } from 'react';
+} from '../../../../features/iconLab/switchableIcons';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import { ResourceIcon } from '../../ResourceIcon';
 import ResourceViewActionMenu, {

@@ -2,19 +2,21 @@ import { subject } from '@casl/ability';
 import { FeatureFlags } from '@lightdash/common';
 import { Button, getDefaultZIndex, Menu } from '@mantine/core';
 import {
-    IconAppWindow,
-    IconFileText,
-    IconFolder,
     IconFolderPlus,
-    IconLayoutDashboard,
     IconSquareRoundedPlus,
-    IconTable,
     IconTerminal2,
 } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useCanCreateDataApp } from '../../features/apps/hooks/useCanCreateDataApp';
 import DocumentCreateModal from '../../features/documents/DocumentCreateModal';
+import {
+    IconAppWindow,
+    IconFileText,
+    IconFolder,
+    IconLayoutDashboard,
+    IconTable,
+} from '../../features/iconLab/switchableIcons';
 import { useContentAuthoringEnabled } from '../../hooks/useContentAuthoringEnabled';
 import { useProject } from '../../hooks/useProject';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';

@@ -1,5 +1,8 @@
 import { Box, SegmentedControl, Text, Tooltip } from '@mantine/core';
-import { IconChartBar, IconLayoutDashboard } from '@tabler/icons-react';
+import {
+    IconChartBar,
+    IconLayoutDashboard,
+} from '../../../features/iconLab/switchableIcons';
 import { type useSchedulerFilters } from '../../../features/scheduler/hooks/useSchedulerFilters';
 import MantineIcon from '../../common/MantineIcon';
 import classes from './ResourceTypeFilter.module.css';

@@ -13,14 +13,16 @@ import {
     type TooltipProps,
 } from '@mantine/core';
 import {
-    IconAppWindow,
     IconCircleCheckFilled,
-    IconFolder,
-    IconFileText,
-    IconLayoutDashboard,
     type Icon as TablerIconType,
 } from '@tabler/icons-react';
 import { useRef, useState, type FC, type ReactNode } from 'react';
+import {
+    IconAppWindow,
+    IconFolder,
+    IconFileText,
+    IconLayoutDashboard,
+} from '../../../features/iconLab/switchableIcons';
 import MantineIcon, { type MantineIconProps } from '../MantineIcon';
 import classes from './ResourceIcon.module.css';
 import { getChartIcon } from './utils';

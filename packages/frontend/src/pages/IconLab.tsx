@@ -1,6 +1,5 @@
-import { ChartKind } from '@lightdash/common';
+import { ChartKind, ContentType } from '@lightdash/common';
 import {
-    Badge,
     Box,
     Group,
     Paper,
@@ -10,99 +9,80 @@ import {
     Title,
     useMantineColorScheme,
 } from '@mantine/core';
-import {
-    IconAppWindow,
-    IconFileText,
-    IconFolder,
-    IconLayoutDashboard,
-} from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../components/common/MantineIcon';
-import { IconBox } from '../components/common/ResourceIcon';
-import { getChartIcon } from '../components/common/ResourceIcon/utils';
+import Page from '../components/common/Page/Page';
+import { ChartIcon, IconBox } from '../components/common/ResourceIcon';
+import InfiniteResourceTable from '../components/common/ResourceView/InfiniteResourceTable';
+import { HomepageContentPanel } from '../components/Home/HomepageContentPanel';
+import PageSpinner from '../components/PageSpinner';
+import PinnedAndFavoritesSection from '../components/PinnedAndFavoritesSection';
+import { ResourceTypeFilter } from '../components/SchedulersView/filters/ResourceTypeFilter';
 import {
-    ACCENT_ICONS,
-    OUTLINE_ICONS,
-    SOLID_ICONS,
     type ContentIconName,
     type ContentIconSet,
 } from '../features/iconLab/contentIcons';
+import { CONTENT_ICON_SETS } from '../features/iconLab/contentIconSets';
+import {
+    CONTENT_ICON_SET_KEYS,
+    setContentIconSetKey,
+    useContentIconSetKey,
+    type ContentIconSetKey,
+} from '../features/iconLab/contentIconSetStore';
 import classes from '../features/iconLab/IconLab.module.css';
+import { ContentTypeFilter } from '../features/recentlyDeleted/components/ContentTypeFilter';
+import { type DeletedContentTypeFilter } from '../features/recentlyDeleted/types';
+import { useFavorites } from '../hooks/favorites/useFavorites';
+import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
+import {
+    useMostPopularAndRecentlyUpdated,
+    useProject,
+} from '../hooks/useProject';
+import { useProjectUuid } from '../hooks/useProjectUuid';
+import { FavoritesProvider } from '../providers/Favorites/FavoritesProvider';
+import { PinnedItemsProvider } from '../providers/PinnedItems/PinnedItemsProvider';
+import { getProjectUrlIdentifier } from '../utils/projectUrl';
 
-type Treatment = 'tint' | 'tile';
-
-const CURRENT_ICONS: ContentIconSet = {
-    dashboard: IconLayoutDashboard,
-    space: IconFolder,
-    dataApp: IconAppWindow,
-    document: IconFileText,
-    table: getChartIcon(ChartKind.TABLE),
-    bar: getChartIcon(ChartKind.VERTICAL_BAR),
-    horizontalBar: getChartIcon(ChartKind.HORIZONTAL_BAR),
-    line: getChartIcon(ChartKind.LINE),
-    area: getChartIcon(ChartKind.AREA),
-    mixed: getChartIcon(ChartKind.MIXED),
-    scatter: getChartIcon(ChartKind.SCATTER),
-    pie: getChartIcon(ChartKind.PIE),
-    bigNumber: getChartIcon(ChartKind.BIG_NUMBER),
-    funnel: getChartIcon(ChartKind.FUNNEL),
-    treemap: getChartIcon(ChartKind.TREEMAP),
-    gauge: getChartIcon(ChartKind.GAUGE),
-    map: getChartIcon(ChartKind.MAP),
-    sankey: getChartIcon(ChartKind.SANKEY),
-    custom: getChartIcon(ChartKind.CUSTOM),
-    dataAppViz: getChartIcon(ChartKind.DATA_APP_VIZ),
+const SET_LABELS: Record<ContentIconSetKey, string> = {
+    current: 'Current',
+    a: 'A · Outline',
+    b: 'B · Accent',
+    c: 'C · Solid',
 };
 
-type Direction = {
-    key: 'current' | 'a' | 'b' | 'c';
-    name: string;
-    note: string;
-    icons: ContentIconSet;
-};
+const isSetKey = (value: string): value is ContentIconSetKey =>
+    CONTENT_ICON_SET_KEYS.some((key) => key === value);
 
-const DIRECTIONS: Direction[] = [
-    {
-        key: 'current',
-        name: 'Current',
-        note: 'Tabler',
-        icons: CURRENT_ICONS,
-    },
-    {
-        key: 'a',
-        name: 'A · Outline',
-        note: 'Strokes only',
-        icons: OUTLINE_ICONS,
-    },
-    {
-        key: 'b',
-        name: 'B · Accent',
-        note: 'Outline, one solid part',
-        icons: ACCENT_ICONS,
-    },
-    {
-        key: 'c',
-        name: 'C · Solid',
-        note: 'Two tones, no strokes',
-        icons: SOLID_ICONS,
-    },
-];
+const CHART_KIND_LABELS: Record<ChartKind, string> = {
+    [ChartKind.TABLE]: 'Table',
+    [ChartKind.VERTICAL_BAR]: 'Bar',
+    [ChartKind.HORIZONTAL_BAR]: 'Horizontal bar',
+    [ChartKind.LINE]: 'Line',
+    [ChartKind.AREA]: 'Area',
+    [ChartKind.MIXED]: 'Mixed',
+    [ChartKind.SCATTER]: 'Scatter',
+    [ChartKind.PIE]: 'Pie',
+    [ChartKind.BIG_NUMBER]: 'Big number',
+    [ChartKind.FUNNEL]: 'Funnel',
+    [ChartKind.TREEMAP]: 'Treemap',
+    [ChartKind.GAUGE]: 'Gauge',
+    [ChartKind.MAP]: 'Map',
+    [ChartKind.SANKEY]: 'Sankey',
+    [ChartKind.CUSTOM]: 'Custom',
+    [ChartKind.DATA_APP_VIZ]: 'Data app viz',
+};
 
 type IconRow = { name: ContentIconName; label: string; color: string };
 
 const CHART_COLOR = 'blue.6';
 
-const RESOURCE_ROWS: IconRow[] = [
+const MATRIX_ROWS: IconRow[] = [
     { name: 'dashboard', label: 'Dashboard', color: 'green.6' },
     { name: 'space', label: 'Space', color: 'violet.6' },
     { name: 'dataApp', label: 'Data app', color: 'orange.6' },
     { name: 'document', label: 'Document', color: 'ldGray.6' },
-];
-
-const CHART_ROWS: IconRow[] = [
     { name: 'table', label: 'Table', color: CHART_COLOR },
     { name: 'bar', label: 'Bar', color: CHART_COLOR },
-    { name: 'horizontalBar', label: 'Horizontal bar', color: CHART_COLOR },
     { name: 'line', label: 'Line', color: CHART_COLOR },
     { name: 'area', label: 'Area', color: CHART_COLOR },
     { name: 'mixed', label: 'Mixed', color: CHART_COLOR },
@@ -118,120 +98,81 @@ const CHART_ROWS: IconRow[] = [
     { name: 'dataAppViz', label: 'Data app viz', color: CHART_COLOR },
 ];
 
-const LIST_ROWS: IconRow[] = [
-    { name: 'dashboard', label: 'Revenue overview', color: 'green.6' },
-    { name: 'table', label: 'Orders by status', color: CHART_COLOR },
-    { name: 'bar', label: 'Weekly signups', color: CHART_COLOR },
-    { name: 'space', label: 'Finance', color: 'violet.6' },
-    { name: 'line', label: 'Churn over time', color: CHART_COLOR },
-    { name: 'dataApp', label: 'Pricing calculator', color: 'orange.6' },
-    { name: 'bigNumber', label: 'Net revenue', color: CHART_COLOR },
-    { name: 'document', label: 'Q3 board notes', color: 'ldGray.6' },
-    { name: 'pie', label: 'Plan mix', color: CHART_COLOR },
-];
-
-// The app draws the horizontal bar by rotating the vertical one; only the Tabler set needs that.
-const rotatedClass = (direction: Direction, name: ContentIconName) =>
-    direction.key === 'current' && name === 'horizontalBar'
-        ? classes.rotated
-        : undefined;
-
-const Boxed: FC<{
-    direction: Direction;
-    row: IconRow;
-    treatment: Treatment;
-}> = ({ direction, row, treatment }) => {
-    const icon = direction.icons[row.name];
-    const className = rotatedClass(direction, row.name);
-    return treatment === 'tile' ? (
-        <IconBox
-            icon={icon}
-            color="white"
-            bg={row.color}
-            className={className}
-        />
-    ) : (
-        <IconBox icon={icon} color={row.color} className={className} />
-    );
-};
-
-const DirectionHeading: FC<{ direction: Direction }> = ({ direction }) => (
-    <Stack gap={0}>
-        <Group gap={6} wrap="nowrap">
-            <Text fz="sm" fw={600}>
-                {direction.name}
+const Section: FC<{ title: string; source: string; children: ReactNode }> = ({
+    title,
+    source,
+    children,
+}) => (
+    <Stack gap="sm">
+        <Stack gap={0}>
+            <Title order={4}>{title}</Title>
+            <Text fz="xs" c="dimmed" ff="monospace">
+                {source}
             </Text>
-            {direction.key === 'current' ? <Badge size="xs">live</Badge> : null}
-        </Group>
-        <Text fz="xs" c="dimmed">
-            {direction.note}
-        </Text>
+        </Stack>
+        {children}
     </Stack>
 );
 
-const MatrixRows: FC<{ rows: IconRow[]; treatment: Treatment }> = ({
-    rows,
-    treatment,
+const MatrixCell: FC<{ icons: ContentIconSet; row: IconRow }> = ({
+    icons,
+    row,
 }) => (
-    <>
-        {rows.map((row) => (
-            <Box key={row.name} className={classes.matrixRow}>
-                <Text fz="sm">{row.label}</Text>
-                {DIRECTIONS.map((direction) => (
-                    <Group key={direction.key} gap="md" wrap="nowrap">
-                        <MantineIcon
-                            icon={direction.icons[row.name]}
-                            size={16}
-                            color={row.color}
-                            className={rotatedClass(direction, row.name)}
-                        />
-                        <Boxed
-                            direction={direction}
-                            row={row}
-                            treatment={treatment}
-                        />
-                        <MantineIcon
-                            icon={direction.icons[row.name]}
-                            size={40}
-                            color={row.color}
-                            className={rotatedClass(direction, row.name)}
-                        />
-                    </Group>
-                ))}
-            </Box>
-        ))}
-    </>
+    <Group gap="md" wrap="nowrap">
+        <MantineIcon icon={icons[row.name]} size={16} color={row.color} />
+        <IconBox icon={icons[row.name]} color={row.color} />
+        <MantineIcon icon={icons[row.name]} size={40} color={row.color} />
+    </Group>
 );
 
 const IconLab: FC = () => {
-    const [treatment, setTreatment] = useState<Treatment>('tint');
+    const setKey = useContentIconSetKey();
     const { colorScheme, setColorScheme } = useMantineColorScheme();
+    const [schedulerType, setSchedulerType] = useState<
+        'all' | 'chart' | 'dashboard'
+    >('all');
+    const [deletedType, setDeletedType] =
+        useState<DeletedContentTypeFilter>('all');
+
+    const projectUuid = useProjectUuid();
+    const project = useProject(projectUuid);
+    const pinnedItems = usePinnedItems(
+        projectUuid,
+        project.data?.pinnedListUuid,
+    );
+    const favorites = useFavorites(projectUuid);
+    const mostPopularAndRecentlyUpdated =
+        useMostPopularAndRecentlyUpdated(projectUuid);
+
+    if (!projectUuid || !project.data) {
+        return <PageSpinner />;
+    }
 
     return (
-        <Box className={classes.page}>
+        <Page withFixedContent withPaddedContent>
             <Stack gap="xl">
-                <Group justify="space-between" align="flex-end">
-                    <Stack gap={2}>
-                        <Title order={2}>Content icon lab</Title>
-                        <Text c="dimmed">
-                            The live content icons next to three redrawn sets.
+                <Paper className={classes.toolbar}>
+                    <Stack gap={0}>
+                        <Text fw={600}>Content icon lab</Text>
+                        <Text fz="xs" c="dimmed">
+                            The choice sticks in this browser, so the rest of
+                            the app follows it too.
                         </Text>
                     </Stack>
                     <Group gap="sm">
                         <SegmentedControl
-                            size="xs"
-                            aria-label="Icon container"
-                            value={treatment}
-                            onChange={(value) =>
-                                setTreatment(value === 'tile' ? 'tile' : 'tint')
-                            }
-                            data={[
-                                { value: 'tint', label: 'Tinted box' },
-                                { value: 'tile', label: 'Solid tile' },
-                            ]}
+                            aria-label="Icon set"
+                            value={setKey}
+                            onChange={(value) => {
+                                if (isSetKey(value))
+                                    setContentIconSetKey(value);
+                            }}
+                            data={CONTENT_ICON_SET_KEYS.map((key) => ({
+                                value: key,
+                                label: SET_LABELS[key],
+                            }))}
                         />
                         <SegmentedControl
-                            size="xs"
                             aria-label="Color scheme"
                             value={colorScheme === 'dark' ? 'dark' : 'light'}
                             onChange={(value) =>
@@ -245,69 +186,160 @@ const IconLab: FC = () => {
                             ]}
                         />
                     </Group>
-                </Group>
+                </Paper>
 
-                <Stack gap="sm">
-                    <Title order={4}>In a list</Title>
-                    <Box className={classes.lists}>
-                        {DIRECTIONS.map((direction) => (
-                            <Stack key={direction.key} gap="xs">
-                                <DirectionHeading direction={direction} />
-                                <Paper className={classes.list}>
-                                    {LIST_ROWS.map((row) => (
-                                        <Group
-                                            key={row.name}
-                                            gap="sm"
-                                            wrap="nowrap"
-                                            className={classes.listRow}
-                                        >
-                                            <Boxed
-                                                direction={direction}
-                                                row={row}
-                                                treatment={treatment}
-                                            />
-                                            <Text fz="sm" fw={500} truncate>
-                                                {row.label}
-                                            </Text>
-                                        </Group>
-                                    ))}
-                                </Paper>
-                            </Stack>
-                        ))}
-                    </Box>
-                </Stack>
+                <Text fz="sm" c="dimmed">
+                    The nav bar above is the real one: open Browse and New to
+                    see the menus in the selected set.
+                </Text>
 
-                <Stack gap="sm">
-                    <Stack gap={2}>
-                        <Title order={4}>Every icon</Title>
-                        <Text fz="sm" c="dimmed">
-                            Each one at 16px (menus, explore tree), in the 32px
-                            list box, and at 40px.
-                        </Text>
+                <FavoritesProvider projectUuid={projectUuid}>
+                    <Stack gap="xl">
+                        <Section
+                            title="Homepage: pinned, favourites, most popular"
+                            source="PinnedAndFavoritesSection, HomepageContentPanel"
+                        >
+                            <PinnedItemsProvider
+                                organizationUuid={project.data.organizationUuid}
+                                projectUuid={projectUuid}
+                                pinnedListUuid={
+                                    project.data.pinnedListUuid || ''
+                                }
+                                allowDelete={false}
+                            >
+                                <PinnedAndFavoritesSection
+                                    pinnedItems={pinnedItems.data ?? []}
+                                    favoriteItems={favorites.data ?? []}
+                                    pinnedIsEnabled
+                                />
+                            </PinnedItemsProvider>
+                            <HomepageContentPanel
+                                data={mostPopularAndRecentlyUpdated.data}
+                                projectUuid={projectUuid}
+                                projectUrlIdentifier={getProjectUrlIdentifier(
+                                    project.data,
+                                )}
+                            />
+                        </Section>
+
+                        <Section
+                            title="Content table with type filters"
+                            source="InfiniteResourceTable"
+                        >
+                            <InfiniteResourceTable
+                                filters={{
+                                    projectUuid,
+                                    contentTypes: [
+                                        ContentType.DASHBOARD,
+                                        ContentType.CHART,
+                                        ContentType.DATA_APP,
+                                        ContentType.DOCUMENT,
+                                    ],
+                                }}
+                                contentTypeFilter={{
+                                    defaultValue: undefined,
+                                    options: [
+                                        ContentType.DASHBOARD,
+                                        ContentType.CHART,
+                                        ContentType.DATA_APP,
+                                        ContentType.DOCUMENT,
+                                    ],
+                                }}
+                            />
+                        </Section>
+
+                        <Section
+                            title="Spaces"
+                            source="InfiniteResourceTable (spaces)"
+                        >
+                            <InfiniteResourceTable
+                                filters={{
+                                    projectUuid,
+                                    spaceUuids: [],
+                                    contentTypes: [ContentType.SPACE],
+                                }}
+                                contentTypeFilter={{
+                                    defaultValue: ContentType.SPACE,
+                                    options: [],
+                                }}
+                                enableBottomToolbar={false}
+                                enableRowSelection={false}
+                            />
+                        </Section>
                     </Stack>
+                </FavoritesProvider>
+
+                <Section
+                    title="Type filters"
+                    source="ResourceTypeFilter (schedulers), ContentTypeFilter (recently deleted)"
+                >
+                    <Paper p="md">
+                        <Group gap="xl">
+                            <ResourceTypeFilter
+                                selectedResourceType={schedulerType}
+                                setSelectedResourceType={(value) =>
+                                    setSchedulerType(value ?? 'all')
+                                }
+                            />
+                            <Group gap="sm">
+                                <ContentTypeFilter
+                                    selectedContentType={deletedType}
+                                    setSelectedContentType={setDeletedType}
+                                />
+                            </Group>
+                        </Group>
+                    </Paper>
+                </Section>
+
+                <Section title="Every chart kind" source="ChartIcon">
+                    <Paper p="md">
+                        <Box className={classes.kinds}>
+                            {Object.values(ChartKind).map((kind) => (
+                                <Group key={kind} gap="sm" wrap="nowrap">
+                                    <ChartIcon chartKind={kind} />
+                                    <Text fz="sm" truncate>
+                                        {CHART_KIND_LABELS[kind]}
+                                    </Text>
+                                </Group>
+                            ))}
+                        </Box>
+                    </Paper>
+                </Section>
+
+                <Section
+                    title="All sets side by side"
+                    source="16px, 32px box, 40px"
+                >
                     <Paper className={classes.matrix}>
                         <Box className={classes.matrixHead}>
                             <span />
-                            {DIRECTIONS.map((direction) => (
-                                <DirectionHeading
-                                    key={direction.key}
-                                    direction={direction}
-                                />
+                            {CONTENT_ICON_SET_KEYS.map((key) => (
+                                <Text
+                                    key={key}
+                                    fz="sm"
+                                    fw={600}
+                                    c={key === setKey ? undefined : 'dimmed'}
+                                >
+                                    {SET_LABELS[key]}
+                                </Text>
                             ))}
                         </Box>
-                        <Text className={classes.matrixGroup}>Resources</Text>
-                        <MatrixRows
-                            rows={RESOURCE_ROWS}
-                            treatment={treatment}
-                        />
-                        <Text className={classes.matrixGroup}>
-                            Charts by kind
-                        </Text>
-                        <MatrixRows rows={CHART_ROWS} treatment={treatment} />
+                        {MATRIX_ROWS.map((row) => (
+                            <Box key={row.name} className={classes.matrixRow}>
+                                <Text fz="sm">{row.label}</Text>
+                                {CONTENT_ICON_SET_KEYS.map((key) => (
+                                    <MatrixCell
+                                        key={key}
+                                        icons={CONTENT_ICON_SETS[key]}
+                                        row={row}
+                                    />
+                                ))}
+                            </Box>
+                        ))}
                     </Paper>
-                </Stack>
+                </Section>
             </Stack>
-        </Box>
+        </Page>
     );
 };
 

@@ -1,4 +1,5 @@
-import { type Icon as TablerIconType } from '@tabler/icons-react';
+import { type IconProps } from '@tabler/icons-react';
+import { type ForwardRefExoticComponent, type RefAttributes } from 'react';
 import { createContentIcon } from './createContentIcon';
 
 // Hand-drawn on a 24 grid. Solid shapes set their own fill opacity so the tint
@@ -25,7 +26,11 @@ export type ContentIconName =
     | 'custom'
     | 'dataAppViz';
 
-export type ContentIconSet = Record<ContentIconName, TablerIconType>;
+export type ContentIcon = ForwardRefExoticComponent<
+    IconProps & RefAttributes<SVGSVGElement>
+>;
+
+export type ContentIconSet = Record<ContentIconName, ContentIcon>;
 
 /* A: outline, rebalanced */
 export const OUTLINE_ICONS: ContentIconSet = {

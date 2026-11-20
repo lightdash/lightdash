@@ -8,20 +8,14 @@ import { Box, Button, Flex, Group, Menu, Select } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconAdjustments,
-    IconAppWindow,
     IconBrowser,
     IconCalendar,
-    IconChartBar,
     IconChevronDown,
     IconCircleCheck,
     IconCodeCircle,
-    IconFolder,
-    IconFileText,
-    IconLayoutDashboard,
     IconLayoutNavbarInactive,
     IconRectangle,
     IconSettings,
-    IconTable,
     IconUser,
     IconX,
 } from '@tabler/icons-react';
@@ -30,6 +24,14 @@ import CalendarRangePicker from '../../../components/common/DatePickers/Calendar
 import { type CalendarDateRange } from '../../../components/common/DatePickers/types';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
+import {
+    IconAppWindow,
+    IconChartBar,
+    IconFolder,
+    IconFileText,
+    IconLayoutDashboard,
+    IconTable,
+} from '../../iconLab/switchableIcons';
 import { allSearchItemTypes } from '../types/searchItem';
 import { getDateFilterLabel } from '../utils/getDateFilterLabel';
 import { getSearchItemLabel } from '../utils/getSearchItemLabel';

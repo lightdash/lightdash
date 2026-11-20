@@ -1,5 +1,9 @@
 import { ContentType, FeatureFlags } from '@lightdash/common';
 import { Box, Divider, SegmentedControl, Text, Tooltip } from '@mantine/core';
+import type { FC } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { useChartTypesEnabled } from '../../chartTypes/hooks/useChartTypesEnabled';
 import {
     IconAppWindow,
     IconChartBar,
@@ -7,11 +11,7 @@ import {
     IconFileText,
     IconLayoutDashboard,
     IconPuzzle,
-} from '@tabler/icons-react';
-import type { FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
-import { useChartTypesEnabled } from '../../chartTypes/hooks/useChartTypesEnabled';
+} from '../../iconLab/switchableIcons';
 import {
     CHART_TYPES_FILTER_VALUE,
     type DeletedContentTypeFilter,

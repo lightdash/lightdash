@@ -10,16 +10,15 @@ import {
     type ResourceViewItem,
 } from '@lightdash/common';
 import { Anchor, Box, Group, Stack, Text, Tooltip } from '@mantine/core';
-import {
-    IconAlertTriangle,
-    IconAppWindow,
-    IconChartBar,
-    IconCircleCheckFilled,
-    IconFolder,
-    IconLayoutDashboard,
-} from '@tabler/icons-react';
+import { IconAlertTriangle, IconCircleCheckFilled } from '@tabler/icons-react';
 import { Link } from 'react-router';
 import AppThumbnailHoverCard from '../../../features/apps/components/AppThumbnailHoverCard';
+import {
+    IconAppWindow,
+    IconChartBar,
+    IconFolder,
+    IconLayoutDashboard,
+} from '../../../features/iconLab/switchableIcons';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../MantineIcon';
 import { ResourceIcon, ResourceIndicator } from '../ResourceIcon';

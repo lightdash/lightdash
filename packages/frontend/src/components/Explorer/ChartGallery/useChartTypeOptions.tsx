@@ -6,6 +6,8 @@ import {
     isSeriesWithMixedChartTypes,
     type DataAppViz,
 } from '@lightdash/common';
+import { type Icon as TablerIcon } from '@tabler/icons-react';
+import { getChartTypeIcon } from '../../../features/chartTypes/utils/chartTypeIcons';
 import {
     IconChartArea,
     IconChartAreaLine,
@@ -21,9 +23,7 @@ import {
     IconMap,
     IconSquareNumber1,
     IconTable,
-    type Icon as TablerIcon,
-} from '@tabler/icons-react';
-import { getChartTypeIcon } from '../../../features/chartTypes/utils/chartTypeIcons';
+} from '../../../features/iconLab/switchableIcons';
 import {
     isBigNumberVisualizationConfig,
     isCartesianVisualizationConfig,

@@ -15,7 +15,7 @@ import {
     IconPuzzle,
     IconSquareNumber1,
     IconTable,
-} from '@tabler/icons-react';
+} from '../../../features/iconLab/switchableIcons';
 
 export const getChartIcon = (chartKind: ChartKind | undefined) => {
     switch (chartKind) {

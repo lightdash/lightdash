@@ -33,12 +33,7 @@ import {
 } from '@mantine/core';
 import { useDebouncedCallback, useDisclosure } from '@mantine/hooks';
 import {
-    IconAppWindow,
-    IconChartBar,
-    IconFolder,
-    IconFileText,
     IconFolderSymlink,
-    IconLayoutDashboard,
     IconSearch,
     IconX,
     IconColumns,
@@ -47,6 +42,13 @@ import {
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { getListedDocumentAccess } from '../../../features/documents/listedDocumentAccess';
+import {
+    IconAppWindow,
+    IconChartBar,
+    IconFolder,
+    IconFileText,
+    IconLayoutDashboard,
+} from '../../../features/iconLab/switchableIcons';
 import {
     useContentBulkAction,
     useInfiniteContent,
