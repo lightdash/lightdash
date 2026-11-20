@@ -28,9 +28,10 @@ import { SettingsValidator } from '../components/SettingsValidator';
 import { DataAppPickerModal } from '../ee/features/homepageBuilder/blocks/DataAppPickerModal';
 import { RecentList } from '../ee/features/homepageBuilder/blocks/RecentBlock';
 import {
-    type ContentIconName,
-    type ContentIconSet,
-} from '../features/iconLab/contentIcons';
+    CONTENT_ICON_ROWS,
+    type ContentIconRow,
+} from '../features/iconLab/contentIconRows';
+import { type ContentIconSet } from '../features/iconLab/contentIcons';
 import { CONTENT_ICON_SETS } from '../features/iconLab/contentIconSets';
 import {
     CONTENT_ICON_SET_KEYS,
@@ -93,36 +94,6 @@ const CHART_KIND_LABELS: Record<ChartKind, string> = {
     [ChartKind.CUSTOM]: 'Vega (legacy)',
     [ChartKind.DATA_APP_VIZ]: 'Custom chart type (user-defined)',
 };
-
-type IconRow = { name: ContentIconName; label: string; color: string };
-
-const CHART_COLOR = 'blue.6';
-
-const MATRIX_ROWS: IconRow[] = [
-    { name: 'dashboard', label: 'Dashboard', color: 'green.6' },
-    { name: 'space', label: 'Space', color: 'violet.6' },
-    { name: 'dataApp', label: 'Data app', color: 'orange.6' },
-    { name: 'document', label: 'Document', color: 'ldGray.6' },
-    { name: 'table', label: 'Table', color: CHART_COLOR },
-    { name: 'bar', label: 'Bar', color: CHART_COLOR },
-    { name: 'line', label: 'Line', color: CHART_COLOR },
-    { name: 'area', label: 'Area', color: CHART_COLOR },
-    { name: 'mixed', label: 'Mixed', color: CHART_COLOR },
-    { name: 'scatter', label: 'Scatter', color: CHART_COLOR },
-    { name: 'pie', label: 'Pie', color: CHART_COLOR },
-    { name: 'bigNumber', label: 'Big number', color: CHART_COLOR },
-    { name: 'funnel', label: 'Funnel', color: CHART_COLOR },
-    { name: 'treemap', label: 'Treemap', color: CHART_COLOR },
-    { name: 'gauge', label: 'Gauge', color: CHART_COLOR },
-    { name: 'map', label: 'Map', color: CHART_COLOR },
-    { name: 'sankey', label: 'Sankey', color: CHART_COLOR },
-    { name: 'custom', label: 'Vega (legacy)', color: CHART_COLOR },
-    {
-        name: 'dataAppViz',
-        label: 'Custom chart type (user-defined)',
-        color: CHART_COLOR,
-    },
-];
 
 const SEARCH_QUERY = 'orders';
 
@@ -193,7 +164,7 @@ const SearchResults: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     );
 };
 
-const MatrixCell: FC<{ icons: ContentIconSet; row: IconRow }> = ({
+const MatrixCell: FC<{ icons: ContentIconSet; row: ContentIconRow }> = ({
     icons,
     row,
 }) => (
@@ -544,7 +515,7 @@ const IconLab: FC = () => {
                                 </Text>
                             ))}
                         </Box>
-                        {MATRIX_ROWS.map((row) => (
+                        {CONTENT_ICON_ROWS.map((row) => (
                             <Box key={row.name} className={classes.matrixRow}>
                                 <Text fz="sm">{row.label}</Text>
                                 {CONTENT_ICON_SET_KEYS.map((key) => (

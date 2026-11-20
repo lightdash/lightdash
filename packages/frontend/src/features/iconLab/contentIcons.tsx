@@ -104,18 +104,19 @@ export const OUTLINE_ICONS: ContentIconSet = {
     mixed: createContentIcon(
         'OutlineMixed',
         <>
-            <path d="M3.5 8l5 -3.5l4.5 3l7.5 -3.5" fill="none" />
-            <rect x="3.5" y="14.5" width="4.5" height="6" rx="1" />
-            <rect x="9.75" y="11.5" width="4.5" height="9" rx="1" />
-            <rect x="16" y="13" width="4.5" height="7.5" rx="1" />
+            <path d="M3.5 6.5l5 -3l4.5 2.5l7.5 -2.5" fill="none" />
+            <rect x="3.5" y="12.5" width="4.5" height="8" rx="1" />
+            <rect x="9.75" y="9" width="4.5" height="11.5" rx="1" />
+            <rect x="16" y="10.5" width="4.5" height="10" rx="1" />
         </>,
     ),
     scatter: createContentIcon(
         'OutlineScatter',
         <>
-            <circle cx="7" cy="16.5" r="2.75" />
+            <path d="M3.5 20.5h17" fill="none" />
+            <circle cx="7" cy="14.5" r="2.25" />
             <circle cx="10.5" cy="7.5" r="2" />
-            <circle cx="16.5" cy="12.5" r="2.25" />
+            <circle cx="16" cy="12" r="2.25" />
             <circle cx="18.5" cy="5.25" r="1.75" />
         </>,
     ),
@@ -164,9 +165,9 @@ export const OUTLINE_ICONS: ContentIconSet = {
     sankey: createContentIcon(
         'OutlineSankey',
         <>
-            <path d="M6.5 16.25c5.5 0 5.5 -8.5 11 -8.5" fill="none" />
-            <rect x="3.5" y="12" width="3" height="8.5" rx="0.75" />
-            <rect x="17.5" y="3.5" width="3" height="8.5" rx="0.75" />
+            <path d="M6.5 12.5c5.5 0 5.5 -7 11 -7v6c-5.5 0 -5.5 7 -11 7z" />
+            <rect x="3.5" y="10.5" width="3" height="10" rx="0.75" />
+            <rect x="17.5" y="3.5" width="3" height="10" rx="0.75" />
         </>,
     ),
     custom: createContentIcon(
