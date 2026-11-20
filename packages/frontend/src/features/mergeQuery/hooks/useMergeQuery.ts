@@ -109,7 +109,6 @@ export const executeSavedMergeQuery = (
             includeUnpublishedDraft,
             parameters,
             pivotResults,
-            context: QueryExecutionContext.CHART,
             mode: toMergeMode(csvLimit),
         } satisfies ApiExecuteAsyncSavedMergeQueryRequest),
     });

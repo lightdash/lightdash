@@ -107,10 +107,10 @@ export const MergeProvider: FC<
     const [searchParams, setSearchParams] = useSearchParams();
     // Restored once, on mount. A link wins over the chart's stored merge, so
     // that sharing a modified merge shows what was shared rather than what was
-    // saved.
+    // saved; a saved-chart run shows only what it runs.
     const [restored] = useState(
         () =>
-            (canAuthorMerge
+            (canAuthorMerge && !savedChartRun
                 ? parseMergeState(searchParams.get(MERGE_URL_PARAM))
                 : null) ?? (savedMerge ? restoreSavedMerge(savedMerge) : null),
     );

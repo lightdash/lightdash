@@ -1221,7 +1221,6 @@ export type ApiExecuteAsyncMergeQueryRequest = Omit<
 /** Runs a saved chart's own merge, named by the chart rather than sent. */
 export type ApiExecuteAsyncSavedMergeQueryRequest = {
     savedChartUuid: UUID;
-    context?: QueryExecutionContext;
     invalidateCache?: boolean;
     parameters: ParametersValuesMap;
     mode: MergeQueryExecutionMode;

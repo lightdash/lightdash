@@ -333,10 +333,8 @@ export class QueryController extends BaseController {
                 account: req.account,
                 projectUuid,
                 savedChartUuid: body.savedChartUuid,
-                context:
-                    body.context ??
-                    getContextFromHeader(req) ??
-                    QueryExecutionContext.API,
+                // Trusted legs: the caller never picks a context such as materialization
+                context: QueryExecutionContext.CHART,
                 invalidateCache: body.invalidateCache,
                 parameters: body.parameters,
                 mode: body.mode,

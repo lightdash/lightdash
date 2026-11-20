@@ -17617,7 +17617,7 @@ describe('AsyncQueryService', () => {
                 await expect(
                     service.executeAsyncSavedChartMergeQuery({
                         ...runArgs,
-                        account: authorizedAccount,
+                        account: authorizedAccount as RegisteredAccount,
                     }),
                 ).resolves.toBe(startedOutcome);
 
@@ -17651,7 +17651,7 @@ describe('AsyncQueryService', () => {
                             { subject: 'Project', action: ['view'] },
                         ]),
                     },
-                } as unknown as Account;
+                } as unknown as RegisteredAccount;
 
                 await expect(
                     service.executeAsyncSavedChartMergeQuery({
