@@ -314,6 +314,7 @@ import {
     COMPOSE_ENGINE_INSTANCE_CACHE_KEY,
     ComposeEngineClient,
 } from './ComposeEngineClient';
+import { MergedChartRun } from './MergedChartRun';
 import { buildComposeMergeOriginalColumns } from './mergeQueryExecution';
 import {
     NoOpPreAggregateStrategy,
@@ -7547,6 +7548,37 @@ describe('AsyncQueryService', () => {
                     customSqlProvenanceChartUuid: 'chart-uuid',
                 }),
             );
+        });
+
+        test("runs a merged chart's leg without the custom SQL check", async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const assertCustomSqlAuthorizedForQuery = vi.spyOn(
+                service as AnyType,
+                'assertCustomSqlAuthorizedForQuery',
+            );
+            const run = vi
+                .spyOn(
+                    service as AnyType,
+                    'runAsyncMetricQueryWithoutPermissionCheck',
+                )
+                .mockResolvedValue({ queryUuid: 'query-uuid' });
+
+            await service.executeAsyncMetricQuery({
+                authority: {
+                    kind: 'mergedChart',
+                    run: MergedChartRun.fromLoadedChart({
+                        account: sessionAccount,
+                        savedChart: { uuid: 'chart-uuid', projectUuid },
+                    }),
+                },
+                account: sessionAccount,
+                projectUuid,
+                metricQuery: metricQueryMock,
+                context: QueryExecutionContext.DASHBOARD,
+            });
+
+            expect(assertCustomSqlAuthorizedForQuery).not.toHaveBeenCalled();
+            expect(run).toHaveBeenCalledOnce();
         });
 
         test.each([true, false])(
@@ -17392,6 +17424,35 @@ describe('AsyncQueryService', () => {
             ).toEqual(['a', 'b']);
         });
 
+        test("runs a merged tile under the merged chart's authority", async () => {
+            const { service, mergeSpy } = buildService();
+
+            await service.executeAsyncDashboardChartQuery({
+                account: authorizedAccount,
+                projectUuid,
+                tileUuid: 'tile-1',
+                chartUuid: mergedChart.uuid,
+                dashboardUuid: 'dashboard-uuid',
+                dashboardFilters: {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                dashboardSorts: [],
+                context: QueryExecutionContext.DASHBOARD,
+                invalidateCache: false,
+                limit: undefined,
+                parameters: undefined,
+                pivotResults: false,
+            });
+
+            const { authority } = mergeSpy.mock.calls[0][0];
+            expect(authority.kind).toBe('mergedChart');
+            expect(() =>
+                authority.run.assertExecution(authorizedAccount, projectUuid),
+            ).not.toThrow();
+        });
+
         test('sends the tile parameters above the fallback chain to the merge', async () => {
             const { service, mergeSpy } = buildService();
             const internals = service as AnyType;
@@ -17478,7 +17539,10 @@ describe('AsyncQueryService', () => {
             });
 
             expect(mergeSpy).toHaveBeenCalledWith(
-                expect.objectContaining({ pivotConfiguration }),
+                expect.objectContaining({
+                    pivotConfiguration,
+                    authority: expect.objectContaining({ kind: 'mergedChart' }),
+                }),
             );
         });
 

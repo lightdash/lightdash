@@ -79,6 +79,7 @@ import {
     type Explore,
     type ExploreError,
     type MetricQuery,
+    type SavedMergeDefinition,
     type SpaceAccess,
     type SpaceSummaryBase,
 } from '@lightdash/common';
@@ -147,6 +148,12 @@ import {
     mergeDraftIntoChart,
     type ChartDraftOverlay,
 } from './chartDraftOverlay';
+import {
+    getChangedCustomSqlDimensionIds,
+    getChangedSqlTableCalculationNames,
+    getMergeSourcePairs,
+    getMergeSqlTableCalculations,
+} from './chartSqlChanges';
 
 type SavedChartServiceArguments = {
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
@@ -1115,22 +1122,11 @@ export class SavedChartService
         next: Pick<SavedChartDAO, 'metricQuery' | 'merge'>,
     ): Promise<void> {
         // CASL's subject() tags the object it is given, so each check gets a copy of projectContext
-        const oldSqlDimensionsById = new Map(
-            (saved.metricQuery.customDimensions ?? [])
-                .filter(isCustomSqlDimension)
-                .map((dim) => [dim.id, dim]),
-        );
-        const hasModifiedSqlCustomDimension = (
-            next.metricQuery.customDimensions ?? []
-        )
-            .filter(isCustomSqlDimension)
-            .some((dim) => {
-                const old = oldSqlDimensionsById.get(dim.id);
-                return !old || old.sql !== dim.sql;
-            });
-
         if (
-            hasModifiedSqlCustomDimension &&
+            getChangedCustomSqlDimensionIds(
+                next.metricQuery.customDimensions,
+                saved.metricQuery.customDimensions,
+            ).length > 0 &&
             auditedAbility.cannot(
                 'manage',
                 subject('CustomFields', { ...projectContext }),
@@ -1141,22 +1137,11 @@ export class SavedChartService
             );
         }
 
-        const oldSqlTcsByName = new Map(
-            (saved.metricQuery.tableCalculations ?? [])
-                .filter(isSqlTableCalculation)
-                .map((tc) => [tc.name, tc]),
-        );
-        const hasModifiedSqlTableCalculation = (
-            next.metricQuery.tableCalculations ?? []
-        )
-            .filter(isSqlTableCalculation)
-            .some((tc) => {
-                const old = oldSqlTcsByName.get(tc.name);
-                return !old || old.sql !== tc.sql;
-            });
-
         if (
-            hasModifiedSqlTableCalculation &&
+            getChangedSqlTableCalculationNames(
+                next.metricQuery.tableCalculations,
+                saved.metricQuery.tableCalculations,
+            ).length > 0 &&
             auditedAbility.cannot(
                 'manage',
                 subject('CustomSqlTableCalculations', { ...projectContext }),
@@ -1188,6 +1173,84 @@ export class SavedChartService
             next.metricQuery,
             saved.metricQuery.additionalMetrics ?? [],
         );
+
+        await this.assertCanWriteMergeSql(
+            account,
+            auditedAbility,
+            projectContext,
+            saved.merge,
+            next.merge,
+        );
+    }
+
+    /** Each source of a saved merge definition is held to the chart's own-query rules, against that source's explore. */
+    private async assertCanWriteMergeSql(
+        account: Account,
+        auditedAbility: ReturnType<SavedChartService['createAuditedAbility']>,
+        projectContext: {
+            organizationUuid: string;
+            projectUuid: string;
+            metadata?: { savedChartUuid: string };
+        },
+        saved: SavedMergeDefinition | null | undefined,
+        next: SavedMergeDefinition | null | undefined,
+    ): Promise<void> {
+        if (!next || isEqual(next, saved)) return;
+        const sources = getMergeSourcePairs(next, saved);
+
+        if (
+            sources.some(
+                (source) =>
+                    getChangedCustomSqlDimensionIds(
+                        source.next.customDimensions,
+                        source.saved?.customDimensions,
+                    ).length > 0,
+            ) &&
+            auditedAbility.cannot(
+                'manage',
+                subject('CustomFields', { ...projectContext }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot save merged queries with new or modified custom SQL dimensions',
+            );
+        }
+
+        if (
+            (getChangedSqlTableCalculationNames(
+                getMergeSqlTableCalculations(next),
+                getMergeSqlTableCalculations(saved),
+            ).length > 0 ||
+                sources.some(
+                    (source) =>
+                        getChangedSqlTableCalculationNames(
+                            source.next.tableCalculations,
+                            source.saved?.tableCalculations,
+                        ).length > 0,
+                )) &&
+            auditedAbility.cannot(
+                'manage',
+                subject('CustomSqlTableCalculations', { ...projectContext }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot save merged queries with new or modified SQL table calculations',
+            );
+        }
+
+        for (const source of sources) {
+            // eslint-disable-next-line no-await-in-loop -- each may load an explore; the first refusal stops
+            await this.assertCanSaveCustomMetricSql(
+                account,
+                auditedAbility,
+                projectContext,
+                {
+                    exploreName: source.next.explore,
+                    additionalMetrics: source.next.additionalMetrics,
+                },
+                source.saved?.additionalMetrics ?? [],
+            );
+        }
     }
 
     /** Checks restoring each chart to a version as a write over its current one, outside any transaction. */
@@ -2657,6 +2720,23 @@ export class SavedChartService
             chartToSave.metricQuery,
             [],
         );
+
+        if (chartToSave.merge) {
+            const merge = normalizeSavedMergeDefinition(
+                chartToSave.merge,
+                chartToSave.metricQuery,
+            );
+            if (!merge) {
+                throw new ParameterError('Invalid saved merge definition.');
+            }
+            await this.assertCanWriteMergeSql(
+                account,
+                auditedAbility,
+                { organizationUuid, projectUuid },
+                null,
+                merge,
+            );
+        }
 
         const newSavedChart = await this.savedChartModel.create(
             projectUuid,

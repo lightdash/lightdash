@@ -484,6 +484,7 @@ import {
     formatRefusedMergeDashboardFilters,
     type MergeSourceExplores,
 } from './mergeDashboardFilters';
+import { MergedChartRun } from './MergedChartRun';
 import {
     applyMergeExportLimit,
     buildComposeMergeOriginalColumns,
@@ -577,6 +578,7 @@ import {
     type ExecuteAsyncSqlChartArgs,
     type ExecuteAsyncUnderlyingDataQueryArgs,
     type GetAsyncQueryResultsArgs,
+    type MergedChartAuthority,
     type PollingOptions,
     type PreAggregateExecutionEngine,
     type PreAggregationRoute,
@@ -8151,6 +8153,9 @@ export class AsyncQueryService extends ProjectService {
                     args,
                     organizationUuid,
                 );
+            case 'mergedChart':
+                authority.run.assertExecution(account, projectUuid);
+                break;
             case 'request':
                 break;
             default:
@@ -8193,15 +8198,18 @@ export class AsyncQueryService extends ProjectService {
             });
         }
 
-        await this.assertCustomSqlAuthorizedForQuery({
-            account,
-            projectUuid,
-            organizationUuid,
-            exploreName: inputMetricQuery.exploreName,
-            metricQuery: inputMetricQuery,
-            dataAppPreviewToken: args.dataAppPreviewToken,
-            customSqlProvenanceChartUuid: args.customSqlProvenanceChartUuid,
-        });
+        // A merged chart's source SQL was checked at save, as a plain chart's is
+        if (authority.kind === 'request') {
+            await this.assertCustomSqlAuthorizedForQuery({
+                account,
+                projectUuid,
+                organizationUuid,
+                exploreName: inputMetricQuery.exploreName,
+                metricQuery: inputMetricQuery,
+                dataAppPreviewToken: args.dataAppPreviewToken,
+                customSqlProvenanceChartUuid: args.customSqlProvenanceChartUuid,
+            });
+        }
 
         return this.runAsyncMetricQueryWithoutPermissionCheck(
             args,
@@ -10196,6 +10204,10 @@ export class AsyncQueryService extends ProjectService {
             );
         }
         const outcome = await this.executeAsyncMergeQuery({
+            authority: {
+                kind: 'mergedChart',
+                run: MergedChartRun.fromLoadedChart({ account, savedChart }),
+            },
             account,
             projectUuid,
             mergeQuery,
@@ -10463,6 +10475,10 @@ export class AsyncQueryService extends ProjectService {
             chartSavedValues,
         });
         const outcome = await this.executeAsyncMergeQuery({
+            authority: {
+                kind: 'mergedChart',
+                run: MergedChartRun.fromLoadedChart({ account, savedChart }),
+            },
             account,
             projectUuid,
             mergeQuery,
@@ -15829,7 +15845,7 @@ export class AsyncQueryService extends ProjectService {
         compiledMerge,
         authority,
     }: {
-        authority: RequestAuthority | DocumentAuthority;
+        authority: RequestAuthority | DocumentAuthority | MergedChartAuthority;
         account: Account;
         projectUuid: string;
         organizationUuid: string;

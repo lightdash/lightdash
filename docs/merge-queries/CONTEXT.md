@@ -143,6 +143,12 @@ merged sort. Dashboard sort overrides and date zoom are left unapplied on
 merged tiles: the override has no merge-level input yet, and a grain cannot
 be applied to one side only without misaligning the join.
 
+A merged chart, on a tile or its own page, runs trusted like a plain chart:
+the server loads the saved merge definition and skips the run-time custom SQL
+check, so a viewer without `manage:CustomFields` can run custom SQL in any
+source. Saving checks each new or changed source instead, against that
+source's explore.
+
 ## Related
 
 - `architecture.md` in this directory: how a merge executes.

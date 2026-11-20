@@ -35,6 +35,7 @@ import {
     REQUEST_AUTHORITY,
     type DocumentAuthority,
     type DuckdbQueryPlan,
+    type MergedChartAuthority,
     type QueryRunAuthority,
     type RequestAuthority,
 } from '../AsyncQueryService/types';
@@ -512,7 +513,10 @@ export class QuerySourceService extends BaseService {
      */
     async submitQueries(
         args: SubmitQueriesArgs & {
-            authority: RequestAuthority | DocumentAuthority;
+            authority:
+                | RequestAuthority
+                | DocumentAuthority
+                | MergedChartAuthority;
         },
     ): Promise<{ queries: InternalSourceQuerySubmission[] }> {
         return this.submit(args);

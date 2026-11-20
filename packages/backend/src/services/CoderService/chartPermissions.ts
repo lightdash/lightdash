@@ -1,10 +1,15 @@
 import {
-    isCustomSqlDimension,
-    isSqlTableCalculation,
     type ChartAsCode,
     type CustomDimension,
+    type SavedMergeDefinition,
     type TableCalculation,
 } from '@lightdash/common';
+import {
+    getChangedCustomSqlDimensionIds,
+    getChangedSqlTableCalculationNames,
+    getMergeSourcePairs,
+    getMergeSqlTableCalculations,
+} from '../SavedChartsService/chartSqlChanges';
 
 export type ContentAsCodeSqlPermissionCheckResult = {
     check: 'customSqlDimension' | 'sqlTableCalculation';
@@ -16,26 +21,38 @@ export type CurrentChartSqlItems = {
         customDimensions?: CustomDimension[];
         tableCalculations?: TableCalculation[];
     };
+    merge?: SavedMergeDefinition | null;
+};
+
+/** A chart upload whose merge, if any, is already normalized. */
+export type ChartAsCodeSqlItems = Pick<ChartAsCode, 'slug' | 'metricQuery'> & {
+    merge?: SavedMergeDefinition | null;
 };
 
 export const getChartContentAsCodePermissionChecks = (
-    nextChart: ChartAsCode,
+    nextChart: ChartAsCodeSqlItems,
     currentChart?: CurrentChartSqlItems,
 ): ContentAsCodeSqlPermissionCheckResult[] => {
     const checks: ContentAsCodeSqlPermissionCheckResult[] = [];
     const currentMetricQuery = currentChart?.metricQuery;
-    const currentSqlDimensionsById = new Map(
-        (currentMetricQuery?.customDimensions ?? [])
-            .filter(isCustomSqlDimension)
-            .map((dimension) => [dimension.id, dimension]),
-    );
-    const changedDimensions = (nextChart.metricQuery.customDimensions ?? [])
-        .filter(isCustomSqlDimension)
-        .filter((dimension) => {
-            const current = currentSqlDimensionsById.get(dimension.id);
-            return !current || current.sql !== dimension.sql;
-        })
-        .map(({ id }) => id);
+    const nextMerge = nextChart.merge ?? null;
+    // Each merge source is held to the chart's own rules; its items are named `source.item`
+    const mergeSources = nextMerge
+        ? getMergeSourcePairs(nextMerge, currentChart?.merge)
+        : [];
+
+    const changedDimensions = [
+        ...getChangedCustomSqlDimensionIds(
+            nextChart.metricQuery.customDimensions,
+            currentMetricQuery?.customDimensions,
+        ),
+        ...mergeSources.flatMap((source) =>
+            getChangedCustomSqlDimensionIds(
+                source.next.customDimensions,
+                source.saved?.customDimensions,
+            ).map((id) => `${source.name}.${id}`),
+        ),
+    ];
     if (changedDimensions.length > 0) {
         checks.push({
             check: 'customSqlDimension',
@@ -45,18 +62,22 @@ export const getChartContentAsCodePermissionChecks = (
         });
     }
 
-    const currentCalculationsByName = new Map(
-        (currentMetricQuery?.tableCalculations ?? [])
-            .filter(isSqlTableCalculation)
-            .map((calculation) => [calculation.name, calculation]),
-    );
-    const changedCalculations = (nextChart.metricQuery.tableCalculations ?? [])
-        .filter(isSqlTableCalculation)
-        .filter((calculation) => {
-            const current = currentCalculationsByName.get(calculation.name);
-            return !current || current.sql !== calculation.sql;
-        })
-        .map(({ name }) => name);
+    const changedCalculations = [
+        ...getChangedSqlTableCalculationNames(
+            nextChart.metricQuery.tableCalculations,
+            currentMetricQuery?.tableCalculations,
+        ),
+        ...mergeSources.flatMap((source) =>
+            getChangedSqlTableCalculationNames(
+                source.next.tableCalculations,
+                source.saved?.tableCalculations,
+            ).map((name) => `${source.name}.${name}`),
+        ),
+        ...getChangedSqlTableCalculationNames(
+            getMergeSqlTableCalculations(nextMerge),
+            getMergeSqlTableCalculations(currentChart?.merge),
+        ),
+    ];
     if (changedCalculations.length > 0) {
         checks.push({
             check: 'sqlTableCalculation',

@@ -189,6 +189,7 @@ import { getAvailableParameterDefinitions } from '../ProjectService/parameters';
 import { ProjectService } from '../ProjectService/ProjectService';
 import { PromoteService } from '../PromoteService/PromoteService';
 import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
+import { getMergeSourcePairs } from '../SavedChartsService/chartSqlChanges';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { SchedulerService } from '../SchedulerService/SchedulerService';
 import {
@@ -197,6 +198,7 @@ import {
 } from '../SpaceService/SpacePermissionService';
 import {
     getChartContentAsCodePermissionChecks,
+    type ChartAsCodeSqlItems,
     type ContentAsCodeSqlPermissionCheckResult,
     type CurrentChartSqlItems,
 } from './chartPermissions';
@@ -418,7 +420,7 @@ export class CoderService extends BaseService {
     private readonly scheduledContentCoder: ScheduledContentCoder;
 
     static getChartContentAsCodePermissionChecks(
-        nextChart: ChartAsCode,
+        nextChart: ChartAsCodeSqlItems,
         currentChart?: CurrentChartSqlItems,
     ): ContentAsCodeSqlPermissionCheckResult[] {
         return getChartContentAsCodePermissionChecks(nextChart, currentChart);
@@ -430,17 +432,26 @@ export class CoderService extends BaseService {
         auditedAbility,
         project,
         chart,
-        getSavedAdditionalMetrics,
+        getSavedChart,
     }: {
         account: Account;
         auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
         project: Pick<Project, 'projectUuid' | 'organizationUuid'>;
-        chart: ChartAsCode;
-        getSavedAdditionalMetrics: () => Promise<AdditionalMetric[]>;
+        chart: ChartAsCodeSqlItems;
+        getSavedChart: () => Promise<Pick<
+            SavedChartDAO,
+            'metricQuery' | 'merge'
+        > | null>;
     }): Promise<void> {
-        const additionalMetrics = chart.metricQuery.additionalMetrics ?? [];
+        const merge = chart.merge ?? null;
+        const hasAdditionalMetrics = [
+            chart.metricQuery.additionalMetrics,
+            ...Object.values(merge?.queries ?? {}).map(
+                (query) => query.additionalMetrics,
+            ),
+        ].some((metrics) => (metrics ?? []).length > 0);
         if (
-            additionalMetrics.length === 0 ||
+            !hasAdditionalMetrics ||
             auditedAbility.can(
                 'manage',
                 subject('CustomFields', {
@@ -457,18 +468,41 @@ export class CoderService extends BaseService {
                 'ProjectService is required to check custom metric uploads',
             );
         }
-        const needingPermission =
-            await this.projectService.getCustomMetricsNeedingPermission({
-                account,
-                projectUuid: project.projectUuid,
+        const saved = await getSavedChart();
+        // Each merge source is checked against its own explore and saved source
+        const queries = [
+            {
                 exploreName: chart.metricQuery.exploreName,
-                additionalMetrics,
-                savedAdditionalMetrics: await getSavedAdditionalMetrics(),
-            });
-        if (needingPermission.length > 0) {
-            throw new ForbiddenError(
-                `${getCustomMetricSqlPermissionMessage(needingPermission)} (chart slug "${chart.slug}")`,
-            );
+                additionalMetrics: chart.metricQuery.additionalMetrics ?? [],
+                savedAdditionalMetrics:
+                    saved?.metricQuery.additionalMetrics ?? [],
+            },
+            ...(merge ? getMergeSourcePairs(merge, saved?.merge) : []).map(
+                (source) => ({
+                    exploreName: source.next.explore,
+                    additionalMetrics: source.next.additionalMetrics ?? [],
+                    savedAdditionalMetrics:
+                        source.saved?.additionalMetrics ?? [],
+                }),
+            ),
+        ];
+        for (const query of queries) {
+            if (query.additionalMetrics.length > 0) {
+                const needingPermission =
+                    // eslint-disable-next-line no-await-in-loop -- the first refusal stops
+                    await this.projectService.getCustomMetricsNeedingPermission(
+                        {
+                            account,
+                            projectUuid: project.projectUuid,
+                            ...query,
+                        },
+                    );
+                if (needingPermission.length > 0) {
+                    throw new ForbiddenError(
+                        `${getCustomMetricSqlPermissionMessage(needingPermission)} (chart slug "${chart.slug}")`,
+                    );
+                }
+            }
         }
     }
 
@@ -4899,7 +4933,7 @@ export class CoderService extends BaseService {
                     auditedAbility,
                     project,
                     chart: chartWithDefaults,
-                    getSavedAdditionalMetrics: async () => [],
+                    getSavedChart: async () => null,
                 });
             }
 
@@ -5154,11 +5188,9 @@ export class CoderService extends BaseService {
                 auditedAbility,
                 project,
                 chart: chartWithDefaults,
-                getSavedAdditionalMetrics: async () =>
-                    (
-                        currentChart ??
-                        (await this.savedChartModel.get(chart.uuid))
-                    ).metricQuery.additionalMetrics ?? [],
+                getSavedChart: async () =>
+                    currentChart ??
+                    (await this.savedChartModel.get(chart.uuid)),
             });
         }
 

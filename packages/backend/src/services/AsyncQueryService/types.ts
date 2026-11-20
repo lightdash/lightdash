@@ -55,6 +55,7 @@ import type {
 import type { ComposerRunBinding } from '../ComposerChartService/ComposerRunBinding';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 import type { MeteredLiveSource } from '../QuerySourceService/live/calls';
+import type { MergedChartRun } from './MergedChartRun';
 import type { QueryPollingSource } from './queryPollingSource';
 
 /** Who vouches for a query's content: the caller, or a stored chart the caller may view. */
@@ -67,10 +68,16 @@ export type ComposerAuthority = {
     kind: 'composer';
     binding: ComposerRunBinding;
 };
+/** A merged chart's saved merge definition, loaded by the server for a viewer of the chart. */
+export type MergedChartAuthority = {
+    kind: 'mergedChart';
+    run: MergedChartRun;
+};
 export type QueryRunAuthority =
     | RequestAuthority
     | DocumentAuthority
-    | ComposerAuthority;
+    | ComposerAuthority
+    | MergedChartAuthority;
 
 export const REQUEST_AUTHORITY: RequestAuthority = { kind: 'request' };
 
@@ -304,7 +311,7 @@ export type ExecuteAsyncExternalSqlQueryArgs = CommonAsyncQueryArgs & {
 };
 
 export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {
-    authority?: RequestAuthority | DocumentAuthority;
+    authority?: RequestAuthority | DocumentAuthority | MergedChartAuthority;
     mergeQuery: MergeQuery;
     mode: MergeQueryExecutionMode;
     chart?: MergeQueryChart;
