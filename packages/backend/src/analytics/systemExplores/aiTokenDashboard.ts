@@ -557,7 +557,7 @@ const visualSpec = (
         ...(daily
             ? [
                   {
-                      calculate: `utcFormat(toDate(datum.${day}), '%d %b %Y')`,
+                      calculate: `utcFormat(toDate(datum.${day}), '%b %-d, %Y')`,
                       as: 'utc_day_label',
                   },
               ]
@@ -641,7 +641,7 @@ const visualSpec = (
                             timeUnit: 'utcyearmonthdate',
                             axis: {
                                 title: null,
-                                format: '%d %b',
+                                format: '%b %-d',
                                 labelAngle: 0,
                                 tickCount: {
                                     expr: 'max(3, floor(width / 90))',
@@ -701,7 +701,11 @@ const visualSpec = (
             y: {
                 field: 'group',
                 type: 'ordinal',
-                sort: { field: 'group_order', op: 'min' },
+                // Largest share first. Models keep their provider's colour, so the list need not be
+                // grouped by provider to show it.
+                sort: byProvider
+                    ? { field: 'share', op: 'max', order: 'descending' }
+                    : { field: 'group_order', op: 'min' },
                 axis: null,
                 scale: { paddingInner: 0.65, paddingOuter: 0.5 },
             },

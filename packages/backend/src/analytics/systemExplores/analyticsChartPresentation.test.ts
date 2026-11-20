@@ -138,7 +138,7 @@ describe('analytics chart presentation', () => {
         const spec = getTokenSpec('feature-daily');
         expect(spec.transform).toContainEqual({
             calculate:
-                "utcFormat(toDate(datum.ai_usage_event_ts_day), '%d %b %Y')",
+                "utcFormat(toDate(datum.ai_usage_event_ts_day), '%b %-d, %Y')",
             as: 'utc_day_label',
         });
         expect(spec.layer[0].encoding.tooltip).toContainEqual({
