@@ -67,7 +67,19 @@ export const resolveTitleAim = ({
     const onWrappedLines =
         titleHovered &&
         point.y > restingTitle.bottom &&
-        expandedTitleLines.some((line) => contains(line, point));
+        // Each line reaches up to the one above, so the gap between lines counts
+        expandedTitleLines.some((line, i) =>
+            contains(
+                {
+                    ...line,
+                    top: Math.min(
+                        line.top,
+                        expandedTitleLines[i - 1]?.bottom ?? line.top,
+                    ),
+                },
+                point,
+            ),
+        );
     if (!contains(restingTitle, point) && !onWrappedLines) return 'elsewhere';
     const headingForActions =
         !!actions &&

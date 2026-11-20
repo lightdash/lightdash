@@ -3,10 +3,11 @@ import { resolveTitleAim } from './useTileTitleAim';
 
 // A ⅓-width tile at 1440px: the actions straddle the corner over the title's end
 const restingTitle = { left: 35, top: 168, right: 317, bottom: 192 };
-// Expanded and wrapped: a full first line and a short second one
+// Expanded and wrapped: a full first line and a short second one, with the
+// line-height gap the browser leaves between text rects
 const expandedTitleLines = [
-    { left: 35, top: 168, right: 465, bottom: 192 },
-    { left: 35, top: 192, right: 180, bottom: 216 },
+    { left: 35, top: 171, right: 465, bottom: 189 },
+    { left: 35, top: 195, right: 180, bottom: 213 },
 ];
 const actions = { left: 300, top: 140, right: 478, bottom: 174 };
 const layout = { restingTitle, expandedTitleLines, actions };
@@ -39,6 +40,17 @@ describe('resolveTitleAim', () => {
             resolveTitleAim({
                 ...layout,
                 point: { x: 100, y: 205 },
+                from: null,
+                titleHovered: true,
+            }),
+        ).toBe('title');
+    });
+
+    it('keeps an expanded title in the gap between its lines', () => {
+        expect(
+            resolveTitleAim({
+                ...layout,
+                point: { x: 100, y: 193 },
                 from: null,
                 titleHovered: true,
             }),
