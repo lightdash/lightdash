@@ -16,10 +16,11 @@ Pass `type: "composer_chart"` to `createContent`, `readContent` and `editContent
 A new chart is a chart from explore fields by default. Pick its type with these rules:
 
 - The user asked for a composer chart: create it.
-- The node to chart reads more than one source node (semanticLayer or `sql`), as a merge across explores does: create a composer chart. Judge that node and the nodes it reads, not every node of the `query` call.
-- One semanticLayer node with duckdb or python steps after it: save a chart when its table calculations, custom metrics or period comparisons give the same rows (a share of total, a running total, a filter against a median or average); create a composer chart only when they cannot, such as new rows from a self join or a python model.
-- A lone semanticLayer node is saved as a chart that keeps its fields, filters, sorts, custom metrics, period comparisons (`period-over-period-reference`) and parameters; a lone `sql` node follows `sql-chart-reference`, and a `sql` node with steps after it is a composer chart.
-- Where the `query` tool is available, one explore cannot produce the dashboard chart, even with table calculations, but a `query` pipeline over explores can: build it with `query` and save it as a composer chart. A chart saved outside a dashboard follows `sql-chart-reference`.
+- The node to chart reads other nodes (a merge, a duckdb or python node): create a composer chart. Judge that node and the nodes it reads, not every node of the `query` call.
+- A lone semanticLayer node is saved as a chart that keeps its fields, filters, sorts, custom metrics, period comparisons (`period-over-period-reference`) and parameters; a lone `sql` node follows `sql-chart-reference`.
+- Where the `query` tool is available, one explore cannot produce the dashboard chart but a `query` pipeline over explores can (a merge across explores, a duckdb or python step): build it with `query` and save it as a composer chart. A chart saved outside a dashboard follows `sql-chart-reference`.
+
+When you save a composer chart, tell the user it is a composer chart built from that pipeline. Do not claim a normal chart could not show the result.
 
 A pipeline with an `external` node cannot be saved. Composer charts already on a dashboard were chosen for those tiles; a new tile there follows these rules too.
 
