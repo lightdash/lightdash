@@ -8,6 +8,7 @@ import {
     type ConditionalFormattingConfig,
 } from '@lightdash/common';
 import { analyticsColorPalette } from './analyticsColorPalette';
+import { monthLabel } from './monthlyQueryComparisonCharts';
 
 // A shared visual vocabulary for managed content. Queries and identity fields
 // stay intact: a table row can represent several people, projects or surfaces.
@@ -19,6 +20,8 @@ const colors = analyticsColorPalette.colors.slice(0, 5);
 export const positive = '#34D399';
 export const caution = '#FB923C';
 const warning = '#C92A2A';
+const positiveTint = '#D1FAE5';
+const cautionTint = '#FFEDD5';
 
 const numberRule = (
     field: string,
@@ -110,17 +113,28 @@ const styleTable = (chart: ChartAsCode): ChartAsCode => {
             width: 180,
         };
         columns.monthly_change_percent = { name: 'Change (%)', width: 150 };
+        // Narrow columns, so the table fits beside the chart without scrolling sideways
+        columns[monthLabel] = { ...columns[monthLabel], width: 130 };
+        const [counted] = chart.metricQuery.metrics;
+        columns[counted] = { ...columns[counted], width: 150 };
+        // Light tints of the same green and orange as the Change bars, with dark text
         rules.push(
-            numberRule(
-                'monthly_change_percent',
-                FilterOperator.GREATER_THAN,
-                '#087F5B',
-            ),
-            numberRule(
-                'monthly_change_percent',
-                FilterOperator.LESS_THAN,
-                '#A65300',
-            ),
+            {
+                ...numberRule(
+                    'monthly_change_percent',
+                    FilterOperator.GREATER_THAN,
+                    positiveTint,
+                ),
+                textStyle: undefined,
+            },
+            {
+                ...numberRule(
+                    'monthly_change_percent',
+                    FilterOperator.LESS_THAN,
+                    cautionTint,
+                ),
+                textStyle: undefined,
+            },
         );
     }
     return {
@@ -141,7 +155,6 @@ const styleTable = (chart: ChartAsCode): ChartAsCode => {
 
 const monthlyComparison = (chart: ChartAsCode): ChartAsCode => {
     if (!chart.slug.endsWith('-queries-run-month-over-month')) return chart;
-    const month = 'query_events_event_ts_month';
     const total = 'query_events_total_queries';
     return {
         ...chart,
@@ -149,7 +162,7 @@ const monthlyComparison = (chart: ChartAsCode): ChartAsCode => {
             type: ChartType.CARTESIAN,
             config: {
                 layout: {
-                    xField: month,
+                    xField: monthLabel,
                     yField: [total, 'monthly_change_percent'],
                     connectNulls: false,
                 },
@@ -167,7 +180,7 @@ const monthlyComparison = (chart: ChartAsCode): ChartAsCode => {
                             color: colors[0],
                             yAxisIndex: 0,
                             encode: {
-                                xRef: { field: month },
+                                xRef: { field: monthLabel },
                                 yRef: { field: total },
                             },
                         },
@@ -179,7 +192,7 @@ const monthlyComparison = (chart: ChartAsCode): ChartAsCode => {
                             smooth: false,
                             yAxisIndex: 1,
                             encode: {
-                                xRef: { field: month },
+                                xRef: { field: monthLabel },
                                 yRef: { field: 'monthly_change_percent' },
                             },
                         },

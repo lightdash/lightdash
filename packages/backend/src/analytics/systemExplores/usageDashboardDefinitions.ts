@@ -124,6 +124,11 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                             'querying-users-month-over-month',
                             'queries-run-month-over-month',
                         ],
+                        // Side by side: the table is narrow and at most 12 rows long. A tile cannot grow
+                        // with its rows, so this height shows about nine and scrolls for the rest
+                        layout: 'row',
+                        widths: [16, 20],
+                        rowHeight: 6,
                     },
                 ],
             },

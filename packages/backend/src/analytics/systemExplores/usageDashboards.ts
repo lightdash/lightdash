@@ -451,7 +451,7 @@ const buildChart = (
     },
     chartConfig: chartConfig(spec),
     tableConfig: {
-        columnOrder: [
+        columnOrder: spec.columnOrder ?? [
             ...spec.dimensions,
             ...spec.metrics,
             ...(spec.tableCalculations ?? []).map(({ name }) => name),
