@@ -33,7 +33,8 @@ export type LiveSourceSetup =
     | { kind: 'google' }
     | { kind: 'posthog' }
     | { kind: 'token'; form: TokenLiveSourceForm }
-    | { kind: 'linkedin_ads' };
+    | { kind: 'linkedin_ads' }
+    | { kind: 'salesforce' };
 
 export type AvailableLiveSource = Omit<LiveIntegrationCatalogEntry, 'setup'> & {
     status: 'available';
@@ -67,9 +68,9 @@ const ICONS: Record<string, string> = {
     [ApiConnectorType.PYLON]: pylonIcon,
     [ApiConnectorType.ATTIO]: attioIcon,
     [ApiConnectorType.HUBSPOT]: hubspotIcon,
+    [ApiConnectorType.SALESFORCE]: salesforceIcon,
     shopify: shopifyIcon,
     stripe: stripeIcon,
-    salesforce: salesforceIcon,
     mixpanel: mixpanelIcon,
     jira: jiraIcon,
 };
@@ -87,6 +88,7 @@ const DISPLAY_ORDER = [
     ApiConnectorType.PYLON,
     ApiConnectorType.ATTIO,
     ApiConnectorType.HUBSPOT,
+    ApiConnectorType.SALESFORCE,
 ] as const satisfies readonly ApiConnectorType[];
 
 /** The form of each integration connected with an account id and a token. */

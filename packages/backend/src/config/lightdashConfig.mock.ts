@@ -404,6 +404,10 @@ export const lightdashConfigMock: LightdashConfig = {
             oauthClientId: undefined,
             oauthClientSecret: undefined,
         },
+        salesforce: {
+            oauthClientId: undefined,
+            oauthClientSecret: undefined,
+        },
     },
     headlessBrowser: {
         internalLightdashHost: 'https://test.lightdash.cloud',

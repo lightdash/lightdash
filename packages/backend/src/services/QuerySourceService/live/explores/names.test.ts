@@ -4,6 +4,7 @@ import {
     getItemMap,
     type ExternalConnectionApiSource,
 } from '@lightdash/common';
+import { OPPORTUNITY_DESCRIBE } from '../integrations/salesforce/salesforce.fixtures';
 import { type LiveScanResult } from '../types';
 import {
     buildLiveExplores,
@@ -154,6 +155,14 @@ const SOURCES: {
                 },
             },
         },
+    },
+    {
+        name: 'Salesforce',
+        apiSource: {
+            connector: ApiConnectorType.SALESFORCE,
+            object: 'Opportunity',
+        },
+        scan: { salesforceDescribe: OPPORTUNITY_DESCRIBE },
     },
 ];
 

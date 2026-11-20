@@ -74,6 +74,7 @@ export enum ApiConnectorType {
     PYLON = 'pylon',
     ATTIO = 'attio',
     HUBSPOT = 'hubspot',
+    SALESFORCE = 'salesforce',
 }
 
 /**
