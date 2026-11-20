@@ -1,3 +1,10 @@
+# [3.355.0](https://github.com/lightdash/lightdash/compare/3.354.1...3.355.0) (2026-11-20)
+
+
+### Features
+
+* **dashboards:** slimmer filter sections on the controls bar ([#33053](https://github.com/lightdash/lightdash/issues/33053)) ([5c664dd](https://github.com/lightdash/lightdash/commit/5c664dd5afea82a5dc6d6489eda1c7ef1b49724e))
+
 ## [3.354.1](https://github.com/lightdash/lightdash/compare/3.354.0...3.354.1) (2026-11-20)
 
 
