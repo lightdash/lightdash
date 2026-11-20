@@ -393,17 +393,24 @@ const ThreadList: FC<ThreadListProps> = ({
     agentUuid,
     showAgentName = false,
 }) => {
-    const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isSuccess } =
-        useInfiniteAiAgentThreads(projectUuid, { agentUuid });
+    const {
+        data,
+        fetchNextPage,
+        hasNextPage,
+        isFetching,
+        isFetchingNextPage,
+        isSuccess,
+    } = useInfiniteAiAgentThreads(projectUuid, { agentUuid });
 
     const threads = data?.pages.flatMap((page) => page.data) ?? [];
-    // Older threads load as the end of the list scrolls into view.
+    // Older threads load as the end of the list scrolls into view; waiting
+    // for refetches keeps a page load from cancelling one.
     const { ref: loadMoreRef, inViewport: isLoadMoreVisible } = useInViewport();
     useEffect(() => {
-        if (isLoadMoreVisible && hasNextPage && !isFetchingNextPage) {
+        if (isLoadMoreVisible && hasNextPage && !isFetching) {
             void fetchNextPage();
         }
-    }, [isLoadMoreVisible, hasNextPage, isFetchingNextPage, fetchNextPage]);
+    }, [isLoadMoreVisible, hasNextPage, isFetching, fetchNextPage]);
     const pinnedThreads = threads.filter((thread) => thread.pinnedAt !== null);
     const recentGroups = groupThreadsByDate(
         threads.filter((thread) => thread.pinnedAt === null),
