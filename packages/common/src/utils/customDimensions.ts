@@ -7,6 +7,8 @@ import {
 import { type WarehouseSqlBuilder } from '../types/warehouse';
 import assertUnreachable from './assertUnreachable';
 
+export const MAX_FIXED_NUMBER_BINS = 1000;
+
 const createEscapeValue = (
     quoteChar: string,
     escapeChar: string,
