@@ -1,7 +1,9 @@
 import { ChartKind, ContentType } from '@lightdash/common';
 import {
+    Anchor,
     Box,
     Group,
+    List,
     Paper,
     SegmentedControl,
     Stack,
@@ -9,6 +11,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useState, type FC, type ReactNode } from 'react';
+import { Link } from 'react-router';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import { ChartIcon, IconBox } from '../components/common/ResourceIcon';
@@ -24,10 +27,18 @@ import {
 import { CONTENT_ICON_SETS } from '../features/iconLab/contentIconSets';
 import {
     CONTENT_ICON_SET_KEYS,
+    isContentIconSetKey,
     setContentIconSetKey,
     useContentIconSetKey,
     type ContentIconSetKey,
 } from '../features/iconLab/contentIconSetStore';
+import {
+    ICON_BOX_STYLE_KEYS,
+    isIconBoxStyleKey,
+    setIconBoxStyleKey,
+    useIconBoxStyleKey,
+    type IconBoxStyleKey,
+} from '../features/iconLab/iconBoxStyleStore';
 import classes from '../features/iconLab/IconLab.module.css';
 import { ContentTypeFilter } from '../features/recentlyDeleted/components/ContentTypeFilter';
 import { type DeletedContentTypeFilter } from '../features/recentlyDeleted/types';
@@ -46,14 +57,14 @@ import { getProjectUrlIdentifier } from '../utils/projectUrl';
 const SET_LABELS: Record<ContentIconSetKey, string> = {
     current: 'Current',
     a: 'A · Outline',
-    b: 'B · Accent',
-    c: 'C · Solid',
-    d: 'D · Technical',
-    e: 'E · Minimal',
 };
 
-const isSetKey = (value: string): value is ContentIconSetKey =>
-    CONTENT_ICON_SET_KEYS.some((key) => key === value);
+const BOX_LABELS: Record<IconBoxStyleKey, string> = {
+    current: 'Current box',
+    square: 'Tighter radius',
+    tinted: 'Type-colour tint',
+    none: 'No box',
+};
 
 const CHART_KIND_LABELS: Record<ChartKind, string> = {
     [ChartKind.TABLE]: 'Table',
@@ -107,7 +118,7 @@ const Section: FC<{ title: string; source: string; children: ReactNode }> = ({
 }) => (
     <Stack gap="sm">
         <Stack gap={0}>
-            <Title order={4}>{title}</Title>
+            <Title order={5}>{title}</Title>
             <Text fz="xs" c="dimmed" ff="monospace">
                 {source}
             </Text>
@@ -129,6 +140,7 @@ const MatrixCell: FC<{ icons: ContentIconSet; row: IconRow }> = ({
 
 const IconLab: FC = () => {
     const setKey = useContentIconSetKey();
+    const boxStyle = useIconBoxStyleKey();
     const { colorScheme, setColorSchemePreference } = useAppColorScheme();
     const [schedulerType, setSchedulerType] = useState<
         'all' | 'chart' | 'dashboard'
@@ -150,6 +162,8 @@ const IconLab: FC = () => {
         return <PageSpinner />;
     }
 
+    const settingsUrl = `/generalSettings/projectManagement/${projectUuid}`;
+
     return (
         <Page withFixedContent withPaddedContent>
             <Stack gap="xl">
@@ -157,8 +171,8 @@ const IconLab: FC = () => {
                     <Stack gap={0}>
                         <Text fw={600}>Content icon lab</Text>
                         <Text fz="xs" c="dimmed">
-                            The choice sticks in this browser, so the rest of
-                            the app follows it too.
+                            Choices stick in this browser, so the rest of the
+                            app follows them too.
                         </Text>
                     </Stack>
                     <Group gap="sm">
@@ -166,12 +180,24 @@ const IconLab: FC = () => {
                             aria-label="Icon set"
                             value={setKey}
                             onChange={(value) => {
-                                if (isSetKey(value))
+                                if (isContentIconSetKey(value))
                                     setContentIconSetKey(value);
                             }}
                             data={CONTENT_ICON_SET_KEYS.map((key) => ({
                                 value: key,
                                 label: SET_LABELS[key],
+                            }))}
+                        />
+                        <SegmentedControl
+                            aria-label="Icon box"
+                            value={boxStyle}
+                            onChange={(value) => {
+                                if (isIconBoxStyleKey(value))
+                                    setIconBoxStyleKey(value);
+                            }}
+                            data={ICON_BOX_STYLE_KEYS.map((key) => ({
+                                value: key,
+                                label: BOX_LABELS[key],
                             }))}
                         />
                         <SegmentedControl
@@ -190,18 +216,206 @@ const IconLab: FC = () => {
                     </Group>
                 </Paper>
 
-                <Text fz="sm" c="dimmed">
-                    The nav bar above is the real one: open Browse and New to
-                    see the menus in the selected set.
-                </Text>
+                <Stack gap="lg">
+                    <Stack gap={2}>
+                        <Title order={3}>Where the icon box is used</Title>
+                        <Text fz="sm" c="dimmed">
+                            Everything in this group draws its icon through
+                            IconBox, so it follows the box selector.
+                        </Text>
+                    </Stack>
 
-                <Section
-                    title="Bare and one colour"
-                    source="mock sidebar list, 16px icons, no box, no type colour"
-                >
-                    <Box className={classes.sidebars}>
-                        {[MATRIX_ROWS.slice(0, 10), MATRIX_ROWS.slice(10)].map(
-                            (rows) => (
+                    <FavoritesProvider projectUuid={projectUuid}>
+                        <Stack gap="xl">
+                            <Section
+                                title="Homepage: pinned cards, favourites"
+                                source="PinnedAndFavoritesSection"
+                            >
+                                <PinnedItemsProvider
+                                    organizationUuid={
+                                        project.data.organizationUuid
+                                    }
+                                    projectUuid={projectUuid}
+                                    pinnedListUuid={
+                                        project.data.pinnedListUuid || ''
+                                    }
+                                    allowDelete={false}
+                                >
+                                    <PinnedAndFavoritesSection
+                                        pinnedItems={pinnedItems.data ?? []}
+                                        favoriteItems={favorites.data ?? []}
+                                        pinnedIsEnabled
+                                    />
+                                </PinnedItemsProvider>
+                            </Section>
+
+                            <Section
+                                title="Homepage: most popular, recently updated"
+                                source="HomepageContentPanel"
+                            >
+                                <HomepageContentPanel
+                                    data={mostPopularAndRecentlyUpdated.data}
+                                    projectUuid={projectUuid}
+                                    projectUrlIdentifier={getProjectUrlIdentifier(
+                                        project.data,
+                                    )}
+                                />
+                            </Section>
+
+                            <Section
+                                title="Content table"
+                                source="InfiniteResourceTable"
+                            >
+                                <InfiniteResourceTable
+                                    filters={{
+                                        projectUuid,
+                                        contentTypes: [
+                                            ContentType.DASHBOARD,
+                                            ContentType.CHART,
+                                            ContentType.DATA_APP,
+                                            ContentType.DOCUMENT,
+                                        ],
+                                    }}
+                                    contentTypeFilter={{
+                                        defaultValue: undefined,
+                                        options: [
+                                            ContentType.DASHBOARD,
+                                            ContentType.CHART,
+                                            ContentType.DATA_APP,
+                                            ContentType.DOCUMENT,
+                                        ],
+                                    }}
+                                />
+                            </Section>
+
+                            <Section
+                                title="Spaces table"
+                                source="InfiniteResourceTable (spaces)"
+                            >
+                                <InfiniteResourceTable
+                                    filters={{
+                                        projectUuid,
+                                        spaceUuids: [],
+                                        contentTypes: [ContentType.SPACE],
+                                    }}
+                                    contentTypeFilter={{
+                                        defaultValue: ContentType.SPACE,
+                                        options: [],
+                                    }}
+                                    enableBottomToolbar={false}
+                                    enableRowSelection={false}
+                                />
+                            </Section>
+                        </Stack>
+                    </FavoritesProvider>
+
+                    <Section title="Every chart kind" source="ChartIcon">
+                        <Paper p="md">
+                            <Box className={classes.kinds}>
+                                {Object.values(ChartKind).map((kind) => (
+                                    <Group key={kind} gap="sm" wrap="nowrap">
+                                        <ChartIcon chartKind={kind} />
+                                        <Text fz="sm" truncate>
+                                            {CHART_KIND_LABELS[kind]}
+                                        </Text>
+                                    </Group>
+                                ))}
+                            </Box>
+                        </Paper>
+                    </Section>
+
+                    <Section
+                        title="Also boxed, on their own pages"
+                        source="open in a new tab, the selectors carry over"
+                    >
+                        <Paper p="md">
+                            <List fz="sm" spacing={6}>
+                                <List.Item>
+                                    Search results: press Cmd or Ctrl + K on
+                                    this page
+                                </List.Item>
+                                <List.Item>
+                                    <Anchor
+                                        component={Link}
+                                        to={`${settingsUrl}/scheduledDeliveries`}
+                                        target="_blank"
+                                    >
+                                        Scheduled deliveries list
+                                    </Anchor>
+                                </List.Item>
+                                <List.Item>
+                                    <Anchor
+                                        component={Link}
+                                        to={`${settingsUrl}/recentlyDeleted`}
+                                        target="_blank"
+                                    >
+                                        Recently deleted
+                                    </Anchor>
+                                </List.Item>
+                                <List.Item>
+                                    <Anchor
+                                        component={Link}
+                                        to={`${settingsUrl}/validator`}
+                                        target="_blank"
+                                    >
+                                        Validator table
+                                    </Anchor>
+                                </List.Item>
+                                <List.Item>
+                                    Add saved charts modal: edit a dashboard,
+                                    Add tile, Saved chart
+                                </List.Item>
+                                <List.Item>
+                                    Not linked: content review pages, homepage
+                                    builder blocks, data app and chart type
+                                    source pickers
+                                </List.Item>
+                            </List>
+                        </Paper>
+                    </Section>
+                </Stack>
+
+                <Stack gap="lg">
+                    <Stack gap={2}>
+                        <Title order={3}>Where the icon is bare</Title>
+                        <Text fz="sm" c="dimmed">
+                            No box here today, so only the set selector applies.
+                            The nav bar above is the real one: open Browse and
+                            New.
+                        </Text>
+                    </Stack>
+
+                    <Section
+                        title="Type filters"
+                        source="ResourceTypeFilter (schedulers), ContentTypeFilter (recently deleted)"
+                    >
+                        <Paper p="md">
+                            <Group gap="xl">
+                                <ResourceTypeFilter
+                                    selectedResourceType={schedulerType}
+                                    setSelectedResourceType={(value) =>
+                                        setSchedulerType(value ?? 'all')
+                                    }
+                                />
+                                <Group gap="sm">
+                                    <ContentTypeFilter
+                                        selectedContentType={deletedType}
+                                        setSelectedContentType={setDeletedType}
+                                    />
+                                </Group>
+                            </Group>
+                        </Paper>
+                    </Section>
+
+                    <Section
+                        title="One colour list"
+                        source="mock sidebar list, 16px icons, no type colour"
+                    >
+                        <Box className={classes.sidebars}>
+                            {[
+                                MATRIX_ROWS.slice(0, 10),
+                                MATRIX_ROWS.slice(10),
+                            ].map((rows) => (
                                 <Paper
                                     key={rows[0].name}
                                     className={classes.sidebar}
@@ -225,156 +439,44 @@ const IconLab: FC = () => {
                                         </Group>
                                     ))}
                                 </Paper>
-                            ),
-                        )}
-                    </Box>
-                </Section>
-
-                <FavoritesProvider projectUuid={projectUuid}>
-                    <Stack gap="xl">
-                        <Section
-                            title="Homepage: pinned, favourites, most popular"
-                            source="PinnedAndFavoritesSection, HomepageContentPanel"
-                        >
-                            <PinnedItemsProvider
-                                organizationUuid={project.data.organizationUuid}
-                                projectUuid={projectUuid}
-                                pinnedListUuid={
-                                    project.data.pinnedListUuid || ''
-                                }
-                                allowDelete={false}
-                            >
-                                <PinnedAndFavoritesSection
-                                    pinnedItems={pinnedItems.data ?? []}
-                                    favoriteItems={favorites.data ?? []}
-                                    pinnedIsEnabled
-                                />
-                            </PinnedItemsProvider>
-                            <HomepageContentPanel
-                                data={mostPopularAndRecentlyUpdated.data}
-                                projectUuid={projectUuid}
-                                projectUrlIdentifier={getProjectUrlIdentifier(
-                                    project.data,
-                                )}
-                            />
-                        </Section>
-
-                        <Section
-                            title="Content table with type filters"
-                            source="InfiniteResourceTable"
-                        >
-                            <InfiniteResourceTable
-                                filters={{
-                                    projectUuid,
-                                    contentTypes: [
-                                        ContentType.DASHBOARD,
-                                        ContentType.CHART,
-                                        ContentType.DATA_APP,
-                                        ContentType.DOCUMENT,
-                                    ],
-                                }}
-                                contentTypeFilter={{
-                                    defaultValue: undefined,
-                                    options: [
-                                        ContentType.DASHBOARD,
-                                        ContentType.CHART,
-                                        ContentType.DATA_APP,
-                                        ContentType.DOCUMENT,
-                                    ],
-                                }}
-                            />
-                        </Section>
-
-                        <Section
-                            title="Spaces"
-                            source="InfiniteResourceTable (spaces)"
-                        >
-                            <InfiniteResourceTable
-                                filters={{
-                                    projectUuid,
-                                    spaceUuids: [],
-                                    contentTypes: [ContentType.SPACE],
-                                }}
-                                contentTypeFilter={{
-                                    defaultValue: ContentType.SPACE,
-                                    options: [],
-                                }}
-                                enableBottomToolbar={false}
-                                enableRowSelection={false}
-                            />
-                        </Section>
-                    </Stack>
-                </FavoritesProvider>
-
-                <Section
-                    title="Type filters"
-                    source="ResourceTypeFilter (schedulers), ContentTypeFilter (recently deleted)"
-                >
-                    <Paper p="md">
-                        <Group gap="xl">
-                            <ResourceTypeFilter
-                                selectedResourceType={schedulerType}
-                                setSelectedResourceType={(value) =>
-                                    setSchedulerType(value ?? 'all')
-                                }
-                            />
-                            <Group gap="sm">
-                                <ContentTypeFilter
-                                    selectedContentType={deletedType}
-                                    setSelectedContentType={setDeletedType}
-                                />
-                            </Group>
-                        </Group>
-                    </Paper>
-                </Section>
-
-                <Section title="Every chart kind" source="ChartIcon">
-                    <Paper p="md">
-                        <Box className={classes.kinds}>
-                            {Object.values(ChartKind).map((kind) => (
-                                <Group key={kind} gap="sm" wrap="nowrap">
-                                    <ChartIcon chartKind={kind} />
-                                    <Text fz="sm" truncate>
-                                        {CHART_KIND_LABELS[kind]}
-                                    </Text>
-                                </Group>
                             ))}
                         </Box>
-                    </Paper>
-                </Section>
+                    </Section>
+                </Stack>
 
-                <Section
-                    title="All sets side by side"
-                    source="16px, 32px box, 40px"
-                >
-                    <Paper className={classes.matrix}>
-                        <Box className={classes.matrixHead}>
-                            <span />
-                            {CONTENT_ICON_SET_KEYS.map((key) => (
-                                <Text
-                                    key={key}
-                                    fz="sm"
-                                    fw={600}
-                                    c={key === setKey ? undefined : 'dimmed'}
-                                >
-                                    {SET_LABELS[key]}
-                                </Text>
-                            ))}
-                        </Box>
-                        {MATRIX_ROWS.map((row) => (
-                            <Box key={row.name} className={classes.matrixRow}>
-                                <Text fz="sm">{row.label}</Text>
+                <Stack gap="lg">
+                    <Title order={3}>Current vs A</Title>
+                    <Section
+                        title="Side by side"
+                        source="bare 16px, boxed 32px, bare 40px"
+                    >
+                        <Paper className={classes.matrix}>
+                            <Box className={classes.matrixHead}>
+                                <span />
                                 {CONTENT_ICON_SET_KEYS.map((key) => (
-                                    <MatrixCell
-                                        key={key}
-                                        icons={CONTENT_ICON_SETS[key]}
-                                        row={row}
-                                    />
+                                    <Text key={key} fz="sm" fw={600}>
+                                        {SET_LABELS[key]}
+                                    </Text>
                                 ))}
                             </Box>
-                        ))}
-                    </Paper>
-                </Section>
+                            {MATRIX_ROWS.map((row) => (
+                                <Box
+                                    key={row.name}
+                                    className={classes.matrixRow}
+                                >
+                                    <Text fz="sm">{row.label}</Text>
+                                    {CONTENT_ICON_SET_KEYS.map((key) => (
+                                        <MatrixCell
+                                            key={key}
+                                            icons={CONTENT_ICON_SETS[key]}
+                                            row={row}
+                                        />
+                                    ))}
+                                </Box>
+                            ))}
+                        </Paper>
+                    </Section>
+                </Stack>
             </Stack>
         </Page>
     );

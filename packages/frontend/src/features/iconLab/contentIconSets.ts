@@ -19,15 +19,8 @@ import {
     IconSquareNumber1,
     IconTable,
 } from '@tabler/icons-react';
-import {
-    ACCENT_ICONS,
-    OUTLINE_ICONS,
-    SOLID_ICONS,
-    type ContentIconSet,
-} from './contentIcons';
+import { OUTLINE_ICONS, type ContentIconSet } from './contentIcons';
 import { type ContentIconSetKey } from './contentIconSetStore';
-import { MINIMAL_ICONS } from './minimalIcons';
-import { TECHNICAL_ICONS } from './technicalIcons';
 
 /** What the app ships today. The horizontal bar is the bar icon, rotated by callers. */
 export const CURRENT_ICONS: ContentIconSet = {
@@ -56,8 +49,4 @@ export const CURRENT_ICONS: ContentIconSet = {
 export const CONTENT_ICON_SETS: Record<ContentIconSetKey, ContentIconSet> = {
     current: CURRENT_ICONS,
     a: OUTLINE_ICONS,
-    b: ACCENT_ICONS,
-    c: SOLID_ICONS,
-    d: TECHNICAL_ICONS,
-    e: MINIMAL_ICONS,
 };

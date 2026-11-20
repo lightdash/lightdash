@@ -24,10 +24,10 @@
 .matrixHead,
 .matrixRow {
     display: grid;
-    grid-template-columns: 110px repeat(6, minmax(130px, 1fr));
+    grid-template-columns: 140px repeat(2, minmax(200px, 1fr));
     align-items: center;
     gap: var(--mantine-spacing-md);
-    min-width: 960px;
+    min-width: 560px;
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-lg);
 }
 

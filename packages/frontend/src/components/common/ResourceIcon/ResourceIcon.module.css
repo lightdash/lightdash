@@ -7,6 +7,20 @@
     background-color: var(--mantine-color-ldGray-0);
 }
 
+.iconBox[data-box-style='square'] {
+    border-radius: 4px;
+}
+
+.iconBox[data-box-style='tinted'] {
+    background-color: color-mix(in srgb, currentColor 12%, transparent);
+    border-color: transparent;
+}
+
+.iconBare {
+    display: flex;
+    flex: none;
+}
+
 .tooltipPointerEvents {
     pointer-events: auto;
 }

@@ -6,6 +6,7 @@ import {
     type ResourceViewItem,
 } from '@lightdash/common';
 import {
+    Box,
     Indicator,
     Paper,
     Tooltip,
@@ -17,6 +18,7 @@ import {
     type Icon as TablerIconType,
 } from '@tabler/icons-react';
 import { useRef, useState, type FC, type ReactNode } from 'react';
+import { useIconBoxStyleKey } from '../../../features/iconLab/iconBoxStyleStore';
 import {
     IconAppWindow,
     IconFolder,
@@ -45,14 +47,9 @@ export const IconBox: FC<IconBoxProps> = ({
     bg = 'ldGray.0',
     boxSize = 32,
     ...mantineIconProps
-}) => (
-    <Paper
-        w={boxSize}
-        h={boxSize}
-        radius="md"
-        bg={bg}
-        className={classes.iconBox}
-    >
+}) => {
+    const boxStyle = useIconBoxStyleKey();
+    const iconElement = (
         <MantineIcon
             icon={icon}
             color={color}
@@ -62,8 +59,26 @@ export const IconBox: FC<IconBoxProps> = ({
             strokeWidth={1.6}
             {...mantineIconProps}
         />
-    </Paper>
-);
+    );
+
+    if (boxStyle === 'none') {
+        return <Box className={classes.iconBare}>{iconElement}</Box>;
+    }
+
+    return (
+        <Paper
+            w={boxSize}
+            h={boxSize}
+            radius="md"
+            bg={boxStyle === 'tinted' ? undefined : bg}
+            c={color}
+            className={classes.iconBox}
+            data-box-style={boxStyle}
+        >
+            {iconElement}
+        </Paper>
+    );
+};
 
 export const ChartIcon: FC<{
     chartKind: ChartKind | undefined;
