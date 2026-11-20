@@ -1,3 +1,10 @@
+# [3.356.0](https://github.com/lightdash/lightdash/compare/3.355.0...3.356.0) (2026-11-20)
+
+
+### Features
+
+* **ai-agents:** fade streamed answer words in as they arrive ([#33057](https://github.com/lightdash/lightdash/issues/33057)) ([07d3cf3](https://github.com/lightdash/lightdash/commit/07d3cf3e1eb0aebe6b0f66dcda87654e14ad7cc4))
+
 # [3.355.0](https://github.com/lightdash/lightdash/compare/3.354.1...3.355.0) (2026-11-20)
 
 
