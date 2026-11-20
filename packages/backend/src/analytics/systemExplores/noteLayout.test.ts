@@ -7,6 +7,7 @@ import {
     noteRows,
     noteTextHeight,
     noteTileHeight,
+    titledNote,
 } from './noteLayout';
 import { analyticsContentAsCode } from './sampleContent';
 
@@ -50,6 +51,20 @@ describe('note height', () => {
         expect(noteTextHeight(tooLong)).toBeGreaterThan(
             noteTileHeight(NOTE_MAX_ROWS),
         );
+    });
+
+    it('gives one row to a bold title with one line under it', () => {
+        const note = titledNote('Caching', 'One short line.');
+        expect(note).toBe('**Caching**  \nOne short line.');
+        expect(noteLines(note)).toBe(2);
+        expect(noteRows(note)).toBe(1);
+        expect(noteBody(note)).toBe('One short line.');
+        // A longer description keeps its heading and takes two rows
+        expect(titledNote('Caching', lines(2))).toBe(
+            `### Caching\n\n${lines(2)}`,
+        );
+        // A single newline without the two spaces is only a space
+        expect(noteLines('one\ntwo')).toBe(1);
     });
 
     it('wraps on whole words and ignores bold markers', () => {

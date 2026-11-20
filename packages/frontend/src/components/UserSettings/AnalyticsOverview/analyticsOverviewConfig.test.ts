@@ -68,7 +68,6 @@ describe('Analytics settings query scopes', () => {
             ['Overview', 'lightdash-analytics-home'],
             ['Agents & AI', 'lightdash-analytics-overview'],
             ['Queries', 'lightdash-analytics-query-activity'],
-            ['People', 'lightdash-analytics-people'],
             ['Content', 'lightdash-analytics-content'],
             ['Data apps', 'lightdash-analytics-apps'],
             ['Tools & operations', 'lightdash-analytics-tools'],
@@ -93,10 +92,7 @@ describe('Analytics settings query scopes', () => {
                 ]),
                 ...(tab.summary?.metrics.map(({ title }) => title) ?? []),
             ]),
-        ]
-            // Service accounts run queries too, so this count is of users, as on the Queries dashboard
-            .filter((text) => text !== 'Users running queries')
-            .join(' | ');
+        ].join(' | ');
         expect(copy).not.toMatch(
             /\b(users?|observed|captured|retained|coverage|logical|Ask AI|AI agent|agent questions)\b|—/i,
         );

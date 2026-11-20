@@ -10,14 +10,20 @@ import {
     aiTokenLibraryChartBindings,
     buildAiTokenDashboard,
 } from './aiTokenDashboard';
-import { withAnalyticsChartPresentation } from './analyticsChartPresentation';
+import {
+    caution,
+    positive,
+    withAnalyticsChartPresentation,
+} from './analyticsChartPresentation';
 import { analyticsColorPalette } from './analyticsColorPalette';
 import { withEmbedRankingPresentation } from './embedDashboard';
+import { trendRows } from './homeDashboard';
 import type { LibraryChartBinding } from './libraryCharts';
 import { noteRows } from './noteLayout';
 import { buildQueryCalendarChart } from './queryCalendarChart';
 import {
     buildUsageDashboards,
+    compactAxisOverrides,
     note,
     usageLibraryChartBindings,
     wholeMillisecondOverrides,
@@ -66,7 +72,12 @@ const chart = (
             exploreName: tableName,
             dimensions: dimensionId ? [dimensionId] : [],
             metrics,
-            metricOverrides: wholeMillisecondOverrides(metrics),
+            metricOverrides: {
+                ...(dimensionId && options.visualization !== 'donut'
+                    ? compactAxisOverrides(metrics)
+                    : {}),
+                ...wholeMillisecondOverrides(metrics),
+            },
             filters: {},
             sorts: [
                 {
@@ -162,10 +173,10 @@ const chart = (
                     False: 'Cache miss',
                 },
                 groupColorOverrides: {
-                    true: '#34D399',
-                    false: '#FB923C',
-                    True: '#34D399',
-                    False: '#FB923C',
+                    true: positive,
+                    false: caution,
+                    True: positive,
+                    False: caution,
                 },
             },
         };
@@ -351,7 +362,7 @@ const aiUsageContent = {
                 description: '',
                 libraryChart: {
                     slug: 'customizable-cartesian-chart',
-                    minVersion: '0.17.1',
+                    minVersion: '0.18.3',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
                         m1: 'ai_usage_total_ai_calls',
@@ -360,6 +371,7 @@ const aiUsageContent = {
                     optionValues: {
                         seriesType: 'bar',
                         stack: 'normal',
+                        splitSort: 'total',
                         xAxisType: 'time',
                         xTimeFormat: '{MMM} {d}',
                         xName: 'Day',
@@ -393,7 +405,7 @@ const aiUsageContent = {
                 description: '',
                 libraryChart: {
                     slug: 'customizable-cartesian-chart',
-                    minVersion: '0.17.1',
+                    minVersion: '0.18.3',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
                         m1: 'ai_usage_total_tokens_used',
@@ -402,6 +414,7 @@ const aiUsageContent = {
                     optionValues: {
                         seriesType: 'bar',
                         stack: 'normal',
+                        splitSort: 'total',
                         xAxisType: 'time',
                         xTimeFormat: '{MMM} {d}',
                         xName: 'Day',
@@ -456,7 +469,7 @@ const aiUsageContent = {
             'Tokens by feature',
             'ai_usage',
             'total_tokens_used',
-            'feature',
+            'feature_name',
             {
                 visualization: 'bar',
                 colors: ['#7950F2'],
@@ -467,7 +480,7 @@ const aiUsageContent = {
                     minVersion: '0.5.0',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
-                        y: 'ai_usage_feature',
+                        y: 'ai_usage_feature_name',
                         value: 'ai_usage_total_tokens_used',
                     },
                     optionValues: {
@@ -478,13 +491,13 @@ const aiUsageContent = {
                     },
                     query: {
                         dimensions: [
-                            'ai_usage_feature',
+                            'ai_usage_feature_name',
                             'ai_usage_event_ts_day',
                         ],
                         metrics: ['ai_usage_total_tokens_used'],
                         sorts: [
                             {
-                                fieldId: 'ai_usage_feature',
+                                fieldId: 'ai_usage_feature_name',
                                 descending: false,
                             },
                             {
@@ -572,14 +585,14 @@ export const analyticsSampleDashboards = [
             ),
             chart(
                 'query-users',
-                'Users running queries',
+                'People running queries',
                 'query_events',
                 'unique_users',
                 undefined,
                 {
                     latestDay: true,
                     description:
-                        'Users who ran queries on the latest day in the selected period. Service accounts count as users.',
+                        'People who ran queries on the latest day in the selected period. Service accounts are counted too.',
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
                         minVersion: '0.7.1',
@@ -608,16 +621,16 @@ export const analyticsSampleDashboards = [
                             ],
                             limit: 500,
                             description:
-                                'Users who ran queries on the latest day in the selected period, with the daily trend. A user active on several days is counted on each of those days.',
+                                'People who ran queries on the latest day in the selected period, with the daily trend. Service accounts are counted too.',
                         },
                     },
                 },
             ),
             chart(
                 'avg-execution-time',
-                'Average warehouse execution (ms)',
+                'Average warehouse execution (s)',
                 'query_events',
-                'avg_warehouse_execution_time_ms',
+                'avg_warehouse_execution_time_s',
                 undefined,
                 {
                     latestDay: true,
@@ -627,9 +640,9 @@ export const analyticsSampleDashboards = [
                         slug: 'big-number-with-sparkline-trend',
                         minVersion: '0.7.1',
                         fieldMapping: {
-                            value: 'query_events_avg_warehouse_execution_time_ms',
+                            value: 'query_events_avg_warehouse_execution_time_s',
                             sparklineMetric:
-                                'query_events_avg_warehouse_execution_time_ms',
+                                'query_events_avg_warehouse_execution_time_s',
                             time: 'query_events_event_ts_day',
                         },
                         optionValues: {
@@ -644,7 +657,7 @@ export const analyticsSampleDashboards = [
                         query: {
                             dimensions: ['query_events_event_ts_day'],
                             metrics: [
-                                'query_events_avg_warehouse_execution_time_ms',
+                                'query_events_avg_warehouse_execution_time_s',
                             ],
                             sorts: [
                                 {
@@ -661,9 +674,9 @@ export const analyticsSampleDashboards = [
             ),
             chart(
                 'p90-execution-time',
-                'P90 warehouse execution (ms)',
+                'P90 warehouse execution (s)',
                 'query_events',
-                'p90_warehouse_execution_time_ms',
+                'p90_warehouse_execution_time_s',
                 undefined,
                 {
                     latestDay: true,
@@ -673,9 +686,9 @@ export const analyticsSampleDashboards = [
                         slug: 'big-number-with-sparkline-trend',
                         minVersion: '0.7.1',
                         fieldMapping: {
-                            value: 'query_events_p90_warehouse_execution_time_ms',
+                            value: 'query_events_p90_warehouse_execution_time_s',
                             sparklineMetric:
-                                'query_events_p90_warehouse_execution_time_ms',
+                                'query_events_p90_warehouse_execution_time_s',
                             time: 'query_events_event_ts_day',
                         },
                         optionValues: {
@@ -690,7 +703,7 @@ export const analyticsSampleDashboards = [
                         query: {
                             dimensions: ['query_events_event_ts_day'],
                             metrics: [
-                                'query_events_p90_warehouse_execution_time_ms',
+                                'query_events_p90_warehouse_execution_time_s',
                             ],
                             sorts: [
                                 {
@@ -717,15 +730,16 @@ export const analyticsSampleDashboards = [
                     description: '',
                     libraryChart: {
                         slug: 'customizable-cartesian-chart',
-                        minVersion: '0.17.1',
+                        minVersion: '0.18.3',
                         fieldMapping: {
                             x: 'query_events_event_ts_day',
                             m1: 'query_events_total_queries',
-                            splitBy: 'query_events_context',
+                            splitBy: 'query_events_context_name',
                         },
                         optionValues: {
                             seriesType: 'bar',
                             stack: 'normal',
+                            splitSort: 'total',
                             xAxisType: 'time',
                             xTimeFormat: '{MMM} {d}',
                             xName: 'Day',
@@ -735,12 +749,12 @@ export const analyticsSampleDashboards = [
                         query: {
                             dimensions: [
                                 'query_events_event_ts_day',
-                                'query_events_context',
+                                'query_events_context_name',
                             ],
                             metrics: ['query_events_total_queries'],
                             sorts: [
                                 {
-                                    fieldId: 'query_events_context',
+                                    fieldId: 'query_events_context_name',
                                     descending: false,
                                 },
                                 {
@@ -750,22 +764,33 @@ export const analyticsSampleDashboards = [
                             ],
                             limit: 5000,
                             description:
-                                'Queries per day, split by the six contexts that ran the most queries, with the rest grouped as Other.',
+                                'Queries per day, split by the six places that ran the most queries, such as a dashboard view or an Explore, with the rest grouped as Other.',
                         },
                     },
                 },
             ),
             chart(
                 'active-users-by-day',
-                'Users running queries by day',
+                'People running queries by day',
                 'query_events',
                 'unique_users',
                 'event_ts_day',
                 {
                     colors: ['#339AF0'],
-                    axisLabel: 'Users',
+                    axisLabel: 'People',
                     description:
-                        'Distinct users who ran queries each day. Daily counts cannot be added up to get users for the whole period.',
+                        'People who ran queries each day, including service accounts. Daily counts cannot be added up to get people for the whole period.',
+                    // The same smooth filled line as People by day on the Overview dashboard
+                    libraryChart: {
+                        slug: 'vega-trellis',
+                        minVersion: '0.6.2',
+                        fieldMapping: {
+                            x: 'query_events_event_ts_day',
+                            value: 'query_events_unique_users',
+                        },
+                        optionValues: trendRows,
+                        query: null,
+                    },
                 },
             ),
             chart(
@@ -782,31 +807,31 @@ export const analyticsSampleDashboards = [
             ),
             chart(
                 'queries-by-context',
-                'Queries by context (top 10)',
+                'Where queries run from (top 10)',
                 'query_events',
                 'total_queries',
-                'context',
+                'context_name',
                 {
                     visualization: 'bar',
                     colors: ['#339AF0'],
                     axisLabel: 'Queries',
                     description:
-                        'Top 10 query contexts by number of queries in the selected period.',
+                        'The 10 places that ran the most queries in the selected period, such as a dashboard view, an Explore or a scheduled delivery.',
                 },
             ),
             chart(
                 'query-latency-by-day',
                 'Warehouse time by day (average and P90)',
                 'query_events',
-                'avg_warehouse_execution_time_ms',
+                'avg_warehouse_execution_time_s',
                 'event_ts_day',
                 {
-                    extraMetrics: ['p90_warehouse_execution_time_ms'],
+                    extraMetrics: ['p90_warehouse_execution_time_s'],
                     seriesNames: ['Average', 'P90'],
                     colors: ['#12B886', '#F59F00'],
-                    axisLabel: 'Warehouse time (ms)',
+                    axisLabel: 'Warehouse time (s)',
                     description:
-                        'Average and P90 warehouse execution time per day, in milliseconds. Queries with no timing are left out. This is warehouse time only, not end-to-end response time.',
+                        'Average and P90 warehouse execution time per day, in seconds. This is warehouse time only, not end-to-end response time.',
                 },
             ),
         ],

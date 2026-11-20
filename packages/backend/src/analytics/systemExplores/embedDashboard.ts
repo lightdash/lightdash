@@ -45,11 +45,12 @@ const shareByDay = ({
     timezone,
     libraryChart: {
         slug: 'customizable-cartesian-chart',
-        minVersion: '0.17.1',
+        minVersion: '0.18.3',
         fieldMapping: { x: day, m1: metric, splitBy: dimension },
         optionValues: {
             seriesType: 'bar',
             stack: 'normal',
+            splitSort: 'total',
             xAxisType: 'time',
             xTimeFormat: '{MMM} {d}',
             xName: 'Day',
@@ -73,7 +74,7 @@ export const embedChartSpecs: UsageChartSpec[] = [
         key: 'embed-viewers-latest-day',
         name: 'Identified external viewers',
         description:
-            'External viewer IDs sent by your embedding application on the latest day in the selected period. Loads with no ID, and token issuers, are left out. An ID is whatever identity your application sends, not a verified person.',
+            'External viewer IDs sent by your embedding application on the latest day in the selected period. An ID is whatever identity your application sends, not a verified person.',
         explore: 'embed_reach',
         day: reachDay,
         metric: 'embed_reach_unique_viewers',
@@ -85,7 +86,7 @@ export const embedChartSpecs: UsageChartSpec[] = [
         key: 'embed-loads',
         name: 'Dashboard loads',
         description:
-            'Authorized loads of embedded dashboards. Reloads count. Views served from the browser cache can be missing. A load is not a billed load, and does not prove the dashboard rendered.',
+            'Authorized loads of embedded dashboards, including reloads. A load is not a billed load.',
         explore: 'embed_reach',
         day: reachDay,
         metric: 'embed_reach_total_loads',
@@ -116,7 +117,7 @@ export const embedChartSpecs: UsageChartSpec[] = [
         key: 'embed-popular-dashboards',
         name: 'Most-loaded dashboards',
         description:
-            'Top 10 dashboards by embedded loads. Dashboards with the same name are kept separate by ID. Names are from the latest recorded load. A dashboard with no name is still listed separately.',
+            'Top 10 dashboards by embedded loads. Dashboards with the same name are kept separate.',
         explore: 'embed_reach',
         dimensions: ['embed_reach_dashboard_label'],
         metrics: ['embed_reach_total_loads'],
@@ -131,20 +132,20 @@ export const embedChartSpecs: UsageChartSpec[] = [
         key: 'embed-identity-coverage',
         name: 'Loads with and without a viewer ID',
         description:
-            'Share of loads with and without an external viewer ID. Loads with no ID are shown, and are not counted as one anonymous person. An external ID does not show which tenant a viewer belongs to.',
+            'Share of loads with and without an external viewer ID. Loads with no ID are not counted as one anonymous person.',
         explore: 'embed_reach',
         day: reachDay,
         dimension: 'embed_reach_identity_coverage',
         metric: 'embed_reach_total_loads',
         yName: 'Loads',
         splitDescription:
-            'Loads per day, with and without an external viewer ID. Loads with no ID are not counted as one anonymous person. An external ID does not show which tenant a viewer belongs to.',
+            'Loads per day, with and without an external viewer ID. Loads with no ID are not counted as one anonymous person.',
     }),
     card({
         key: 'embed-query-count',
         name: 'Queries',
         description:
-            'Finished queries from embeds, including cached results and errors. Each tile and each repeated query counts separately. This is not dashboard loads or billed usage.',
+            'Finished queries from embeds, including cached results and errors. This is not dashboard loads or billed usage.',
         explore: 'query_events',
         day: queryDay,
         metric: 'query_events_total_queries',
@@ -178,16 +179,16 @@ export const embedChartSpecs: UsageChartSpec[] = [
     }),
     seriesByDay({
         key: 'embed-query-latency',
-        name: 'Response time for successful queries (ms)',
+        name: 'Response time for successful queries (s)',
         description:
-            'Median and P95 backend time, from the start of the request, for successful embedded queries that have timing. Includes queueing and result storage. Leaves out transfer to and rendering in the browser, cancelled queries and older queries with no timing.',
+            'Median and P95 backend time for successful embedded queries, from the start of the request. Time spent in the browser is not included.',
         explore: 'query_events',
         day: queryDay,
         series: [
-            { metric: 'query_events_p50_response_time_ms', name: 'Median' },
-            { metric: 'query_events_p95_response_time_ms', name: 'P95' },
+            { metric: 'query_events_p50_response_time_s', name: 'Median' },
+            { metric: 'query_events_p95_response_time_s', name: 'P95' },
         ],
-        yName: 'Response time (ms)',
+        yName: 'Response time (s)',
         seriesType: 'line',
         filters: [
             ...embedQueries,
@@ -210,7 +211,7 @@ export const embedChartSpecs: UsageChartSpec[] = [
         description: 'Embedded queries by success or error.',
         explore: 'query_events',
         day: queryDay,
-        dimension: 'query_events_status',
+        dimension: 'query_events_status_name',
         metric: 'query_events_total_queries',
         yName: 'Queries',
         filters: embedQueries,
@@ -220,15 +221,15 @@ export const embedChartSpecs: UsageChartSpec[] = [
         key: 'embed-query-cache',
         name: 'Queries by cache hit',
         description:
-            'Cache hits (true), misses (false) and unknown (∅) for embedded queries. This does not estimate cost saved.',
+            'Cache hits, cache misses and queries with no cache information, for embedded queries. This does not estimate cost saved.',
         explore: 'query_events',
         day: queryDay,
-        dimension: 'query_events_cache_hit',
+        dimension: 'query_events_cache_hit_name',
         metric: 'query_events_total_queries',
         yName: 'Queries',
         filters: embedQueries,
         splitDescription:
-            'Embedded queries per day by cache hit (true), miss (false) and unknown (∅). This does not estimate cost saved.',
+            'Embedded queries per day by cache hit, cache miss and no cache information. This does not estimate cost saved.',
     }),
 ];
 

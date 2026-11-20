@@ -19,6 +19,8 @@ export type LibraryChartBinding = {
         metrics: string[];
         sorts: ChartAsCode['metricQuery']['sorts'];
         limit: number;
+        // Calculations over the library chart's own rows. They may only use the fields listed above.
+        tableCalculations?: ChartAsCode['metricQuery']['tableCalculations'];
         // Chart description for the library rendering's own query.
         description: string;
     } | null;
@@ -125,6 +127,9 @@ export const libraryChartOptions: Record<
         m2Name: '0.18.0',
         m3Name: '0.18.0',
         m4Name: '0.18.0',
+        // Orders the split series: 'total' puts the largest at the bottom of the stack. Added in 0.18.1;
+        // from 0.18.3 the colours follow the sorted order too, which is the version a binding asks for
+        splitSort: '0.18.3',
     },
     'big-number-with-sparkline-trend': {
         ...sinceFirstBinding(
@@ -171,7 +176,9 @@ export const withLibraryCharts = (
                 ? {
                       dimensions: query.dimensions,
                       metrics: query.metrics,
-                      tableCalculations: [],
+                      tableCalculations: (query.tableCalculations ?? []).map(
+                          ({ name }) => name,
+                      ),
                   }
                 : {
                       dimensions: chart.metricQuery.dimensions,
@@ -200,11 +207,17 @@ export const withLibraryCharts = (
                     metrics: query.metrics,
                     sorts: query.sorts,
                     limit: query.limit,
-                    // Calculations may reference fields the override drops.
-                    tableCalculations: [],
+                    // The plain chart's calculations may reference fields the override drops.
+                    tableCalculations: query.tableCalculations ?? [],
                 },
                 tableConfig: {
-                    columnOrder: [...query.dimensions, ...query.metrics],
+                    columnOrder: [
+                        ...query.dimensions,
+                        ...query.metrics,
+                        ...(query.tableCalculations ?? []).map(
+                            ({ name }) => name,
+                        ),
+                    ],
                 },
             }),
             chartConfig: {

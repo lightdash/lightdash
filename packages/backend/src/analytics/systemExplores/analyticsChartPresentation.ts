@@ -8,15 +8,20 @@ import {
     type ConditionalFormattingConfig,
 } from '@lightdash/common';
 import { analyticsColorPalette } from './analyticsColorPalette';
+import { monthLabel } from './monthlyQueryComparisonCharts';
 
 // A shared visual vocabulary for managed content. Queries and identity fields
 // stay intact: a table row can represent several people, projects or surfaces.
 // Series take the Analytics palette, so built-in charts match library charts.
 const colors = analyticsColorPalette.colors.slice(0, 5);
 // Meaning-bearing colours stay fixed whatever the palette.
-const positive = '#0CA678';
-const caution = '#E67700';
+// Good and not-good share one pair everywhere: a cache hit and a success are green, a cache miss and
+// anything short of a success are orange. Red is for errors only.
+export const positive = '#34D399';
+export const caution = '#FB923C';
 const warning = '#C92A2A';
+const positiveTint = '#D1FAE5';
+const cautionTint = '#FFEDD5';
 
 const numberRule = (
     field: string,
@@ -108,17 +113,28 @@ const styleTable = (chart: ChartAsCode): ChartAsCode => {
             width: 180,
         };
         columns.monthly_change_percent = { name: 'Change (%)', width: 150 };
+        // Narrow columns, so the table fits beside the chart without scrolling sideways
+        columns[monthLabel] = { ...columns[monthLabel], width: 130 };
+        const [counted] = chart.metricQuery.metrics;
+        columns[counted] = { ...columns[counted], width: 150 };
+        // Light tints of the same green and orange as the Change bars, with dark text
         rules.push(
-            numberRule(
-                'monthly_change_percent',
-                FilterOperator.GREATER_THAN,
-                '#087F5B',
-            ),
-            numberRule(
-                'monthly_change_percent',
-                FilterOperator.LESS_THAN,
-                '#A65300',
-            ),
+            {
+                ...numberRule(
+                    'monthly_change_percent',
+                    FilterOperator.GREATER_THAN,
+                    positiveTint,
+                ),
+                textStyle: undefined,
+            },
+            {
+                ...numberRule(
+                    'monthly_change_percent',
+                    FilterOperator.LESS_THAN,
+                    cautionTint,
+                ),
+                textStyle: undefined,
+            },
         );
     }
     return {
@@ -139,7 +155,6 @@ const styleTable = (chart: ChartAsCode): ChartAsCode => {
 
 const monthlyComparison = (chart: ChartAsCode): ChartAsCode => {
     if (!chart.slug.endsWith('-queries-run-month-over-month')) return chart;
-    const month = 'query_events_event_ts_month';
     const total = 'query_events_total_queries';
     return {
         ...chart,
@@ -147,15 +162,16 @@ const monthlyComparison = (chart: ChartAsCode): ChartAsCode => {
             type: ChartType.CARTESIAN,
             config: {
                 layout: {
-                    xField: month,
+                    xField: monthLabel,
                     yField: [total, 'monthly_change_percent'],
                     connectNulls: false,
                 },
                 eChartsConfig: {
                     xAxis: [{ name: 'Month (UTC)' }],
+                    // The change axis stops at 200%, so one very large change does not flatten the rest
                     yAxis: [
                         { name: 'Queries', min: '0' },
-                        { name: 'Change (%)' },
+                        { name: 'Change (%)', max: '2' },
                     ],
                     series: [
                         {
@@ -164,7 +180,7 @@ const monthlyComparison = (chart: ChartAsCode): ChartAsCode => {
                             color: colors[0],
                             yAxisIndex: 0,
                             encode: {
-                                xRef: { field: month },
+                                xRef: { field: monthLabel },
                                 yRef: { field: total },
                             },
                         },
@@ -176,7 +192,7 @@ const monthlyComparison = (chart: ChartAsCode): ChartAsCode => {
                             smooth: false,
                             yAxisIndex: 1,
                             encode: {
-                                xRef: { field: month },
+                                xRef: { field: monthLabel },
                                 yRef: { field: 'monthly_change_percent' },
                             },
                         },
@@ -224,13 +240,13 @@ export const withAnalyticsChartPresentation = (
             chart.chartConfig.config?.selectedField?.includes('tokens');
         let style = chart.chartConfig.config?.style;
         if (isTokens) style = Compact.AUTO;
-        // Keep counts and millisecond values exact; preserve other explicit formats.
+        // Keep counts and duration values exact; preserve other explicit formats.
         else if (style === Compact.AUTO) style = undefined;
         let { name } = chart;
         if (chart.slug.endsWith('-avg-execution-time'))
-            name = 'Average warehouse time (ms)';
+            name = 'Average warehouse time (s)';
         if (chart.slug.endsWith('-p90-execution-time'))
-            name = 'P90 warehouse time (ms)';
+            name = 'P90 warehouse time (s)';
         return {
             ...chart,
             name,
@@ -255,8 +271,24 @@ export const withAnalyticsChartPresentation = (
                     valueLabel: 'hidden',
                     legendPosition: 'horizontal',
                     legendMaxItemLength: 28,
+                    // Outcomes are recorded in lower case
+                    groupLabelOverrides: {
+                        success: 'Success',
+                        error: 'Error',
+                        cancelled: 'Cancelled',
+                        clarification: 'Needs clarification',
+                        pending: 'Pending',
+                        unknown: 'Unknown',
+                        ...chart.chartConfig.config?.groupLabelOverrides,
+                    },
                     groupColorOverrides: {
                         ...chart.chartConfig.config?.groupColorOverrides,
+                        // Plain names of the same outcomes
+                        Success: positive,
+                        Error: warning,
+                        'Cache hit': positive,
+                        'Cache miss': caution,
+                        'Not recorded': '#868E96',
                         completed: positive,
                         complete: positive,
                         success: positive,

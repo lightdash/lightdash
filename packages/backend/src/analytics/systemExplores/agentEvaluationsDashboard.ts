@@ -6,7 +6,7 @@ const explore = 'agent_evaluation_runs';
 const day = 'agent_evaluation_runs_event_ts_day';
 const timezone = 'UTC';
 const passRateDescription =
-    'Passing assessments divided by all assessments, grouped by the day the run started. Runs without assessments do not contribute to the rate. Runs still in progress, unassessed results and execution errors do not count as failed assessments.';
+    'Passing assessments divided by all assessments, grouped by the day the run started. Runs without assessments do not count towards the rate.';
 
 // Charts of the Agent evaluations dashboard. The list of recent runs stays with the plain charts in
 // usageDashboardCharts.ts.
@@ -81,7 +81,8 @@ export const agentEvaluationsChartSpecs: UsageChartSpec[] = [
                 ],
                 sorts: [{ fieldId: day, descending: false }],
                 limit: 365,
-                description: `${passRateDescription} The bars show the runs behind each day's rate: a rate from a few runs is not a reliable ranking.`,
+                description:
+                    "Passing assessments divided by all assessments, by the day the run started, with the runs behind each day's rate. A rate from a few runs is not reliable.",
             },
         },
     },

@@ -378,7 +378,12 @@ describe('analyticsLibraryChartBindings', () => {
             const known = [
                 ...(b.query ?? metricQuery).dimensions,
                 ...(b.query ?? metricQuery).metrics,
-                ...(metricQuery.tableCalculations ?? []).map((c) => c.name),
+                // A binding query replaces the plain chart's calculations with its own
+                ...(
+                    (b.query ? b.query.tableCalculations : undefined) ??
+                    metricQuery.tableCalculations ??
+                    []
+                ).map((c) => c.name),
             ];
             Object.values(b.fieldMapping)
                 .flat()
@@ -388,10 +393,14 @@ describe('analyticsLibraryChartBindings', () => {
         });
     });
 
-    it('maps only dimensions and metrics of a binding query', () => {
+    it('maps only dimensions, metrics and calculations of a binding query', () => {
         entries.forEach(([, b]) => {
             if (!b.query) return;
-            const known = [...b.query.dimensions, ...b.query.metrics];
+            const known = [
+                ...b.query.dimensions,
+                ...b.query.metrics,
+                ...(b.query.tableCalculations ?? []).map((c) => c.name),
+            ];
             Object.values(b.fieldMapping)
                 .flat()
                 .forEach((id) => {
@@ -603,17 +612,28 @@ describe('legacyLibraryChartBindings', () => {
         );
         expect(queryBinding('queries-by-day')).toMatchObject({
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.17.1',
+            minVersion: '0.18.3',
             fieldMapping: {
                 x: 'query_events_event_ts_day',
                 m1: 'query_events_total_queries',
-                splitBy: 'query_events_context',
+                // The plain names of the contexts, not the recorded code names
+                splitBy: 'query_events_context_name',
             },
-            optionValues: { splitTopN: 6 },
+            optionValues: { splitTopN: 6, splitSort: 'total' },
+        });
+        // The same smooth filled line as People by day on the Overview dashboard
+        expect(queryBinding('active-users-by-day')).toMatchObject({
+            slug: 'vega-trellis',
+            minVersion: '0.6.2',
+            fieldMapping: {
+                x: 'query_events_event_ts_day',
+                value: 'query_events_unique_users',
+            },
+            optionValues: { markType: 'area', curve: 'smooth' },
+            query: null,
         });
         [
             'warehouse-versus-cached-demand',
-            'active-users-by-day',
             'query-cache',
             'queries-by-context',
             'query-latency-by-day',
@@ -749,7 +769,7 @@ describe('legacyLibraryChartBindings', () => {
                 'lightdash-analytics-query-activity-queries-by-day',
             ),
         ).toBe(
-            'Queries per day, split by the six contexts that ran the most queries, with the rest grouped as Other.',
+            'Queries per day, split by the six places that ran the most queries, such as a dashboard view or an Explore, with the rest grouped as Other.',
         );
         // The fallback line chart needs no description beyond its title.
         expect(
@@ -804,7 +824,7 @@ describe('legacyLibraryChartBindings', () => {
                 agentChart('agent-retries-latency-and-consumption'),
             ),
         ).toBe(
-            'Requests and average request latency by recorded retry count. An agent step is not a retry.',
+            'Requests and average request latency by retry count. Each retry runs the request again with new AI calls, so more retries mean a longer wait and more tokens.',
         );
     });
 });
