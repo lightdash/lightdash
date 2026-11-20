@@ -256,6 +256,7 @@ import {
     aiServiceAccountPlanMock,
     markedPersonPlanMock,
 } from '../AiAccessService/AiAccessService.mock';
+import { MergedChartRun } from '../AsyncQueryService/MergedChartRun';
 import { CatalogService } from '../CatalogService/CatalogService';
 import { DeployService } from '../DeployService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
@@ -16370,6 +16371,83 @@ describe('ProjectService', () => {
                 expect(gatedCalculations).not.toContainEqual(['ratio', 'leak']);
                 expect(gatedCalculations).not.toContainEqual(['leak', 'ratio']);
                 gate.mockRestore();
+            });
+
+            describe('merged chart authority', () => {
+                const sourceWithCustomSql: MergeQueryMetricSource = {
+                    id: 'b',
+                    metricQuery: {
+                        ...source('b').metricQuery,
+                        customDimensions: [
+                            {
+                                id: 'status_sql',
+                                name: 'status_sql',
+                                table: 'a',
+                                type: CustomDimensionType.SQL,
+                                sql: '${TABLE}.dim1',
+                                dimensionType: DimensionType.STRING,
+                            },
+                        ],
+                    },
+                };
+                const savedMerge = mergeQuery({
+                    sources: [source('a'), sourceWithCustomSql],
+                    tableCalculations: [subqueryCalculation],
+                });
+
+                test('refuses custom SQL in an extra source sent by a viewer', async () => {
+                    await expect(
+                        service.compileMergeQuery({
+                            account: viewer,
+                            projectUuid,
+                            mergeQuery: mergeQuery({
+                                sources: [source('a'), sourceWithCustomSql],
+                            }),
+                        }),
+                    ).rejects.toThrow(
+                        'User cannot run queries with custom SQL fields',
+                    );
+                });
+
+                test("compiles a viewer's saved merge with custom SQL in an extra source", async () => {
+                    const result = await service.compileMergeQuery({
+                        authority: {
+                            kind: 'mergedChart',
+                            run: MergedChartRun.fromLoadedChart({
+                                account: viewer,
+                                savedChart: { uuid: 'chart-uuid', projectUuid },
+                            }),
+                        },
+                        account: viewer,
+                        projectUuid,
+                        mergeQuery: savedMerge,
+                    });
+
+                    expect(result.errors).toEqual([]);
+                    expect(result.sql).toContain('information_schema.tables');
+                });
+
+                test('refuses a run carried into another project', async () => {
+                    await expect(
+                        service.compileMergeQuery({
+                            authority: {
+                                kind: 'mergedChart',
+                                run: MergedChartRun.fromLoadedChart({
+                                    account: viewer,
+                                    savedChart: {
+                                        uuid: 'chart-uuid',
+                                        projectUuid: 'other-project',
+                                    },
+                                }),
+                            },
+                            account: viewer,
+                            projectUuid,
+                            mergeQuery: savedMerge,
+                        }),
+                    ).rejects.toThrow(
+                        'Merged chart run does not match this execution',
+                    );
+                });
             });
         });
     });

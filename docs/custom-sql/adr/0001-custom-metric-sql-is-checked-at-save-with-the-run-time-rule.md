@@ -30,7 +30,10 @@ before.
 
 - **Checked writers:** chart create, new chart version, content-as-code upload,
   dashboard shared custom metrics, restoring a chart or dashboard version
-  (checked against the chart's current version).
+  (checked against the chart's current version). Each source of a saved merge
+  definition is checked like the chart's own query, against its own explore
+  and the saved source of the same name, so a merged chart runs without a
+  run-time check.
 - **Not checked:** duplicate chart, duplicate dashboard, move, restore from
   trash, promote. They copy a chart's current version and store no new SQL.
 

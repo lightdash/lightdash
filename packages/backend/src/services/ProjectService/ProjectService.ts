@@ -10203,6 +10203,10 @@ export class ProjectService
                 // The author's custom SQL rights were checked at save
                 authority.binding.assertExecution(account, projectUuid);
                 break;
+            case 'mergedChart':
+                // Each source's SQL was checked at save, as a plain chart's is
+                authority.run.assertExecution(account, projectUuid);
+                break;
             case 'document':
                 authority.context.assertMetricQuery(
                     account,
@@ -10554,6 +10558,9 @@ export class ProjectService
             case 'composer':
                 authority.binding.assertExecution(account, projectUuid);
                 break;
+            case 'mergedChart':
+                authority.run.assertExecution(account, projectUuid);
+                break;
             case 'request':
                 break;
             default:
@@ -10732,7 +10739,8 @@ export class ProjectService
         switch (authority.kind) {
             case 'document':
             case 'composer':
-                // Checked as the author at save: a document compiles its merge, a composer chart runs its write check
+            case 'mergedChart':
+                // Checked as the author at save: a document compiles its merge, a chart runs its write check
                 break;
             case 'request':
                 if (mergeSqlTableCalculations.length > 0) {

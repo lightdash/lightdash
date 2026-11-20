@@ -19,6 +19,7 @@ import {
     SchedulerFormat,
     WeekDay,
     type AnonymousAccount,
+    type AnyType,
     type CreateEmbedJwt,
     type DashboardDAO,
     type DashboardFilterRule,
@@ -175,6 +176,110 @@ describe('EmbedService', () => {
                 tableCalculations: [],
             });
         });
+    });
+
+    describe('embedded merged tile filters', () => {
+        const addedSourceRule: DashboardFilterRule = {
+            id: 'payments-filter',
+            target: { fieldId: 'payments_status', tableName: 'payments' },
+            operator: FilterOperator.EQUALS,
+            values: ['paid'],
+            label: undefined,
+        };
+        const filters: DashboardFilters = {
+            dimensions: [addedSourceRule],
+            metrics: [],
+            tableCalculations: [],
+        };
+
+        test.each([
+            ['merged', { queries: {} }, filters],
+            ['plain', null, { ...filters, dimensions: [] }],
+        ])(
+            "a %s tile gets a filter on a field outside the chart's explore",
+            async (_, merge, expected) => {
+                const execute = vi.fn().mockResolvedValue({});
+                const embedService = new EmbedService({
+                    ...EmbedServiceArgumentsMock,
+                    analytics: { trackAccount: vi.fn() },
+                    dashboardModel: {
+                        getByIdOrSlug: vi.fn().mockResolvedValue({
+                            uuid: 'dashboard-uuid',
+                            filters,
+                            tabs: [],
+                            tiles: [
+                                {
+                                    uuid: 'tile-uuid',
+                                    type: DashboardTileTypes.SAVED_CHART,
+                                    properties: {
+                                        savedChartUuid: 'chart-uuid',
+                                    },
+                                },
+                            ],
+                        }),
+                    },
+                    savedChartModel: {
+                        get: vi.fn().mockResolvedValue({
+                            uuid: 'chart-uuid',
+                            organizationUuid: 'org-uuid',
+                            tableName: validExplore.name,
+                            merge,
+                        }),
+                    },
+                    projectModel: {
+                        getExploreFromCache: vi
+                            .fn()
+                            .mockResolvedValue(validExplore),
+                    },
+                    projectService: {
+                        isTimezoneSupportEnabled: vi
+                            .fn()
+                            .mockResolvedValue(false),
+                        projectParametersModel: {
+                            find: vi.fn().mockResolvedValue([]),
+                        },
+                    },
+                    asyncQueryService: {
+                        executeAsyncDashboardChartQuery: execute,
+                        redactFieldsSqlForResponse: (
+                            _account: unknown,
+                            _projectUuid: string,
+                            results: unknown,
+                        ) => results,
+                    },
+                } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+                // Access gates are covered elsewhere
+                const gates = embedService as AnyType;
+                vi.spyOn(gates, 'isFeatureEnabled').mockResolvedValue(
+                    undefined,
+                );
+                vi.spyOn(
+                    gates,
+                    '_permissionsGetChartAndResults',
+                ).mockResolvedValue(undefined);
+
+                await embedService.executeAsyncDashboardTileQuery({
+                    account: {
+                        ...mockAccountWithPermission,
+                        embed: {
+                            dashboardUuids: ['dashboard-uuid'],
+                            allowAllDashboards: false,
+                        },
+                        access: {
+                            content: { dashboardUuid: 'dashboard-uuid' },
+                        },
+                    } as unknown as AnonymousAccount,
+                    projectUuid: 'project-uuid',
+                    tileUuid: 'tile-uuid',
+                    dashboardFilters: filters,
+                    dashboardSorts: [],
+                });
+
+                expect(execute.mock.calls[0][0].dashboardFilters).toEqual(
+                    expected,
+                );
+            },
+        );
     });
 
     describe('embedded dashboard SQL chart filters', () => {

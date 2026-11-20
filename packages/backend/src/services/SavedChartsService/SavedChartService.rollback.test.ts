@@ -5,11 +5,13 @@ import {
     DashboardTileTypes,
     DimensionType,
     ForbiddenError,
+    MergeJoinType,
     MetricType,
     type AdditionalMetric,
     type MetricQuery,
     type PossibleAbilities,
     type SavedChart,
+    type SavedMergeDefinition,
     type SessionUser,
 } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
@@ -211,6 +213,75 @@ describe('restoring a chart version', () => {
             ),
         ).rejects.toThrow(ConflictError);
         expect(savedChartModel.createVersion).not.toHaveBeenCalled();
+    });
+});
+
+describe('restoring a merged chart version', () => {
+    const mergeEditor: SessionUser = {
+        ...editor,
+        ability: new Ability<PossibleAbilities>([
+            ...editor.ability.rules,
+            { action: 'manage', subject: 'MergeQuery' },
+        ]),
+    };
+    const merge = (
+        limit: number,
+        customDimensions: SavedMergeDefinition['queries'][string]['customDimensions'],
+    ): SavedChart => ({
+        ...chart,
+        merge: {
+            queries: {
+                payments: {
+                    explore: 'payments',
+                    dimensions: ['payments_order_id'],
+                    metrics: ['payments_total'],
+                    customDimensions,
+                },
+            },
+            join: MergeJoinType.FULL,
+            keys: { table_name_dim: ['payments.payments_order_id'] },
+            limit,
+        },
+    });
+
+    it('refuses a version that adds custom SQL to a merge source', async () => {
+        const { chartService, savedChartModel } = setup(
+            merge(500, []),
+            merge(500, [sqlDimension]),
+        );
+
+        await expect(
+            chartService.rollback(
+                fromSession(mergeEditor),
+                chart.uuid,
+                'old-version',
+            ),
+        ).rejects.toThrow(
+            'User cannot save merge sources with new or modified custom SQL dimensions',
+        );
+        expect(savedChartModel.createVersion).not.toHaveBeenCalled();
+    });
+
+    it("allows a version that keeps a merge source's custom SQL as it is", async () => {
+        const restored = merge(100, [sqlDimension]);
+        const { chartService, savedChartModel } = setup(
+            merge(500, [sqlDimension]),
+            restored,
+        );
+
+        await chartService.rollback(
+            fromSession(mergeEditor),
+            chart.uuid,
+            'old-version',
+        );
+        expect(savedChartModel.createVersion).toHaveBeenCalledWith(
+            chart.uuid,
+            restored,
+            expect.anything(),
+            'transaction',
+            expect.anything(),
+            null,
+        );
     });
 });
 

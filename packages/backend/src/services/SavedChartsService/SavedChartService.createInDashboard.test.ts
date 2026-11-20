@@ -1,5 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
+    CustomDimensionType,
+    DimensionType,
     MergeJoinType,
     type Account,
     type CreateSavedChart,
@@ -76,6 +78,19 @@ const chartSavedBySlug = {
     tableConfig: createdChart.tableConfig,
     dashboardUuid: DASHBOARD_SLUG,
 } as unknown as CreateSavedChart;
+
+const validMerge = {
+    queries: {
+        payments: {
+            explore: 'payments',
+            dimensions: ['payments_order_id'],
+            metrics: ['payments_total'],
+        },
+    },
+    join: MergeJoinType.FULL,
+    keys: { orders_id: ['payments.payments_order_id'] },
+    limit: 500,
+};
 
 const savedChartModel = { create: vi.fn(async () => createdChart) };
 const dashboardModel = { getByIdOrSlug: vi.fn(async () => dashboard) };
@@ -185,15 +200,7 @@ describe('SavedChartService.create into a dashboard', () => {
             ...embedAccount,
             embedWriteUser: mergeActor,
         } as unknown as Account;
-        const mergedChart = {
-            ...chartSavedBySlug,
-            merge: {
-                queries: {},
-                join: MergeJoinType.FULL,
-                keys: {},
-                limit: 500,
-            },
-        };
+        const mergedChart = { ...chartSavedBySlug, merge: validMerge };
 
         await service.create(mergeAccount, 'project-uuid', mergedChart);
         expect(savedChartModel.create).toHaveBeenCalledTimes(1);
@@ -206,5 +213,46 @@ describe('SavedChartService.create into a dashboard', () => {
             disabledService.create(mergeAccount, 'project-uuid', mergedChart),
         ).rejects.toThrow('User cannot save merged charts');
         expect(savedChartModel.create).toHaveBeenCalledTimes(1);
+    });
+
+    test('refuses custom SQL in a merge source from an actor without the custom fields scope', async () => {
+        const mergeAccount = {
+            ...embedAccount,
+            embedWriteUser: {
+                ...writeActor,
+                ability: new Ability<PossibleAbilities>([
+                    ...writeActor.ability.rules,
+                    { subject: 'MergeQuery', action: ['manage'] },
+                ]),
+            },
+        } as unknown as Account;
+        const merge = {
+            ...validMerge,
+            queries: {
+                payments: {
+                    ...validMerge.queries.payments,
+                    customDimensions: [
+                        {
+                            id: 'leak',
+                            name: 'leak',
+                            table: 'payments',
+                            type: CustomDimensionType.SQL,
+                            sql: '(SELECT 1)',
+                            dimensionType: DimensionType.STRING,
+                        } as const,
+                    ],
+                },
+            },
+        };
+
+        await expect(
+            service.create(mergeAccount, 'project-uuid', {
+                ...chartSavedBySlug,
+                merge,
+            }),
+        ).rejects.toThrow(
+            'User cannot save merge sources with new or modified custom SQL dimensions',
+        );
+        expect(savedChartModel.create).not.toHaveBeenCalled();
     });
 });

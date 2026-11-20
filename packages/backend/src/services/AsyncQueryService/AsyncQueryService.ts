@@ -484,6 +484,7 @@ import {
     formatRefusedMergeDashboardFilters,
     type MergeSourceExplores,
 } from './mergeDashboardFilters';
+import { MergedChartRun } from './MergedChartRun';
 import {
     applyMergeExportLimit,
     buildComposeMergeOriginalColumns,
@@ -577,6 +578,7 @@ import {
     type ExecuteAsyncSqlChartArgs,
     type ExecuteAsyncUnderlyingDataQueryArgs,
     type GetAsyncQueryResultsArgs,
+    type MergeRunAuthority,
     type PollingOptions,
     type PreAggregateExecutionEngine,
     type PreAggregationRoute,
@@ -8151,6 +8153,20 @@ export class AsyncQueryService extends ProjectService {
                     args,
                     organizationUuid,
                 );
+            case 'mergedChart':
+                // Checked at save as a plain tile is; like a plain tile, no view-Explore check
+                authority.run.assertExecution(account, projectUuid);
+                // Materialization skips model-required filters; a plain tile never runs in it
+                if (
+                    context ===
+                    QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
+                ) {
+                    throw new ForbiddenError();
+                }
+                return this.runAsyncMetricQueryWithoutPermissionCheck(
+                    args,
+                    organizationUuid,
+                );
             case 'request':
                 break;
             default:
@@ -10196,6 +10212,10 @@ export class AsyncQueryService extends ProjectService {
             );
         }
         const outcome = await this.executeAsyncMergeQuery({
+            authority: {
+                kind: 'mergedChart',
+                run: MergedChartRun.fromLoadedChart({ account, savedChart }),
+            },
             account,
             projectUuid,
             mergeQuery,
@@ -10463,6 +10483,10 @@ export class AsyncQueryService extends ProjectService {
             chartSavedValues,
         });
         const outcome = await this.executeAsyncMergeQuery({
+            authority: {
+                kind: 'mergedChart',
+                run: MergedChartRun.fromLoadedChart({ account, savedChart }),
+            },
             account,
             projectUuid,
             mergeQuery,
@@ -15829,7 +15853,7 @@ export class AsyncQueryService extends ProjectService {
         compiledMerge,
         authority,
     }: {
-        authority: RequestAuthority | DocumentAuthority;
+        authority: MergeRunAuthority;
         account: Account;
         projectUuid: string;
         organizationUuid: string;
