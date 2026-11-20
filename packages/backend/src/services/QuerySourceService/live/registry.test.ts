@@ -61,6 +61,7 @@ const SAMPLE_SETTINGS: {
         connector: ApiConnectorType.ATTIO,
         object: 'companies',
     },
+    [ApiConnectorType.HUBSPOT]: { connector: ApiConnectorType.HUBSPOT },
 };
 
 const SERVER_ERROR: LiveHttpResponse = {

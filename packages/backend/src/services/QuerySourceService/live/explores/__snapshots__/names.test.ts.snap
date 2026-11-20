@@ -192,6 +192,46 @@ exports[`live data source names > Google Analytics explore names and field ids n
 }
 `;
 
+exports[`live data source names > HubSpot explore names and field ids never change 1`] = `
+{
+  "explores": [
+    {
+      "fieldIds": [
+        "hubspot_deals_amount",
+        "hubspot_deals_count",
+        "hubspot_deals_created_at",
+        "hubspot_deals_dealname",
+        "hubspot_deals_dealstage",
+        "hubspot_deals_property_count",
+        "hubspot_deals_record_id",
+        "hubspot_deals_updated_at",
+      ],
+      "name": "hubspot_deals",
+    },
+    {
+      "fieldIds": [
+        "hubspot_contacts_count",
+        "hubspot_contacts_created_at",
+        "hubspot_contacts_email",
+        "hubspot_contacts_record_id",
+        "hubspot_contacts_updated_at",
+      ],
+      "name": "hubspot_contacts",
+    },
+    {
+      "fieldIds": [
+        "hubspot_companies_count",
+        "hubspot_companies_created_at",
+        "hubspot_companies_record_id",
+        "hubspot_companies_updated_at",
+      ],
+      "name": "hubspot_companies",
+    },
+  ],
+  "reservedExploreNames": [],
+}
+`;
+
 exports[`live data source names > LinkedIn Ads explore names and field ids never change 1`] = `
 {
   "explores": [

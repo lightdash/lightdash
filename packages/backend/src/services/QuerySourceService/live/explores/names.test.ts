@@ -11,7 +11,7 @@ import {
     getLiveReservedExploreNames,
     toScannedLiveSourceFields,
 } from './build';
-import { type LiveSourceFieldEdits } from './fields';
+import { getLiveFieldEditKey, type LiveSourceFieldEdits } from './fields';
 
 /**
  * Locks every live data source explore name and field id. Saved charts,
@@ -126,6 +126,35 @@ const SOURCES: {
             },
         },
     },
+    {
+        name: 'HubSpot',
+        apiSource: { connector: ApiConnectorType.HUBSPOT },
+        scan: {
+            hubspotProperties: {
+                deals: {
+                    results: [
+                        {
+                            name: 'dealname',
+                            label: 'Deal Name',
+                            type: 'string',
+                        },
+                        {
+                            name: 'dealstage',
+                            label: 'Stage',
+                            type: 'enumeration',
+                        },
+                        { name: 'amount', label: 'Amount', type: 'number' },
+                        { name: 'count', label: 'Count', type: 'number' },
+                    ],
+                },
+                contacts: {
+                    results: [
+                        { name: 'email', label: 'Email', type: 'string' },
+                    ],
+                },
+            },
+        },
+    },
 ];
 
 describe('live data source names', () => {
@@ -144,12 +173,18 @@ describe('live data source names', () => {
             const { definitions } = getLiveBaseLayer(apiSource.connector);
             const everyFieldInUse: LiveSourceFieldEdits = Object.fromEntries(
                 [
-                    ...definitions.flatMap((definition) => [
-                        ...definition.dimensions,
-                        ...definition.metrics,
-                    ]),
-                    ...scannedFields.map((field) => field.definition),
-                ].map((field) => [field.name, { inUse: true, lastEdit: null }]),
+                    ...definitions.flatMap((definition) =>
+                        [...definition.dimensions, ...definition.metrics].map(
+                            ({ name: fieldName }) => fieldName,
+                        ),
+                    ),
+                    ...scannedFields.map((field) =>
+                        getLiveFieldEditKey(
+                            field.model ?? null,
+                            field.definition.name,
+                        ),
+                    ),
+                ].map((key) => [key, { inUse: true, lastEdit: null }]),
             );
             const explores = buildLiveExplores({
                 connectionUuid: '03386598-7a51-45b2-b1f9-5ef55bd09016',
