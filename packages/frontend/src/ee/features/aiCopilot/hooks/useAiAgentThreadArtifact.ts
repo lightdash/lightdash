@@ -1,5 +1,5 @@
 import { type AiAgentThread } from '@lightdash/common';
-import { useEffect, useMemo, useRef } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import {
     clearPreview,
     selectArtifactPreview,
@@ -29,6 +29,7 @@ export const useAiAgentThreadArtifact = ({
     const {
         registrations: deepResearchRegistrations,
         isReady: isDeepResearchRegistrationLookupReady,
+        isInitialLoading: isDeepResearchRegistrationLookupLoading,
     } = useDeepResearchThreadRunRegistrationState({
         projectUuid: threadUuid ? projectUuid : undefined,
         threadUuid: threadUuid ?? '',
@@ -47,7 +48,8 @@ export const useAiAgentThreadArtifact = ({
     const lastAutomaticVersionUuidRef = useRef<string | null>(null);
     const prevArtifactRef = useRef<typeof artifact>(null);
 
-    useEffect(() => {
+    // Layout effects so an auto-opened pane lands in the same paint as the transcript.
+    useLayoutEffect(() => {
         return () => {
             dispatch(clearPreview());
             lastHandledMessageUuidRef.current = null;
@@ -78,7 +80,7 @@ export const useAiAgentThreadArtifact = ({
     ]);
 
     // Track when user manually closes an artifact
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (!artifact && prevArtifactRef.current && latestAssistantMessage) {
             const wasLatestArtifactOpen =
                 prevArtifactRef.current.messageUuid ===
@@ -102,7 +104,7 @@ export const useAiAgentThreadArtifact = ({
 
     // Auto-open on artifact landing; the bubble shows "Finishing up…" until
     // the closing text streams in so the panel doesn't read as a focus-yank.
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (
             !projectUuid ||
             !agentUuid ||
@@ -149,4 +151,13 @@ export const useAiAgentThreadArtifact = ({
         threadUuid,
         dispatch,
     ]);
+
+    const lastMessage = thread?.messages?.at(-1);
+    // Until Deep Research is ruled out, the pane may still open and shift the transcript.
+    const isAutoOpenPending =
+        isDeepResearchRegistrationLookupLoading &&
+        lastMessage?.role === 'assistant' &&
+        (lastMessage.artifacts?.length ?? 0) > 0;
+
+    return { isAutoOpenPending };
 };

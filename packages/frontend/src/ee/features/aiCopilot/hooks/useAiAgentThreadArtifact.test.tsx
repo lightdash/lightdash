@@ -146,6 +146,40 @@ describe('useAiAgentThreadArtifact', () => {
         );
     });
 
+    it('holds the thread back until the first lookup settles whether its artifact opens', () => {
+        deepResearchRegistrationStateMock.mockReturnValue({
+            registrations: [],
+            isReady: false,
+            isInitialLoading: true,
+        });
+        const { result, rerender } = renderHook(
+            ({ currentThread }) =>
+                useAiAgentThreadArtifact({
+                    projectUuid: 'project-1',
+                    agentUuid: 'agent-1',
+                    threadUuid: 'thread-1',
+                    thread: currentThread,
+                }),
+            { initialProps: { currentThread: regularArtifactThread } },
+        );
+        expect(result.current.isAutoOpenPending).toBe(true);
+
+        const endsWithUserMessage = {
+            ...regularArtifactThread,
+            messages: regularArtifactThread.messages.slice(0, -1),
+        } as AiAgentThread;
+        rerender({ currentThread: endsWithUserMessage });
+        expect(result.current.isAutoOpenPending).toBe(false);
+
+        deepResearchRegistrationStateMock.mockReturnValue({
+            registrations: [],
+            isReady: true,
+            isInitialLoading: false,
+        });
+        rerender({ currentThread: regularArtifactThread });
+        expect(result.current.isAutoOpenPending).toBe(false);
+    });
+
     it('keeps a Deep Research artifact closed when registration loading completes', () => {
         deepResearchRegistrationStateMock.mockReturnValue({
             registrations: [],
