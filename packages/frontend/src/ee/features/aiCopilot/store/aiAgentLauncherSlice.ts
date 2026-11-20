@@ -58,8 +58,6 @@ export interface AiAgentLauncherState {
     pendingContext: LauncherPendingContext | null;
     /** A prompt to send as soon as the new-thread panel is ready. */
     pendingPrompt: string | null;
-    /** Uploaded images to send with the pending prompt. */
-    pendingImageFileUuids: string[];
     currentDashboard: LauncherCurrentDashboard | null;
     currentDataApp: LauncherCurrentDataApp | null;
     currentDocument: LauncherCurrentDocument | null;
@@ -73,7 +71,6 @@ const initialState: AiAgentLauncherState = {
     activeAgentUuid: null,
     pendingContext: null,
     pendingPrompt: null,
-    pendingImageFileUuids: [],
     currentDashboard: null,
     currentDataApp: null,
     currentDocument: null,
@@ -109,7 +106,6 @@ export const aiAgentLauncherSlice = createSlice({
             action: PayloadAction<{
                 pendingContext?: LauncherPendingContext | null;
                 pendingPrompt?: string | null;
-                pendingImageFileUuids?: string[];
             }>,
         ) => {
             state.mode = 'panel-open';
@@ -118,12 +114,9 @@ export const aiAgentLauncherSlice = createSlice({
             state.activeAgentUuid = null;
             state.pendingContext = action.payload.pendingContext ?? null;
             state.pendingPrompt = action.payload.pendingPrompt ?? null;
-            state.pendingImageFileUuids =
-                action.payload.pendingImageFileUuids ?? [];
         },
         clearPendingPrompt: (state) => {
             state.pendingPrompt = null;
-            state.pendingImageFileUuids = [];
         },
         setActiveAgent: (
             state,

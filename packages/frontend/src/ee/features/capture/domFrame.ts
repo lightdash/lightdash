@@ -1,6 +1,6 @@
 import html2canvas from 'html2canvas-pro';
 import { CAPTURE_IGNORE_ATTRIBUTE, pageRectForRegion } from './frameSource';
-import { toThumb, type TabFrame } from './useTabFrame';
+import { toThumb, type TabFrame } from './tabFrame';
 
 /**
  * Draws the visible part of the page from the DOM, so the browser never

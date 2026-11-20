@@ -35,6 +35,7 @@ import { sameScreen } from './frameGeometry';
 import { cancelsHold, holdToolForKey } from './holdKeys';
 import { coveredTargets } from './markCoverage';
 import { placeBubble } from './placeBubble';
+import { type TabFrame } from './tabFrame';
 import {
     type Box,
     type CaptureMark,
@@ -49,7 +50,6 @@ import {
     type TranscriptPhrase,
     type VoiceState,
 } from './types';
-import { type TabFrame } from './useTabFrame';
 import { useVoiceRecorder, type VoiceRecording } from './useVoiceRecorder';
 import { wordsToPhrases } from './wordsToPhrases';
 
@@ -855,6 +855,9 @@ export const useDesignMode = (
                         // Back to unsent first, so a reply keeps its thread.
                         dispatch({ type: 'sendFailed', bubbleId });
                         dispatch({ type: 'discard', bubbleId });
+                    } else if (result === 'queued') {
+                        // Stays on screen with its marks until the surface sends it.
+                        dispatch({ type: 'queue', bubbleId });
                     } else {
                         dispatch({
                             type: 'threadReady',

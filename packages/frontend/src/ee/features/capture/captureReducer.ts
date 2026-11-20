@@ -8,7 +8,6 @@ import {
     type DesignTool,
     type Box,
     type Stroke,
-    type TranscriptPhrase,
     type VoiceState,
 } from './types';
 
@@ -135,14 +134,4 @@ export const captureReducer = (
         default:
             return assertUnreachable(action, 'Unknown capture action');
     }
-};
-
-export const finishOutcome = (
-    state: CaptureState,
-    transcript: TranscriptPhrase[],
-): 'empty' | 'send' => {
-    if (state.status !== 'recording') return 'empty';
-    return state.marks.length === 0 && transcript.length === 0
-        ? 'empty'
-        : 'send';
 };

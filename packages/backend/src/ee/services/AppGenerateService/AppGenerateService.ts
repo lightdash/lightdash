@@ -2572,8 +2572,8 @@ export class AppGenerateService extends BaseService {
         );
     }
 
-    /** Voice Design is behind its feature flags on every surface that uses it. */
-    private async assertVoiceDesignEnabled(user: SessionUser): Promise<void> {
+    /** Design Mode is behind its feature flags on every surface that uses it. */
+    private async assertDesignModeEnabled(user: SessionUser): Promise<void> {
         const flags = await Promise.all(
             [FeatureFlags.DataAppCapture, FeatureFlags.DashboardCapture].map(
                 (featureFlagId) =>
@@ -2581,12 +2581,12 @@ export class AppGenerateService extends BaseService {
             ),
         );
         if (!flags.some(({ enabled }) => enabled)) {
-            throw new ForbiddenError('Voice Design is not enabled');
+            throw new ForbiddenError('Design Mode is not enabled');
         }
     }
 
     /**
-     * Transcribes the audio of a Voice Design recording into timed words.
+     * Transcribes the audio of a Design Mode recording into timed words.
      * The audio is sent to the transcription provider and not stored.
      */
     async transcribeCapture(
@@ -2605,7 +2605,7 @@ export class AppGenerateService extends BaseService {
             'Insufficient permissions to transcribe a capture',
         );
         await this.assertDataAppCapturesEnabled(organizationUuid);
-        await this.assertVoiceDesignEnabled(user);
+        await this.assertDesignModeEnabled(user);
 
         const filename = audioFilenameForMimeType(declaredMimeType);
         if (!filename) {

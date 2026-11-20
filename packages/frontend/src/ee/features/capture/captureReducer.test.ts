@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-    captureReducer,
-    finishOutcome,
-    type CaptureState,
-} from './captureReducer';
-import { type CaptureMark } from './types';
+import { captureReducer, type CaptureState } from './captureReducer';
 
 type Recording = Extract<CaptureState, { status: 'recording' }>;
 
@@ -229,24 +224,5 @@ describe('captureReducer', () => {
         expect(captureReducer(rec(), { type: 'reset' })).toEqual({
             status: 'idle',
         });
-    });
-});
-
-describe('finishOutcome', () => {
-    it('nothing drawn and nothing said is empty', () => {
-        expect(finishOutcome(rec(), [])).toBe('empty');
-    });
-
-    it('speech alone is sent', () => {
-        expect(finishOutcome(rec(), [{ atMs: 0, text: 'hi' }])).toBe('send');
-    });
-
-    it('marks are sent when the stream ends mid-recording with no speech', () => {
-        const s = rec({ marks: [{ number: 1 } as CaptureMark], imageCount: 1 });
-        expect(finishOutcome(s, [])).toBe('send');
-    });
-
-    it('idle is empty', () => {
-        expect(finishOutcome({ status: 'idle' }, [])).toBe('empty');
     });
 });

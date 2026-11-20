@@ -61,10 +61,10 @@ const describeMark = (mark: CaptureMark): string => {
 const header = (durationMs: number, imageCount: number): string => {
     const clock = formatClock(durationMs);
     if (imageCount === 0)
-        return `[Voice Design capture, ${clock}. No marks were drawn.]`;
+        return `[Design Mode capture, ${clock}. No marks were drawn.]`;
     if (imageCount === 1)
-        return `[Voice Design capture, ${clock}. The attached image shows the page with numbered red marks.]`;
-    return `[Voice Design capture, ${clock}. The ${imageCount} attached images show the page with numbered red marks, in order.]`;
+        return `[Design Mode capture, ${clock}. The attached image shows the page with numbered red marks.]`;
+    return `[Design Mode capture, ${clock}. The ${imageCount} attached images show the page with numbered red marks, in order.]`;
 };
 
 type Entry =
@@ -72,7 +72,7 @@ type Entry =
     | { kind: 'speech'; atMs: number; text: string };
 
 /** Attaches each phrase to the mark it was said with; the rest stay loose. */
-export const assignSpeech = (
+const assignSpeech = (
     marks: CaptureMark[],
     transcript: TranscriptPhrase[],
 ): { speechByMark: Map<number, string[]>; loose: TranscriptPhrase[] } => {

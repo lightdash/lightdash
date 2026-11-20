@@ -211,6 +211,83 @@ describe('designSessionReducer', () => {
         ).toEqual(['b']);
     });
 
+    it('arming a thread bubble drops the empty collection of another bubble', () => {
+        let s = run(empty, ...hold('a', 0));
+        s = sendAndFinish(s, 'a');
+        s = run(s, ...hold('b', 1000));
+        s = sendAndFinish(s, 'b');
+        // b is armed but nothing is marked yet, so a can take over.
+        s = run(s, { type: 'arm', bubbleId: 'b', input: 'text' });
+        expect(s.bubbles[1].collection).not.toBeNull();
+        s = run(s, { type: 'arm', bubbleId: 'a', input: 'text' });
+        expect(s.active).toEqual({ kind: 'bubble', bubbleId: 'a' });
+        expect(s.bubbles[1]).toMatchObject({
+            status: 'thread',
+            collection: null,
+        });
+    });
+
+    it('arming again with nothing marked starts the collection afresh for the new input', () => {
+        let s = run(empty, ...hold('a', 0));
+        s = sendAndFinish(s, 'a');
+        s = run(s, { type: 'arm', bubbleId: 'a', input: 'text' });
+        s = run(s, { type: 'arm', bubbleId: 'a', input: 'mic' });
+        const capture = s.bubbles[0].collection?.capture;
+        expect(capture?.status === 'recording' && capture.voice).toBe('on');
+        // Marks already made are kept when the input changes.
+        s = run(s, ...hold('x', 5000));
+        s = run(s, { type: 'arm', bubbleId: 'a', input: 'text' });
+        expect(nextMarkNumber(s.bubbles[0])).toBe(3);
+    });
+
+    it('a failed reply returns the bubble to its thread with the reply marks', () => {
+        let s = run(empty, ...hold('a', 0));
+        s = sendAndFinish(s, 'a');
+        s = run(
+            s,
+            { type: 'arm', bubbleId: 'a', input: 'text' },
+            ...hold('x', 5000),
+            { type: 'sendStarted', bubbleId: 'a', needsPicker: false },
+            { type: 'sendFailed', bubbleId: 'a' },
+        );
+        expect(s.bubbles[0].status).toBe('thread');
+        expect(nextMarkNumber(s.bubbles[0])).toBe(3);
+    });
+
+    it('discarding a reply keeps the thread and frees the page', () => {
+        let s = run(empty, ...hold('a', 0));
+        s = sendAndFinish(s, 'a');
+        s = run(
+            s,
+            { type: 'arm', bubbleId: 'a', input: 'text' },
+            ...hold('x', 5000),
+            { type: 'discard', bubbleId: 'a' },
+        );
+        expect(s.bubbles[0]).toMatchObject({
+            status: 'thread',
+            collection: null,
+            threadId: 't',
+        });
+        expect(s.bubbles[0].sentMarks).toHaveLength(1);
+        expect(s.active).toEqual({ kind: 'page' });
+    });
+
+    it('a bubble being sent can be queued, keeping its marks', () => {
+        let s = run(empty, ...hold('a', 0), {
+            type: 'sendStarted',
+            bubbleId: 'a',
+            needsPicker: false,
+        });
+        expect(s.bubbles[0].status).toBe('sending');
+        s = run(s, { type: 'queue', bubbleId: 'a' });
+        expect(s.bubbles[0].status).toBe('queued');
+        expect(s.active).toEqual({ kind: 'page' });
+        expect(nextMarkNumber(s.bubbles[0])).toBe(2);
+        // The page is free again: the next hold opens a second bubble.
+        s = run(s, ...hold('b', 1000));
+        expect(s.bubbles.map((b) => b.id)).toEqual(['a', 'b']);
+    });
+
     it('a queued bubble does not block arming a thread bubble', () => {
         let s = run(empty, ...hold('b', 0));
         s = sendAndFinish(s, 'b');

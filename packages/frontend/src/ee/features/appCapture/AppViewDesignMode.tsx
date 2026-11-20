@@ -1,24 +1,10 @@
 import { type AppSdkCaptureHold } from '@lightdash/common';
-import {
-    forwardRef,
-    useCallback,
-    useEffect,
-    useImperativeHandle,
-    useMemo,
-    useRef,
-} from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle } from 'react';
 import { type ElementSelectedEvent } from '../../../features/apps/hooks/useAppSdkBridge';
-import { captureTranscriber } from '../../../features/apps/utils/transcribeCapture';
-import useApp from '../../../providers/App/useApp';
-import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
-import {
-    type CaptureTarget,
-    type DesignPayload,
-    type DesignSendResult,
-    type DesignSurface,
-} from '../capture/types';
+import { type DesignPayload, type DesignSendResult } from '../capture/types';
 import { useBubbleConversations } from '../capture/useBubbleConversations';
 import { useDesignMode } from '../capture/useDesignMode';
+import { useAppFrameSurface } from './useAppFrameSurface';
 
 export type AppViewDesignModeHandle = {
     toggle: () => void;
@@ -41,8 +27,6 @@ type Props = {
     onStateChange: (on: boolean, picking: boolean) => void;
 };
 
-type Picked = { target: CaptureTarget; rect: DOMRect };
-
 /** Design Mode on a published app: mark it, say what to change, read the reply there. */
 const AppViewDesignMode = forwardRef<AppViewDesignModeHandle, Props>(
     (
@@ -56,49 +40,13 @@ const AppViewDesignMode = forwardRef<AppViewDesignModeHandle, Props>(
         },
         ref,
     ) => {
-        const lightdashApi = useLightdashApi();
-        const { health } = useApp();
         const conversations = useBubbleConversations(projectUuid);
         const { send: sendMessage } = conversations;
-
-        // Read through refs so the surface keeps a stable identity.
-        const getFrameRef = useRef(getFrame);
-        getFrameRef.current = getFrame;
-        // The element the app reported, only while its pick is being made.
-        const pickedRef = useRef<Picked | null>(null);
-
-        const voiceTranscriptionAvailable =
-            health.data?.ai.voiceTranscriptionAvailable;
-        // No picture from the app, no Design Mode: marks need something to sit on.
-        const surface = useMemo<DesignSurface | null>(
-            () =>
-                captureScreenshot
-                    ? {
-                          getRegion: () =>
-                              getFrameRef.current()?.getBoundingClientRect() ??
-                              new DOMRect(),
-                          // The app does not say how far it has scrolled.
-                          getScroll: () => ({ x: 0, y: 0 }),
-                          frameSource: 'app',
-                          grabAppImage: captureScreenshot,
-                          // Tabs inside an app cannot be seen from outside it.
-                          getTab: () => null,
-                          resolveTarget: null,
-                          pickAt: () => pickedRef.current,
-                          transcribe: captureTranscriber(
-                              lightdashApi,
-                              projectUuid,
-                              voiceTranscriptionAvailable,
-                          ),
-                      }
-                    : null,
-            [
-                captureScreenshot,
-                lightdashApi,
-                projectUuid,
-                voiceTranscriptionAvailable,
-            ],
-        );
+        const { surface, elementSelected } = useAppFrameSurface({
+            projectUuid,
+            getFrame,
+            captureScreenshot,
+        });
 
         const onSend = useCallback(
             (payload: DesignPayload): Promise<DesignSendResult> =>
@@ -132,33 +80,9 @@ const AppViewDesignMode = forwardRef<AppViewDesignModeHandle, Props>(
             () => ({
                 toggle: () => setOn(!on),
                 hold: ({ tool, phase }) => frameHold(tool, phase),
-                elementSelected: ({ label, rect }) => {
-                    const frame = getFrameRef
-                        .current()
-                        ?.getBoundingClientRect();
-                    if (!frame) return;
-                    // The app's pixels start at its frame's top left corner.
-                    const onPage = rect
-                        ? new DOMRect(
-                              frame.left + rect.x,
-                              frame.top + rect.y,
-                              rect.width,
-                              rect.height,
-                          )
-                        : // An older bundle does not say where the element is.
-                          new DOMRect(frame.right, frame.top, 0, 0);
-                    pickedRef.current = {
-                        target: { kind: 'element', id: label, label },
-                        rect: onPage,
-                    };
-                    framePick({
-                        x: onPage.x + onPage.width / 2,
-                        y: onPage.y + onPage.height / 2,
-                    });
-                    pickedRef.current = null;
-                },
+                elementSelected: (event) => elementSelected(event, framePick),
             }),
-            [frameHold, framePick, on, setOn],
+            [elementSelected, frameHold, framePick, on, setOn],
         );
 
         return (

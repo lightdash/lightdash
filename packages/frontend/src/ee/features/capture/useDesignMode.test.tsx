@@ -702,6 +702,32 @@ describe('useDesignMode', () => {
         expect(api.session.bubbles[0].sentMarks).toHaveLength(1);
     });
 
+    it('a queued send keeps the bubble and its marks on screen and frees the page', async () => {
+        onSend.mockResolvedValueOnce('queued');
+        await turnOn();
+        await drawMark();
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+        const { id } = api.session.bubbles[0];
+        await act(async () => {
+            api.send(id, 'make it blue');
+        });
+        await waitFor(() =>
+            expect(api.session.bubbles[0].status).toBe('queued'),
+        );
+        expect(api.session.active).toEqual({ kind: 'page' });
+        expect(screen.getByText('Queued')).toBeInTheDocument();
+        expect(screen.getAllByText('①').length).toBeGreaterThan(0);
+
+        // The next mark opens a second bubble beside the queued one.
+        await drawMark();
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(2));
+        expect(api.session.bubbles[0].status).toBe('queued');
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'Close' })[0]);
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+        expect(api.session.bubbles[0].id).not.toBe(id);
+    });
+
     it('a failed send keeps the spoken words for the retry', async () => {
         stopVoice.mockResolvedValue({
             audio: new Blob(['audio'], { type: 'audio/webm' }),

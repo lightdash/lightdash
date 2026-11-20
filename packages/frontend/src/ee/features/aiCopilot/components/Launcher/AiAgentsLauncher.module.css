@@ -284,7 +284,3 @@
 .mirroredIcon {
     transform: scaleX(-1);
 }
-
-.threadExtras {
-    display: contents;
-}

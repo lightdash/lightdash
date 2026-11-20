@@ -63,12 +63,12 @@ type VersionRow = NonNullable<Awaited<ReturnType<AppModelFake['getVersion']>>>;
 const buildService = ({
     storedCapturesChoice = null,
     capturesEnabledOnInstance = true,
-    voiceDesignFlags = ['builder'],
+    designModeFlags = ['builder'],
 }: {
     storedCapturesChoice?: boolean | null;
     capturesEnabledOnInstance?: boolean;
-    /** Which Voice Design flags are on: the builder's, the dashboard's. */
-    voiceDesignFlags?: Array<'builder' | 'dashboard'>;
+    /** Which Design Mode flags are on: the builder's, the dashboard's. */
+    designModeFlags?: Array<'builder' | 'dashboard'>;
 } = {}) => {
     const captures = { stored: storedCapturesChoice };
     const appRow = {
@@ -134,11 +134,11 @@ const buildService = ({
         featureFlagModel: {
             get: async ({ featureFlagId }: { featureFlagId: string }) => {
                 if (featureFlagId === FeatureFlags.DataAppCapture) {
-                    return { enabled: voiceDesignFlags.includes('builder') };
+                    return { enabled: designModeFlags.includes('builder') };
                 }
                 if (featureFlagId === FeatureFlags.DashboardCapture) {
                     return {
-                        enabled: voiceDesignFlags.includes('dashboard'),
+                        enabled: designModeFlags.includes('dashboard'),
                     };
                 }
                 return { enabled: true };
@@ -374,9 +374,9 @@ describe('AppGenerateService data app captures switch', () => {
     });
 });
 
-describe('AppGenerateService Voice Design transcription', () => {
+describe('AppGenerateService Design Mode transcription', () => {
     const transcribe = (service: AppGenerateService) => {
-        // Apps are available; this test is about the Voice Design flag.
+        // Apps are available; this test is about the Design Mode flag.
         vi.spyOn(service, 'isChartStudioAvailable').mockReturnValue(true);
         const body = Readable.from([Buffer.from('audio')]);
         const read = vi.spyOn(body, 'read');
@@ -393,7 +393,7 @@ describe('AppGenerateService Voice Design transcription', () => {
     };
 
     it('refuses before reading the audio while both flags are off', async () => {
-        const { service } = buildService({ voiceDesignFlags: [] });
+        const { service } = buildService({ designModeFlags: [] });
         const { result, bodyWasRead } = transcribe(service);
 
         await expect(result).rejects.toThrow(ForbiddenError);
@@ -402,8 +402,8 @@ describe('AppGenerateService Voice Design transcription', () => {
 
     it.each([[['builder' as const]], [['dashboard' as const]]])(
         'passes the flag check while %s is on',
-        async (voiceDesignFlags) => {
-            const { service } = buildService({ voiceDesignFlags });
+        async (designModeFlags) => {
+            const { service } = buildService({ designModeFlags });
 
             // No transcription provider is configured in this test.
             await expect(transcribe(service).result).rejects.toThrow(

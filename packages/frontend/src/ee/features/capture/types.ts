@@ -37,37 +37,6 @@ export type TranscriptPhrase = { atMs: number; text: string };
 // A spoken word timed from the start of the audio recording.
 export type TranscriptWord = { startMs: number; endMs: number; text: string };
 
-export type CaptureResult = {
-    images: File[];
-    summary: string;
-    marks: CaptureMark[];
-    transcript: TranscriptPhrase[];
-    durationMs: number;
-};
-
-/** Where the pixels come from: browser tab capture, or the page's own DOM. */
-export type CaptureFrameSource = 'tab' | 'dom';
-
-export type CaptureSurface = {
-    getRegion: () => DOMRect;
-    /** Defaults to tab capture. "dom" needs no share prompt. */
-    frameSource?: CaptureFrameSource;
-    /** False when the surface only needs marks and words, not pictures. */
-    captureImages: boolean;
-    /**
-     * The surface's own picture of its whole page, from the top. Asked for
-     * once when a recording starts; tab capture is used if it does not answer.
-     */
-    grabAppImage?: (() => Promise<Blob>) | null;
-    /** What is at a viewport point (a tile, a data point). */
-    resolveTarget:
-        | ((point: { x: number; y: number }) => CaptureTarget | null)
-        | null;
-    /** Turns the recorded audio into timed words. Null means no voice. */
-    transcribe: ((audio: Blob) => Promise<TranscriptWord[]>) | null;
-    onCapture: (result: CaptureResult) => void;
-};
-
 export type VoiceState = 'on' | 'off';
 
 export const MAX_CAPTURE_IMAGES = 5;
@@ -105,8 +74,10 @@ export type DesignPayload = {
     transcript: TranscriptPhrase[];
 };
 
+// 'queued': the surface holds the bubble to send later with others.
 export type DesignSendResult =
     | { threadId: string; agentUuid: string }
+    | 'queued'
     | 'cancelled';
 
 /** A mark kept on screen. Box and stroke points are content pixels (viewport plus scroll). */

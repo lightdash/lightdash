@@ -250,8 +250,11 @@ export const designSessionReducer = (
                         return {
                             ...b,
                             input: action.input,
+                            // Marks already made are kept; an empty one restarts for this input.
                             collection:
-                                b.collection ?? freshCollection(action.input),
+                                b.collection && isInProgress(b.collection)
+                                    ? b.collection
+                                    : freshCollection(action.input),
                         };
                     }
                     return b.status === 'thread'
@@ -270,7 +273,13 @@ export const designSessionReducer = (
             }));
         case 'queue': {
             const bubble = s.bubbles.find((b) => b.id === action.bubbleId);
-            if (!bubble || bubble.status !== 'collecting') return s;
+            // Sending too: a surface that bundles answers a send by queueing it.
+            if (
+                !bubble ||
+                (bubble.status !== 'collecting' && bubble.status !== 'sending')
+            ) {
+                return s;
+            }
             const next = updateBubble(s, bubble.id, (b) => ({
                 ...b,
                 status: 'queued',

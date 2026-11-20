@@ -115,7 +115,7 @@ export type ApiAppFileUploadResponse = ApiSuccess<{
     mimeType: string;
 }>;
 
-/** One spoken word from a Voice Design recording, timed from the start of its audio. */
+/** One spoken word from a Design Mode recording, timed from the start of its audio. */
 export type CaptureTranscriptWord = {
     startMs: number;
     endMs: number;

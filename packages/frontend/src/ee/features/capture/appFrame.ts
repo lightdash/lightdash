@@ -1,8 +1,6 @@
 import { type Size } from './frameGeometry';
-import { toThumb, type TabFrame } from './useTabFrame';
+import { toThumb, type TabFrame } from './tabFrame';
 
-/** An app that has not answered by now is taken to have no handler. */
-export const APP_PROBE_TIMEOUT_MS = 1500;
 /** Once the app has answered the probe, a frame may take this long. */
 const APP_FRAME_TIMEOUT_MS = 5000;
 // The app renders at min(2, devicePixelRatio); a scrollbar narrows it a little.
@@ -37,26 +35,6 @@ export const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> =>
 /** The app answers with a PNG blob; anything else is not a picture. */
 export const isAppImage = (value: unknown): value is Blob =>
     value instanceof Blob && value.size > 0 && value.type.startsWith('image/');
-
-/**
- * Decides, once per recording, where pictures come from. The app is asked for
- * one picture; no valid answer in time means tab capture for this recording.
- */
-export const resolveAppFrameSource = async ({
-    probe,
-    timeoutMs = APP_PROBE_TIMEOUT_MS,
-}: {
-    probe: (() => Promise<unknown>) | null;
-    timeoutMs?: number;
-}): Promise<'app' | 'tab'> => {
-    if (!probe) return 'tab';
-    try {
-        const answer = await withTimeout(probe(), timeoutMs);
-        return isAppImage(answer) ? 'app' : 'tab';
-    } catch {
-        return 'tab';
-    }
-};
 
 /**
  * Image pixels per CSS pixel of the app's picture. The app's own pixel ratio

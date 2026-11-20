@@ -3,7 +3,7 @@ import {
     type AiPromptContext,
     type AiPromptContextInput,
 } from '@lightdash/common';
-import { Avatar, Box, Center, Group, Loader, Stack, Text } from '@mantine/core';
+import { Avatar, Center, Group, Loader, Stack, Text } from '@mantine/core';
 import {
     useCallback,
     useEffect,
@@ -68,7 +68,6 @@ import {
     type LauncherSelectedAgent,
 } from './launcherAgentSelection';
 import { LauncherAnalysisTeaser } from './LauncherAnalysisTeaser';
-import { LAUNCHER_THREAD_EXTRAS_ID } from './launcherDockExtras';
 import { LauncherPanelFrame } from './LauncherPanelFrame';
 import { PanelHeader } from './PanelHeader';
 import { useAiAgentLauncherRouter } from './useAiAgentLauncherRouter';
@@ -328,28 +327,11 @@ const NewThreadPanel: FC<{
     const pendingPrompt = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.pendingPrompt,
     );
-    const pendingImageFileUuids = useAiAgentStoreSelector(
-        (state) => state.aiAgentLauncher.pendingImageFileUuids,
-    );
     useEffect(() => {
         if (!pendingPrompt || !isPinnedContextReady || isLocked) return;
         dispatch(clearPendingPrompt());
-        void handleSubmit({
-            message: pendingPrompt,
-            toolHints: [],
-            context: pendingImageFileUuids.map((fileUuid) => ({
-                type: 'thread_image' as const,
-                fileUuid,
-            })),
-        });
-    }, [
-        dispatch,
-        handleSubmit,
-        isLocked,
-        isPinnedContextReady,
-        pendingImageFileUuids,
-        pendingPrompt,
-    ]);
+        void handleSubmit({ message: pendingPrompt, toolHints: [] });
+    }, [dispatch, handleSubmit, isLocked, isPinnedContextReady, pendingPrompt]);
 
     const displayName = isAuto ? 'Auto' : agent.name;
     const description = isAuto
@@ -713,13 +695,6 @@ const ExistingThreadPanel: FC<{
                                 : undefined
                         }
                         placeholder={`Ask ${agent.name} anything...`}
-                        // Other features add buttons here, e.g. a follow-up mic.
-                        toolbarStart={
-                            <Box
-                                id={LAUNCHER_THREAD_EXTRAS_ID}
-                                className={styles.threadExtras}
-                            />
-                        }
                         messageCount={thread.messages?.length || 0}
                         projectUuid={projectUuid}
                         agentUuid={agent.uuid}
