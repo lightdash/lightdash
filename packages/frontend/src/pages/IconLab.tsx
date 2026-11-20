@@ -48,6 +48,7 @@ const SET_LABELS: Record<ContentIconSetKey, string> = {
     a: 'A · Outline',
     b: 'B · Accent',
     c: 'C · Solid',
+    d: 'D · Technical',
 };
 
 const isSetKey = (value: string): value is ContentIconSetKey =>

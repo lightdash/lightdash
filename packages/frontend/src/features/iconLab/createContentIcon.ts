@@ -2,7 +2,18 @@ import { type IconProps } from '@tabler/icons-react';
 import { createElement, forwardRef, type ReactNode } from 'react';
 
 // Same prop contract as a Tabler icon, so the result drops into MantineIcon and IconBox.
-export const createContentIcon = (displayName: string, children: ReactNode) => {
+type StrokeStyle = {
+    linecap: 'round' | 'butt' | 'square';
+    linejoin: 'round' | 'miter' | 'bevel';
+};
+
+const ROUND: StrokeStyle = { linecap: 'round', linejoin: 'round' };
+
+export const createContentIcon = (
+    displayName: string,
+    children: ReactNode,
+    strokeStyle: StrokeStyle = ROUND,
+) => {
     const ContentIcon = forwardRef<SVGSVGElement, IconProps>(
         (
             { size = 24, stroke = 2, color = 'currentColor', title, ...rest },
@@ -19,8 +30,8 @@ export const createContentIcon = (displayName: string, children: ReactNode) => {
                     fill: 'none',
                     stroke: color,
                     strokeWidth: stroke,
-                    strokeLinecap: 'round',
-                    strokeLinejoin: 'round',
+                    strokeLinecap: strokeStyle.linecap,
+                    strokeLinejoin: strokeStyle.linejoin,
                     ...rest,
                 },
                 title ? createElement('title', null, title) : null,

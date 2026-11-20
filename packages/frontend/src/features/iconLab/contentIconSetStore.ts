@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-export const CONTENT_ICON_SET_KEYS = ['current', 'a', 'b', 'c'] as const;
+export const CONTENT_ICON_SET_KEYS = ['current', 'a', 'b', 'c', 'd'] as const;
 export type ContentIconSetKey = (typeof CONTENT_ICON_SET_KEYS)[number];
 
 const STORAGE_KEY = 'lightdash-content-icon-set';
