@@ -14,11 +14,20 @@ const setup = (
     const onSubmit = vi.fn();
     const ref = createRef<PromptComposerHandle>();
     renderWithProviders(
-        <PromptComposer ref={ref} onSubmit={onSubmit} {...props} />,
+        <PromptComposer
+            ref={ref}
+            ariaLabel="Prompt"
+            onSubmit={onSubmit}
+            {...props}
+        />,
     );
     const editor = ref.current?.editor as Editor;
     editor.commands.setContent(text);
-    return { onSubmit, editor, element: screen.getByRole('textbox') };
+    return {
+        onSubmit,
+        editor,
+        element: screen.getByRole('textbox', { name: 'Prompt' }),
+    };
 };
 
 describe('PromptComposer keyboard handling', () => {
@@ -89,6 +98,7 @@ describe('PromptComposer placeholder', () => {
         const { rerender } = renderWithProviders(
             <PromptComposer
                 ref={ref}
+                ariaLabel="Prompt"
                 onSubmit={vi.fn()}
                 placeholder="Describe a new chart type…"
             />,
@@ -100,6 +110,7 @@ describe('PromptComposer placeholder', () => {
         rerender(
             <PromptComposer
                 ref={ref}
+                ariaLabel="Prompt"
                 onSubmit={vi.fn()}
                 placeholder="Ask for a change…"
             />,
@@ -116,6 +127,7 @@ describe('PromptComposer placeholder', () => {
         const { rerender } = renderWithProviders(
             <PromptComposer
                 ref={ref}
+                ariaLabel="Prompt"
                 onSubmit={vi.fn()}
                 placeholder="Describe a new chart type…"
             />,
@@ -124,6 +136,7 @@ describe('PromptComposer placeholder', () => {
         rerender(
             <PromptComposer
                 ref={ref}
+                ariaLabel="Prompt"
                 onSubmit={vi.fn()}
                 placeholder="Ask for a change…"
             />,
@@ -147,13 +160,19 @@ describe('PromptComposer resize handle', () => {
 
     it('is only offered on the card composer', () => {
         renderWithProviders(
-            <PromptComposer variant="inline" resizeHandle="top" />,
+            <PromptComposer
+                ariaLabel="Prompt"
+                variant="inline"
+                resizeHandle="top"
+            />,
         );
         expect(screen.queryByRole('separator')).toBeNull();
     });
 
     it('a top handle grows the editor when moved up, and resets on double-click', () => {
-        renderWithProviders(<PromptComposer resizeHandle="top" />);
+        renderWithProviders(
+            <PromptComposer ariaLabel="Prompt" resizeHandle="top" />,
+        );
         const handle = getHandle();
         expect(resizedHeight(handle)).toBeNull();
 
@@ -169,7 +188,9 @@ describe('PromptComposer resize handle', () => {
     });
 
     it('a bottom handle grows the editor when moved down', () => {
-        renderWithProviders(<PromptComposer resizeHandle="bottom" />);
+        renderWithProviders(
+            <PromptComposer ariaLabel="Prompt" resizeHandle="bottom" />,
+        );
         const handle = getHandle();
 
         fireEvent.keyDown(handle, { key: 'ArrowDown' });
@@ -185,10 +206,31 @@ describe('PromptComposer resize handle', () => {
     });
 
     it('never shrinks below the minimum editor height', () => {
-        renderWithProviders(<PromptComposer resizeHandle="top" />);
+        renderWithProviders(
+            <PromptComposer ariaLabel="Prompt" resizeHandle="top" />,
+        );
         const handle = getHandle();
         fireEvent.keyDown(handle, { key: 'ArrowDown', shiftKey: true });
         fireEvent.keyDown(handle, { key: 'ArrowDown', shiftKey: true });
         expect(resizedHeight(handle)).toBe(40);
+    });
+
+    it('reports its value and range, stopping at the minimum', () => {
+        renderWithProviders(
+            <PromptComposer ariaLabel="Prompt" resizeHandle="top" />,
+        );
+        const handle = getHandle();
+        expect(handle).toHaveAttribute('aria-valuemin', '40');
+        expect(handle).toHaveAttribute('aria-valuenow', '40');
+
+        fireEvent.keyDown(handle, { key: 'ArrowUp', shiftKey: true });
+        expect(handle).toHaveAttribute('aria-valuenow', '64');
+
+        fireEvent.keyDown(handle, { key: 'ArrowDown', shiftKey: true });
+        fireEvent.keyDown(handle, { key: 'ArrowDown', shiftKey: true });
+        expect(handle).toHaveAttribute('aria-valuenow', '40');
+        expect(Number(handle.getAttribute('aria-valuemax'))).toBeGreaterThan(
+            40,
+        );
     });
 });

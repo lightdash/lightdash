@@ -23,7 +23,7 @@ import {
     IconTableShortcut,
     IconTerminal2,
 } from '@tabler/icons-react';
-import { Fragment, useCallback, useMemo, useState } from 'react';
+import { Fragment, useCallback, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from '../../../../../components/common/ChartDownload/chartDownloadUtils';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -53,6 +53,7 @@ import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { getOpenInExploreUrl } from '../../../../../utils/getOpenInExploreUrl';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
+import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { getEmbedExploreSearch } from '../../../embed/embedNavigation';
 import { useAddChartToDashboard } from '../../hooks/useAddChartToDashboard';
 import { useSetArtifactVersionVerified } from '../../hooks/useAiAgentArtifacts';
@@ -125,6 +126,7 @@ export const AiChartQuickOptions = ({
         aiAgentNavigationDisabled,
     } = useEmbed();
     const isEmbed = useIsEmbedded();
+    const getUiString = useUiStrings();
     const getBackUrl = useChatBackUrl();
     const optionsAnchorId = `chart-options-${artifactData?.artifactUuid ?? message.uuid}`;
     const navigate = useNavigate();
@@ -154,6 +156,12 @@ export const AiChartQuickOptions = ({
         downloadModalOpened,
         { open: openDownloadModal, close: closeDownloadModal },
     ] = useDisclosure(false);
+    // Menu items unmount with the dropdown, so dialogs they open return focus here.
+    const quickActionsTargetRef = useRef<HTMLButtonElement>(null);
+    const withFocusReturn = (close: () => void) => () => {
+        close();
+        quickActionsTargetRef.current?.focus();
+    };
 
     const canCreateScheduledDeliveries = user.data?.ability?.can(
         'create',
@@ -502,6 +510,9 @@ export const AiChartQuickOptions = ({
     if (!metricQuery) return null;
 
     const canVerify = !!artifactData && canManageAgent;
+    const verifyLabel = isVerified
+        ? 'Remove from verified answers'
+        : 'Add to verified answers';
     const { savedQueryUuid } = message;
     const hasSavedChartAction = !!savedQueryUuid;
     const hasSaveActions =
@@ -526,15 +537,9 @@ export const AiChartQuickOptions = ({
     return (
         <Fragment>
             {canVerify && (
-                <Tooltip
-                    label={
-                        isVerified
-                            ? 'Remove from verified answers'
-                            : 'Add to verified answers'
-                    }
-                    position="bottom"
-                >
+                <Tooltip label={verifyLabel} position="bottom">
                     <ActionIcon
+                        aria-label={verifyLabel}
                         size="sm"
                         color={isVerified ? 'green' : 'ldGray.6'}
                         onClick={handleVerifyToggle}
@@ -554,15 +559,23 @@ export const AiChartQuickOptions = ({
                 <Menu withArrow position="bottom-end">
                     <Menu.Target>
                         <ActionIcon
+                            ref={quickActionsTargetRef}
                             size="sm"
                             color="ldGray.9"
+                            aria-label={getUiString(
+                                'aiAgent.composer.actions.quickActions',
+                            )}
                             data-chat-anchor={optionsAnchorId}
                         >
                             <MantineIcon icon={IconDots} size="lg" />
                         </ActionIcon>
                     </Menu.Target>
                     <Menu.Dropdown>
-                        <Menu.Label>Quick actions</Menu.Label>
+                        <Menu.Label>
+                            {getUiString(
+                                'aiAgent.composer.actions.quickActions',
+                            )}
+                        </Menu.Label>
                         {canExportImage && (
                             <AiChartImageExportMenuItem
                                 onClick={openExportImageModal}
@@ -751,7 +764,7 @@ export const AiChartQuickOptions = ({
             {canDownloadResults && (
                 <AiChartDownloadModal
                     opened={downloadModalOpened}
-                    onClose={closeDownloadModal}
+                    onClose={withFocusReturn(closeDownloadModal)}
                     projectUuid={projectUuid}
                     chartName={saveChartOptions.name}
                     mergeQuery={merge?.query ?? null}
@@ -764,12 +777,12 @@ export const AiChartQuickOptions = ({
                 chartRef={chartRef}
                 chartName={saveChartOptions.name ?? 'Untitled chart'}
                 opened={exportImageModalOpened}
-                onClose={closeExportImageModal}
+                onClose={withFocusReturn(closeExportImageModal)}
             />
             {!!compiledSql && (
                 <AiSqlModal
                     opened={sqlModalOpened}
-                    onClose={closeSqlModal}
+                    onClose={withFocusReturn(closeSqlModal)}
                     sql={compiledSql}
                     isFormatted={merge !== null}
                 />
