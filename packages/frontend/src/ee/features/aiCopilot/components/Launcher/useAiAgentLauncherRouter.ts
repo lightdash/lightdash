@@ -64,9 +64,9 @@ export const useAiAgentLauncherRouter = ({
     } = useAiAgentRouterFlow({
         agents,
         createThreadForAgent,
-        onRouteError: ({ fallbackAgent, ...args }) => {
+        onRouteError: async ({ fallbackAgent, ...args }) => {
             if (fallbackAgent) {
-                void createThreadForAgent({
+                await createThreadForAgent({
                     ...args,
                     agentUuid: fallbackAgent.uuid,
                 });
@@ -103,7 +103,7 @@ export const useAiAgentLauncherRouter = ({
                 });
             }
 
-            // Auto routing may resolve at the picker, before creation; the host gates images there.
+            // Resolves once the conversation exists, also after a stop at the picker.
             return handleRouterSubmit({
                 message,
                 context: mergedContext,
@@ -129,6 +129,12 @@ export const useAiAgentLauncherRouter = ({
         isRouting,
         // The message held back until the user picks an agent.
         waitingPrompt: phase.kind === 'picker' ? phase.prompt : null,
+        waitingImages:
+            phase.kind === 'picker'
+                ? (phase.optimisticContext ?? []).filter(
+                      (item) => item.type === 'thread_image',
+                  )
+                : [],
         sortedCandidates,
     };
 };

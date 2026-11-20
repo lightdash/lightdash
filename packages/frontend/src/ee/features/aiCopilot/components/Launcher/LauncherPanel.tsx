@@ -2,6 +2,7 @@ import {
     type AiAgentSummary,
     type AiPromptContext,
     type AiPromptContextInput,
+    type AiPromptContextItem,
 } from '@lightdash/common';
 import {
     Avatar,
@@ -69,6 +70,7 @@ import { AgentChatInput } from '../ChatElements/AgentChatInput';
 import { getPendingAskUser } from '../ChatElements/askUserQuestions';
 import { contextItemsToContentMentionSuggestions } from '../ChatElements/contentMentions';
 import { getPromptContextItemKey } from '../ChatElements/contentReferenceUtils';
+import { ThreadImageReference } from '../ChatElements/ThreadImageReference';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
 import styles from './AiAgentsLauncher.module.css';
 import {
@@ -323,6 +325,7 @@ const NewThreadPanel: FC<{
         isLocked,
         isPickingAgent,
         sortedCandidates,
+        waitingImages,
         waitingPrompt,
     } = useAiAgentLauncherRouter({
         agent,
@@ -341,7 +344,10 @@ const NewThreadPanel: FC<{
     useEffect(() => {
         if (!pendingPrompt || !isPinnedContextReady || isLocked) return;
         dispatch(clearPendingPrompt());
-        void handleSubmit({ message: pendingPrompt, toolHints: [] });
+        // The creation mutation reports its own failure.
+        void Promise.resolve(
+            handleSubmit({ message: pendingPrompt, toolHints: [] }),
+        ).catch(() => undefined);
     }, [dispatch, handleSubmit, isLocked, isPinnedContextReady, pendingPrompt]);
 
     const displayName = isAuto ? 'Auto' : agent.name;
@@ -420,6 +426,7 @@ const NewThreadPanel: FC<{
                     <LauncherAgentPicker
                         candidates={sortedCandidates}
                         onPick={confirmPick}
+                        waitingImages={waitingImages}
                         waitingPrompt={waitingPrompt}
                     />
                 )}
@@ -428,9 +435,6 @@ const NewThreadPanel: FC<{
                     key={composerSeed ?? 'composer'}
                     defaultValue={composerSeed ?? undefined}
                     onSubmit={handleSubmit}
-                    imageAttachmentsUnavailableReason={
-                        isAuto ? 'Choose an agent to attach images' : undefined
-                    }
                     onStartDeepResearch={
                         concreteAgent && canStartDeepResearch
                             ? handleStartDeepResearch
@@ -458,8 +462,9 @@ const NewThreadPanel: FC<{
 const LauncherAgentPicker: FC<{
     candidates: LauncherRouterCandidate[];
     onPick: (agentUuid: string) => void;
+    waitingImages: Extract<AiPromptContextItem, { type: 'thread_image' }>[];
     waitingPrompt: string | null;
-}> = ({ candidates, onPick, waitingPrompt }) => (
+}> = ({ candidates, onPick, waitingImages, waitingPrompt }) => (
     <Stack gap="xs" px="md" pb="xs">
         {waitingPrompt && (
             <Stack gap="xxs">
@@ -470,6 +475,16 @@ const LauncherAgentPicker: FC<{
                     <Text size="sm" lineClamp={4}>
                         {waitingPrompt}
                     </Text>
+                    {waitingImages.length > 0 && (
+                        <Group gap="xs" wrap="wrap" mt="xs">
+                            {waitingImages.map((image) => (
+                                <ThreadImageReference
+                                    key={image.fileUuid}
+                                    item={image}
+                                />
+                            ))}
+                        </Group>
+                    )}
                 </Paper>
             </Stack>
         )}
