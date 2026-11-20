@@ -403,12 +403,12 @@ const ThreadList: FC<ThreadListProps> = ({
     } = useInfiniteAiAgentThreads(projectUuid, { agentUuid });
 
     const threads = data?.pages.flatMap((page) => page.data) ?? [];
-    // Older threads load as the end of the list scrolls into view; waiting
-    // for refetches keeps a page load from cancelling one.
+    // Older threads load as the end of the list scrolls into view; a page
+    // load must never cancel a refetch (e.g. the one adding a new thread).
     const { ref: loadMoreRef, inViewport: isLoadMoreVisible } = useInViewport();
     useEffect(() => {
         if (isLoadMoreVisible && hasNextPage && !isFetching) {
-            void fetchNextPage();
+            void fetchNextPage({ cancelRefetch: false });
         }
     }, [isLoadMoreVisible, hasNextPage, isFetching, fetchNextPage]);
     const pinnedThreads = threads.filter((thread) => thread.pinnedAt !== null);
