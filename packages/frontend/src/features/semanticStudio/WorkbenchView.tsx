@@ -69,6 +69,8 @@ import {
 } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useStudioPullRequest';
 import { useSyncStudioWorkspace } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSyncStudioWorkspace';
 import { useProject } from '../../hooks/useProject';
+import useTracking from '../../providers/Tracking/useTracking';
+import { EventName } from '../../types/Events';
 import { useDevelopmentView } from './developmentView';
 import {
     DraftMarksContext,
@@ -736,6 +738,17 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         if (!canBuildFirstModel) return 'empty';
         return 'buildFirst';
     })();
+    const { track } = useTracking();
+    // A ref, so a new track identity (such as when analytics loads) does not count a view twice.
+    const trackRef = useRef(track);
+    trackRef.current = track;
+    const projectId = view.project.id;
+    useEffect(() => {
+        trackRef.current({
+            name: EventName.SEMANTIC_STUDIO_PANE_VIEWED,
+            properties: { projectId, pane },
+        });
+    }, [projectId, pane]);
     // Reviewing changes takes the full width: the tree is for browsing models.
     const isReviewPane =
         pane === 'changes' || pane === 'workspaces' || pane === 'changeSummary';

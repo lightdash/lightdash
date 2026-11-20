@@ -184,6 +184,23 @@ export type DocumentChartAppliedEvent = {
     };
 };
 
+export type SemanticStudioPaneViewedEvent = {
+    name: EventName.SEMANTIC_STUDIO_PANE_VIEWED;
+    properties: {
+        projectId: string;
+        pane: string;
+    };
+};
+
+export type SemanticStudioTryItOpenedEvent = {
+    name: EventName.SEMANTIC_STUDIO_TRY_IT_OPENED;
+    properties: {
+        projectId: string;
+        from: 'draft' | 'pull_request';
+        modelCount: number;
+    };
+};
+
 export type HomepageV2PromoViewedEvent = {
     name: EventName.HOMEPAGE_V2_PROMO_VIEWED;
     properties: {
@@ -1412,6 +1429,8 @@ type OpenInSqlRunnerClickedEvent = {
 
 export type EventData =
     | GenericEvent
+    | SemanticStudioPaneViewedEvent
+    | SemanticStudioTryItOpenedEvent
     | DashboardWorkbookEvent
     | MapTileUsageEvent
     | MapTileFallbackEvent
