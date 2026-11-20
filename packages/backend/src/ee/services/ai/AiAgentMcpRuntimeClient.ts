@@ -25,7 +25,14 @@ import type {
     OAuthClientMetadata,
     OAuthTokens,
 } from '@modelcontextprotocol/sdk/shared/auth.js';
-import { dynamicTool, jsonSchema, type JSONValue, type ToolSet } from 'ai';
+import {
+    asSchema,
+    dynamicTool,
+    jsonSchema,
+    type JSONValue,
+    type ToolSet,
+} from 'ai';
+import { isEqual } from 'es-toolkit/compat';
 import dns from 'node:dns';
 import type { LookupFunction } from 'node:net';
 import { Agent, type Dispatcher } from 'undici';
@@ -1207,26 +1214,37 @@ const toMcpToolDefinitions = (
     })),
 });
 
-// Mirrors @ai-sdk/mcp's toolsFromDefinitions, but runs through the live
-// client's tool, so the server is reached only when the agent calls it.
+// Mirrors @ai-sdk/mcp's toolsFromDefinitions from the stored definition, and
+// runs the live tool once the server is reached on the first call.
 const toOnDemandMcpTool = (
     definition: McpToolDefinition,
     getLiveTools: () => Promise<ToolSet>,
 ): ToolSet[string] => {
+    const storedInputSchema = jsonSchema({
+        ...definition.inputSchema,
+        properties: definition.inputSchema.properties ?? {},
+        additionalProperties: false,
+    });
     let liveTool: ToolSet[string] | undefined;
     return dynamicTool({
         description: definition.description,
         title: definition.title ?? definition.annotations?.title,
-        inputSchema: jsonSchema({
-            ...definition.inputSchema,
-            properties: definition.inputSchema.properties ?? {},
-            additionalProperties: false,
-        }),
+        inputSchema: storedInputSchema,
         execute: async (input, options) => {
             liveTool = (await getLiveTools())[definition.name];
             if (!liveTool?.execute) {
                 throw new Error(
-                    `MCP tool "${definition.name}" could not be loaded.`,
+                    `MCP tool "${definition.name}" is no longer available on this server.`,
+                );
+            }
+            if (
+                !isEqual(
+                    await asSchema(liveTool.inputSchema).jsonSchema,
+                    await storedInputSchema.jsonSchema,
+                )
+            ) {
+                throw new Error(
+                    `MCP tool "${definition.name}" has changed since its tools were last refreshed. Refresh this MCP server's tools and try again.`,
                 );
             }
             return liveTool.execute(input, options);
@@ -1804,8 +1822,19 @@ export class AiAgentMcpRuntimeClient {
             }
         };
 
-        // Servers whose approved tools are already stored connect on the first
-        // tool call instead of before the answer starts.
+        const discoverLiveTools =
+            (mcpServer: AiAgentMcpServer) => (client: MCPClient) =>
+                withMcpRetry(
+                    () =>
+                        withMcpTimeout(
+                            client.tools(),
+                            this.lightdashConfig.ai.copilot
+                                .mcpConnectionTimeoutMs,
+                            `tool discovery for "${mcpServer.name}"`,
+                        ),
+                    `tool discovery for "${mcpServer.name}"`,
+                );
+
         const getOnDemandTools = async (
             mcpServer: AiAgentMcpServer,
             enabledToolNames: string[],
@@ -1824,8 +1853,9 @@ export class AiAgentMcpRuntimeClient {
             let liveTools: Promise<ToolSet> | undefined;
             const getLiveTools = () => {
                 if (!liveTools) {
-                    liveTools = connectServer(mcpServer, async (client) =>
-                        client.toolsFromDefinitions(definitions),
+                    liveTools = connectServer(
+                        mcpServer,
+                        discoverLiveTools(mcpServer),
                     ).then((result) => {
                         if (result.unavailableMcpServer) {
                             throw new Error(
@@ -1890,17 +1920,9 @@ export class AiAgentMcpRuntimeClient {
 
                 return {
                     mcpServer,
-                    ...(await connectServer(mcpServer, (client) =>
-                        withMcpRetry(
-                            () =>
-                                withMcpTimeout(
-                                    client.tools(),
-                                    this.lightdashConfig.ai.copilot
-                                        .mcpConnectionTimeoutMs,
-                                    `tool discovery for "${mcpServer.name}"`,
-                                ),
-                            `tool discovery for "${mcpServer.name}"`,
-                        ),
+                    ...(await connectServer(
+                        mcpServer,
+                        discoverLiveTools(mcpServer),
                     )),
                 };
             }),
