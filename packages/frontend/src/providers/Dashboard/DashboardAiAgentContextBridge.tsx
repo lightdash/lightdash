@@ -18,7 +18,7 @@ import {
     useAiAgentStoreSelector,
 } from '../../ee/features/aiCopilot/store/hooks';
 import { getHandledAgentToolCallIds } from '../../ee/features/aiCopilot/streaming/handledAgentToolCalls';
-import { useAiAgentProjectStreamParts } from '../../ee/features/aiCopilot/streaming/useAiAgentThreadStreamQuery';
+import { useAiAgentProjectFinalToolCalls } from '../../ee/features/aiCopilot/streaming/useAiAgentThreadStreamQuery';
 import {
     selectActiveTab,
     selectDashboardTiles,
@@ -83,7 +83,7 @@ const DashboardAiAgentContextBridge = () => {
         (c) => c.setDashboardTemporaryFilters,
     );
 
-    const activeThreadParts = useAiAgentProjectStreamParts(projectUuid);
+    const finalToolCalls = useAiAgentProjectFinalToolCalls(projectUuid);
 
     const pendingChartToFocusRef = useRef<DashboardAiAgentChartRef | null>(
         null,
@@ -354,7 +354,7 @@ const DashboardAiAgentContextBridge = () => {
             `dashboard:${currentDashboardUuid}`,
         );
         const plan = planDashboardAiAgentChanges({
-            parts: activeThreadParts,
+            parts: finalToolCalls,
             handledToolCallIds,
             currentDashboardSlug,
             pendingChartToFocus: pendingChartToFocusRef.current,
@@ -388,7 +388,7 @@ const DashboardAiAgentContextBridge = () => {
             }
         }
     }, [
-        activeThreadParts,
+        finalToolCalls,
         currentDashboardSlug,
         currentDashboardUuid,
         dashboardUuidOrSlug,

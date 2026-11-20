@@ -49,18 +49,31 @@ export const useAiAgentThreadRecoveryActive = (threadUuid: string) =>
         );
     });
 
-// Keep completed parts available so batched terminal tool results are not lost.
-export const useAiAgentProjectStreamParts = (
+type StreamToolCallPart = Extract<StreamPart, { type: 'toolCall' }>;
+
+const isFinalToolCallPart = (part: StreamPart): part is StreamToolCallPart =>
+    part.type === 'toolCall' && part.isPreliminary === false;
+
+const haveSameToolCallIds = (
+    a: StreamToolCallPart[],
+    b: StreamToolCallPart[],
+) =>
+    a.length === b.length &&
+    a.every((part, index) => part.toolCallId === b[index].toolCallId);
+
+// Final tool results never change, so streamed text does not re-render callers.
+// Completed threads stay included so batched terminal tool results are not lost.
+export const useAiAgentProjectFinalToolCalls = (
     projectUuid: string | undefined,
-): StreamPart[] =>
+): StreamToolCallPart[] =>
     useAiAgentStoreSelector(
         (state) =>
             Object.values(state.aiAgentThreadStream).flatMap((threadStream) =>
                 threadStream.projectUuid === projectUuid
-                    ? threadStream.parts
+                    ? threadStream.parts.filter(isFinalToolCallPart)
                     : [],
             ),
-        shallowEqual,
+        haveSameToolCallIds,
     );
 
 export const useAiAgentStreamParts = (

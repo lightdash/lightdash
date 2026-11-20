@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { getHandledAgentToolCallIds } from '../streaming/handledAgentToolCalls';
-import { useAiAgentProjectStreamParts } from '../streaming/useAiAgentThreadStreamQuery';
+import { useAiAgentProjectFinalToolCalls } from '../streaming/useAiAgentThreadStreamQuery';
 
 export const useRefreshSavedChartOnAgentEdit = ({
     projectUuid,
@@ -13,18 +13,16 @@ export const useRefreshSavedChartOnAgentEdit = ({
     chartSlug: string | undefined;
 }) => {
     const queryClient = useQueryClient();
-    const parts = useAiAgentProjectStreamParts(projectUuid);
+    const toolCalls = useAiAgentProjectFinalToolCalls(projectUuid);
 
     useEffect(() => {
         if (!projectUuid || !chartUuid) return;
         const handledToolCallIds = getHandledAgentToolCallIds('savedChart');
 
-        for (const part of parts) {
+        for (const part of toolCalls) {
             if (
-                part.type !== 'toolCall' ||
                 part.toolName !== 'editContent' ||
                 part.toolArgs.type !== 'chart' ||
-                part.isPreliminary !== false ||
                 part.toolResult?.metadata.status !== 'success' ||
                 part.toolResult.metadata.uuid !== chartUuid ||
                 handledToolCallIds.has(part.toolCallId)
@@ -46,5 +44,5 @@ export const useRefreshSavedChartOnAgentEdit = ({
                 });
             }
         }
-    }, [parts, projectUuid, chartUuid, chartSlug, queryClient]);
+    }, [toolCalls, projectUuid, chartUuid, chartSlug, queryClient]);
 };
