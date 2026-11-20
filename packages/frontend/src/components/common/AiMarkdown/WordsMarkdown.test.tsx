@@ -124,6 +124,17 @@ describe('WordsMarkdown', () => {
         expect(container.querySelectorAll('p')).toHaveLength(2);
     });
 
+    it('keeps line breaks the model writes as <br> in table cells', () => {
+        const { container } = renderWithProviders(
+            <WordsMarkdown isStreaming={false}>
+                {'| Status |\n|---|\n| one<br>two |'}
+            </WordsMarkdown>,
+        );
+
+        expect(container.querySelector('td br')).toBeInTheDocument();
+        expect(container.querySelector('td')).toHaveTextContent('onetwo');
+    });
+
     it('converts emoji shortcodes outside code', () => {
         const { container } = renderWithProviders(
             <WordsMarkdown isStreaming={false}>

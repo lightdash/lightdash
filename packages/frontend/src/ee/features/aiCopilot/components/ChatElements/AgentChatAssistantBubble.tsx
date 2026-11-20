@@ -313,6 +313,9 @@ const getLatestSuccessfulRunSqlLinkState = ({
     return null;
 };
 
+const SQL_LANGUAGES = ['sql', 'postgresql', 'bigquery', 'snowflake'];
+const DIFF_LANGUAGES = ['diff', 'patch'];
+
 const SqlMarkdownCodeBlock: FC<
     CustomRendererProps & { projectUuid: string; canOpenSqlRunner: boolean }
 > = ({ code, isIncomplete, projectUuid, canOpenSqlRunner }) => {
@@ -451,7 +454,7 @@ const AssistantBubbleContent: FC<{
         () => ({
             renderers: [
                 {
-                    language: ['sql', 'postgresql', 'bigquery', 'snowflake'],
+                    language: SQL_LANGUAGES,
                     component: (props: CustomRendererProps) => (
                         <SqlMarkdownCodeBlock
                             {...props}
@@ -461,7 +464,7 @@ const AssistantBubbleContent: FC<{
                     ),
                 },
                 {
-                    language: ['diff', 'patch'],
+                    language: DIFF_LANGUAGES,
                     component: DiffMarkdownCodeBlock,
                 },
             ],
@@ -541,7 +544,7 @@ const AssistantBubbleContent: FC<{
     const wordsCodeBlocks = useMemo<WordsCodeBlockRenderer[]>(
         () => [
             {
-                languages: ['sql', 'postgresql', 'bigquery', 'snowflake'],
+                languages: SQL_LANGUAGES,
                 component: (props) => (
                     <SqlMarkdownCodeBlock
                         {...props}
@@ -550,7 +553,7 @@ const AssistantBubbleContent: FC<{
                     />
                 ),
             },
-            { languages: ['diff', 'patch'], component: DiffMarkdownCodeBlock },
+            { languages: DIFF_LANGUAGES, component: DiffMarkdownCodeBlock },
         ],
         [canOpenSqlRunner, projectUuid],
     );

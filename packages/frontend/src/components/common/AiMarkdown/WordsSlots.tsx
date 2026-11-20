@@ -14,6 +14,7 @@ export const LinkSlot: FC<WordsLinkProps> = (link) => (
 export const InlineTagSlot: FC<{ index: number }> = ({ index }) => {
     const { tokens, inlineTags } = useWordsContext();
     const token = tokens[index];
+    if (token?.name === 'br') return <br />;
     const render = token ? inlineTags[token.name] : undefined;
     return render ? <>{render(token.attributes)}</> : null;
 };

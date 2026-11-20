@@ -66,11 +66,7 @@ const WordsChunk: FC<{ html: string; withCaret: boolean }> = memo(
     ),
 );
 
-/**
- * Streaming markdown for agent answers, parsed by `@pierre/words` (Wasm).
- * Words owns parsing; React owns the DOM so links, code blocks and inline tags
- * can render as React components.
- */
+/** Agent answers parsed by `@pierre/words` (Wasm) and rendered by React, so links, code blocks and inline tags can be components. */
 export const WordsMarkdown: FC<WordsMarkdownProps> = ({
     children,
     isStreaming,
@@ -82,9 +78,9 @@ export const WordsMarkdown: FC<WordsMarkdownProps> = ({
     const rendererRef = useRef<WordsRenderer | null>(null);
     const stableRef = useRef<StableBlocks>({ revision: -1, chunks: [] });
 
-    const tagNames = Object.keys(inlineTags).join(' ');
+    const tagNames = useMemo(() => Object.keys(inlineTags), [inlineTags]);
     const { source, tokens } = useMemo(
-        () => extractInlineTags(children, tagNames ? tagNames.split(' ') : []),
+        () => extractInlineTags(children, tagNames),
         [children, tagNames],
     );
     const { chunks, pending } = useMemo(() => {
@@ -105,7 +101,7 @@ export const WordsMarkdown: FC<WordsMarkdownProps> = ({
         <Box className={clsx(styles.aiMarkdown, className)}>
             <AiMarkdownErrorBoundary>
                 <WordsContext.Provider value={context}>
-                    <div data-words-markdown>
+                    <Box data-words-markdown>
                         {chunks.map((html, index) => (
                             <WordsChunk
                                 key={index}
@@ -114,7 +110,7 @@ export const WordsMarkdown: FC<WordsMarkdownProps> = ({
                             />
                         ))}
                         <WordsChunk html={pending} withCaret={isStreaming} />
-                    </div>
+                    </Box>
                 </WordsContext.Provider>
             </AiMarkdownErrorBoundary>
         </Box>

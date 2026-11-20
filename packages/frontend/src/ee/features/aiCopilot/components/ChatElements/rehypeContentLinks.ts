@@ -154,7 +154,7 @@ const URL_MATCHERS: UrlMatcher[] = [
 /** Attributes that turn an agent link into a content link, or null for a plain link. */
 export const getContentLinkProperties = (
     href: string,
-): Record<string, string> | null => {
+): Record<string, string | undefined> | null => {
     const processor = LINK_PROCESSORS.find((p) =>
         p.matches ? p.matches(href) : href.includes(p.fragment),
     );
@@ -163,7 +163,7 @@ export const getContentLinkProperties = (
             'data-content-type': processor.contentType,
             href: processor.cleanUrl(href),
             ...processor.extractData(href),
-        } as Record<string, string>;
+        };
     }
 
     for (const matcher of URL_MATCHERS) {

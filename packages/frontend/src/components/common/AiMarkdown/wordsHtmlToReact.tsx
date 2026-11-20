@@ -21,31 +21,49 @@ import {
 const FENCED_CODE_REGEX = /```[\s\S]*?(?:```|$)|~~~[\s\S]*?(?:~~~|$)/g;
 const ATTRIBUTE_REGEX = /([a-zA-Z_:][-\w:.]*)="([^"]*)"/g;
 
+const LINE_BREAK_REGEX = /<br\s*\/?>/gi;
+
 /**
- * Words omits raw HTML, so known inline tags outside code fences become
- * private-use tokens that render through `inlineTags`.
+ * Words omits raw HTML, so `<br>` and known inline tags outside code fences
+ * become private-use tokens that render as React.
  */
 export const extractInlineTags = (
     source: string,
     tagNames: string[],
 ): { source: string; tokens: InlineTagToken[] } => {
-    if (tagNames.length === 0) return { source, tokens: [] };
-    const tagRegex = new RegExp(
-        `<(${tagNames.join('|')})((?:\\s+[a-zA-Z_:][-\\w:.]*="[^"]*")*)\\s*(?:\\/>|>\\s*<\\/\\1\\s*>)`,
-        'g',
-    );
+    const tagRegex =
+        tagNames.length > 0
+            ? new RegExp(
+                  `<(${tagNames.join('|')})((?:\\s+[a-zA-Z_:][-\\w:.]*="[^"]*")*)\\s*(?:\\/>|>\\s*<\\/\\1\\s*>)`,
+                  'g',
+              )
+            : null;
     const tokens: InlineTagToken[] = [];
-    const replaceTags = (prose: string) =>
-        prose.replace(tagRegex, (raw, name: string, attributeText: string) => {
-            const attributes = Object.fromEntries(
-                Array.from(attributeText.matchAll(ATTRIBUTE_REGEX), (m) => [
-                    m[1],
-                    m[2],
-                ]),
-            );
-            tokens.push({ name, attributes, raw });
-            return `${TOKEN_START}${tokens.length - 1}${TOKEN_END}`;
-        });
+    const tokenFor = (token: InlineTagToken) => {
+        tokens.push(token);
+        return `${TOKEN_START}${tokens.length - 1}${TOKEN_END}`;
+    };
+    const replaceTags = (prose: string) => {
+        const withBreaks = prose.replace(LINE_BREAK_REGEX, (raw) =>
+            tokenFor({ name: 'br', attributes: {}, raw }),
+        );
+        return tagRegex
+            ? withBreaks.replace(
+                  tagRegex,
+                  (raw, name: string, attributeText: string) =>
+                      tokenFor({
+                          name,
+                          attributes: Object.fromEntries(
+                              Array.from(
+                                  attributeText.matchAll(ATTRIBUTE_REGEX),
+                                  (m) => [m[1], m[2]],
+                              ),
+                          ),
+                          raw,
+                      }),
+              )
+            : withBreaks;
+    };
 
     let result = '';
     let cursor = 0;
@@ -61,11 +79,7 @@ const VOID_ELEMENTS = new Set(['br', 'hr', 'img', 'input']);
 const BOOLEAN_ATTRIBUTES = new Set(['checked', 'disabled', 'readonly']);
 const REACT_ATTRIBUTE_NAMES: Record<string, string> = {
     class: 'className',
-    for: 'htmlFor',
     readonly: 'readOnly',
-    colspan: 'colSpan',
-    rowspan: 'rowSpan',
-    tabindex: 'tabIndex',
 };
 
 const parseStyle = (style: string): CSSProperties =>
@@ -95,7 +109,10 @@ const toReactProps = (element: Element): Record<string, unknown> => {
 
 const attributesOf = (element: Element): Record<string, string> =>
     Object.fromEntries(
-        Array.from(element.attributes, ({ name, value }) => [name, value]),
+        Array.from(element.attributes, ({ name, value }) => [
+            REACT_ATTRIBUTE_NAMES[name] ?? name,
+            value,
+        ]),
     );
 
 const withEmoji = (text: string) => (text.includes(':') ? emojify(text) : text);
@@ -178,7 +195,18 @@ function convertNode(node: Node, key: number, inCode: boolean): ReactNode {
     return element;
 }
 
-const CARET_HOSTS = new Set(['p', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
+const CARET_HOSTS = new Set([
+    'p',
+    'li',
+    'td',
+    'th',
+    'h1',
+    'h2',
+    'h3',
+    'h4',
+    'h5',
+    'h6',
+]);
 
 /** Puts the caret at the end of the last text block, as Words' own DOM renderer does. */
 const appendCaret = (fragment: DocumentFragment) => {
