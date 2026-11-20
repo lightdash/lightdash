@@ -41,6 +41,27 @@ describe('listTurnIssues', () => {
         ).toEqual([]);
     });
 
+    it('drops what was refused on a failed model once the agent fixed it', () => {
+        const refused = {
+            models: [
+                {
+                    model: 'orders',
+                    status: 'failed' as const,
+                    changes: [],
+                    refusals: [
+                        {
+                            path: 'dimensions.status',
+                            reason: 'name_taken' as const,
+                        },
+                    ],
+                    error: 'None of this change to orders was added.',
+                },
+            ],
+        };
+        expect(listTurnIssues([refused, attempt('ready', null)])).toEqual([]);
+        expect(listTurnIssues([refused])).toHaveLength(2);
+    });
+
     it('keeps a failure nothing fixed, and one that came after a success', () => {
         const failed = attempt('failed', 'The warehouse rejected this model');
         const issue = {

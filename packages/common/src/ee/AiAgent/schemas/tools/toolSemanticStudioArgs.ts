@@ -19,8 +19,8 @@ const SEMANTIC_LAYER_FRAGMENT_GUIDE = [
 export const TOOL_PROPOSE_SEMANTIC_LAYER_CHANGE_DESCRIPTION = [
     "Add a change to the person's draft of this project's semantic layer. It builds on what is already in the draft, every check runs against the warehouse, and nothing goes live until they apply the draft.",
     ...SEMANTIC_LAYER_FRAGMENT_GUIDE,
-    'Because a person reviews the draft, a fragment may also redefine an existing field: give only the keys that change, and null removes a key. `remove` lists paths to delete, written dimensions.<name>, dimensions.<name>.metrics.<name>, dimensions.<name>.additional_dimensions.<name>, metrics.<name> or joins.<name>; `removeModel` deletes the whole model. A field can be hidden with `hidden: true`. Showing a hidden field again, and who can see a model or field (tags, required_attributes, any_attributes, sql_filter), cannot be changed and comes back under `refusals`.',
-    'A `ready` model passed its checks and joined the draft, and a `note` on it says what was only estimated and needs the person to confirm; `unchanged` means the entry changes nothing; `failed` carries the error to fix before proposing again, and that entry stays out of the draft.',
+    'Because a person reviews the draft, a fragment may also redefine an existing field: give only the keys that change, and null removes a key. `remove` lists paths to delete, written dimensions.<name>, dimensions.<name>.metrics.<name>, dimensions.<name>.additional_dimensions.<name>, metrics.<name> or joins.<name>; `removeModel` deletes the whole model. A field can be hidden with `hidden: true`. Showing a hidden field again, and who can see a model or field (tags, required_attributes, any_attributes, sql_filter), cannot be changed: such a part comes back under `refusals` and fails its model.',
+    'A `ready` model passed its checks and joined the draft, and a `note` on it says what was only estimated and needs the person to confirm; `unchanged` means the entry changes nothing; `failed` carries the error or the `refusals` to fix before proposing again. A model joins the draft whole or not at all, so every entry for a failed model stays out of the draft: propose the whole change to that model again.',
 ].join(' ');
 
 export const toolProposeSemanticLayerChangeArgsSchema = z.object({
@@ -120,7 +120,7 @@ const proposalMetadataSchema = z.object({
     // Absent on results stored before a change carried a note and offers.
     note: z.string().nullable().default(null),
     options: z.array(z.string()).default([]),
-    // True when the result came back with advice to act on, a metric to run, or parts refused, before the turn ends.
+    // True when the result came back with advice to act on, or a metric to run, before the turn ends.
     needsFollowUp: z.boolean().default(false),
 });
 

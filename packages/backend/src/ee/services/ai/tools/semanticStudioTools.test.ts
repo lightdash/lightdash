@@ -164,33 +164,28 @@ describe('getProposeSemanticLayerChange', () => {
         });
     });
 
-    it('keeps the turn open when a part of a ready model was refused', async () => {
-        const output = await propose(
-            async () => ({
-                results: [
-                    {
-                        model: 'orders',
-                        status: 'ready',
-                        changes: [{ path: 'metrics.total', action: 'removed' }],
-                        refusals: [
-                            { path: 'dimensions.status', reason: 'name_taken' },
-                        ],
-                        error: null,
-                        notes: [],
-                    },
-                ],
-                diffs: [],
-                draftChangeUuid: 'draft-1',
-                startedChange: null,
-            }),
-            'label: Orders',
-        );
-        expect(output.result).not.toContain('write nothing more');
-        expect(output.metadata).toMatchObject({ needsFollowUp: true });
+    it('says parts were left out for a result stored before a model joined whole or not at all', () => {
         expect(
-            output.metadata.status === 'success'
-                ? describeSemanticLayerProposals([output.metadata])
-                : null,
+            describeSemanticLayerProposals([
+                {
+                    models: [
+                        {
+                            model: 'orders',
+                            status: 'ready',
+                            changes: [
+                                { path: 'metrics.total', action: 'removed' },
+                            ],
+                            refusals: [
+                                {
+                                    path: 'dimensions.status',
+                                    reason: 'name_taken',
+                                },
+                            ],
+                            error: null,
+                        },
+                    ],
+                },
+            ]),
         ).toBe('Changed orders in the draft. Some parts were left out.');
     });
 
