@@ -162,7 +162,10 @@ export class MergeQueryBuilder {
 
     private quote(identifier: string): string {
         const quoteChar = this.warehouseSqlBuilder.getFieldQuoteChar();
-        return `${quoteChar}${identifier}${quoteChar}`;
+        return `${quoteChar}${identifier.replaceAll(
+            quoteChar,
+            `${quoteChar}${quoteChar}`,
+        )}${quoteChar}`;
     }
 
     private sourceColumn(sourceIndex: number, column: string): string {
