@@ -346,6 +346,12 @@
     }
 }
 
+/* PROTOTYPE A2: hidden actions keep their room, so the title never moves */
+.reserveActions.reserveActions[data-visible='false']:not(:has(:focus-visible)) {
+    position: static !important;
+    visibility: hidden;
+}
+
 /* PROTOTYPE B: the actions sit on the title line, inside the tile, and the
    title fades out under them */
 .fadeActions.fadeActions {

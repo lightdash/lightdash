@@ -292,8 +292,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
         'non-draggable',
         styles.tileTooltip,
         !hideTitle &&
-            (variant === 'inline' || variant === 'menu') &&
+            (variant === 'inline' ||
+                variant === 'reserve' ||
+                variant === 'menu') &&
             styles.inlineActions,
+        !hideTitle && variant === 'reserve' && styles.reserveActions,
         variant === 'fade' && styles.fadeActions,
     );
     const headerActions = focusedActions ? (
