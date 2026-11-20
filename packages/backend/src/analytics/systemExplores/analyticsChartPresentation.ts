@@ -97,7 +97,11 @@ const styleTable = (chart: ChartAsCode): ChartAsCode => {
     ];
     for (const field of chart.metricQuery.metrics) {
         if (/error|failure|negative_feedback/.test(field)) {
-            rules.push(numberRule(field, FilterOperator.GREATER_THAN, warning));
+            // A light tint with dark text: a solid colour made one failure look like an outage
+            rules.push({
+                ...numberRule(field, FilterOperator.GREATER_THAN, cautionTint),
+                textStyle: undefined,
+            });
         }
     }
     for (const field of chart.metricQuery.dimensions) {

@@ -141,7 +141,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'content-using-fields',
         name: 'Field use by content',
         description:
-            'Charts, dashboards and data apps whose queries used each field. Queries from exploring directly, and some others, are not linked to saved content.',
+            'Charts, dashboards and data apps whose queries used each field. Queries not linked to saved content, such as exploring directly, are left out.',
         explore: 'semantic_usage',
         dimensions: [
             'semantic_usage_field_label',
@@ -163,6 +163,49 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 field: 'semantic_usage_field_kind',
                 values: ['metric', 'dimension'],
             },
+            // Without this the busiest rows are all queries with no content, and say nothing
+            { field: 'semantic_usage_has_content', values: [true] },
+        ],
+        // One name and one type for each row, where three columns were mostly empty
+        tableCalculations: [
+            {
+                name: 'field_content_type',
+                displayName: 'Content type',
+                type: TableCalculationType.STRING,
+                sql: `CASE WHEN \${semantic_usage.chart_id} IS NOT NULL THEN 'Chart' WHEN \${semantic_usage.app_id} IS NOT NULL THEN 'Data app' ELSE 'Dashboard' END`,
+            },
+            {
+                name: 'field_content',
+                displayName: 'Content',
+                type: TableCalculationType.STRING,
+                sql: `CASE WHEN \${semantic_usage.chart_id} IS NOT NULL THEN COALESCE(\${semantic_usage.chart_name}, 'Unknown chart') WHEN \${semantic_usage.app_id} IS NOT NULL THEN COALESCE(\${semantic_usage.app_name}, 'Unknown data app') ELSE COALESCE(\${semantic_usage.dashboard_name}, 'Unknown dashboard') END`,
+            },
+            {
+                name: 'field_on_dashboard',
+                displayName: 'On dashboard',
+                type: TableCalculationType.STRING,
+                sql: `CASE WHEN \${semantic_usage.chart_id} IS NOT NULL AND \${semantic_usage.dashboard_id} IS NOT NULL THEN COALESCE(\${semantic_usage.dashboard_name}, 'Unknown dashboard') ELSE '' END`,
+            },
+        ],
+        hiddenColumns: [
+            'semantic_usage_chart_name',
+            'semantic_usage_dashboard_name',
+            'semantic_usage_app_name',
+        ],
+        columnOrder: [
+            'semantic_usage_field_label',
+            'semantic_usage_table_name',
+            'field_content',
+            'field_content_type',
+            'field_on_dashboard',
+            'semantic_usage_context_name',
+            'semantic_usage_total_queries',
+            'semantic_usage_field_origin_name',
+            'semantic_usage_field_id',
+            'semantic_usage_project_id',
+            'semantic_usage_chart_id',
+            'semantic_usage_dashboard_id',
+            'semantic_usage_app_id',
         ],
         limit: 50,
         sorts: [{ fieldId: 'semantic_usage_total_queries', descending: true }],

@@ -87,6 +87,7 @@ import {
     aiFeatureNames,
     aiKeyNames,
     aiOutcomeNames,
+    dataAppSurfaceNames,
     plainNameSql,
     type PlainNames,
 } from '../../../analytics/systemExplores/plainNames';
@@ -214,6 +215,7 @@ const metricLabels: Record<string, Record<string, string>> = {
 const plainNameLabels: Record<string, string> = {
     feature: 'Feature',
     channel: 'Channel',
+    view_context: 'Surface',
     key_management: 'AI key',
     outcome: 'Outcome',
     content_type: 'Content type',
@@ -761,6 +763,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                 },
             });
         }
+        addPlainName('view_context', dataAppSurfaceNames);
         if (name === 'data_app_events')
             addPlainName('event_name', {
                 names: {
@@ -897,6 +900,15 @@ export const createAnalyticsExplores = (): Explore[] => {
                 description:
                     'Plain name for Context, such as Dashboard view, Explore or Scheduled delivery. A value with no plain name is shown as recorded. Filter on Context, which holds the recorded value.',
                 sql: queryContextNameSql(table.dimensions.context.sql),
+            };
+            table.dimensions.has_content = {
+                ...table.dimensions.chart_id,
+                name: 'has_content',
+                label: 'Linked to saved content',
+                type: DimensionType.BOOLEAN,
+                description:
+                    'Whether the query came from a chart, a dashboard or a data app. A query from exploring directly, and some others, is linked to none.',
+                sql: `(${table.dimensions.chart_id.sql} IS NOT NULL OR ${table.dimensions.dashboard_id.sql} IS NOT NULL OR ${table.dimensions.app_id.sql} IS NOT NULL)`,
             };
             table.dimensions.org_id.hidden = true;
             table.dimensions.field_identity.hidden = true;
@@ -1169,7 +1181,8 @@ export const createAnalyticsExplores = (): Explore[] => {
         appFields.org_id.hidden = true;
         appFields.name.label = 'App name';
         appFields.name.sql = `COALESCE(\${TABLE}.name, \${${name}.app_id}, 'Unknown app')`;
-        if (name === 'historical_activity')
+        // A row with no data app has no data app name, not an unknown one
+        if (name === 'historical_activity' || name === 'semantic_usage')
             appFields.name.sql = `CASE WHEN \${${name}.app_id} IS NULL THEN NULL ELSE ${appFields.name.sql} END`;
         const explore: UncompiledExplore = {
             name: exploreName,
