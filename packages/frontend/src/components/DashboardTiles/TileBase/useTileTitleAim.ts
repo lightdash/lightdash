@@ -177,10 +177,11 @@ export const useTileTitleAim = ({
             if (aim === 'elsewhere') setDescriptionDismissed(false);
             setHovered(aim === 'title');
             if (aim === 'headingForActions')
-                dwellRef.current = setTimeout(
-                    () => setHovered(true),
-                    AIM_DWELL_MS,
-                );
+                // Recheck: the title may have scrolled away while the pointer stood still
+                dwellRef.current = setTimeout(() => {
+                    const resting = titleRef.current?.getBoundingClientRect();
+                    if (resting && contains(resting, point)) setHovered(true);
+                }, AIM_DWELL_MS);
         },
         [enabled, titleRef, actionsSelector, setHovered, reset],
     );
@@ -188,6 +189,12 @@ export const useTileTitleAim = ({
     return {
         titleHovered: enabled && titleHovered,
         descriptionOpened: enabled && titleHovered && !descriptionDismissed,
-        pointerHandlers: { onPointerMove, onPointerLeave: reset },
+        pointerHandlers: {
+            onPointerMove,
+            onPointerLeave: reset,
+            onPointerDown: (e: PointerEvent<HTMLElement>) => {
+                if (e.pointerType === 'pen') reset();
+            },
+        },
     };
 };
