@@ -169,8 +169,9 @@ scripts/k8s-dev/terraform/.terraform/
 examples/metricflow-demo/.fusion/
 .claude/worktrees/
 
-# Impeccable design-skill artifacts
-.impeccable/
+# Impeccable design-skill artifacts (shared detector config is committed)
+.impeccable/*
+!.impeccable/config.json
 
 # humanlayer task scratch
 .humanlayer/
