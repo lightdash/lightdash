@@ -5,6 +5,8 @@ import { type CaptureMark, type Point, type TranscriptPhrase } from './types';
 const LEAD_MS = 1500;
 const TRAIL_MS = 2000;
 
+const NOT_SHOWN = -1;
+
 const LAST_LINE =
     'Speech is machine-transcribed and may mishear names. Trust the image where they disagree.';
 
@@ -121,20 +123,34 @@ export const buildSummary = (input: {
     const tabs = new Set(input.marks.map((mark) => mark.tabName));
     const spansTabs = tabs.size > 1;
     const lines = [header(input.durationMs, input.imageCount)];
-    let currentImage = -1;
+    // Marks past the attached images share one heading and name no image.
+    const groupOf = (mark: CaptureMark): number =>
+        mark.imageIndex < input.imageCount ? mark.imageIndex : NOT_SHOWN;
+    const hasUnshown =
+        input.imageCount > 0 &&
+        input.marks.some((mark) => groupOf(mark) === NOT_SHOWN);
+    let currentGroup: number | null = null;
     for (const entry of entries) {
         if (entry.kind === 'speech') {
             lines.push(`- (${formatClock(entry.atMs)}) "${entry.text}"`);
         } else {
             const { mark } = entry;
-            if (input.imageCount > 1 && mark.imageIndex !== currentImage) {
-                currentImage = mark.imageIndex;
+            const group = groupOf(mark);
+            const changed = group !== currentGroup;
+            if (hasUnshown && changed && group === NOT_SHOWN) {
+                lines.push('Not shown in an image:');
+            } else if (
+                changed &&
+                group !== NOT_SHOWN &&
+                (input.imageCount > 1 || currentGroup === NOT_SHOWN)
+            ) {
                 lines.push(
-                    currentImage === 0
+                    group === 0
                         ? 'Image 1:'
-                        : `Image ${currentImage + 1} (after scrolling or clicking):`,
+                        : `Image ${group + 1} (after scrolling or clicking):`,
                 );
             }
+            if (hasUnshown || input.imageCount > 1) currentGroup = group;
             const target =
                 mark.target && mark.shape !== 'arrow' && mark.shape !== 'pick'
                     ? ` on ${mark.target.label}`

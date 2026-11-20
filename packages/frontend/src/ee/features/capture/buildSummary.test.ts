@@ -42,6 +42,54 @@ describe('describePosition', () => {
 });
 
 describe('buildSummary', () => {
+    it('lists marks that have no image under their own heading', () => {
+        const out = buildSummary({
+            durationMs: 9000,
+            imageCount: 2,
+            marks: [
+                mark({ number: 1, startMs: 1000, endMs: 1500 }),
+                mark({ number: 2, startMs: 3000, endMs: 3500, imageIndex: 1 }),
+                mark({
+                    number: 3,
+                    startMs: 5000,
+                    endMs: 5500,
+                    imageIndex: 2,
+                    target: { kind: 'tile', id: 't', label: 'Revenue' },
+                }),
+                mark({ number: 4, startMs: 7000, endMs: 7500, imageIndex: 1 }),
+            ],
+            transcript: [],
+        });
+        expect(out.split('\n').slice(1, -1)).toEqual([
+            'Image 1:',
+            '- ① (0:01) circled, top right',
+            'Image 2 (after scrolling or clicking):',
+            '- ② (0:03) circled, top right',
+            'Not shown in an image:',
+            '- ③ (0:05) circled, top right on Revenue',
+            'Image 2 (after scrolling or clicking):',
+            '- ④ (0:07) circled, top right',
+        ]);
+        expect(out).not.toContain('Image 3');
+    });
+
+    it('with one image, a mark past it is still set apart', () => {
+        const out = buildSummary({
+            durationMs: 9000,
+            imageCount: 1,
+            marks: [
+                mark({ number: 1, startMs: 1000, endMs: 1500 }),
+                mark({ number: 2, startMs: 3000, endMs: 3500, imageIndex: 1 }),
+            ],
+            transcript: [],
+        });
+        expect(out.split('\n').slice(1, -1)).toEqual([
+            '- ① (0:01) circled, top right',
+            'Not shown in an image:',
+            '- ② (0:03) circled, top right',
+        ]);
+    });
+
     it('formats the two-image example from the spec', () => {
         const out = buildSummary({
             durationMs: 19000,

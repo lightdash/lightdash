@@ -1,8 +1,10 @@
-import { assertUnreachable } from '@lightdash/common';
+import {
+    AI_THREAD_IMAGES_MAX_PER_PROMPT,
+    assertUnreachable,
+} from '@lightdash/common';
 import { classifyMark } from './classifyStroke';
 import {
     type CaptureCover,
-    MAX_CAPTURE_IMAGES,
     type CaptureMark,
     type CaptureTarget,
     type DesignTool,
@@ -16,7 +18,9 @@ export type CaptureState =
     | {
           status: 'recording';
           voice: VoiceState;
+          /** A mark whose imageIndex is the image cap has no picture; it is told in words. */
           marks: CaptureMark[];
+          /** Screens pictured so far, never more than the image cap. */
           imageCount: number;
           drawing: {
               imageIndex: number;
@@ -70,16 +74,20 @@ export const captureReducer = (
         case 'shiftDown': {
             if (state.status !== 'recording' || state.drawing) return state;
             const opensImage = action.isNewScreen || state.imageCount === 0;
-            if (opensImage && state.imageCount >= MAX_CAPTURE_IMAGES) {
-                return { ...state, atImageLimit: true };
-            }
+            // Past the cap a new screen gets no picture, but its mark is kept.
+            const atImageLimit =
+                opensImage &&
+                state.imageCount >= AI_THREAD_IMAGES_MAX_PER_PROMPT;
             return {
                 ...state,
-                atImageLimit: false,
+                atImageLimit,
                 drawing: {
                     // An image only counts once a mark lands on it (see shiftUp).
                     imageIndex: opensImage
-                        ? state.imageCount
+                        ? Math.min(
+                              state.imageCount,
+                              AI_THREAD_IMAGES_MAX_PER_PROMPT,
+                          )
                         : state.imageCount - 1,
                     startMs: action.atMs,
                     tool: action.tool,
@@ -128,7 +136,10 @@ export const captureReducer = (
                 ...state,
                 drawing: null,
                 marks: [...state.marks, mark],
-                imageCount: Math.max(state.imageCount, drawing.imageIndex + 1),
+                imageCount: Math.min(
+                    AI_THREAD_IMAGES_MAX_PER_PROMPT,
+                    Math.max(state.imageCount, drawing.imageIndex + 1),
+                ),
             };
         }
         default:

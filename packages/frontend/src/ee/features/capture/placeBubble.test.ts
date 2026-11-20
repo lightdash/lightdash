@@ -21,6 +21,34 @@ describe('placeBubble', () => {
         expect(at).toEqual({ x: 100, y: 100 });
     });
 
+    it('a bubble scrolled out of view comes back beside the new mark', () => {
+        const markRect = new DOMRect(400, 300, 100, 100);
+        const pointer = { x: 490, y: 350 };
+        [
+            new DOMRect(100, -400, 200, 100),
+            new DOMRect(100, 560, 200, 100),
+            new DOMRect(-50, 100, 200, 100),
+            new DOMRect(700, 100, 200, 100),
+        ].forEach((current) => {
+            expect(
+                placeBubble({ markRect, current, size, viewport, pointer }),
+            ).toEqual({ x: 168, y: 300 });
+        });
+    });
+
+    it('a bubble taller than the viewport stays put while its top is in view', () => {
+        const tall = { width: 200, height: 900 };
+        expect(
+            placeBubble({
+                markRect: new DOMRect(600, 400, 50, 50),
+                current: new DOMRect(100, 0, 200, 900),
+                size: tall,
+                viewport,
+                pointer: { x: 640, y: 420 },
+            }),
+        ).toEqual({ x: 100, y: 0 });
+    });
+
     it('moves beside the mark, away from the pointer, when they overlap', () => {
         const markRect = new DOMRect(400, 300, 100, 100);
         const current = new DOMRect(420, 320, 200, 100);

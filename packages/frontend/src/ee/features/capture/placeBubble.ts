@@ -26,6 +26,19 @@ const clampTo = (at: Position, size: Size, viewport: DOMRect): Position => {
     };
 };
 
+// A bubble taller than the viewport counts while its top is in view.
+const inView = (rect: DOMRect, viewport: DOMRect): boolean =>
+    rect.left >= viewport.left &&
+    rect.right <= viewport.right &&
+    rect.top >= viewport.top &&
+    (rect.bottom <= viewport.bottom || rect.height > viewport.height);
+
+/** The nearest place in view for a bubble, or where it is when it is in view. */
+export const intoView = (current: DOMRect, viewport: DOMRect): Position =>
+    inView(current, viewport)
+        ? { x: current.left, y: current.top }
+        : clampTo({ x: current.left, y: current.top }, current, viewport);
+
 /** Where a bubble's top left goes, in viewport pixels. */
 export const placeBubble = ({
     markRect,
@@ -45,7 +58,8 @@ export const placeBubble = ({
             ? { x: current.left, y: current.top }
             : clampTo({ x: pointer.x + GAP_PX, y: pointer.y }, size, viewport);
     }
-    if (current && !isNear(current, markRect)) {
+    // Scrolled out of view, it comes back beside the new mark.
+    if (current && !isNear(current, markRect) && inView(current, viewport)) {
         return { x: current.left, y: current.top };
     }
     const left = { x: markRect.left - GAP_PX - size.width, y: markRect.top };

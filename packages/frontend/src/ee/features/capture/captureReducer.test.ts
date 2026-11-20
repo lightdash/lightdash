@@ -1,3 +1,4 @@
+import { AI_THREAD_IMAGES_MAX_PER_PROMPT as CAP } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { captureReducer, type CaptureState } from './captureReducer';
 
@@ -147,26 +148,44 @@ describe('captureReducer', () => {
         expect(s).toMatchObject({ marks: [], imageCount: 0, drawing: null });
     });
 
-    it('refuses a sixth screen', () => {
-        expect(
-            captureReducer(rec({ imageCount: 5 }), {
-                type: 'shiftDown',
-                atMs: 1,
-                isNewScreen: true,
-                tool: 'stylus',
-            }),
-        ).toMatchObject({ drawing: null, atImageLimit: true, imageCount: 5 });
+    it('a screen past the image cap is marked without a picture of its own', () => {
+        const full = rec({ imageCount: CAP });
+        const down = captureReducer(full, {
+            type: 'shiftDown',
+            atMs: 1,
+            isNewScreen: true,
+            tool: 'stylus',
+        });
+        expect(down).toMatchObject({
+            drawing: { imageIndex: CAP },
+            atImageLimit: true,
+            imageCount: CAP,
+        });
+        const s = hold(full, 1000, true);
+        expect(s).toMatchObject({
+            imageCount: CAP,
+            marks: [{ number: 1, imageIndex: CAP }],
+        });
+        // Back on the last pictured screen, marks join its image again.
+        expect(hold(s, 3000, false)).toMatchObject({
+            imageCount: CAP,
+            atImageLimit: false,
+            marks: [{ imageIndex: CAP }, { imageIndex: CAP - 1 }],
+        });
     });
 
     it('still allows marks on the current screen at the limit', () => {
         expect(
-            captureReducer(rec({ imageCount: 5 }), {
+            captureReducer(rec({ imageCount: CAP }), {
                 type: 'shiftDown',
                 atMs: 1,
                 isNewScreen: false,
                 tool: 'stylus',
             }),
-        ).toMatchObject({ drawing: { imageIndex: 4 }, atImageLimit: false });
+        ).toMatchObject({
+            drawing: { imageIndex: CAP - 1 },
+            atImageLimit: false,
+        });
     });
 
     it('a cursor pick becomes a mark with no strokes', () => {
