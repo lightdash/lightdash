@@ -158,10 +158,11 @@ export const AiChartQuickOptions = ({
     ] = useDisclosure(false);
     // Menu items unmount with the dropdown, so dialogs they open return focus here.
     const quickActionsTargetRef = useRef<HTMLButtonElement>(null);
-    const withFocusReturn = (close: () => void) => () => {
-        close();
+    const withFocusReturn = (closeDialog: () => void) => () => {
+        closeDialog();
         quickActionsTargetRef.current?.focus();
     };
+    const closeSave = withFocusReturn(close);
 
     const canCreateScheduledDeliveries = user.data?.ability?.can(
         'create',
@@ -307,12 +308,12 @@ export const AiChartQuickOptions = ({
 
     const onSaveChart = (chart: SavedChart) => {
         if (!saveChartOptions.linkToMessage) {
-            close();
+            closeSave();
             return;
         }
         savePromptQuery({ savedQueryUuid: chart.uuid });
         trackChartCreated();
-        close();
+        closeSave();
     };
 
     const quickSaveDashboard: LauncherCurrentDashboard | null =
@@ -732,7 +733,7 @@ export const AiChartQuickOptions = ({
             )}
             <MantineModal
                 opened={opened && authoringEnabled}
-                onClose={close}
+                onClose={closeSave}
                 title="Save chart"
                 icon={IconChartBar}
                 size="lg"
@@ -749,7 +750,7 @@ export const AiChartQuickOptions = ({
                         projectUuid={projectUuid}
                         savedData={savedData}
                         onConfirm={onSaveChart}
-                        onClose={close}
+                        onClose={closeSave}
                         chartMetadata={{
                             name: saveChartOptions.name ?? '',
                             description: saveChartOptions.description ?? '',
@@ -809,7 +810,7 @@ export const AiChartQuickOptions = ({
                     chartName={saveChartOptions.name ?? ''}
                     agentUuid={agentUuid}
                     sourceThreadUuid={message.threadUuid}
-                    onClose={closeSchedule}
+                    onClose={withFocusReturn(closeSchedule)}
                 />
             )}
         </Fragment>
