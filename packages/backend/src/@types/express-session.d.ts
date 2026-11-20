@@ -5,6 +5,7 @@ import {
     type LiveSourceReturnTo,
     type PendingGoogleLiveSource,
     type PostHogOAuthSession,
+    type SalesforceOAuthSession,
 } from '../ee/services/ExternalConnectionService/ExternalConnectionService';
 import { type AgentConnectAttempt } from '../services/AiAccessService/AiAccessService';
 
@@ -43,6 +44,7 @@ declare module 'express-session' {
             };
             postHog?: PostHogOAuthSession;
             linkedInAds?: LinkedInAdsOAuthSession;
+            salesforce?: SalesforceOAuthSession;
             googleLiveSource?: GoogleOAuthSession;
             liveSourceReturnTo?: LiveSourceReturnTo;
             isPopup?: boolean | undefined;

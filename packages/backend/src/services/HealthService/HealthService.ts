@@ -228,6 +228,9 @@ export class HealthService extends BaseService {
                 !!this.lightdashConfig.liveSources.linkedinAds.oauthClientId &&
                 !!this.lightdashConfig.liveSources.linkedinAds
                     .oauthClientSecret,
+            hasSalesforceOAuth:
+                !!this.lightdashConfig.liveSources.salesforce.oauthClientId &&
+                !!this.lightdashConfig.liveSources.salesforce.oauthClientSecret,
             hasGoogleLiveSources:
                 !!this.lightdashConfig.auth.google.oauth2ClientId &&
                 !!this.lightdashConfig.auth.google.oauth2ClientSecret,
