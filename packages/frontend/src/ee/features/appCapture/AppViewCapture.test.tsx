@@ -75,6 +75,8 @@ describe('AppViewCapture', () => {
 
         await vi.waitFor(() =>
             expect(mocks.sendToAgent).toHaveBeenCalledWith({
+                // Started from the page, so it starts a new conversation.
+                followUp: false,
                 prompt: [
                     'These questions are about the data app "Sales pulse".',
                     '',

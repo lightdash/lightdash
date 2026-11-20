@@ -13,7 +13,7 @@ const VoiceDesignButton: FC<{
     disabled: boolean;
 }> = ({ onClick, disabled }) => (
     <>
-        <Tooltip label="Voice Design" position="bottom">
+        <Tooltip label="New voice recording" position="bottom">
             <ActionIcon
                 size="md"
                 onClick={onClick}

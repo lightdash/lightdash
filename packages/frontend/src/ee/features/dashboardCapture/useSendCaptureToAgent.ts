@@ -23,6 +23,8 @@ import { captureThreadTarget } from './captureThreadTarget';
 type SendInput = {
     prompt: string;
     context: AiPromptContextInput;
+    /** Started from the open conversation's mic: add to that conversation. */
+    followUp: boolean;
 };
 
 /**
@@ -67,8 +69,9 @@ export const useSendCaptureToAgent = (projectUuid: string) => {
     );
 
     const send = useCallback(
-        async ({ prompt, context }: SendInput): Promise<void> => {
+        async ({ prompt, context, followUp }: SendInput): Promise<void> => {
             const plan = captureSendPlan({
+                followUp,
                 openThread:
                     openThreadId && openAgentUuid
                         ? { threadId: openThreadId, agentUuid: openAgentUuid }
