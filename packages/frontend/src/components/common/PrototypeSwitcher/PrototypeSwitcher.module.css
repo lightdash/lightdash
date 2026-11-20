@@ -1,0 +1,12 @@
+.bar {
+    position: fixed;
+    bottom: var(--mantine-spacing-md);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    padding: 4px var(--mantine-spacing-xs);
+    border-radius: 999px;
+    border: 2px solid var(--mantine-color-pink-5);
+    background: var(--mantine-color-pink-9);
+    box-shadow: var(--mantine-shadow-lg);
+}

@@ -158,7 +158,7 @@
         display: none;
     }
 
-    &:hover,
+    &:not([data-prototype]):hover,
     &[data-hovered='true'] {
         position: absolute;
         top: 0;
@@ -175,6 +175,11 @@
             color: var(--mantine-color-foreground-0) !important;
             text-decoration: underline;
         }
+    }
+
+    /* PROTOTYPE: variants keep the title in place and only underline it */
+    &[data-prototype]:is(a[href]):is(:hover, :focus-visible) {
+        text-decoration: underline;
     }
 
     &:is(a) {
@@ -322,4 +327,44 @@
 
 .description {
     white-space: pre-line;
+}
+
+/* PROTOTYPE A and C: the actions sit in the header row and the title truncates
+   before them. A hidden A row leaves the flow but stays focusable. */
+.inlineActions.inlineActions {
+    position: static !important;
+    flex-shrink: 0;
+    margin-left: auto;
+    padding: 0 !important;
+    border: 0;
+    box-shadow: none !important;
+    background: transparent;
+
+    &[data-visible='false']:not(:has(:focus-visible)) {
+        position: absolute !important;
+        right: 0;
+    }
+}
+
+/* PROTOTYPE B: the actions sit on the title line, inside the tile, and the
+   title fades out under them */
+.fadeActions.fadeActions {
+    top: var(--mantine-spacing-md) !important;
+    right: var(--mantine-spacing-sm) !important;
+    padding: 0 !important;
+    border: 0;
+    box-shadow: none !important;
+    border-radius: 0;
+    background: var(--ld-color-tile);
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        right: 100%;
+        width: 48px;
+        background: linear-gradient(to right, transparent, var(--ld-color-tile));
+        pointer-events: none;
+    }
 }

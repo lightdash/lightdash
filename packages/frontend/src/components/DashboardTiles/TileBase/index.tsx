@@ -68,6 +68,7 @@ import styles from './TileBase.module.css';
 import { TileCopyPlacement } from './TileCopyPlacement';
 import { TileHeaderPopoverContext } from './tileHeaderPopoverContext';
 import { TileSelectionToolbar } from './TileSelectionToolbar';
+import { useTileHeaderVariant } from './tileHeaderPrototype';
 import { type TileBaseProps } from './types';
 
 const HEADING_FLEX_ALIGN: Record<DashboardHeadingVerticalAlign, string> = {
@@ -125,6 +126,12 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
         delay: 500,
     });
     const [titleHovered, setTitleHovered] = useState(false);
+    const variant = useTileHeaderVariant();
+    const isPrototype = variant !== 'current';
+    // Prototype variants show the full title in the tooltip only when it is cut
+    const [titleTruncated, setTitleTruncated] = useState(false);
+    const measureTitle = (el: HTMLElement) =>
+        setTitleTruncated(el.scrollWidth > el.clientWidth);
     const [isMenuOpen, toggleMenu] = useToggle([false, true]);
     const [openHeaderPopovers, setOpenHeaderPopovers] = useState<
         ReadonlySet<string>
@@ -212,7 +219,9 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
         hasMenuContent || isVerified || hasNonMenuHeaderContent || canViewChart;
 
     const showHeaderActions =
-        (containerHovered && !titleHovered && !chartHovered) ||
+        (containerHovered &&
+            (isPrototype || !titleHovered) &&
+            !chartHovered) ||
         isMenuOpen ||
         openHeaderPopovers.size > 0 ||
         lockHeaderVisibility ||
@@ -277,7 +286,16 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
             )}
         </>
     );
-    const useCompactActions = isPhoneLayout && mobileMenuItems !== undefined;
+    const useCompactActions =
+        (isPhoneLayout || variant === 'menu') && mobileMenuItems !== undefined;
+    const actionsClassName = clsx(
+        'non-draggable',
+        styles.tileTooltip,
+        !hideTitle &&
+            (variant === 'inline' || variant === 'menu') &&
+            styles.inlineActions,
+        variant === 'fade' && styles.fadeActions,
+    );
     const headerActions = focusedActions ? (
         <FloatingActionsPill
             visible
@@ -286,10 +304,14 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
             {focusedActions}
         </FloatingActionsPill>
     ) : useCompactActions ? (
-        <FloatingActionsPill
-            visible
-            className={clsx('non-draggable', styles.tileTooltip)}
-        >
+        <FloatingActionsPill visible className={actionsClassName}>
+            {variant === 'menu' && visibleHeaderElement}
+            {variant === 'menu' && isVerified && (
+                <IconCircleCheckFilled
+                    size={14}
+                    className={styles.verifiedIcon}
+                />
+            )}
             <Menu
                 withArrow
                 position="bottom-end"
@@ -338,7 +360,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     ) : hasHeaderContent ? (
         <FloatingActionsPill
             visible={showHeaderActions}
-            className={clsx('non-draggable', styles.tileTooltip)}
+            className={actionsClassName}
         >
             {titleLeftIcon}
 
@@ -532,14 +554,32 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             )
                         ) : (
                             <Tooltip
-                                disabled={!description}
+                                disabled={
+                                    isPrototype
+                                        ? !description && !titleTruncated
+                                        : !description
+                                }
+                                events={
+                                    isPrototype
+                                        ? { hover: true, focus: true, touch: false }
+                                        : undefined
+                                }
                                 label={
-                                    <Text
-                                        className={styles.description}
-                                        fz="sm"
-                                    >
-                                        {description}
-                                    </Text>
+                                    <>
+                                        {isPrototype && titleTruncated && (
+                                            <Text fz="sm" fw={600}>
+                                                {title}
+                                            </Text>
+                                        )}
+                                        {description && (
+                                            <Text
+                                                className={styles.description}
+                                                fz="sm"
+                                            >
+                                                {description}
+                                            </Text>
+                                        )}
+                                    </>
                                 }
                                 position="top-start"
                                 maw={400}
@@ -559,10 +599,17 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                         className={styles.tileTitle}
                                         data-hidden={hideTitle}
                                         data-hovered={titleHovered}
+                                        data-prototype={isPrototype || undefined}
                                         href={titleHref}
-                                        onMouseEnter={() =>
-                                            setTitleHovered(true)
-                                        }
+                                        onMouseEnter={(e) => {
+                                            if (isPrototype)
+                                                measureTitle(e.currentTarget);
+                                            else setTitleHovered(true);
+                                        }}
+                                        onFocus={(e) => {
+                                            if (isPrototype)
+                                                measureTitle(e.currentTarget);
+                                        }}
                                         onMouseLeave={() =>
                                             setTitleHovered(false)
                                         }

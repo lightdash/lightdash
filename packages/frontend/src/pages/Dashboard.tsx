@@ -43,6 +43,8 @@ import { scrollToDashboardTileWhenMounted } from '../components/common/Dashboard
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import MantineModal from '../components/common/MantineModal';
+import { PrototypeSwitcher } from '../components/common/PrototypeSwitcher';
+import { TILE_HEADER_VARIANTS } from '../components/DashboardTiles/TileBase/tileHeaderPrototype';
 import DashboardDeleteModal from '../components/common/modal/DashboardDeleteModal';
 import DashboardDuplicateModal from '../components/common/modal/DashboardDuplicateModal';
 import { DashboardExportModal } from '../components/common/modal/DashboardExportModal';
@@ -1924,6 +1926,7 @@ const DashboardPage: FC = () => {
             <TileQueryQueueProvider>
                 <Dashboard />
             </TileQueryQueueProvider>
+            <PrototypeSwitcher variants={TILE_HEADER_VARIANTS} />
         </DashboardProvider>
     );
 };
