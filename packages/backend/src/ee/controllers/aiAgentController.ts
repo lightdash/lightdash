@@ -1437,6 +1437,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
+    /**
+     * Adds a message using the thread's recorded model and reasoning settings.
+     * A different modelConfig returns HTTP 400; start a new thread to change it.
+     * @summary Create AI agent thread message
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
@@ -1444,6 +1449,10 @@ export class AiAgentController extends BaseController {
             'AiAgentController.createAgentThreadMessage',
         ),
     ])
+    @Response<ApiErrorPayload>(
+        '400',
+        'modelConfig differs from the thread configuration',
+    )
     @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/threads/{threadUuid}/messages')
     @OperationId('createAgentThreadMessage')
