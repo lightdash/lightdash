@@ -1,5 +1,6 @@
 import type {
     Account,
+    DateZoom,
     FeatureFlags,
     ParametersValuesMap,
     PivotConfiguration,
@@ -73,6 +74,8 @@ export type SubmitSourceQueryArgs = SourceQueryExecutionContext & {
     resolvedReferences: Record<string, string>;
     /** The node's own pivot, lifted off the query so every source reads one place. */
     pivotConfiguration: PivotConfiguration | null;
+    /** The date zoom a bound composer run gives this node; null elsewhere. */
+    dateZoom: DateZoom | null;
     /**
      * How a duckdb node executes. Null is the public plan: the gated compose
      * SQL path, columns discovered, shared results session. Only internal

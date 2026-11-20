@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { type CaslSubjectNames } from '../authorization/types';
+import { type DateZoom } from '../types/api/paginatedQuery';
 import { ParameterError } from '../types/errors';
 import { type Explore } from '../types/explore';
 import {
@@ -25,6 +26,7 @@ import { type ResultColumn } from '../types/results';
 import { ChartType, type ChartConfig } from '../types/savedCharts';
 import { getHandWrittenAdditionalMetrics } from '../utils/additionalMetrics';
 import assertUnreachable from '../utils/assertUnreachable';
+import { type ChartZoomableField } from '../utils/dateZoom';
 import { getItemLabelWithoutTableName } from '../utils/item';
 
 type StoredNode<T> = T & {
@@ -572,6 +574,8 @@ export type ComposerChartRunRequest = {
     /** The parameter keys this tile keeps as its own. */
     excludedParameterKeys: string[];
     invalidateCache: boolean;
+    /** The tile's resolved date zoom; optional for clients that predate it. */
+    dateZoom?: DateZoom | null;
 };
 
 const runRequestSchema = z.strictObject({
@@ -581,6 +585,13 @@ const runRequestSchema = z.strictObject({
     parameters: z.record(z.string(), z.unknown()),
     excludedParameterKeys: z.array(z.string()),
     invalidateCache: z.boolean(),
+    dateZoom: z
+        .strictObject({
+            granularity: z.string().optional(),
+            xAxisFieldId: z.string().optional(),
+        })
+        .nullable()
+        .optional(),
 });
 
 /** Strict parse of a run request: nothing it carries can add or change a node. */
@@ -612,6 +623,10 @@ export type ComposerChartRunResults = {
     sqlColumns: ResultColumn[];
     /** The parameter values each node query ran with, keyed by node; nodes can run different values. */
     usedParameterValuesByNodeId: Record<string, ParametersValuesMap>;
+    /** Whether the date zoom re-grained at least one semantic-layer node. */
+    dateZoomApplied: boolean;
+    /** The date fields the tile can be zoomed on, so the dashboard offers its date zoom. */
+    zoomableFields: ChartZoomableField[];
 };
 
 /** The query a composer chart tile draws, and so exports: its series-split stage, else its terminal node. */

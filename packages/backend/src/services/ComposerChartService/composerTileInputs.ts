@@ -1,18 +1,30 @@
 import {
     addDashboardFiltersToMetricQuery,
     assertUnreachable,
+    DimensionType,
+    getAllDimensionsMap,
     getAvailableParametersFromTables,
+    getChartZoomableFields,
     getDashboardFilterRulesForTileAndReferences,
     getDashboardFiltersForTile,
     getDashboardTileParameterOverrides,
     getEffectiveParameterDefinitions,
     getParameterReferences,
     getQueryParameterReferences,
+    getTimeDimensionsMap,
+    isCartesianChartConfig,
+    isDateZoomRefusedOnExplore,
+    isStandardDateGranularity,
+    isSubDayGranularity,
     metricQueryOfSemanticNode,
     QuerySourceType,
+    resolveToBaseTimeDimension,
+    type ChartZoomableField,
     type ComposerChartPipelineNode,
+    type ComposerStoredChart,
     type DashboardFilters,
     type DashboardTileParameterInputs,
+    type DateZoom,
     type Explore,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -239,3 +251,114 @@ export const getComposerParameterReferences = (
         ),
     ),
 ];
+
+type SemanticNode = Extract<
+    ComposerChartPipelineNode,
+    { sourceType: QuerySourceType.SEMANTIC_LAYER }
+>;
+
+const getNodeDateZoomFieldId = (
+    node: SemanticNode,
+    explore: Explore,
+    { granularity, xAxisFieldId }: DateZoom & { granularity: string },
+): string | null => {
+    const candidates = getChartZoomableFields(
+        explore,
+        metricQueryOfSemanticNode(node),
+    );
+    const fieldId = (
+        candidates.find((field) => field.fieldId === xAxisFieldId) ??
+        candidates[0]
+    )?.fieldId;
+    if (!fieldId) return null;
+    const base = resolveToBaseTimeDimension(
+        fieldId,
+        getAllDimensionsMap(explore),
+        getTimeDimensionsMap(explore),
+    );
+    if (!base) return null;
+    // As updateExploreWithDateZoom: a custom grain needs its precompiled dimension
+    const canZoom = isStandardDateGranularity(granularity)
+        ? !(
+              base.type === DimensionType.DATE &&
+              isSubDayGranularity(granularity)
+          )
+        : Object.values(explore.tables).some(
+              (table) => !!table.dimensions[`${base.name}_${granularity}`],
+          );
+    return canZoom ? fieldId : null;
+};
+
+/** The field a stored chart plots on its x axis, if it is a cartesian chart. */
+export const getStoredChartXField = (
+    chart: ComposerStoredChart,
+): string | undefined =>
+    isCartesianChartConfig(chart.chartConfig.config)
+        ? chart.chartConfig.config.layout?.xField
+        : undefined;
+
+/** Merge legs stay unzoomed: the merge compiles against their saved fields. Live sources that refuse zoom are left out. */
+const getZoomableSemanticNodes = (
+    nodes: ComposerChartPipelineNode[],
+    exploreByNodeId: ComposerNodeExplores,
+): Array<{ node: SemanticNode; explore: Explore }> => {
+    const mergeLegs = new Set(
+        nodes.flatMap((node) =>
+            node.sourceType === QuerySourceType.MERGE
+                ? node.sources.map((source) => source.nodeId)
+                : [],
+        ),
+    );
+    return nodes.flatMap((node) => {
+        const explore = exploreByNodeId[node.nodeId];
+        return node.sourceType === QuerySourceType.SEMANTIC_LAYER &&
+            explore &&
+            !mergeLegs.has(node.nodeId) &&
+            !isDateZoomRefusedOnExplore(explore)
+            ? [{ node, explore }]
+            : [];
+    });
+};
+
+/** The date fields a composer tile can be zoomed on, one per field id. */
+export const getComposerZoomableFields = (
+    nodes: ComposerChartPipelineNode[],
+    exploreByNodeId: ComposerNodeExplores,
+): ChartZoomableField[] => [
+    ...new Map(
+        getZoomableSemanticNodes(nodes, exploreByNodeId)
+            .flatMap(({ node, explore }) =>
+                getChartZoomableFields(
+                    explore,
+                    metricQueryOfSemanticNode(node),
+                ),
+            )
+            .map((field) => [field.fieldId, field]),
+    ).values(),
+];
+
+export const getComposerNodeDateZooms = ({
+    nodes,
+    exploreByNodeId,
+    dateZoom,
+}: {
+    nodes: ComposerChartPipelineNode[];
+    exploreByNodeId: ComposerNodeExplores;
+    dateZoom: DateZoom | null;
+}): Record<string, DateZoom> => {
+    const granularity = dateZoom?.granularity;
+    if (!granularity) return {};
+    return Object.fromEntries(
+        getZoomableSemanticNodes(nodes, exploreByNodeId).flatMap(
+            ({ node, explore }) => {
+                const xAxisFieldId = getNodeDateZoomFieldId(node, explore, {
+                    ...dateZoom,
+                    granularity,
+                });
+                return xAxisFieldId
+                    ? [[node.nodeId, { granularity, xAxisFieldId }]]
+                    : [];
+            },
+        ),
+    );
+};

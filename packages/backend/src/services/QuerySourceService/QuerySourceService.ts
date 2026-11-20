@@ -594,6 +594,11 @@ export class QuerySourceService extends BaseService {
                 userAttributeOverrides,
                 invalidateCache,
                 pivotConfiguration: entry.query.pivotConfiguration ?? null,
+                dateZoom:
+                    authority.kind === 'composer'
+                        ? (authority.binding.dateZoomByNodeId[entry.nodeId] ??
+                          null)
+                        : null,
                 plan: plans[entry.nodeId] ?? null,
             });
             resolvedReferences[entry.nodeId] = queryUuid;
