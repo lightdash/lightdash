@@ -39,10 +39,10 @@ import {
 import { useBubbleConversations } from '../capture/useBubbleConversations';
 import { useDesignMode } from '../capture/useDesignMode';
 import classes from './DashboardDesignMode.module.css';
+import { pickPartAt } from './partPicker';
 import {
     chartUuidsForMarks,
     dashboardScroll,
-    pickTileAt,
     targetAtPoint,
 } from './tilePicker';
 
@@ -108,7 +108,7 @@ const DashboardDesignSurface: FC<Props> = ({
                 return tab ? { uuid: tab.uuid, name: tab.name } : null;
             },
             resolveTarget: (point) => targetAtPoint(point, tilesOnTab()),
-            pickAt: (point) => pickTileAt(point, tilesOnTab()),
+            pickAt: (point) => pickPartAt(point, tilesOnTab()),
             transcribe: captureTranscriber(
                 lightdashApi,
                 projectUuid,
