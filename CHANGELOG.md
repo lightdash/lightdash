@@ -1,3 +1,10 @@
+## [3.357.2](https://github.com/lightdash/lightdash/compare/3.357.1...3.357.2) (2026-11-20)
+
+
+### Bug Fixes
+
+* **cli:** support Snowflake OAuth access tokens in dbt profiles ([#33074](https://github.com/lightdash/lightdash/issues/33074)) ([2d6ebee](https://github.com/lightdash/lightdash/commit/2d6ebee5dac8c0a8f7e4be50e30c9710ae703015))
+
 ## [3.357.1](https://github.com/lightdash/lightdash/compare/3.357.0...3.357.1) (2026-11-20)
 
 
