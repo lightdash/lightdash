@@ -793,6 +793,7 @@ models:
         it('keeps the existing non-git primary connection error', async () => {
             PROJECT_MODEL.get.mockResolvedValueOnce({
                 projectUuid: 'projectUuid',
+                organizationUuid: writebackUser.organizationUuid,
                 name: 'Project',
                 dbtVersion: SupportedDbtVersions.V1_9,
                 dbtConnection: {
