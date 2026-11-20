@@ -1,7 +1,8 @@
 import { Center, Group, Loader, Stack, Text } from '@mantine/core';
-import { IconFile, IconFileCode, IconTable } from '@tabler/icons-react';
+import { IconFile, IconFileCode } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, type FC } from 'react';
+import { TableIcon } from '../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     ModelFieldChanges,
@@ -103,7 +104,7 @@ export const PullRequestChanges: FC<{
                                 >
                                     <span className={classes.modelTile}>
                                         <MantineIcon
-                                            icon={IconTable}
+                                            icon={TableIcon}
                                             size={16}
                                         />
                                     </span>

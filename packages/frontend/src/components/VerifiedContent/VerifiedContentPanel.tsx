@@ -15,13 +15,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import {
-    IconAppWindow,
-    IconCircleX,
-    IconDots,
-    IconFileText,
-    IconLayoutDashboard,
-} from '@tabler/icons-react';
+import { IconCircleX, IconDots, IconFileText } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import {
@@ -31,6 +25,7 @@ import {
     useUnverifyDocumentMutation,
 } from '../../hooks/useContentVerification';
 import { useVerifiedContentList } from '../../hooks/useVerifiedContentList';
+import { DashboardIcon, DataAppIcon } from '../common/ContentIcons';
 import {
     ContentTable,
     useContentTable,
@@ -62,13 +57,13 @@ const getItemPresentation = (
             return {
                 href: `/projects/${projectUuid}/dashboards/${item.slug}`,
                 typeLabel: 'Dashboard',
-                typeIcon: IconLayoutDashboard,
+                typeIcon: DashboardIcon,
             };
         case ContentType.DATA_APP:
             return {
                 href: `/projects/${projectUuid}/apps/${item.contentUuid}/view`,
                 typeLabel: 'Data app',
-                typeIcon: IconAppWindow,
+                typeIcon: DataAppIcon,
             };
         case ContentType.DOCUMENT:
             return {

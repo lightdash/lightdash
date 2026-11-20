@@ -1,11 +1,9 @@
+import { IconClock, IconPin, type Icon } from '@tabler/icons-react';
 import {
-    IconChartBar,
-    IconChartLine,
-    IconClock,
-    IconLayoutDashboard,
-    IconPin,
-    type Icon,
-} from '@tabler/icons-react';
+    BarChartIcon,
+    DashboardIcon,
+    LineChartIcon,
+} from '../../../components/common/ContentIcons';
 import classes from './MobileUpsell.module.css';
 import { Phone, PixelPyramid, Spark } from './UpsellParts';
 import { UPSELL_GRAPHIC_STRINGS as S } from './upsellStrings';
@@ -36,14 +34,14 @@ export const PinnedUpsell = () => (
                 <IconPin />
                 {S.pinned}
             </div>
-            <Row icon={IconLayoutDashboard} name={S.dashboard} chart={false} />
-            <Row icon={IconChartLine} name={S.ordersQuestion} current />
+            <Row icon={DashboardIcon} name={S.dashboard} chart={false} />
+            <Row icon={LineChartIcon} name={S.ordersQuestion} current />
             <div className={classes.homeHeader}>
                 <IconClock />
                 {S.recent}
             </div>
-            <Row icon={IconChartBar} name={S.revenueQuestion} />
-            <Row icon={IconChartBar} name={S.shipping} />
+            <Row icon={BarChartIcon} name={S.revenueQuestion} />
+            <Row icon={BarChartIcon} name={S.shipping} />
         </Phone>
     </div>
 );

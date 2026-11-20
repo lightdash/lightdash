@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import { AGENT_IDENTITY_SETTINGS_PATH } from '@lightdash/common';
 import {
     IconApps,
-    IconAppWindow,
     IconBolt,
     IconBook2,
     IconBroadcast,
@@ -55,6 +54,7 @@ import {
     IconWorldCog,
 } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import { DataAppIcon } from '../../components/common/ContentIcons';
 import { AI_ANALYSIS_SETTINGS_PATH } from '../../features/apps/analysis/useDataAppAnalysisAvailability';
 import { MOBILE_STRINGS } from '../../features/mobile/mobileStrings';
 import {
@@ -189,7 +189,7 @@ export const useSettingsNavigation = (
             yourSettings.push({
                 label: 'My apps',
                 to: '/generalSettings/myApps',
-                icon: IconAppWindow,
+                icon: DataAppIcon,
                 keywords: ['data apps'],
                 children: [],
                 exact: true,
@@ -395,7 +395,7 @@ export const useSettingsNavigation = (
                 organizationItems.push({
                     label: 'Data apps',
                     to: '/generalSettings/dataApps',
-                    icon: IconAppWindow,
+                    icon: DataAppIcon,
                     keywords: ['apps', 'data apps'],
                     children: dataAppChildren,
                 });

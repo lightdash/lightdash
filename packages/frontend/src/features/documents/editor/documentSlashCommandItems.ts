@@ -1,4 +1,8 @@
-import { IconChartBar, IconLink, IconTable } from '@tabler/icons-react';
+import { IconLink } from '@tabler/icons-react';
+import {
+    BarChartIcon,
+    TableIcon,
+} from '../../../components/common/ContentIcons';
 import {
     SLASH_COMMAND_ITEMS,
     type SlashCommandItem,
@@ -18,7 +22,7 @@ export const createDocumentSlashCommandItems = ({
         id: 'table',
         label: 'Table',
         description: 'Rows and columns',
-        icon: IconTable,
+        icon: TableIcon,
         run: (editor, range) =>
             editor
                 .chain()
@@ -33,7 +37,7 @@ export const createDocumentSlashCommandItems = ({
                   id: 'chart',
                   label: 'Chart',
                   description: 'Query the semantic layer',
-                  icon: IconChartBar,
+                  icon: BarChartIcon,
                   run: (editor, range) => {
                       editor.chain().focus().deleteRange(range).run();
                       onInsertChart(range.from);

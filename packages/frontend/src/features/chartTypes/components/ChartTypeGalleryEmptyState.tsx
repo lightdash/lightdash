@@ -1,8 +1,9 @@
 import { subject } from '@casl/ability';
 import { Button, Group, Stack, Text } from '@mantine/core';
-import { IconBooks, IconPlus, IconPuzzle } from '@tabler/icons-react';
+import { IconBooks, IconPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
+import { CustomChartTypeIcon } from '../../../components/common/ContentIcons';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { Can } from '../../../providers/Ability';
@@ -30,7 +31,7 @@ const ChartTypeGalleryEmptyState: FC<Props> = ({
     return (
         <Stack align="center" gap="sm" py="7xl">
             <MantineIcon
-                icon={IconPuzzle}
+                icon={CustomChartTypeIcon}
                 color="ldGray.5"
                 stroke={1.5}
                 size="lg"

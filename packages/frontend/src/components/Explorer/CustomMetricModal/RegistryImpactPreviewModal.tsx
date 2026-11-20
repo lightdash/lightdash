@@ -1,7 +1,8 @@
 import { type DashboardCustomMetricAffectedChart } from '@lightdash/common';
 import { Button, Group, List, Stack, Text } from '@mantine/core';
-import { IconChartBar, IconShare2 } from '@tabler/icons-react';
+import { IconShare2 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { BarChartIcon } from '../../common/ContentIcons';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 
@@ -79,7 +80,7 @@ const RegistryImpactPreviewModal: FC<Props> = ({
                                 key={chart.uuid}
                                 icon={
                                     <MantineIcon
-                                        icon={IconChartBar}
+                                        icon={BarChartIcon}
                                         color="dimmed"
                                     />
                                 }

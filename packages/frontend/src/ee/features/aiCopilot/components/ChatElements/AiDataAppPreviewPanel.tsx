@@ -8,7 +8,6 @@ import {
 import { Box, Center, Group, Loader, Menu, Stack, Text } from '@mantine/core';
 import {
     IconAlertTriangle,
-    IconAppWindow,
     IconArrowRight,
     IconCircleMinus,
     IconExternalLink,
@@ -16,6 +15,7 @@ import {
 import { clsx } from 'clsx';
 import { useCallback, useRef, useState, type FC, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
+import { DataAppIcon } from '../../../../../components/common/ContentIcons';
 import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import AppIframePreview, {
@@ -78,7 +78,7 @@ const BuildStateBody: FC<{ state: DataAppBuildCardState }> = ({ state }) => {
         case 'building':
             return (
                 <Box className={artifactStyles.previewEmpty}>
-                    <MantineIcon icon={IconAppWindow} size={48} />
+                    <MantineIcon icon={DataAppIcon} size={48} />
                     <Text size="sm">Your app preview will appear here</Text>
                     {state.kind === 'building' ? (
                         <Box className={artifactStyles.buildProgress}>

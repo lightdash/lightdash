@@ -9,12 +9,13 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconAppWindow, type Icon as IconType } from '@tabler/icons-react';
+import { type Icon as IconType } from '@tabler/icons-react';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
 import { z } from 'zod';
 import { useUpdateApp } from '../../../features/apps/hooks/useUpdateApp';
 import ChartTypeIconPicker from '../../../features/chartTypes/components/ChartTypeIconPicker';
+import { DataAppIcon } from '../ContentIcons';
 import MantineModal from '../MantineModal';
 import classes from './AppUpdateModal.module.css';
 
@@ -51,7 +52,7 @@ const AppUpdateModal: FC<AppUpdateModalProps> = ({
     initialName,
     initialDescription,
     resourceLabel = 'Data App',
-    icon = IconAppWindow,
+    icon = DataAppIcon,
     iconPicker,
     onConfirm,
     ...modalProps

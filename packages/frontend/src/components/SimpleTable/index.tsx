@@ -1,11 +1,12 @@
 import { Box, Flex, Text, Button } from '@mantine/core';
-import { IconAlertCircle, IconRefresh, IconTable } from '@tabler/icons-react';
+import { IconAlertCircle, IconRefresh } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import {
     isChunkLoadError,
     triggerChunkErrorReload,
 } from '../../features/chunkErrorHandler';
 import { computeLimitedRowCount, sliceRows } from '../../utils/sliceRows';
+import { TableIcon } from '../common/ContentIcons';
 import LoadingChart from '../common/LoadingChart';
 import PivotTable from '../common/PivotTable';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -212,7 +213,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
     const DashboardEmptyState = useCallback(() => {
         return (
             <SuboptimalState
-                icon={IconTable}
+                icon={TableIcon}
                 title="No results"
                 description="This query ran successfully but returned no results"
             />

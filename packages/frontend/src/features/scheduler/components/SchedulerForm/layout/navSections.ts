@@ -3,9 +3,9 @@ import {
     IconCalendarClock,
     IconMessage,
     IconSparkles,
-    IconTable,
     type Icon,
 } from '@tabler/icons-react';
+import { TableIcon } from '../../../../../components/common/ContentIcons';
 
 export type SchedulerSectionId = 'alert' | 'setup' | 'data' | 'message' | 'ai';
 
@@ -39,7 +39,7 @@ export const SCHEDULER_SECTIONS: Record<
     data: {
         id: 'data',
         label: 'Data & format',
-        icon: IconTable,
+        icon: TableIcon,
         group: 'content',
     },
     message: {

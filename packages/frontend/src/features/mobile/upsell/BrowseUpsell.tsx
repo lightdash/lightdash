@@ -1,9 +1,9 @@
+import { IconChevronRight } from '@tabler/icons-react';
 import {
-    IconChartBar,
-    IconChartLine,
-    IconChevronRight,
-    IconFolder,
-} from '@tabler/icons-react';
+    BarChartIcon,
+    LineChartIcon,
+    SpaceIcon,
+} from '../../../components/common/ContentIcons';
 import classes from './MobileUpsell.module.css';
 import { BarChart } from './UpsellParts';
 import { UPSELL_GRAPHIC_STRINGS as S } from './upsellStrings';
@@ -14,7 +14,7 @@ export const BrowseUpsell = () => (
             <div className={classes.screenTitle}>{S.browse}</div>
             <small>{S.spaces}</small>
             <div className={`${classes.row} ${classes.picked}`}>
-                <IconFolder />
+                <SpaceIcon />
                 <span>{S.space}</span>
                 <IconChevronRight />
             </div>
@@ -28,15 +28,15 @@ export const BrowseUpsell = () => (
         <div className={`${classes.sheet} ${classes.chartsSheet}`}>
             <div className={classes.screenTitle}>{S.space}</div>
             <div className={`${classes.row} ${classes.picked}`}>
-                <IconChartBar />
+                <BarChartIcon />
                 <span>{S.revenueQuestion}</span>
             </div>
             <div className={classes.row}>
-                <IconChartLine />
+                <LineChartIcon />
                 <span>{S.ordersQuestion}</span>
             </div>
             <div className={classes.row}>
-                <IconChartBar />
+                <BarChartIcon />
                 <span>{S.shipping}</span>
             </div>
         </div>

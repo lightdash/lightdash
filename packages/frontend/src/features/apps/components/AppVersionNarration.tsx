@@ -1,6 +1,7 @@
 import { Box, Collapse, Group, Text, UnstyledButton } from '@mantine/core';
-import { IconAppWindow, IconChevronRight } from '@tabler/icons-react';
+import { IconChevronRight } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { DataAppIcon } from '../../../components/common/ContentIcons';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ReasoningHistoryRow } from '../../../ee/features/aiCopilot/components/ChatElements/ToolCalls/LiveActivityCard';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
@@ -40,7 +41,7 @@ const BuildLogRow: FC<{
             >
                 <Group gap={8} wrap="nowrap">
                     <MantineIcon
-                        icon={IconAppWindow}
+                        icon={DataAppIcon}
                         size={13}
                         stroke={1.6}
                         className={classes.activityIcon}

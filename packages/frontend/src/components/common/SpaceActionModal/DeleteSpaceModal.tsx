@@ -1,18 +1,18 @@
 import { FeatureFlags } from '@lightdash/common';
 import { Group, Skeleton, Text, TextInput } from '@mantine/core';
-import {
-    IconAppWindow,
-    IconChartBar,
-    IconFolder,
-    IconFileText,
-    IconLayoutDashboard,
-} from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { type DeleteSpaceModalBody } from '.';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useSpaceDeleteImpact } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
 import Callout from '../Callout';
+import {
+    BarChartIcon,
+    DashboardIcon,
+    DataAppIcon,
+    DocumentIcon,
+    SpaceIcon,
+} from '../ContentIcons';
 import MantineIcon from '../MantineIcon';
 import MantineModal from '../MantineModal';
 
@@ -84,7 +84,7 @@ const DeleteSpaceModalContent: FC<
             <Group gap="lg">
                 <Group gap={4}>
                     <MantineIcon
-                        icon={IconFolder}
+                        icon={SpaceIcon}
                         size="sm"
                         color={softDeleteEnabled ? 'yellow.7' : 'red.7'}
                         stroke={1.5}
@@ -100,7 +100,7 @@ const DeleteSpaceModalContent: FC<
                 </Group>
                 <Group gap={4}>
                     <MantineIcon
-                        icon={IconChartBar}
+                        icon={BarChartIcon}
                         size="sm"
                         color={softDeleteEnabled ? 'yellow.7' : 'red.7'}
                         stroke={1.5}
@@ -116,7 +116,7 @@ const DeleteSpaceModalContent: FC<
                 </Group>
                 <Group gap={4}>
                     <MantineIcon
-                        icon={IconLayoutDashboard}
+                        icon={DashboardIcon}
                         size="sm"
                         color={softDeleteEnabled ? 'yellow.7' : 'red.7'}
                         stroke={1.5}
@@ -133,7 +133,7 @@ const DeleteSpaceModalContent: FC<
                 {dataAppsEnabled && (
                     <Group gap={4}>
                         <MantineIcon
-                            icon={IconAppWindow}
+                            icon={DataAppIcon}
                             size="sm"
                             color={softDeleteEnabled ? 'yellow.7' : 'red.7'}
                             stroke={1.5}
@@ -150,7 +150,7 @@ const DeleteSpaceModalContent: FC<
                 )}
                 <Group gap={4}>
                     <MantineIcon
-                        icon={IconFileText}
+                        icon={DocumentIcon}
                         size="sm"
                         color={softDeleteEnabled ? 'yellow.7' : 'red.7'}
                         stroke={1.5}

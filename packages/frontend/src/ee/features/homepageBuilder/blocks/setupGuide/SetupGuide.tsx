@@ -17,7 +17,6 @@ import {
     IconArrowBackUp,
     IconArrowDownLeft,
     IconBrandSlack,
-    IconChartBar,
     IconChartRadar,
     IconChevronRight,
     IconCircleCheckFilled,
@@ -34,6 +33,7 @@ import {
 import { useEffect, useRef, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { AI_NAME } from '../../../../../components/common/aiName';
+import { BarChartIcon } from '../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
@@ -75,7 +75,7 @@ const ROW_COPY: Record<
         time: '5 min',
     },
     'first-chart': {
-        icon: IconChartBar,
+        icon: BarChartIcon,
         pitch: `Ask ${AI_NAME}, or pick a table and build it yourself.`,
         time: '2 min',
     },

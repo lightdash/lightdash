@@ -1,10 +1,6 @@
 import { Group, SimpleGrid, Stack, Text } from '@mantine/core';
-import {
-    IconBuilding,
-    IconChartBar,
-    IconTarget,
-    IconUser,
-} from '@tabler/icons-react';
+import { IconBuilding, IconTarget, IconUser } from '@tabler/icons-react';
+import { BarChartIcon } from '../../../../components/common/ContentIcons';
 import MantineIcon, {
     type MantineIconProps,
 } from '../../../../components/common/MantineIcon';
@@ -45,7 +41,7 @@ const guidelines = [
             'Include relevant business context, goals, and constraints. Mention industry, target audience, and strategic objectives.',
     },
     {
-        icon: IconChartBar,
+        icon: BarChartIcon,
         title: 'Analysis preferences',
         description:
             'Define how data should be analyzed and presented. Specify preferred metrics, dimensions, visualization types, and reporting formats.',

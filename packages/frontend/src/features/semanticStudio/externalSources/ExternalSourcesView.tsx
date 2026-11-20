@@ -19,7 +19,6 @@ import {
     Tooltip,
 } from '@mantine/core';
 import {
-    IconChartBar,
     IconDots,
     IconEye,
     IconFileTypeCsv,
@@ -38,6 +37,7 @@ import {
     type ReactNode,
 } from 'react';
 import { Link } from 'react-router';
+import { BarChartIcon } from '../../../components/common/ContentIcons';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useHealth from '../../../hooks/health/useHealth';
 import googleSheetsLogo from '../../../svgs/google-sheets.svg';
@@ -117,7 +117,7 @@ const ExternalSourceMenu: FC<{
                     <Menu.Item
                         component={Link}
                         to={`/projects/${projectUuid}/tables/${table.name}`}
-                        leftSection={<MantineIcon icon={IconChartBar} />}
+                        leftSection={<MantineIcon icon={BarChartIcon} />}
                     >
                         Open in Explore
                     </Menu.Item>

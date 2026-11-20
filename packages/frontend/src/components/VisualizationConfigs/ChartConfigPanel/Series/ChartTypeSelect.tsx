@@ -1,20 +1,20 @@
 import { CartesianSeriesType } from '@lightdash/common';
 import { type SelectProps, Select } from '@mantine/core';
-import {
-    IconChartArea,
-    IconChartAreaLine,
-    IconChartBar,
-    IconChartDots,
-    IconChartLine,
-} from '@tabler/icons-react';
+import { IconChartDots } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import {
+    AreaChartIcon,
+    BarChartIcon,
+    LineChartIcon,
+    MixedChartIcon,
+} from '../../../common/ContentIcons';
 import MantineIcon from '../../../common/MantineIcon';
 import seriesClasses from './Series.module.css';
 
 const CHART_TYPE_OPTIONS = [
-    { value: CartesianSeriesType.BAR, label: 'Bar', icon: IconChartBar },
-    { value: CartesianSeriesType.LINE, label: 'Line', icon: IconChartLine },
-    { value: CartesianSeriesType.AREA, label: 'Area', icon: IconChartArea },
+    { value: CartesianSeriesType.BAR, label: 'Bar', icon: BarChartIcon },
+    { value: CartesianSeriesType.LINE, label: 'Line', icon: LineChartIcon },
+    { value: CartesianSeriesType.AREA, label: 'Area', icon: AreaChartIcon },
     {
         value: CartesianSeriesType.SCATTER,
         label: 'Scatter',
@@ -38,7 +38,7 @@ export const ChartTypeSelect: FC<Props> = ({
         () => [
             ...CHART_TYPE_OPTIONS,
             ...(showMixed
-                ? [{ value: 'mixed', label: 'Mixed', icon: IconChartAreaLine }]
+                ? [{ value: 'mixed', label: 'Mixed', icon: MixedChartIcon }]
                 : []),
         ],
         [showMixed],

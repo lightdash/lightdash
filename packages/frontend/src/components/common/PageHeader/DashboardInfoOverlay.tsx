@@ -14,7 +14,6 @@ import {
     IconClock,
     IconCopy,
     IconEye,
-    IconFolder,
     IconHash,
     IconUser,
 } from '@tabler/icons-react';
@@ -23,6 +22,7 @@ import { Link } from 'react-router';
 import ManagedFromRepositoryRow from '../../../features/contentAsCode/components/ManagedFromRepositoryRow';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
+import { SpaceIcon } from '../ContentIcons';
 import MantineIcon from '../MantineIcon';
 import ViewsCountPopover from '../ViewsCountPopover';
 import styles from './DashboardInfoOverlay.module.css';
@@ -79,7 +79,7 @@ const DashboardInfoOverlay: FC<DashboardInfoOverlayProps> = ({
                 </InfoRow>
 
                 {dashboard.spaceName && (
-                    <InfoRow icon={IconFolder} label="Space">
+                    <InfoRow icon={SpaceIcon} label="Space">
                         <Anchor
                             component={Link}
                             to={`/projects/${projectUrlIdentifier}/spaces/${dashboard.spaceUuid}`}

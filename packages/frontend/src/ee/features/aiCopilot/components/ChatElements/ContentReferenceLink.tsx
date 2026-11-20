@@ -1,18 +1,15 @@
 import { ChartKind, assertUnreachable } from '@lightdash/common';
 import { Anchor, Box, Text, type AnchorProps } from '@mantine/core';
 import {
-    IconAppWindow,
     IconArrowRight,
     IconBrandGithub,
     IconBrush,
-    IconChartBar,
     IconClick,
     IconFile,
     IconFileSpreadsheet,
     IconFileText,
     IconFlask,
     IconGitPullRequest,
-    IconLayoutDashboard,
     IconLicense,
     IconMessages,
     IconPencil,
@@ -20,7 +17,6 @@ import {
     IconSearch,
     IconSend,
     IconSitemap,
-    IconTable,
     type Icon,
 } from '@tabler/icons-react';
 import {
@@ -29,6 +25,12 @@ import {
     type ReactNode,
 } from 'react';
 import { Link, type LinkProps } from 'react-router';
+import {
+    BarChartIcon,
+    DashboardIcon,
+    DataAppIcon,
+    TableIcon,
+} from '../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
 import styles from './ContentLink.module.css';
@@ -95,13 +97,13 @@ const getIconMeta = ({
             return {
                 color: 'green.7',
                 fill: 'green.6',
-                icon: IconLayoutDashboard,
+                icon: DashboardIcon,
             };
         case 'data_app':
             return {
                 color: 'orange.7',
                 fill: 'orange.6',
-                icon: IconAppWindow,
+                icon: DataAppIcon,
             };
         case 'data_app_element':
             return {
@@ -131,7 +133,7 @@ const getIconMeta = ({
             return {
                 color: 'indigo.6',
                 fill: 'indigo.1',
-                icon: IconChartBar,
+                icon: BarChartIcon,
             };
         case 'thread':
             return {
@@ -187,7 +189,7 @@ const getIconMeta = ({
             return {
                 color: 'indigo.7',
                 fill: 'indigo.4',
-                icon: IconTable,
+                icon: TableIcon,
             };
         case 'preview_environment':
             return {

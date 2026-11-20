@@ -18,12 +18,12 @@ import {
     IconArrowsDiagonalMinimize2,
     IconArrowUpRight,
     IconGitPullRequest,
-    IconTable,
     IconTrash,
 } from '@tabler/icons-react';
 import { useEffect, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
+import { TableIcon } from '../../components/common/ContentIcons';
 import MantineIcon from '../../components/common/MantineIcon';
 import { ChangeDiff } from './ChangeDiff';
 import {
@@ -95,7 +95,7 @@ const ModelSection: FC<{
         <Box className={classes.section}>
             <Group className={classes.header} gap="xs" wrap="nowrap">
                 <ThemeIcon variant="light" color="indigo" size={24} radius="sm">
-                    <MantineIcon icon={IconTable} size={14} />
+                    <MantineIcon icon={TableIcon} size={14} />
                 </ThemeIcon>
                 <Box flex={1} miw={0}>
                     <Group justify="space-between" gap="xs" wrap="nowrap">

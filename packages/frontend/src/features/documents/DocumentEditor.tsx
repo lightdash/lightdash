@@ -15,7 +15,6 @@ import {
     Tooltip,
 } from '@mantine/core';
 import {
-    IconChartBar,
     IconCheck,
     IconDots,
     IconLink,
@@ -34,6 +33,7 @@ import {
 } from 'react';
 import { useBeforeUnload, useBlocker } from 'react-router';
 import Callout from '../../components/common/Callout';
+import { BarChartIcon } from '../../components/common/ContentIcons';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
@@ -409,7 +409,7 @@ const DocumentEditor = ({
                                         data-tour-anchor="document-add-chart"
                                         data-tour-hint="Click Add chart"
                                     >
-                                        <MantineIcon icon={IconChartBar} />
+                                        <MantineIcon icon={BarChartIcon} />
                                     </ActionIcon>
                                 </Tooltip>
                             </Menu.Target>

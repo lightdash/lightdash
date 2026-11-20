@@ -20,7 +20,6 @@ import {
 } from '@mantine/core';
 import {
     IconCategory,
-    IconChartAreaLine,
     IconChevronDown,
     IconChevronRight,
     IconFolders,
@@ -39,6 +38,7 @@ import { useSpaceSummaries } from '../../hooks/useSpaces';
 import useApp from '../../providers/App/useApp';
 import scrollAreaClasses from '../../styles/ScrollArea.module.css';
 import {
+    BarChartIcon,
     CustomChartTypeIcon,
     DashboardIcon,
     DataAppIcon,
@@ -85,7 +85,7 @@ const getFavoriteItemIcon = (item: ResourceViewItem) => {
         case ResourceViewItemType.DASHBOARD:
             return DashboardIcon;
         case ResourceViewItemType.CHART:
-            return IconChartAreaLine;
+            return BarChartIcon;
         case ResourceViewItemType.SPACE:
             return SpaceIcon;
         case ResourceViewItemType.DATA_APP:
@@ -211,7 +211,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 <Menu.Item
                     component={Link}
                     to={`/projects/${projectUrlIdentifier}/saved`}
-                    leftSection={<MantineIcon icon={IconChartAreaLine} />}
+                    leftSection={<MantineIcon icon={BarChartIcon} />}
                     data-tour-nav="all-charts"
                     data-tour-hint="Open All saved charts"
                 >

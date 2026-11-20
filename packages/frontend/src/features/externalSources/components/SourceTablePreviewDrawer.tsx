@@ -9,8 +9,9 @@ import {
     Tabs,
     Text,
 } from '@mantine/core';
-import { IconColumns3, IconEye, IconTable } from '@tabler/icons-react';
+import { IconColumns3, IconEye } from '@tabler/icons-react';
 import { useRef, type FC } from 'react';
+import { TableIcon } from '../../../components/common/ContentIcons';
 import LightTable from '../../../components/common/LightTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
@@ -53,7 +54,7 @@ export const SourceTablePreviewDrawer: FC<Props> = ({
             size={640}
             title={
                 <Group gap="xs" wrap="nowrap">
-                    <MantineIcon icon={IconTable} color="ldGray.7" />
+                    <MantineIcon icon={TableIcon} color="ldGray.7" />
                     <Text fw={600} fz="sm">
                         {tableLabel}
                     </Text>
@@ -67,7 +68,7 @@ export const SourceTablePreviewDrawer: FC<Props> = ({
             )}
             {previewResult.isError && (
                 <SuboptimalState
-                    icon={IconTable}
+                    icon={TableIcon}
                     title="Couldn't load the preview"
                     description={previewResult.error.error.message}
                 />

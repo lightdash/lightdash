@@ -9,7 +9,7 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconLayoutDashboard, IconPlus } from '@tabler/icons-react';
+import { IconPlus } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
 import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
@@ -18,6 +18,7 @@ import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
 import MantineBaseProvider from '../../../providers/MantineBaseProvider';
+import { DashboardIcon } from '../ContentIcons';
 import MantineIcon from '../MantineIcon';
 import MantineModal from '../MantineModal';
 import SaveToSpaceForm from './ChartCreateModal/SaveToSpaceForm';
@@ -189,7 +190,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
             <MantineModal
                 {...modalProps}
                 title="Create Dashboard"
-                icon={IconLayoutDashboard}
+                icon={DashboardIcon}
                 onClose={() => handleClose()}
                 modalRootProps={{ keepMounted: false }}
                 leftActions={

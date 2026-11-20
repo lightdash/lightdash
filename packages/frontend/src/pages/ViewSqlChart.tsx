@@ -12,12 +12,13 @@ import {
     Stack,
     Text,
 } from '@mantine/core';
-import { IconChartHistogram, IconTable } from '@tabler/icons-react';
+import { IconChartHistogram } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
 import { validate as isValidUuid } from 'uuid';
 import { ConditionalVisibility } from '../components/common/ConditionalVisibility';
+import { TableIcon } from '../components/common/ContentIcons';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
@@ -158,7 +159,7 @@ const ViewSqlChart = () => {
                                         value: TabOption.RESULTS,
                                         label: (
                                             <Group gap="xs" wrap="nowrap">
-                                                <MantineIcon icon={IconTable} />
+                                                <MantineIcon icon={TableIcon} />
                                                 <Text fz="sm" fw={500}>
                                                     Results
                                                 </Text>

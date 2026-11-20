@@ -22,16 +22,18 @@ import {
 } from '@mantine/core';
 import { useDebouncedCallback, useDisclosure } from '@mantine/hooks';
 import {
-    IconChartBar,
     IconDeviceFloppy,
     IconDots,
     IconExternalLink,
-    IconLayoutDashboard,
     IconTableExport,
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useMemo, useState, type FC, type RefObject } from 'react';
 import { Link } from 'react-router';
+import {
+    BarChartIcon,
+    DashboardIcon,
+} from '../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
@@ -358,9 +360,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                                         void mergeChartActions.saveToCurrentDashboard()
                                     }
                                     leftSection={
-                                        <MantineIcon
-                                            icon={IconLayoutDashboard}
-                                        />
+                                        <MantineIcon icon={DashboardIcon} />
                                     }
                                 >
                                     Save to current dashboard
@@ -384,9 +384,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                                     to={`/projects/${projectUuid}/dashboards/${composerSave.dashboardUuid}`}
                                     target="_blank"
                                     leftSection={
-                                        <MantineIcon
-                                            icon={IconLayoutDashboard}
-                                        />
+                                        <MantineIcon icon={DashboardIcon} />
                                     }
                                 >
                                     View on dashboard
@@ -520,7 +518,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                     opened={saveModalOpened}
                     onClose={closeSaveModal}
                     title="Save chart"
-                    icon={IconChartBar}
+                    icon={BarChartIcon}
                     size="lg"
                     modalBodyProps={{ px: 0, py: 0 }}
                     modalRootProps={{ closeOnClickOutside: false }}

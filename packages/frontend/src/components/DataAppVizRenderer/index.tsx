@@ -13,7 +13,6 @@ import {
     type ResultRow,
 } from '@lightdash/common';
 import { Anchor, Box, Stack, Text } from '@mantine/core';
-import { IconPuzzle } from '@tabler/icons-react';
 import {
     useCallback,
     useContext,
@@ -54,6 +53,7 @@ import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { derived } from '../../utils/changeOrigin';
+import { CustomChartTypeIcon } from '../common/ContentIcons';
 import LoadingChart from '../common/LoadingChart';
 import MantineIcon from '../common/MantineIcon';
 import { DefaultSkeleton } from '../DashboardTiles/TileBase/LoadingSkeletonOverlay';
@@ -118,7 +118,7 @@ const DataAppVizPlaceholder: FC<{
     hintLink?: { label: string; to: string };
 }> = ({ message, hint, hintLink }) => (
     <Stack align="center" justify="center" gap="xs" h="100%" w="100%">
-        <MantineIcon icon={IconPuzzle} size="xl" color="ldGray.5" />
+        <MantineIcon icon={CustomChartTypeIcon} size="xl" color="ldGray.5" />
         <Text c="dimmed" size="sm" ta="center">
             {message}
         </Text>

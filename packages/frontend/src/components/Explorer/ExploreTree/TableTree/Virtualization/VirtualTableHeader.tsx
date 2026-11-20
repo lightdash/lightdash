@@ -1,7 +1,8 @@
 import { NavLink, Text } from '@mantine/core';
-import { IconArrowsJoin, IconTable } from '@tabler/icons-react';
+import { IconArrowsJoin } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
+import { TableIcon } from '../../../../common/ContentIcons';
 import MantineIcon from '../../../../common/MantineIcon';
 import { TableItemDetailPreview } from '../ItemDetailPreview';
 import type { TableHeaderItem } from './types';
@@ -77,7 +78,7 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
             label={label}
             leftSection={
                 <MantineIcon
-                    icon={isJoined ? IconArrowsJoin : IconTable}
+                    icon={isJoined ? IconArrowsJoin : TableIcon}
                     size={16}
                     color="ldGray.6"
                 />

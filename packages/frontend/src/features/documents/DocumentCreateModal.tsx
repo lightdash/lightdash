@@ -1,9 +1,9 @@
 import { getDocumentUrl, ResourceViewItemType } from '@lightdash/common';
 import { Button, Fieldset, Stack, Textarea, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconFileText } from '@tabler/icons-react';
 import { useNavigate } from 'react-router';
 import Callout from '../../components/common/Callout';
+import { DocumentIcon } from '../../components/common/ContentIcons';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import MantineModal from '../../components/common/MantineModal';
 import SpaceSelector from '../../components/common/SpaceSelector/SpaceSelector';
@@ -85,7 +85,7 @@ const DocumentCreateModal = ({
                 }
             }}
             title="Create document"
-            icon={IconFileText}
+            icon={DocumentIcon}
             cancelDisabled={create.isLoading}
             actions={
                 <Button

@@ -10,15 +10,11 @@ import {
 } from '@lightdash/common';
 import { Button, Stack, type ModalProps } from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
-import {
-    IconAppWindow,
-    IconHeading,
-    IconMarkdown,
-    IconVideo,
-} from '@tabler/icons-react';
+import { IconHeading, IconMarkdown, IconVideo } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useMemo } from 'react';
 import ComposerChartTileForm from '../../../features/composerCharts/components/ComposerChartTileForm';
+import { DataAppIcon } from '../../common/ContentIcons';
 import MantineModal from '../../common/MantineModal';
 import DataAppTileEditForm from './DataAppTileEditForm';
 import LoomTileForm from './LoomTileForm';
@@ -91,7 +87,7 @@ const TileUpdateModal = <T extends Tile>({
             case DashboardTileTypes.HEADING:
                 return IconHeading;
             case DashboardTileTypes.DATA_APP:
-                return IconAppWindow;
+                return DataAppIcon;
             case DashboardTileTypes.SAVED_CHART:
                 return undefined;
             case DashboardTileTypes.SQL_CHART:

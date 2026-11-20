@@ -10,9 +10,10 @@ import {
 } from '@lightdash/common';
 import { Button, Stack, Text } from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
-import { IconAppWindow, IconMarkdown, IconVideo } from '@tabler/icons-react';
+import { IconMarkdown, IconVideo } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { v4 as uuid4 } from 'uuid';
+import { DataAppIcon } from '../../common/ContentIcons';
 import MantineModal from '../../common/MantineModal';
 import DataAppTileForm from './DataAppTileForm';
 import LoomTileForm from './LoomTileForm';
@@ -80,7 +81,7 @@ export const TileAddModal: FC<AddProps> = ({
             case DashboardTileTypes.LOOM:
                 return IconVideo;
             case DashboardTileTypes.DATA_APP:
-                return IconAppWindow;
+                return DataAppIcon;
             default:
                 return assertUnreachable(type, 'Tile type not supported');
         }

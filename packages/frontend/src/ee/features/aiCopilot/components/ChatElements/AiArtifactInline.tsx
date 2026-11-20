@@ -1,11 +1,8 @@
 import type { AiAgentMessageAssistant } from '@lightdash/common';
 import { Box, Group, Paper, Text, UnstyledButton } from '@mantine/core';
-import {
-    IconChevronDown,
-    IconChevronRight,
-    IconTable,
-} from '@tabler/icons-react';
+import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { memo, useContext, useMemo, useState, type FC } from 'react';
+import { TableIcon } from '../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import classes from './AiArtifactInline.module.css';
@@ -73,7 +70,7 @@ export const AiArtifactInline: FC<AiArtifactInlineProps> = memo(
                         size={12}
                         color="dimmed"
                     />
-                    <MantineIcon icon={IconTable} size={14} color="dimmed" />
+                    <MantineIcon icon={TableIcon} size={14} color="dimmed" />
                     <Text fz="xs" c="dimmed" truncate>
                         {artifact.title ?? 'Results'}
                     </Text>

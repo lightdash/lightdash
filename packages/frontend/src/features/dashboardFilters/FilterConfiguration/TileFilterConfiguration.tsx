@@ -33,12 +33,9 @@ import {
     Tooltip,
     type PopoverProps,
 } from '@mantine/core';
-import {
-    IconAppWindow,
-    IconChevronDown,
-    IconChevronRight,
-} from '@tabler/icons-react';
+import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { DataAppIcon } from '../../../components/common/ContentIcons';
 import FieldSelect from '../../../components/common/FieldSelect';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
@@ -624,7 +621,7 @@ const TileFilterConfiguration: FC<Props> = ({
                                                     icon={
                                                         value.targetType ===
                                                         'dataApp'
-                                                            ? IconAppWindow
+                                                            ? DataAppIcon
                                                             : getChartIcon(
                                                                   value.tileChartKind,
                                                               )

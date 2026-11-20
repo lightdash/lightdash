@@ -6,8 +6,6 @@ import {
     type Dashboard,
 } from '@lightdash/common';
 import {
-    IconAppWindow,
-    IconChartBar,
     IconHeading,
     IconMarkdown,
     IconPlus,
@@ -32,6 +30,7 @@ import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import { BarChartIcon, DataAppIcon } from '../common/ContentIcons';
 import AddChartTilesModal from './TileForms/AddChartTilesModal';
 import { TileAddModal } from './TileForms/TileAddModal';
 
@@ -168,7 +167,7 @@ export const useAddTileOptions = ({
         {
             id: 'savedChart',
             label: 'Saved chart',
-            icon: IconChartBar,
+            icon: BarChartIcon,
             hint: null,
             onSelect: () => setIsAddChartTilesModalOpen(true),
             isShown: isTileTypeAllowed(DashboardTileTypes.SAVED_CHART),
@@ -186,7 +185,7 @@ export const useAddTileOptions = ({
         {
             id: 'dataApp',
             label: 'Data app',
-            icon: IconAppWindow,
+            icon: DataAppIcon,
             hint: null,
             onSelect: () => setFormTileType(DashboardTileTypes.DATA_APP),
             isShown:

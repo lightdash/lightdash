@@ -14,13 +14,12 @@ import {
     Textarea,
     TextInput,
 } from '@mantine/core';
-import {
-    IconChartBar,
-    IconLayoutDashboard,
-    IconPlus,
-    IconWand,
-} from '@tabler/icons-react';
+import { IconPlus, IconWand } from '@tabler/icons-react';
 import { useMemo, useState, type FC, type FormEvent } from 'react';
+import {
+    BarChartIcon,
+    DashboardIcon,
+} from '../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { useDashboardQuery } from '../../../../../hooks/dashboard/useDashboard';
@@ -72,18 +71,14 @@ const ReportedFromChip: FC<{ context: CreateIssueContext }> = ({ context }) => {
 
     if (context.chartUuid) {
         return (
-            <Badge leftSection={<MantineIcon icon={IconChartBar} size={12} />}>
+            <Badge leftSection={<MantineIcon icon={BarChartIcon} size={12} />}>
                 Reported from {chart?.name ?? 'a chart'}
             </Badge>
         );
     }
     if (context.dashboardUuid) {
         return (
-            <Badge
-                leftSection={
-                    <MantineIcon icon={IconLayoutDashboard} size={12} />
-                }
-            >
+            <Badge leftSection={<MantineIcon icon={DashboardIcon} size={12} />}>
                 Reported from {dashboard?.name ?? 'a dashboard'}
             </Badge>
         );

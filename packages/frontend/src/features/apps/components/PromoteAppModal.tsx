@@ -1,7 +1,8 @@
 import { Group, Loader, Stack, Text } from '@mantine/core';
-import { IconFolder, IconRocket } from '@tabler/icons-react';
+import { IconRocket } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useNavigate } from 'react-router';
+import { SpaceIcon } from '../../../components/common/ContentIcons';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { usePromoteApp, usePromoteAppDiff } from '../hooks/usePromoteApp';
@@ -79,7 +80,7 @@ export const PromoteAppModal: FC<Props> = ({
                         )}
                     </Text>
                     <Group gap="xs">
-                        <MantineIcon icon={IconFolder} color="dimmed" />
+                        <MantineIcon icon={SpaceIcon} color="dimmed" />
                         <Text size="sm" c="dimmed">
                             {diff.space
                                 ? `Space: ${diff.space.name}`

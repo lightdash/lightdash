@@ -21,9 +21,10 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconCode, IconTable } from '@tabler/icons-react';
+import { IconCode } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
 import CodeBlock from '../../../components/common/CodeBlock/CodeBlock';
+import { TableIcon } from '../../../components/common/ContentIcons';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useCanViewEmbedCompiledSql from '../../../ee/providers/Embed/useCanViewEmbedCompiledSql';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
@@ -155,7 +156,7 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
         <Stack gap="xs" w="100%">
             <Group gap="xs" wrap="nowrap" justify="space-between">
                 <Group gap="xs" wrap="nowrap">
-                    <MantineIcon icon={IconTable} color="gray.6" size={14} />
+                    <MantineIcon icon={TableIcon} color="gray.6" size={14} />
                     <Text size="sm" fw={500} className={classes.tableName}>
                         {metric.tableLabel}
                     </Text>

@@ -1,7 +1,7 @@
 import { ChartType } from '@lightdash/common';
 import { Text, UnstyledButton } from '@mantine/core';
-import { IconChartBar } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { BarChartIcon } from '../../common/ContentIcons';
 import MantineIcon from '../../common/MantineIcon';
 import { useChartTypeOptions } from '../ChartGallery/useChartTypeOptions';
 import classes from './VisualizationCard.module.css';
@@ -26,7 +26,7 @@ const ChartTypeSummary: FC<Props> = ({ chartType, onClick }) => {
             {/* An untouched query is a table: show what it could become */}
             <MantineIcon
                 icon={
-                    chartType === ChartType.TABLE ? IconChartBar : selected.icon
+                    chartType === ChartType.TABLE ? BarChartIcon : selected.icon
                 }
                 size={14}
             />

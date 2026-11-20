@@ -6,14 +6,10 @@ import {
     rem,
     Tooltip,
 } from '@mantine/core';
-import {
-    IconCheck,
-    IconFolder,
-    IconFolderOpen,
-    IconFolders,
-} from '@tabler/icons-react';
+import { IconCheck, IconFolderOpen, IconFolders } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import React, { useMemo } from 'react';
+import { SpaceIcon } from '../ContentIcons';
 import MantineIcon from '../MantineIcon';
 import classes from './TreeItem.module.css';
 
@@ -58,9 +54,7 @@ const TreeItem: React.FC<Props> = ({
     const folderIcon = (
         <MantineIcon
             icon={
-                isRoot || (hasChildren && expanded)
-                    ? IconFolderOpen
-                    : IconFolder
+                isRoot || (hasChildren && expanded) ? IconFolderOpen : SpaceIcon
             }
             color="ldGray.7"
             size="lg"

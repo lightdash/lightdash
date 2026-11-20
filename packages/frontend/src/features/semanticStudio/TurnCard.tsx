@@ -12,10 +12,10 @@ import {
     IconCheck,
     IconChevronDown,
     IconChevronRight,
-    IconTable,
 } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
+import { TableIcon } from '../../components/common/ContentIcons';
 import MantineIcon from '../../components/common/MantineIcon';
 import { CHANGE_KIND_LABELS, type ChangeKind } from './modelCode';
 import { ISSUE_KINDS, type Issue } from './proposalIssues';
@@ -103,7 +103,7 @@ const ModelStep: FC<{ group: TurnGroup }> = ({
             rows.length === 1 && subtitle === null ? (
                 rows[0].icon
             ) : (
-                <MantineIcon icon={IconTable} size={14} color="green" />
+                <MantineIcon icon={TableIcon} size={14} color="green" />
             )
         }
         title={title}

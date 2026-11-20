@@ -13,9 +13,9 @@ import {
     IconRefresh,
     IconSearch,
     IconSwitchHorizontal,
-    IconTable,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { TableIcon } from '../../../components/common/ContentIcons';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { EXPLORE_PREVIEW_ROW_LIMIT } from '../utils/explorePreviewQuery';
 import DataSourcePicker from './DataSourcePicker';
@@ -38,7 +38,7 @@ const ExploreSourceCard: FC<Props> = ({ source }) => {
             <Paper className={classes.emptyCard} variant="dotted">
                 <Group gap="sm" wrap="nowrap">
                     <Box className={classes.iconTileSmall}>
-                        <MantineIcon icon={IconTable} size={16} />
+                        <MantineIcon icon={TableIcon} size={16} />
                     </Box>
                     <Text fz="sm" fw={500} flex={1} miw={0} truncate="end">
                         Use a table
@@ -71,7 +71,7 @@ const ExploreSourceCard: FC<Props> = ({ source }) => {
     return (
         <Group className={classes.attachedCard} gap="sm" wrap="nowrap">
             <Box className={classes.iconTileAccent}>
-                <MantineIcon icon={IconTable} size={18} />
+                <MantineIcon icon={TableIcon} size={18} />
             </Box>
             <Stack gap={6} flex={1} miw={0}>
                 <Group gap="xs" align="baseline" wrap="nowrap">

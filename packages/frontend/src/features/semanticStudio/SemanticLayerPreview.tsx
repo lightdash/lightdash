@@ -1,12 +1,11 @@
 import { type WarehouseTypes } from '@lightdash/common';
 import { Box } from '@mantine/core';
-import {
-    IconChartBar,
-    IconDatabase,
-    IconLayoutDashboard,
-    IconMessage,
-} from '@tabler/icons-react';
+import { IconDatabase, IconMessage } from '@tabler/icons-react';
 import { type FC } from 'react';
+import {
+    BarChartIcon,
+    DashboardIcon,
+} from '../../components/common/ContentIcons';
 import MantineIcon from '../../components/common/MantineIcon';
 import {
     getWarehouseIcon,
@@ -17,8 +16,8 @@ import classes from './SemanticLayerPreview.module.css';
 const RAW_TABLES = ['tbl_ord_dtl', 'pmt_txn_v2', 'cust_mstr'];
 const DIMENSIONS = ['Month', 'Status'];
 const TOOLS = [
-    { icon: IconChartBar, label: 'Chart' },
-    { icon: IconLayoutDashboard, label: 'Dashboard' },
+    { icon: BarChartIcon, label: 'Chart' },
+    { icon: DashboardIcon, label: 'Dashboard' },
     { icon: IconMessage, label: 'Ask AI' },
 ];
 

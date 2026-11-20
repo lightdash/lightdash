@@ -27,7 +27,6 @@ import {
     Text,
 } from '@mantine/core';
 import {
-    IconChartBar,
     IconMinus,
     IconSortAscending,
     IconSortDescending,
@@ -49,6 +48,7 @@ import {
 } from '../../../../features/visualization/store';
 import { useCartesianEditorActions } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { getAxisTypeFromField } from '../../../../hooks/echarts/useEchartsCartesianConfig';
+import { BarChartIcon } from '../../../common/ContentIcons';
 import MantineIcon from '../../../common/MantineIcon';
 import { NumberInput } from '../../../common/NumberInput';
 import { Config } from '../../common/Config';
@@ -219,13 +219,13 @@ export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
         {
             value: XAxisSort.BAR_TOTALS_ASCENDING,
             label: 'Bars ascending',
-            icon: IconChartBar,
+            icon: BarChartIcon,
             disabled: !canSortByBarTotals,
         },
         {
             value: XAxisSort.BAR_TOTALS_DESCENDING,
             label: 'Bars descending',
-            icon: IconChartBar,
+            icon: BarChartIcon,
             mirrorIcon: true,
             disabled: !canSortByBarTotals,
         },

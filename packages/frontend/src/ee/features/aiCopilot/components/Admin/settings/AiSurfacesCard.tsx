@@ -1,13 +1,9 @@
 import { type SlackSettings } from '@lightdash/common';
 import { Divider, Stack, Switch, Text } from '@mantine/core';
-import {
-    IconBrandSlack,
-    IconLayoutDashboard,
-    IconSparkles,
-    type Icon,
-} from '@tabler/icons-react';
+import { IconBrandSlack, IconSparkles, type Icon } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
+import { DashboardIcon } from '../../../../../../components/common/ContentIcons';
 import { SettingRow } from '../../../../../../components/common/Settings/SettingLayout';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
 import { AI_ANALYSIS_SETTINGS_PATH } from '../../../../../../features/apps/analysis/useDataAppAnalysisAvailability';
@@ -61,7 +57,7 @@ export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
         <SettingsCard>
             <Stack gap="md">
                 <SurfaceRow
-                    icon={IconLayoutDashboard}
+                    icon={DashboardIcon}
                     name="Lightdash UI"
                     description="Homepage card, navbar action, and agent chat."
                     checked={aiAgentsVisible}

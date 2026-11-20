@@ -7,7 +7,6 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconLayoutDashboard } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import { useColorPalettes } from '../../../hooks/appearance/useOrganizationAppearance';
 import {
@@ -17,6 +16,7 @@ import {
 import useHealth from '../../../hooks/health/useHealth';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import Callout from '../Callout';
+import { DashboardIcon } from '../ContentIcons';
 import MantineModal from '../MantineModal';
 import { PalettePicker } from '../PalettePicker/PalettePicker';
 import { UserSelect } from '../UserSelect';
@@ -97,7 +97,7 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
         <MantineModal
             title="Update Dashboard"
             {...modalProps}
-            icon={IconLayoutDashboard}
+            icon={DashboardIcon}
             actions={
                 <Button
                     disabled={!form.isValid()}

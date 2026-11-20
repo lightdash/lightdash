@@ -25,14 +25,10 @@ import {
     TextInput,
     Title,
 } from '@mantine/core';
-import {
-    IconChevronDown,
-    IconFolder,
-    IconKey,
-    IconPlus,
-} from '@tabler/icons-react';
+import { IconChevronDown, IconKey, IconPlus } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import Callout from '../../../../components/common/Callout';
+import { SpaceIcon } from '../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import {
@@ -590,7 +586,7 @@ const EmbedWriteActionsForm: FC<Props> = ({
                     {selectedSpace && (
                         <Group gap="xs">
                             <Badge
-                                leftSection={<MantineIcon icon={IconFolder} />}
+                                leftSection={<MantineIcon icon={SpaceIcon} />}
                             >
                                 Default space
                             </Badge>
@@ -731,7 +727,7 @@ const EmbedWriteActionsForm: FC<Props> = ({
                 opened={isCreateSpaceModalOpen}
                 onClose={() => setIsCreateSpaceModalOpen(false)}
                 title="Create space"
-                icon={IconFolder}
+                icon={SpaceIcon}
                 size="md"
                 actions={
                     <Button

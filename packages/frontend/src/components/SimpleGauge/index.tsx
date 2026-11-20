@@ -1,6 +1,5 @@
 import { getGaugeSizes } from '@lightdash/visualization/editor';
 import { Box } from '@mantine/core';
-import { IconGauge } from '@tabler/icons-react';
 import { type ECharts } from 'echarts';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
 import {
@@ -13,6 +12,7 @@ import {
     type FC,
 } from 'react';
 import useEchartsGaugeConfig from '../../hooks/echarts/useEchartsGaugeConfig';
+import { GaugeChartIcon } from '../common/ContentIcons';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
@@ -26,7 +26,7 @@ const EmptyChart = () => (
         <SuboptimalState
             title="No data available"
             description="Query metrics and dimensions with results."
-            icon={IconGauge}
+            icon={GaugeChartIcon}
         />
     </Box>
 );

@@ -1,10 +1,6 @@
 import { subject } from '@casl/ability';
 import { type Dashboard } from '@lightdash/common';
-import {
-    IconChartBarOff,
-    IconLayoutDashboard,
-    IconPlayerPlay,
-} from '@tabler/icons-react';
+import { IconChartBarOff, IconPlayerPlay } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useProjectSavedChartStatus } from '../../../hooks/useOnboardingStatus';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
@@ -14,6 +10,7 @@ import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
+import { DashboardIcon } from '../../common/ContentIcons';
 import MantineIcon from '../../common/MantineIcon';
 import MantineLinkButton from '../../common/MantineLinkButton';
 import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
@@ -77,7 +74,7 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
             <div className={classes.emptyState}>
                 {hasSavedCharts ? (
                     <SuboptimalState
-                        icon={IconLayoutDashboard}
+                        icon={DashboardIcon}
                         title={dashboardEmptyStateTitle()}
                         action={
                             userCanCreateDashboard && isEditMode ? (

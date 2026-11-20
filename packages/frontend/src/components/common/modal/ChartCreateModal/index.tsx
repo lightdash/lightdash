@@ -4,13 +4,13 @@ import {
     type EmbedWritableSpace,
     type SavedChart,
 } from '@lightdash/common';
-import { IconChartBar } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type EmbedChartSaveDashboard } from '../../../../ee/features/embed/EmbedDashboard/types';
 import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage';
 import { useContentAuthoringEnabled } from '../../../../hooks/useContentAuthoringEnabled';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import { useModalHostedDashboard } from '../../../../providers/Explorer/useIsModalHosted';
+import { BarChartIcon } from '../../ContentIcons';
 import MantineModal, { type MantineModalProps } from '../../MantineModal';
 import { SaveToDashboard } from './SaveToDashboard';
 import { SaveToSpaceOrDashboard } from './SaveToSpaceOrDashboard';
@@ -146,7 +146,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
             opened={opened}
             onClose={onClose}
             title={getModalTitle()}
-            icon={IconChartBar}
+            icon={BarChartIcon}
             cancelLabel={false}
             modalBodyProps={{ px: 0, py: 0 }}
         >

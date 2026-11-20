@@ -29,11 +29,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
-import {
-    IconArrowsTransferDown,
-    IconLayoutDashboard,
-    IconX,
-} from '@tabler/icons-react';
+import { IconArrowsTransferDown, IconX } from '@tabler/icons-react';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { z } from 'zod';
@@ -44,6 +40,7 @@ import {
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { DashboardIcon } from '../../common/ContentIcons';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import { NumberInput } from '../../common/NumberInput';
@@ -663,7 +660,7 @@ export const CustomBinDimensionModal: FC<{
             title={`${
                 isEditing ? 'Edit' : 'Create'
             } Custom Dimension - ${baseDimensionLabel}`}
-            icon={IconLayoutDashboard}
+            icon={DashboardIcon}
             actions={
                 <Tooltip
                     label="Each group must have at least one value"

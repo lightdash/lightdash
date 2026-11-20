@@ -2,14 +2,16 @@ import { Box, Group, Stack, Text } from '@mantine/core';
 import { useInterval } from '@mantine/hooks';
 import {
     IconCalendar,
-    IconChartBar,
     IconDatabase,
     IconHash,
-    IconLayoutDashboard,
     IconTag,
     IconUser,
 } from '@tabler/icons-react';
 import { Fragment, useState, type FC, type ReactNode } from 'react';
+import {
+    BarChartIcon,
+    DashboardIcon,
+} from '../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import classes from './SemanticLayerExplainer.module.css';
 
@@ -127,12 +129,12 @@ const Diagram: FC = () => (
         <Connector paths={FLOW_OUT} direction="out" />
         <Box className={classes.column} data-tools>
             <Tool
-                icon={<MantineIcon icon={IconChartBar} size={12} />}
+                icon={<MantineIcon icon={BarChartIcon} size={12} />}
                 label="Chart"
                 index={0}
             />
             <Tool
-                icon={<MantineIcon icon={IconLayoutDashboard} size={12} />}
+                icon={<MantineIcon icon={DashboardIcon} size={12} />}
                 label="Dashboard"
                 index={1}
             />

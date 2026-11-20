@@ -1,7 +1,7 @@
 import { Anchor } from '@mantine/core';
-import { IconPuzzle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
+import { CustomChartTypeIcon } from '../../../components/common/ContentIcons';
 import MantineModal from '../../../components/common/MantineModal';
 import ChartTypeLibrarySection from './ChartTypeLibrarySection';
 
@@ -26,7 +26,7 @@ const ChartTypeLibraryModal: FC<Props> = ({
         opened
         onClose={onClose}
         title="Find new chart types"
-        icon={IconPuzzle}
+        icon={CustomChartTypeIcon}
         // The library cards carry live previews sized for the gallery page;
         // xl squeezes their three columns into truncation.
         size={1100}

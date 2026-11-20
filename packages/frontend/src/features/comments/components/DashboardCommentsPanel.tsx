@@ -13,9 +13,7 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
-    IconAppWindow,
     IconArrowUpRight,
-    IconChartBar,
     IconChevronDown,
     IconChevronUp,
     IconHeading,
@@ -25,6 +23,10 @@ import {
     IconVideo,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
+import {
+    BarChartIcon,
+    DataAppIcon,
+} from '../../../components/common/ContentIcons';
 import { scrollToDashboardTile } from '../../../components/common/Dashboard/scrollToDashboardTile';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../components/common/PolymorphicGroupButton';
@@ -60,7 +62,7 @@ const tileIcon = (tileType: DashboardTileTypes | null) => {
     switch (tileType) {
         case DashboardTileTypes.SAVED_CHART:
         case DashboardTileTypes.SQL_CHART:
-            return IconChartBar;
+            return BarChartIcon;
         case DashboardTileTypes.MARKDOWN:
             return IconMarkdown;
         case DashboardTileTypes.LOOM:
@@ -68,11 +70,11 @@ const tileIcon = (tileType: DashboardTileTypes | null) => {
         case DashboardTileTypes.HEADING:
             return IconHeading;
         case DashboardTileTypes.DATA_APP:
-            return IconAppWindow;
+            return DataAppIcon;
         case null:
             return IconSquareOff;
         default:
-            return IconChartBar;
+            return BarChartIcon;
     }
 };
 

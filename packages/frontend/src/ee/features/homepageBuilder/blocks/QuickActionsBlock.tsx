@@ -14,20 +14,22 @@ import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconArrowLeft,
     IconArrowRight,
-    IconFolder,
     IconInfoCircle,
-    IconLayoutDashboard,
     IconPlus,
     IconSparkles,
     IconStar,
     IconStarFilled,
-    IconTable,
     IconUserCircle,
     IconX,
     type Icon,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link } from 'react-router';
+import {
+    DashboardIcon,
+    SpaceIcon,
+    TableIcon,
+} from '../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { useInfiniteContent } from '../../../../hooks/useContent';
@@ -57,19 +59,19 @@ const STATIC_ACTIONS: Record<
         url: (projectUuid) => `/projects/${projectUuid}/ai-agents`,
     },
     'run-query': {
-        icon: IconTable,
+        icon: TableIcon,
         title: 'Run a query',
         description: 'Explore your data and answer a business question.',
         url: (projectUuid) => `/projects/${projectUuid}/tables`,
     },
     'browse-dashboards': {
-        icon: IconLayoutDashboard,
+        icon: DashboardIcon,
         title: 'Browse dashboards',
         description: 'See what your team has already built.',
         url: (projectUuid) => `/projects/${projectUuid}/dashboards`,
     },
     'browse-spaces': {
-        icon: IconFolder,
+        icon: SpaceIcon,
         title: 'Browse spaces',
         description: 'Content organized by team and topic.',
         url: (projectUuid) => `/projects/${projectUuid}/spaces`,
@@ -108,7 +110,7 @@ const actionPresentation = (
 ): Omit<StaticActionDefinition, 'url'> & { url: string } => {
     if (action.type === 'dashboard') {
         return {
-            icon: IconLayoutDashboard,
+            icon: DashboardIcon,
             title: action.label,
             description: 'Open this dashboard.',
             url: `/projects/${projectUrlIdentifier}/dashboards/${action.dashboardUuid}/view`,
@@ -116,7 +118,7 @@ const actionPresentation = (
     }
     if (action.type === 'space') {
         return {
-            icon: IconFolder,
+            icon: SpaceIcon,
             title: action.label,
             description: 'Open this space.',
             url: `/projects/${projectUrlIdentifier}/spaces/${action.spaceUuid}`,
@@ -235,12 +237,12 @@ const PICKER_COPY: Record<
     [ContentType.DASHBOARD]: {
         title: 'Pick a dashboard',
         placeholder: 'Search dashboards…',
-        icon: IconLayoutDashboard,
+        icon: DashboardIcon,
     },
     [ContentType.SPACE]: {
         title: 'Pick a space',
         placeholder: 'Search spaces…',
-        icon: IconFolder,
+        icon: SpaceIcon,
     },
 };
 
@@ -496,9 +498,7 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                             </Menu.Item>
                         ))}
                         <Menu.Item
-                            leftSection={
-                                <MantineIcon icon={IconLayoutDashboard} />
-                            }
+                            leftSection={<MantineIcon icon={DashboardIcon} />}
                             onClick={() =>
                                 setPickerContentType(ContentType.DASHBOARD)
                             }
@@ -506,7 +506,7 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                             A specific dashboard…
                         </Menu.Item>
                         <Menu.Item
-                            leftSection={<MantineIcon icon={IconFolder} />}
+                            leftSection={<MantineIcon icon={SpaceIcon} />}
                             onClick={() =>
                                 setPickerContentType(ContentType.SPACE)
                             }

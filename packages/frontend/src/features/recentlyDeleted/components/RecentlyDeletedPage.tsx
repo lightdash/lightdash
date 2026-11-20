@@ -22,7 +22,6 @@ import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconCalendar,
     IconClock,
-    IconPuzzle,
     IconRefresh,
     IconSearch,
     IconTextCaption,
@@ -32,6 +31,7 @@ import {
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import Callout from '../../../components/common/Callout';
 import {
+    CustomChartTypeIcon,
     DashboardIcon,
     DataAppIcon,
     DocumentIcon,
@@ -289,7 +289,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                 return row.original.template ===
                                     DATA_APP_VIZ_TEMPLATE ? (
                                     <ContentIcon
-                                        icon={IconPuzzle}
+                                        icon={CustomChartTypeIcon}
                                         color="indigo.6"
                                     />
                                 ) : (
