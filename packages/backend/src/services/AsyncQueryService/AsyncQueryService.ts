@@ -8156,6 +8156,13 @@ export class AsyncQueryService extends ProjectService {
             case 'mergedChart':
                 // Checked at save as a plain tile is; like a plain tile, no view-Explore check
                 authority.run.assertExecution(account, projectUuid);
+                // Materialization skips model-required filters; a plain tile never runs in it
+                if (
+                    context ===
+                    QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
+                ) {
+                    throw new ForbiddenError();
+                }
                 return this.runAsyncMetricQueryWithoutPermissionCheck(
                     args,
                     organizationUuid,

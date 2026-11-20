@@ -7609,6 +7609,32 @@ describe('AsyncQueryService', () => {
             },
         );
 
+        test("refuses a merged chart's leg in the materialization context", async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const execute = vi
+                .spyOn(
+                    service as AnyType,
+                    'runAsyncMetricQueryWithoutPermissionCheck',
+                )
+                .mockResolvedValue({ queryUuid: 'query-uuid' });
+            const run = MergedChartRun.fromLoadedChart({
+                account: sessionAccount,
+                savedChart: { uuid: 'chart-uuid', projectUuid },
+            });
+
+            await expect(
+                service.executeAsyncMetricQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context:
+                        QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+                    authority: { kind: 'mergedChart', run },
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(execute).not.toHaveBeenCalled();
+        });
+
         test.each([true, false])(
             'uses data app authorization only without Explore access (has Explore: %s)',
             async (canExplore) => {
