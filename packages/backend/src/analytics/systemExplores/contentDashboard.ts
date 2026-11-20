@@ -21,14 +21,14 @@ const newContentCalculations: NonNullable<UsageChartSpec['tableCalculations']> =
             name: cameBack,
             displayName: 'Came back later',
             type: TableCalculationType.NUMBER,
-            sql: `CASE WHEN \${content_reach.content_created_at_day} > CURRENT_DATE - INTERVAL 7 DAY THEN NULL ELSE \${content_reach.first_week_returning_viewers} END`,
+            sql: `CASE WHEN \${content_reach.created_at_day} > CURRENT_DATE - INTERVAL 7 DAY THEN NULL ELSE \${content_reach.new_content_returning_viewers} END`,
             format: { type: CustomFormatType.NUMBER, round: 0 },
         },
         {
             name: cameBackShare,
             displayName: 'Share who came back (%)',
             type: TableCalculationType.NUMBER,
-            sql: `CASE WHEN \${content_reach.content_created_at_day} > CURRENT_DATE - INTERVAL 7 DAY THEN NULL ELSE ROUND(100.0 * \${content_reach.first_week_returning_viewers} / NULLIF(\${content_reach.first_week_viewers}, 0)) END`,
+            sql: `CASE WHEN \${content_reach.created_at_day} > CURRENT_DATE - INTERVAL 7 DAY THEN NULL ELSE ROUND(100.0 * \${content_reach.new_content_returning_viewers} / NULLIF(\${content_reach.new_content_first_week_viewers}, 0)) END`,
             format: { type: CustomFormatType.NUMBER, round: 0 },
         },
     ];
@@ -120,24 +120,25 @@ export const contentChartSpecs: UsageChartSpec[] = [
         dimensions: [
             'content_reach_content_name',
             'content_reach_content_type_name',
-            'content_reach_content_created_at_day',
+            'content_reach_created_at_day',
             'content_reach_content_id',
             'content_reach_project_id',
         ],
         metrics: [
-            'content_reach_first_week_viewers',
-            'content_reach_first_week_returning_viewers',
+            'content_reach_new_content_first_week_viewers',
+            'content_reach_new_content_returning_viewers',
         ],
         tableCalculations: newContentCalculations,
         // The plain table shows the count behind the blank; the calculation replaces it
-        hiddenColumns: ['content_reach_first_week_returning_viewers'],
+        hiddenColumns: ['content_reach_new_content_returning_viewers'],
         fieldLabels: {
-            content_reach_first_week_viewers: 'Viewers in first week',
+            content_reach_new_content_first_week_viewers:
+                'Viewers in first week',
         },
         limit: 30,
         sorts: [
             {
-                fieldId: 'content_reach_first_week_viewers',
+                fieldId: 'content_reach_new_content_first_week_viewers',
                 descending: true,
             },
         ],
@@ -147,7 +148,7 @@ export const contentChartSpecs: UsageChartSpec[] = [
             fieldMapping: {
                 rowDimension: 'content_reach_content_name',
                 metric: [
-                    'content_reach_first_week_viewers',
+                    'content_reach_new_content_first_week_viewers',
                     cameBack,
                     cameBackShare,
                 ],
@@ -166,15 +167,15 @@ export const contentChartSpecs: UsageChartSpec[] = [
                 // The day it was created is what the calculations check its age against
                 dimensions: [
                     'content_reach_content_name',
-                    'content_reach_content_created_at_day',
+                    'content_reach_created_at_day',
                 ],
                 metrics: [
-                    'content_reach_first_week_viewers',
-                    'content_reach_first_week_returning_viewers',
+                    'content_reach_new_content_first_week_viewers',
+                    'content_reach_new_content_returning_viewers',
                 ],
                 sorts: [
                     {
-                        fieldId: 'content_reach_first_week_viewers',
+                        fieldId: 'content_reach_new_content_first_week_viewers',
                         descending: true,
                     },
                 ],

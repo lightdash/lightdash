@@ -34,6 +34,7 @@ export const usageFieldLabels: Record<string, string> = {
     content_reach_content_type: 'Content type',
     content_reach_content_type_name: 'Content type',
     content_reach_content_created_at_day: 'Created',
+    content_reach_created_at_day: 'Created',
     content_reach_user_name: 'Person',
     content_reach_last_viewed_at: 'Last viewed',
     content_health_created_at_month: 'Month',

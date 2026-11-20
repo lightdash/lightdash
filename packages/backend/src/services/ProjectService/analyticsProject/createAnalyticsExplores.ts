@@ -496,6 +496,28 @@ export const createAnalyticsExplores = (): Explore[] => {
             };
         }
         if (name === 'content_reach') {
+            // New content is dated from the inventory, like every other content tile. The date a view
+            // event carries can differ from it. Using these measures joins the inventory.
+            const firstWeekEnds =
+                "date_trunc('day', ${created_at}) + INTERVAL 7 DAY";
+            metrics.new_content_first_week_viewers = {
+                ...base,
+                name: 'new_content_first_week_viewers',
+                label: 'Viewers in first week',
+                description:
+                    'Distinct people with a qualifying view in the first seven UTC calendar days from the creation date in the content inventory. Zero when the content was created before views were recorded.',
+                type: MetricType.COUNT_DISTINCT,
+                sql: `CASE WHEN \${qualifying_view_at} < ${firstWeekEnds} THEN \${user_id} END`,
+            };
+            metrics.new_content_returning_viewers = {
+                ...base,
+                name: 'new_content_returning_viewers',
+                label: 'Came back later',
+                description:
+                    'Distinct people first seen in the first seven UTC calendar days from the creation date in the content inventory who viewed the content again on the eighth day or later.',
+                type: MetricType.COUNT_DISTINCT,
+                sql: `CASE WHEN \${qualifying_view_at} >= ${firstWeekEnds} AND \${first_view_day} < ${firstWeekEnds} THEN \${user_id} END`,
+            };
             metrics.verified_audience_share = {
                 ...base,
                 name: 'verified_audience_share',
@@ -1047,7 +1069,22 @@ export const createAnalyticsExplores = (): Explore[] => {
                 'content_type',
                 'content_url',
                 ...(name === 'historical_activity' ? ['content_name'] : []),
-            ].map((reference) => ({ reference, type: DimensionType.STRING })),
+            ]
+                .map((reference) => ({
+                    reference,
+                    type: DimensionType.STRING,
+                }))
+                // When the item was created, as the inventory records it
+                .concat(
+                    name === 'content_reach'
+                        ? [
+                              {
+                                  reference: 'created_at',
+                                  type: DimensionType.TIMESTAMP,
+                              },
+                          ]
+                        : [],
+                ),
             warehouseSqlBuilder: sqlBuilder,
         });
         const includeQueryMetadata = name === 'export_events';
@@ -1091,7 +1128,11 @@ export const createAnalyticsExplores = (): Explore[] => {
                               fields:
                                   name === 'historical_activity'
                                       ? ['content_name', 'content_url']
-                                      : ['content_url'],
+                                      : [
+                                            'content_url',
+                                            'created_at',
+                                            'created_at_day',
+                                        ],
                               sqlOn: `\${${name}.org_id} = \${lightdash_content.org_id} AND \${${name}.project_id} = \${lightdash_content.project_id} AND \${${name}.content_id} = \${lightdash_content.content_id} AND CASE WHEN \${${name}.content_type} = 'chart' THEN 'saved_chart' ELSE \${${name}.content_type} END = \${lightdash_content.content_type}`,
                           },
                       ]
@@ -1243,6 +1284,21 @@ export const createAnalyticsExplores = (): Explore[] => {
                     },
                 ];
             }
+        }
+        // A tool call by a service account has no user, so by person it would sit with every other
+        // service account under Unknown user. This names each one. The service account's own name is
+        // not in the usage data, so the first part of its ID tells them apart.
+        if (name === 'tool_activity' && baseTable.dimensions.user_name) {
+            const { actor_type: actorType, actor_id: actorId } =
+                baseTable.dimensions;
+            baseTable.dimensions.actor_name = {
+                ...baseTable.dimensions.user_name,
+                name: 'actor_name',
+                label: 'Person or service account',
+                description:
+                    "The person's name, or Service account with the start of its ID for a call made by a service account.",
+                sql: `CASE WHEN ${actorType.sql} = 'service_account' THEN 'Service account ' || COALESCE(left(${actorId.sql}, 8), '') ELSE ${baseTable.dimensions.user_name.sql} END`,
+            };
         }
         // Library charts title their axes, legends and columns with these labels, so the fields a
         // dashboard tile can show are named the way a tile would name them.

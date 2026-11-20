@@ -1412,6 +1412,60 @@ describe('Tokens by feature and model', () => {
     });
 });
 
+describe('MCP tool calls by person and tool', () => {
+    it('lists each service account by itself, not together under Unknown user', async () => {
+        const chart = analyticsContentAsCode
+            .flatMap((bundle) => bundle.charts)
+            .find(({ slug }) =>
+                slug.endsWith('-mcp-users-clients-tools-and-error-rates'),
+            )!;
+        const instance = await DuckDBInstance.create(':memory:', {
+            threads: '1',
+            memory_limit: '128MB',
+        });
+        const db = await instance.connect();
+        try {
+            for (const stream of ['mcp_tool_calls', 'agent_steps'] as const) {
+                await db.run(
+                    `CREATE TABLE ${stream} (${compactedStreamSchemas[stream].map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
+                );
+            }
+            await db.run(
+                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR)',
+            );
+            await db.run(
+                'CREATE TABLE lightdash_agents (org_id VARCHAR, agent_id VARCHAR, name VARCHAR)',
+            );
+            await db.run(
+                "INSERT INTO lightdash_users VALUES ('org','person-1','Alex',NULL)",
+            );
+            await db.run(`INSERT INTO mcp_tool_calls (org_id, user_id, actor_id, actor_type, tool_name, tool_call_id, status, event_ts) VALUES
+                ('org','person-1','person-1','user','run_sql','1','success',CURRENT_TIMESTAMP),
+                ('org',NULL,'aaaaaaaa-1111','service_account','run_sql','2','success',CURRENT_TIMESTAMP),
+                ('org',NULL,'aaaaaaaa-1111','service_account','run_sql','3','error',CURRENT_TIMESTAMP),
+                ('org',NULL,'bbbbbbbb-2222','service_account','run_sql','4','success',CURRENT_TIMESTAMP)`);
+            const rows = (
+                await db.runAndReadAll(sqlOf(chart))
+            ).getRowObjectsJS();
+            expect(
+                rows
+                    .map((row) => [
+                        row.tool_activity_actor_name,
+                        Number(row.tool_activity_total_calls),
+                    ])
+                    .sort(),
+            ).toEqual([
+                ['Alex', 1],
+                ['Service account aaaaaaaa', 2],
+                ['Service account bbbbbbbb', 1],
+            ]);
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
+    });
+});
+
 describe('new content adoption', () => {
     it('counts first-week viewers and who came back, and leaves it blank for content under a week old', async () => {
         const chart = analyticsContentAsCode
@@ -1433,13 +1487,20 @@ describe('new content adoption', () => {
             await db.run(
                 `CREATE TABLE lightdash_content (${contentInventoryColumns.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
             );
+            // The inventory is where an item's creation date comes from. A view event carries a date of
+            // its own, which can differ: here every event claims the item was created the day it was
+            // first viewed.
+            const item = (content: string, createdDaysAgo: number) =>
+                `('org','project','dashboard','${content}','${content}',CURRENT_DATE - INTERVAL ${createdDaysAgo} DAY)`;
+            await db.run(`INSERT INTO lightdash_content (org_id,project_id,content_type,content_id,content_name,created_at) VALUES
+                ${[item('old', 20), item('new', 3), item('ancient', 400), item('misdated', 30)].join(',')}`);
             const view = (
                 content: string,
-                createdDaysAgo: number,
+                eventSaysCreatedDaysAgo: number,
                 user: string,
                 viewedDaysAgo: number,
             ) =>
-                `('org','project','dashboard','${content}','${content}','${user}','user',true,CURRENT_DATE - INTERVAL ${createdDaysAgo} DAY,CURRENT_DATE - INTERVAL ${viewedDaysAgo} DAY + INTERVAL 1 HOUR,'${content}-${user}-${viewedDaysAgo}')`;
+                `('org','project','dashboard','${content}','${content}','${user}','user',true,CURRENT_DATE - INTERVAL ${eventSaysCreatedDaysAgo} DAY,CURRENT_DATE - INTERVAL ${viewedDaysAgo} DAY + INTERVAL 1 HOUR,'${content}-${user}-${viewedDaysAgo}')`;
             await db.run(`INSERT INTO content_views (org_id,project_id,content_type,content_id,content_name,user_id,actor_type,is_qualifying,content_created_at,event_ts,event_id) VALUES
                 ${[
                     // Twenty days old: a and b viewed it in the first week, only a came back
@@ -1452,14 +1513,24 @@ describe('new content adoption', () => {
                     view('new', 3, 'a', 2),
                     // Created long before anything was recorded
                     view('ancient', 400, 'a', 6),
+                    // Thirty days old in the inventory, but its events say it was created ten days ago,
+                    // when it was first viewed. By the inventory nobody saw it in its first week.
+                    view('misdated', 10, 'a', 10),
+                    view('misdated', 10, 'a', 2),
                 ].join(',')}`);
             const rows = (
                 await db.runAndReadAll(sqlOf(chart))
             ).getRowObjectsJS();
+            const day = (value: unknown) =>
+                new Date(value as Date).toISOString().slice(0, 10);
+            const daysAgo = (days: number) =>
+                new Date(Date.now() - days * 86400000)
+                    .toISOString()
+                    .slice(0, 10);
             expect(
                 rows.map((row) => [
                     row.content_reach_content_name,
-                    Number(row.content_reach_first_week_viewers),
+                    Number(row.content_reach_new_content_first_week_viewers),
                     row.came_back_later === null
                         ? null
                         : Number(row.came_back_later),
@@ -1467,11 +1538,24 @@ describe('new content adoption', () => {
                         ? null
                         : Number(row.came_back_share),
                 ]),
-            ).toEqual([
-                ['old', 2, 1, 50],
-                ['new', 1, null, null],
-                ['ancient', 0, 0, null],
-            ]);
+            ).toEqual(
+                expect.arrayContaining([
+                    ['old', 2, 1, 50],
+                    ['new', 1, null, null],
+                    ['ancient', 0, 0, null],
+                    ['misdated', 0, 0, null],
+                ]),
+            );
+            expect(rows).toHaveLength(4);
+            expect(rows[0].content_reach_content_name).toBe('old');
+            // The Created column is the inventory's date, not the one on the events
+            expect(
+                day(
+                    rows.find(
+                        (row) => row.content_reach_content_name === 'misdated',
+                    )!.content_reach_created_at_day,
+                ),
+            ).toBe(daysAgo(30));
         } finally {
             db.closeSync();
             instance.closeSync();

@@ -77,11 +77,12 @@ export const toolsChartSpecs: UsageChartSpec[] = [
         description:
             'MCP tool calls for each person, client and tool, including service accounts. An error rate over a few calls is not reliable.',
         explore: 'tool_activity',
-        by: 'tool_activity_user_name',
+        // Service accounts are listed one by one, not together under Unknown user
+        by: 'tool_activity_actor_name',
         then: 'tool_activity_tool_name',
         dimensions: [
-            'tool_activity_user_name',
-            'tool_activity_user_id',
+            'tool_activity_actor_name',
+            'tool_activity_actor_id',
             'tool_activity_actor_type',
             'tool_activity_client_name',
             'tool_activity_tool_name',
@@ -93,8 +94,9 @@ export const toolsChartSpecs: UsageChartSpec[] = [
         ],
         filters: mcp,
         limit: 40,
+        fieldLabels: { tool_activity_actor_name: 'Person' },
         libraryDescription:
-            'MCP tool calls and failed calls for each person, including service accounts. Open a person to see the tools they called.',
+            'MCP tool calls and failed calls for each person and service account. Open one to see the tools they called.',
     }),
     card({
         key: 'tools-downloads',
