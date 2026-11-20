@@ -2748,6 +2748,13 @@ describe('ExcelService field urls as hyperlinks in xlsx export', () => {
         customers_last_name: lastNameField,
         customers_email: plainField,
     };
+    const stringFieldWithUrl = (url: string): ItemsMap =>
+        ({
+            customers_first_name: {
+                ...firstNameField,
+                urls: [{ label: 'Open', url }],
+            },
+        }) as ItemsMap;
 
     const { streamJsonlToExcelFile } = ExcelService as unknown as {
         streamJsonlToExcelFile: (
@@ -2757,13 +2764,27 @@ describe('ExcelService field urls as hyperlinks in xlsx export', () => {
             fields: ItemsMap,
             onlyRaw: boolean,
             sortedFieldIds: string[],
+            timezone?: string,
+            conditionalFormattings?: ReturnType<
+                typeof createConditionalFormattingConfigWithSingleColor
+            >[],
         ) => Promise<{ truncated: boolean }>;
     };
 
     const writeAndReadBack = async (
         rows: Record<string, unknown>[],
         sortedFieldIds: string[],
-        onlyRaw = false,
+        {
+            onlyRaw = false,
+            itemsMap = fields,
+            conditionalFormattings,
+        }: {
+            onlyRaw?: boolean;
+            itemsMap?: ItemsMap;
+            conditionalFormattings?: ReturnType<
+                typeof createConditionalFormattingConfigWithSingleColor
+            >[];
+        } = {},
     ) => {
         const tempFilePath = path.join(
             os.tmpdir(),
@@ -2775,9 +2796,11 @@ describe('ExcelService field urls as hyperlinks in xlsx export', () => {
             Readable.from([rows.map((row) => JSON.stringify(row)).join('\n')]),
             tempFilePath,
             sortedFieldIds,
-            fields,
+            itemsMap,
             onlyRaw,
             sortedFieldIds,
+            undefined,
+            conditionalFormattings,
         );
         const workbook = new (await import('exceljs')).Workbook();
         await workbook.xlsx.readFile(tempFilePath);
@@ -2797,6 +2820,84 @@ describe('ExcelService field urls as hyperlinks in xlsx export', () => {
         });
         // the id column has no urls and stays a plain numeric cell
         expect(worksheet.getRow(2).getCell(2).value).toBe(7);
+    });
+
+    it('styles hyperlink cells as blue underlined links', async () => {
+        const worksheet = await writeAndReadBack(
+            [{ customers_first_name: 'Ann' }],
+            ['customers_first_name'],
+        );
+        expect(worksheet.getRow(2).getCell(1).font).toMatchObject({
+            underline: true,
+            color: { argb: 'FF0563C1' },
+        });
+    });
+
+    it('keeps conditional formatting colours on a linked cell', async () => {
+        const config = createConditionalFormattingConfigWithSingleColor(
+            '#ff0000',
+            { fieldId: 'customers_first_name' },
+        );
+        config.rules = [
+            { id: 'is-ann', operator: FilterOperator.EQUALS, values: ['Ann'] },
+        ];
+        const worksheet = await writeAndReadBack(
+            [{ customers_first_name: 'Ann' }],
+            ['customers_first_name'],
+            { conditionalFormattings: [config] },
+        );
+        const cell = worksheet.getRow(2).getCell(1);
+        expect(cell.value).toMatchObject({
+            hyperlink: 'https://example.com/company/Ann',
+        });
+        expect(cell.fill).toMatchObject({ fgColor: { argb: 'FFFF0000' } });
+        expect(cell.font?.underline).toBe(true);
+        expect(cell.font?.color?.argb).not.toBe('FF0563C1');
+    });
+
+    it('percent-encodes a template that renders a space', async () => {
+        const worksheet = await writeAndReadBack(
+            [{ customers_first_name: 'Ann Lee' }],
+            ['customers_first_name'],
+            {
+                itemsMap: stringFieldWithUrl(
+                    'https://example.com/company/${value.formatted}',
+                ),
+            },
+        );
+        expect(worksheet.getRow(2).getCell(1).value).toEqual({
+            text: 'Ann Lee',
+            hyperlink: 'https://example.com/company/Ann%20Lee',
+        });
+    });
+
+    it('keeps plain text when the rendered url is longer than Excel allows', async () => {
+        const longValue = 'a'.repeat(2100);
+        const worksheet = await writeAndReadBack(
+            [{ customers_first_name: longValue }],
+            ['customers_first_name'],
+            {
+                itemsMap: stringFieldWithUrl(
+                    'https://example.com/${value.raw}',
+                ),
+            },
+        );
+        expect(worksheet.getRow(2).getCell(1).value).toBe(longValue);
+    });
+
+    it.each([
+        // eslint-disable-next-line no-script-url
+        'javascript:alert(1)',
+        'data:text/html,hello',
+        '/customers/${value.raw}',
+        '//example.com/customers/${value.raw}',
+    ])('keeps plain text for the non-http(s) url %s', async (url) => {
+        const worksheet = await writeAndReadBack(
+            [{ customers_first_name: 'Ann' }],
+            ['customers_first_name'],
+            { itemsMap: stringFieldWithUrl(url) },
+        );
+        expect(worksheet.getRow(2).getCell(1).value).toBe('Ann');
     });
 
     it('resolves a url template that references another field in the row', async () => {
@@ -2849,45 +2950,56 @@ describe('ExcelService field urls as hyperlinks in xlsx export', () => {
         });
     });
 
-    it('shows the formatted value as link text for numeric dimensions', async () => {
-        const idWithUrl: ItemsMap[string] = {
-            ...customerIdField,
-            format: '#,##0',
-            urls: [
-                {
-                    label: 'Open',
-                    url: 'https://example.com/customers/${value.raw}',
+    it('keeps numeric dimensions with urls as plain numbers', async () => {
+        const worksheet = await writeAndReadBack(
+            [{ customers_customer_id: 12345 }],
+            ['customers_customer_id'],
+            {
+                itemsMap: {
+                    customers_customer_id: {
+                        ...customerIdField,
+                        format: '#,##0',
+                        urls: [
+                            {
+                                label: 'Open',
+                                url: 'https://example.com/customers/${value.raw}',
+                            },
+                        ],
+                    } as ItemsMap[string],
                 },
-            ],
-        } as ItemsMap[string];
-        const tempFilePath = path.join(
-            os.tmpdir(),
-            `excel-urls-numeric-${process.pid}.xlsx`,
+            },
         );
-        await streamJsonlToExcelFile(
-            Readable.from([JSON.stringify({ customers_customer_id: 12345 })]),
-            tempFilePath,
-            ['customers_customer_id'],
-            { customers_customer_id: idWithUrl },
-            false,
-            ['customers_customer_id'],
+        expect(worksheet.getRow(2).getCell(1).value).toBe(12345);
+    });
+
+    it('keeps date dimensions with urls as plain dates', async () => {
+        const worksheet = await writeAndReadBack(
+            [{ customers_signup_date: '2024-01-02' }],
+            ['customers_signup_date'],
+            {
+                itemsMap: {
+                    customers_signup_date: {
+                        ...mockItemMapWithFormats.date_column,
+                        name: 'signup_date',
+                        table: 'customers',
+                        urls: [
+                            {
+                                label: 'Open',
+                                url: 'https://example.com/day/${value.raw}',
+                            },
+                        ],
+                    } as ItemsMap[string],
+                },
+            },
         );
-        const workbook = new (await import('exceljs')).Workbook();
-        await workbook.xlsx.readFile(tempFilePath);
-        fs.unlinkSync(tempFilePath);
-        expect(
-            workbook.getWorksheet('Sheet1')!.getRow(2).getCell(1).value,
-        ).toEqual({
-            text: '12,345',
-            hyperlink: 'https://example.com/customers/12345',
-        });
+        expect(worksheet.getRow(2).getCell(1).value).toBeInstanceOf(Date);
     });
 
     it('keeps the raw value as link text in raw export mode', async () => {
         const worksheet = await writeAndReadBack(
             [{ customers_first_name: 'Ann', customers_customer_id: 7 }],
             ['customers_first_name', 'customers_customer_id'],
-            true,
+            { onlyRaw: true },
         );
         expect(worksheet.getRow(2).getCell(1).value).toEqual({
             text: 'Ann',
@@ -2895,9 +3007,32 @@ describe('ExcelService field urls as hyperlinks in xlsx export', () => {
         });
     });
 
-    it.each([false, true])(
-        'writes hyperlinks for index dimensions in the pivot export when improved dates is %s',
-        async (enableImprovedExcelDates) => {
+    it('stops linking once the sheet reaches the Excel hyperlink cap', async () => {
+        const cap = 65_530;
+        const rows = Array.from({ length: cap + 5 }, (_, i) => ({
+            customers_first_name: `n${i}`,
+        }));
+        const worksheet = await writeAndReadBack(rows, [
+            'customers_first_name',
+        ]);
+        let linked = 0;
+        worksheet.eachRow((row, rowNumber) => {
+            if (rowNumber === 1) return;
+            const { value } = row.getCell(1);
+            if (typeof value === 'object' && value && 'hyperlink' in value) {
+                linked += 1;
+            }
+        });
+        expect(linked).toBe(cap);
+        expect(worksheet.getRow(cap + 2).getCell(1).value).toBe(`n${cap}`);
+    }, 60_000);
+
+    it.each([
+        ['legacy', false],
+        ['improved-dates', true],
+    ])(
+        'writes hyperlinks for index dimensions in the %s pivot writer',
+        async (_writer, enableImprovedExcelDates) => {
             const pivotDimension = 'orders_status';
             const metric = 'number_without_format';
             const completedColumn = `${metric}_any_completed`;
@@ -2966,6 +3101,7 @@ describe('ExcelService field urls as hyperlinks in xlsx export', () => {
                 text: 'Ann',
                 hyperlink: 'https://example.com/company/Ann',
             });
+            expect(row.getCell(1).font).toMatchObject({ underline: true });
             expect(row.getCell(2).value).toBe(7);
             expect(row.getCell(3).value).toBe(3);
         },
