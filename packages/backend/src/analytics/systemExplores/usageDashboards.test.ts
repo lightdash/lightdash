@@ -834,16 +834,16 @@ describe('built-in usage dashboards', () => {
                 tile.type === DashboardTileTypes.SAVED_CHART,
         )!;
         expect([firstNote.y, firstChart.y]).toEqual([0, 1]);
-        // A description too long for one line keeps a heading above it, on two rows
+        // Other dashboards put the section title in bold on the line above a one-line description
         const content = dashboardBySlug('lightdash-analytics-content');
         const [heading] = content.tiles.filter(
             (tile) =>
                 tile.tabSlug === 'ownership' &&
                 tile.type === DashboardTileTypes.MARKDOWN,
         );
-        expect(heading.h).toBe(2);
+        expect(heading.h).toBe(1);
         expect((heading.properties as { content: string }).content).toMatch(
-            /^### /,
+            /^\*\*Current ownership\*\* {2}\n/,
         );
     });
 
@@ -1854,8 +1854,9 @@ describe('display fixes', () => {
         expect(
             analyticsLibraryChartBindings.get(slow.slug)?.optionValues,
         ).toMatchObject({
-            yName: 'Queries',
-            yRightName: 'P95 response time (s)',
+            // Ranked bars on one axis, so twenty long names are not written at an angle
+            orientation: 'horizontal',
+            m1Name: 'P95 response time (s)',
         });
         ['avg-execution-time', 'p90-execution-time'].forEach((key) => {
             const [metric] = bySuffix(key).metricQuery.metrics;

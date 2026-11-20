@@ -860,6 +860,27 @@ export const analyticsSampleDashboards = [
                     axisLabel: 'Warehouse time (s)',
                     description:
                         'Average and P90 warehouse execution time per day, in seconds. This is warehouse time only, not end-to-end response time.',
+                    // The same date axis ("Oct 21") as the charts above it
+                    libraryChart: {
+                        slug: 'customizable-cartesian-chart',
+                        minVersion: '0.18.0',
+                        fieldMapping: {
+                            x: 'query_events_event_ts_day',
+                            m1: 'query_events_avg_warehouse_execution_time_s',
+                            m2: 'query_events_p90_warehouse_execution_time_s',
+                        },
+                        optionValues: {
+                            seriesType: 'line',
+                            showSymbols: true,
+                            xAxisType: 'time',
+                            xTimeFormat: '{MMM} {d}',
+                            xName: 'Day',
+                            yName: 'Warehouse time (s)',
+                            m1Name: 'Average',
+                            m2Name: 'P90',
+                        },
+                        query: null,
+                    },
                 },
             ),
         ],

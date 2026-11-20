@@ -192,7 +192,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'How complete these numbers are',
                         description:
-                            'For each query, Lightdash keeps a list of the metrics and dimensions it used, and the tiles above count only what is on those lists. A low share here means the tiles above undercount how much each field is used, because SQL queries and older queries have no list.',
+                            'The tiles above count only queries with a recorded list of fields, so a low share here means they undercount. SQL queries and older queries have no list.',
                         charts: ['field-capture-coverage'],
                         // One number: a short tile, not a tall empty one
                         layout: 'row',

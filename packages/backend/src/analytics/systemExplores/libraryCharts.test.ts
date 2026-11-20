@@ -746,10 +746,19 @@ describe('legacyLibraryChartBindings', () => {
             'warehouse-versus-cached-demand',
             'query-cache',
             'queries-by-context',
-            'query-latency-by-day',
             'query-calendar',
         ].forEach((key) => {
             expect(queryBinding(key)).toBeUndefined();
+        });
+        // Lines on the same date axis as the charts above it
+        expect(queryBinding('query-latency-by-day')).toMatchObject({
+            slug: 'customizable-cartesian-chart',
+            optionValues: {
+                xTimeFormat: '{MMM} {d}',
+                m1Name: 'Average',
+                m2Name: 'P90',
+            },
+            query: null,
         });
     });
 

@@ -240,7 +240,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'content-ownership-current-snapshot',
                 0,
-                2,
+                1,
                 18,
                 5,
                 'sortable-pivot-table',
@@ -249,7 +249,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'content-owners-needing-review',
                 18,
-                2,
+                1,
                 18,
                 5,
                 'sortable-pivot-table',
@@ -258,7 +258,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'high-compute-dashboards-audience-versus-warehouse-time',
                 0,
-                8,
+                7,
                 36,
                 8,
                 'sortable-pivot-table',
@@ -757,7 +757,15 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 'big_number',
             ],
             ['embed-load-trend', 0, 6, 36, 5, 'vega-trellis', 'cartesian'],
-            ['embed-popular-dashboards', 0, 12, 18, 8, null, 'custom'],
+            [
+                'embed-popular-dashboards',
+                0,
+                12,
+                18,
+                8,
+                'customizable-cartesian-chart',
+                'custom',
+            ],
             [
                 'embed-identity-coverage',
                 18,
