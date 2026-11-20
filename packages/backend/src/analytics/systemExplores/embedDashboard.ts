@@ -138,6 +138,24 @@ export const embedChartSpecs: UsageChartSpec[] = [
         flipAxes: true,
         timezone,
         fieldLabels: { embed_reach_total_loads: 'Loads' },
+        libraryChart: {
+            slug: 'customizable-cartesian-chart',
+            minVersion: '0.18.4',
+            fieldMapping: {
+                x: 'embed_reach_dashboard_label',
+                m1: 'embed_reach_total_loads',
+            },
+            optionValues: {
+                seriesType: 'bar',
+                orientation: 'horizontal',
+                m1Name: 'Loads',
+                showDataLabels: true,
+                lightdashLabels: false,
+                showAxisTitles: false,
+                showLegend: false,
+            },
+            query: null,
+        },
     },
     shareByDay({
         key: 'embed-identity-coverage',

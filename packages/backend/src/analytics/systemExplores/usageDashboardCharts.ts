@@ -911,8 +911,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'slow-dashboards-tail-latency-and-demand',
-        name: 'Slow dashboards: P95 response time and queries',
-        description: 'Queries and P95 response time for each dashboard.',
+        name: 'Slow dashboards: P95 response time (top 20)',
+        description:
+            'The 20 dashboards with the longest P95 response time in the selected period. A dashboard with few queries can rank high on one slow query.',
         explore: 'query_events',
         dimensions: [
             'query_events_dashboard_name',
@@ -939,26 +940,22 @@ export const usageChartSpecs: UsageChartSpec[] = [
             },
         ],
         libraryChart: {
+            // Ranked bars with the names beside them: twenty long names under a chart had to be
+            // written at an angle. One measure, so one axis; the plain table has the queries.
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.18.0',
+            minVersion: '0.18.4',
             fieldMapping: {
                 x: 'query_events_dashboard_name',
-                m1: 'query_events_total_queries',
-                m2: 'query_events_p95_response_time_s',
+                m1: 'query_events_p95_response_time_s',
             },
             optionValues: {
-                m1Name: 'Queries',
-                m2Name: 'P95 response time (s)',
-                xName: 'Dashboard',
                 seriesType: 'bar',
-                m2Type: 'scatter',
-                dualAxis: true,
-                m2Right: true,
-                xAxisType: 'category',
-                xLabelAutoRotate: false,
-                xLabelRotate: 45,
-                yName: 'Queries',
-                yRightName: 'P95 response time (s)',
+                orientation: 'horizontal',
+                m1Name: 'P95 response time (s)',
+                showDataLabels: true,
+                lightdashLabels: false,
+                showAxisTitles: false,
+                showLegend: false,
             },
             query: null,
         },

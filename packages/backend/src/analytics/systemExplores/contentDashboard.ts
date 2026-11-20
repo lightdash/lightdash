@@ -519,7 +519,7 @@ export const contentDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'Current ownership',
                     description:
-                        'Only dashboards have an owner; charts, SQL charts and data apps do not, so there is nothing to fix for those. Give a new owner to the dashboards listed below, whose owner is deactivated, not a member or missing.',
+                        'Only dashboards have an owner. Give a new owner to the dashboards listed here whose owner is deactivated, not a member or missing.',
                     // Both lists are a few rows long, so they share one short row
                     charts: [
                         'content-ownership-current-snapshot',

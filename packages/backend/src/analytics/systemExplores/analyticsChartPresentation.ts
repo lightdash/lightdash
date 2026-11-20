@@ -48,8 +48,9 @@ const styleTable = (chart: ChartAsCode): ChartAsCode => {
     if (chart.chartConfig.type !== ChartType.TABLE) return chart;
     const { config } = chart.chartConfig;
     const columns = { ...config?.columns };
+    // Narrow enough for five measures beside a name without the last one being cut off
     for (const field of chart.metricQuery.metrics) {
-        columns[field] = { ...columns[field], width: 180 };
+        columns[field] = { ...columns[field], width: 140 };
     }
     for (const field of chart.metricQuery.dimensions) {
         if (field.endsWith('_name'))
@@ -274,7 +275,8 @@ export const withAnalyticsChartPresentation = (
                     ...chart.chartConfig.config,
                     showValue: false,
                     showPercentage: true,
-                    valueLabel: 'hidden',
+                    // The share beside each slice: a donut with no numbers only shows which is bigger
+                    valueLabel: 'outside',
                     legendPosition: 'horizontal',
                     legendMaxItemLength: 28,
                     // Outcomes are recorded in lower case

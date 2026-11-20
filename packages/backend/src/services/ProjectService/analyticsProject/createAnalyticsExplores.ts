@@ -829,6 +829,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             ]) {
                 table.dimensions[field].hidden = true;
             }
+            table.dimensions.dashboard_label.label = 'Dashboard';
             table.dimensions.external_user_id.description =
                 'Explicit external ID supplied by the embed issuer; not a registered user or a tenant ID. Missing IDs remain null.';
             table.dimensions.event_ts.description =
