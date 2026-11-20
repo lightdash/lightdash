@@ -579,14 +579,14 @@ export const analyticsSampleDashboards = [
             ),
             chart(
                 'query-users',
-                'Users running queries',
+                'People running queries',
                 'query_events',
                 'unique_users',
                 undefined,
                 {
                     latestDay: true,
                     description:
-                        'Users who ran queries on the latest day in the selected period. Service accounts count as users.',
+                        'People who ran queries on the latest day in the selected period. Service accounts are counted too.',
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
                         minVersion: '0.7.1',
@@ -615,7 +615,7 @@ export const analyticsSampleDashboards = [
                             ],
                             limit: 500,
                             description:
-                                'Users who ran queries on the latest day in the selected period, with the daily trend. A user active on several days is counted on each of those days.',
+                                'People who ran queries on the latest day in the selected period, with the daily trend. A person active on several days is counted on each of those days. Service accounts are counted too.',
                         },
                     },
                 },

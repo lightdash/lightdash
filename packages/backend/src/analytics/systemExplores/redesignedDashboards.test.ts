@@ -1439,6 +1439,42 @@ describe('library chart options', () => {
     });
 });
 
+describe('axis titles of the area charts', () => {
+    // The trellis has no title options: it titles its axes with the labels of the fields it draws
+    it.each([
+        ['lightdash-analytics-home-people-by-day', 'Day', 'People'],
+        ['lightdash-analytics-home-queries-by-day', 'Day', 'Queries'],
+        [
+            'lightdash-analytics-home-agent-requests-by-day',
+            'Day',
+            'Agent requests',
+        ],
+        [
+            'lightdash-analytics-query-activity-active-users-by-day',
+            'Day',
+            'People',
+        ],
+    ])('%s reads %s and %s', (slug, xTitle, yTitle) => {
+        const binding = analyticsLibraryChartBindings.get(slug)!;
+        expect(binding.slug).toBe('vega-trellis');
+        const labels = new Map(
+            explores.flatMap((explore) =>
+                Object.values(explore.tables).flatMap((table) =>
+                    [
+                        ...Object.values(table.dimensions),
+                        ...Object.values(table.metrics),
+                    ].map((field) => [
+                        `${table.name}_${field.name}`,
+                        field.label,
+                    ]),
+                ),
+            ),
+        );
+        expect(labels.get(binding.fieldMapping.x as string)).toBe(xTitle);
+        expect(labels.get(binding.fieldMapping.value as string)).toBe(yTitle);
+    });
+});
+
 describe('top categories', () => {
     it('keeps the categories with the largest totals, whatever the day', async () => {
         const chart = analyticsContentAsCode

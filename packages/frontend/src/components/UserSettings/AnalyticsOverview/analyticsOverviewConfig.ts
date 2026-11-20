@@ -237,7 +237,7 @@ const querySummary: AnalyticsSummarySpec = {
     metrics: [
         { title: 'Queries', metric: 'total_queries', compact: false },
         {
-            title: 'Users running queries',
+            title: 'People running queries',
             metric: 'unique_users',
             compact: false,
         },

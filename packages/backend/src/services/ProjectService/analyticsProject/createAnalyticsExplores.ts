@@ -514,7 +514,10 @@ export const createAnalyticsExplores = (): Explore[] => {
         }
         if (name === 'query_events') {
             table.dimensions.semantic_field_references.hidden = true;
-            metrics.unique_users.label = 'Querying users';
+            // Library charts title their axes with these labels
+            metrics.unique_users.label = 'People';
+            metrics.total_queries.label = 'Queries';
+            table.dimensions.event_ts_day.label = 'Day';
             metrics.queries_per_user = {
                 ...base,
                 name: 'queries_per_user',
@@ -616,7 +619,8 @@ export const createAnalyticsExplores = (): Explore[] => {
             }
         }
         if (name === 'agent_requests') {
-            metrics.total_requests.label = 'Agent questions';
+            metrics.total_requests.label = 'Agent requests';
+            table.dimensions.requested_at_day.label = 'Day';
         }
         if (name === 'agent_evaluation_runs') {
             for (const column of [
@@ -633,7 +637,8 @@ export const createAnalyticsExplores = (): Explore[] => {
             metrics.total_ai_calls.label = 'AI model calls';
         }
         if (name === 'user_activity') {
-            metrics.unique_users.label = 'Users with recorded activity';
+            metrics.unique_users.label = 'People';
+            table.dimensions.activity_date_day.label = 'Day';
             table.dimensions.org_id.hidden = true;
             for (const column of userActivityColumns.filter(
                 ({ type }) => type === 'BIGINT',
