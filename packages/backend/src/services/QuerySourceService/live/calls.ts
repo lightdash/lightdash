@@ -1,6 +1,9 @@
 import {
+    ParameterError,
     UnexpectedServerError,
     type ExternalConnectionApiSource,
+    type LiveSourceErrorCode,
+    type LiveSourceErrorData,
     type QueryExecutionContext,
 } from '@lightdash/common';
 import type { LiveQueryOutcome } from './query/outcome';
@@ -10,6 +13,39 @@ import type {
     LiveHttpResponse,
     LiveIntegration,
 } from './types';
+
+/**
+ * Bytes one query may read from an API across all its calls. Each call is capped on its own too; this stops a
+ * query paging through hundreds of MB. It sits above the largest read seen
+ * that fits a row cap: 9,999 Attio companies, about 109 MB.
+ */
+export const LIVE_QUERY_MAX_RESPONSE_BYTES = 128 * 1024 * 1024;
+
+const toMegabytes = (bytes: number) => Math.round(bytes / (1024 * 1024));
+
+/** Refuses a query once its responses add up to more than it may read. */
+export const assertLiveResponseBudget = ({
+    label,
+    responseBytes,
+}: {
+    label: string;
+    responseBytes: number;
+}): void => {
+    const maxBytes = LIVE_QUERY_MAX_RESPONSE_BYTES;
+    if (responseBytes <= maxBytes) {
+        return;
+    }
+    const data: LiveSourceErrorData = {
+        liveSourceErrorCode: 'live_source.refused.response_too_large',
+        liveSourceErrorCodes: ['live_source.refused.response_too_large'],
+    };
+    throw new ParameterError(
+        `This ${label} query read more than ${toMegabytes(
+            maxBytes,
+        )} MB from ${label}, the most one query may read. Add a filter or ask for fewer rows.`,
+        data,
+    );
+};
 
 /** Sends a request with the connection's credentials attached, so integrations never hold them. */
 export type LiveTransport = (
@@ -61,6 +97,8 @@ export type LiveQueryCall = {
     query: string;
     rowLimit: number;
     outcome: LiveQueryOutcome;
+    /** Set when the error carries its own code; otherwise the outcome's. */
+    errorCode?: LiveSourceErrorCode | null;
     errorMessage: string | null;
     durationMs: number;
     rowCount: number | null;

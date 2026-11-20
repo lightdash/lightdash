@@ -139,6 +139,61 @@ describe('attioIntegration listing', () => {
         expect(send).not.toHaveBeenCalled();
     });
 
+    it('refuses a query that needs every record after two calls when more than the cap match', async () => {
+        const { source, send } = connect(
+            page(deals(ATTIO_PAGE_SIZE)),
+            page(deals(1, ATTIO_MAX_RECORDS)),
+        );
+
+        await expect(
+            run(
+                source,
+                { columns: ['record_id'], readsAllRecords: true },
+                ATTIO_MAX_RECORDS,
+            ),
+        ).rejects.toThrow('has more than 9,999 rows');
+        expect(send).toHaveBeenCalledTimes(2);
+        expect(send.mock.calls[1][0].body).toEqual({
+            limit: 1,
+            offset: ATTIO_MAX_RECORDS,
+        });
+    });
+
+    it('keeps paging a query that needs every record when the cap holds them all', async () => {
+        const { source, send } = connect(
+            page(deals(ATTIO_PAGE_SIZE)),
+            page([]),
+            page(deals(10, ATTIO_PAGE_SIZE)),
+        );
+
+        const result = await run(
+            source,
+            { columns: ['record_id'], readsAllRecords: true },
+            ATTIO_MAX_RECORDS,
+        );
+
+        expect(send).toHaveBeenCalledTimes(3);
+        expect(send.mock.calls[2][0].body).toEqual({
+            limit: ATTIO_PAGE_SIZE,
+            offset: ATTIO_PAGE_SIZE,
+        });
+        expect(result.rows).toHaveLength(ATTIO_PAGE_SIZE + 10);
+        expect(result.hasMoreRows).toBe(false);
+    });
+
+    it('makes no extra call when the first page holds every record', async () => {
+        const { source, send } = connect(page(deals(3)));
+
+        const result = await run(
+            source,
+            { columns: ['record_id'], readsAllRecords: true },
+            ATTIO_MAX_RECORDS,
+        );
+
+        expect(send).toHaveBeenCalledTimes(1);
+        expect(result.rows).toHaveLength(3);
+    });
+
     it('refuses a column that is not an attribute, before calling', async () => {
         const { source, send } = connect();
         await expect(

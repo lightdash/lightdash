@@ -9,6 +9,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import {
     getLiveQueryOutcome,
+    getLiveSourceErrorCode,
     getLiveSourceQueryErrorCode,
     isLiveSourceErrorReportable,
     LIVE_QUERY_OUTCOMES,
@@ -70,5 +71,30 @@ describe('getLiveSourceQueryErrorCode', () => {
             'live_source.upstream.invalid_request',
             'live_source.upstream.unknown',
         ]);
+    });
+});
+
+describe('getLiveSourceErrorCode', () => {
+    it('keeps the refusal code an error carries, and never reports it', () => {
+        const error = new ParameterError('read too much', {
+            liveSourceErrorCode: 'live_source.refused.response_too_large',
+            liveSourceErrorCodes: ['live_source.refused.response_too_large'],
+        });
+        const code = getLiveSourceErrorCode(error, getLiveQueryOutcome(error));
+        expect(code).toBe('live_source.refused.response_too_large');
+        expect(isLiveSourceErrorReportable(code!)).toBe(false);
+    });
+
+    it("falls back to the outcome's code", () => {
+        const error = new ParameterError('blocked');
+        expect(getLiveSourceErrorCode(error, 'invalid_request')).toBe(
+            'live_source.internal.invalid_request',
+        );
+        expect(
+            getLiveSourceErrorCode(
+                new ParameterError('odd', { liveSourceErrorCode: 'made_up' }),
+                'invalid_request',
+            ),
+        ).toBe('live_source.internal.invalid_request');
     });
 });

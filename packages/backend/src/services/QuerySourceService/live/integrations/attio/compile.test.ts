@@ -170,7 +170,7 @@ describe('compileAttioQuery', () => {
             { fieldId: field('stage'), descending: false },
         ];
         expect(compile(query({ dimensions: [field('name')], sorts }))).toEqual({
-            request: { columns: ['name'] },
+            request: { columns: ['name'], readsAllRecords: true },
             localSorts: sorts,
         });
     });

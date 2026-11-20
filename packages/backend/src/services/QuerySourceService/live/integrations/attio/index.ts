@@ -55,7 +55,8 @@ export const attioIntegration = defineLiveIntegration({
         concurrentCalls: 3,
         callsPerMinute: 600,
         callsPerHour: 20_000,
-        callsPerQuery: ATTIO_MAX_PAGES,
+        // One more call checks for a record past the cap, see run.ts
+        callsPerQuery: ATTIO_MAX_PAGES + 1,
         timeoutMs: 30_000,
         maxRows: ATTIO_MAX_RECORDS,
     },

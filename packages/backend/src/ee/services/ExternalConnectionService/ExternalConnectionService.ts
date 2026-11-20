@@ -70,6 +70,7 @@ import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { SavedChartModel } from '../../../models/SavedChartModel';
 import { BaseService } from '../../../services/BaseService';
 import {
+    assertLiveResponseBudget,
     createLiveCalls,
     type LiveCallUsage,
     type LiveTransport,
@@ -2195,7 +2196,8 @@ export class ExternalConnectionService extends BaseService {
                     );
                 }
                 // The query text stays out of analytics; it can hold filter values.
-                const errorCode = getLiveSourceQueryErrorCode(call.outcome);
+                const errorCode =
+                    call.errorCode ?? getLiveSourceQueryErrorCode(call.outcome);
                 this.analytics.trackAccount(account, {
                     event: 'live_source.query_finished',
                     properties: {
@@ -2426,9 +2428,19 @@ export class ExternalConnectionService extends BaseService {
                     `This query needs more than ${limits.callsPerQuery} ${label} API calls. Narrow it with filters or a shorter time range.`,
                 );
             }
-            return this.apiSourceCallLimiter.run(connection, limits, () =>
-                sendOnce(request),
+            const response = await this.apiSourceCallLimiter.run(
+                connection,
+                limits,
+                () => sendOnce(request),
             );
+            // A failed call keeps the API's own error
+            if (isPerQuery && response.status >= 200 && response.status < 300) {
+                assertLiveResponseBudget({
+                    label,
+                    responseBytes: usage.responseBytes,
+                });
+            }
+            return response;
         };
         return {
             integration,

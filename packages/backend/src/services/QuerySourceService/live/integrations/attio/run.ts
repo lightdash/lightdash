@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import { z } from 'zod';
 import { assertMaxRows } from '../../integration';
-import { readRowsWithinCap } from '../../query/rows';
+import { readRowsWithinCap, tooManyRowsError } from '../../query/rows';
 import {
     type LiveCalls,
     type LiveColumn,
@@ -68,6 +68,11 @@ export const attioRequestSchema = z
         /** Attio's own filter object, sent as it is. */
         filter: z.record(z.string(), z.unknown()).optional(),
         sorts: z.array(sortSchema).optional(),
+        /**
+         * The rows are sorted here, so the query needs every matching
+         * record and is refused, not cut off, past the cap.
+         */
+        readsAllRecords: z.boolean().optional(),
     })
     .strict();
 
@@ -84,6 +89,28 @@ const recordSchema = z.object({
 type AttioRecord = z.infer<typeof recordSchema>;
 
 const recordsResponseSchema = z.object({ data: z.array(recordSchema) });
+
+/**
+ * A record with only the attributes the query reads, current values only.
+ * Attio returns every attribute of every record, tens of KB each, and its
+ * query endpoint can't select attributes, so the rest is dropped per page.
+ */
+const keepColumns = (
+    record: AttioRecord,
+    slugs: ReadonlySet<string>,
+): AttioRecord => ({
+    id: { record_id: record.id.record_id },
+    created_at: record.created_at,
+    web_url: record.web_url,
+    values: Object.fromEntries(
+        Object.entries(record.values)
+            .filter(([slug]) => slugs.has(slug))
+            .map(([slug, values]) => [
+                slug,
+                values.filter(({ active_until: activeUntil }) => !activeUntil),
+            ]),
+    ),
+});
 
 const readBuiltIn = (
     record: AttioRecord,
@@ -144,7 +171,6 @@ const readValue = (
 const readAttribute = (record: AttioRecord, column: string): unknown => {
     const { slug, property } = parseAttioApiName(column);
     const values = (record.values[slug] ?? [])
-        .filter(({ active_until: activeUntil }) => !activeUntil)
         .map((value) => readValue(value, property))
         .filter((value) => value !== null && value !== undefined);
     if (values.length === 0) {
@@ -182,7 +208,11 @@ const toColumnType = (
     return DimensionType.STRING;
 };
 
-/** Reads matching records page by page, refusing past what one query can read. */
+/**
+ * Reads matching records page by page, refusing past what one query can
+ * read. A query that needs every record checks for one past the cap once its
+ * first page comes back full, so it is refused after two calls, not twenty.
+ */
 const readRecords = async ({
     object,
     request,
@@ -194,6 +224,31 @@ const readRecords = async ({
     requestedRows: number;
     calls: LiveCalls;
 }) => {
+    const slugs = new Set(
+        request.columns.map((column) => parseAttioApiName(column).slug),
+    );
+    const fetchRecords = async ({
+        limit,
+        offset,
+    }: {
+        limit: number;
+        offset: number;
+    }) => {
+        const { data } = await calls.fetch(
+            {
+                method: 'POST',
+                path: getAttioRecordsQueryPath(object),
+                body: {
+                    ...(request.filter ? { filter: request.filter } : {}),
+                    ...(request.sorts ? { sorts: request.sorts } : {}),
+                    limit,
+                    offset,
+                },
+            },
+            recordsResponseSchema,
+        );
+        return data.map((record) => keepColumns(record, slugs));
+    };
     const records: AttioRecord[] = [];
     const { hasMoreRows } = await readRowsWithinCap({
         label: LABEL,
@@ -203,27 +258,32 @@ const readRecords = async ({
         maxPages: ATTIO_MAX_PAGES,
         fetchPage: async ({ limit, cursor }) => {
             const offset = cursor ? Number(cursor) : 0;
-            const { data } = await calls.fetch(
-                {
-                    method: 'POST',
-                    path: getAttioRecordsQueryPath(object),
-                    body: {
-                        ...(request.filter ? { filter: request.filter } : {}),
-                        ...(request.sorts ? { sorts: request.sorts } : {}),
-                        limit,
-                        offset,
-                    },
-                },
-                recordsResponseSchema,
-            );
+            const data = await fetchRecords({ limit, offset });
+            const hasNextPage = data.length === limit;
+            if (
+                request.readsAllRecords &&
+                requestedRows >= ATTIO_MAX_RECORDS &&
+                offset === 0 &&
+                hasNextPage
+            ) {
+                const pastTheCap = await fetchRecords({
+                    limit: 1,
+                    offset: ATTIO_MAX_RECORDS,
+                });
+                if (pastTheCap.length > 0) {
+                    throw tooManyRowsError({
+                        label: LABEL,
+                        maxRows: ATTIO_MAX_RECORDS,
+                    });
+                }
+            }
             records.push(...data);
             return {
                 // Rows are only counted here; records keep the values
                 rows: data.map(() => ({})),
-                nextCursor:
-                    data.length === limit
-                        ? String(offset + data.length)
-                        : undefined,
+                nextCursor: hasNextPage
+                    ? String(offset + data.length)
+                    : undefined,
             };
         },
     });
