@@ -14,7 +14,7 @@
 .row {
     display: grid;
     grid-template-columns:
-        minmax(160px, 220px) minmax(0, 1fr) 96px 88px 88px 112px
+        minmax(160px, 220px) minmax(0, 1fr) 96px 88px 112px
         28px;
     align-items: center;
     gap: 12px;
