@@ -278,7 +278,7 @@
     }
 
     /* PROTOTYPE: touch keeps every variant's actions in the row */
-    .inlineActions.inlineActions.inlineActions {
+    .inlineActions.inlineActions.inlineActions.inlineActions[data-visible] {
         position: static !important;
     }
 
