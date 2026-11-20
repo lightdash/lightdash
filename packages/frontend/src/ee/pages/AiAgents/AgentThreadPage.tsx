@@ -9,6 +9,7 @@ import {
     useSearchParams,
 } from 'react-router';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
 import { ReviewVerificationPanel } from '../../features/aiCopilot/components/Admin/ReviewVerificationPanel';
@@ -126,12 +127,13 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         projectUuid,
     });
 
+    const projectSlug = useOptionalProjectRoute()?.project.slug ?? null;
     const handleToolResult = useCallback(
         (toolResult: AiAgentToolResult) => {
             if (!projectUuid) return;
 
             const dashboardUrl = getDashboardNavigationUrlFromContentToolResult(
-                projectUuid,
+                { projectUuid, projectSlug },
                 toolResult,
             );
             if (!dashboardUrl || isEmbed) return;
@@ -144,6 +146,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         [
             navigateFromAgentChat,
             isEmbed,
+            projectSlug,
             projectUuid,
             thread?.firstMessage?.message,
             thread?.title,

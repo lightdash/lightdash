@@ -25,6 +25,7 @@ import {
 } from 'react';
 import { createPath, useLocation, useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
+import { useOptionalProjectRoute } from '../../../../../hooks/useProjectRoute';
 import useApp from '../../../../../providers/App/useApp';
 import { findRetryableDeepResearchRun } from '../../deepResearch/deepResearchRegistry';
 import { runDeepResearchAgain } from '../../deepResearch/runAgain';
@@ -209,18 +210,19 @@ const NewThreadPanel: FC<{
     const dispatchToStore = useAiAgentStoreDispatch();
     const refreshDocumentOnAgentSave =
         useRefreshDocumentOnAgentSave(projectUuid);
+    const projectSlug = useOptionalProjectRoute()?.project.slug ?? null;
     const handleToolResult = useCallback(
         (toolResult: AiAgentToolResult) => {
             refreshDocumentOnAgentSave(toolResult);
             const dashboardUrl = getDashboardNavigationUrlFromContentToolResult(
-                projectUuid,
+                { projectUuid, projectSlug },
                 toolResult,
             );
             if (!dashboardUrl) return;
 
             void navigate(dashboardUrl, { viewTransition: true });
         },
-        [navigate, projectUuid, refreshDocumentOnAgentSave],
+        [navigate, projectSlug, projectUuid, refreshDocumentOnAgentSave],
     );
 
     const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
@@ -532,18 +534,19 @@ const ExistingThreadPanel: FC<{
 
     const refreshDocumentOnAgentSave =
         useRefreshDocumentOnAgentSave(projectUuid);
+    const projectSlug = useOptionalProjectRoute()?.project.slug ?? null;
     const handleToolResult = useCallback(
         (toolResult: AiAgentToolResult) => {
             refreshDocumentOnAgentSave(toolResult);
             const dashboardUrl = getDashboardNavigationUrlFromContentToolResult(
-                projectUuid,
+                { projectUuid, projectSlug },
                 toolResult,
             );
             if (!dashboardUrl) return;
 
             void navigate(dashboardUrl, { viewTransition: true });
         },
-        [navigate, projectUuid, refreshDocumentOnAgentSave],
+        [navigate, projectSlug, projectUuid, refreshDocumentOnAgentSave],
     );
 
     const {
