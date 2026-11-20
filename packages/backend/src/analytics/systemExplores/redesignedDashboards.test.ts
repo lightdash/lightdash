@@ -2006,3 +2006,52 @@ describe('totals of a table grouped by two names', () => {
         }
     });
 });
+
+describe('options of the newest chart versions', () => {
+    const optionsOf = (slug: string) =>
+        analyticsLibraryChartBindings.get(slug)!.optionValues;
+
+    it('draws passed green and failed orange, and counts runs in whole numbers', () => {
+        expect(
+            optionsOf(
+                'lightdash-analytics-agent-evaluations-assessment-volume-by-day',
+            ),
+        ).toMatchObject({
+            m1Color: '#34D399',
+            m2Color: '#FB923C',
+            yIntegerTicks: true,
+        });
+        expect(
+            optionsOf(
+                'lightdash-analytics-agent-evaluations-assessment-pass-rate-by-day',
+            ),
+        ).toMatchObject({ yIntegerTicks: true });
+    });
+
+    it('gives every card one number size and format, and every word cloud one colour', () => {
+        const bindings = [...analyticsLibraryChartBindings.values()];
+        const cards = bindings.filter(
+            ({ slug, optionValues }) =>
+                slug === 'big-number-with-sparkline-trend' &&
+                'reserveComparisonSpace' in optionValues,
+        );
+        expect(cards.length).toBeGreaterThan(10);
+        cards.forEach(({ optionValues }) =>
+            expect(optionValues).toMatchObject({
+                style: 'compact',
+                sizeMode: 'preset',
+                bigNumberSize: 6,
+                reserveComparisonSpace: false,
+            }),
+        );
+        const clouds = bindings.filter(({ slug }) => slug === 'word-cloud');
+        expect(clouds).toHaveLength(2);
+        clouds.forEach(({ optionValues }) =>
+            expect(optionValues).toMatchObject({
+                colorMode: 'shade',
+                rotationMode: 'none',
+                showCaption: false,
+            }),
+        );
+    });
+});

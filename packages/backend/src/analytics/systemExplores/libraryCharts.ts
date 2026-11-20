@@ -113,7 +113,7 @@ export const libraryChartOptions: Record<
     },
     'sortable-pivot-table': {
         ...sinceFirstBinding(
-            'showTotalsRow groupSubtotals defaultCollapsed valueDisplay showRowTotals totalsPosition stickyFirstColumn resizableColumns stripedRows stickyHeader fitMode columnBorders columnGroupBy hideColumns density cellColorMode formatTotals showMiniBars decimalPlaces useFieldFormats rowOrder columnOrder defaultSortDirection highlightColor',
+            'showTotalsRow groupSubtotals defaultCollapsed valueDisplay showRowTotals totalsPosition stickyFirstColumn resizableColumns stripedRows stickyHeader fitMode columnBorders columnGroupBy hideColumns density cellColorMode formatTotals showMiniBars decimalPlaces rowOrder columnOrder defaultSortDirection highlightColor',
         ),
         initialSort: '0.14.0',
         rowHeaderName: '0.14.0',
@@ -133,6 +133,14 @@ export const libraryChartOptions: Record<
         // Colours series or bars by a named group, such as the provider of a model
         splitColorGroups: '0.18.4',
         orientation: '0.18.4',
+        // A colour for one measure, for measures that mean good or not good. Ignored with a split.
+        m1Color: '0.18.6',
+        m2Color: '0.18.6',
+        m3Color: '0.18.6',
+        m4Color: '0.18.6',
+        // Whole-number ticks, for an axis that counts a few things
+        yIntegerTicks: '0.18.6',
+        y2IntegerTicks: '0.18.6',
     },
     'big-number-with-sparkline-trend': {
         ...sinceFirstBinding(
@@ -140,10 +148,17 @@ export const libraryChartOptions: Record<
         ),
         showHighLow: '0.8.0',
         comparisonSource: '0.8.0',
+        // From this version the number's size and format no longer depend on how the value is
+        // added up, so cards in a row can match
+        reserveComparisonSpace: '0.8.2',
     },
-    'word-cloud': sinceFirstBinding(
-        'colorMode singleColor rotationMode spiral minFontSize maxFontSize sizeScale maxWords caseMode showLegend',
-    ),
+    'word-cloud': {
+        ...sinceFirstBinding(
+            'colorMode singleColor rotationMode spiral minFontSize maxFontSize sizeScale maxWords caseMode showLegend',
+        ),
+        // Hides the line under the cloud that counts its words
+        showCaption: '0.4.1',
+    },
 };
 
 // Swaps a chart to its library type only when the installed version meets its binding and the binding is valid.

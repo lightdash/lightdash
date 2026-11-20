@@ -42,19 +42,24 @@ export const card = ({
     visualization: 'number',
     libraryChart: {
         slug: 'big-number-with-sparkline-trend',
-        minVersion: hero ? '0.8.0' : '0.7.1',
+        minVersion: '0.8.2',
         fieldMapping: { value: metric, sparklineMetric: metric, time: day },
         optionValues: {
             ...(latestDay
                 ? { valueAggregation: 'latest', showComparison: false }
                 : {
                       valueAggregation: 'sum',
-                      style: 'compact',
                       // No change badge: the chart can only compare one day with the day before,
                       // which says nothing about a total for the whole period.
                       showComparison: false,
                   }),
             ...(hero ? { showHighLow: true } : {}),
+            // Every card of a row draws its number at one size and in one format, whichever way
+            // its value is added up. No card has a change badge, so no line is kept for one.
+            style: 'compact',
+            sizeMode: 'preset',
+            bigNumberSize: 6,
+            reserveComparisonSpace: false,
             colorSparklineByTrend: false,
             showSparklineArea: true,
             showLabel: true,
@@ -277,12 +282,16 @@ export const seriesByDay = ({
     stacked = false,
     seriesType = 'bar',
     rightAxis,
+    wholeNumbers = false,
     ...spec
 }: Base & {
     day: string;
-    series: { metric: string; name: string }[];
+    // A colour is for a measure that means good or not good; others take the palette in turn
+    series: { metric: string; name: string; color?: string }[];
     yName: string;
     stacked?: boolean;
+    // The axis counts a few things, so its ticks are whole numbers
+    wholeNumbers?: boolean;
     seriesType?: 'bar' | 'line';
     // Draws the last measure as a line on its own axis on the right
     rightAxis?: string;
@@ -308,7 +317,10 @@ export const seriesByDay = ({
         },
         libraryChart: {
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.18.0',
+            minVersion:
+                wholeNumbers || series.some(({ color }) => color)
+                    ? '0.18.6'
+                    : '0.18.0',
             fieldMapping: {
                 x: day,
                 ...Object.fromEntries(
@@ -327,6 +339,14 @@ export const seriesByDay = ({
                         series[index].name,
                     ]),
                 ),
+                ...Object.fromEntries(
+                    slots.flatMap((slot, index) =>
+                        series[index].color
+                            ? [[`${slot}Color`, series[index].color]]
+                            : [],
+                    ),
+                ),
+                ...(wholeNumbers ? { yIntegerTicks: true } : {}),
                 ...(rightAxis
                     ? {
                           [`${last}Type`]: 'line',
@@ -462,9 +482,15 @@ export const cloud = ({
     flipAxes: true,
     libraryChart: {
         slug: 'word-cloud',
-        minVersion: '0.4.0',
+        minVersion: '0.4.1',
         fieldMapping: { word, size: metric },
-        optionValues: { showLegend: false },
+        // One colour, strongest for the biggest word, every word level, no word count under it
+        optionValues: {
+            showLegend: false,
+            colorMode: 'shade',
+            rotationMode: 'none',
+            showCaption: false,
+        },
         query: {
             dimensions: [word],
             metrics: [metric],

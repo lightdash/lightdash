@@ -214,7 +214,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         fieldLabels: { [appWeek]: 'Week', [appRunningTotal.name]: 'Data apps' },
         libraryChart: {
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.18.0',
+            minVersion: '0.18.6',
             fieldMapping: { x: appWeek, m1: appRunningTotal.name },
             optionValues: {
                 seriesType: 'step',
@@ -224,6 +224,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
                 xName: 'Week',
                 yName: 'Data apps',
                 m1Name: 'Data apps',
+                yIntegerTicks: true,
             },
             query: null,
         },
@@ -367,6 +368,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         ],
         yName: 'Page loads with an error',
         seriesType: 'line',
+        wholeNumbers: true,
     }),
     {
         key: 'adoption-app-outcome-detail',

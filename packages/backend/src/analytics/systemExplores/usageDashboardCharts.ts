@@ -113,12 +113,17 @@ export const usageChartSpecs: UsageChartSpec[] = [
         flipAxes: true,
         libraryChart: {
             slug: 'word-cloud',
-            minVersion: '0.4.0',
+            minVersion: '0.4.1',
             fieldMapping: {
                 word: 'semantic_usage_field_label',
                 size: 'semantic_usage_total_queries',
             },
-            optionValues: { showLegend: false },
+            optionValues: {
+                showLegend: false,
+                colorMode: 'shade',
+                rotationMode: 'none',
+                showCaption: false,
+            },
             query: {
                 dimensions: ['semantic_usage_field_label'],
                 metrics: ['semantic_usage_total_queries'],
