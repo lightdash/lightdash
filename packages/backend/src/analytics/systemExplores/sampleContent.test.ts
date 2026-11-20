@@ -234,15 +234,15 @@ describe('analytics sample content', () => {
             expect(overviewTiles('lightdash-analytics-overview')).toEqual(
                 expect.arrayContaining(
                     [
-                        ['ai-calls', 0, 1, 9, 3],
-                        ['tokens', 9, 1, 9, 3],
-                        ['ai-users', 18, 1, 9, 3],
-                        ['output-tokens', 27, 1, 9, 3],
-                        ['tokens-by-feature', 0, 4, 36, 7],
-                        ['ai-calls-by-day', 0, 11, 18, 7],
-                        ['tokens-by-day', 18, 11, 18, 7],
-                        ['tokens-by-model', 0, 18, 18, 8],
-                        ['calls-by-model', 18, 18, 18, 8],
+                        ['ai-calls', 0, 1, 9, 4],
+                        ['tokens', 9, 1, 9, 4],
+                        ['ai-users', 18, 1, 9, 4],
+                        ['output-tokens', 27, 1, 9, 4],
+                        ['tokens-by-feature', 0, 5, 36, 7],
+                        ['ai-calls-by-day', 0, 12, 18, 7],
+                        ['tokens-by-day', 18, 12, 18, 7],
+                        ['tokens-by-model', 0, 19, 18, 8],
+                        ['calls-by-model', 18, 19, 18, 8],
                     ].map(([key, x, y, w, h]) => ({
                         chartSlug: `${prefix}${key}`,
                         x,
@@ -277,16 +277,16 @@ describe('analytics sample content', () => {
             const prefix = 'lightdash-analytics-query-activity-';
             expect(overviewTiles('lightdash-analytics-query-activity')).toEqual(
                 [
-                    ['queries', 0, 0, 9, 3],
-                    ['query-users', 9, 0, 9, 3],
-                    ['avg-execution-time', 18, 0, 9, 3],
-                    ['p90-execution-time', 27, 0, 9, 3],
-                    ['queries-by-day', 0, 9, 18, 8],
-                    ['active-users-by-day', 18, 9, 18, 8],
-                    ['query-cache', 0, 17, 18, 8],
-                    ['queries-by-context', 18, 17, 18, 8],
-                    ['query-latency-by-day', 0, 25, 36, 8],
-                    ['query-calendar', 0, 3, 36, 6],
+                    ['queries', 0, 0, 9, 4],
+                    ['query-users', 9, 0, 9, 4],
+                    ['avg-execution-time', 18, 0, 9, 4],
+                    ['p90-execution-time', 27, 0, 9, 4],
+                    ['queries-by-day', 0, 10, 18, 8],
+                    ['active-users-by-day', 18, 10, 18, 8],
+                    ['query-cache', 0, 18, 18, 8],
+                    ['queries-by-context', 18, 18, 18, 8],
+                    ['query-latency-by-day', 0, 26, 36, 8],
+                    ['query-calendar', 0, 4, 36, 6],
                 ].map(([key, x, y, w, h]) => ({
                     chartSlug: `${prefix}${key}`,
                     x,

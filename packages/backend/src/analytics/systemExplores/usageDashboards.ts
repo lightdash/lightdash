@@ -659,7 +659,7 @@ export const buildUsageDashboards = (
                         nextY += h;
                 });
                 if (isRow) y = sectionY + (section.rowHeight ?? 7);
-                else if (isKpiRow) y = sectionY + 3;
+                else if (isKpiRow) y = sectionY + 4;
                 else if (isVisualPair) y = sectionY + 7;
                 else y = nextY;
             }

@@ -200,7 +200,8 @@ describe('built-in chart colours', () => {
         '#0CA678',
         '#E67700',
         '#C92A2A',
-        '#12B886',
+        '#34D399',
+        '#FB923C',
         '#868E96',
         '#ADB5BD',
     ];

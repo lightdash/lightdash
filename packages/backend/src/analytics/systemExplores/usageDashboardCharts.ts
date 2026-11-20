@@ -193,7 +193,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         visualization: 'number',
         libraryChart: {
             slug: 'big-number-with-sparkline-trend',
-            minVersion: '0.8.0',
+            minVersion: '0.7.1',
             fieldMapping: {
                 value: 'agent_requests_total_requests',
                 sparklineMetric: 'agent_requests_total_requests',

@@ -141,14 +141,14 @@ describe('Overview dashboard', () => {
                 tile.h,
             ]),
         ).toEqual([
-            ['active-people', 0, 0, 9, 3],
-            ['queries', 9, 0, 9, 3],
-            ['agent-requests', 18, 0, 9, 3],
-            ['content-created', 27, 0, 9, 3],
-            ['people-by-day', 0, 3, 36, 5],
-            ['queries-by-day', 0, 8, 36, 5],
-            ['agent-requests-by-day', 0, 13, 36, 5],
-            ['most-active-people', 0, 18, 36, 8],
+            ['active-people', 0, 0, 9, 4],
+            ['queries', 9, 0, 9, 4],
+            ['agent-requests', 18, 0, 9, 4],
+            ['content-created', 27, 0, 9, 4],
+            ['people-by-day', 0, 4, 36, 5],
+            ['queries-by-day', 0, 9, 36, 5],
+            ['agent-requests-by-day', 0, 14, 36, 5],
+            ['most-active-people', 0, 19, 36, 8],
         ]);
     });
 
@@ -275,16 +275,10 @@ describe('Overview dashboard', () => {
                 const { optionValues, fieldMapping, minVersion } =
                     bindingOf(key);
                 const [day] = swappedOf(key).metricQuery.dimensions;
-                // The change against the previous period on a summed card needs the newer version
-                expect(minVersion).toBe(
-                    optionValues.valueAggregation === 'sum' ? '0.8.0' : '0.7.1',
-                );
-                if (optionValues.valueAggregation === 'sum')
-                    expect(optionValues).toMatchObject({
-                        showComparison: true,
-                        comparisonSource: 'previousPeriod',
-                    });
+                // A short card has no room for a change badge under the number
+                expect(minVersion).toBe('0.7.1');
                 expect(optionValues).toMatchObject({
+                    showComparison: false,
                     showSparklineArea: true,
                     colorSparklineByTrend: false,
                     showLabel: true,

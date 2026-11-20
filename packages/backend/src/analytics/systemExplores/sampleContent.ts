@@ -186,7 +186,7 @@ const aiUsageContent = {
                 'AI calls in the selected period. One agent request can make several AI calls.',
             libraryChart: {
                 slug: 'big-number-with-sparkline-trend',
-                minVersion: '0.8.0',
+                minVersion: '0.7.1',
                 fieldMapping: {
                     value: 'ai_usage_total_ai_calls',
                     sparklineMetric: 'ai_usage_total_ai_calls',
@@ -224,7 +224,7 @@ const aiUsageContent = {
                 description: 'Tokens used in the selected period.',
                 libraryChart: {
                     slug: 'big-number-with-sparkline-trend',
-                    minVersion: '0.8.0',
+                    minVersion: '0.7.1',
                     fieldMapping: {
                         value: 'ai_usage_total_tokens_used',
                         sparklineMetric: 'ai_usage_total_tokens_used',
@@ -308,7 +308,7 @@ const aiUsageContent = {
                 description: 'Output tokens in the selected period.',
                 libraryChart: {
                     slug: 'big-number-with-sparkline-trend',
-                    minVersion: '0.8.0',
+                    minVersion: '0.7.1',
                     fieldMapping: {
                         value: 'ai_usage_total_output_tokens',
                         sparklineMetric: 'ai_usage_total_output_tokens',
@@ -539,7 +539,7 @@ export const analyticsSampleDashboards = [
                     description: 'Queries run in the selected period.',
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
-                        minVersion: '0.8.0',
+                        minVersion: '0.7.1',
                         fieldMapping: {
                             value: 'query_events_total_queries',
                             sparklineMetric: 'query_events_total_queries',
@@ -894,12 +894,12 @@ const legacyContentAsCode: {
                             index >= 4
                         ) {
                             const positions = [
-                                { x: 0, y: 9, w: 18, h: 8 },
-                                { x: 18, y: 9, w: 18, h: 8 },
-                                { x: 0, y: 17, w: 18, h: 8 },
-                                { x: 18, y: 17, w: 18, h: 8 },
-                                { x: 0, y: 25, w: 36, h: 8 },
-                                { x: 0, y: 3, w: 36, h: 6 },
+                                { x: 0, y: 10, w: 18, h: 8 },
+                                { x: 18, y: 10, w: 18, h: 8 },
+                                { x: 0, y: 18, w: 18, h: 8 },
+                                { x: 18, y: 18, w: 18, h: 8 },
+                                { x: 0, y: 26, w: 36, h: 8 },
+                                { x: 0, y: 4, w: 36, h: 6 },
                             ];
                             return {
                                 uuid: undefined,
@@ -926,9 +926,9 @@ const legacyContentAsCode: {
                             y:
                                 index < 4
                                     ? 0
-                                    : 3 + Math.floor((index - 4) / 2) * 8,
+                                    : 4 + Math.floor((index - 4) / 2) * 8,
                             w: width,
-                            h: index < 4 ? 3 : 8,
+                            h: index < 4 ? 4 : 8,
                             tabSlug: null,
                             properties: { chartSlug: slug },
                         };
