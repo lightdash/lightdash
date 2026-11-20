@@ -20,6 +20,7 @@ import useFullscreen from '../../providers/Fullscreen/useFullscreen';
 import MantineBaseProvider from '../../providers/MantineBaseProvider';
 import { isPlaygroundProvisioningSource } from '../../utils/playgroundProject';
 import { getProjectUrlIdentifier } from '../../utils/projectUrl';
+import { AppSidebar } from '../AppSidebar/AppSidebar';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../common/Page/constants';
 import { DashboardExplorerBanner } from './DashboardExplorerBanner';
 import { ImpersonationBanner } from './ImpersonationBanner';
@@ -27,7 +28,9 @@ import classes from './index.module.css';
 import { MainNavBarContent } from './MainNavBarContent';
 import { PreviewBanner } from './PreviewBanner';
 import { SampleDataBanner } from './SampleDataBanner';
+import { SharedSignInExpiryListener } from './SharedSignInExpiryListener';
 import { TrialWarningBanner } from './TrialWarningBanner';
+import { useCompactNavigation } from './useCompactNavigation';
 
 enum NavBarMode {
     DEFAULT = 'default',
@@ -140,9 +143,23 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
         showSampleDataBanner ||
         showTrialWarning;
 
+    const leftNavigationFlag = useServerFeatureFlag(
+        FeatureFlags.LeftNavigation,
+    );
+    const isCompact = useCompactNavigation();
+    // Phones keep the top bar, and so does editing a dashboard chart: its
+    // bar holds the way back to the dashboard.
+    const showSidebar =
+        leftNavigationFlag.data?.enabled === true &&
+        !isCompact &&
+        navBarMode === NavBarMode.DEFAULT;
+    const projectUrlIdentifier = project
+        ? getProjectUrlIdentifier(project)
+        : activeProjectUuid;
+
     // Calculate placeholder height: navbar + banner.
     const headerContainerHeight =
-        NAVBAR_HEIGHT + (hasBanner ? BANNER_HEIGHT : 0);
+        (showSidebar ? 0 : NAVBAR_HEIGHT) + (hasBanner ? BANNER_HEIGHT : 0);
 
     // Scoped dark theme for the navbar using Mantine's cssVariablesSelector + getRootElement.
     // This is the recommended approach for scoped theming, though it has known CSS specificity
@@ -184,36 +201,48 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                             <TrialWarningBanner access={organizationAccess} />
                         )
                     )}
-                    <Box
-                        component="header"
-                        h={NAVBAR_HEIGHT}
-                        className={clsx(
-                            classes.header,
-                            isFixed && classes.fixed,
-                            navBarMode === NavBarMode.EDITING_DASHBOARD_CHART &&
-                                classes.headerEditingDashboardChart,
-                        )}
-                        mt={hasBanner ? BANNER_HEIGHT : 0}
-                        display={isFullscreen ? 'none' : 'flex'}
-                        px="md"
-                    >
-                        <NavBarContent
-                            navBarMode={navBarMode}
-                            activeProjectUuid={activeProjectUuid}
-                            activeProjectUrlIdentifier={
-                                project
-                                    ? getProjectUrlIdentifier(project)
-                                    : activeProjectUuid
-                            }
-                            isLoadingActiveProject={isLoadingActiveProject}
-                        />
-                    </Box>
+                    {showSidebar ? (
+                        <SharedSignInExpiryListener />
+                    ) : (
+                        <Box
+                            component="header"
+                            h={NAVBAR_HEIGHT}
+                            className={clsx(
+                                classes.header,
+                                isFixed && classes.fixed,
+                                navBarMode ===
+                                    NavBarMode.EDITING_DASHBOARD_CHART &&
+                                    classes.headerEditingDashboardChart,
+                            )}
+                            mt={hasBanner ? BANNER_HEIGHT : 0}
+                            display={isFullscreen ? 'none' : 'flex'}
+                            px="md"
+                        >
+                            <NavBarContent
+                                navBarMode={navBarMode}
+                                activeProjectUuid={activeProjectUuid}
+                                activeProjectUrlIdentifier={
+                                    projectUrlIdentifier
+                                }
+                                isLoadingActiveProject={isLoadingActiveProject}
+                            />
+                        </Box>
+                    )}
                     {/* Placeholder to reserve space when navbar is fixed */}
                     {isFixed && !isFullscreen && (
                         <Box h={headerContainerHeight} />
                     )}
                 </MantineBaseProvider>
             </Box>
+            {showSidebar && !isFullscreen && (
+                <AppSidebar
+                    projectUuid={
+                        isLoadingActiveProject ? undefined : activeProjectUuid
+                    }
+                    projectUrlIdentifier={projectUrlIdentifier}
+                    hasBanner={hasBanner}
+                />
+            )}
         </>
     );
 });

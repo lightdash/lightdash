@@ -4,6 +4,7 @@ export const PAGE_HEADER_HEIGHT = 64;
 
 export const NAVBAR_HEIGHT = 50;
 export const BANNER_HEIGHT = 35;
+export const APP_SIDEBAR_WIDTH = 248;
 
 export const FOOTER_HEIGHT = 80;
 export const FOOTER_MARGIN: MantineSize = 'lg';
