@@ -1,4 +1,8 @@
-import { SchedulerFormat, type SchedulerCsvOptions } from '@lightdash/common';
+import {
+    SchedulerFormat,
+    XlsxExportContent,
+    type SchedulerCsvOptions,
+} from '@lightdash/common';
 import {
     Button,
     Collapse,
@@ -37,6 +41,9 @@ type CsvFormattingOptionsProps = {
     onExportPivotedDataChange: (value: boolean) => void;
     xlsxFileLayout: XlsxFileLayout;
     onXlsxFileLayoutChange: (value: XlsxFileLayout) => void;
+    /** Shown for XLSX when provided: export non-table charts as data or as images */
+    xlsxContent?: XlsxExportContent;
+    onXlsxContentChange?: (value: XlsxExportContent) => void;
     /** Render the options directly (two-column grid) instead of behind a collapsible */
     inline?: boolean;
     /** 'tableOrAll' (app deliveries) drops the numeric Custom option — a single
@@ -70,6 +77,8 @@ export const CsvFormattingOptions: FC<CsvFormattingOptionsProps> = ({
     onExportPivotedDataChange,
     xlsxFileLayout,
     onXlsxFileLayoutChange,
+    xlsxContent = XlsxExportContent.DATA,
+    onXlsxContentChange,
     inline = false,
     limitVariant = 'full',
     hideExportPivotedData = false,
@@ -167,6 +176,28 @@ export const CsvFormattingOptions: FC<CsvFormattingOptionsProps> = ({
                     <Stack gap="xxs" pt="xs">
                         <Radio label="Separate files (ZIP)" value="zip" />
                         <Radio label="Single workbook" value="workbook" />
+                    </Stack>
+                </Radio.Group>
+            )}
+            {format === SchedulerFormat.XLSX && onXlsxContentChange && (
+                <Radio.Group
+                    label={
+                        <>
+                            Charts
+                            <HelpTooltip label="As images puts a picture of each chart on its sheet instead of the rows behind it. Table charts and SQL charts always export as data." />
+                        </>
+                    }
+                    value={xlsxContent}
+                    onChange={(value) =>
+                        onXlsxContentChange(value as XlsxExportContent)
+                    }
+                >
+                    <Stack gap="xxs" pt="xs">
+                        <Radio label="As data" value={XlsxExportContent.DATA} />
+                        <Radio
+                            label="As images"
+                            value={XlsxExportContent.CHART_IMAGE}
+                        />
                     </Stack>
                 </Radio.Group>
             )}

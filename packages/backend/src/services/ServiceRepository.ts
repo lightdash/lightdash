@@ -1403,6 +1403,7 @@ export class ServiceRepository
                     refreshTokenRotation: this.models.getRefreshTokenRotation(),
                     aiAccessService: this.getAiAccessService(),
                     getDocumentService: () => this.getDocumentService(),
+                    getUnfurlService: () => this.getUnfurlService(),
                     getComposerChartService: () =>
                         this.getComposerChartService(),
                     lightdashConfig: this.context.lightdashConfig,
