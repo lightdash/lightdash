@@ -1,3 +1,10 @@
+## [3.351.4](https://github.com/lightdash/lightdash/compare/3.351.3...3.351.4) (2026-11-20)
+
+
+### Bug Fixes
+
+* **ai-agents:** keep the Send button on screen on phones ([#33031](https://github.com/lightdash/lightdash/issues/33031)) ([8742803](https://github.com/lightdash/lightdash/commit/874280395346d7d800ab747ca3e3708aa661b9af))
+
 ## [3.351.3](https://github.com/lightdash/lightdash/compare/3.351.2...3.351.3) (2026-11-20)
 
 
