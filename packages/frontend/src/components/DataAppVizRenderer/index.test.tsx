@@ -1887,6 +1887,39 @@ describe('DataAppVizRenderer underlying-data gating', () => {
             expect.objectContaining({ enabled: true }),
         );
     });
+
+    describe('on a host without a context menu', () => {
+        beforeEach(() => {
+            mocks.canDrillInto.current = true;
+            mocks.metricQueryData.current = {
+                openUnderlyingDataModal: mocks.openUnderlyingDataModal,
+                openDrillDownModal: vi.fn(),
+            };
+        });
+        afterEach(() => {
+            mocks.canDrillInto.current = false;
+        });
+
+        it('fetches no explore', () => {
+            renderRenderer({ enableContextMenu: false });
+            expect(mocks.exploreHook).toHaveBeenCalledWith(
+                'orders',
+                expect.objectContaining({ enabled: false }),
+            );
+        });
+
+        it('offers no underlying data, drill-down or point menu', () => {
+            renderRenderer({ enableContextMenu: false });
+            const props = lastIframeProps();
+            expect(props.dataAppVizContext).toMatchObject({
+                underlyingData: { enabled: false, openEnabled: false },
+                drillDown: { enabled: false },
+                pointMenu: { enabled: false },
+            });
+            expect(props.rewriteVizUnderlyingDataRequest).toBeUndefined();
+            expect(props.onVizPointMenuIntent).toBeUndefined();
+        });
+    });
 });
 
 describe('DataAppVizRenderer point menu', () => {

@@ -16,7 +16,7 @@ export const toolLoadProjectContextArgsSchema = z.object({
     patterns: z
         .array(z.string().min(1))
         .max(5)
-        .optional()
+        .nullish()
         .describe(
             "Up to 5 case-insensitive keyword patterns; only context entries matching them are loaded. Use `|` to OR synonyms and a space or `.*` between words to require all of them; matched against each entry's id, terms, referenced objects and content. Omit to load the entire project context.",
         ),

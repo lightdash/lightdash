@@ -997,6 +997,38 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         }, {});
     }
 
+    async getSchemaColumns(
+        schemas: { database: string; schema: string }[],
+    ): Promise<WarehouseCatalog> {
+        const rows = await Promise.all(
+            schemas.map(async ({ database, schema }) => {
+                const [columns] = await this.client
+                    .query(
+                        `SELECT table_name, column_name, data_type
+                         FROM \`${database}.${schema}.INFORMATION_SCHEMA.COLUMNS\`
+                         ORDER BY table_name, ordinal_position`,
+                    )
+                    .catch((e: unknown) => {
+                        this.throwIfGoogleOauthTokenError(e);
+                        throw e;
+                    });
+                return columns.map((column) => ({
+                    table_catalog: database,
+                    table_schema: schema,
+                    table_name: column.table_name,
+                    column_name: column.column_name,
+                    // The view spells types as SQL does: NUMERIC(10, 2), ARRAY<STRING>.
+                    data_type: String(column.data_type).replace(/[<(].*$/, ''),
+                }));
+            }),
+        );
+        return this.parseWarehouseCatalog(
+            rows.flat(),
+            mapFieldType,
+            getBigqueryTimestampDomain,
+        );
+    }
+
     async getAllTables() {
         try {
             return await this.getAllTablesFromClient();

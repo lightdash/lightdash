@@ -64,6 +64,8 @@ export type DashboardEditState = {
     canvasBackground: CanvasBackground;
     /** The tile the editor picked to act on; never saved */
     selectedTileUuid: string | null;
+    /** The tile whose text takes focus once it renders, as a heading just added does */
+    textFocusTileUuid: string | null;
     /** Always sorted by `order` */
     tabs: Dashboard['tabs'];
     haveTabsChanged: boolean;
@@ -97,6 +99,7 @@ export const initialDashboardEditState: DashboardEditState = {
     canvasZoom: 1,
     canvasBackground: 'grid',
     selectedTileUuid: null,
+    textFocusTileUuid: null,
     tabs: [],
     haveTabsChanged: false,
     activeTab: undefined,
@@ -163,6 +166,7 @@ export const dashboardEditActions = {
         'dashboardEdit/placeTile',
     ),
     selectTile: createAction<string | null>('dashboardEdit/selectTile'),
+    focusTileText: createAction<string | null>('dashboardEdit/focusTileText'),
     undoTileLayout: createAction('dashboardEdit/undoTileLayout'),
     redoTileLayout: createAction('dashboardEdit/redoTileLayout'),
     setCanvasZoom: createAction<number>('dashboardEdit/setCanvasZoom'),
@@ -485,6 +489,9 @@ export const dashboardEditReducer = (
     }
     if (dashboardEditActions.selectTile.match(action)) {
         return set(state, 'selectedTileUuid', action.payload);
+    }
+    if (dashboardEditActions.focusTileText.match(action)) {
+        return set(state, 'textFocusTileUuid', action.payload);
     }
     if (dashboardEditActions.moveTiles.match(action)) {
         return moveTilesTo(state, action.payload);

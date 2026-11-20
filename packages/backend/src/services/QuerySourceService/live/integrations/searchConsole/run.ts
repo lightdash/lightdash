@@ -12,14 +12,7 @@ export const SEARCH_CONSOLE_SITES_PATH = '/webmasters/v3/sites/';
  */
 export const SEARCH_CONSOLE_MAX_QUERY_ROWS = 24_999;
 
-const DIMENSIONS = [
-    'date',
-    'query',
-    'page',
-    'country',
-    'device',
-    'searchAppearance',
-] as const;
+const DIMENSIONS = ['date', 'query', 'page', 'country', 'device'] as const;
 const METRICS = ['clicks', 'impressions', 'ctr', 'position'] as const;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 

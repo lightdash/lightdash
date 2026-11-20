@@ -16,6 +16,7 @@ import {
 import { IconChevronRight } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { ToolCallChip } from './ToolCallChip';
 import styles from './ToolCallRow.module.css';
@@ -27,6 +28,7 @@ import {
     getMcpToolDisplayMetadata,
     getMcpToolDisplayName,
 } from './utils/mcpToolDisplay';
+import { isToolCallUnapproved } from './utils/toolCallFailure';
 import { type ToolCallGroupDisplay } from './utils/toolCallGrouping';
 import { isToolWithoutDescription } from './utils/toolsWithoutDescription';
 import { type ToolCallSummary } from './utils/types';
@@ -60,6 +62,7 @@ export const ToolCallRow: FC<Props> = ({
     toolResults,
     display,
 }) => {
+    const getUiString = useUiStrings();
     const builtInToolName = isToolName(toolName) ? toolName : null;
     const linkedMcpServer =
         toolCalls.find((toolCall) => toolCall.mcpServer)?.mcpServer ??
@@ -73,14 +76,20 @@ export const ToolCallRow: FC<Props> = ({
     const mcpToolDisplayName = builtInToolName
         ? null
         : getMcpToolDisplayName(toolName);
-    const label = builtInToolName
-        ? getToolCallDisplayMessage({
-              toolName: builtInToolName,
-              calls: toolCalls,
-              display,
-              status,
-          })
-        : null;
+    const isUnapproved =
+        status === 'done' &&
+        toolCalls.length > 0 &&
+        toolCalls.every((call) => isToolCallUnapproved(call, toolResults));
+    const label = isUnapproved
+        ? getUiString('aiAgent.toolCall.sqlNotApproved')
+        : builtInToolName
+          ? getToolCallDisplayMessage({
+                toolName: builtInToolName,
+                calls: toolCalls,
+                display,
+                status,
+            })
+          : null;
     const hasCallDescription = (toolCall: ToolCallSummary) =>
         isToolName(toolCall.toolName) &&
         !isToolWithoutDescription(toolCall.toolName);

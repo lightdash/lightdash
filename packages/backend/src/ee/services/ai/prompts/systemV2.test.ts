@@ -473,7 +473,7 @@ describe('getSystemPromptV2 composer queries', () => {
             'After query, call visualize on the node your answer rests on',
         );
         expect(content).toContain(
-            'call visualize on its node rather than rerunning query',
+            'An earlier node already shaped for the chart needs no new query',
         );
         expect(content).not.toMatch(/\bpresent the result|<show/i);
     });

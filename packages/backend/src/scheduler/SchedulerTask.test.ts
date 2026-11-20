@@ -2795,6 +2795,7 @@ describe('dashboard CSV and XLSX delivery with a composer chart tile', () => {
                 parameters: { region: 'EU' },
                 excludedParameterKeys: [],
                 invalidateCache: true,
+                dateZoom: null,
             },
             QueryExecutionContext.SCHEDULED_DELIVERY,
         );
@@ -6664,6 +6665,8 @@ describe('connection compile jobs', () => {
                     projectUuid,
                     RequestMethod.CLI,
                     'compile-1',
+                    undefined,
+                    // An agent's compile is never incremental.
                     undefined,
                 ]);
                 expect(f.children.generateValidation).toHaveBeenCalledWith(

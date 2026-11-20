@@ -14,29 +14,27 @@ import {
     pinDevelopmentView,
     useDevelopmentView,
 } from '../../../../../features/semanticStudio/developmentView';
-import {
-    useStudioPullRequest,
-    type StudioPullRequest,
-} from './useStudioPullRequest';
+import { type StudioPullRequest } from './useStudioPullRequest';
 
 // Explore loads only when something is tried, not with every pull request card.
+const loadTryItModal = () => import('./TryItModal');
+const warmTryItModal = () => void loadTryItModal().catch(() => undefined);
 const TryItModal = lazy(() =>
     import('./TryItModal').then(({ TryItModal: modal }) => ({
         default: modal,
     })),
 );
 
-/** Primary where it is the next step, beside Merge; quiet on a chat card. */
-type Look = 'primary' | 'quiet';
+/** Primary while it is the next step; secondary once the draft can be published. */
+type Look = 'primary' | 'secondary';
 
 const buttonProps = (look: Look) =>
-    look === 'primary'
-        ? {
-              size: 'xs',
-              variant: 'filled',
-              leftSection: <MantineIcon icon={IconPlayerPlay} size={12} />,
-          }
-        : { size: 'compact-xs', variant: 'default' };
+    ({
+        size: 'xs',
+        variant: look === 'primary' ? 'filled' : 'subtle',
+        color: look === 'primary' ? undefined : 'gray',
+        leftSection: <MantineIcon icon={IconPlayerPlay} size={12} />,
+    }) as const;
 
 const HINT =
     'Opens Explore over this page with your changes. Only you see them until they are merged.';
@@ -56,8 +54,9 @@ export const TryIt: FC<{
     const turnOn = useRef({ isOn, setIsOn, preview });
     useEffect(() => {
         const { isOn: wasOn, setIsOn: set, preview: tried } = turnOn.current;
-        const unpin = pinDevelopmentView();
+        // Switched on first, so the page keeps what it shows; then pinned, so nothing switches it off under the modal.
         set(true, tried);
+        const unpin = pinDevelopmentView(tried);
         return () => {
             unpin();
             if (!wasOn) set(false);
@@ -85,7 +84,18 @@ export const TryItButton: FC<{
 }> = ({ projectUuid, pullRequest, look }) => {
     const { changedModels, previewProjectUuid, prUrl } = pullRequest;
     const [isTrying, setIsTrying] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
     const stopTrying = useCallback(() => setIsTrying(false), []);
+    // Explore is a large download: the button says so, and the modal opens with it in hand.
+    const startTrying = () => {
+        setIsLoading(true);
+        void loadTryItModal()
+            .catch(() => undefined)
+            .finally(() => {
+                setIsLoading(false);
+                setIsTrying(true);
+            });
+    };
     // Without its preview, a teammate's change would be tried as your own changes, or as live.
     if (changedModels.length === 0) return null;
     if (!pullRequest.isMine && !previewProjectUuid) return null;
@@ -95,7 +105,10 @@ export const TryItButton: FC<{
                 <Button
                     {...buttonProps(look)}
                     flex="none"
-                    onClick={() => setIsTrying(true)}
+                    loading={isLoading}
+                    onMouseEnter={warmTryItModal}
+                    onFocus={warmTryItModal}
+                    onClick={startTrying}
                 >
                     Try it
                 </Button>
@@ -111,19 +124,4 @@ export const TryItButton: FC<{
             ) : null}
         </>
     );
-};
-
-/** Try it on a pull request card in the chat, for the pull request Studio is working on. */
-export const PullRequestCardTryIt: FC<{
-    projectUuid: string;
-    prUrl: string;
-}> = ({ projectUuid, prUrl }) => {
-    const pullRequest = useStudioPullRequest(projectUuid);
-    return pullRequest?.isOpen && pullRequest.prUrl === prUrl ? (
-        <TryItButton
-            projectUuid={projectUuid}
-            pullRequest={pullRequest}
-            look="quiet"
-        />
-    ) : null;
 };

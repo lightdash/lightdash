@@ -211,6 +211,8 @@ export const getSystemPromptV2 = (
         repoFsSupportsCodeSearch?: boolean;
         // Semantic Studio saves its change with a code mode script.
         semanticStudioCodeMode?: boolean;
+        // Semantic Studio can run a metric query, which reads the person's draft.
+        semanticStudioQueriesDraft?: boolean;
         // Org Slack setting: the answer may not carry query results into Slack.
         slackLinksOnly?: boolean;
         canRunSql?: boolean;
@@ -235,6 +237,7 @@ export const getSystemPromptV2 = (
         repoFsRoot = null,
         repoFsSupportsCodeSearch = true,
         semanticStudioCodeMode = false,
+        semanticStudioQueriesDraft = false,
         promptSections = NO_PROMPT_SECTIONS,
         slackChannelId = null,
         slackLinksOnly = false,
@@ -370,19 +373,19 @@ export const getSystemPromptV2 = (
                     args.hasProjectContext
                         ? projectContextContent
                         : null,
+                canQueryDraft: semanticStudioQueriesDraft,
                 warehouse: promptSections.has('runSql')
                     ? {
                           type: args.warehouseType ?? null,
                           schema: args.warehouseSchema ?? null,
                       }
                     : null,
-                // Only a dbt project's Studio thread reads the repository; the writeback tools join the turn that opens the pull request.
+                // Only a dbt project's Studio thread reads the repository; it saves when the writeback tools load.
                 dbt:
                     promptSections.has('repoFs') ||
                     promptSections.has('aiWriteback')
                         ? {
-                              opensPullRequest:
-                                  promptSections.has('aiWriteback'),
+                              saves: promptSections.has('aiWriteback'),
                               codeMode: semanticStudioCodeMode,
                               sections: [
                                   ...(promptSections.has('aiWriteback')

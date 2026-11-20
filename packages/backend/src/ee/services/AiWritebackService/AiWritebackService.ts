@@ -103,6 +103,7 @@ import {
 import {
     diffLineCounts,
     runCodeMode,
+    unifiedDiffs,
     validateSemanticLayerYaml,
     type CodeModeRepo,
 } from '../SemanticStudioService/codeMode/codeMode';
@@ -136,11 +137,6 @@ import {
     STDERR_TAIL_BYTES,
     SYSTEM_PROMPT_PATH,
     TMP_PROFILES_DIR,
-    TRY_OUT_HAND_OVER_TIMEOUT_MS,
-    TRY_OUT_MAX_FILE_BYTES,
-    TRY_OUT_MAX_MANIFEST_BYTES,
-    TRY_OUT_PARSE_TIMEOUT_MS,
-    TRY_OUT_TARGET_DIR,
     WAREHOUSE_SKILL_PATH,
 } from './constants';
 import { findDeniedCommitPaths } from './deniedPaths';
@@ -172,7 +168,6 @@ import type {
     CodingAgentConfig,
     GitConnection,
     GitInstallation,
-    ParsedDbtProject,
     RepoContext,
     SetStage,
     TurnContext,
@@ -217,7 +212,8 @@ const STALE_RUN_THRESHOLD_MINUTES = 45;
 
 export type ScriptSave =
     | { status: 'script_failed'; error: string; logs: string[] }
-    | { status: 'checked' }
+    /** A dry run's change as a unified diff per file, bounded in size. */
+    | { status: 'checked'; diffs: string[] }
     | {
           status: 'saved';
           result: AiWritebackRunResult;
@@ -438,14 +434,6 @@ const getRepoContextAnalyticsProperties = (repoContext: RepoContext | null) => {
         repoContextFileCount: fileCount,
     };
 };
-
-/** dbt prints errors to stdout among model SQL, so only its error lines are logged. */
-export const findDbtErrorLines = (output: string): string[] =>
-    output
-        .split('\n')
-        .filter((line) => /error/i.test(line))
-        .slice(-10)
-        .map((line) => line.trim().slice(0, 300));
 
 export class AiWritebackService extends BaseService {
     private readonly agentPermissionService: AiWritebackServiceDeps['agentPermissionService'];
@@ -781,12 +769,16 @@ export class AiWritebackService extends BaseService {
         projectUuid: string;
         prUrl: string;
         sha?: string;
+        /** Whether the compile may save only what the merge changed; false runs the full compile. */
+        incrementalCompile: boolean;
     }): Promise<WritebackMergeResult> {
-        const result = await this.ciService.mergePullRequest(args);
+        const { incrementalCompile, ...merge } = args;
+        const result = await this.ciService.mergePullRequest(merge);
         if (!result.merged) return { ...result, compileJobUuid: null };
         const compileJobUuid = await this.scheduleCompileAfterMerge(
             args.user,
             args.projectUuid,
+            incrementalCompile,
         );
         await this.trackMerged(args.user, args.projectUuid, {
             prUrl: args.prUrl,
@@ -867,9 +859,10 @@ export class AiWritebackService extends BaseService {
      * turns into an API error. Only git-connected projects re-clone on compile
      * and thus pick up the merged branch, so non-git projects are skipped.
      */
-    private async scheduleCompileAfterMerge(
+    async scheduleCompileAfterMerge(
         user: SessionUser,
         projectUuid: string,
+        incremental: boolean,
     ): Promise<string | null> {
         try {
             const project = await this.projectModel.get(projectUuid);
@@ -885,6 +878,10 @@ export class AiWritebackService extends BaseService {
                     projectUuid,
                     RequestMethod.BACKEND,
                     true,
+                    false,
+                    false,
+                    undefined,
+                    incremental,
                 );
             this.logger.info(
                 `Scheduled dbt compile (job ${jobUuid}) after writeback PR merge for project ${projectUuid}`,
@@ -1907,6 +1904,28 @@ export class AiWritebackService extends BaseService {
         };
     }
 
+    /** The branch of an open pull request in the project's own repository, read as the app. */
+    async findPullRequestBranch(
+        organizationUuid: string,
+        projectUuid: string,
+        prUrl: string,
+    ): Promise<string> {
+        const { dbtConnection } = await this.projectModel.get(projectUuid);
+        const provider = this.getGitProvider(dbtConnection.type);
+        const connection = provider.resolveConnection(dbtConnection, {
+            projectUuid,
+            projectDbtSourceUuid: null,
+        });
+        const installation =
+            await provider.resolveInstallation(organizationUuid);
+        const { headRef } = await provider.adoptPullRequest({
+            prUrl,
+            connection,
+            installation,
+        });
+        return headRef;
+    }
+
     /**
      * Makes a change with a script, read and committed through the GitHub API
      * with no sandbox. Null when the target needs the sandbox: not GitHub, a
@@ -2108,6 +2127,8 @@ export class AiWritebackService extends BaseService {
                         repoPaths(
                             await checkout.listFilesChangedSince(commitSha),
                         ),
+                    headCommitSha:
+                        checkout.prUrl === null ? checkout.headSha : null,
                 });
                 this.logger.info('AI writeback script checked', {
                     event: 'ai_writeback.script.checked',
@@ -2128,7 +2149,9 @@ export class AiWritebackService extends BaseService {
                     };
                 }
             }
-            if (dryRun) return { status: 'checked' };
+            if (dryRun) {
+                return { status: 'checked', diffs: unifiedDiffs(ran.edits) };
+            }
 
             // A policy that denies deleting files holds here as on the sandbox path.
             if (
@@ -2519,6 +2542,14 @@ export class AiWritebackService extends BaseService {
         message: string,
     ): Promise<boolean> {
         return this.aiWritebackRunModel.markError(aiWritebackRunUuid, message);
+    }
+
+    /** Fails a run its worker is shutting down on, with the same words the sweep uses. */
+    async markRunInterrupted(aiWritebackRunUuid: string): Promise<boolean> {
+        return this.aiWritebackRunModel.markError(
+            aiWritebackRunUuid,
+            STALE_RUN_ERROR_MESSAGE,
+        );
     }
 
     /**
@@ -3245,26 +3276,6 @@ export class AiWritebackService extends BaseService {
                 assertPublishAllowed,
             });
             pauseOnExit = applied.pauseOnExit;
-
-            if (
-                args.onDbtProject &&
-                hasChanges &&
-                config.mode === 'dbt-writeback' &&
-                !(
-                    (turn.gitConnection.provider ===
-                        PullRequestProvider.GITHUB ||
-                        turn.gitConnection.provider ===
-                            PullRequestProvider.BITBUCKET) &&
-                    turn.gitConnection.semanticLayer === 'lightdash'
-                )
-            ) {
-                await this.handOverDbtProject(
-                    sandbox,
-                    turn,
-                    applied.prUrl ?? null,
-                    args.onDbtProject,
-                );
-            }
 
             tracker.completed({
                 exitCode: agent.exitCode,
@@ -4748,76 +4759,6 @@ export class AiWritebackService extends BaseService {
         }
 
         await this.prepareWarehouseSkills(sandbox, turn);
-    }
-
-    /**
-     * Parses the edited project into a manifest and hands it over. Best-effort: a
-     * change that cannot be tried here still has its pull request and preview.
-     */
-    private async handOverDbtProject(
-        sandbox: SandboxHandle,
-        turn: TurnContext,
-        prUrl: string | null,
-        onDbtProject: (project: ParsedDbtProject) => Promise<void>,
-    ): Promise<void> {
-        const projectDir = `${CWD}/${turn.gitConnection.projectSubPath}`;
-        const unsetFlags = COMPILE_STRIPPED_ENV_VARS.map(
-            (name) => `-u ${name}`,
-        ).join(' ');
-        const dbtBin = dbtSandboxVenvBin(turn.dbtVersion);
-        try {
-            // Same secret-stripped env as the compile wrapper: dbt renders the repo's Jinja.
-            await sandbox.commands.run(
-                `env ${unsetFlags} PATH="${dbtBin}:$PATH" dbt parse --project-dir ${quoteShellArgument(
-                    projectDir,
-                )} --profiles-dir ${TMP_PROFILES_DIR} --target-path ${TRY_OUT_TARGET_DIR}`,
-                { cwd: CWD, timeoutMs: TRY_OUT_PARSE_TIMEOUT_MS },
-            );
-            const manifestJson = await sandbox.files.read(
-                `${TRY_OUT_TARGET_DIR}/manifest.json`,
-                { maxBytes: TRY_OUT_MAX_MANIFEST_BYTES },
-            );
-            const lightdashConfigYaml = await sandbox.files
-                .read(`${projectDir}/lightdash.config.yml`, {
-                    maxBytes: TRY_OUT_MAX_FILE_BYTES,
-                })
-                .catch(() => null);
-            const diff = await sandbox.commands.run(
-                'git -c core.quotepath=off diff --name-only -z --relative HEAD~1 HEAD',
-                { cwd: projectDir, maxOutputBytes: TRY_OUT_MAX_FILE_BYTES },
-            );
-            let timer: NodeJS.Timeout | undefined;
-            try {
-                await Promise.race([
-                    onDbtProject({
-                        manifestJson,
-                        lightdashConfigYaml,
-                        changedFiles: diff.stdout.split('\0').filter(Boolean),
-                        prUrl,
-                    }),
-                    new Promise<never>((_, reject) => {
-                        timer = setTimeout(
-                            () => reject(new Error('timed out')),
-                            TRY_OUT_HAND_OVER_TIMEOUT_MS,
-                        );
-                    }),
-                ]);
-            } finally {
-                clearTimeout(timer);
-            }
-        } catch (error) {
-            const errorLines =
-                error instanceof SandboxCommandError
-                    ? findDbtErrorLines(`${error.stderr}\n${error.stdout}`)
-                    : [];
-            const output =
-                errorLines.length > 0 ? `\n${errorLines.join('\n')}` : '';
-            this.logger.warn(
-                `AiWriteback: could not prepare the change to be tried before its preview: ${getErrorMessage(
-                    error,
-                )} (sandboxId=${sandbox.sandboxId})${output}`,
-            );
-        }
     }
 
     private async prepareWarehouseSkills(

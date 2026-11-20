@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
+    countChangedLines,
     getChangeKind,
+    describeFieldChanges,
     describeModelChange,
     findPeekStart,
     changeTitle,
     findFieldBlock,
     findFieldLine,
+    listFieldChanges,
     summarizeModelChanges,
 } from './modelCode';
 
@@ -196,5 +199,166 @@ describe('findPeekStart', () => {
 
     it('starts at the top of a model with no metrics', () => {
         expect(findPeekStart(['name: a', 'dimensions:'])).toBe(0);
+    });
+});
+
+describe('listFieldChanges', () => {
+    const before = [
+        'type: model',
+        'name: rounds',
+        'dimensions:',
+        '  - name: points',
+        '    label: Points',
+        '    type: number',
+        '    metrics:',
+        '      old_points:',
+        '        label: Old points',
+        '        type: sum',
+    ].join('\n');
+    const after = [
+        'type: model',
+        'name: rounds',
+        'label: Rounds',
+        'dimensions:',
+        '  - name: points',
+        '    label: Round points',
+        '    type: number',
+        '    metrics:',
+        '      avg_points:',
+        '        label: Average points',
+        '        type: average',
+        'metrics:',
+        '  total:',
+        '    type: sum',
+        '    sql: ${points}',
+        'joins:',
+        '  - join: drivers',
+    ].join('\n');
+
+    it('names each field once, labelled from the side that still has it', () => {
+        expect(
+            listFieldChanges(
+                'rounds',
+                [
+                    { path: 'dimensions.points.label', action: 'patched' },
+                    {
+                        path: 'dimensions.points.metrics.avg_points',
+                        action: 'added',
+                    },
+                    {
+                        path: 'dimensions.points.metrics.avg_points.label',
+                        action: 'patched',
+                    },
+                    {
+                        path: 'dimensions.points.metrics.old_points',
+                        action: 'removed',
+                    },
+                    { path: 'metrics.total', action: 'added' },
+                    { path: 'joins.drivers', action: 'added' },
+                    { path: 'label', action: 'patched' },
+                ],
+                { contentBefore: before, contentAfter: after },
+            ),
+        ).toEqual([
+            {
+                kind: 'dimension',
+                name: 'points',
+                change: 'changed',
+                label: 'Round points',
+                type: 'number',
+                detail: 'label',
+            },
+            {
+                kind: 'metric',
+                name: 'avg_points',
+                change: 'new',
+                label: 'Average points',
+                type: 'average',
+                detail: 'average of points',
+            },
+            {
+                kind: 'metric',
+                name: 'old_points',
+                change: 'removed',
+                label: 'Old points',
+                type: 'sum',
+                detail: null,
+            },
+            {
+                kind: 'metric',
+                name: 'total',
+                change: 'new',
+                label: 'total',
+                type: 'sum',
+                detail: 'sum of points',
+            },
+            {
+                kind: 'join',
+                name: 'drivers',
+                change: 'new',
+                label: 'drivers',
+                type: null,
+                detail: null,
+            },
+            {
+                kind: 'model',
+                name: 'rounds',
+                change: 'changed',
+                label: 'Rounds',
+                type: null,
+                detail: 'label',
+            },
+        ]);
+    });
+
+    it('leaves a whole new model to its header', () => {
+        expect(
+            listFieldChanges(
+                'rounds',
+                [{ path: 'rounds', action: 'created' }],
+                {
+                    contentBefore: null,
+                    contentAfter: after,
+                },
+            ),
+        ).toEqual([]);
+    });
+});
+
+describe('countChangedLines', () => {
+    it('counts the lines a change adds and removes', () => {
+        expect(
+            countChangedLines({
+                contentBefore: 'a\nb\nc\n',
+                contentAfter: 'a\nB\nc\nd\n',
+            }),
+        ).toEqual({ additions: 2, deletions: 1 });
+        expect(
+            countChangedLines({ contentBefore: null, contentAfter: 'a\nb\n' }),
+        ).toEqual({ additions: 2, deletions: 0 });
+    });
+});
+
+describe('describeFieldChanges', () => {
+    const field = (
+        kind: 'metric' | 'dimension',
+        change: 'new' | 'changed',
+        label: string,
+    ) => ({ kind, change, label, name: label, type: null, detail: null });
+
+    it('groups fields by what happened to them and their kind', () => {
+        expect(
+            describeFieldChanges([
+                field('metric', 'new', 'Podium Rate'),
+                field('dimension', 'changed', 'Status'),
+                field('metric', 'new', 'Win Rate'),
+            ]),
+        ).toBe(
+            'Added 2 metrics: Podium Rate, Win Rate. Changed 1 dimension: Status',
+        );
+    });
+
+    it('is empty when no field changed', () => {
+        expect(describeFieldChanges([])).toBe('');
     });
 });

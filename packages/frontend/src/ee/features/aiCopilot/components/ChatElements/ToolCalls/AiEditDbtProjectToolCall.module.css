@@ -145,7 +145,7 @@
 :global([data-quiet-cards]) .card,
 :global([data-quiet-cards]) .card.cardMerged,
 :global([data-quiet-cards]) .card.cardClosed {
-    border-color: transparent;
+    border-color: var(--mantine-color-default-border);
     background-color: var(--mantine-color-ldGray-0);
 }
 

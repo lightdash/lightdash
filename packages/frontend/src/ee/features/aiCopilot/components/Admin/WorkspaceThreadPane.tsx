@@ -92,7 +92,7 @@ export const WorkspaceThreadPane: FC<Props> = ({
         ({ message, toolHints, context, optimisticContext }: SubmitArgs) => {
             // Continue PR turns are frictionless: SQL runs auto-approved and the
             // writeback tool is pinned so a follow-up reliably updates the PR.
-            void createMessage({
+            return createMessage({
                 prompt: message,
                 context,
                 optimisticContext,

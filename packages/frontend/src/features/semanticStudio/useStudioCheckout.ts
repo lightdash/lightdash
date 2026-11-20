@@ -1,11 +1,13 @@
 import {
     type ApiError,
+    type ApiExploresResults,
     type Explore,
     type SemanticLayerDraft,
     type SemanticLayerDraftModel,
     type SemanticStudioWorkspace,
     type SummaryExplore,
 } from '@lightdash/common';
+import { useQuery } from '@tanstack/react-query';
 import {
     createContext,
     useContext,
@@ -14,6 +16,8 @@ import {
     type MutableRefObject,
 } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
+import { DEVELOPMENT_VIEW_HEADER, PUBLISHED_VIEW } from './developmentView';
 import {
     useSemanticLayerStatus,
     useSemanticLayerWorkspaceDraft,
@@ -23,11 +27,11 @@ import {
     useStudioWorkspaces,
 } from './useStudioWorkspaces';
 
-/** What Models and Code show: Live, or one of your changes folded on live. */
+/** What Models and Code show: Published, or one of your drafts folded on it. */
 export type StudioCheckout = {
-    /** Null on Live. */
+    /** Null on Published. */
     workspace: SemanticStudioWorkspace | null;
-    /** Null on Live, and on projects whose changes live in a repository. */
+    /** Null on Published, and on projects whose changes live in a repository. */
     draft: SemanticLayerDraft | null;
 };
 
@@ -74,9 +78,9 @@ export const useStudioCheckoutState = (
         previousActive.current = next;
         const picked = isPicking.current;
         isPicking.current = false;
-        // Leaving Live without the person picking means an agent edit started the change.
+        // Leaving Published without the person picking means an agent edit started the draft.
         if (keepsDraft && previous === null && active && !picked) {
-            showToastInfo({ title: `Now on ${active.name}` });
+            showToastInfo({ title: `Now on draft: ${active.name}` });
         }
     }, [workspaces.data, active, keepsDraft, showToastInfo]);
     const shown = useRef<StudioCheckout | null>(null);
@@ -138,6 +142,31 @@ const toSummary = (
     };
 };
 
+/**
+ * The published explore list, asked for by name so a page on a draft reads it
+ * too. A draft kept in the app is laid over it here, so leaving the draft shows
+ * what is published at once.
+ */
+export const usePublishedExplores = (
+    projectUuid: string | undefined,
+    enabled: boolean,
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiExploresResults, ApiError>({
+        // Under `tables`, so whatever refreshes the explore list refreshes this.
+        queryKey: ['tables', projectUuid, 'filtered', PUBLISHED_VIEW],
+        queryFn: () =>
+            lightdashApi<ApiExploresResults>({
+                url: `/projects/${projectUuid}/explores?filtered=true&includePreAggregates=false`,
+                method: 'GET',
+                body: undefined,
+                headers: { [DEVELOPMENT_VIEW_HEADER]: 'false' },
+            }),
+        enabled: !!projectUuid && enabled,
+        retry: false,
+    });
+};
+
 /** The explore list as a change leaves it: its additions, edits and removals on top of live. */
 export const foldDraftExplores = (
     live: SummaryExplore[],
@@ -173,7 +202,7 @@ export const isOpenWorkspace = ({
     pullRequest?.state !== 'merged' &&
     pullRequest?.state !== 'closed';
 
-/** Checks out one of your changes, or Live; the page keeps showing the current one until the next has loaded. */
+/** Checks out one of your drafts, or Published; the page keeps showing the current one until the next has loaded. */
 export const useCheckOut = (projectUuid: string) => {
     const action = useStudioWorkspaceAction(projectUuid);
     const { shown, isSwitching, isPicking } = useStudioCheckout();
@@ -198,7 +227,7 @@ export const useCheckOut = (projectUuid: string) => {
                 : { kind: 'leave' },
             {
                 onError: onError(
-                    `Could not check out ${target?.name ?? 'Live'}`,
+                    `Could not switch to ${target?.name ?? 'Published'}`,
                 ),
             },
         );
@@ -209,10 +238,16 @@ export const useCheckOut = (projectUuid: string) => {
         action.mutate(
             {
                 kind: 'start',
-                body: { threadUuid: null, name: 'Untitled change' },
+                body: { threadUuid: null, name: 'Untitled' },
             },
-            { onError: onError('Could not start a change') },
+            { onError: onError('Could not start a draft') },
         );
     };
     return { checkOut, createChange, isBusy, isError: action.isError };
+};
+
+/** The open pull request the checked-out draft was already sent as, which sending again updates; null without one. */
+export const useDraftPullRequest = (): string | null => {
+    const pullRequest = useStudioCheckout().shown?.workspace?.pullRequest;
+    return pullRequest?.state === 'open' ? pullRequest.url : null;
 };

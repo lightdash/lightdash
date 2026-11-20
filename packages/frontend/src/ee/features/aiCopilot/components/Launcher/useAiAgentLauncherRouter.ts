@@ -59,6 +59,7 @@ export const useAiAgentLauncherRouter = ({
         isLocked,
         isPickingAgent,
         isRouting,
+        phase,
         sortedCandidates,
     } = useAiAgentRouterFlow({
         agents,
@@ -93,17 +94,17 @@ export const useAiAgentLauncherRouter = ({
             );
 
             if (!isLauncherAutoAgent(agent)) {
-                void createThreadForAgent({
+                return createThreadForAgent({
                     agentUuid: agent.uuid,
                     message,
                     context: mergedContext,
                     optimisticContext: mergedOptimisticContext,
                     toolHints,
                 });
-                return;
             }
 
-            void handleRouterSubmit({
+            // Auto routing may resolve at the picker, before creation; the host gates images there.
+            return handleRouterSubmit({
                 message,
                 context: mergedContext,
                 optimisticContext: mergedOptimisticContext,
@@ -126,6 +127,8 @@ export const useAiAgentLauncherRouter = ({
         isLocked: isCreatingThread || isLocked,
         isPickingAgent,
         isRouting,
+        // The message held back until the user picks an agent.
+        waitingPrompt: phase.kind === 'picker' ? phase.prompt : null,
         sortedCandidates,
     };
 };

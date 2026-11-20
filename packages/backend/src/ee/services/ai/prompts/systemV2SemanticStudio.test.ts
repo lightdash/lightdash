@@ -8,6 +8,7 @@ const base = {
     availableExplores: 'None',
     projectContext: null,
     warehouse: { type: 'postgres', schema: null },
+    canQueryDraft: false,
 };
 
 describe('getSemanticStudioSystemPrompt', () => {
@@ -17,11 +18,21 @@ describe('getSemanticStudioSystemPrompt', () => {
         expect(prompt).not.toContain('editDbtProject');
     });
 
-    it('has a dbt project propose a diff and never open a pull request unasked', () => {
+    it('explains running a metric on the draft only when the thread can', () => {
+        const draft = { ...base, dbt: null };
+        expect(getSemanticStudioSystemPrompt(draft)).not.toContain(
+            'runMetricQuery',
+        );
+        expect(
+            getSemanticStudioSystemPrompt({ ...draft, canQueryDraft: true }),
+        ).toContain('runMetricQuery reads the draft');
+    });
+
+    it('has a dbt project propose a diff when the person cannot save to the repository', () => {
         const prompt = getSemanticStudioSystemPrompt({
             ...base,
             dbt: {
-                opensPullRequest: false,
+                saves: false,
                 codeMode: false,
                 sections: ['## Repository context\nroot hint'],
             },
@@ -36,7 +47,7 @@ describe('getSemanticStudioSystemPrompt', () => {
     it('has a dbt project check real values before suggesting, with one sampled query', () => {
         const prompt = getSemanticStudioSystemPrompt({
             ...base,
-            dbt: { opensPullRequest: false, codeMode: false, sections: [] },
+            dbt: { saves: false, codeMode: false, sections: [] },
         });
         expect(prompt).toContain('## Warehouse');
         expect(prompt).toContain("This project's warehouse is postgres.");
@@ -48,29 +59,30 @@ describe('getSemanticStudioSystemPrompt', () => {
         const prompt = getSemanticStudioSystemPrompt({
             ...base,
             warehouse: null,
-            dbt: { opensPullRequest: false, codeMode: false, sections: [] },
+            dbt: { saves: false, codeMode: false, sections: [] },
         });
         expect(prompt).not.toContain('## Warehouse');
         expect(prompt).not.toContain('runSql');
     });
 
-    it('opens the pull request on the turn the person asks for it', () => {
+    it('saves a requested change to the draft in the same turn', () => {
         const prompt = getSemanticStudioSystemPrompt({
             ...base,
-            dbt: { opensPullRequest: true, codeMode: false, sections: [] },
+            dbt: { saves: true, codeMode: false, sections: [] },
         });
         expect(prompt).toContain('editDbtProject');
+        expect(prompt).toContain('in the draft');
+        expect(prompt).toContain('## Warehouse');
         expect(prompt).not.toContain('```diff');
-        expect(prompt).not.toContain('## Warehouse');
         expect(prompt).not.toContain('yaml.set');
     });
 
     it('saves with a script when code mode is on', () => {
         const prompt = getSemanticStudioSystemPrompt({
             ...base,
-            dbt: { opensPullRequest: true, codeMode: true, sections: [] },
+            dbt: { saves: true, codeMode: true, sections: [] },
         });
-        expect(prompt).toContain('editDbtProject once with a script');
+        expect(prompt).toContain('with a script that makes it');
         expect(prompt).toContain('yaml.set');
     });
 });

@@ -4,8 +4,8 @@ name: Release-safety preview
 # the schema / API / MCP surface, compute the marker the generator WOULD emit
 # (diffed against the merge-base with the target branch) and post a sticky comment
 # with the determination, the matrix of checks, and the customer-deploy impact —
-# so the author is in the loop before merge. Does NOT run the paid AI review
-# (release-time only) and never publishes anything (the marker stays dark-launched).
+# so the author is in the loop before merge. Runs the paid AI review on ready PRs
+# only and never publishes anything (the marker stays dark-launched).
 #
 # SPK-695: the REST half needs the PR's OpenAPI spec, which no PR can commit —
 # `.husky/pre-commit` unstages the generated artifacts and the release workflow
@@ -118,7 +118,7 @@ jobs:
       #
       # The OpenAPI surface is not a file list: TSOA derives the spec from the
       # controllers and every type they reach, so any backend or common change
-      # can move it (this is also why `.github/file-filters.yml`'s api_schema
+      # can move it (this is also why `.github/file-filters.yml`'s openapi_surface
       # filter is deliberately broad). Migrations and the MCP snapshot live
       # under those two globs too.
       - name: Check whether the diff touches the watched surface
@@ -218,31 +218,29 @@ jobs:
               core.warning(`Could not verify the describes-stamp: ${error.message}`);
             }
 
-      # SPK-1218: blobless, like the release job's checkout (SPK-997). `fetch-depth: 0`
-      # makes actions/checkout fetch every branch and every tag with full history —
-      # 1,900 branches and 7,500 tags here, 571 MiB — and `fetch-tags: false` does not
-      # stop it, because checkout hardcodes `+refs/tags/*:refs/tags/*` into the refspec
-      # whenever the depth is 0. When a stack submit starts ~10 of these runs at once,
-      # server-side pack generation stalls and the fetch sends nothing until the job's
-      # 10-minute timeout kills it. Filtered, the same fetch moves 95 MiB. Only the
-      # commit graph is needed here: `git merge-base` reads no file contents.
+      # Only the filter file below is read from disk.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         if: steps.watched.outputs.watched == 'true'
         with:
-          fetch-depth: 0
-          filter: blob:none
+          sparse-checkout: .github/file-filters.yml
+          sparse-checkout-cone-mode: false
 
       # Resolved once, here, and reused by every job: the spec pair, the migration
       # diff and the comment's base label all have to describe the same comparison.
+      # Same result as `git merge-base <base tip> HEAD` on the merge ref, without
+      # fetching history (SPK-1218 has the cost of a full-history fetch here).
       - name: Resolve comparison base
         id: base
         if: steps.watched.outputs.watched == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           set -euo pipefail
-          git fetch --no-tags origin "${{ github.event.pull_request.base.ref }}"
-          BASE=$(git merge-base FETCH_HEAD HEAD)
+          TIP=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${BASE_REF}" --jq .object.sha)
+          BASE=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${TIP}...${GITHUB_SHA}?per_page=1" --jq .merge_base_commit.sha)
           echo "sha=${BASE}" >> "$GITHUB_OUTPUT"
-          echo "short=$(git rev-parse --short "${BASE}")" >> "$GITHUB_OUTPUT"
+          echo "short=${BASE:0:10}" >> "$GITHUB_OUTPUT"
 
       - name: Check for files changes
         uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4
@@ -354,11 +352,15 @@ jobs:
             }
             core.info(`Sticky comment marked pending for ${short}.`);
 
-  openapi-specs:
-    name: Generate API snapshots
+  preview:
+    name: Release-safety preview
     needs: changes
-    if: needs.changes.outputs.open == 'true' && needs.changes.outputs.openapi == 'true' && needs.changes.outputs.fresh != 'true'
-    runs-on: depot-ubuntu-24.04-4
+    # Skipped entirely when the diff doesn't touch the watched surface — the
+    # `retract` job owns the comment in that case — and on an `edited` event
+    # whose head+base the comment already describes (SPK-858).
+    if: ${{ needs.changes.result == 'success' && needs.changes.outputs.open == 'true' && needs.changes.outputs.watched == 'true' && needs.changes.outputs.fresh != 'true' }}
+    # Spec generation is real CPU work; without it the job only runs small scripts.
+    runs-on: ${{ needs.changes.outputs.openapi == 'true' && 'depot-ubuntu-24.04-4' || 'ubuntu-latest' }}
     timeout-minutes: 30
     env:
       NODE_OPTIONS: '--max-old-space-size=8192'
@@ -367,10 +369,12 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Checkout base
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          ref: ${{ needs.changes.outputs.base_sha }}
+      # The gates only read the two trees (`git diff`, `git show`, `ls-tree`), never
+      # history, so the merge ref and the base commit at depth 1 are all they need.
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Fetch the comparison base
+        run: git fetch --no-tags --depth=1 origin "${{ needs.changes.outputs.base_sha }}"
 
       - name: Read Node pin from checked-out revision
         id: node-version
@@ -383,78 +387,39 @@ jobs:
           save-cache: false
           install: false
 
-      # Each side is built from its own revision's sources AND its own revision's
-      # dependencies — sharing one install across both would be a faithful build of
-      # neither. `generate-api:backend` is the script the release job runs before
-      # computing the marker; the root `generate-api` adds post-hooks that write
-      # the chart/dashboard/MCP schemas, none of which feed the OpenAPI spec.
-      # /tmp survives the second checkout's clean; the workspace does not.
-      - name: Generate base API snapshots
-        run: |
-          set -euo pipefail
-          pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
-          pnpm generate-api:backend
-          pnpm generate:mcp-tools-snapshot
-          mkdir -p /tmp/api-snapshots
-          cp packages/backend/src/generated/swagger.json /tmp/api-snapshots/base-swagger.json
-          cp packages/common/src/schemas/json/mcp-tools-1.0.json /tmp/api-snapshots/base-mcp-tools.json
-
-      - name: Checkout PR
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Generate PR API snapshots
-        run: |
-          set -euo pipefail
-          pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
-          pnpm generate-api:backend
-          pnpm generate:mcp-tools-snapshot
-          cp packages/backend/src/generated/swagger.json /tmp/api-snapshots/pr-swagger.json
-          cp packages/common/src/schemas/json/mcp-tools-1.0.json /tmp/api-snapshots/pr-mcp-tools.json
-
-      - name: Upload the API snapshot pairs
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
-        with:
-          name: release-safety-api-snapshots
-          path: /tmp/api-snapshots/
-          retention-days: 1
-
-  preview:
-    name: Release-safety preview
-    needs: [changes, openapi-specs]
-    # Runs even when spec generation was skipped (no API-surface change) or failed:
-    # the migration and MCP halves still have something to say, and the comment
-    # reports the REST check as not run rather than silently omitting it. A failed
-    # openapi-specs job stays red on its own — this job does not launder it green.
-    # Skipped entirely when the diff doesn't touch the watched surface — the
-    # `retract` job owns the comment in that case — and on an `edited` event
-    # whose head+base the comment already describes (SPK-858).
-    if: ${{ always() && needs.changes.result == 'success' && needs.changes.outputs.open == 'true' && needs.changes.outputs.watched == 'true' && needs.changes.outputs.fresh != 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
-        with:
-          egress-policy: audit
-
-      # SPK-1218: blobless, for the reason spelled out on the `changes` checkout.
-      # The gates only diff against `base_sha`, so the blobs they touch are lazily
-      # fetched on demand instead of every ref's full contents arriving up front.
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          fetch-depth: 0
-          filter: blob:none
-
-      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
-        with:
-          cache: true
-          save-cache: false
-          install: false
-
       # SPK-941: scripts/release-safety-index.ts imports
       # packages/cli/src/releaseSafety (ajv-backed index validation), so the
       # otherwise dependency-free preview needs the CLI package's dependencies.
       - name: Install CLI package dependencies
         run: pnpm install --frozen-lockfile --filter @lightdash/cli --filter . --network-concurrency=16
+
+      # SPK-695: each side is built from its own revision's sources AND its own
+      # revision's dependencies — sharing one install across both would be a
+      # faithful build of neither. `generate-api:backend` is the script the release
+      # job runs before computing the marker; the root `generate-api` adds
+      # post-hooks that write the chart/dashboard/MCP schemas, none of which feed
+      # the OpenAPI spec. Each side gets its own worktree so the gates below still
+      # read an untouched checkout. A failure here fails the gate after the
+      # comment is posted, via the REST check below.
+      - name: Generate API snapshot pairs
+        id: specs
+        if: needs.changes.outputs.openapi == 'true'
+        continue-on-error: true
+        env:
+          BASE_SHA: ${{ needs.changes.outputs.base_sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/api-snapshots
+          for side in base pr; do
+            ref=$([ "${side}" = base ] && echo "${BASE_SHA}" || echo HEAD)
+            tree="${RUNNER_TEMP}/${side}-tree"
+            git worktree add --detach "${tree}" "${ref}"
+            pnpm -C "${tree}" install --frozen-lockfile --prefer-offline --network-concurrency=16
+            pnpm -C "${tree}" generate-api:backend
+            pnpm -C "${tree}" generate:mcp-tools-snapshot
+            cp "${tree}/packages/backend/src/generated/swagger.json" "/tmp/api-snapshots/${side}-swagger.json"
+            cp "${tree}/packages/common/src/schemas/json/mcp-tools-1.0.json" "/tmp/api-snapshots/${side}-mcp-tools.json"
+          done
 
       - name: Install oasdiff
         env:
@@ -469,24 +434,17 @@ jobs:
           sudo install -m 0755 /tmp/oasdiff /usr/local/bin/oasdiff
           oasdiff --version
 
-      - name: Download the generated API snapshot pairs
-        if: ${{ needs.openapi-specs.result == 'success' }}
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
-        with:
-          name: release-safety-api-snapshots
-          path: /tmp/api-snapshots
-
-      # A spec job that reported success but shipped no usable pair is broken
-      # wiring, not a normal "not checked" — fail loudly instead of quietly
+      # A generation step that reported success but produced no usable pair is
+      # broken wiring, not a normal "not checked" — fail loudly instead of quietly
       # downgrading the REST result.
       - name: Verify the API snapshot pairs
-        if: ${{ needs.openapi-specs.result == 'success' }}
+        if: ${{ steps.specs.outcome == 'success' }}
         run: |
           set -euo pipefail
           for file in base-swagger.json pr-swagger.json base-mcp-tools.json pr-mcp-tools.json; do
             snapshot="/tmp/api-snapshots/${file}"
             if [ ! -s "${snapshot}" ]; then
-              echo "::error::openapi-specs succeeded but ${snapshot} is missing or empty"
+              echo "::error::spec generation succeeded but ${snapshot} is missing or empty"
               exit 1
             fi
           done
@@ -495,7 +453,7 @@ jobs:
         id: api
         run: |
           set -euo pipefail
-          if [ "${{ needs.openapi-specs.result }}" = "success" ]; then
+          if [ "${{ steps.specs.outcome }}" = "success" ]; then
             echo "expected=true" >> "$GITHUB_OUTPUT"
             echo "flags=--rest-base-spec /tmp/api-snapshots/base-swagger.json --rest-new-spec /tmp/api-snapshots/pr-swagger.json --mcp-base-snapshot /tmp/api-snapshots/base-mcp-tools.json --mcp-new-snapshot /tmp/api-snapshots/pr-mcp-tools.json" >> "$GITHUB_OUTPUT"
           else
@@ -570,13 +528,13 @@ jobs:
             echo "::error::the OpenAPI spec pair was generated but the REST diff did not run — see the marker step's [rest-api-diff] log"
             echo "status=failed" >> "$GITHUB_OUTPUT"
             echo "broken=true" >> "$GITHUB_OUTPUT"
-          elif [ "${{ needs.openapi-specs.result }}" = "skipped" ]; then
+          elif [ "${{ steps.specs.outcome }}" = "skipped" ]; then
             echo "status=skipped" >> "$GITHUB_OUTPUT"
             echo "broken=false" >> "$GITHUB_OUTPUT"
           else
-            # openapi-specs is already red; it carries the failure on its own.
+            echo "::error::the OpenAPI spec pair could not be generated — see the Generate API snapshot pairs step"
             echo "status=failed" >> "$GITHUB_OUTPUT"
-            echo "broken=false" >> "$GITHUB_OUTPUT"
+            echo "broken=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Confirm the MCP check ran

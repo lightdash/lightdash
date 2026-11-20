@@ -5,8 +5,9 @@ import {
     type ResultRow,
 } from '@lightdash/common';
 import { useComputedColorScheme } from '@mantine/core';
-import { useMemo, useState, type FC } from 'react';
+import { useMemo, useState, type FC, type RefObject } from 'react';
 import { getDashboardChartColorPalette } from '../../../components/DashboardTiles/getDashboardChartColorPalette';
+import { type EChartsReact } from '../../../components/EChartsReactWrapper';
 import LightdashVisualization from '../../../components/LightdashVisualization';
 import VisualizationProvider from '../../../components/LightdashVisualization/VisualizationProvider';
 import MetricQueryDataProvider from '../../../components/MetricQueryData/MetricQueryDataProvider';
@@ -28,6 +29,7 @@ type Props = {
     rows: ResultRow[];
     onScreenshotReady: () => void;
     onScreenshotError: () => void;
+    setEchartsRef?: (ref: RefObject<EChartsReact | null> | undefined) => void;
 };
 
 /** A stored composer chart drawn by the classic builders on a dashboard; no drill, underlying data or explore. */
@@ -43,6 +45,7 @@ export const ComposerChartVisualization: FC<Props> = ({
     rows,
     onScreenshotReady,
     onScreenshotError,
+    setEchartsRef,
 }) => {
     const colorScheme = useComputedColorScheme();
     const { data: org } = useOrganization();
@@ -91,6 +94,7 @@ export const ComposerChartVisualization: FC<Props> = ({
                 isLoading={results.isFetchingRows}
                 unsavedMetricQuery={metricQuery}
                 isDashboard
+                setEchartsRef={setEchartsRef}
             >
                 <ComposerChartRenderTargetContext.Provider
                     value={composerChartUuid ?? undefined}

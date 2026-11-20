@@ -1,11 +1,16 @@
 ---
 name: sql-chart-reference
-description: SQL chart body, chart kinds and config, the SQL approval step, and how to build dashboards from SQL charts in Lightdash.
+description: When to create a SQL chart, its body, chart kinds and config, the SQL approval step, and how to build dashboards from SQL charts in Lightdash.
 ---
 
 # SQL Chart Reference
 
-A SQL chart is a chart saved from raw warehouse SQL rather than from an explore. Use one only when the semantic layer cannot express the question; prefer a chart built from an explore whenever it can.
+A SQL chart is a chart saved from raw warehouse SQL rather than from an explore. It bypasses the governed semantic layer, so saving one is the user's choice.
+
+## When to create one
+
+- The user asked for a SQL chart or gave SQL to save as a chart: create it.
+- Every other new chart comes from explore fields. Correct and retry an attempt that fails (a rejected formula, a query error) before judging the explores. Where the `query` tool is available, a dashboard chart that one explore cannot produce but a `query` pipeline over explores can (a merge across explores, a duckdb or python step) is a composer chart: follow `composer-chart-reference`. Otherwise, when the explores cannot produce the chart (a missing field or table, a join or calculation none of them models), stop and tell the user what the semantic layer lacks, then offer the paths open here: adding it to the semantic layer, and a SQL chart where one can be saved. SQL charts already on a dashboard were chosen for those tiles; a new tile there gets this offer too. Once they choose the SQL chart, later charts in this thread that explores cannot produce, other than such composer charts, are SQL charts too.
 
 ## Requirements
 

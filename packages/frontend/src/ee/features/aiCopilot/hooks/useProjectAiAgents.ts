@@ -62,6 +62,7 @@ import { type UserWithAbility } from '../../../../hooks/user/useUser';
 import useApp from '../../../../providers/App/useApp';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
+import { consumeEmbedAgentContentEvents } from '../streaming/agentContentEvents';
 import { useAiAgentThreadStreamMutation } from '../streaming/useAiAgentThreadStreamMutation';
 import {
     type AiAgentToolCallHandler,
@@ -987,7 +988,7 @@ export const useAiAgentThreadWorkstreams = (
  */
 const toOptimisticContextItem = (
     item: AiPromptContextItemInput,
-): AiPromptContextItem => {
+): AiPromptContextItem | null => {
     switch (item.type) {
         case 'chart':
             return {
@@ -1027,6 +1028,10 @@ const toOptimisticContextItem = (
                 sourceType: null,
                 tables: [],
             };
+        // A UUID alone cannot truthfully reconstruct an image snapshot. Wait for
+        // the server unless the composer supplies the upload's optimistic metadata.
+        case 'thread_image':
+            return null;
         case 'thread_file':
             return {
                 type: 'thread_file',
@@ -1106,6 +1111,14 @@ const toOptimisticContextItem = (
                 type: 'sql_chart',
                 sqlChartUuid: item.sqlChartUuid,
                 sqlChartSlug: item.sqlChartSlug,
+                displayName: null,
+                pinnedVersionUuid: null,
+            };
+        case 'composer_chart':
+            return {
+                type: 'composer_chart',
+                composerChartUuid: item.composerChartUuid,
+                composerChartSlug: item.composerChartSlug,
                 displayName: null,
                 pinnedVersionUuid: null,
             };
@@ -1320,6 +1333,7 @@ export const useCreateAgentThreadMutation = (
             agentUuid: string;
             optimisticContext?: AiPromptContext;
             enableSqlMode?: boolean;
+            autoApproveSql?: boolean;
             toolHints?: string[];
             skipAgentResponse?: boolean;
         }
@@ -1328,31 +1342,41 @@ export const useCreateAgentThreadMutation = (
             agentUuid,
             optimisticContext: _optimisticContext,
             enableSqlMode: _enableSqlMode,
+            autoApproveSql: _autoApproveSql,
             toolHints: _toolHints,
             skipAgentResponse: _skipAgentResponse,
             ...data
         }) => createAgentThread(lightdashApi, projectUuid, agentUuid, data),
-        onMutate: ({ skipAgentResponse }) => {
-            if (!isEmbed && !skipAgentResponse) {
+        onMutate: ({ skipAgentResponse, autoApproveSql }) => {
+            if (!isEmbed && !skipAgentResponse && !autoApproveSql) {
                 requestSqlApprovalNotificationPermission();
             }
         },
-        onSuccess: async (thread, variables) => {
+        onSuccess: (thread, variables) => {
             const { agentUuid } = variables;
-            // Invalidate both user-specific and all-users thread queries
-            await queryClient.invalidateQueries({
-                queryKey: [AI_AGENTS_KEY, projectUuid, agentUuid, 'threads'],
-            });
-            // Invalidate the project-scoped paginated thread list (sidebar)
-            await queryClient.invalidateQueries({
-                queryKey: [AI_AGENTS_KEY, projectUuid, PROJECT_THREADS_KEY],
-            });
+            // Refresh thread lists (incl. sidebar) without delaying the stream start
+            const threadListsRefreshed = Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: [
+                        AI_AGENTS_KEY,
+                        projectUuid,
+                        agentUuid,
+                        'threads',
+                    ],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: getProjectThreadsQueryKey(projectUuid),
+                }),
+            ]);
 
             if (!isEmbed) {
-                void generateThreadTitle({
-                    agentUuid,
-                    threadUuid: thread.uuid,
-                });
+                // The title patch needs the new thread already in the sidebar list
+                void threadListsRefreshed.then(() =>
+                    generateThreadTitle({
+                        agentUuid,
+                        threadUuid: thread.uuid,
+                    }),
+                );
             }
 
             // The agent is loaded by whichever page kicked off this mutation —
@@ -1392,7 +1416,9 @@ export const useCreateAgentThreadMutation = (
                             // Otherwise fall back to nulls and wait for the
                             // post-stream refetch to fill them in.
                             variables.optimisticContext ??
-                                variables.context?.map(toOptimisticContextItem),
+                                variables.context
+                                    ?.map(toOptimisticContextItem)
+                                    .filter((item) => item !== null),
                             false,
                             !variables.skipAgentResponse,
                             variables.modelConfig ?? null,
@@ -1413,6 +1439,7 @@ export const useCreateAgentThreadMutation = (
                     threadUuid: thread.uuid,
                     messageUuid: thread.firstMessage.uuid,
                     enableSqlMode: variables.enableSqlMode,
+                    autoApproveSql: variables.autoApproveSql,
                     toolHints: variables.toolHints,
                     onFinish: () =>
                         queryClient.invalidateQueries({
@@ -1587,7 +1614,9 @@ export const useCreateAgentThreadMessageMutation = (
                                 agent!,
                                 isEmbed,
                                 data.optimisticContext ??
-                                    data.context?.map(toOptimisticContextItem),
+                                    data.context
+                                        ?.map(toOptimisticContextItem)
+                                        .filter((item) => item !== null),
                                 data.hidden,
                                 !data.skipAgentResponse,
                                 data.modelConfig ?? null,
@@ -1706,6 +1735,7 @@ export const useCreateAgentThreadMessageMutation = (
 };
 
 export const useRetryAiAgentThreadMessageMutation = () => {
+    const isEmbed = useIsEmbedded();
     const { streamMessage } = useAiAgentThreadStreamMutation();
     const queryClient = useQueryClient();
 
@@ -1720,6 +1750,25 @@ export const useRetryAiAgentThreadMessageMutation = () => {
             enableSqlMode?: boolean;
         }
     >({
+        onMutate: ({ projectUuid, agentUuid, threadUuid, messageUuid }) => {
+            if (!isEmbed) return;
+            const thread = queryClient.getQueryData<
+                ApiAiAgentThreadResponse['results']
+            >(getAiAgentThreadQueryKey(projectUuid, agentUuid, threadUuid));
+            const message = thread?.messages.find(
+                (item) =>
+                    item.role === 'assistant' && item.uuid === messageUuid,
+            );
+            // Retry reuses this prompt, including the previous attempt's persisted writes.
+            if (message?.role === 'assistant') {
+                consumeEmbedAgentContentEvents(
+                    projectUuid,
+                    agentUuid,
+                    [],
+                    message,
+                );
+            }
+        },
         mutationFn: ({
             projectUuid,
             agentUuid,

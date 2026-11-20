@@ -7,6 +7,7 @@ import {
 import { Box } from '@mantine/core';
 import { clsx } from 'clsx';
 import { memo } from 'react';
+import { useDraftCheckoutView } from '../../features/semanticStudio/useSemanticLayerModel';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useOrganizationAccess } from '../../hooks/organization/useOrganizationAccess';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
@@ -126,6 +127,12 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                 type: ProjectType.DEFAULT,
             }),
         ) === true;
+
+    // Keeps every request reading the checked-out draft; the project switcher says so.
+    useDraftCheckoutView(
+        activeProjectUuid,
+        project ? getProjectUrlIdentifier(project) : undefined,
+    );
 
     const hasBanner =
         isImpersonating ||

@@ -183,7 +183,7 @@ describe('createContent SQL charts', () => {
         expect(save).not.toHaveBeenCalled();
         expect(output).toEqual({
             result: SQL_CHART_REJECTED_RESULT,
-            metadata: { status: 'error' },
+            metadata: { status: 'rejected' },
             structuredContent: { error: SQL_CHART_REJECTED_RESULT },
         });
     });
@@ -240,6 +240,7 @@ describe('createContent SQL charts', () => {
         const second = await execute(tool, 'tool-call-2');
 
         expect(first.result).toBe(SQL_CHART_TIMEOUT_RESULT);
+        expect(first.metadata.status).toBe('timeout');
         expect(second.result).toBe(SQL_CHART_PREVIOUS_TIMEOUT_RESULT);
         expect(approval.waitForSqlApproval).toHaveBeenCalledOnce();
         expect(approval.trackSqlApprovalTimeout).toHaveBeenCalledWith({

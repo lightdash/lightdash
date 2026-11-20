@@ -6769,6 +6769,18 @@
                 "enum": ["heading"],
                 "type": "string"
             },
+            "DashboardHeadingSize": {
+                "enum": ["xs", "sm", "md", "lg"],
+                "type": "string"
+            },
+            "DashboardHeadingTextAlign": {
+                "enum": ["left", "center", "right"],
+                "type": "string"
+            },
+            "DashboardHeadingVerticalAlign": {
+                "enum": ["top", "center", "bottom"],
+                "type": "string"
+            },
             "DashboardHeadingTileAsCode": {
                 "allOf": [
                     {
@@ -6778,6 +6790,18 @@
                         "properties": {
                             "properties": {
                                 "properties": {
+                                    "verticalAlign": {
+                                        "$ref": "#/components/schemas/DashboardHeadingVerticalAlign",
+                                        "description": "Where the heading sits in the height of its tile. Omitted means the default, `center`"
+                                    },
+                                    "textAlign": {
+                                        "$ref": "#/components/schemas/DashboardHeadingTextAlign",
+                                        "description": "Omitted means the default, `left`"
+                                    },
+                                    "size": {
+                                        "$ref": "#/components/schemas/DashboardHeadingSize",
+                                        "description": "Omitted means the default size, `md`"
+                                    },
                                     "showDivider": {
                                         "type": "boolean"
                                     },
@@ -11070,6 +11094,18 @@
                 "properties": {
                     "properties": {
                         "properties": {
+                            "verticalAlign": {
+                                "$ref": "#/components/schemas/DashboardHeadingVerticalAlign",
+                                "description": "Where the heading sits in the height of its tile. Omitted means the default, `center`"
+                            },
+                            "textAlign": {
+                                "$ref": "#/components/schemas/DashboardHeadingTextAlign",
+                                "description": "Omitted means the default, `left`"
+                            },
+                            "size": {
+                                "$ref": "#/components/schemas/DashboardHeadingSize",
+                                "description": "Omitted means the default size, `md`"
+                            },
                             "showDivider": {
                                 "type": "boolean"
                             },
@@ -12006,6 +12042,94 @@
                 ],
                 "type": "object"
             },
+            "ComposerStoredChart": {
+                "properties": {
+                    "tableConfig": {
+                        "properties": {
+                            "columnOrder": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columnOrder"],
+                        "type": "object"
+                    },
+                    "pivotConfig": {
+                        "properties": {
+                            "columns": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columns"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartConfig"
+                    },
+                    "columns": {
+                        "items": {
+                            "$ref": "#/components/schemas/ComposerChartColumn"
+                        },
+                        "type": "array"
+                    },
+                    "schemaVersion": {
+                        "type": "number",
+                        "enum": [1],
+                        "nullable": false
+                    }
+                },
+                "required": [
+                    "tableConfig",
+                    "pivotConfig",
+                    "chartConfig",
+                    "columns",
+                    "schemaVersion"
+                ],
+                "type": "object"
+            },
+            "PromotedComposerChart": {
+                "properties": {
+                    "chart": {
+                        "$ref": "#/components/schemas/ComposerStoredChart"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "oldUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "chart",
+                    "description",
+                    "name",
+                    "projectUuid",
+                    "slug",
+                    "oldUuid",
+                    "uuid"
+                ],
+                "type": "object",
+                "description": "The pipeline stays server side; only the chart travels in a diff."
+            },
             "PromotedApp": {
                 "properties": {
                     "name": {
@@ -12052,6 +12176,21 @@
                             "properties": {
                                 "data": {
                                     "$ref": "#/components/schemas/PromotedApp"
+                                },
+                                "action": {
+                                    "$ref": "#/components/schemas/PromotionAction"
+                                }
+                            },
+                            "required": ["data", "action"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "composerCharts": {
+                        "items": {
+                            "properties": {
+                                "data": {
+                                    "$ref": "#/components/schemas/PromotedComposerChart"
                                 },
                                 "action": {
                                     "$ref": "#/components/schemas/PromotionAction"
@@ -25774,6 +25913,50 @@
             "ApiAppFileUploadResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__fileId-string--imageId_deprecated-true_-string--filename_description-Sanitizedoriginalfilename.canonicalizedserver-side._-string--mimeType_description-NormalizedMIMEtypeasstoredonthestagedS3object._-string__"
             },
+            "CaptureTranscriptWord": {
+                "properties": {
+                    "text": {
+                        "type": "string"
+                    },
+                    "endMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "startMs": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["text", "endMs", "startMs"],
+                "type": "object",
+                "description": "One spoken word from a Voice Design recording, timed from the start of its audio."
+            },
+            "ApiSuccess__words-CaptureTranscriptWord-Array__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "words": {
+                                "items": {
+                                    "$ref": "#/components/schemas/CaptureTranscriptWord"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["words"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiCaptureTranscriptResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__words-CaptureTranscriptWord-Array__"
+            },
             "DataAppContextFile": {
                 "properties": {
                     "contentBase64": {
@@ -28339,7 +28522,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "AiThreadFile": {
+            "AiThreadFileMetadata": {
                 "properties": {
                     "createdAt": {
                         "type": "string",
@@ -28374,7 +28557,60 @@
                     "uuid"
                 ],
                 "type": "object",
-                "description": "A text document uploaded by a user for an agent conversation."
+                "description": "A file uploaded by a user for an agent conversation."
+            },
+            "AiThreadImageMediaType": {
+                "type": "string",
+                "enum": ["image/png", "image/jpeg", "image/webp"]
+            },
+            "AiThreadFile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AiThreadFileMetadata"
+                    },
+                    {
+                        "anyOf": [
+                            {
+                                "properties": {
+                                    "kind": {
+                                        "type": "string",
+                                        "enum": ["text"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["kind"],
+                                "type": "object"
+                            },
+                            {
+                                "properties": {
+                                    "height": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "width": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "mediaType": {
+                                        "$ref": "#/components/schemas/AiThreadImageMediaType"
+                                    },
+                                    "kind": {
+                                        "type": "string",
+                                        "enum": ["image"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": [
+                                    "height",
+                                    "width",
+                                    "mediaType",
+                                    "kind"
+                                ],
+                                "type": "object"
+                            }
+                        ]
+                    }
+                ]
             },
             "ApiAiThreadFileResponse": {
                 "properties": {
@@ -28879,6 +29115,28 @@
                     },
                     {
                         "properties": {
+                            "composerChartSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "composerChartUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["composer_chart"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "composerChartSlug",
+                            "composerChartUuid",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
                             "promptUuid": {
                                 "type": "string",
                                 "nullable": true
@@ -28945,6 +29203,20 @@
                             "type": {
                                 "type": "string",
                                 "enum": ["thread_file"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["fileUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fileUuid": {
+                                "$ref": "#/components/schemas/UUID"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["thread_image"],
                                 "nullable": false
                             }
                         },
@@ -29200,6 +29472,313 @@
                     }
                 },
                 "required": ["projectUuid", "prompt"],
+                "type": "object"
+            },
+            "CaptureLayoutOp": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "y": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "x": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "tileUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["move"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["y", "x", "tileUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "h": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "w": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "tileUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["resize"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["h", "w", "tileUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "withTileUuid": {
+                                "type": "string"
+                            },
+                            "tileUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["swap"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["withTileUuid", "tileUuid", "type"],
+                        "type": "object"
+                    }
+                ],
+                "description": "A layout change the page applies itself, without an agent."
+            },
+            "CaptureQuestion": {
+                "properties": {
+                    "tileUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "text": {
+                        "type": "string"
+                    }
+                },
+                "required": ["tileUuids", "text"],
+                "type": "object",
+                "description": "A question to hand to the AI agent, with the tiles it is about."
+            },
+            "CaptureEdit": {
+                "properties": {
+                    "tileUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "text": {
+                        "type": "string"
+                    }
+                },
+                "required": ["tileUuids", "text"],
+                "type": "object",
+                "description": "A change to the dashboard that an agent carries out (a filter, a new chart, a rename)."
+            },
+            "CaptureRoute": {
+                "properties": {
+                    "edits": {
+                        "items": {
+                            "$ref": "#/components/schemas/CaptureEdit"
+                        },
+                        "type": "array"
+                    },
+                    "questions": {
+                        "items": {
+                            "$ref": "#/components/schemas/CaptureQuestion"
+                        },
+                        "type": "array"
+                    },
+                    "layout": {
+                        "items": {
+                            "$ref": "#/components/schemas/CaptureLayoutOp"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["edits", "questions", "layout"],
+                "type": "object"
+            },
+            "ApiSuccess_CaptureRoute_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/CaptureRoute"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiCaptureRouteResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_CaptureRoute_"
+            },
+            "CaptureRouteTile": {
+                "properties": {
+                    "h": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "w": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "y": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "x": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["h", "w", "y", "x", "title", "uuid"],
+                "type": "object",
+                "description": "A dashboard tile as the capture router sees it, in grid units."
+            },
+            "CaptureRoutePlace": {
+                "properties": {
+                    "cell": {
+                        "properties": {
+                            "y": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "x": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["y", "x"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "tileUuid": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["cell", "tileUuid"],
+                "type": "object",
+                "description": "Where a mark points: a tile, an empty grid cell, or nothing known."
+            },
+            "CaptureRouteMark": {
+                "properties": {
+                    "speech": {
+                        "type": "string"
+                    },
+                    "inside": {
+                        "items": {
+                            "properties": {
+                                "share": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "tileUuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["share", "tileUuid"],
+                            "type": "object"
+                        },
+                        "type": "array",
+                        "description": "Tiles under the area the mark encloses, with the percent of that area on each."
+                    },
+                    "path": {
+                        "items": {
+                            "$ref": "#/components/schemas/CaptureRoutePlace"
+                        },
+                        "type": "array",
+                        "description": "Everything the stroke passed over, in the order it was drawn."
+                    },
+                    "arrowTo": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CaptureRoutePlace"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Where an arrow ends. Null for marks that are not arrows."
+                    },
+                    "at": {
+                        "$ref": "#/components/schemas/CaptureRoutePlace"
+                    },
+                    "shape": {
+                        "type": "string"
+                    },
+                    "image": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Which attached screenshot shows this mark, from 1. Zero when none."
+                    },
+                    "number": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "speech",
+                    "inside",
+                    "path",
+                    "arrowTo",
+                    "at",
+                    "shape",
+                    "image",
+                    "number"
+                ],
+                "type": "object",
+                "description": "One drawn mark from a Voice Design recording and the words said with it."
+            },
+            "ApiCaptureRouteRequest": {
+                "properties": {
+                    "images": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Screenshots with the marks drawn on, as base64 JPEG, in order."
+                    },
+                    "looseSpeech": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Things said that were not attached to any mark."
+                    },
+                    "marks": {
+                        "items": {
+                            "$ref": "#/components/schemas/CaptureRouteMark"
+                        },
+                        "type": "array"
+                    },
+                    "tiles": {
+                        "items": {
+                            "$ref": "#/components/schemas/CaptureRouteTile"
+                        },
+                        "type": "array"
+                    },
+                    "gridColumns": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "dashboardName": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "images",
+                    "looseSpeech",
+                    "marks",
+                    "tiles",
+                    "gridColumns",
+                    "dashboardName"
+                ],
                 "type": "object"
             },
             "ApiAiRouterDecisionCommitResponse": {
@@ -33150,6 +33729,39 @@
                 ],
                 "description": "One-call merge execution request. Derived pivot SQL remains server-owned."
             },
+            "ApiExecuteAsyncSavedMergeQueryRequest": {
+                "properties": {
+                    "includeUnpublishedDraft": {
+                        "type": "boolean",
+                        "description": "Run the caller's own open draft of the chart, as the chart page shows it"
+                    },
+                    "pivotResults": {
+                        "type": "boolean",
+                        "description": "Pivot the result with the chart's saved pivot config"
+                    },
+                    "mode": {
+                        "$ref": "#/components/schemas/MergeQueryExecutionMode"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "invalidateCache": {
+                        "type": "boolean"
+                    },
+                    "savedChartUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    }
+                },
+                "required": [
+                    "includeUnpublishedDraft",
+                    "pivotResults",
+                    "mode",
+                    "parameters",
+                    "savedChartUuid"
+                ],
+                "type": "object",
+                "description": "Runs a saved chart's own merge, named by the chart rather than sent."
+            },
             "ApiExecuteAsyncComposeMergeQueryRequest": {
                 "properties": {
                     "chart": {
@@ -33766,6 +34378,10 @@
                     "integrations": {
                         "items": {
                             "properties": {
+                                "serviceAccountUuid": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
                                 "channelId": {
                                     "type": "string"
                                 },
@@ -34862,6 +35478,10 @@
                     "integrations": {
                         "items": {
                             "properties": {
+                                "serviceAccountUuid": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
                                 "channelId": {
                                     "type": "string"
                                 },
@@ -35788,6 +36408,10 @@
                     "integrations": {
                         "items": {
                             "properties": {
+                                "serviceAccountUuid": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
                                 "channelId": {
                                     "type": "string"
                                 },
@@ -35932,6 +36556,10 @@
                     "integrations": {
                         "items": {
                             "properties": {
+                                "serviceAccountUuid": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
                                 "channelId": {
                                     "type": "string"
                                 },
@@ -36161,6 +36789,27 @@
                     }
                 },
                 "required": ["displayName", "tableName", "tableUuid"],
+                "type": "object"
+            },
+            "AiPromptThreadImageSnapshot": {
+                "properties": {
+                    "height": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "width": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "mediaType": {
+                        "$ref": "#/components/schemas/AiThreadImageMediaType"
+                    },
+                    "sizeBytes": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["height", "width", "mediaType", "sizeBytes"],
                 "type": "object"
             },
             "PullRequestProvider": {
@@ -36739,6 +37388,38 @@
                                 "type": "string",
                                 "nullable": true
                             },
+                            "pinnedVersionUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "composerChartSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "composerChartUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["composer_chart"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "displayName",
+                            "pinnedVersionUuid",
+                            "composerChartSlug",
+                            "composerChartUuid",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "displayName": {
+                                "type": "string",
+                                "nullable": true
+                            },
                             "promptUuid": {
                                 "type": "string",
                                 "nullable": true
@@ -36850,6 +37531,30 @@
                             "type"
                         ],
                         "type": "object"
+                    },
+                    {
+                        "allOf": [
+                            {
+                                "properties": {
+                                    "fileName": {
+                                        "type": "string"
+                                    },
+                                    "fileUuid": {
+                                        "type": "string"
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "enum": ["thread_image"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["fileName", "fileUuid", "type"],
+                                "type": "object"
+                            },
+                            {
+                                "$ref": "#/components/schemas/AiPromptThreadImageSnapshot"
+                            }
+                        ]
                     },
                     {
                         "properties": {
@@ -37520,6 +38225,7 @@
                     "getProjectInfo",
                     "getPullRequestDiff",
                     "grepFields",
+                    "grepWarehouseColumns",
                     "iterateDataApp",
                     "listChanges",
                     "listContent",
@@ -37540,6 +38246,7 @@
                     "resolveUrl",
                     "runComposerQueries",
                     "runContentQuery",
+                    "runMetricQuery",
                     "runQuery",
                     "runSavedChart",
                     "searchFieldValues",
@@ -38751,6 +39458,19 @@
                                             },
                                             {
                                                 "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "rejected",
+                                                            "timeout"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
                                                     "versionUuids": {
                                                         "properties": {
                                                             "after": {
@@ -38989,6 +39709,13 @@
                                                 "allOf": [
                                                     {
                                                         "properties": {
+                                                            "diffs": {
+                                                                "items": {
+                                                                    "type": "string"
+                                                                },
+                                                                "type": "array",
+                                                                "nullable": true
+                                                            },
                                                             "aiWritebackRunUuid": {
                                                                 "type": "string"
                                                             },
@@ -42569,6 +43296,17 @@
                 "required": ["instruction"],
                 "type": "object"
             },
+            "SemanticLayerBlocker": {
+                "type": "string",
+                "enum": [
+                    "no_access",
+                    "unsupported_connection",
+                    "no_repository_access",
+                    "github_app_missing",
+                    "models_from_outside",
+                    "preview_project"
+                ]
+            },
             "SemanticLayerApplyMode": {
                 "type": "string",
                 "enum": ["live", "pull_request", "dbt_pull_request"]
@@ -42579,12 +43317,20 @@
                         "$ref": "#/components/schemas/SemanticLayerApplyMode",
                         "description": "How a change lands: `live` applies a draft here, `pull_request` sends a draft to the project's repository, and `dbt_pull_request` has the agent edit the dbt project in a pull request, with no draft."
                     },
+                    "blocker": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SemanticLayerBlocker"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "enabled": {
                         "type": "boolean",
                         "description": "Whether this person can change this project's models from Semantic Studio."
                     }
                 },
-                "required": ["appliesAs", "enabled"],
+                "required": ["appliesAs", "blocker", "enabled"],
                 "type": "object"
             },
             "ApiSuccess_SemanticLayerStatus_": {
@@ -42640,6 +43386,10 @@
             },
             "SemanticStudioWorkspace": {
                 "properties": {
+                    "publishedLive": {
+                        "type": "boolean",
+                        "description": "Whether any of its draft went live here, without a pull request."
+                    },
                     "finishedAt": {
                         "type": "string",
                         "format": "date-time",
@@ -42710,6 +43460,7 @@
                     }
                 },
                 "required": [
+                    "publishedLive",
                     "finishedAt",
                     "updatedAt",
                     "createdAt",
@@ -42799,6 +43550,161 @@
                 },
                 "required": ["name", "threadUuid"],
                 "type": "object"
+            },
+            "SemanticStudioBranchCompileStatus": {
+                "type": "string",
+                "enum": ["compiling", "ready", "failed"]
+            },
+            "SemanticStudioBranchCompile": {
+                "properties": {
+                    "compiledAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "requestedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "hasExplores": {
+                        "type": "boolean",
+                        "description": "Whether a compile has succeeded; until one has, Explore shows what is published."
+                    },
+                    "error": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Why the latest compile failed; null otherwise."
+                    },
+                    "branch": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null until a compile has read the branch."
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/SemanticStudioBranchCompileStatus"
+                    }
+                },
+                "required": [
+                    "compiledAt",
+                    "requestedAt",
+                    "hasExplores",
+                    "error",
+                    "branch",
+                    "status"
+                ],
+                "type": "object",
+                "description": "Where the compile of a dbt change's branch stands."
+            },
+            "SemanticStudioCheckout": {
+                "properties": {
+                    "branchCompile": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SemanticStudioBranchCompile"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Null for a change kept on the server, and for a dbt change with no compile asked for yet."
+                    },
+                    "appliesAs": {
+                        "$ref": "#/components/schemas/SemanticLayerApplyMode"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "workspaceUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "branchCompile",
+                    "appliesAs",
+                    "name",
+                    "workspaceUuid"
+                ],
+                "type": "object",
+                "description": "The change a person has checked out in a project, which the whole app shows them."
+            },
+            "ApiSuccess_SemanticStudioCheckout-or-null_": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SemanticStudioCheckout"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticStudioCheckoutResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticStudioCheckout-or-null_",
+                "description": "Null when the person is on what is published."
+            },
+            "MergePullRequestResult": {
+                "properties": {
+                    "sha": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The resulting merge commit SHA, when the provider returns one."
+                    },
+                    "merged": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["sha", "merged"],
+                "type": "object",
+                "description": "Outcome of a pull request merge."
+            },
+            "WritebackMergeResult": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/MergePullRequestResult"
+                    },
+                    {
+                        "properties": {
+                            "compileJobUuid": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Null when none was started, as for a project not deployed from git."
+                            }
+                        },
+                        "required": ["compileJobUuid"],
+                        "type": "object"
+                    }
+                ],
+                "description": "A write-back merge, and the project compile it started so the change goes live."
+            },
+            "ApiWritebackMergeResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/WritebackMergeResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "SemanticStudioPublishBody": {
+                "properties": {
+                    "prUrl": {
+                        "type": "string"
+                    }
+                },
+                "required": ["prUrl"],
+                "type": "object",
+                "description": "The pull request of the checked-out draft, so a stale page cannot publish another one."
             },
             "SemanticStudioSources": {
                 "properties": {
@@ -43224,6 +44130,13 @@
             },
             "SemanticLayerSettledDraftChange": {
                 "properties": {
+                    "models": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "The models the change touched."
+                    },
                     "pullRequestUrl": {
                         "type": "string",
                         "nullable": true,
@@ -43237,9 +44150,49 @@
                         "type": "string"
                     }
                 },
-                "required": ["pullRequestUrl", "status", "draftChangeUuid"],
+                "required": [
+                    "models",
+                    "pullRequestUrl",
+                    "status",
+                    "draftChangeUuid"
+                ],
                 "type": "object",
                 "description": "What became of a change that left the draft."
+            },
+            "SemanticLayerInReviewModel": {
+                "properties": {
+                    "contentAfter": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null when the pull request removes the model."
+                    },
+                    "contentBefore": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null when the pull request creates the model."
+                    },
+                    "changes": {
+                        "items": {
+                            "$ref": "#/components/schemas/ModelFragmentChange"
+                        },
+                        "type": "array"
+                    },
+                    "pullRequestUrl": {
+                        "type": "string"
+                    },
+                    "model": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "contentAfter",
+                    "contentBefore",
+                    "changes",
+                    "pullRequestUrl",
+                    "model"
+                ],
+                "type": "object",
+                "description": "What this person's changes waiting in an open pull request do to one model, against what is live."
             },
             "SemanticLayerDraft": {
                 "properties": {
@@ -43261,6 +44214,12 @@
                         },
                         "type": "array",
                         "description": "Every model other people have unpublished changes to, whether or not this draft touches it."
+                    },
+                    "inReview": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerInReviewModel"
+                        },
+                        "type": "array"
                     },
                     "settled": {
                         "items": {
@@ -43300,6 +44259,7 @@
                 },
                 "required": [
                     "othersDrafting",
+                    "inReview",
                     "settled",
                     "errors",
                     "models",
@@ -43690,6 +44650,37 @@
             },
             "SemanticLayerDraftApplyResult": {
                 "properties": {
+                    "merge": {
+                        "anyOf": [
+                            {
+                                "properties": {
+                                    "merged": {
+                                        "type": "boolean",
+                                        "enum": [true],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["merged"],
+                                "type": "object"
+                            },
+                            {
+                                "properties": {
+                                    "reason": {
+                                        "type": "string"
+                                    },
+                                    "merged": {
+                                        "type": "boolean",
+                                        "enum": [false],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["reason", "merged"],
+                                "type": "object"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Whether that pull request merged when publishing asked for it, and why not; null when no merge was asked."
+                    },
                     "pullRequestUrl": {
                         "type": "string",
                         "nullable": true,
@@ -43718,7 +44709,12 @@
                         "description": "Null when nothing went live."
                     }
                 },
-                "required": ["pullRequestUrl", "failures", "exploreCount"],
+                "required": [
+                    "merge",
+                    "pullRequestUrl",
+                    "failures",
+                    "exploreCount"
+                ],
                 "type": "object"
             },
             "ApiSuccess_SemanticLayerDraftApplyResult_": {
@@ -43763,6 +44759,93 @@
                 },
                 "required": ["liveVersion"],
                 "type": "object"
+            },
+            "SemanticLayerDraftModelSave": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "content": {
+                                "type": "string",
+                                "description": "The model as the draft now holds it."
+                            },
+                            "startedChange": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "workspaceUuid": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["name", "workspaceUuid"],
+                                "type": "object",
+                                "nullable": true,
+                                "description": "The draft this started because the person was on Published; null otherwise."
+                            },
+                            "draftChangeUuid": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["saved"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "content",
+                            "startedChange",
+                            "draftChangeUuid",
+                            "status"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "error": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["failed"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["error", "status"],
+                        "type": "object"
+                    }
+                ],
+                "description": "`failed` carries why the edit was not saved, and the draft is left as it was."
+            },
+            "ApiSuccess_SemanticLayerDraftModelSave_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticLayerDraftModelSave"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticLayerDraftModelSaveResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticLayerDraftModelSave_"
+            },
+            "SaveSemanticLayerDraftModelRequest": {
+                "properties": {
+                    "content": {
+                        "type": "string"
+                    },
+                    "base": {
+                        "type": "string",
+                        "description": "The model's YAML the edit started from, so an edit made over a newer version is refused."
+                    }
+                },
+                "required": ["content", "base"],
+                "type": "object",
+                "description": "A hand edit of one model's whole YAML, saved into the person's draft."
             },
             "ApiSemanticLayerDraftTakeLiveRequest": {
                 "properties": {
@@ -47102,54 +48185,6 @@
                 "type": "object",
                 "description": "The raw unified diff of a write-back pull request (or a single pinned commit\nwithin it), for the chat card's diff viewer. Null when it can't be resolved\n(unsupported source control, no app installation, PR not found, diff too\nlarge for the provider to return)."
             },
-            "MergePullRequestResult": {
-                "properties": {
-                    "sha": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "The resulting merge commit SHA, when the provider returns one."
-                    },
-                    "merged": {
-                        "type": "boolean"
-                    }
-                },
-                "required": ["sha", "merged"],
-                "type": "object",
-                "description": "Outcome of a pull request merge."
-            },
-            "WritebackMergeResult": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/MergePullRequestResult"
-                    },
-                    {
-                        "properties": {
-                            "compileJobUuid": {
-                                "type": "string",
-                                "nullable": true,
-                                "description": "Null when none was started, as for a project not deployed from git."
-                            }
-                        },
-                        "required": ["compileJobUuid"],
-                        "type": "object"
-                    }
-                ],
-                "description": "A write-back merge, and the project compile it started so the change goes live."
-            },
-            "ApiWritebackMergeResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/WritebackMergeResult"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
             "MergePullRequestRequestBody": {
                 "properties": {
                     "sha": {
@@ -49198,6 +50233,10 @@
                     "integrations": {
                         "items": {
                             "properties": {
+                                "serviceAccountUuid": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
                                 "channelId": {
                                     "type": "string"
                                 },
@@ -60914,6 +61953,7 @@
                 "type": "string",
                 "enum": [
                     "checkSemanticLayerDraftImpact",
+                    "compileSemanticStudioBranch",
                     "reconcileAnalyticsContent",
                     "syncAnalyticsContent",
                     "slackAiPrompt",
@@ -78785,57 +79825,6 @@
                 "required": ["item"],
                 "type": "object"
             },
-            "ComposerStoredChart": {
-                "properties": {
-                    "tableConfig": {
-                        "properties": {
-                            "columnOrder": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["columnOrder"],
-                        "type": "object"
-                    },
-                    "pivotConfig": {
-                        "properties": {
-                            "columns": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["columns"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "chartConfig": {
-                        "$ref": "#/components/schemas/ChartConfig"
-                    },
-                    "columns": {
-                        "items": {
-                            "$ref": "#/components/schemas/ComposerChartColumn"
-                        },
-                        "type": "array"
-                    },
-                    "schemaVersion": {
-                        "type": "number",
-                        "enum": [1],
-                        "nullable": false
-                    }
-                },
-                "required": [
-                    "tableConfig",
-                    "pivotConfig",
-                    "chartConfig",
-                    "columns",
-                    "schemaVersion"
-                ],
-                "type": "object"
-            },
             "ComposerChart": {
                 "properties": {
                     "updatedByUserUuid": {
@@ -78945,8 +79934,38 @@
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
+            "ChartZoomableField": {
+                "properties": {
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "fieldId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["tableName", "label", "fieldId"],
+                "type": "object"
+            },
             "ComposerChartRunResults": {
                 "properties": {
+                    "zoomedFieldLabels": {
+                        "$ref": "#/components/schemas/Record_string.string_",
+                        "description": "Each zoomed field's label at the zoomed grain, by field id."
+                    },
+                    "zoomableFields": {
+                        "items": {
+                            "$ref": "#/components/schemas/ChartZoomableField"
+                        },
+                        "type": "array",
+                        "description": "The date fields the tile can be zoomed on, so the dashboard offers its date zoom."
+                    },
+                    "dateZoomApplied": {
+                        "type": "boolean",
+                        "description": "Whether the date zoom re-grained at least one semantic-layer node."
+                    },
                     "usedParameterValuesByNodeId": {
                         "$ref": "#/components/schemas/Record_string.ParametersValuesMap_",
                         "description": "The parameter values each node query ran with, keyed by node; nodes can run different values."
@@ -79002,6 +80021,9 @@
                     }
                 },
                 "required": [
+                    "zoomedFieldLabels",
+                    "zoomableFields",
+                    "dateZoomApplied",
                     "usedParameterValuesByNodeId",
                     "sqlColumns",
                     "parameterReferences",
@@ -79029,6 +80051,15 @@
             },
             "ComposerChartRunRequest": {
                 "properties": {
+                    "dateZoom": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DateZoom"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The tile's resolved date zoom; optional for clients that predate it."
+                    },
                     "invalidateCache": {
                         "type": "boolean"
                     },
@@ -80190,7 +81221,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.310.1",
+        "version": "3.356.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -87310,6 +88341,56 @@
                 }
             }
         },
+        "/api/v1/org/aiRouter/capture/{projectUuid}": {
+            "post": {
+                "operationId": "routeDashboardCapture",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiCaptureRouteResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Sort a Voice Design recording made on a dashboard into layout changes\nand questions for an agent.",
+                "summary": "Route dashboard capture",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiCaptureRouteRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/org/aiRouter/decisions/{decisionUuid}/commit": {
             "post": {
                 "operationId": "commitAiRouterDecision",
@@ -88952,6 +90033,57 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ApiExecuteAsyncMergeQueryRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/saved-merge-query": {
+            "post": {
+                "operationId": "executeAsyncSavedMergeQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncMergeQueryResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Runs a saved chart's merge as saved. The chart is named rather than its merge sent, so the merge runs with the chart's saved sources under the chart's view access.",
+                "summary": "Execute saved chart merge query",
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiExecuteAsyncSavedMergeQueryRequest"
                             }
                         }
                     }
@@ -94605,6 +95737,139 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/semantic-studio/checkout": {
+            "get": {
+                "operationId": "getSemanticStudioCheckout",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticStudioCheckoutResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "The change you have checked out, which the whole app shows you; null on what is published.",
+                "summary": "Get my Semantic Studio checkout",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/checkout/compile": {
+            "post": {
+                "operationId": "compileSemanticStudioCheckout",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticStudioCheckoutResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Compiles the branch of your checked-out dbt change again.",
+                "summary": "Compile my Semantic Studio checkout",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/checkout/publish": {
+            "post": {
+                "operationId": "publishSemanticStudioCheckout",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiWritebackMergeResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Publishes your checked-out dbt draft: merges its pull request once its branch compiled.",
+                "summary": "Publish my Semantic Studio checkout",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SemanticStudioPublishBody"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects/{projectUuid}/semantic-studio/sources": {
             "get": {
                 "operationId": "listSemanticStudioSources",
@@ -95441,6 +96706,15 @@
                         "schema": {
                             "$ref": "#/components/schemas/UUID"
                         }
+                    },
+                    {
+                        "description": "For a project whose models live in a repository, also merge the pull request the draft is sent as.",
+                        "in": "query",
+                        "name": "merge",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
                     }
                 ]
             }
@@ -95489,6 +96763,15 @@
                         "required": true,
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    {
+                        "description": "For a project whose models live in a repository, also merge the pull request the model is sent as.",
+                        "in": "query",
+                        "name": "merge",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
                         }
                     }
                 ]
@@ -95655,6 +96938,65 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ApiSemanticLayerDraftKeepRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/draft/models/{model}/edit": {
+            "post": {
+                "operationId": "saveSemanticLayerDraftModel",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticLayerDraftModelSaveResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Saves a hand edit of one model's YAML into this person's draft, checked the way an agent's change is.",
+                "summary": "Save an edit of a model to my semantic layer draft",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "model",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveSemanticLayerDraftModelRequest"
                             }
                         }
                     }

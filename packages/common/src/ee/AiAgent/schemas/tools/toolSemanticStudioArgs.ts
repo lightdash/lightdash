@@ -51,6 +51,18 @@ export const toolProposeSemanticLayerChangeArgsSchema = z.object({
         .describe(
             'A short name for the change, describing the request. Used only when this edit starts a new change.',
         ),
+    note: z
+        .string()
+        .nullable()
+        .describe(
+            'The one thing about this change most worth checking, under 15 words, shown on its card; null when nothing is.',
+        ),
+    options: z
+        .array(z.string().trim().min(1))
+        .max(2)
+        .describe(
+            'At most two things the person might ask for next instead, each written as they would say it in under 8 words. Each shows as a button that sends it. Empty for none.',
+        ),
 });
 
 export type ToolProposeSemanticLayerChangeArgs = z.infer<
@@ -109,6 +121,11 @@ const proposalMetadataSchema = z.object({
         .object({ workspaceUuid: z.string(), name: z.string() })
         .nullable()
         .default(null),
+    // Absent on results stored before a change carried a note and offers.
+    note: z.string().nullable().default(null),
+    options: z.array(z.string()).default([]),
+    // True when the result came back with advice to act on, a metric to run, or parts refused, before the turn ends.
+    needsFollowUp: z.boolean().default(false),
 });
 
 const proposalStructuredContentSchema = proposalMetadataSchema.pick({
@@ -129,6 +146,21 @@ export type ToolProposeSemanticLayerChangeOutput = z.infer<
 >;
 
 export type SemanticLayerProposal = z.infer<typeof proposalMetadataSchema>;
+
+/** The line kept as the reply when a turn ends on its card with nothing written, so history and copy still read. */
+export const describeSemanticLayerProposals = (
+    proposals: Pick<SemanticLayerProposal, 'models'>[],
+): string => {
+    const ready = proposals.flatMap(({ models }) =>
+        models.filter(({ status }) => status === 'ready'),
+    );
+    if (ready.length === 0) return 'Nothing changed in the draft.';
+    const names = [...new Set(ready.map(({ model }) => model))];
+    const leftOut = ready.some(({ refusals }) => refusals.length > 0)
+        ? ' Some parts were left out.'
+        : '';
+    return `Changed ${names.join(', ')} in the draft.${leftOut}`;
+};
 
 export const isToolProposeSemanticLayerChangeResult =
     makeBuiltInToolResultGuard(

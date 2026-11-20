@@ -315,7 +315,7 @@ export const useGetReadyQueryResults = (
 /**
  * Get single results page
  */
-const getResultsPage = async (
+export const getResultsPage = async (
     lightdashApi: LightdashApi,
     projectUuid: string,
     queryUuid: string,

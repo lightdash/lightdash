@@ -18,6 +18,7 @@ import {
     writeDependenciesToDir,
     writeFilesToDir,
 } from './appCodeFiles';
+import { resolveContainedPath } from './pathContainment';
 import { buildStaticAuthoringFiles } from './scaffolding';
 
 export const DEFAULT_APPS_LIMIT = 50;
@@ -441,7 +442,13 @@ export const downloadAppsToDir = async (args: {
             const folder = resolveAppFolderName(code.manifest, takenFolders);
             takenFolders.add(folder);
 
-            const appDir = path.join(appsDir, folder);
+            // eslint-disable-next-line no-await-in-loop
+            const canonicalAppsDir = await resolveContainedPath(
+                path.dirname(appsDir),
+                path.basename(appsDir),
+            );
+            // eslint-disable-next-line no-await-in-loop
+            const appDir = await resolveContainedPath(canonicalAppsDir, folder);
             const manifest = {
                 ...code.manifest,
                 scaffoldingVersion: cliVersion,

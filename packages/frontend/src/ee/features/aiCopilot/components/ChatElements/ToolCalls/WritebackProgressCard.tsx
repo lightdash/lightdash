@@ -1,4 +1,4 @@
-import { Text } from '@mantine/core';
+import { Loader, Text } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconBox,
@@ -8,7 +8,7 @@ import {
     IconSparkles,
     type Icon,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useContext, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import {
     useElapsed,
@@ -16,6 +16,7 @@ import {
     useWritebackProgress,
     type WritebackProgress,
 } from '../../../hooks/useWritebackProgress';
+import { QuietCardsContext } from './quietCards';
 import {
     formatDuration,
     stepDuration,
@@ -42,7 +43,7 @@ const segmentStateOf = (
 };
 
 /** One bar per step: filled when done, shimmering while it runs. */
-export const WritebackSegments: FC<{
+const WritebackSegments: FC<{
     progress: WritebackProgress;
     size?: 'sm' | 'md';
 }> = ({ progress, size = 'md' }) => (
@@ -97,6 +98,34 @@ export const WritebackProgressCard: FC<{
         index,
         took: stepDuration(times, index),
     }));
+    const quiet = useContext(QuietCardsContext);
+    // A narrow chat follows the save in one line; the draft's own card says what it changed.
+    if (quiet && state !== 'stopped') {
+        return (
+            <section
+                className={classes.compact}
+                data-state={state}
+                aria-label="Saving the change"
+            >
+                {state === 'running' ? (
+                    <Loader size={12} color="gray" />
+                ) : (
+                    <MantineIcon icon={IconCheck} size={14} color="green" />
+                )}
+                <Text fz="xs" fw={500} truncate className={classes.nowLabel}>
+                    {state === 'done'
+                        ? 'Change saved'
+                        : `Saving: ${WRITEBACK_STEPS[current].toLowerCase()}`}
+                </Text>
+                {elapsed ? (
+                    <Text fz="xs" c="dimmed" ff="monospace">
+                        {elapsed}
+                    </Text>
+                ) : null}
+                <WritebackSegments progress={progress} size="sm" />
+            </section>
+        );
+    }
     return (
         <section
             className={classes.card}

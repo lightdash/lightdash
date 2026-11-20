@@ -7,12 +7,13 @@ import {
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { clsx } from 'clsx';
-import { useMemo, type FC, type ReactNode } from 'react';
+import { useContext, useMemo, type FC, type ReactNode } from 'react';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTypeSwitcher';
 import styles from './AiArtifactPanel.module.css';
 import { AiArtifactTableVisualization } from './AiArtifactTableVisualization';
 import { AiComposerChartVisualization } from './AiComposerChartVisualization';
+import { QuietCardsContext } from './ToolCalls/quietCards';
 
 type Props = {
     projectUuid: string;
@@ -40,8 +41,10 @@ export const AiVizSwitchedResult: FC<Props> = ({
     loadingMessage,
     flush = false,
 }) => {
+    // A narrow side panel is for checking numbers, so a result there is always its table.
+    const tableOnly = useContext(QuietCardsContext);
     const vizConfig = useMemo(() => {
-        if (kind === 'table') return null;
+        if (tableOnly || kind === 'table') return null;
         const axes = plan.axes[kind];
         return axes
             ? buildComposerVizConfig({
@@ -49,8 +52,9 @@ export const AiVizSwitchedResult: FC<Props> = ({
                   fieldConfig: getComposerFieldConfig(axes, kind),
               })
             : null;
-    }, [kind, plan]);
-    const showPill = !results.error && plan.availableKinds.length > 1;
+    }, [kind, plan, tableOnly]);
+    const showPill =
+        !tableOnly && !results.error && plan.availableKinds.length > 1;
 
     return (
         <Box className={styles.displayedResult}>

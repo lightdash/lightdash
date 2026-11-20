@@ -1,8 +1,9 @@
 import {
     type AiAgentChartTypeOption,
     type ComposerVizKind,
+    type UiStringKey,
 } from '@lightdash/common';
-import { SegmentedControl } from '@mantine/core';
+import { SegmentedControl, VisuallyHidden } from '@mantine/core';
 import {
     IconNumber123,
     IconChartBar,
@@ -13,6 +14,7 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import classes from './AgentVisualizationChartTypeSwitcher.module.css';
 
 type SwitcherKind = AiAgentChartTypeOption | ComposerVizKind;
@@ -25,15 +27,18 @@ type Props<T extends SwitcherKind> = {
     variant?: 'default' | 'pill';
 };
 
-const CHART_TYPE_ICONS: Record<SwitcherKind, typeof IconTable> = {
-    table: IconTable,
-    bar: IconChartBar,
-    horizontal: IconChartBar,
-    line: IconChartLine,
-    scatter: IconChartScatter,
-    pie: IconChartPie,
-    funnel: IconFilter,
-    big_number: IconNumber123,
+const CHART_TYPES: Record<
+    SwitcherKind,
+    { icon: typeof IconTable; label: UiStringKey }
+> = {
+    table: { icon: IconTable, label: 'aiAgent.chartType.table' },
+    bar: { icon: IconChartBar, label: 'aiAgent.chartType.bar' },
+    horizontal: { icon: IconChartBar, label: 'aiAgent.chartType.horizontal' },
+    line: { icon: IconChartLine, label: 'aiAgent.chartType.line' },
+    scatter: { icon: IconChartScatter, label: 'aiAgent.chartType.scatter' },
+    pie: { icon: IconChartPie, label: 'aiAgent.chartType.pie' },
+    funnel: { icon: IconFilter, label: 'aiAgent.chartType.funnel' },
+    big_number: { icon: IconNumber123, label: 'aiAgent.chartType.big_number' },
 };
 
 export const AgentVisualizationChartTypeSwitcher = <T extends SwitcherKind>({
@@ -42,6 +47,8 @@ export const AgentVisualizationChartTypeSwitcher = <T extends SwitcherKind>({
     onChartTypeChange,
     variant = 'default',
 }: Props<T>) => {
+    const getUiString = useUiStrings();
+
     if (availableChartTypes.length <= 1) {
         return null;
     }
@@ -50,21 +57,27 @@ export const AgentVisualizationChartTypeSwitcher = <T extends SwitcherKind>({
 
     return (
         <SegmentedControl
+            aria-label={getUiString('aiAgent.chartType.label')}
             value={selectedChartType}
             onChange={(value) => onChartTypeChange(value as T)}
             data={availableChartTypes.map((chartType) => ({
                 value: chartType,
                 label: (
-                    <MantineIcon
-                        icon={CHART_TYPE_ICONS[chartType]}
-                        size="sm"
-                        stroke={1.3}
-                        className={
-                            chartType === 'horizontal'
-                                ? classes.rotatedIcon
-                                : undefined
-                        }
-                    />
+                    <>
+                        <MantineIcon
+                            icon={CHART_TYPES[chartType].icon}
+                            size="sm"
+                            stroke={1.3}
+                            className={
+                                chartType === 'horizontal'
+                                    ? classes.rotatedIcon
+                                    : undefined
+                            }
+                        />
+                        <VisuallyHidden>
+                            {getUiString(CHART_TYPES[chartType].label)}
+                        </VisuallyHidden>
+                    </>
                 ),
             }))}
             color={isPill ? undefined : 'indigo'}

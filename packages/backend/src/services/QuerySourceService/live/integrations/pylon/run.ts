@@ -24,18 +24,18 @@ const MAX_PAGES = 10;
 
 /**
  * The most rows one query reads: one fewer than ten full pages, so reading
- * every page detects truncation. Counts are worked out from these rows.
+ * every page detects truncation.
  */
 export const PYLON_MAX_QUERY_ROWS = PAGE_SIZE * MAX_PAGES - 1;
 
-/** Account names and requester emails are read 1,000 IDs a call, up to this many calls each. */
+/** Account names are read 1,000 IDs a call, up to this many calls. */
 const MAX_NAME_CALLS = MAX_PAGES;
 
 /**
  * Pages, the account and assignee filter lookups, the teammate list, and
- * the account names and requester emails of the records read.
+ * the account names of the records read.
  */
-export const PYLON_CALLS_PER_QUERY = MAX_PAGES + 3 + 2 * MAX_NAME_CALLS;
+export const PYLON_CALLS_PER_QUERY = MAX_PAGES + 3 + MAX_NAME_CALLS;
 
 const COLUMNS = {
     issues: [
@@ -48,7 +48,6 @@ const COLUMNS = {
         'account_name',
         'account_id',
         'assignee_email',
-        'requester_email',
         'team_id',
         'tags',
         'created_at',
@@ -81,16 +80,6 @@ const COLUMNS = {
 } as const;
 
 type PylonKind = keyof typeof COLUMNS;
-
-const METRICS = {
-    issues: [
-        'count',
-        'average_first_response_minutes',
-        'average_resolution_hours',
-    ],
-    accounts: ['count'],
-    contacts: ['count'],
-} as const;
 
 const SORT_FIELDS = {
     issues: ['created_at', 'updated_at', 'latest_message_time'],
@@ -160,8 +149,7 @@ export const pylonRequestSchema = z
         kind: z.enum(['issues', 'accounts', 'contacts']),
         /** ANDed; Pylon's own search filters, plus the lookup fields. */
         filters: z.array(z.union([leafSchema, groupSchema])),
-        columns: z.array(z.string()),
-        metrics: z.array(z.string()),
+        columns: z.array(z.string()).min(1, 'Ask for at least one column'),
         sort: z
             .object({
                 field: z.string(),
@@ -174,29 +162,15 @@ export const pylonRequestSchema = z
     .superRefine((request, context) => {
         const allowed = (values: readonly string[], value: string) =>
             values.some((candidate) => candidate === value);
-        const check = (
-            values: string[],
-            choices: readonly string[],
-            path: string,
-        ) =>
-            values.forEach((value, index) => {
-                if (!allowed(choices, value)) {
-                    context.addIssue({
-                        code: z.ZodIssueCode.custom,
-                        path: [path, index],
-                        message: `"${value}" isn't a ${request.kind} ${path === 'metrics' ? 'metric' : 'column'}. Use one of: ${choices.join(', ')}`,
-                    });
-                }
-            });
-        check(request.columns, COLUMNS[request.kind], 'columns');
-        check(request.metrics, METRICS[request.kind], 'metrics');
-        if (request.columns.length + request.metrics.length === 0) {
-            context.addIssue({
-                code: z.ZodIssueCode.custom,
-                path: ['columns'],
-                message: 'Ask for at least one column or metric',
-            });
-        }
+        request.columns.forEach((column, index) => {
+            if (!allowed(COLUMNS[request.kind], column)) {
+                context.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['columns', index],
+                    message: `"${column}" isn't a ${request.kind} column. Use one of: ${COLUMNS[request.kind].join(', ')}`,
+                });
+            }
+        });
         if (
             request.sort &&
             !allowed(SORT_FIELDS[request.kind], request.sort.field)
@@ -247,7 +221,6 @@ const issueSchema = z.object({
     source: z.string(),
     account: refSchema,
     assignee: refSchema,
-    requester: refSchema,
     team: refSchema,
     tags: z.array(z.string()).nullable().optional(),
     created_at: z.string(),
@@ -316,13 +289,6 @@ const joinTags = (tags: string[] | null | undefined) =>
 type Names = {
     accounts: Map<string, string>;
     users: Map<string, string>;
-    contacts: Map<string, string>;
-};
-
-const NO_NAMES: Names = {
-    accounts: new Map(),
-    users: new Map(),
-    contacts: new Map(),
 };
 
 const nameOf = (
@@ -354,8 +320,6 @@ const readIssueColumn = (
             return issue.account?.id ?? null;
         case 'assignee_email':
             return nameOf(names.users, issue.assignee);
-        case 'requester_email':
-            return nameOf(names.contacts, issue.requester);
         case 'team_id':
             return issue.team?.id ?? null;
         case 'tags':
@@ -592,20 +556,11 @@ const resolveLookups = async (
     return resolved;
 };
 
-/** Values by ID from one search kind, 1,000 IDs a call. */
-const readById = async ({
-    calls,
-    kind,
-    field,
-    ids,
-    read,
-}: {
-    calls: LiveCalls;
-    kind: 'accounts' | 'contacts';
-    field: string;
-    ids: string[];
-    read: (record: PylonRecord) => [string, string | undefined];
-}): Promise<Map<string, string>> => {
+/** Account names by ID, 1,000 IDs a call. */
+const readAccountNames = async (
+    calls: LiveCalls,
+    ids: string[],
+): Promise<Map<string, string>> => {
     const values = new Map<string, string>();
     const batches = chunk([...new Set(ids)], PAGE_SIZE);
     if (batches.length > MAX_NAME_CALLS) {
@@ -615,27 +570,25 @@ const readById = async ({
         // eslint-disable-next-line no-await-in-loop
         const { records } = await searchPage({
             calls,
-            kind,
-            filters: [{ field, operator: 'in', values: batch }],
+            kind: 'accounts',
+            filters: [{ field: 'account_id', operator: 'in', values: batch }],
             limit: PAGE_SIZE,
             cursor: undefined,
         });
         records.forEach((record) => {
-            const [id, value] = read(record);
-            if (value) {
-                values.set(id, value);
-            }
+            const { id, name } = record as PylonAccount;
+            values.set(id, name);
         });
     }
     return values;
 };
 
-const idsOf = (records: PylonRecord[], key: 'account' | 'requester') =>
+const accountIdsOf = (records: PylonRecord[]) =>
     records.flatMap((record) => {
-        const ref = (
-            record as Partial<Record<typeof key, { id: string } | null>>
-        )[key];
-        return ref ? [ref.id] : [];
+        const { account } = record as Partial<
+            Record<'account', { id: string } | null>
+        >;
+        return account ? [account.id] : [];
     });
 
 /** Reads the names behind the IDs of the records, for the columns asked for. */
@@ -645,110 +598,14 @@ const readNames = async (
     columns: string[],
 ): Promise<Names> => ({
     accounts: columns.includes('account_name')
-        ? await readById({
-              calls,
-              kind: 'accounts',
-              field: 'account_id',
-              ids: idsOf(records, 'account'),
-              read: (record) => {
-                  const { id, name } = record as PylonAccount;
-                  return [id, name];
-              },
-          })
+        ? await readAccountNames(calls, accountIdsOf(records))
         : new Map(),
     users: columns.some(
         (column) => column === 'assignee_email' || column === 'owner_email',
     )
         ? new Map((await readUsers(calls)).map(({ id, email }) => [id, email]))
         : new Map(),
-    contacts: columns.includes('requester_email')
-        ? await readById({
-              calls,
-              kind: 'contacts',
-              field: 'id',
-              ids: idsOf(records, 'requester'),
-              read: (record) => {
-                  const { id, email } = record as PylonContact;
-                  return [id, email];
-              },
-          })
-        : new Map(),
 });
-
-const average = (values: unknown[]) => {
-    const numbers = values.filter(
-        (value): value is number => typeof value === 'number',
-    );
-    return numbers.length === 0
-        ? null
-        : round(
-              numbers.reduce((total, value) => total + value, 0) /
-                  numbers.length,
-              2,
-          );
-};
-
-/** The column a metric averages, per issue. */
-const AVERAGED_COLUMNS: Record<string, string> = {
-    average_first_response_minutes: 'first_response_minutes',
-    average_resolution_hours: 'resolution_hours',
-};
-
-/** Groups records by the requested columns and works out each metric. */
-const aggregate = ({
-    kind,
-    records,
-    columns,
-    metrics,
-    names,
-}: {
-    kind: PylonKind;
-    records: PylonRecord[];
-    columns: string[];
-    metrics: string[];
-    names: Names;
-}) => {
-    const groups = new Map<
-        string,
-        { values: Record<string, unknown>; records: PylonRecord[] }
-    >();
-    records.forEach((record) => {
-        const values = Object.fromEntries(
-            columns.map((column) => [
-                column,
-                readColumn(kind, record, column, names),
-            ]),
-        );
-        const key = JSON.stringify(columns.map((column) => values[column]));
-        const group = groups.get(key) ?? { values, records: [] };
-        group.records.push(record);
-        groups.set(key, group);
-    });
-    // A total with nothing to group by is one row, even with no records
-    if (columns.length === 0 && groups.size === 0) {
-        groups.set('', { values: {}, records: [] });
-    }
-    return [...groups.values()].map(({ values, records: grouped }) => ({
-        ...values,
-        ...Object.fromEntries(
-            metrics.map((name) => [
-                name,
-                name === 'count'
-                    ? grouped.length
-                    : average(
-                          grouped.map((record) =>
-                              readColumn(
-                                  kind,
-                                  record,
-                                  AVERAGED_COLUMNS[name],
-                                  names,
-                              ),
-                          ),
-                      ),
-            ]),
-        ),
-    }));
-};
 
 const toColumns = (names: string[]): LiveColumn[] =>
     names.map((name) => {
@@ -763,10 +620,7 @@ const toColumns = (names: string[]): LiveColumn[] =>
         };
     });
 
-/**
- * Runs one Pylon request: one search, paged by cursor. Pylon has no totals,
- * so metrics read every matching record and are worked out here.
- */
+/** Runs one Pylon request: one search, paged by cursor. */
 export const runPylonQuery = async ({
     request,
     limit,
@@ -776,32 +630,17 @@ export const runPylonQuery = async ({
     PylonRequest
 >): Promise<LiveRunResult> => {
     assertMaxRows(limit, PYLON_MAX_QUERY_ROWS);
-    const { kind, columns, metrics, sort } = request;
-    const resultColumns = toColumns([...columns, ...metrics]);
-    const isAggregate = metrics.length > 0;
+    const { kind, columns, sort } = request;
+    const resultColumns = toColumns(columns);
     const filters = await resolveLookups(request.filters, calls);
     if (!filters) {
-        return {
-            columns: resultColumns,
-            rows: isAggregate
-                ? aggregate({
-                      kind,
-                      records: [],
-                      columns,
-                      metrics,
-                      names: NO_NAMES,
-                  })
-                : [],
-            hasMoreRows: false,
-        };
+        return { columns: resultColumns, rows: [], hasMoreRows: false };
     }
-    // Metrics need every matching record, so they read up to the cap
-    const requestedRows = isAggregate ? PYLON_MAX_QUERY_ROWS : limit;
     const { rows: records, hasMoreRows } = await readRowsWithinCap({
         label: LABEL,
-        requestedRows,
+        requestedRows: limit,
         maxRows: PYLON_MAX_QUERY_ROWS,
-        pageSize: Math.min(PAGE_SIZE, requestedRows + 1),
+        pageSize: Math.min(PAGE_SIZE, limit + 1),
         maxPages: MAX_PAGES,
         fetchPage: async ({ limit: pageLimit, cursor }) => {
             const page = await searchPage({
@@ -816,24 +655,7 @@ export const runPylonQuery = async ({
         },
     });
     const typedRecords = records as PylonRecord[];
-    if (isAggregate && hasMoreRows) {
-        throw tooManyRowsError({ label: LABEL, maxRows: PYLON_MAX_QUERY_ROWS });
-    }
     const names = await readNames(calls, typedRecords, columns);
-    if (isAggregate) {
-        const groups = aggregate({
-            kind,
-            records: typedRecords,
-            columns,
-            metrics,
-            names,
-        });
-        return {
-            columns: resultColumns,
-            rows: groups.slice(0, limit),
-            hasMoreRows: groups.length > limit,
-        };
-    }
     return {
         columns: resultColumns,
         rows: typedRecords.map((record) =>

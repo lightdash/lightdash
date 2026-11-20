@@ -314,6 +314,14 @@ export const SDK_FEATURES: SdkFeature[] = [
             'List the saved charts in a Lightdash space at runtime, so chart galleries update as charts are saved — limited to spaces the viewer can already access.',
         wiring: "Call useSpaceCharts('<space slug or uuid>') where the app needs the list, render from its charts array (uuid, name, description, chartKind), and pass chart.uuid to savedChart(...) to show one. Check available first — it stays false on hosts without the capability.",
     },
+    {
+        key: 'host-events',
+        appliesTo: ['data_app'],
+        label: 'Events to the host page',
+        description:
+            'Tell the page embedding the app that something happened, such as a confirmed import, so it can react right away.',
+        wiring: "Call emitEvent('<event-name>', payload) from the user action the embedding page should react to. The payload is JSON, at most 64 KB serialized; keep bulk data on an external connection and emit a reference to it. The call throws on an invalid name or payload and does nothing outside an embed.",
+    },
 ];
 
 export const SDK_FEATURE_KEYS: string[] = SDK_FEATURES.map((f) => f.key);
@@ -343,6 +351,13 @@ export const SDK_FIXES: SdkFix[] = [
         label: 'Shared values for viewers without access',
         description:
             'Tells the app up front when a viewer cannot use shared values, so comment and commentary controls can be turned off instead of failing when used.',
+        appliesTo: ['data_app'],
+    },
+    {
+        key: 'faster-large-results',
+        label: 'Faster loading for large results',
+        description:
+            'Loads queries that return thousands of rows in larger batches fetched side by side, so tables and charts built on them appear much sooner.',
         appliesTo: ['data_app'],
     },
 ];

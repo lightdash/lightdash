@@ -720,6 +720,8 @@ import {
 import {
     AiThreadFileTable,
     AiThreadFileTableName,
+    AiThreadImageObjectTable,
+    AiThreadImageObjectTableName,
 } from '../ee/database/entities/aiThreadFile';
 import {
     AppSharedStateHistoryTable,
@@ -827,6 +829,10 @@ import {
     ScimRequestLogsTableName,
     ScimRequestLogTable,
 } from '../ee/database/entities/scimRequestLogs';
+import {
+    SemanticStudioBranchCompilesTable,
+    SemanticStudioBranchCompilesTableName,
+} from '../ee/database/entities/semanticStudioBranchCompiles';
 import {
     SemanticStudioWorkspacesTable,
     SemanticStudioWorkspacesTableName,
@@ -1009,11 +1015,13 @@ declare module 'knex/types/tables' {
         [ProjectModelRevisionsTableName]: ProjectModelRevisionsTable;
         [ProjectModelDraftChangesTableName]: ProjectModelDraftChangesTable;
         [SemanticStudioWorkspacesTableName]: SemanticStudioWorkspacesTable;
+        [SemanticStudioBranchCompilesTableName]: SemanticStudioBranchCompilesTable;
         [ProjectModelDraftImpactsTableName]: ProjectModelDraftImpactsTable;
         [AiAgentTableName]: AiAgentTable;
         [AiAgentDocumentTableName]: AiAgentDocumentTable;
         [AiAgentDocumentAccessTableName]: AiAgentDocumentAccessTable;
         [AiThreadFileTableName]: AiThreadFileTable;
+        [AiThreadImageObjectTableName]: AiThreadImageObjectTable;
         [AiAgentSkillTableName]: AiAgentSkillTable;
         [AiAgentSkillVersionTableName]: AiAgentSkillVersionTable;
         [AiAgentSkillAccessTableName]: AiAgentSkillAccessTable;

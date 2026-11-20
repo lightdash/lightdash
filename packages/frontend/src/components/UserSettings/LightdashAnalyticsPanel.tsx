@@ -102,6 +102,7 @@ const LightdashAnalyticsPanel = ({
                     projectUuid={analyticsProject.projectUuid}
                     projectUrlIdentifier={projectUrlIdentifier}
                     dashboards={verifiedDashboards}
+                    areDashboardsLoading={dashboards.isLoading}
                     heading={heading}
                     status={
                         <AnalyticsProcessingSummary

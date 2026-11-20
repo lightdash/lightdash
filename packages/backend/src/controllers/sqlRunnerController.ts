@@ -46,6 +46,7 @@ import express from 'express';
 import { getContextFromQueryOrHeader } from '../analytics/LightdashAnalytics';
 import { toSessionUser } from '../auth/account';
 import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
+import { pipeS3BodyToResponse } from '../clients/Aws/s3Streams';
 import {
     allowApiKeyAuthentication,
     getDeprecatedRouteMiddleware,
@@ -239,13 +240,7 @@ export class SqlRunnerController extends BaseController {
 
         const { res } = req;
         if (res) {
-            readStream.pipe(res);
-            await new Promise<void>((resolve, reject) => {
-                readStream.on('end', () => {
-                    res.end();
-                    resolve();
-                });
-            });
+            await pipeS3BodyToResponse(readStream, res);
         }
     }
 

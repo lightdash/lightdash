@@ -4,13 +4,18 @@ import {
     type SemanticStudioWorkspace,
     type SemanticStudioWorkspaces,
     type SemanticStudioWorkspaceStartBody,
+    type WritebackMergeResult,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import useToaster from '../../hooks/toaster/useToaster';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
-import { isDevelopmentViewOn } from './developmentView';
-import { DRAFT_KEY, useCanEditSemanticLayer } from './useSemanticLayerModel';
+import {
+    CHECKOUT_KEY,
+    DRAFT_KEY,
+    useCanEditSemanticLayer,
+    WORKSPACES_KEY,
+} from './useSemanticLayerModel';
 
-export const WORKSPACES_KEY = 'semantic-studio-workspaces';
 const toUrl = (projectUuid: string, path: string) =>
     `/projects/${projectUuid}/semantic-studio/workspaces${path}`;
 
@@ -101,10 +106,37 @@ export const useStudioWorkspaceAction = (projectUuid: string) => {
                 queryClient.invalidateQueries([WORKSPACES_KEY, projectUuid]),
                 // The draft shown is the active workspace's.
                 queryClient.invalidateQueries([DRAFT_KEY, projectUuid]),
-                // Explores read the active workspace's changes while the development view is on.
-                ...(isDevelopmentViewOn()
-                    ? [queryClient.invalidateQueries(['tables'])]
-                    : []),
+                // The rest of the app shows the checked-out change.
+                queryClient.invalidateQueries([CHECKOUT_KEY, projectUuid]),
+                // Explore reads the checked-out draft, on this page or any other.
+                queryClient.invalidateQueries(['tables']),
             ]),
+    });
+};
+
+/** Publishes the checked-out dbt draft by merging its pull request, which the project then compiles. */
+export const usePublishCheckout = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+    return useMutation<WritebackMergeResult, ApiError, { prUrl: string }>({
+        mutationFn: ({ prUrl }) =>
+            lightdashApi<WritebackMergeResult>({
+                url: `/projects/${projectUuid}/semantic-studio/checkout/publish`,
+                method: 'POST',
+                body: JSON.stringify({ prUrl }),
+            }),
+        onSuccess: (_result, { prUrl }) =>
+            Promise.all([
+                queryClient.invalidateQueries([
+                    'pullRequestCiChecks',
+                    projectUuid,
+                    prUrl,
+                ]),
+                queryClient.invalidateQueries([CHECKOUT_KEY, projectUuid]),
+                queryClient.invalidateQueries([WORKSPACES_KEY, projectUuid]),
+            ]),
+        onError: ({ error }) =>
+            showToastApiError({ title: 'Could not publish', apiError: error }),
     });
 };

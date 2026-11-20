@@ -39,8 +39,8 @@ export const toolActivitySql = `(SELECT * FROM (
     SELECT org_id, project_id, user_id, agent_id, event_ts,
         'agent' AS source, tool_call_id, user_id AS actor_id,
         'unknown' AS actor_type, tool_name,
-        CASE tool_status WHEN 'success' THEN 'success' WHEN 'error' THEN 'error'
-            ELSE 'unknown' END AS status,
+        CASE WHEN tool_status IN ('success', 'error', 'rejected', 'timeout')
+            THEN tool_status ELSE 'unknown' END AS status,
         tool_duration_ms AS duration_ms, NULL::VARCHAR AS client_name,
         NULL::VARCHAR AS client_version, NULL::VARCHAR AS auth_type,
         NULL::VARCHAR AS session_id, prompt_id, thread_id,

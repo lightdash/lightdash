@@ -25,6 +25,10 @@ import {
     type AppStateUserEntry,
     type SessionUser,
 } from '@lightdash/common';
+import {
+    ANONYMOUS_TRACKING_UUID,
+    type LightdashAnalytics,
+} from '../../../analytics/LightdashAnalytics';
 import { toSessionUser } from '../../../auth/account';
 import { type AppModel } from '../../../models/AppModel';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
@@ -41,6 +45,7 @@ import {
 } from '../AppGenerateService/appAuthz';
 
 type AppStateServiceArguments = {
+    analytics: Pick<LightdashAnalytics, 'track'>;
     appStateModel: AppStateModel;
     appModel: AppModel;
     projectModel: ProjectModel;
@@ -77,6 +82,8 @@ const hasNulEscape = (serialized: string): boolean => {
 const WRITE_WINDOWS_SWEEP_SIZE = 5_000;
 
 export class AppStateService extends BaseService {
+    private readonly analytics: Pick<LightdashAnalytics, 'track'>;
+
     private readonly appStateModel: AppStateModel;
 
     private readonly appModel: AppModel;
@@ -92,6 +99,7 @@ export class AppStateService extends BaseService {
 
     constructor(args: AppStateServiceArguments) {
         super();
+        this.analytics = args.analytics;
         this.appStateModel = args.appStateModel;
         this.appModel = args.appModel;
         this.projectModel = args.projectModel;
@@ -324,6 +332,14 @@ export class AppStateService extends BaseService {
         return viewer;
     }
 
+    private static trackingProperties(app: AppViewAuthzApp) {
+        return {
+            organizationId: app.organization_uuid,
+            projectId: app.project_uuid,
+            appUuid: app.app_id,
+        };
+    }
+
     /**
      * What the manage view shows: shared-key metadata without values, and
      * per-user volume only — per-user values stay private to each writer.
@@ -351,10 +367,24 @@ export class AppStateService extends BaseService {
             appUuid,
             viewer.kind === 'user' ? viewer.user.userUuid : null,
         );
-        if (viewer.kind === 'user' && !(await this.canUseSharedState(viewer))) {
-            return { ...snapshot, shared: {}, sharedAccess: 'none' };
-        }
-        return snapshot;
+        const visible: AppStateSnapshot =
+            viewer.kind === 'user' && !(await this.canUseSharedState(viewer))
+                ? { ...snapshot, shared: {}, sharedAccess: 'none' }
+                : snapshot;
+        this.analytics.track({
+            event: 'data_app.state.read',
+            userId:
+                viewer.kind === 'user'
+                    ? viewer.user.userUuid
+                    : ANONYMOUS_TRACKING_UUID,
+            properties: {
+                ...AppStateService.trackingProperties(viewer.app),
+                viewer: viewer.kind,
+                userKeyCount: Object.keys(visible.user).length,
+                sharedKeyCount: Object.keys(visible.shared).length,
+            },
+        });
+        return visible;
     }
 
     async setUserState(
@@ -381,7 +411,39 @@ export class AppStateService extends BaseService {
         if (result.outcome === 'over_cap') {
             throw AppStateService.overCap();
         }
+        this.trackSet(viewer, 'user', value);
         return result.entry;
+    }
+
+    private trackSet(
+        viewer: Extract<AuthorizedViewer, { kind: 'user' }>,
+        scope: 'user' | 'shared',
+        value: unknown,
+    ): void {
+        this.analytics.track({
+            event: 'data_app.state.set',
+            userId: viewer.user.userUuid,
+            properties: {
+                ...AppStateService.trackingProperties(viewer.app),
+                scope,
+                valueBytes: appStateValueByteLength(value) ?? 0,
+            },
+        });
+    }
+
+    // Only removals that deleted a row are tracked, so retries do not inflate counts.
+    private trackDeleted(
+        viewer: Extract<AuthorizedViewer, { kind: 'user' }>,
+        scope: 'user' | 'shared',
+    ): void {
+        this.analytics.track({
+            event: 'data_app.state.deleted',
+            userId: viewer.user.userUuid,
+            properties: {
+                ...AppStateService.trackingProperties(viewer.app),
+                scope,
+            },
+        });
     }
 
     async deleteUserState(
@@ -396,11 +458,12 @@ export class AppStateService extends BaseService {
             projectUuid,
             appUuid,
         );
-        await this.appStateModel.deleteUserState(
+        const deleted = await this.appStateModel.deleteUserState(
             appUuid,
             viewer.user.userUuid,
             key,
         );
+        if (deleted) this.trackDeleted(viewer, 'user');
     }
 
     async setSharedState(
@@ -447,6 +510,7 @@ export class AppStateService extends BaseService {
                 data,
             );
         }
+        this.trackSet(viewer, 'shared', value);
         return result.entry;
     }
 
@@ -464,7 +528,11 @@ export class AppStateService extends BaseService {
             'delete',
         );
         this.assertWriteRate(appUuid, viewer.user.userUuid);
-        await this.appStateModel.deleteSharedState(appUuid, key);
+        const deleted = await this.appStateModel.deleteSharedState(
+            appUuid,
+            key,
+        );
+        if (deleted) this.trackDeleted(viewer, 'shared');
     }
 
     async getSharedHistory(

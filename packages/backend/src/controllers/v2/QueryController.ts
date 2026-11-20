@@ -35,6 +35,7 @@ import {
     type ApiExecuteAsyncMergeQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
     type ApiExecuteAsyncSavedChartQueryResults,
+    type ApiExecuteAsyncSavedMergeQueryRequest,
     type ApiJobScheduledResponse,
     type ApiQueryCostEstimateResponse,
     type ApiQueryHistoryListResponse,
@@ -70,6 +71,7 @@ import {
 import express from 'express';
 import { getContextFromHeader } from '../../analytics/LightdashAnalytics';
 import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
+import { pipeS3BodyToResponse } from '../../clients/Aws/s3Streams';
 import {
     allowApiKeyAuthentication,
     getDeprecatedRouteMiddleware,
@@ -299,6 +301,45 @@ export class QueryController extends BaseController {
                 parameters: body.parameters,
                 mode: body.mode ?? { type: 'interactive' },
                 chart: body.chart,
+            });
+
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Runs a saved chart's merge as saved. The chart is named rather than its merge sent, so the merge runs with the chart's saved sources under the chart's view access.
+     * @summary Execute saved chart merge query
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'QueryController.executeAsyncSavedMergeQuery',
+        ),
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/saved-merge-query')
+    @OperationId('executeAsyncSavedMergeQuery')
+    async executeAsyncSavedMergeQuery(
+        @Body() body: ApiExecuteAsyncSavedMergeQueryRequest,
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<ApiExecuteAsyncMergeQueryResults>> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.services
+            .getAsyncQueryService()
+            .executeAsyncSavedChartMergeQuery({
+                account: req.account,
+                projectUuid,
+                savedChartUuid: body.savedChartUuid,
+                // Trusted legs: the caller never picks a context such as materialization
+                context: QueryExecutionContext.CHART,
+                invalidateCache: body.invalidateCache,
+                parameters: body.parameters,
+                mode: body.mode,
+                pivotResults: body.pivotResults,
+                includeUnpublishedDraft: body.includeUnpublishedDraft,
             });
 
         return { status: 'ok', results };
@@ -922,13 +963,7 @@ export class QueryController extends BaseController {
 
         const { res } = req;
         if (res) {
-            readStream.pipe(res);
-            await new Promise<void>((resolve, reject) => {
-                readStream.on('end', () => {
-                    res.end();
-                    resolve();
-                });
-            });
+            await pipeS3BodyToResponse(readStream, res);
         }
     }
 

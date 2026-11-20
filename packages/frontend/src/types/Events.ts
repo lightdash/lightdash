@@ -284,4 +284,10 @@ export enum EventName {
     LEARN_WALKTHROUGH_STARTED = 'learn_walkthrough.started',
     LEARN_WALKTHROUGH_COMPLETED = 'learn_walkthrough.completed',
     LEARN_WALKTHROUGH_DISMISSED = 'learn_walkthrough.dismissed',
+    GUIDED_TOUR_STARTED = 'guided_tour.started',
+    GUIDED_TOUR_STEP_VIEWED = 'guided_tour.step_viewed',
+    GUIDED_TOUR_COMPLETED = 'guided_tour.completed',
+    GUIDED_TOUR_DISMISSED = 'guided_tour.dismissed',
+
+    BILLING_PORTAL_BUTTON_CLICKED = 'billing_portal_button.clicked',
 }

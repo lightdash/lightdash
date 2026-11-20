@@ -13,7 +13,9 @@ export const StudioChanges: FC<{
     pullRequest: StudioPullRequest | null;
     /** The diffs the latest reply proposes and has not saved, one per file. */
     proposal: string[];
-}> = ({ header, projectUuid, pullRequest, proposal }) => (
+    /** The proposal is a save of the agent's that is running. */
+    isSaving: boolean;
+}> = ({ header, projectUuid, pullRequest, proposal, isSaving }) => (
     <Box className={classes.changes}>
         {header}
         {proposal.length > 0 ? (
@@ -25,12 +27,12 @@ export const StudioChanges: FC<{
             >
                 <Group gap="xs" wrap="nowrap">
                     <Badge color="gray" flex="none">
-                        Proposed
+                        {isSaving ? 'Saving' : 'Proposed'}
                     </Badge>
                     <Text fz="xs" c="dimmed">
-                        {pullRequest
-                            ? 'Not saved yet. Save it to the pull request from the chat.'
-                            : 'Not saved yet. Open the pull request from the chat to save it.'}
+                        {isSaving
+                            ? 'This change is being saved to the draft.'
+                            : 'Not saved. Saving needs write access to the repository.'}
                     </Text>
                 </Group>
                 {proposal.map((code) => (

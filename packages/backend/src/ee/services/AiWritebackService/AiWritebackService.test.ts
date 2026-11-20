@@ -56,7 +56,6 @@ import { AiAgentService } from '../AiAgentService/AiAgentService';
 import { createSandboxManager, SandboxManager } from '../SandboxRuntime';
 import {
     AiWritebackService,
-    findDbtErrorLines,
     mergeSourceCodeRepoAccess,
     workstreamLockKey,
 } from './AiWritebackService';
@@ -3563,35 +3562,6 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         },
     );
 
-    it('hands over the project a dbt change parses to only when asked', async () => {
-        const sandbox = fakeSandbox(0, true);
-        fakeSandboxProvider.create.mockResolvedValue(sandbox);
-        const onDbtProject = vi.fn().mockResolvedValue(undefined);
-
-        await runService(sandbox, { onDbtProject });
-
-        expect(onDbtProject).toHaveBeenCalledWith({
-            manifestJson: 'model contents',
-            lightdashConfigYaml: 'model contents',
-            changedFiles: expect.any(Array),
-            prUrl: expect.any(String),
-        });
-        const parse = (sandbox.commands.run as import('vitest').Mock).mock.calls
-            .map((call) => String(call[0]))
-            .find((command) => command.includes('dbt parse'));
-        expect(parse).toContain('-u ANTHROPIC_API_KEY');
-        expect(parse).toContain('--target-path /tmp/ld-try-out-target');
-
-        const quiet = fakeSandbox(0, true);
-        fakeSandboxProvider.create.mockResolvedValue(quiet);
-        await runService(quiet);
-        expect(
-            (quiet.commands.run as import('vitest').Mock).mock.calls.some(
-                (call) => String(call[0]).includes('dbt parse'),
-            ),
-        ).toBe(false);
-    });
-
     it('opens a PR and kills the sandbox for a one-shot run with changes', async () => {
         const sandbox = fakeSandbox(0, true);
         fakeSandboxProvider.create.mockResolvedValue(sandbox);
@@ -4446,6 +4416,7 @@ describe('AiWritebackService.mergePullRequest', () => {
         projectUuid: 'p1',
         prUrl: PR_7,
         sha: 'sha-7',
+        incrementalCompile: false,
     };
 
     const setup = (overrides: Record<string, AnyType> = {}) => {
@@ -4479,6 +4450,22 @@ describe('AiWritebackService.mergePullRequest', () => {
             'p1',
             RequestMethod.BACKEND,
             true,
+            false,
+            false,
+            undefined,
+            false,
+        );
+    });
+
+    it('lets the recompile save only what changed when the caller asks', async () => {
+        const { service, mergePullRequest, scheduleCompileProject } = setup();
+        await service.mergePullRequest({
+            ...mergeArgs,
+            incrementalCompile: true,
+        });
+        expect(scheduleCompileProject.mock.calls[0].at(-1)).toBe(true);
+        expect(mergePullRequest.mock.calls[0][0]).not.toHaveProperty(
+            'incrementalCompile',
         );
     });
 
@@ -6394,6 +6381,17 @@ describe('AiWritebackService.saveWithScript compile check', () => {
         return { save, provider, checkout, service };
     };
 
+    it('returns what a dry run would write as a diff by project path, without committing', async () => {
+        const { save, provider } = setUp();
+        await expect(save(null, true)).resolves.toEqual({
+            status: 'checked',
+            diffs: [
+                '--- /dev/null\n+++ b/models/notes.yml\n@@ -0,0 +1,1 @@\n+notes: 1\n',
+            ],
+        });
+        expect(provider.commitApiChanges).not.toHaveBeenCalled();
+    });
+
     it.each([true, false])(
         'rejects a stale source before writing (dry run: %s)',
         async (dryRun) => {
@@ -6673,15 +6671,5 @@ describe('AiWritebackService.canReadSourceCode', () => {
         await expect(
             service.canReadSourceCode({ user: user(true), projectUuid: 'p1' }),
         ).resolves.toBe(false);
-    });
-});
-
-describe('findDbtErrorLines', () => {
-    it('keeps the error lines and drops the SQL around them', () => {
-        expect(
-            findDbtErrorLines(
-                'select secret_col\nfrom orders\n  Compilation Error in model orders\nDone.',
-            ),
-        ).toEqual(['Compilation Error in model orders']);
     });
 });

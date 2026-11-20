@@ -10,13 +10,11 @@ import {
     Center,
     Group,
     Loader,
-    Stack,
     Text,
     Tooltip,
 } from '@mantine/core';
 import {
     IconArrowBackUp,
-    IconGitPullRequest,
     IconMessagePlus,
     IconLayoutSidebarRightCollapse,
     IconPlus,
@@ -40,7 +38,10 @@ import {
     type StudioChatRef,
 } from '../../../../../features/semanticStudio/studioChatRefs';
 import { STUDIO_STARTERS } from '../../../../../features/semanticStudio/studioStarters';
-import { useKeepsSemanticLayerDraft } from '../../../../../features/semanticStudio/useSemanticLayerModel';
+import {
+    useKeepsSemanticLayerDraft,
+    useSemanticLayerDraft,
+} from '../../../../../features/semanticStudio/useSemanticLayerModel';
 import useSidebarResize from '../../../../../hooks/useSidebarResize';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
 import { usePendingThreadRefetch } from '../../hooks/usePendingThreadRefetch';
@@ -52,7 +53,11 @@ import { store } from '../../store';
 import { AiAgentThreadStreamAbortControllerContextProvider } from '../../streaming/AiAgentThreadStreamAbortControllerContextProvider';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../ChatElements/AgentChatInput';
-import { QuietCardsContext } from '../ChatElements/ToolCalls/quietCards';
+import {
+    QuietCardsContext,
+    StudioAskContext,
+} from '../ChatElements/ToolCalls/quietCards';
+import { getClosedChange } from './closedChange';
 import classes from './SemanticStudioAgent.module.css';
 import { StudioChatEmptyState } from './StudioChatEmptyState';
 import { StudioChatRefChips } from './StudioChatRefChips';
@@ -62,11 +67,6 @@ import {
     useStudioThread,
     type StoredThread,
 } from './useSemanticStudioChat';
-import {
-    useStudioPendingChange,
-    useStudioProposal,
-    useStudioPullRequest,
-} from './useStudioPullRequest';
 
 type OpenModel = { modelName: string | null; fieldName: string | null };
 
@@ -158,6 +158,8 @@ const useStartThread = (
                 agentUuid: agent.uuid,
                 createdFrom: 'semantic_studio',
                 enableSqlMode: sqlMode,
+                // Studio runs the agent's SQL without asking for approval.
+                autoApproveSql: true,
                 ...withOpenModel(openModel, attached, submitted),
             });
             onAttachedSent();
@@ -252,6 +254,18 @@ const NewThread: FC<
     );
 };
 
+/** Where the composer was once a change is out: the chat is done, and the next request starts a new one. */
+const ChangeClosed: FC<{ onStartNew: () => void }> = ({ onStartNew }) => (
+    <Group gap="xs" p="md" justify="space-between" wrap="nowrap">
+        <Text fz="sm" c="dimmed">
+            Done
+        </Text>
+        <Button size="xs" onClick={onStartNew}>
+            Start a new chat
+        </Button>
+    </Group>
+);
+
 const ExistingThread: FC<
     OpenModel &
         AskedPrompt &
@@ -259,11 +273,13 @@ const ExistingThread: FC<
             projectUuid: string;
             agent: AiAgentSummary;
             threadUuid: string;
+            onStartNew: () => void;
         }
 > = ({
     projectUuid,
     agent,
     threadUuid,
+    onStartNew,
     modelName,
     fieldName,
     prompt,
@@ -292,110 +308,82 @@ const ExistingThread: FC<
     const send = (submitted: Submitted) => {
         void sendMessage({
             enableSqlMode: sqlMode,
+            autoApproveSql: true,
             ...withOpenModel({ modelName, fieldName }, attached, submitted),
         });
         onAttachedSent();
     };
     useAskedPrompt({ prompt, onPromptTaken }, (message) => send({ message }));
-    const keepsDraft = useKeepsSemanticLayerDraft(projectUuid);
-    const pullRequest = useStudioPullRequest(projectUuid);
-    // A save under way already has the proposal, so it is not offered twice.
-    const pendingChange = useStudioPendingChange(projectUuid);
-    const proposal = useStudioProposal(projectUuid);
-    // Unknown counts as open, so a slow or unavailable status check never offers a second pull request.
-    const isClosed = !!pullRequest?.ciChecks && !pullRequest.isOpen;
-    const isRequestingPullRequest = useRef(false);
+    const { data: draft } = useSemanticLayerDraft(projectUuid);
+    // The composer stays put while the conversation loads, so opening one never blanks the panel.
     if (isLoading || !thread) {
         return (
-            <Center flex={1}>
-                <Loader size="sm" color="gray" />
-            </Center>
+            <>
+                <Center flex={1}>
+                    <Loader size="sm" color="gray" />
+                </Center>
+                <StudioChatRefChips refs={attached} onRemove={onDetach} />
+                <AgentChatInput
+                    allowAttachments={false}
+                    accessCalloutVariant="inline"
+                    loading
+                    onSubmit={send}
+                    placeholder="What should I build or change?"
+                    projectUuid={projectUuid}
+                    agentUuid={agent.uuid}
+                    threadUuid={threadUuid}
+                    fullWidth
+                />
+            </>
         );
     }
     const isBusy = isSending || isStreaming || isThreadPending;
+    const closed = isBusy ? null : getClosedChange(thread, draft);
     return (
-        <AgentChatDisplay
-            thread={thread}
-            agentName={agent.name}
-            enableAutoScroll
-            projectUuid={projectUuid}
-            agentUuid={agent.uuid}
-            renderArtifactsInline
+        <StudioAskContext.Provider
+            value={isBusy ? null : (message) => send({ message })}
         >
-            {!keepsDraft && !isBusy && !pendingChange && proposal.length > 0 ? (
-                <div className={classes.pullRequestPrompt}>
-                    <Stack className={classes.pullRequestCard} gap="sm">
-                        <Group gap="sm" wrap="nowrap">
-                            <span className={classes.pullRequestIcon}>
-                                <MantineIcon
-                                    icon={IconGitPullRequest}
-                                    size={16}
-                                />
-                            </span>
-                            <Stack gap={0} flex={1} miw={0}>
-                                <Text fz="sm" fw={500}>
-                                    {pullRequest && !isClosed
-                                        ? 'Add this to your pull request?'
-                                        : 'Happy with this change?'}
-                                </Text>
-                                <Text fz="xs" c="dimmed">
-                                    {!pullRequest
-                                        ? 'You can try it once its pull request opens.'
-                                        : isClosed
-                                          ? 'Your last pull request is closed, so this opens a new one.'
-                                          : 'Commits it to the same pull request.'}
-                                </Text>
-                            </Stack>
-                        </Group>
-                        <Button
-                            size="xs"
-                            fullWidth
-                            onClick={() => {
-                                if (isRequestingPullRequest.current) return;
-                                isRequestingPullRequest.current = true;
-                                void sendMessage({
-                                    enableSqlMode: sqlMode,
-                                    prompt: !pullRequest
-                                        ? 'Open the pull request.'
-                                        : isClosed
-                                          ? 'Open a new pull request.'
-                                          : 'Save this to the pull request.',
-                                    // The pull request tools only join a turn that carries this hint.
-                                    toolHints: ['editDbtProject'],
-                                }).finally(() => {
-                                    isRequestingPullRequest.current = false;
-                                });
-                            }}
-                        >
-                            {!pullRequest
-                                ? 'Open pull request'
-                                : isClosed
-                                  ? 'Open new pull request'
-                                  : 'Save to pull request'}
-                        </Button>
-                    </Stack>
-                </div>
-            ) : null}
-            {thread.messages.length === 0 && !isBusy ? (
-                <Text fz="xs" c="dimmed" ta="center" px="md" pb="xs">
-                    You edited this change by hand. Ask for more here, or merge
-                    it when it is ready.
-                </Text>
-            ) : null}
-            <StudioChatRefChips refs={attached} onRemove={onDetach} />
-            <AgentChatInput
-                allowAttachments={false}
-                accessCalloutVariant="inline"
-                loading={isBusy}
-                onSubmit={send}
-                placeholder="What should I build or change?"
-                messageCount={thread.messages.length}
+            <AgentChatDisplay
+                thread={thread}
+                agentName={agent.name}
+                enableAutoScroll
                 projectUuid={projectUuid}
                 agentUuid={agent.uuid}
-                threadUuid={threadUuid}
-                fullWidth
-            />
-        </AgentChatDisplay>
+                renderArtifactsInline
+                onChoiceSelect={
+                    isBusy ? undefined : (message) => send({ message })
+                }
+            >
+                {thread.messages.length === 0 && !isBusy ? (
+                    <Text fz="xs" c="dimmed" ta="center" px="md" pb="xs">
+                        You edited this draft by hand. Ask for more here, or
+                        publish it when it is ready.
+                    </Text>
+                ) : null}
+                {closed ? (
+                    <ChangeClosed onStartNew={onStartNew} />
+                ) : (
+                    <>
+                        <StudioChatRefChips
+                            refs={attached}
+                            onRemove={onDetach}
+                        />
+                        <AgentChatInput
+                            allowAttachments={false}
+                            accessCalloutVariant="inline"
+                            loading={isBusy}
+                            onSubmit={send}
+                            placeholder="What should I build or change?"
+                            messageCount={thread.messages.length}
+                            projectUuid={projectUuid}
+                            agentUuid={agent.uuid}
+                            threadUuid={threadUuid}
+                            fullWidth
+                        />
+                    </>
+                )}
+            </AgentChatDisplay>
+        </StudioAskContext.Provider>
     );
 };
 
@@ -446,21 +434,11 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
 
     if (!isEnabled) return null;
     if (!agent) {
-        return (
+        return isLoadingAgents ? (
             <Box className={classes.panel} p="md">
-                {isLoadingAgents ? (
-                    <Loader size="sm" />
-                ) : (
-                    <>
-                        <Text fw={500}>No agent available</Text>
-                        <Text size="sm" c="dimmed">
-                            Ask a project administrator to set up an agent or
-                            grant you access.
-                        </Text>
-                    </>
-                )}
+                <Loader size="sm" />
             </Box>
-        );
+        ) : null;
     }
     if (!isOpen) return null;
     return (
@@ -551,6 +529,7 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
                             projectUuid={projectUuid}
                             agent={thread.agent}
                             threadUuid={thread.threadUuid}
+                            onStartNew={startNewThread}
                             modelName={modelName}
                             fieldName={fieldName}
                             prompt={prompt}

@@ -118,6 +118,7 @@ const makeTool = (sqlChartSaving: SqlChartSaving) => {
     const { editContent, save } = makeEditContent();
     return {
         tool: getEditContent({
+            prepareComposerChartEdit: null,
             siteUrl: 'https://app.lightdash.cloud',
             editContent,
             sqlChartSaving,
@@ -191,6 +192,7 @@ describe('editContent SQL charts', () => {
 
         expect(save).not.toHaveBeenCalled();
         expect(output.result).toBe(SQL_CHART_REJECTED_RESULT);
+        expect(output.metadata.status).toBe('rejected');
     });
 
     it('skips the prompt when the thread approved SQL once and for all', async () => {

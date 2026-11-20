@@ -12,7 +12,6 @@ import {
 import {
     ActionIcon,
     Anchor,
-    Badge,
     Box,
     Button,
     Center,
@@ -22,6 +21,7 @@ import {
     Table,
     Text,
     Tooltip,
+    VisuallyHidden,
 } from '@mantine/core';
 import {
     IconCircleCheck,
@@ -31,7 +31,6 @@ import {
     IconArrowUp,
     IconGitMerge,
     IconArrowsDiff,
-    IconTable,
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react';
@@ -47,12 +46,15 @@ import {
 } from './developmentView';
 import classes from './DraftInsights.module.css';
 import { describePublisher } from './draftState';
+import { FieldChangeIcon } from './KindTypeIcon';
 import { describeShift, pickComparedMetrics } from './metricComparison';
 import {
     CHANGE_KIND_LABELS,
     describeModelChange,
     getChangeKind,
-    summarizeModelChanges,
+    count,
+    countChangedLines,
+    listPublishedParts,
 } from './modelCode';
 import { LIVE_HEADERS, useTotals } from './useMetricTotals';
 import {
@@ -62,6 +64,7 @@ import {
     useTakeLiveDraftPart,
     useSemanticLayerDraftUsage,
 } from './useSemanticLayerModel';
+import { LineCounts } from './WorkbenchRail';
 
 const listNames = (names: string[]): string =>
     names.length <= 2
@@ -238,7 +241,7 @@ const ConflictSides: FC<{
             <Box className={classes.options}>
                 <ConflictOption
                     title={publisher.option}
-                    state={`live ${publishedAgo}`}
+                    state={`published ${publishedAgo}`}
                     tone="live"
                     value={conflict.live}
                     base={conflict.base}
@@ -403,7 +406,7 @@ export const ModelNotices: FC<{
                         {paths.length > 0
                             ? listNames(paths.map(describePath))
                             : 'this model'}
-                        , in development.
+                        , in a draft.
                     </Text>
                 </NoticeRow>
             ))}
@@ -455,7 +458,7 @@ const ChangeRow: FC<{
                                 .then(() =>
                                     onAskAgent(
                                         [
-                                            'A change in development stopped applying, so I discarded it.',
+                                            'A change in the draft stopped applying, so I discarded it.',
                                             change.question
                                                 ? `It was asked for with: "${change.question}"`
                                                 : null,
@@ -481,10 +484,10 @@ const ChangeRow: FC<{
             ) : null}
             {count > 1 ? (
                 <Group gap={0} wrap="nowrap" flex="none">
-                    <Tooltip label="Apply earlier">
+                    <Tooltip label="Move earlier">
                         <ActionIcon
                             size="sm"
-                            aria-label="Apply earlier"
+                            aria-label="Move earlier"
                             disabled={index === 0 || move.isLoading}
                             onClick={() =>
                                 move.mutate({
@@ -496,10 +499,10 @@ const ChangeRow: FC<{
                             <MantineIcon icon={IconArrowUp} />
                         </ActionIcon>
                     </Tooltip>
-                    <Tooltip label="Apply later">
+                    <Tooltip label="Move later">
                         <ActionIcon
                             size="sm"
-                            aria-label="Apply later"
+                            aria-label="Move later"
                             disabled={index === count - 1 || move.isLoading}
                             onClick={() =>
                                 move.mutate({
@@ -543,9 +546,18 @@ export const ChangeQueue: FC<{
         ]),
     );
     return (
-        <Paper className={classes.section}>
-            <Text fz="sm" fw={500} className={classes.sectionTitle}>
-                Changes in order
+        <Paper
+            component="details"
+            className={classes.section}
+            open={hasFailure || undefined}
+        >
+            <Text
+                component="summary"
+                fz="sm"
+                fw={500}
+                className={classes.sectionTitle}
+            >
+                {count(draft.changes.length, 'change')}
             </Text>
             {draft.changes.map((change, index) => (
                 <ChangeRow
@@ -710,7 +722,7 @@ const CompareTotals: FC<{
                     >
                         {isNewModel
                             ? 'Run the totals'
-                            : 'Compare totals with live'}
+                            : 'Compare totals with Published'}
                     </Button>
                 </Tooltip>
             </Group>
@@ -723,7 +735,7 @@ const CompareTotals: FC<{
                     <Table.Tr>
                         <Table.Th>Metric</Table.Th>
                         {isNewModel ? null : (
-                            <Table.Th ta="right">Live</Table.Th>
+                            <Table.Th ta="right">Published</Table.Th>
                         )}
                         <Table.Th ta="right">My changes</Table.Th>
                         {isNewModel ? null : <Table.Th ta="right" />}
@@ -774,7 +786,7 @@ const CompareTotals: FC<{
             ) : null}
             {development.isError ? (
                 <Text fz="xs" c="dimmed">
-                    Could not run these in development:{' '}
+                    Could not run these on the draft:{' '}
                     {development.error.error.message}
                 </Text>
             ) : null}
@@ -881,55 +893,38 @@ export const PublishChecklist: FC<{
             ),
         ),
     ];
+    // Saved content the draft breaks has its own callout under this, so it is not repeated here.
     const checks: { state: CheckState; text: string }[] = [
-        failing > 0
-            ? {
-                  state: 'attention',
-                  text: `${failing} ${failing === 1 ? 'change no longer applies' : 'changes no longer apply'}`,
-              }
-            : { state: 'ok', text: 'Every change applies and compiles' },
-        breaks === null
-            ? {
-                  state: 'unknown',
-                  text: 'Saved charts and dashboards have not been checked for breaks yet',
-              }
-            : breaks > 0
-              ? {
-                    state: 'attention',
-                    text: `${breaks} saved ${breaks === 1 ? 'chart or dashboard stops' : 'charts or dashboards stop'} working`,
-                }
-              : { state: 'ok', text: 'No saved chart or dashboard breaks' },
+        ...(failing > 0
+            ? [
+                  {
+                      state: 'attention' as const,
+                      text: `${failing} ${failing === 1 ? 'change no longer applies' : 'changes no longer apply'}`,
+                  },
+              ]
+            : []),
         ...(conflicted.length > 0
             ? [
                   {
                       state: 'attention' as const,
-                      text: `${listNames(conflicted.map(labelOf))} changed live in parts you changed too. Choose which to keep in the review`,
+                      text: `${listNames(conflicted.map(labelOf))} changed in Published in parts you changed too. Choose which to keep in the review`,
                   },
               ]
             : []),
         ...(movedUnder.length > 0
             ? [
-                  {
-                      // Published elsewhere in the model, and the draft already sits on top of it.
-                      state: movedUnder.every(
-                          (entry) => entry.reconciliation?.state === 'merged',
-                      )
-                          ? ('ok' as const)
-                          : ('attention' as const),
-                      text: movedUnder.every(
-                          (entry) => entry.reconciliation?.state === 'merged',
-                      )
-                          ? `${listNames(movedUnder.map(labelOf))} changed live after you started, outside what you changed. Yours goes on top`
-                          : `${listNames(movedUnder.map(labelOf))} changed live after you started, and it could not be set against yours. Look at it in the review first`,
-                  },
-              ]
-            : []),
-        ...(movedUnder.length === 0 && conflicted.length === 0
-            ? [
-                  {
-                      state: 'ok' as const,
-                      text: 'Nothing was published under your changes',
-                  },
+                  movedUnder.every(
+                      (entry) => entry.reconciliation?.state === 'merged',
+                  )
+                      ? {
+                            // Published elsewhere in the model, and the draft already sits on top of it.
+                            state: 'note' as const,
+                            text: `${listNames(movedUnder.map(labelOf))} changed in Published after you started, outside what you changed. Yours goes on top`,
+                        }
+                      : {
+                            state: 'attention' as const,
+                            text: `${listNames(movedUnder.map(labelOf))} changed in Published after you started, and it could not be set against yours. Look at it in the review first`,
+                        },
               ]
             : []),
         ...(others.length > 0
@@ -940,12 +935,21 @@ export const PublishChecklist: FC<{
                   },
               ]
             : []),
+        ...(failing === 0
+            ? [
+                  {
+                      state: 'ok' as const,
+                      text:
+                          breaks === 0
+                              ? 'Compiles. No saved chart or dashboard breaks.'
+                              : 'Compiles.',
+                  },
+              ]
+            : []),
     ];
-    const passed = checks.filter(({ state }) => state === 'ok');
-    const shown = checks.filter(({ state }) => state !== 'ok');
     return (
         <Stack gap={6}>
-            {shown.map(({ state, text }) => (
+            {checks.map(({ state, text }) => (
                 <Group key={text} gap={8} wrap="nowrap" align="flex-start">
                     <Box flex="none" display="flex" mt={2}>
                         <MantineIcon
@@ -954,132 +958,117 @@ export const PublishChecklist: FC<{
                             color={CHECK_COLORS[state]}
                         />
                     </Box>
-                    <Text fz="sm">{text}</Text>
-                </Group>
-            ))}
-            {passed.length > 0 ? (
-                <Group gap={8} wrap="nowrap" align="flex-start">
-                    <Box flex="none" display="flex" mt={2}>
-                        <MantineIcon
-                            icon={CHECK_ICONS.ok}
-                            size={16}
-                            color={CHECK_COLORS.ok}
-                        />
-                    </Box>
-                    <Text fz="sm" c="dimmed">
-                        {passed.map(({ text }) => text).join('. ')}.
+                    <Text fz="sm" c={state === 'ok' ? 'dimmed' : undefined}>
+                        {text}
                     </Text>
                 </Group>
-            ) : null}
+            ))}
         </Stack>
     );
 };
 
-const Section: FC<{ title: string; children: ReactNode }> = ({
-    title,
-    children,
-}) => (
-    <Stack gap={6}>
-        <Text fz="xs" fw={500} c="dimmed">
-            {title}
-        </Text>
-        {children}
-    </Stack>
-);
+const GLYPHS = { new: '+', changed: '~', removed: '−' };
 
-/** What a publish carries, in the words of the models and charts it touches. */
+const describeUse = ({
+    charts,
+    dashboards,
+}: SemanticLayerDraftUsage['fields'][number]): string | null =>
+    [
+        charts.length > 0 ? count(charts.length, 'chart') : null,
+        dashboards > 0 ? count(dashboards, 'dashboard') : null,
+    ]
+        .filter(Boolean)
+        .join(', ') || null;
+
+/** What a publish carries: each model, the parts of it that change, and the saved content that reads them. */
 export const PublishSummary: FC<{
     projectUuid: string;
     draft: SemanticLayerDraft;
     model: string | null;
 }> = ({ projectUuid, draft, model }) => {
     const { data: usage } = useSemanticLayerDraftUsage(projectUuid);
-    const inScope = (name: string) => model === null || name === model;
-    const models = draft.models.filter((entry) => inScope(entry.model));
-    const read = (usage?.fields ?? []).filter((field) => inScope(field.model));
+    const models = draft.models.filter(
+        (entry) => model === null || entry.model === model,
+    );
     return (
-        <>
-            <Section title="Going live">
-                {models.map((entry) => (
-                    <Group
-                        key={entry.model}
-                        gap="sm"
-                        wrap="nowrap"
-                        align="flex-start"
-                    >
-                        <MantineIcon
-                            icon={IconTable}
-                            size={16}
-                            color="dimmed"
-                        />
-                        <Box miw={0} flex={1}>
-                            <Group gap={6} wrap="nowrap">
-                                <Text fz="sm" fw={500} truncate>
-                                    {labelOf(entry)}
-                                </Text>
-                                <Badge size="xs">
-                                    {CHANGE_KIND_LABELS[getChangeKind(entry)]}
-                                </Badge>
-                            </Group>
-                            <Text fz="xs" c="dimmed">
-                                {summarizeModelChanges(entry.model, [
-                                    // A part changed twice reads once, as its last change.
-                                    ...new Map(
-                                        draft.changes
-                                            .flatMap((change) => change.models)
-                                            .filter(
-                                                (item) =>
-                                                    item.model === entry.model,
-                                            )
-                                            .flatMap(({ changes }) => changes)
-                                            .map((change) => [
-                                                change.path,
-                                                change,
-                                            ]),
-                                    ).values(),
-                                ]).join('. ')}
+        <Stack gap="xs">
+            {models.map((entry) => {
+                const { title, subtitle } = describeModelChange(
+                    entry.model,
+                    entry,
+                );
+                const parts = listPublishedParts(draft, entry);
+                return (
+                    <Box key={entry.model} className={classes.publishModel}>
+                        <Group
+                            className={classes.publishHead}
+                            gap="xs"
+                            wrap="nowrap"
+                        >
+                            <Text fz="sm" fw={500} truncate flex={1} miw={0}>
+                                {title}
+                                {subtitle || parts.length === 0 ? (
+                                    <Text span inherit fw={400} c="dimmed">
+                                        {` · ${subtitle ?? CHANGE_KIND_LABELS[getChangeKind(entry)]}`}
+                                    </Text>
+                                ) : null}
                             </Text>
-                        </Box>
-                    </Group>
-                ))}
-            </Section>
-            <Section title="What people will notice">
-                {read.length === 0 ? (
-                    <Text fz="sm" c="dimmed">
-                        {usage
-                            ? 'No saved chart reads what you changed.'
-                            : 'Looking for saved charts that read what you changed.'}
-                    </Text>
-                ) : (
-                    read.map((field) => (
-                        <Box key={field.fieldId}>
-                            <Text fz="sm">
-                                <Text span fw={500}>
-                                    {field.label}
-                                </Text>{' '}
-                                {field.kind === 'removed'
-                                    ? 'is removed'
-                                    : 'is defined differently'}
-                            </Text>
-                            <Text fz="xs" c="dimmed">
-                                {[
-                                    field.charts.length > 0
-                                        ? `${listNames(field.charts.map(({ name }) => name))} ${field.kind === 'removed' ? (field.charts.length === 1 ? 'stops working' : 'stop working') : field.charts.length === 1 ? 'shows a different number' : 'show different numbers'}`
-                                        : null,
-                                    field.dashboards > 0
-                                        ? `on ${field.dashboards} ${field.dashboards === 1 ? 'dashboard' : 'dashboards'}`
-                                        : null,
-                                    field.scheduledDeliveries > 0
-                                        ? `in ${field.scheduledDeliveries} scheduled ${field.scheduledDeliveries === 1 ? 'delivery' : 'deliveries'}`
-                                        : null,
-                                ]
-                                    .filter(Boolean)
-                                    .join(', ')}
-                            </Text>
-                        </Box>
-                    ))
-                )}
-            </Section>
-        </>
+                            <LineCounts counts={countChangedLines(entry)} />
+                        </Group>
+                        {parts.map((part) => {
+                            const used = usage?.fields.find(
+                                ({ model: of, fieldId }) =>
+                                    of === entry.model &&
+                                    fieldId ===
+                                        getItemId({
+                                            table: entry.model,
+                                            name: part.name,
+                                        }),
+                            );
+                            const use = used ? describeUse(used) : null;
+                            return (
+                                <Box
+                                    key={`${part.kind}:${part.name}`}
+                                    className={classes.publishRow}
+                                    title={part.detail ?? undefined}
+                                >
+                                    <Text
+                                        span
+                                        fz="sm"
+                                        className={classes.publishGlyph}
+                                        data-change={part.change}
+                                        aria-hidden
+                                    >
+                                        {GLYPHS[part.change]}
+                                    </Text>
+                                    <FieldChangeIcon field={part} />
+                                    <Text fz="sm" truncate>
+                                        <VisuallyHidden>
+                                            {CHANGE_KIND_LABELS[part.change]}{' '}
+                                            {part.kind}{' '}
+                                        </VisuallyHidden>
+                                        {part.label}
+                                    </Text>
+                                    {use ? (
+                                        <Tooltip
+                                            label={`Read by ${listNames(used?.charts.map(({ name }) => name) ?? [])}`}
+                                            disabled={!used?.charts.length}
+                                        >
+                                            <Text
+                                                fz="xs"
+                                                c="dimmed"
+                                                flex="none"
+                                            >
+                                                {use}
+                                            </Text>
+                                        </Tooltip>
+                                    ) : null}
+                                </Box>
+                            );
+                        })}
+                    </Box>
+                );
+            })}
+        </Stack>
     );
 };

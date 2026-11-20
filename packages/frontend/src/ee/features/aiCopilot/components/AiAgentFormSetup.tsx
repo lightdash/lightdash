@@ -83,6 +83,7 @@ import { AiAgentMcpServersInput } from './AiAgentMcpServersInput';
 import { AiAgentSkillsSection } from './AiAgentSkillsSection';
 import { DeprecatedModelNotice } from './DeprecatedModelNotice';
 import { InstructionsGuidelines } from './InstructionsSupport';
+import { SlackChannelIdentityList } from './SlackChannelIdentityList';
 import { SpaceAccessSelect } from './SpaceAccessSelect';
 import { ThreadRetentionSelect } from './ThreadRetentionSelect';
 
@@ -93,6 +94,7 @@ const formSchema = z.object({
         z.object({
             type: z.literal('slack'),
             channelId: z.string().min(1, 'Channel is required'),
+            serviceAccountUuid: z.string().nullable(),
         }),
     ),
     tags: z.array(z.string()).nullable(),
@@ -262,6 +264,12 @@ export const AiAgentFormSetup = ({
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [isAsCodeModalOpen, asCodeModalHandlers] = useDisclosure(false);
 
+    const canManageServiceAccounts = !!user.data?.ability.can(
+        'manage',
+        subject('Organization', {
+            organizationUuid: user.data.organizationUuid,
+        }),
+    );
     const canViewContentAsCode = !!user.data?.ability.can(
         'view',
         subject('ContentAsCode', {
@@ -1251,13 +1259,35 @@ export const AiAgentFormSetup = ({
                                                 'integrations',
                                                 value.map(
                                                     (v) =>
+                                                        form.values.integrations.find(
+                                                            (i) =>
+                                                                i.channelId ===
+                                                                v,
+                                                        ) ??
                                                         ({
                                                             type: 'slack',
                                                             channelId: v,
-                                                        }) as const,
+                                                            serviceAccountUuid:
+                                                                null,
+                                                        } as const),
                                                 ),
                                             );
                                         }}
+                                    />
+                                    <SlackChannelIdentityList
+                                        integrations={form.values.integrations}
+                                        canManageServiceAccounts={
+                                            canManageServiceAccounts
+                                        }
+                                        requireOAuth={
+                                            !!slackInstallation.aiRequireOAuth
+                                        }
+                                        onChange={(value) =>
+                                            form.setFieldValue(
+                                                'integrations',
+                                                value,
+                                            )
+                                        }
                                     />
                                 </Stack>
                             )}

@@ -7,6 +7,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { draftModel, draftOf, workspaceOf } from './studioCheckout.mock';
+import { WORKSPACES_KEY } from './useSemanticLayerModel';
 import {
     foldDraftExplores,
     StudioCheckoutProvider,
@@ -14,7 +15,6 @@ import {
     useStudioCheckout,
     useStudioCheckoutState,
 } from './useStudioCheckout';
-import { WORKSPACES_KEY } from './useStudioWorkspaces';
 
 const api = vi.hoisted(() => vi.fn());
 const showToastInfo = vi.hoisted(() => vi.fn());
@@ -46,7 +46,11 @@ const setup = (initial: string | null) => {
     const waiting = new Map<string, (draft: SemanticLayerDraft) => void>();
     api.mockImplementation(({ url }: { url: string }) => {
         if (url.endsWith('/status')) {
-            return Promise.resolve({ enabled: true, appliesAs: 'live' });
+            return Promise.resolve({
+                enabled: true,
+                blocker: null,
+                appliesAs: 'live',
+            });
         }
         const activated = /\/workspaces\/(\w+)\/activate$/.exec(url)?.[1];
         if (activated) {
@@ -106,7 +110,7 @@ const shownUuid = (state: ReturnType<typeof useStudioCheckout>) =>
     state.shown?.workspace?.workspaceUuid ?? null;
 
 describe('useStudioCheckoutState', () => {
-    it('keeps the current change on screen until the next has loaded, from A to B to Live', async () => {
+    it('keeps the current change on screen until the next has loaded, from A to B to Published', async () => {
         const { result, checkOut, answer } = setup('A');
         await answer('A', draftA);
         await waitFor(() => expect(shownUuid(result.current)).toBe('A'));
@@ -141,7 +145,7 @@ describe('useStudioCheckoutState', () => {
     });
 });
 
-describe('the checkout leaving Live', () => {
+describe('the checkout leaving Published', () => {
     it('says which change an agent edit started and checked out', async () => {
         showToastInfo.mockClear();
         const { result, checkOut, answer } = setup(null);
@@ -151,7 +155,7 @@ describe('the checkout leaving Live', () => {
         await waitFor(() => expect(shownUuid(result.current)).toBe('A'));
         expect(showToastInfo).toHaveBeenCalledTimes(1);
         expect(showToastInfo).toHaveBeenCalledWith({
-            title: 'Now on Change A',
+            title: 'Now on draft: Change A',
         });
     });
 

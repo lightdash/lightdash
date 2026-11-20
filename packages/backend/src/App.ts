@@ -1,6 +1,7 @@
 import './tracing/bootstrap'; // Must run before modules that can load Knex
 import {
     AI_THREAD_FILE_MAX_BYTES,
+    AI_THREAD_IMAGE_MAX_BYTES,
     AnyType,
     ApiError,
     getErrorMessage,
@@ -90,6 +91,11 @@ import {
 } from './logging/winston';
 import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
+import {
+    createSpaIndexHandler,
+    setDefaultPermissionsPolicy,
+} from './middlewares/permissionsPolicy/permissionsPolicy';
+import { keepRawThreadFileBodyPrivate } from './middlewares/rawThreadFileBody';
 import { createRestrictUnverifiedSessionMiddleware } from './middlewares/restrictUnverifiedSession/restrictUnverifiedSession';
 import { flush as flushFeatureFlagChecks } from './models/FeatureFlagModel/flagCheckAggregator';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
@@ -574,10 +580,20 @@ export default class App {
         // Agent conversation documents arrive as a raw body of any content
         // type. Parsing them here keeps the global JSON parser from consuming
         // (or rejecting) `application/json` uploads, and body-parser aborts
-        // the request at the size limit instead of draining it.
+        // the request at the size limit instead of draining it. Keep private-body
+        // custody directly after these parsers, ahead of JSON/error middleware:
+        // Sentry's Express integration otherwise re-captures the parsed req.body.
+        expressApp.use(
+            '/api/v1/aiAgents/thread-files/images',
+            express.raw({ type: () => true, limit: AI_THREAD_IMAGE_MAX_BYTES }),
+        );
         expressApp.use(
             '/api/v1/aiAgents/thread-files',
             express.raw({ type: () => true, limit: AI_THREAD_FILE_MAX_BYTES }),
+        );
+        expressApp.use(
+            '/api/v1/aiAgents/thread-files',
+            keepRawThreadFileBodyPrivate,
         );
         expressApp.use(
             express.json({ limit: this.lightdashConfig.maxPayloadSize }),
@@ -738,9 +754,10 @@ export default class App {
 
         const frontendBuildHash = getFrontendBuildHash();
 
+        // Permissions-Policy header that is not yet supported by helmet. More details here: https://github.com/helmetjs/helmet/issues/234
+        // The app's HTML page may allow more; see createSpaIndexHandler.
+        expressApp.use(setDefaultPermissionsPolicy);
         expressApp.use((req, res, next) => {
-            // Permissions-Policy header that is not yet supported by helmet. More details here: https://github.com/helmetjs/helmet/issues/234
-            res.setHeader('Permissions-Policy', 'camera=(), microphone=()');
             res.setHeader(LightdashVersionHeader, VERSION);
             if (frontendBuildHash) {
                 res.setHeader(LightdashBuildHashHeader, frontendBuildHash);
@@ -820,14 +837,16 @@ export default class App {
         expressApp.use(expressWinstonPreResponseMiddleware); // log request before response is sent
         expressApp.use(expressWinstonMiddleware); // log request + response
 
-        expressApp.get('/', (req, res) => {
-            res.sendFile(
-                path.join(__dirname, '../../frontend/build', 'index.html'),
-                {
-                    headers: { 'Cache-Control': 'no-cache, private' },
-                },
-            );
+        // After the session, so the page knows whose organisation it serves.
+        const serveSpaIndex = createSpaIndexHandler({
+            indexPath: path.join(
+                __dirname,
+                '../../frontend/build',
+                'index.html',
+            ),
+            featureFlagModel: this.models.getFeatureFlagModel(),
         });
+        expressApp.get('/', serveSpaIndex);
 
         /**
          * Service Container
@@ -1034,14 +1053,7 @@ export default class App {
 
         // no-cache - browsers revalidate on every request but can cache
         // private - no cdn caching
-        expressApp.get('*', (req, res) => {
-            res.sendFile(
-                path.join(__dirname, '../../frontend/build', 'index.html'),
-                {
-                    headers: { 'Cache-Control': 'no-cache, private' },
-                },
-            );
-        });
+        expressApp.get('*', serveSpaIndex);
 
         // Start the server
         const server = expressApp.listen(this.port, () => {

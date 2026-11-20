@@ -132,7 +132,7 @@ export class PreAggregationExternalResolver extends BaseService {
                     args.availableParameterDefinitions,
                 parameters: args.parameters,
                 dateZoom: args.dateZoom,
-                pivotDimensions: undefined,
+                pivotDimensions: args.pivotDimensions,
                 // Pre-agg pivots against the source query's persisted fields,
                 // not the pre-agg explore's freshly compiled ones.
                 pivotItemsMap: args.fieldsMap,

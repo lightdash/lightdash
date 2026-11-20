@@ -98,14 +98,6 @@ export const SEARCH_CONSOLE_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
         ),
         dimension('country', 'Country', 'Three-letter country code.'),
         dimension('device', 'Device', 'DESKTOP, MOBILE or TABLET.'),
-        {
-            ...dimension(
-                'search_appearance',
-                'Search appearance',
-                'Rich result type.',
-            ),
-            apiName: 'searchAppearance',
-        },
     ],
     metrics: [
         metric(

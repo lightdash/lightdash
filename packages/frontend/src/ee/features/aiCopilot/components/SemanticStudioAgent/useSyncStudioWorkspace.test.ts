@@ -15,6 +15,6 @@ describe('nameFromRequest', () => {
     });
 
     it('falls back when nothing was asked', () => {
-        expect(nameFromRequest(undefined)).toBe('Untitled change');
+        expect(nameFromRequest(undefined)).toBe('Untitled');
     });
 });

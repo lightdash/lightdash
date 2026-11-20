@@ -8,6 +8,7 @@ import {
     PersistentDownloadFileAccessMode,
     PivotConfig,
     PivotConfiguration,
+    RegisteredAccount,
     type AgentIdentityClaim,
     type AnalyticsActivityWindow,
     type AndFilterGroup,
@@ -55,6 +56,7 @@ import type {
 import type { ComposerRunBinding } from '../ComposerChartService/ComposerRunBinding';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 import type { MeteredLiveSource } from '../QuerySourceService/live/calls';
+import type { MergedChartRun } from './MergedChartRun';
 import type { QueryPollingSource } from './queryPollingSource';
 
 /** Who vouches for a query's content: the caller, or a stored chart the caller may view. */
@@ -67,10 +69,21 @@ export type ComposerAuthority = {
     kind: 'composer';
     binding: ComposerRunBinding;
 };
+/** A merged chart's saved merge definition, loaded by the server for a viewer of the chart. */
+export type MergedChartAuthority = {
+    kind: 'mergedChart';
+    run: MergedChartRun;
+};
 export type QueryRunAuthority =
     | RequestAuthority
     | DocumentAuthority
-    | ComposerAuthority;
+    | ComposerAuthority
+    | MergedChartAuthority;
+/** Authorities a merge can run under; a composer merge node runs as its own source. */
+export type MergeRunAuthority =
+    | RequestAuthority
+    | DocumentAuthority
+    | MergedChartAuthority;
 
 export const REQUEST_AUTHORITY: RequestAuthority = { kind: 'request' };
 
@@ -304,12 +317,23 @@ export type ExecuteAsyncExternalSqlQueryArgs = CommonAsyncQueryArgs & {
 };
 
 export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {
-    authority?: RequestAuthority | DocumentAuthority;
+    authority?: MergeRunAuthority;
     mergeQuery: MergeQuery;
     mode: MergeQueryExecutionMode;
     chart?: MergeQueryChart;
     /** A caller-derived pivot layout takes precedence over a chart-derived layout. */
     pivotConfiguration?: PivotConfiguration;
+};
+
+export type ExecuteAsyncSavedChartMergeQueryArgs = Omit<
+    CommonAsyncQueryArgs,
+    'account'
+> & {
+    account: RegisteredAccount;
+    savedChartUuid: UUID;
+    mode: MergeQueryExecutionMode;
+    pivotResults: boolean;
+    includeUnpublishedDraft: boolean;
 };
 
 export type ExecuteAsyncDashboardSqlChartCommonArgs = CommonAsyncQueryArgs & {

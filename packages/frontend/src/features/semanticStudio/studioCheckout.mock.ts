@@ -49,6 +49,7 @@ export const draftOf = (
     models,
     errors: [],
     settled: [],
+    inReview: [],
     othersDrafting: [],
 });
 
@@ -68,5 +69,6 @@ export const workspaceOf = (
     createdAt: new Date(0),
     updatedAt: new Date(0),
     finishedAt: null,
+    publishedLive: false,
     ...overrides,
 });

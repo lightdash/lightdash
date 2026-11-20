@@ -5,12 +5,18 @@ import {
     type StudioChangeSummary,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { v4 as uuidv4 } from 'uuid';
+import { ProjectModelDraftChangesTableName } from '../../database/entities/projectModelDraftChanges';
 import { UserTableName } from '../../database/entities/users';
 import {
     AiThreadTableName,
     AiWebAppThreadTableName,
     AiWritebackRunTableName,
 } from '../database/entities/ai';
+import {
+    SemanticStudioBranchCompilesTableName,
+    type DbSemanticStudioBranchCompile,
+} from '../database/entities/semanticStudioBranchCompiles';
 import {
     SemanticStudioWorkspacesTableName,
     type DbSemanticStudioWorkspace,
@@ -21,6 +27,7 @@ type WorkspaceRow = DbSemanticStudioWorkspace & {
     first_name: string | null;
     last_name: string | null;
     latest_pr_url: string | null;
+    published_live: boolean;
 };
 
 export type StudioThread = {
@@ -33,6 +40,9 @@ type Owner = { projectUuid: string; userUuid: string };
 
 const latestPullRequestUrl = (workspaceAlias: string) =>
     `(SELECT r.pr_url FROM ${AiWritebackRunTableName} r WHERE r.ai_thread_uuid = ${workspaceAlias}.ai_thread_uuid AND r.pr_url IS NOT NULL ORDER BY r.created_at DESC LIMIT 1)`;
+
+const publishedLive = (workspaceAlias: string) =>
+    `EXISTS (SELECT 1 FROM ${ProjectModelDraftChangesTableName} d WHERE d.workspace_uuid = ${workspaceAlias}.semantic_studio_workspace_uuid AND d.status = 'applied' AND d.applied_change_set_uuid IS NOT NULL)`;
 
 // Two switches at once would otherwise both pass the deactivate step and trip the one-active index.
 export const lockStudioWorkspaceOwner = (
@@ -75,6 +85,7 @@ const toWorkspace = (
         createdAt: row.created_at,
         updatedAt: row.updated_at,
         finishedAt: row.finished_at,
+        publishedLive: row.published_live,
     };
 };
 
@@ -103,6 +114,7 @@ export class SemanticStudioWorkspaceModel {
                 'u.first_name',
                 'u.last_name',
                 trx.raw(`${latestPullRequestUrl('w')} AS latest_pr_url`),
+                trx.raw(`${publishedLive('w')} AS published_live`),
             );
     }
 
@@ -378,6 +390,8 @@ export class SemanticStudioWorkspaceModel {
         projectUuid: string,
         url: string,
         state: SemanticStudioWorkspacePullRequestState,
+        /** Whether a state other than open ends the workspace; false keeps one whose draft is still there. */
+        finishes: boolean,
     ): Promise<void> {
         const now = this.database.fn.now();
         await this.database(SemanticStudioWorkspacesTableName)
@@ -397,9 +411,87 @@ export class SemanticStudioWorkspaceModel {
                 pull_request_url: url,
                 pull_request_state: state,
                 updated_at: now,
-                ...(state !== 'open'
+                ...(state !== 'open' && finishes
                     ? { is_active: false, finished_at: now }
                     : {}),
             });
+    }
+
+    /** Asks for a new compile of a change's branch; returns the request a compile must still match to be kept. */
+    async requestBranchCompile(workspaceUuid: string): Promise<string> {
+        const compileRequestUuid = uuidv4();
+        await this.database(SemanticStudioBranchCompilesTableName)
+            .insert({
+                semantic_studio_workspace_uuid: workspaceUuid,
+                compile_request_uuid: compileRequestUuid,
+                status: 'compiling',
+            })
+            .onConflict('semantic_studio_workspace_uuid')
+            .merge({
+                compile_request_uuid: compileRequestUuid,
+                status: 'compiling',
+                error: null,
+                requested_at: this.database.fn.now(),
+            });
+        return compileRequestUuid;
+    }
+
+    /** Records a compile's outcome, unless a newer one was asked for since; a failure keeps the last good explores. */
+    async finishBranchCompile(
+        workspaceUuid: string,
+        compileRequestUuid: string,
+        outcome:
+            | {
+                  status: 'ready';
+                  branch: string;
+                  explores: DbSemanticStudioBranchCompile['explores'];
+              }
+            | { status: 'failed'; branch: string | null; error: string },
+    ): Promise<boolean> {
+        const updated = await this.database(
+            SemanticStudioBranchCompilesTableName,
+        )
+            .where({
+                semantic_studio_workspace_uuid: workspaceUuid,
+                compile_request_uuid: compileRequestUuid,
+            })
+            .update(
+                outcome.status === 'ready'
+                    ? {
+                          status: 'ready',
+                          branch: outcome.branch,
+                          error: null,
+                          explores: JSON.stringify(outcome.explores),
+                          compiled_at: this.database.fn.now(),
+                      }
+                    : {
+                          status: 'failed',
+                          branch: outcome.branch,
+                          error: outcome.error,
+                      },
+            );
+        return updated > 0;
+    }
+
+    /** Drops the compiles of a project's finished changes; nothing reads them again. */
+    async deleteFinishedBranchCompiles(projectUuid: string): Promise<void> {
+        await this.database(SemanticStudioBranchCompilesTableName)
+            .whereIn(
+                'semantic_studio_workspace_uuid',
+                this.database(SemanticStudioWorkspacesTableName)
+                    .select('semantic_studio_workspace_uuid')
+                    .where('project_uuid', projectUuid)
+                    .whereNotNull('finished_at'),
+            )
+            .delete();
+    }
+
+    async findBranchCompile(
+        workspaceUuid: string,
+    ): Promise<DbSemanticStudioBranchCompile | null> {
+        const row = await this.database(SemanticStudioBranchCompilesTableName)
+            .where('semantic_studio_workspace_uuid', workspaceUuid)
+            .first();
+        return row ?? null;
     }
 }

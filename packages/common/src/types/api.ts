@@ -67,6 +67,8 @@ import type {
     ApiAppendInstructionResponse,
     ApiAppImageUploadResponse,
     ApiAppThumbnailUrlResponse,
+    ApiCaptureRouteResponse,
+    ApiCaptureTranscriptResponse,
     ApiCloneAiAgentThreadShareResponse,
     ApiCreateEvaluationResponse,
     ApiDataAppActivityResponse,
@@ -186,6 +188,7 @@ import {
 } from './api/parameters';
 import { type ApiGetSpotlightTableConfig } from './api/spotlight';
 import { type ApiSuccessEmpty } from './api/success';
+import { type UUID } from './api/uuid';
 import { type Account } from './auth';
 import {
     type ApiAwsWebIdentityAudienceResponse,
@@ -483,9 +486,11 @@ import {
     type ApiSemanticLayerDraftApplyResponse,
     type ApiSemanticLayerDraftedModelsResponse,
     type ApiSemanticLayerDraftImpactResponse,
+    type ApiSemanticLayerDraftModelSaveResponse,
     type ApiSemanticLayerDraftResponse,
     type ApiSemanticLayerDraftStateResponse,
     type ApiSemanticLayerDraftUsageResponse,
+    type ApiSemanticStudioCheckoutResponse,
     type ApiSemanticStudioSourceFileResponse,
     type ApiSemanticStudioSourceSaveResponse,
     type ApiSemanticStudioSourcesResponse,
@@ -918,6 +923,8 @@ export type HealthState = {
         isAmbientAiEnabled: boolean;
         threadDumpEnabled: boolean;
         fastDecisionsEnabled: boolean;
+        /** Instance can turn recorded speech into text (Voice Design). */
+        voiceTranscriptionAvailable: boolean;
     };
     echarts6: {
         enabled: boolean;
@@ -1209,6 +1216,18 @@ export type ApiExecuteAsyncMergeQueryRequest = Omit<
 > & {
     mode?: MergeQueryExecutionMode;
     chart?: MergeQueryChart;
+};
+
+/** Runs a saved chart's own merge, named by the chart rather than sent. */
+export type ApiExecuteAsyncSavedMergeQueryRequest = {
+    savedChartUuid: UUID;
+    invalidateCache?: boolean;
+    parameters: ParametersValuesMap;
+    mode: MergeQueryExecutionMode;
+    /** Pivot the result with the chart's saved pivot config */
+    pivotResults: boolean;
+    /** Run the caller's own open draft of the chart, as the chart page shows it */
+    includeUnpublishedDraft: boolean;
 };
 
 /**
@@ -1826,6 +1845,7 @@ type ApiResults =
     | ApiAiReviewNotificationSettingsResponse['results']
     | ApiAiRouterResponse['results']
     | ApiAiRouterRouteResponse['results']
+    | ApiCaptureRouteResponse['results']
     | ApiAiRouterInstructionResponse['results']
     | ApiAiRouterDecisionCommitResponse['results']
     | ApiAiRouterDecisionListResponse['results']
@@ -1873,6 +1893,7 @@ type ApiResults =
     | ApiPromoteAppDiffResponse['results']
     | ApiPreviewTokenResponse['results']
     | ApiAppImageUploadResponse['results']
+    | ApiCaptureTranscriptResponse['results']
     | ApiAppThumbnailUrlResponse['results']
     | ApiOrganizationDesignResponse['results']
     | ApiOrganizationDesignsResponse['results']
@@ -1912,9 +1933,11 @@ type ApiResults =
     | ApiAiProviderCredentialCreatedResponse['results']
     | ApiProjectAiCredentialResponse['results']
     | ApiSemanticLayerDraftResponse['results']
+    | ApiSemanticLayerDraftModelSaveResponse['results']
     | ApiSemanticLayerDraftedModelsResponse['results']
     | ApiSemanticLayerDraftStateResponse['results']
     | ApiSemanticStudioWorkspacesResponse['results']
+    | ApiSemanticStudioCheckoutResponse['results']
     | ApiSemanticStudioSourcesResponse['results']
     | ApiSemanticStudioSourceFileResponse['results']
     | ApiSemanticStudioSourceSaveResponse['results']

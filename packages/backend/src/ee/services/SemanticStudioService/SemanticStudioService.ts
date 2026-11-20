@@ -15,15 +15,24 @@ import {
     JobStatusType,
     NotFoundError,
     ParameterError,
+    parseModelDocument,
     ProjectType,
     readModelPart,
+    RequestMethod,
     ValidationTarget,
+    type CompileSemanticStudioBranchPayload,
     type DbtManifest,
     type Explore,
     type ExploreError,
     type LightdashError,
+    type LightdashModelWithSource,
+    type ModelFragmentChange,
+    type ModelFragmentRefusal,
+    type ModelFragmentRefusalReason,
     type Project,
+    type SaveSemanticLayerDraftModelRequest,
     type SaveSemanticStudioSourceRequest,
+    type SemanticLayerBlocker,
     type SemanticLayerDraft,
     type SemanticLayerDraftApplyResult,
     type SemanticLayerDraftedModels,
@@ -31,14 +40,17 @@ import {
     type SemanticLayerDraftImpact,
     type SemanticLayerDraftItemResult,
     type SemanticLayerDraftModelInput,
+    type SemanticLayerDraftModelSave,
     type SemanticLayerDraftMoveDirection,
     type SemanticLayerDraftReconciliation,
     type SemanticLayerDraftState,
     type SemanticLayerDraftUsage,
+    type SemanticLayerInReviewModel,
     type SemanticLayerModelCode,
     type SemanticLayerStatus,
     type SemanticLayerStoredModels,
     type SemanticLayerTouchedField,
+    type SemanticStudioCheckout,
     type SemanticStudioSourceFile,
     type SemanticStudioSources,
     type SemanticStudioSourceSave,
@@ -47,17 +59,28 @@ import {
     type SemanticStudioWorkspaces,
     type SemanticStudioWorkspaceStartBody,
     type SessionUser,
+    type WritebackMergeResult,
 } from '@lightdash/common';
+import { groupBy } from 'es-toolkit/compat';
 import { createHash } from 'node:crypto';
 import { text } from 'node:stream/consumers';
 import { type FileStorageClient } from '../../../clients/FileStorage/FileStorageClient';
 import { type DraftImpactBreaks } from '../../../database/entities/projectModelDraftImpacts';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { type JobModel } from '../../../models/JobModel/JobModel';
+import { type ProjectCompileLogModel } from '../../../models/ProjectCompileLogModel';
 import { type SavedChartModel } from '../../../models/SavedChartModel';
+import { CompileInterruptedError } from '../../../scheduler/compileShutdown';
 import { BaseService } from '../../../services/BaseService';
-import { readCompiledDbtManifest } from '../../../services/ProjectService/compiledDbtManifest';
-import { type ProjectService } from '../../../services/ProjectService/ProjectService';
+import {
+    readCompiledDbtManifest,
+    saveCompiledDbtManifest,
+    type CompiledDbtManifest,
+} from '../../../services/ProjectService/compiledDbtManifest';
+import {
+    type IncrementalCompileResult,
+    type ProjectService,
+} from '../../../services/ProjectService/ProjectService';
 import { type ValidationService } from '../../../services/ValidationService/ValidationService';
 import { runWithConcurrency } from '../../../utils/runWithConcurrency';
 import {
@@ -67,33 +90,28 @@ import {
     type ProjectModelDocument,
     type ProjectModelDocumentModel,
     type StoredDraftChange,
+    type WorkspaceDraftOwner,
 } from '../../models/ProjectModelDocumentModel';
 import { type SemanticStudioWorkspaceModel } from '../../models/SemanticStudioWorkspaceModel';
 import { getWritebackConnectionSupport } from '../AiAgentService/writebackConnection';
 import { type AiWritebackService } from '../AiWritebackService/AiWritebackService';
-import { type ParsedDbtProject } from '../AiWritebackService/types';
+import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import {
+    advanceCompiledManifest,
     findModelsToCompile,
     findNewCompileErrors,
     patchManifest,
     type DbtScriptChange,
     type DbtScriptCheck,
 } from './codeMode/dbtManifestPatch';
-import {
-    dbtTryOutFileId,
-    findChangedModels,
-    findLiveTableLocations,
-    markNewModels,
-    pointManifestAtLiveTables,
-    type DbtTryOut,
-} from './dbtTryOut';
+import { dbtTryOutFileId, type DbtTryOut } from './dbtTryOut';
 import {
     DraftChecker,
     usesAnyModel,
     type DraftCheckerProjectService,
 } from './DraftChecker';
-import { foldDraft, withWrites } from './draftFold';
+import { foldDraft, toDraftEdit, toModelPath, withWrites } from './draftFold';
 import {
     findDraftedPaths,
     findRefusedPaths,
@@ -124,6 +142,10 @@ export type SemanticStudioServiceArguments = {
         getAllExploreSummaries: (
             projectUuid: string,
         ) => Promise<{ name: string; type?: ExploreType }[]>;
+        findExploresByBaseTables: (
+            projectUuid: string,
+            baseTables: string[],
+        ) => Promise<{ name: string; type: ExploreType | null }[]>;
         findExploresFromCache: (
             projectUuid: string,
             key: 'name',
@@ -149,6 +171,7 @@ export type SemanticStudioServiceArguments = {
         | 'rebaseDraftChanges'
         | 'findDocumentsAt'
         | 'findPublishedSince'
+        | 'findInReviewDraftChanges'
         | 'findSettledDraftChanges'
         | 'createCheckedOutDraftChange'
         | 'updateDraftChangeStatus'
@@ -164,11 +187,17 @@ export type SemanticStudioServiceArguments = {
             projectUuid: string;
             userUuid: string;
         }) => Promise<unknown>;
+        compileSemanticStudioBranch: (
+            payload: CompileSemanticStudioBranchPayload,
+        ) => Promise<unknown>;
     };
     validationService: Pick<ValidationService, 'generateValidation'>;
     projectService: Pick<
         ProjectService,
-        'setExplores' | 'compileExploresFromManifest'
+        | 'setExplores'
+        | 'compileExploresFromManifest'
+        | 'compileExploresFromBranch'
+        | 'saveExploresToCacheAndIndexCatalog'
     > &
         DraftCheckerProjectService;
     fileStorageClient: Pick<
@@ -177,17 +206,26 @@ export type SemanticStudioServiceArguments = {
     >;
     repoModels: Pick<
         RepoModelSource,
-        'isInstalled' | 'load' | 'openPullRequest' | 'getPullRequestState'
+        | 'isInstalled'
+        | 'load'
+        | 'openPullRequest'
+        | 'updatePullRequest'
+        | 'getPullRequestState'
     >;
     savedChartModel: Pick<SavedChartModel, 'analyzeFieldImpact'>;
     jobModel: Pick<JobModel, 'findLatestCompileStatus'>;
+    projectCompileLogModel: Pick<ProjectCompileLogModel, 'findLatestJobUuid'>;
     writebackPreviewService: Pick<
         WritebackPreviewService,
         'createPreviewForPullRequest'
     >;
     aiWritebackService: Pick<
         AiWritebackService,
-        'openStudioCheckout' | 'saveWithScript'
+        | 'openStudioCheckout'
+        | 'saveWithScript'
+        | 'findPullRequestBranch'
+        | 'mergePullRequest'
+        | 'scheduleCompileAfterMerge'
     >;
     workspaceModel: Pick<
         SemanticStudioWorkspaceModel,
@@ -205,6 +243,10 @@ export type SemanticStudioServiceArguments = {
         | 'attachPullRequest'
         | 'attachThreadPullRequest'
         | 'recordPullRequestState'
+        | 'requestBranchCompile'
+        | 'finishBranchCompile'
+        | 'findBranchCompile'
+        | 'deleteFinishedBranchCompiles'
     >;
 };
 
@@ -249,7 +291,7 @@ const IMPACT_CHECK_TIMEOUT_MS = 10 * 60 * 1000;
 
 const NO_IMPACT: SemanticLayerDraftImpact = { status: 'done', breaks: [] };
 
-const UNTITLED_WORKSPACE_NAME = 'Untitled change';
+const UNTITLED_WORKSPACE_NAME = 'Untitled';
 
 /** Identifies a draft on top of what is live, so a check of one is not read as a check of another. */
 const hashDraft = (
@@ -266,6 +308,7 @@ const EMPTY_DRAFT: SemanticLayerDraft = {
     models: [],
     errors: [],
     settled: [],
+    inReview: [],
     othersDrafting: [],
 };
 
@@ -278,6 +321,17 @@ const failed = (
     changes: [],
     error,
 });
+
+const REFUSAL_REASONS: Record<ModelFragmentRefusalReason, string> = {
+    access: 'changes who can see it, which cannot be changed here.',
+    name_taken: 'uses a name another field of this model already has.',
+    incomplete: 'is missing what it needs, such as its type or sql.',
+    invalid_filter: 'has a filter that is not a single field: value pair.',
+    not_found: 'is not in the model.',
+};
+
+const describeRefusal = ({ path, reason }: ModelFragmentRefusal): string =>
+    `${path} ${REFUSAL_REASONS[reason]}`;
 
 /** Keeps a project's native models on the server and takes reviewed drafts of them live. */
 // A draft that redefines more fields than this is only partly looked up; page the lookup if drafts grow that large.
@@ -302,7 +356,11 @@ const assertSourcePath = (path: string) => {
 
 const MAX_PULL_REQUEST_REFRESHES = 5;
 const PULL_REQUEST_REFRESH_MS = 55_000;
+const MERGE_RETRIES = 3;
+const MERGE_RETRY_MS = 2_000;
 const RECENT_WORKSPACE_MS = 14 * 24 * 60 * 60 * 1000;
+
+type Blocker = { reason: SemanticLayerBlocker; error: LightdashError };
 
 export class SemanticStudioService extends BaseService {
     private readonly featureFlagModel: SemanticStudioServiceArguments['featureFlagModel'];
@@ -328,6 +386,8 @@ export class SemanticStudioService extends BaseService {
     private readonly aiWritebackService: SemanticStudioServiceArguments['aiWritebackService'];
 
     private readonly jobModel: SemanticStudioServiceArguments['jobModel'];
+
+    private readonly projectCompileLogModel: SemanticStudioServiceArguments['projectCompileLogModel'];
 
     private readonly writebackPreviewService: SemanticStudioServiceArguments['writebackPreviewService'];
 
@@ -356,6 +416,7 @@ export class SemanticStudioService extends BaseService {
         this.workspaceModel = args.workspaceModel;
         this.aiWritebackService = args.aiWritebackService;
         this.jobModel = args.jobModel;
+        this.projectCompileLogModel = args.projectCompileLogModel;
         this.writebackPreviewService = args.writebackPreviewService;
         this.checker = new DraftChecker(args.projectService);
     }
@@ -364,7 +425,7 @@ export class SemanticStudioService extends BaseService {
     private async findAccessBlocker(
         user: SessionUser,
         project: ModelProject,
-    ): Promise<LightdashError | null> {
+    ): Promise<Blocker | null> {
         if (
             this.createAuditedAbility(user).cannot(
                 'manage',
@@ -381,9 +442,12 @@ export class SemanticStudioService extends BaseService {
                 }),
             )
         ) {
-            return new ForbiddenError(
-                'User does not have permission to deploy to this project',
-            );
+            return {
+                reason: 'no_access',
+                error: new ForbiddenError(
+                    'User does not have permission to deploy to this project',
+                ),
+            };
         }
         const { enabled } = await this.featureFlagModel.get({
             user: {
@@ -394,14 +458,17 @@ export class SemanticStudioService extends BaseService {
         });
         return enabled
             ? null
-            : new ForbiddenError('This feature is not enabled');
+            : {
+                  reason: 'no_access',
+                  error: new ForbiddenError('This feature is not enabled'),
+              };
     }
 
     /** A write to the project's repository needs what any write to it needs. */
     private findSourceBlocker(
         user: SessionUser,
         project: ModelProject,
-    ): LightdashError | null {
+    ): Blocker | null {
         return this.createAuditedAbility(user).cannot(
             'manage',
             subject('SourceCode', {
@@ -410,9 +477,12 @@ export class SemanticStudioService extends BaseService {
                 isProtectedBranch: false,
             }),
         )
-            ? new ForbiddenError(
-                  "User does not have permission to change this project's repository",
-              )
+            ? {
+                  reason: 'no_repository_access',
+                  error: new ForbiddenError(
+                      "User does not have permission to change this project's repository",
+                  ),
+              }
             : null;
     }
 
@@ -420,7 +490,7 @@ export class SemanticStudioService extends BaseService {
     private async findBlocker(
         user: SessionUser,
         project: ModelProject,
-    ): Promise<LightdashError | null> {
+    ): Promise<Blocker | null> {
         const blocker = await this.findAccessBlocker(user, project);
         if (blocker) return blocker;
         if (project.dbtConnection.type === DbtProjectType.NONE) return null;
@@ -428,22 +498,76 @@ export class SemanticStudioService extends BaseService {
             keepsModelsInGithub(project.dbtConnection) &&
             !resolveRepoConnection(project.dbtConnection)
         ) {
-            return new ParameterError(
-                'Models in a repository can only be changed here when the connection uses the GitHub App on github.com',
-            );
+            return {
+                reason: 'unsupported_connection',
+                error: new ParameterError(
+                    'Models in a repository can only be changed here when the connection uses the GitHub App on github.com',
+                ),
+            };
         }
         if (!resolveRepoConnection(project.dbtConnection)) {
-            return new ParameterError(
-                'A draft is kept for a project without a dbt connection, or one that keeps its models in GitHub',
-            );
+            return {
+                reason: 'unsupported_connection',
+                error: new ParameterError(
+                    'A draft is kept for a project without a dbt connection, or one that keeps its models in GitHub',
+                ),
+            };
         }
         const sourceBlocker = this.findSourceBlocker(user, project);
         if (sourceBlocker) return sourceBlocker;
         return (await this.repoModels.isInstalled(project.organizationUuid))
             ? null
-            : new ParameterError(
-                  'The GitHub App must be installed to change models that live in a repository',
-              );
+            : {
+                  reason: 'github_app_missing',
+                  error: new ParameterError(
+                      'The GitHub App must be installed to change models that live in a repository',
+                  ),
+              };
+    }
+
+    /** Why this person cannot have the agent edit this dbt project's repository, or null when they can. */
+    private async findDbtProjectBlocker(
+        user: SessionUser,
+        project: ModelProject,
+    ): Promise<SemanticLayerBlocker | null> {
+        const access = await this.findAccessBlocker(user, project);
+        if (access) return access.reason;
+        // A preview is a look at a pull request's branch, not a place to start another.
+        if (project.type === ProjectType.PREVIEW) return 'preview_project';
+        if (
+            !getWritebackConnectionSupport(project.dbtConnection).editDbtProject
+        )
+            return 'unsupported_connection';
+        return this.findSourceBlocker(user, project)?.reason ?? null;
+    }
+
+    /** A project with no repository whose models were deployed from outside has nothing here to change. */
+    private async findOutsideModelsBlocker(
+        project: ModelProject,
+    ): Promise<SemanticLayerBlocker | null> {
+        if (project.dbtConnection.type !== DbtProjectType.NONE) return null;
+        const stored = await this.projectModelDocumentModel.findDocuments(
+            project.projectUuid,
+        );
+        return (await this.hasModelsFromElsewhere(project.projectUuid, {
+            stored,
+            repo: null,
+        }))
+            ? 'models_from_outside'
+            : null;
+    }
+
+    /** The status as the Studio page shows it: also off, with its reason, when the models were deployed from outside. */
+    async getPageStatus(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<SemanticLayerStatus> {
+        const status = await this.getStatus(user, projectUuid);
+        if (!status.enabled || status.appliesAs !== 'live') return status;
+        const blocker = await this.findOutsideModelsBlocker(
+            await this.projectModel.get(projectUuid),
+        );
+        return blocker ? { ...status, enabled: false, blocker } : status;
     }
 
     /** Whether this person can change this project's models here, and what applying a draft would do. */
@@ -458,19 +582,17 @@ export class SemanticStudioService extends BaseService {
             !keepsModelsInGithub(dbtConnection)
         ) {
             // A dbt project keeps no draft: the agent edits the repository in a pull request.
+            const reason = await this.findDbtProjectBlocker(user, project);
             return {
-                enabled:
-                    // A preview is a look at a pull request's branch, not a place to start another.
-                    project.type !== ProjectType.PREVIEW &&
-                    getWritebackConnectionSupport(dbtConnection)
-                        .editDbtProject &&
-                    (await this.findAccessBlocker(user, project)) === null &&
-                    this.findSourceBlocker(user, project) === null,
+                enabled: reason === null,
+                blocker: reason,
                 appliesAs: 'dbt_pull_request',
             };
         }
+        const blocker = await this.findBlocker(user, project);
         return {
-            enabled: (await this.findBlocker(user, project)) === null,
+            enabled: blocker === null,
+            blocker: blocker?.reason ?? null,
             appliesAs: keepsModelsInGithub(dbtConnection)
                 ? 'pull_request'
                 : 'live',
@@ -515,7 +637,7 @@ export class SemanticStudioService extends BaseService {
             user,
             await this.projectModel.get(projectUuid),
         );
-        if (blocker) throw blocker;
+        if (blocker) throw blocker.error;
     }
 
     async canEditModels(
@@ -527,20 +649,25 @@ export class SemanticStudioService extends BaseService {
     }
 
     /** Explores deployed from a repository or the CLI would be replaced by the first model written here. */
-    private async assertNoModelsFromElsewhere(
+    /** Whether the project's models came from a deploy outside the server, with nothing kept here to change. */
+    private async hasModelsFromElsewhere(
         projectUuid: string,
         { stored, repo }: Pick<LoadedDraft, 'stored' | 'repo'>,
-    ): Promise<void> {
+    ): Promise<boolean> {
         // A repository is where its project's explores are meant to come from.
-        if (repo || stored.length > 0) return;
+        if (repo || stored.length > 0) return false;
         const summaries =
             await this.projectModel.getAllExploreSummaries(projectUuid);
-        if (
-            summaries.some(
-                ({ type }) =>
-                    type === undefined || type === ExploreType.DEFAULT,
-            )
-        ) {
+        return summaries.some(
+            ({ type }) => type === undefined || type === ExploreType.DEFAULT,
+        );
+    }
+
+    private async assertNoModelsFromElsewhere(
+        projectUuid: string,
+        draft: Pick<LoadedDraft, 'stored' | 'repo'>,
+    ): Promise<void> {
+        if (await this.hasModelsFromElsewhere(projectUuid, draft)) {
             throw new ParameterError(
                 'This project already has models deployed from outside the server; they cannot be changed here yet',
             );
@@ -713,20 +840,13 @@ export class SemanticStudioService extends BaseService {
         }
     }
 
-    /** Checks a change on top of this person's draft and adds what passes to it; nothing goes live. */
-    async proposeDraftChange(
+    /** Folds a change onto this person's draft and checks the result against the warehouse; nothing is stored. */
+    private async checkOnDraft(
         user: SessionUser,
         projectUuid: string,
+        draft: LoadedDraft,
         models: SemanticLayerDraftModelInput[],
-        /** The question asking for it; null when none did. */
-        prompt: { promptUuid: string; threadUuid: string } | null,
-        /** Names the change this starts when the person is on Live. */
-        changeName: string | null,
-    ): Promise<SemanticLayerDraftProposal> {
-        await this.assertCanEditModels(user, projectUuid);
-        const owner = await this.findDraftOwner(projectUuid, user.userUuid);
-        const draft = await this.loadDraft(owner, null);
-        await this.assertNoModelsFromElsewhere(projectUuid, draft);
+    ) {
         const proposed = foldDraft(draft.live, [
             ...draft.changes.map((change) => change.models),
             models,
@@ -744,6 +864,67 @@ export class SemanticStudioService extends BaseService {
                 ? { ...result, notes: check.notes.get(result.model) ?? [] }
                 : failed(result, error);
         });
+        return { results, writes: check.writes };
+    }
+
+    /** Adds a checked change to this person's draft, starting a draft named `changeName` when they are on Published. */
+    private async storeDraftChange(
+        user: SessionUser,
+        owner: DraftOwner,
+        draft: LoadedDraft,
+        models: SemanticLayerDraftModelInput[],
+        promptUuid: string | null,
+        changeName: string | null,
+    ) {
+        const stored =
+            await this.projectModelDocumentModel.createCheckedOutDraftChange(
+                {
+                    ...owner,
+                    promptUuid,
+                    changeName:
+                        changeName?.trim().slice(0, 120) ||
+                        UNTITLED_WORKSPACE_NAME,
+                    models,
+                    // A repository has commits, not versions.
+                    baseVersions: draft.repo
+                        ? null
+                        : Object.fromEntries(
+                              models.map(({ name }) => [
+                                  name,
+                                  draft.stored.find((doc) => doc.name === name)
+                                      ?.version ?? null,
+                              ]),
+                          ),
+                },
+                draft.organizationUuid,
+            );
+        await this.queueDraftImpactCheckAfterChange(user, {
+            ...owner,
+            workspaceUuid: stored.workspaceUuid,
+        });
+        return stored;
+    }
+
+    /** Checks a change on top of this person's draft and adds what passes to it; nothing goes live. */
+    async proposeDraftChange(
+        user: SessionUser,
+        projectUuid: string,
+        models: SemanticLayerDraftModelInput[],
+        /** The question asking for it; null when none did. */
+        prompt: { promptUuid: string; threadUuid: string } | null,
+        /** Names the change this starts when the person is on Live. */
+        changeName: string | null,
+    ): Promise<SemanticLayerDraftProposal> {
+        await this.assertCanEditModels(user, projectUuid);
+        const owner = await this.findDraftOwner(projectUuid, user.userUuid);
+        const draft = await this.loadDraft(owner, null);
+        await this.assertNoModelsFromElsewhere(projectUuid, draft);
+        const { results, writes } = await this.checkOnDraft(
+            user,
+            projectUuid,
+            draft,
+            models,
+        );
         const passing = models.filter(
             (_model, index) => results[index].status === 'ready',
         );
@@ -756,43 +937,107 @@ export class SemanticStudioService extends BaseService {
             };
         }
         const before = withWrites(draft.live, draft.writes);
-        const { draftChangeUuid, workspaceUuid, startedChange } =
-            await this.projectModelDocumentModel.createCheckedOutDraftChange(
-                {
-                    ...owner,
-                    promptUuid: prompt?.promptUuid ?? null,
-                    changeName:
-                        changeName?.trim().slice(0, 120) ||
-                        UNTITLED_WORKSPACE_NAME,
-                    models: passing,
-                    // A repository has commits, not versions.
-                    baseVersions: draft.repo
-                        ? null
-                        : Object.fromEntries(
-                              passing.map(({ name }) => [
-                                  name,
-                                  draft.stored.find((doc) => doc.name === name)
-                                      ?.version ?? null,
-                              ]),
-                          ),
-                },
-                draft.organizationUuid,
-            );
-        await this.queueDraftImpactCheckAfterChange(user, {
-            ...owner,
-            workspaceUuid,
-        });
+        const { draftChangeUuid, startedChange } = await this.storeDraftChange(
+            user,
+            owner,
+            draft,
+            passing,
+            prompt?.promptUuid ?? null,
+            changeName,
+        );
         return {
             results,
             diffs: [...new Set(passing.map(({ name }) => name))].map(
                 (model) => ({
                     model,
                     contentBefore: before.get(model) ?? null,
-                    contentAfter: check.writes.get(model) ?? null,
+                    contentAfter: writes.get(model) ?? null,
                 }),
             ),
             draftChangeUuid,
             startedChange,
+        };
+    }
+
+    /** Saves a hand edit of one model's whole YAML into this person's draft, through the checks an agent's change goes through. */
+    async saveDraftModel(
+        user: SessionUser,
+        projectUuid: string,
+        model: string,
+        { base, content }: SaveSemanticLayerDraftModelRequest,
+    ): Promise<SemanticLayerDraftModelSave> {
+        await this.assertCanEditModels(user, projectUuid);
+        const owner = await this.findDraftOwner(projectUuid, user.userUuid);
+        const draft = await this.loadDraft(owner, null);
+        await this.assertNoModelsFromElsewhere(projectUuid, draft);
+        const fail = (error: string): SemanticLayerDraftModelSave => ({
+            status: 'failed',
+            error,
+        });
+        const current = withWrites(draft.live, draft.writes).get(model);
+        if (current === undefined || current !== base) {
+            return fail(
+                'This model changed since you started editing it. Copy your edit, then make it again on the latest version.',
+            );
+        }
+        let edited: LightdashModelWithSource;
+        try {
+            edited = parseModelDocument(content, toModelPath(model));
+        } catch (error) {
+            return fail(getErrorMessage(error));
+        }
+        if (edited.name !== model) {
+            return fail(
+                `The model's name stays ${model}. To rename it, ask the agent.`,
+            );
+        }
+        const models = toDraftEdit(model, current, content);
+        if (models.length === 0) {
+            return fail('This edit changes nothing the model means.');
+        }
+        const { results, writes } = await this.checkOnDraft(
+            user,
+            projectUuid,
+            draft,
+            models,
+        );
+        const problems = results.flatMap(({ error, refusals }) => [
+            ...(error === null ? [] : [error]),
+            ...refusals.map(describeRefusal),
+        ]);
+        if (problems.length > 0) return fail(problems.join(' '));
+        const saved = writes.get(model);
+        if (
+            saved === undefined ||
+            saved === null ||
+            results.every(({ status }) => status !== 'ready')
+        ) {
+            // Every part folded to what the draft already holds.
+            return fail('This edit changes nothing the model means.');
+        }
+        // A part the edit names but the draft would not hold is never saved quietly; sql_from is only wrapped.
+        const missed = diffModelDocuments(saved, content).filter(
+            ({ path }) => path !== 'sql_from',
+        );
+        if (missed.length > 0) {
+            return fail(
+                `${missed.map(({ path }) => path).join(', ')} cannot be saved as written here. Ask the agent to make that change.`,
+            );
+        }
+        const { draftChangeUuid, startedChange } = await this.storeDraftChange(
+            user,
+            owner,
+            draft,
+            models,
+            null,
+            // Named for the model as it was, since the edit may be to its label.
+            `Edit ${parseModelDocument(current, toModelPath(model)).label ?? edited.label ?? model}`,
+        );
+        return {
+            status: 'saved',
+            draftChangeUuid,
+            startedChange,
+            content: saved,
         };
     }
 
@@ -808,7 +1053,7 @@ export class SemanticStudioService extends BaseService {
         const status = await this.getStatus(user, projectUuid);
         if (status.appliesAs === 'dbt_pull_request') {
             return status.enabled
-                ? this.findDbtTryOutExplores(user, projectUuid)
+                ? this.findDbtDraftExplores(user, projectUuid)
                 : null;
         }
         if (!(await this.canEditModels(user, projectUuid))) return null;
@@ -835,57 +1080,6 @@ export class SemanticStudioService extends BaseService {
         ]);
     }
 
-    /** Stores what this person's latest dbt change leaves to try, and returns the models it changed. */
-    async saveDbtTryOut(
-        user: SessionUser,
-        projectUuid: string,
-        {
-            manifestJson,
-            lightdashConfigYaml,
-            changedFiles,
-            prUrl,
-        }: ParsedDbtProject,
-        threadUuid: string | null,
-    ): Promise<string[]> {
-        let manifest: DbtManifest;
-        try {
-            manifest = JSON.parse(manifestJson);
-        } catch {
-            this.logger.warn(
-                `Skipped trying a dbt change on project ${projectUuid}: its manifest is not valid JSON`,
-            );
-            return [];
-        }
-        const changedModels = findChangedModels(manifest, changedFiles);
-        if (!this.fileStorageClient.isEnabled()) return changedModels;
-        const status = await this.getStatus(user, projectUuid);
-        if (!status.enabled || status.appliesAs !== 'dbt_pull_request')
-            return changedModels;
-        const live = await this.projectModel.findExploresFromCache(
-            projectUuid,
-            'name',
-        );
-        const pointed = pointManifestAtLiveTables(
-            manifest,
-            findLiveTableLocations(Object.values(live)),
-        );
-        const explores = markNewModels(
-            await this.projectService.compileExploresFromManifest(
-                user,
-                projectUuid,
-                pointed.manifest,
-                lightdashConfigYaml,
-            ),
-            pointed.newModels,
-        );
-        const tryOut: DbtTryOut = { prUrl, explores };
-        await this.fileStorageClient.uploadTxt(
-            Buffer.from(JSON.stringify(tryOut)),
-            dbtTryOutFileId(projectUuid, user.userUuid, threadUuid),
-        );
-        return changedModels;
-    }
-
     /**
      * Compiles a code-mode change to a dbt project's YAML onto the manifest the
      * project's last compile parsed, without dbt, and checks what it reaches; with
@@ -898,16 +1092,26 @@ export class SemanticStudioService extends BaseService {
         change: DbtScriptChange,
         { checkQueries }: { checkQueries: boolean },
     ): Promise<DbtScriptCheck> {
-        const compiled = await readCompiledDbtManifest(
+        const stored = await readCompiledDbtManifest(
             this.fileStorageClient,
             projectUuid,
         );
-        if (compiled === null) {
+        if (stored === null) {
             return {
                 status: 'unsupported',
                 reason: 'The project has no compiled manifest to check against',
             };
         }
+        const compiled =
+            change.headCommitSha === null ||
+            change.headCommitSha === stored.commitSha
+                ? stored
+                : await this.advanceCompiledDbtManifest(
+                      projectUuid,
+                      stored,
+                      change.headCommitSha,
+                      change,
+                  );
         const since = await change.listChangedSince(compiled.commitSha);
         if (since === null) {
             return {
@@ -1006,6 +1210,212 @@ export class SemanticStudioService extends BaseService {
         };
     }
 
+    /** Moves the manifest saves are checked against on to the project branch's head; cached explores are left as compiled. */
+    private async advanceCompiledDbtManifest(
+        projectUuid: string,
+        stored: CompiledDbtManifest,
+        headCommitSha: string,
+        change: DbtScriptChange,
+    ): Promise<CompiledDbtManifest> {
+        const startedAt = performance.now();
+        const log = (outcome: Record<string, unknown>) =>
+            this.logger.info('Semantic Studio compiled manifest advance', {
+                event: 'semantic_studio.compiled_manifest.advanced',
+                projectUuid,
+                fromCommitSha: stored.commitSha,
+                toCommitSha: headCommitSha,
+                ...outcome,
+                durationMs: Math.round(performance.now() - startedAt),
+            });
+        try {
+            const advance = await advanceCompiledManifest(
+                stored,
+                headCommitSha,
+                change,
+            );
+            if (advance.status === 'unsupported') {
+                log({ status: 'unsupported', reason: advance.reason });
+                return stored;
+            }
+            await saveCompiledDbtManifest(
+                this.fileStorageClient,
+                projectUuid,
+                advance.compiled,
+            );
+            log({ status: 'advanced', files: advance.files });
+            return advance.compiled;
+        } catch (error) {
+            log({ status: 'failed', error: getErrorMessage(error) });
+            return stored;
+        }
+    }
+
+    /** Saves only the explores a merged change reaches; null when only a full compile can be trusted, with why logged. */
+    async compileAfterMerge(
+        user: SessionUser,
+        projectUuid: string,
+        jobUuid: string,
+    ): Promise<IncrementalCompileResult | null> {
+        const startedAt = performance.now();
+        const log = (outcome: Record<string, unknown>) =>
+            this.logger.info('Semantic Studio compile after merge', {
+                event: 'semantic_studio.compile_after_merge',
+                projectUuid,
+                jobUuid,
+                ...outcome,
+                durationMs: Math.round(performance.now() - startedAt),
+            });
+        const full = (reason: string) => {
+            log({ mode: 'full', reason });
+            return null;
+        };
+        try {
+            const { dbtConnection } = await this.projectModel.get(projectUuid);
+            if (dbtConnection.type !== DbtProjectType.GITHUB) {
+                return full('The project is not in a GitHub repository');
+            }
+            if (dbtConnection.selector?.trim()) {
+                return full('The project compiles a dbt selection');
+            }
+            const stored = await readCompiledDbtManifest(
+                this.fileStorageClient,
+                projectUuid,
+            );
+            if (stored === null) {
+                return full('The project has no compiled manifest');
+            }
+            if (
+                stored.exploresJobUuid === null ||
+                stored.exploresJobUuid !==
+                    (await this.projectCompileLogModel.findLatestJobUuid(
+                        projectUuid,
+                    ))
+            ) {
+                return full(
+                    'The cached explores may not be what the compiled manifest compiles to',
+                );
+            }
+            const { checkout, root } =
+                await this.aiWritebackService.openStudioCheckout(
+                    user,
+                    projectUuid,
+                    null,
+                );
+            const changed = await checkout.listFilesChangedSince(
+                stored.commitSha,
+            );
+            if (changed === null) {
+                return full(
+                    'The branch cannot be compared with the compiled commit',
+                );
+            }
+            if (changed.some((path) => !path.startsWith(root))) {
+                return full('A file outside the dbt project changed');
+            }
+            const advance = await advanceCompiledManifest(
+                stored,
+                checkout.headSha,
+                {
+                    listChangedSince: async () =>
+                        changed.map((path) => path.slice(root.length)),
+                    readAt: (path, commitSha) =>
+                        checkout.readFileAt(`${root}${path}`, commitSha),
+                },
+            );
+            if (advance.status === 'unsupported') return full(advance.reason);
+            const { manifest } = advance.compiled;
+            const { reached, uniqueIds } = findModelsToCompile(
+                manifest,
+                advance.changedModels,
+            );
+            const reachedNames = new Set(reached);
+            const compiled =
+                reached.length === 0
+                    ? []
+                    : await this.projectService.compileExploresFromManifest(
+                          user,
+                          projectUuid,
+                          manifest,
+                          await checkout.readFileAt(
+                              `${root}lightdash.config.yml`,
+                              checkout.headSha,
+                          ),
+                          uniqueIds,
+                      );
+            if (compiled.some(isExploreError)) {
+                return full('An explore the change reaches does not compile');
+            }
+            // Explores of the models only compiled to be joined lack their own joins.
+            const explores = compiled.filter(
+                (explore): explore is Explore =>
+                    !isExploreError(explore) &&
+                    reachedNames.has(explore.baseTable),
+            );
+            // Pre-aggregate explores are built from the cache after a compile, and user-managed ones are not compiled at all.
+            const cachedNames = (
+                await this.projectModel.findExploresByBaseTables(
+                    projectUuid,
+                    reached,
+                )
+            ).flatMap(({ name, type }) =>
+                type === null || type === ExploreType.DEFAULT ? [name] : [],
+            );
+            const exploreNames = new Set(explores.map(({ name }) => name));
+            if (
+                cachedNames.length !== exploreNames.size ||
+                cachedNames.some((name) => !exploreNames.has(name))
+            ) {
+                return full('The change adds or removes an explore');
+            }
+            const broken = findNewCompileErrors(
+                explores,
+                await this.projectModel.findExploresFromCache(
+                    projectUuid,
+                    'name',
+                    cachedNames,
+                ),
+            );
+            if (broken.length > 0) {
+                return full(`The change warns: ${broken.join('. ')}`);
+            }
+            const indexCatalogJobUuid =
+                await this.projectService.saveExploresToCacheAndIndexCatalog({
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    explores,
+                    complete: false,
+                    compilationSource: 'refresh_dbt',
+                    jobUuid,
+                    requestMethod: RequestMethod.BACKEND,
+                });
+            await saveCompiledDbtManifest(this.fileStorageClient, projectUuid, {
+                ...advance.compiled,
+                exploresJobUuid: jobUuid,
+            }).catch((error: unknown) => {
+                // The compile log has moved on, so the next compile after a merge runs in full.
+                this.logger.warn(
+                    `SemanticStudio: failed to keep the patched manifest: ${getErrorMessage(error)}`,
+                );
+            });
+            log({
+                mode: 'incremental',
+                files: advance.files,
+                changedModels: advance.changedModels.length,
+                explores: explores.length,
+                fromCommitSha: stored.commitSha,
+                toCommitSha: checkout.headSha,
+            });
+            return {
+                indexCatalogJobUuid,
+                errorCount: 0,
+                total: explores.length,
+            };
+        } catch (error) {
+            if (error instanceof CompileInterruptedError) throw error;
+            return full(`It failed: ${getErrorMessage(error)}`);
+        }
+    }
+
     /** Keeps what a code-mode change compiled to as the conversation's try-out, until the preview project is built. */
     async saveDbtScriptTryOut(
         user: SessionUser,
@@ -1026,6 +1436,7 @@ export class SemanticStudioService extends BaseService {
         projectUuid: string,
         prUrl: string,
     ): Promise<void> {
+        await this.workspaceModel.deleteFinishedBranchCompiles(projectUuid);
         const found = await this.readDbtTryOut(user, projectUuid);
         if (found?.tryOut.prUrl !== prUrl) return;
         await this.fileStorageClient.deleteFile(`${found.fileId}.txt`);
@@ -1090,6 +1501,264 @@ export class SemanticStudioService extends BaseService {
             : null;
     }
 
+    /** The explores of the person's checked-out dbt change: its last branch compile, else its try-out. */
+    private async findDbtDraftExplores(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<Map<string, Explore | ExploreError> | null> {
+        const active = await this.workspaceModel.findActive({
+            projectUuid,
+            userUuid: user.userUuid,
+        });
+        const compile = active
+            ? await this.workspaceModel.findBranchCompile(active.workspaceUuid)
+            : null;
+        // Models the branch removes still show until it merges.
+        return compile?.explores
+            ? new Map(
+                  compile.explores.map((explore) => [explore.name, explore]),
+              )
+            : this.findDbtTryOutExplores(user, projectUuid);
+    }
+
+    /**
+     * Has a worker compile the branch of the person's open change on this pull
+     * request, as a refresh would; nothing for a change that is not theirs or a
+     * project that is not dbt in a repository.
+     */
+    async queueBranchCompile(
+        user: SessionUser,
+        projectUuid: string,
+        prUrl: string,
+    ): Promise<void> {
+        const status = await this.getStatus(user, projectUuid);
+        if (!status.enabled || status.appliesAs !== 'dbt_pull_request') return;
+        const workspace = (
+            await this.workspaceModel.findInProject(projectUuid, user.userUuid)
+        ).find(
+            (candidate) =>
+                candidate.isMine &&
+                !candidate.finishedAt &&
+                candidate.pullRequest?.url === prUrl,
+        );
+        if (!workspace) return;
+        await this.requestBranchCompile(
+            user,
+            projectUuid,
+            workspace.workspaceUuid,
+        );
+    }
+
+    private async requestBranchCompile(
+        user: SessionUser,
+        projectUuid: string,
+        workspaceUuid: string,
+    ): Promise<void> {
+        const compileRequestUuid =
+            await this.workspaceModel.requestBranchCompile(workspaceUuid);
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        await this.schedulerClient.compileSemanticStudioBranch({
+            organizationUuid,
+            projectUuid,
+            userUuid: user.userUuid,
+            workspaceUuid,
+            compileRequestUuid,
+        });
+    }
+
+    /** The compile of a checked-out dbt draft's branch; one that has a pull request and was never compiled starts now, so nobody has to ask. */
+    private async findOrStartBranchCompile(
+        user: SessionUser,
+        { workspaceUuid, projectUuid, pullRequest }: SemanticStudioWorkspace,
+    ) {
+        const compile =
+            await this.workspaceModel.findBranchCompile(workspaceUuid);
+        if (
+            compile ||
+            !pullRequest ||
+            pullRequest.state === 'merged' ||
+            pullRequest.state === 'closed'
+        ) {
+            return compile;
+        }
+        try {
+            await this.requestBranchCompile(user, projectUuid, workspaceUuid);
+        } catch (error) {
+            this.logger.warn(
+                `SemanticStudio: could not start the compile of workspace ${workspaceUuid}: ${getErrorMessage(error)}`,
+            );
+            return null;
+        }
+        return this.workspaceModel.findBranchCompile(workspaceUuid);
+    }
+
+    /** The change this person has checked out, which the whole app shows them; null on what is published or without Studio. */
+    async getCheckout(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<SemanticStudioCheckout | null> {
+        const status = await this.getStatus(user, projectUuid);
+        if (!status.enabled) return null;
+        const active = await this.workspaceModel.findActive({
+            projectUuid,
+            userUuid: user.userUuid,
+        });
+        if (!active) return null;
+        const compile =
+            status.appliesAs === 'dbt_pull_request'
+                ? await this.findOrStartBranchCompile(user, active)
+                : null;
+        return {
+            workspaceUuid: active.workspaceUuid,
+            name: active.name,
+            appliesAs: status.appliesAs,
+            branchCompile: compile && {
+                status: compile.status,
+                branch: compile.branch,
+                error: compile.error,
+                hasExplores: compile.explores !== null,
+                requestedAt: compile.requested_at,
+                compiledAt: compile.compiled_at,
+            },
+        };
+    }
+
+    /** Compiles the checked-out dbt change's branch again, such as after it moved outside the app. */
+    async compileCheckout(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<SemanticStudioCheckout | null> {
+        const status = await this.getStatus(user, projectUuid);
+        if (!status.enabled) {
+            throw new ForbiddenError(
+                "You cannot change this project's models here",
+            );
+        }
+        if (status.appliesAs !== 'dbt_pull_request') {
+            throw new ParameterError(
+                'Only a change to a dbt project in a repository is compiled from its branch',
+            );
+        }
+        const active = await this.workspaceModel.findActive({
+            projectUuid,
+            userUuid: user.userUuid,
+        });
+        if (!active?.pullRequest) {
+            throw new ParameterError(
+                'This draft has no pull request to compile yet',
+            );
+        }
+        await this.requestBranchCompile(
+            user,
+            projectUuid,
+            active.workspaceUuid,
+        );
+        return this.getCheckout(user, projectUuid);
+    }
+
+    /** Publishes the checked-out dbt draft: merges its pull request once its branch compiled, and the project refreshes. */
+    async publishCheckout(
+        user: SessionUser,
+        projectUuid: string,
+        prUrl: string,
+    ): Promise<WritebackMergeResult> {
+        const status = await this.getStatus(user, projectUuid);
+        if (!status.enabled) {
+            throw new ForbiddenError(
+                "You cannot change this project's models here",
+            );
+        }
+        if (status.appliesAs !== 'dbt_pull_request') {
+            throw new ParameterError(
+                'Only a draft of a dbt project in a repository is published from here',
+            );
+        }
+        const active = await this.workspaceModel.findActive({
+            projectUuid,
+            userUuid: user.userUuid,
+        });
+        if (!active || active.pullRequest?.url !== prUrl) {
+            throw new ParameterError(
+                'This pull request is not the draft you have checked out',
+            );
+        }
+        const compile = await this.workspaceModel.findBranchCompile(
+            active.workspaceUuid,
+        );
+        if (compile?.status !== 'ready') {
+            throw new ParameterError(
+                'This draft can be published once its latest edit compiles',
+            );
+        }
+        const result = await this.aiWritebackService.mergePullRequest({
+            user,
+            projectUuid,
+            prUrl,
+            incrementalCompile: true,
+        });
+        if (result.merged) {
+            await this.recordPullRequestState(projectUuid, prUrl, 'merged');
+        }
+        return result;
+    }
+
+    /** The worker's compile of a change's branch; a failure is kept for the person to see, with the last good explores. */
+    async compileBranch({
+        organizationUuid,
+        projectUuid,
+        userUuid,
+        workspaceUuid,
+        compileRequestUuid,
+    }: CompileSemanticStudioBranchPayload): Promise<void> {
+        const fail = (branch: string | null, error: string) =>
+            this.workspaceModel.finishBranchCompile(
+                workspaceUuid,
+                compileRequestUuid,
+                { status: 'failed', branch, error },
+            );
+        const workspace = await this.workspaceModel.find(
+            workspaceUuid,
+            userUuid,
+        );
+        const prUrl = workspace?.pullRequest?.url ?? null;
+        if (!workspace || workspace.finishedAt || prUrl === null) {
+            await fail(null, 'This draft has no open pull request to compile.');
+            return;
+        }
+        let branch: string;
+        try {
+            branch = await this.aiWritebackService.findPullRequestBranch(
+                organizationUuid,
+                projectUuid,
+                prUrl,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `SemanticStudio: could not read the branch of ${prUrl}: ${getErrorMessage(error)}`,
+            );
+            await fail(
+                null,
+                "Could not read this draft's branch. Its pull request may be merged, closed or in another repository.",
+            );
+            return;
+        }
+        try {
+            const explores =
+                await this.projectService.compileExploresFromBranch(
+                    { userUuid, organizationUuid },
+                    projectUuid,
+                    branch,
+                );
+            await this.workspaceModel.finishBranchCompile(
+                workspaceUuid,
+                compileRequestUuid,
+                { status: 'ready', branch, explores },
+            );
+        } catch (error) {
+            await fail(branch, getErrorMessage(error));
+        }
+    }
+
     /**
      * Every explore as a dbt project's pull request leaves it, read from the preview
      * project built from that branch; null when this is not such a preview or the
@@ -1125,13 +1794,13 @@ export class SemanticStudioService extends BaseService {
         ]);
         // Until its first compile a preview holds only the explores copied into it; the person's own compiled change stands in.
         if (Object.values(explores).every(isUserManagedExplore)) {
-            return this.findDbtTryOutExplores(user, projectUuid);
+            return this.findDbtDraftExplores(user, projectUuid);
         }
         // A reused preview holds the previous round until its compile ends, and for good if that compile fails.
         const compile =
             await this.jobModel.findLatestCompileStatus(previewProjectUuid);
         if (compile !== null && compile !== JobStatusType.DONE) {
-            const tryOut = await this.findDbtTryOutExplores(user, projectUuid);
+            const tryOut = await this.findDbtDraftExplores(user, projectUuid);
             if (tryOut) return tryOut;
         }
         return new Map<string, Explore | ExploreError | null>([
@@ -1243,6 +1912,13 @@ export class SemanticStudioService extends BaseService {
                 projectUuid,
                 user.userUuid,
             );
+        const inReview = SemanticStudioService.describeInReview(
+            draft.live,
+            await this.projectModelDocumentModel.findInReviewDraftChanges(
+                projectUuid,
+                user.userUuid,
+            ),
+        );
         const others = SemanticStudioService.describeOtherDrafts(
             draft.live,
             await this.projectModelDocumentModel.findOtherDrafters(
@@ -1255,7 +1931,7 @@ export class SemanticStudioService extends BaseService {
             drafters,
         }));
         if (draft.changes.length === 0) {
-            return { ...EMPTY_DRAFT, settled, othersDrafting };
+            return { ...EMPTY_DRAFT, settled, inReview, othersDrafting };
         }
         // When each model first joined the draft: what was published after that happened under it.
         const startedAt = new Map<string, Date>();
@@ -1317,8 +1993,40 @@ export class SemanticStudioService extends BaseService {
                 message: errors.map(({ message }) => message).join('; '),
             })),
             settled,
+            inReview,
             othersDrafting,
         };
+    }
+
+    /** What each open pull request's changes do to the models they touch, replayed on what is live. */
+    private static describeInReview(
+        live: Map<string, string>,
+        sent: {
+            pullRequestUrl: string;
+            models: SemanticLayerDraftModelInput[];
+        }[],
+    ): SemanticLayerInReviewModel[] {
+        return Object.entries(groupBy(sent, 'pullRequestUrl')).flatMap(
+            ([pullRequestUrl, changes]) => {
+                const { writes, results } = foldDraft(
+                    live,
+                    changes.map(({ models }) => models),
+                );
+                const made = new Map<string, ModelFragmentChange[]>();
+                results.flat().forEach(({ model, changes: parts }) => {
+                    made.set(model, [...(made.get(model) ?? []), ...parts]);
+                });
+                return [...made]
+                    .filter(([, parts]) => parts.length > 0)
+                    .map(([model, parts]) => ({
+                        model,
+                        pullRequestUrl,
+                        changes: parts,
+                        contentBefore: live.get(model) ?? null,
+                        contentAfter: writes.get(model) ?? null,
+                    }));
+            },
+        );
     }
 
     /** Leaves one part of this person's drafted model as it is live, by adding the changes that put it back. */
@@ -1692,7 +2400,7 @@ export class SemanticStudioService extends BaseService {
     ): Promise<void> {
         const project = await this.projectModel.get(projectUuid);
         const blocker = await this.findBlocker(user, project);
-        if (blocker) throw blocker;
+        if (blocker) throw blocker.error;
         if (!this.canValidate(user, project)) {
             throw new ForbiddenError(
                 'User does not have permission to validate this project',
@@ -1886,11 +2594,12 @@ export class SemanticStudioService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         model: string | null,
+        merge: boolean = false,
     ): Promise<SemanticLayerDraftApplyResult> {
         await this.assertCanEditModels(user, projectUuid);
         // Requests that arrive together on this server share one publish; one that lands elsewhere waits on the lock, then finds nothing left to publish.
         const owner = await this.findDraftOwner(projectUuid, user.userUuid);
-        const key = `${projectUuid}:${user.userUuid}:${owner.workspaceUuid}:${model ?? ''}`;
+        const key = `${projectUuid}:${user.userUuid}:${owner.workspaceUuid}:${model ?? ''}:${merge}`;
         const running = this.publishing.get(key);
         if (running) return running;
         const publish = (async () => {
@@ -1903,10 +2612,63 @@ export class SemanticStudioService extends BaseService {
             }
             // What is left of the draft now sits on different live models.
             await this.queueDraftImpactCheckAfterChange(user, owner);
-            return result;
+            return merge && result.pullRequestUrl
+                ? {
+                      ...result,
+                      merge: await this.mergeDraftPullRequest(
+                          user,
+                          projectUuid,
+                          result.pullRequestUrl,
+                      ),
+                  }
+                : result;
         })().finally(() => this.publishing.delete(key));
         this.publishing.set(key, publish);
         return publish;
+    }
+
+    /** Merges the pull request a draft was just sent as; a refusal leaves it open for review and says why. */
+    private async mergeDraftPullRequest(
+        user: SessionUser,
+        projectUuid: string,
+        prUrl: string,
+    ): Promise<NonNullable<SemanticLayerDraftApplyResult['merge']>> {
+        const merge = async (triesLeft: number): Promise<boolean> => {
+            try {
+                return (
+                    await this.aiWritebackService.mergePullRequest({
+                        user,
+                        projectUuid,
+                        prUrl,
+                        incrementalCompile: true,
+                    })
+                ).merged;
+            } catch (error) {
+                // Right after a commit the repository has not worked out yet whether the pull request can merge.
+                if (
+                    triesLeft === 0 ||
+                    !/not mergeable/i.test(getErrorMessage(error))
+                ) {
+                    throw error;
+                }
+                await new Promise((resolve) => {
+                    setTimeout(resolve, MERGE_RETRY_MS);
+                });
+                return merge(triesLeft - 1);
+            }
+        };
+        try {
+            if (!(await merge(MERGE_RETRIES))) {
+                return {
+                    merged: false,
+                    reason: 'The repository did not merge it.',
+                };
+            }
+            await this.recordPullRequestState(projectUuid, prUrl, 'merged');
+            return { merged: true };
+        } catch (error) {
+            return { merged: false, reason: getErrorMessage(error) };
+        }
     }
 
     private applyDraftOnce(
@@ -1931,6 +2693,7 @@ export class SemanticStudioService extends BaseService {
                     exploreCount: null,
                     failures: unmergeable,
                     pullRequestUrl: null,
+                    merge: null,
                 };
             }
             // Publishing would put this person's version in place of one they have not looked at.
@@ -1951,6 +2714,7 @@ export class SemanticStudioService extends BaseService {
                     exploreCount: null,
                     failures: contested,
                     pullRequestUrl: null,
+                    merge: null,
                 };
             }
             const check = await this.checker.check(
@@ -1967,6 +2731,7 @@ export class SemanticStudioService extends BaseService {
                         error,
                     })),
                     pullRequestUrl: null,
+                    merge: null,
                 };
             }
             const drafts = {
@@ -1987,16 +2752,39 @@ export class SemanticStudioService extends BaseService {
                     exploreCount: null,
                     failures: [],
                     pullRequestUrl: null,
+                    merge: null,
                 };
             }
             if (draft.repo) {
+                if (model !== null) {
+                    throw new ParameterError(
+                        'A draft of models kept in a repository is sent whole, as one pull request',
+                    );
+                }
                 // The repository deploys the models once the pull request merges, so nothing goes live here.
-                const { url } = await this.repoModels.openPullRequest({
+                const sent = {
                     organizationUuid: draft.organizationUuid,
                     models: draft.repo,
                     writes: check.writes,
                     ...describePullRequest(draft.results.flat()),
-                });
+                };
+                const open = await this.findOpenDraftPullRequest(user, owner);
+                const { url } =
+                    (open &&
+                        (await this.repoModels.updatePullRequest({
+                            ...sent,
+                            prUrl: open,
+                        }))) ||
+                    (await this.repoModels.openPullRequest(sent));
+                // A workspace keeps its draft while the pull request is open, so it can still be read, tried and added to.
+                if (owner.workspaceUuid !== null) {
+                    return {
+                        exploreCount: null,
+                        failures: [],
+                        pullRequestUrl: url,
+                        merge: null,
+                    };
+                }
                 let settled = 0;
                 try {
                     settled =
@@ -2019,6 +2807,7 @@ export class SemanticStudioService extends BaseService {
                     exploreCount: null,
                     failures: [],
                     pullRequestUrl: url,
+                    merge: null,
                 };
             }
             const exploreCount = await this.commitDocuments(user, owner, {
@@ -2034,7 +2823,12 @@ export class SemanticStudioService extends BaseService {
                     drafts,
                 },
             });
-            return { exploreCount, failures: [], pullRequestUrl: null };
+            return {
+                exploreCount,
+                failures: [],
+                pullRequestUrl: null,
+                merge: null,
+            };
         });
     }
 
@@ -2198,6 +2992,24 @@ export class SemanticStudioService extends BaseService {
         }
     }
 
+    /** The pull request this draft's workspace was already sent as, while it is still open. */
+    private async findOpenDraftPullRequest(
+        user: SessionUser,
+        { workspaceUuid }: DraftOwner,
+    ): Promise<string | null> {
+        if (workspaceUuid === null) return null;
+        const workspace = await this.workspaceModel.find(
+            workspaceUuid,
+            user.userUuid,
+        );
+        const pullRequest = workspace?.pullRequest ?? null;
+        return pullRequest &&
+            pullRequest.state !== 'merged' &&
+            pullRequest.state !== 'closed'
+            ? pullRequest.url
+            : null;
+    }
+
     /** A draft that went live finishes its workspace; one sent as a pull request waits on that. */
     private async recordDraftApplied(
         owner: DraftOwner,
@@ -2345,16 +3157,25 @@ export class SemanticStudioService extends BaseService {
                 expectedSource:
                     revision === undefined ? null : { path, revision },
             });
+        // The writeback's own wording tells the agent what to call next, which is no use to a person.
+        const forPerson = (error: unknown): never => {
+            if (error instanceof WritebackThreadPrClosedError) {
+                throw new ParameterError(
+                    `This draft's pull request is ${error.reason}, so it can no longer be edited. Go back to Published and edit there to start a new draft.`,
+                );
+            }
+            throw error;
+        };
         // Null means only dbt can check the change, so it is committed unchecked.
-        const dryRun = await save(true, true);
+        const dryRun = await save(true, true).catch(forPerson);
         if (dryRun?.status === 'script_failed') {
             return { status: 'failed', error: dryRun.error };
         }
         const checked = dryRun !== null;
-        const saved = await save(false, checked);
+        const saved = await save(false, checked).catch(forPerson);
         if (saved === null) {
             throw new ParameterError(
-                'This change cannot take hand edits. Ask the agent in the chat to make this edit.',
+                'This draft cannot take hand edits. Ask for the change in the chat, or go back to Published and edit there to start a new draft.',
             );
         }
         if (saved.status === 'script_failed') {
@@ -2382,6 +3203,20 @@ export class SemanticStudioService extends BaseService {
                 });
             }
         }
+        // With no conversation to hang it on, the new pull request still becomes a draft of its own.
+        if (!threadUuid && saved.result.prAction === 'opened') {
+            const owner = { projectUuid, userUuid: user.userUuid };
+            const project = await this.projectModel.get(projectUuid);
+            const workspaceUuid = await this.workspaceModel.create(
+                owner,
+                project.organizationUuid,
+                `Edit ${path.split('/').pop() ?? path}`,
+            );
+            await this.workspaceModel.attachPullRequest(
+                { ...owner, workspaceUuid },
+                savedPrUrl,
+            );
+        }
         // A save writes no agent run, so the conversation learns its pull request here.
         if (threadUuid && saved.result.prUrl) {
             await this.workspaceModel.attachThreadPullRequest(
@@ -2400,6 +3235,13 @@ export class SemanticStudioService extends BaseService {
                 );
             });
         }
+        await this.queueBranchCompile(user, projectUuid, savedPrUrl).catch(
+            (error: unknown) => {
+                this.logger.warn(
+                    `SemanticStudio: failed to queue a compile after a hand edit: ${getErrorMessage(error)}`,
+                );
+            },
+        );
         // A preview built by an earlier round would otherwise keep showing the pull request without this edit.
         await this.writebackPreviewService
             .createPreviewForPullRequest({
@@ -2481,6 +3323,14 @@ export class SemanticStudioService extends BaseService {
                     );
                     changed = true;
                     await this.retireDbtTryOut(user, projectUuid, prUrl);
+                    // Merged outside the app, so nothing has refreshed the project with it yet.
+                    if (state === 'merged') {
+                        await this.aiWritebackService.scheduleCompileAfterMerge(
+                            user,
+                            projectUuid,
+                            true,
+                        );
+                    }
                 }
             } catch (error) {
                 this.logger.warn(
@@ -2645,18 +3495,69 @@ export class SemanticStudioService extends BaseService {
             { projectUuid, userUuid: user.userUuid },
             workspaceUuid,
         );
+        await this.workspaceModel.deleteFinishedBranchCompiles(projectUuid);
     }
 
-    /** Records a pull request's state as its provider reported it to someone allowed to ask. */
+    /**
+     * Records a pull request's state as its provider reported it to someone allowed to ask. A draft sent as that
+     * pull request is settled by its merge, and kept when it closes, so the work can be sent again or discarded.
+     */
     async recordPullRequestState(
         projectUuid: string,
         prUrl: string,
         state: SemanticStudioWorkspacePullRequestState,
     ): Promise<void> {
+        const drafted =
+            state === 'open'
+                ? []
+                : await this.findDraftsSentAs(projectUuid, prUrl);
+        if (state === 'merged') {
+            await Promise.all(
+                drafted.map(({ owner, changeUuids }) =>
+                    this.projectModelDocumentModel.updateDraftChangeStatus({
+                        ...owner,
+                        drafts: { changeUuids, model: null },
+                        status: 'applied',
+                        pullRequestUrl: prUrl,
+                    }),
+                ),
+            );
+        }
         await this.workspaceModel.recordPullRequestState(
             projectUuid,
             prUrl,
             state,
+            // A closed pull request with a draft behind it leaves the workspace open.
+            state === 'merged' || drafted.length === 0,
         );
+    }
+
+    /** The unfinished workspaces whose draft was sent as this pull request, with what is still in each draft. */
+    private async findDraftsSentAs(
+        projectUuid: string,
+        prUrl: string,
+    ): Promise<{ owner: WorkspaceDraftOwner; changeUuids: string[] }[]> {
+        const workspaces = (
+            await this.workspaceModel.findInProject(projectUuid, '')
+        ).filter(
+            ({ finishedAt, pullRequest }) =>
+                !finishedAt && pullRequest?.url === prUrl,
+        );
+        const drafts = await Promise.all(
+            workspaces.map(async ({ workspaceUuid, owner: { userUuid } }) => {
+                const owner = { projectUuid, userUuid, workspaceUuid };
+                const changes =
+                    await this.projectModelDocumentModel.findWorkspaceDraftChanges(
+                        owner,
+                    );
+                return {
+                    owner,
+                    changeUuids: changes.map(
+                        ({ draftChangeUuid }) => draftChangeUuid,
+                    ),
+                };
+            }),
+        );
+        return drafts.filter(({ changeUuids }) => changeUuids.length > 0);
     }
 }

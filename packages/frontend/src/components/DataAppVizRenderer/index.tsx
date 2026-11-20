@@ -53,6 +53,7 @@ import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import { derived } from '../../utils/changeOrigin';
 import LoadingChart from '../common/LoadingChart';
 import MantineIcon from '../common/MantineIcon';
 import { DefaultSkeleton } from '../DashboardTiles/TileBase/LoadingSkeletonOverlay';
@@ -79,6 +80,8 @@ import { buildVizUnderlyingDataRequest } from './vizUnderlyingDataRequest';
 
 type Props = {
     isInDashboard?: boolean;
+    /** Off where the host mounts no data dialogs, e.g. composer chart tiles. */
+    enableContextMenu?: boolean;
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
 };
@@ -157,6 +160,7 @@ const getTerminalRequestErrorMessage = (
 
 const DataAppVizRenderer: FC<Props> = ({
     isInDashboard = false,
+    enableContextMenu = true,
     onScreenshotReady,
 }) => {
     const projectUuid = useProjectUuid();
@@ -314,7 +318,10 @@ const DataAppVizRenderer: FC<Props> = ({
         ) {
             return;
         }
-        dataAppVizChartConfig.setDataAppVizVersion(readyMetadata.version);
+        // Following the latest build is not an edit
+        derived(() =>
+            dataAppVizChartConfig.setDataAppVizVersion(readyMetadata.version),
+        );
     }, [
         config,
         embedToken,
@@ -336,11 +343,10 @@ const DataAppVizRenderer: FC<Props> = ({
     const metricQuery = resultsData?.metricQuery;
     const sourceQueryUuid = resultsData?.queryUuid;
 
-    // Explore-independent gating, mirroring regular chart context menus: no
-    // query (builder canvas/sample previews), no permission, custom bin
-    // dimensions, embeds (GLITCH-592) and screenshot renders all disable
-    // underlying data.
+    // Explore-independent gating, mirroring regular chart context menus; no
+    // query means a builder canvas or sample preview.
     const underlyingDataPreconditions =
+        enableContextMenu &&
         !!sourceQueryUuid &&
         !!metricQuery &&
         canViewUnderlyingData &&
@@ -418,6 +424,7 @@ const DataAppVizRenderer: FC<Props> = ({
     // Same shape as underlyingDataPreconditions plus the drill permission and
     // dialog; no explore fetch needed — DrillDownModal reads it from its provider.
     const drillDownEnabled =
+        enableContextMenu &&
         !!sourceQueryUuid &&
         !!metricQuery &&
         canDrillInto &&
@@ -571,6 +578,7 @@ const DataAppVizRenderer: FC<Props> = ({
 
     // Any single action available ⇒ the menu is worth offering.
     const pointMenuEnabled =
+        enableContextMenu &&
         !!reconciledFieldMapping &&
         !embedToken &&
         !minimal &&

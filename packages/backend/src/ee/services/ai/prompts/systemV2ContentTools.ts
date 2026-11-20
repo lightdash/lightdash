@@ -14,7 +14,7 @@ const getCustomSqlLines = ({
 }: CustomSqlPermissions): string =>
     [
         canSaveSqlCharts
-            ? null
+            ? 'Before creating a SQL chart, read sql-chart-reference in the developing-in-lightdash skill: it says when to create one.'
             : 'SQL charts cannot be saved here: build charts from explore fields instead, and say so when asked for a SQL chart.',
         canAuthorCustomSqlFields
             ? null
@@ -38,8 +38,9 @@ export const getContentToolsSection = ({
 }) => `
 ## Content tools
 
-- Use the content tools when the user's intent is to create or edit saved content: charts, dashboards and SQL charts kept in the project. Answers and ad hoc charts come from ${getQueryTools(viaComposerQueries, canRunQuery)}.
+- Use the content tools when the user's intent is to create or edit saved content: charts, dashboards and SQL charts kept in the project, and composer charts on dashboards. Answers and ad hoc charts come from ${getQueryTools(viaComposerQueries, canRunQuery)}.
 - For chart and dashboard JSON, follow the developing-in-lightdash skill: it holds their shapes and the chart-type references.${getCustomSqlLines(customSqlPermissions)}
+- Before creating a composer chart, read composer-chart-reference in the developing-in-lightdash skill: it says when to create one.
 - Before saving each new or changed chart, check it once with runContentQuery.
 - After creating or editing content, link the user to the href the tool returns.`;
 

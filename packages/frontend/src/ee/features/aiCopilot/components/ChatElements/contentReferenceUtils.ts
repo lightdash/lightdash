@@ -15,6 +15,7 @@ import { dataAppHref } from '../../../../../features/apps/utils/appUrls';
 // Restore items live on hidden turns and are rendered as build cards.
 // A theme pick is a composer setting, not a mention, so it stays a chip.
 // A model is attached, never typed as a mention, so a word that happens to be its name stays a word.
+// Images always show their original-prompt metadata pill, never an inline filename mention.
 type InlineReferenceItem = Exclude<
     AiPromptContextItem,
     {
@@ -23,7 +24,8 @@ type InlineReferenceItem = Exclude<
             | 'composer_node'
             | 'data_app_restore'
             | 'design'
-            | 'semantic_model';
+            | 'semantic_model'
+            | 'thread_image';
     }
 >;
 
@@ -34,7 +36,8 @@ const isInlineReferenceItem = (
     item.type !== 'composer_node' &&
     item.type !== 'data_app_restore' &&
     item.type !== 'design' &&
-    item.type !== 'semantic_model';
+    item.type !== 'semantic_model' &&
+    item.type !== 'thread_image';
 
 export type ContentReferenceSegment =
     | {
@@ -66,6 +69,8 @@ export const getPromptContextItemKey = (
             return `external_source:${item.sourceUuid}`;
         case 'thread_file':
             return `thread_file:${item.fileUuid}`;
+        case 'thread_image':
+            return `thread_image:${item.fileUuid}`;
         case 'pull_request':
             return `pull_request:${item.prUrl}`;
         case 'proposed_change':
@@ -88,6 +93,8 @@ export const getPromptContextItemKey = (
             return `document:${item.documentUuid}`;
         case 'sql_chart':
             return `sql_chart:${item.sqlChartUuid}`;
+        case 'composer_chart':
+            return `composer_chart:${item.composerChartUuid}`;
         case 'design':
             return designContextKey(item.designUuid);
         case 'skill':
@@ -104,6 +111,10 @@ export const getThemeContextItemLabel = (
 export const getSqlChartContextItemLabel = (
     item: Extract<AiPromptContextItem, { type: 'sql_chart' }>,
 ): string => item.displayName ?? item.sqlChartSlug ?? 'SQL chart';
+
+export const getComposerChartContextItemLabel = (
+    item: Extract<AiPromptContextItem, { type: 'composer_chart' }>,
+): string => item.displayName ?? item.composerChartSlug ?? 'Composer chart';
 
 export const getDataAppContextItemName = (
     item: Pick<
@@ -158,6 +169,8 @@ const getPromptContextItemLabel = (item: InlineReferenceItem) => {
             return item.displayName ?? item.documentSlug ?? 'Document';
         case 'sql_chart':
             return getSqlChartContextItemLabel(item);
+        case 'composer_chart':
+            return getComposerChartContextItemLabel(item);
         case 'skill':
             return `/${item.name}`;
         default:
@@ -184,6 +197,7 @@ export const getPromptContextItemHref = (
         case 'repository':
         case 'external_source':
         case 'thread_file':
+        case 'thread_image':
             return null;
         case 'pull_request':
             return item.prUrl;
@@ -215,6 +229,9 @@ export const getPromptContextItemHref = (
             return item.sqlChartSlug
                 ? `/projects/${projectUuid}/sql-runner/${item.sqlChartSlug}`
                 : null;
+        // A composer chart lives on its dashboard, which is pinned beside it.
+        case 'composer_chart':
+            return null;
         // A theme is an organization setting with no in-thread destination.
         case 'design':
             return null;

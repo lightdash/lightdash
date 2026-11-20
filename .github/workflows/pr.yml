@@ -309,7 +309,6 @@ jobs:
       preview: ${{ (github.event.pull_request.draft != true || contains(github.event.pull_request.body, 'test-all')) && (github.event.pull_request.head.repo.full_name == github.repository && ((steps.changes.outputs.preview == 'true' && github.event.pull_request.user.login != 'lightdash-renovate-bot[bot]' && !startsWith(github.event.pull_request.title, 'docs')) || contains(github.event.pull_request.body, 'deploy-preview') || contains(github.event.pull_request.body, 'test-all'))) }}
       frontend: ${{ (github.event.pull_request.draft != true || contains(github.event.pull_request.body, 'test-all')) && (steps.changes.outputs.frontend == 'true' || contains(github.event.pull_request.body, 'test-frontend') || contains(github.event.pull_request.body, 'test-all')) }}
       backend: ${{ (github.event.pull_request.draft != true || contains(github.event.pull_request.body, 'test-all')) && (steps.changes.outputs.backend == 'true' || contains(github.event.pull_request.body, 'test-backend') || contains(github.event.pull_request.body, 'test-all')) }}
-      api_schema: ${{ steps.changes.outputs.api_schema == 'true' }}
       timezone: ${{ (github.event.pull_request.draft != true || contains(github.event.pull_request.body, 'test-all')) && (steps.changes.outputs.timezone == 'true' || contains(github.event.pull_request.body, 'test-timezone') || contains(github.event.pull_request.body, 'test-all')) }}
       cli: ${{ (github.event.pull_request.draft != true || contains(github.event.pull_request.body, 'test-all')) && (steps.changes.outputs.cli == 'true' || contains(github.event.pull_request.body, 'test-cli') || contains(github.event.pull_request.body, 'test-all')) }}
     steps:
@@ -323,56 +322,6 @@ jobs:
         with:
           token: ${{ github.token }}
           filters: .github/file-filters.yml
-
-  openapi-breaking-change-check:
-    if: needs.files-changed.outputs.api_schema == 'true'
-    name: OpenAPI Breaking Change Check
-    runs-on: depot-ubuntu-24.04-4
-    needs: files-changed
-    env:
-      NODE_OPTIONS: "--max-old-space-size=8192"
-    steps:
-      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
-        with:
-          egress-policy: audit
-      - name: Checkout base
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          ref: ${{ github.event.pull_request.base.sha || github.sha }}
-      - name: Read Node pin from checked-out revision
-        id: node-version
-        run: echo "version=$(tr -d '[:space:]' < .nvmrc)" >> "$GITHUB_OUTPUT"
-
-      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
-        with:
-          runtime: node@${{ steps.node-version.outputs.version }}
-          cache: true
-          save-cache: false
-          install: false
-
-      - name: Generate base OpenAPI schema
-        run: |
-          pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
-          pnpm generate-api
-          cp packages/backend/src/generated/swagger.json /tmp/base-swagger.json
-      - name: Checkout PR
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Generate PR OpenAPI schema
-        run: |
-          pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
-          pnpm generate-api
-      - name: Check for OpenAPI breaking changes
-        if: ${{ !contains(github.event.pull_request.body, 'allow-api-breaking-change') }}
-        run: |
-          docker run --rm \
-            -v "$PWD:/work" \
-            -v /tmp:/tmp \
-            -w /work \
-            tufin/oasdiff@sha256:1b878e413bfba39a9bbb2ce95d6a2ddf79bacd4eade9420ad422175b011a71c9 \
-            breaking --fail-on ERR /tmp/base-swagger.json packages/backend/src/generated/swagger.json
-      - name: Report allowed OpenAPI breaking changes
-        if: ${{ contains(github.event.pull_request.body, 'allow-api-breaking-change') }}
-        run: echo "Skipping OpenAPI breaking-change check because allow-api-breaking-change is in the PR description."
 
   post-test-selection-comment:
     name: Post Test Selection Comment

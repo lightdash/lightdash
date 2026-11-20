@@ -5,7 +5,6 @@
  * of the path is the page you are on; see urls.ts.
  */
 import { FeatureFlags } from '@lightdash/common';
-import { Center, Loader } from '@mantine/core';
 import { useCallback, useMemo, type FC } from 'react';
 import {
     Navigate,
@@ -31,15 +30,21 @@ import {
     getStudioPermissions,
 } from './permissions';
 import { buildRealProject } from './realProject';
+import { StudioPageSkeleton } from './StudioPageSkeleton';
 import {
     getSemanticStudioSourceUrl,
     getSemanticStudioUrl,
     parseSemanticStudioPath,
     type StudioRoute,
 } from './urls';
+import {
+    useSemanticLayerDraft,
+    useSemanticLayerStatus,
+} from './useSemanticLayerModel';
 import { type StudioPermissions } from './useSemanticStudio';
 import {
     foldDraftExplores,
+    usePublishedExplores,
     StudioCheckoutProvider,
     useStudioCheckoutState,
 } from './useStudioCheckout';
@@ -65,7 +70,23 @@ const SemanticStudioPage: FC = () => {
         isInitialLoading: isProjectLoading,
         error: projectError,
     } = useProject(projectUuid);
-    const explores = useExplores(projectUuid, true);
+    // A draft kept in the app is laid over the published list, which is then the same on and off the draft.
+    const status = useSemanticLayerStatus(projectUuid ?? '');
+    const readsPublished =
+        !!status?.enabled && status.appliesAs !== 'dbt_pull_request';
+    const viewExplores = useExplores(projectUuid, true, false, {
+        enabled: !!projectUuid && !readsPublished,
+    });
+    const publishedExplores = usePublishedExplores(projectUuid, readsPublished);
+    const explores = {
+        data: readsPublished
+            ? (publishedExplores.data ?? viewExplores.data)
+            : viewExplores.data,
+        isInitialLoading:
+            viewExplores.isInitialLoading ||
+            (publishedExplores.isInitialLoading && !viewExplores.data),
+        error: readsPublished ? publishedExplores.error : viewExplores.error,
+    };
     const ability = user.data?.ability;
     const organizationUuid = user.data?.organizationUuid;
     const isLiveSourcesEnabled = !!liveSourcesFlag.data?.enabled;
@@ -111,7 +132,13 @@ const SemanticStudioPage: FC = () => {
 
     // Asked for now, so the change and its chat load alongside the explores and not after them.
     const checkout = useStudioCheckoutState(projectUuid ?? '');
-    const checkedOutDraft = checkout.shown?.draft ?? null;
+    // A draft just read as empty has nothing to lay over the list, even while the checkout still holds it.
+    const ownDraft = useSemanticLayerDraft(projectUuid ?? '', !!projectUuid);
+    const isDraftGone =
+        ownDraft.data?.changes.length === 0 && !ownDraft.isFetching;
+    const checkedOutDraft = isDraftGone
+        ? null
+        : (checkout.shown?.draft ?? null);
     useDefaultAiAgent(projectUuid);
 
     const realProject = useMemo(
@@ -144,9 +171,9 @@ const SemanticStudioPage: FC = () => {
         liveConnections.isInitialLoading
     ) {
         return (
-            <Center h="100%">
-                <Loader color="gray" />
-            </Center>
+            <Page title="Semantic Layer" withFullHeight noContentPadding>
+                <StudioPageSkeleton />
+            </Page>
         );
     }
 

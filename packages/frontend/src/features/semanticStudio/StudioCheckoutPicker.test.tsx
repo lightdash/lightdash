@@ -42,17 +42,17 @@ const picker = (state: StudioCheckoutState) => (
     </StudioCheckoutProvider>
 );
 
-const trigger = () => screen.getByRole('button', { name: /Change|Live/ });
+const trigger = () => screen.getByRole('button', { name: /Draft|Published/ });
 
 describe('StudioCheckoutPicker', () => {
-    it('checks out B from A, keeps A until B has loaded, then goes back to Live', async () => {
+    it('checks out B from A, keeps A until B has loaded, then goes back to Published', async () => {
         const user = userEvent.setup();
         const { rerender } = renderWithProviders(picker(on(A)));
-        expect(trigger()).toHaveTextContent('Change A');
+        expect(trigger()).toHaveAccessibleName('Draft: Change A');
 
         await user.click(trigger());
         await user.click(
-            await screen.findByRole('menuitem', { name: 'Change B' }),
+            await screen.findByRole('menuitem', { name: /^Change B/ }),
         );
         expect(mutate).toHaveBeenLastCalledWith(
             { kind: 'activate', workspaceUuid: 'B' },
@@ -67,11 +67,13 @@ describe('StudioCheckoutPicker', () => {
         rerender(picker(on(B)));
         expect(trigger()).toHaveTextContent('Change B');
         expect(screen.getByRole('status')).toHaveTextContent(
-            'Change B is checked out',
+            'Draft: Change B is checked out',
         );
 
         await user.click(trigger());
-        await user.click(await screen.findByRole('menuitem', { name: 'Live' }));
+        await user.click(
+            await screen.findByRole('menuitem', { name: 'Back to Published' }),
+        );
         expect(mutate).toHaveBeenLastCalledWith(
             { kind: 'leave' },
             expect.anything(),
@@ -83,25 +85,26 @@ describe('StudioCheckoutPicker', () => {
         renderWithProviders(picker(on(A)));
         await user.click(trigger());
         await user.click(
-            await screen.findByRole('menuitem', { name: 'New change' }),
+            await screen.findByRole('menuitem', { name: 'New draft' }),
         );
         expect(mutate).toHaveBeenLastCalledWith(
             {
                 kind: 'start',
-                body: { threadUuid: null, name: 'Untitled change' },
+                body: { threadUuid: null, name: 'Untitled' },
             },
             expect.anything(),
         );
     });
 
-    it('does nothing for the change already checked out', async () => {
-        mutate.mockClear();
+    it('lists where you can go, not where you are', async () => {
         const user = userEvent.setup();
         renderWithProviders(picker(on(A)));
         await user.click(trigger());
-        await user.click(
-            await screen.findByRole('menuitem', { name: 'Change A' }),
-        );
-        expect(mutate).not.toHaveBeenCalled();
+        expect(
+            await screen.findByRole('menuitem', { name: /^Change B/ }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('menuitem', { name: /^Change A/ }),
+        ).not.toBeInTheDocument();
     });
 });

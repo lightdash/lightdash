@@ -66,6 +66,8 @@ const makeDependencies = (rows = [{ a_dim1: 'EMEA', a_met1: 42 }]) => ({
     }),
     getSavedChart: vi.fn().mockResolvedValue(chart),
     getSqlChart: vi.fn(),
+    getComposerChart: vi.fn(),
+    runComposerChartQuery: vi.fn(),
     runSqlChartQuery: vi.fn(),
     validateContent: vi.fn(),
     maxLimit: 50,

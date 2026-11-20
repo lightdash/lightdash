@@ -59,6 +59,7 @@ import {
     getPromptMcpServers,
     getRecentQueryFieldIds,
     getStepBudgetOverride,
+    getStudioCardResponse,
     normalizeToolOutput,
     recordAgentStepUsage,
     resolveAgentLoadout,
@@ -67,6 +68,7 @@ import {
     storeInvalidAgentToolCall,
     streamAgentResponse,
     withEarlyToolProgress,
+    withStudioCardReply,
     type AgentMcpToolSetup,
 } from './agentV2';
 import { createIntentToolGate } from './referenceToolGating';
@@ -3527,6 +3529,22 @@ describe('buildAgentMessages', () => {
         ).toBe('**Orders:** 64,357');
         expect(
             getDataAnswerFastResponse([
+                result(
+                    { result: 'rejected', metadata: { status: 'rejected' } },
+                    'sql-1',
+                    'runContentQuery',
+                ),
+                result({
+                    result: 'csv',
+                    metadata: {
+                        status: 'success',
+                        fastResponse: '**Orders:** 64,357',
+                    },
+                }),
+            ]),
+        ).toBeNull();
+        expect(
+            getDataAnswerFastResponse([
                 result({
                     result: 'invalid date',
                     metadata: { status: 'error' },
@@ -4357,3 +4375,84 @@ describe.each(['generate', 'stream'] as const)(
         });
     },
 );
+
+describe('withStudioCardReply', () => {
+    const proposed = (draftChangeUuid: string | null) => [
+        {
+            toolCalls: [],
+            toolResults: [
+                {
+                    toolCallId: 'call-1',
+                    toolName: 'proposeSemanticLayerChange',
+                    output: {
+                        result: 'orders: ready',
+                        metadata: {
+                            status: 'success',
+                            models: [
+                                {
+                                    model: 'orders',
+                                    status: draftChangeUuid
+                                        ? 'ready'
+                                        : 'failed',
+                                    changes: [],
+                                    refusals: [],
+                                    error: null,
+                                },
+                            ],
+                            diffs: [],
+                            draftChangeUuid,
+                        },
+                        structuredContent: { models: [] },
+                    },
+                },
+            ],
+        },
+    ];
+
+    it('keeps what the agent wrote', () => {
+        expect(withStudioCardReply('Done.', proposed('draft-1'))).toBe('Done.');
+    });
+
+    it('ends the turn on the card once a change joined the draft cleanly, and not while a model failed', () => {
+        expect(getStudioCardResponse(proposed('draft-1'))).toBe(
+            'Changed orders in the draft.',
+        );
+        expect(getStudioCardResponse(proposed(null))).toBeNull();
+        expect(getStudioCardResponse([])).toBeNull();
+    });
+
+    it("ends the turn on a Studio save, and leaves the main chat's save alone", () => {
+        const saved = (input: object) => [
+            {
+                toolCalls: [
+                    { toolCallId: 'call-1', toolName: 'editDbtProject', input },
+                ],
+                toolResults: [
+                    {
+                        toolCallId: 'call-1',
+                        toolName: 'editDbtProject',
+                        output: {
+                            result: 'Started',
+                            metadata: { status: 'pending' },
+                        },
+                    },
+                ],
+            },
+        ];
+        expect(
+            getStudioCardResponse(saved({ prompt: 'x', script: null })),
+        ).toBe('Saved the change to the draft.');
+        expect(getStudioCardResponse(saved({ prompt: 'x' }))).toBeNull();
+    });
+
+    it('names the changed models when a change ends the turn with nothing written', () => {
+        expect(withStudioCardReply(' \n', proposed('draft-1'))).toBe(
+            'Changed orders in the draft.',
+        );
+    });
+
+    it('stays empty when nothing joined the draft, so the turn still reads as a failure', () => {
+        expect(withStudioCardReply('', proposed(null))).toBe('');
+        expect(withStudioCardReply('', [])).toBe('');
+    });
+});

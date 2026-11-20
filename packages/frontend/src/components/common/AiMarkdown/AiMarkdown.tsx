@@ -15,8 +15,8 @@ type AiMarkdownProps = {
     /** Markdown source. */
     children: string;
     /**
-     * Streaming surfaces (token-by-token SSE) opt in to the animated caret;
-     * polling/static surfaces leave this false.
+     * Streaming surfaces (token-by-token SSE) opt in to words fading in as they
+     * arrive; polling/static surfaces leave this false.
      */
     isStreaming?: boolean;
     /** Extra wrapper class merged onto the base `.aiMarkdown` styling. */
@@ -123,8 +123,7 @@ export const AiMarkdown: FC<AiMarkdownProps> = ({
                     controls={false}
                     mode={isStreaming ? 'streaming' : 'static'}
                     isAnimating={isStreaming}
-                    animated={!isStreaming}
-                    caret={isStreaming ? 'block' : undefined}
+                    animated={isStreaming}
                     remarkPlugins={mergedRemarkPlugins}
                     rehypePlugins={mergedRehypePlugins}
                     plugins={plugins}

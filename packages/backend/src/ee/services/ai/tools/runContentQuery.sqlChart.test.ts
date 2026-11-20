@@ -18,6 +18,8 @@ const makeDependencies = () => ({
     runSavedChartQuery: vi.fn(),
     getSavedChart: vi.fn(),
     getSqlChart: vi.fn().mockResolvedValue(sqlChart),
+    getComposerChart: vi.fn(),
+    runComposerChartQuery: vi.fn(),
     runSqlChartQuery: vi.fn().mockResolvedValue({
         queryUuid: 'query-uuid',
         rows: [

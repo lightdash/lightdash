@@ -47,6 +47,7 @@ import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import BigNumberView from '../DataViz/visualizations/BigNumberView';
 import ChartView from '../DataViz/visualizations/ChartView';
 import { Table } from '../DataViz/visualizations/Table';
+import { NO_CELL_LIMITED_SCOPES } from '../ExportResults/exportCellEstimate';
 import tileClasses from './DashboardTiles.module.css';
 import ExportDataModal from './ExportDataModal';
 import { getSqlTileParameterReport } from './sqlTileParameterReferences';
@@ -502,6 +503,7 @@ const SqlChartTile: FC<Props> = ({
                 showTableNames
                 chartName={tile.properties.title || chartData.name}
                 columnOrder={chartResultsData.chartUnderlyingData?.columns}
+                cellLimitedScopes={NO_CELL_LIMITED_SCOPES}
             />
         </TileBase>
     );

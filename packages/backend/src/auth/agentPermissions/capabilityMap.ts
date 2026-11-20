@@ -63,6 +63,7 @@ export const AGENT_TOOL_CAPABILITIES = {
     ],
     delegateResearchTask: [AgentCapability.Query],
     describeWarehouseTable: [AgentCapability.RawSql],
+    grepWarehouseColumns: [AgentCapability.RawSql],
     discoverFields: [AgentCapability.ReadDiscover],
     discoverRepos: [AgentCapability.ReadDiscover],
     editContent: [AgentCapability.ContentWrite],
@@ -111,6 +112,7 @@ export const AGENT_TOOL_CAPABILITIES = {
     visualize: [AgentCapability.Query],
     runContentQuery: [AgentCapability.Query],
     runQuery: [AgentCapability.Query],
+    runMetricQuery: [AgentCapability.Query],
     runSavedChart: [AgentCapability.Query],
     runSql: [AgentCapability.RawSql],
     searchFieldValues: [AgentCapability.Query],
@@ -131,6 +133,14 @@ export const AGENT_TOOL_EFFECT_CAPABILITIES = {
         AgentCapability.RawSql,
     ],
     'editContent.sql_chart': [
+        AgentCapability.ContentWrite,
+        AgentCapability.RawSql,
+    ],
+    'createContent.composer_chart_sql': [
+        AgentCapability.ContentWrite,
+        AgentCapability.RawSql,
+    ],
+    'editContent.composer_chart_sql': [
         AgentCapability.ContentWrite,
         AgentCapability.RawSql,
     ],
@@ -524,6 +534,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiRouterController.getInstruction': [AgentCapability.ReadDiscover],
     'AiRouterController.listDecisions': [AgentCapability.ReadDiscover],
     'AiRouterController.route': [AgentCapability.ReadDiscover],
+    'AiRouterController.routeCapture': [AgentCapability.ReadDiscover],
     'AiRouterController.upsertConfig': [AgentCapability.Administration],
     'AiRouterController.upsertInstruction': [AgentCapability.Administration],
     'AiServiceAccountController.delete': [
@@ -535,6 +546,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiServiceAccountController.upsert': [AgentCapability.Administration],
     'AiThreadFileController.delete': [AgentCapability.Delete],
     'AiThreadFileController.upload': [AgentCapability.DeployUpload],
+    'AiThreadFileController.uploadImage': [AgentCapability.DeployUpload],
     'AiWritebackController.closeWritebackPullRequest': [
         AgentCapability.DbtWriteback,
     ],
@@ -636,6 +648,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'AppGenerateController.promoteApp': [AgentCapability.Publish],
     'AppGenerateController.restoreAppVersion': [AgentCapability.ContentWrite],
     'AppGenerateController.toggleAppPinning': [AgentCapability.ContentWrite],
+    'AppGenerateController.transcribeCapture': [AgentCapability.ContentWrite],
     'AppGenerateController.unverifyDataApp': [AgentCapability.Publish],
     'AppGenerateController.updateApp': [AgentCapability.ContentWrite],
     'AppGenerateController.upgradeApp': [AgentCapability.ContentWrite],
@@ -1058,6 +1071,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'SemanticStudioController.applyDraft': [AgentCapability.DbtWriteback],
     'SemanticStudioController.applyDraftModel': [AgentCapability.DbtWriteback],
     'SemanticStudioController.checkDraftImpact': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.compileCheckout': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.getCheckout': [AgentCapability.ReadDiscover],
+    'SemanticStudioController.publishCheckout': [AgentCapability.DbtWriteback],
     'SemanticStudioController.discardDraftModel': [
         AgentCapability.DbtWriteback,
     ],
@@ -1073,6 +1089,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'SemanticStudioController.takeLiveDraftPart': [
         AgentCapability.DbtWriteback,
     ],
+    'SemanticStudioController.saveDraftModel': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getDraftImpact': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getDraftUsage': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getFieldUsage': [AgentCapability.DbtWriteback],
@@ -1837,6 +1854,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'QueryController.executeAsyncMergeQuery': [AgentCapability.Query],
     'QueryController.executeAsyncMetricQuery': [AgentCapability.Query],
     'QueryController.executeAsyncSavedChartQuery': [AgentCapability.Query],
+    'QueryController.executeAsyncSavedMergeQuery': [AgentCapability.Query],
     'QueryController.executeAsyncSqlChartQuery': [
         AgentCapability.Query,
         AgentCapability.RawSql,

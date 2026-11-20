@@ -1,5 +1,6 @@
 import {
     APP_SDK_APP_STATE_MESSAGE,
+    APP_SDK_CAPTURE_HOTKEY_MESSAGE,
     APP_SDK_APP_STATE_RESPONSE_MESSAGE,
     APP_SDK_COLOR_SCHEME_MESSAGE,
     APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE,
@@ -47,6 +48,7 @@ import {
 } from '@lightdash/common';
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
 import { validate as isValidUuid } from 'uuid';
+import { LightdashEventType } from '../../../ee/features/embed/events/types';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import {
     getGdriveAccessToken,
@@ -428,6 +430,10 @@ export type ExternalRequestEvent = {
 // Caps what an app can push into the host page's URL / browser history.
 const MAX_URL_STATE_CHARS = 4096;
 
+// Keep in sync with the caps in packages/query-sdk/src/hostEvents.ts.
+const MAX_APP_EVENT_NAME_CHARS = 100;
+const MAX_APP_EVENT_PAYLOAD_BYTES = 64 * 1024;
+
 const UNAVAILABLE_INSIGHTS: DataAppInsightsPayload = {
     status: 'unavailable',
     analysisId: null,
@@ -650,6 +656,13 @@ export type UseAppSdkBridgeParams = {
     onInsightAnalyseOnLoadChange?: (analyseOnLoad: boolean | null) => void;
     /** Which query uuids the app currently has on screen (SDKs that report). */
     onMountedQueriesChange?: (queryUuids: string[]) => void;
+    /**
+     * The user pressed the capture hotkey (mod+shift+X) while focus was inside
+     * the app, where the host page cannot see key presses. Absent = the host
+     * offers no capture here and the message is dropped. Bundles built before
+     * the SDK forwarded the hotkey never send it.
+     */
+    onCaptureHotkey?: () => void;
 };
 
 export function useAppSdkBridge({
@@ -695,6 +708,7 @@ export function useAppSdkBridge({
     onInsightInstructionsChange,
     onInsightAnalyseOnLoadChange,
     onMountedQueriesChange,
+    onCaptureHotkey,
 }: UseAppSdkBridgeParams) {
     const lightdashApi = useLightdashApi();
     // Embed mode adapts the bridge's outgoing fetches in two ways:
@@ -704,7 +718,11 @@ export function useAppSdkBridge({
     //     endpoint so that existing data apps built before embedding existed
     //     don't break on `client.auth.getUser()`. The SDK protocol is
     //     unchanged — the rewrite happens entirely on the parent side.
-    const { embedToken, projectUuid: embedProjectUuid } = useEmbed();
+    const {
+        embedToken,
+        projectUuid: embedProjectUuid,
+        dispatchEmbedEvent,
+    } = useEmbed();
     const { health, user } = useApp();
 
     // Maps queryUuid → POST request id. The SDK transport assigns a fresh
@@ -871,6 +889,13 @@ export function useAppSdkBridge({
                 return;
             }
 
+            // The one key combination the SDK forwards. It carries no payload,
+            // so there is nothing to validate beyond the sender checks above.
+            if (data?.type === APP_SDK_CAPTURE_HOTKEY_MESSAGE) {
+                onCaptureHotkey?.();
+                return;
+            }
+
             if (data?.type === APP_SDK_INSIGHTS_REQUEST_MESSAGE) {
                 const { inUse, instructions, analyseOnLoad } = data as {
                     inUse?: unknown;
@@ -1010,6 +1035,51 @@ export function useAppSdkBridge({
                     return;
                 }
                 onUrlStateChange(state as Record<string, unknown>);
+                return;
+            }
+
+            if (data?.type === 'lightdash:sdk:app-event') {
+                // Only an embed has a host page to tell.
+                if (!embedToken) return;
+                const reject = (reason: string) =>
+                    console.warn(`[lightdash] Ignoring app event: ${reason}`);
+                const name: unknown = data.name;
+                if (
+                    typeof name !== 'string' ||
+                    name.trim().length === 0 ||
+                    name.length > MAX_APP_EVENT_NAME_CHARS
+                ) {
+                    reject('invalid event name');
+                    return;
+                }
+                let serialized: string | undefined;
+                try {
+                    serialized = JSON.stringify(data.payload ?? null);
+                } catch {
+                    serialized = undefined;
+                }
+                if (serialized === undefined) {
+                    reject('payload not JSON-serializable');
+                    return;
+                }
+                if (
+                    new TextEncoder().encode(serialized).length >
+                    MAX_APP_EVENT_PAYLOAD_BYTES
+                ) {
+                    reject(
+                        `payload over ${MAX_APP_EVENT_PAYLOAD_BYTES} bytes serialized`,
+                    );
+                    return;
+                }
+                // Relay what was measured: a structured clone can carry
+                // binary data that JSON.stringify counts as `{}`.
+                const payload: unknown = JSON.parse(serialized);
+                // Fixed outer type: the app picks only the inner name, so it
+                // can't pose as one of Lightdash's own events.
+                dispatchEmbedEvent(LightdashEventType.AppEvent, {
+                    name,
+                    payload,
+                });
                 return;
             }
 
@@ -1822,6 +1892,7 @@ export function useAppSdkBridge({
             invalidateCache,
             embedToken,
             embedProjectUuid,
+            dispatchEmbedEvent,
             capabilities,
             onLineageAvailable,
             onLineageSelected,
@@ -1853,6 +1924,7 @@ export function useAppSdkBridge({
             onInsightInstructionsChange,
             onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
+            onCaptureHotkey,
             lightdashApi,
         ],
     );

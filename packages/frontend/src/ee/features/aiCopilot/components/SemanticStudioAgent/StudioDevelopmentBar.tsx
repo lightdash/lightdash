@@ -1,13 +1,20 @@
 import {
-    assertUnreachable,
-    CiMergeState,
-    type CiChecks,
-} from '@lightdash/common';
-import { ActionIcon, Button, Group, Menu, Text, Tooltip } from '@mantine/core';
-import { IconDots, IconExternalLink } from '@tabler/icons-react';
-import { useQueryClient } from '@tanstack/react-query';
+    ActionIcon,
+    Button,
+    Group,
+    Loader,
+    Menu,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import {
+    IconAlertTriangle,
+    IconDots,
+    IconExternalLink,
+} from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { Link } from 'react-router';
+import { useGithubUserCredential } from '../../../../../components/common/GithubIntegration/hooks/useGithubIntegration';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { DevelopmentBar } from '../../../../../features/semanticStudio/DevelopmentBar';
@@ -16,64 +23,41 @@ import {
     isDevelopmentViewPinned,
     useDevelopmentView,
 } from '../../../../../features/semanticStudio/developmentView';
-import { rememberGoingLive } from '../../../../../features/semanticStudio/useGoingLive';
-import { useProject } from '../../../../../hooks/useProject';
+import { useCompileCheckout } from '../../../../../features/semanticStudio/useSemanticLayerModel';
 import { useClosePullRequest } from '../../hooks/useClosePullRequest';
-import { useMergePullRequest } from '../../hooks/useMergePullRequest';
-import {
-    useElapsed,
-    useWritebackProgress,
-} from '../../hooks/useWritebackProgress';
-import { isMergeable } from '../ChatElements/ToolCalls/pullRequestActions';
-import { WRITEBACK_STEPS } from '../ChatElements/ToolCalls/writebackProgress';
-import { WritebackSegments } from '../ChatElements/ToolCalls/WritebackProgressCard';
+import { useWritebackProgress } from '../../hooks/useWritebackProgress';
+import { PublishDraftModal } from './PublishDraftModal';
 import { TryItButton } from './TryItButton';
 import { useFinishDiscardedWork } from './useSemanticStudioChat';
+import { useStudioPublish } from './useStudioPublish';
 import {
     type StudioPendingChange,
     type StudioPullRequest,
 } from './useStudioPullRequest';
 
-/** Why an open pull request cannot be merged yet. */
-const getBlockedReason = (ciChecks: CiChecks | null): string => {
-    const mergeState = ciChecks?.mergeState;
-    switch (mergeState) {
-        case undefined:
-        case CiMergeState.READY:
-        case CiMergeState.UNSTABLE:
-        case CiMergeState.UNKNOWN:
-            return 'Checking whether the pull request can be merged.';
-        case CiMergeState.BLOCKED:
-            return 'A required check failed or a review is missing.';
-        case CiMergeState.CONFLICTS:
-            return 'The pull request has conflicts to resolve first.';
-        case CiMergeState.BEHIND:
-            return 'The branch is behind its base and needs updating first.';
-        case CiMergeState.DRAFT:
-            return 'The pull request is still a draft.';
-        default:
-            return assertUnreachable(mergeState, 'Unknown merge state');
-    }
-};
-
-/** What a dbt project's Studio conversation has saved so far: its pull request, a look at the result, and merging it. */
+/** What a dbt project's Studio conversation has saved so far: its pull request, a look at the result, and publishing it. */
 export const StudioDevelopmentBar: FC<{
     projectUuid: string;
     pullRequest: StudioPullRequest;
 }> = ({ projectUuid, pullRequest }) => {
     const { prUrl, previewProjectUuid, ciChecks, isMine } = pullRequest;
-    const { data: project } = useProject(projectUuid);
-    const queryClient = useQueryClient();
-    const { mutate: merge, isLoading: isMerging } =
-        useMergePullRequest(projectUuid);
+    const {
+        name,
+        destination,
+        compile,
+        canWriteBranch,
+        mergesHere,
+        branch,
+        step,
+    } = useStudioPublish(projectUuid, prUrl, ciChecks);
+    const compileAgain = useCompileCheckout(projectUuid);
+    const { data: credential } = useGithubUserCredential();
     const { mutate: close, isLoading: isClosing } =
         useClosePullRequest(projectUuid);
-    const [merging, setMerging] = useState(false);
+    const [publishing, setPublishing] = useState(false);
     const [discarding, setDiscarding] = useState(false);
     const [isTrying, setIsTrying] = useDevelopmentView();
     const finishDiscardedWork = useFinishDiscardedWork(projectUuid);
-    const number = /\/(\d+)\/?$/.exec(prUrl)?.[1];
-    const name = number ? `pull request #${number}` : 'the pull request';
     // The preview is the truer source once it is built, so a view switched on before then moves to it.
     useEffect(() => {
         if (
@@ -85,39 +69,62 @@ export const StudioDevelopmentBar: FC<{
             setIsTrying(true, previewProjectUuid);
         }
     }, [isTrying, previewProjectUuid, setIsTrying]);
-    const branch =
-        project?.dbtConnection && 'branch' in project.dbtConnection
-            ? project.dbtConnection.branch
-            : null;
-    const canMerge = isMergeable(ciChecks);
-    const destination = `${name}${branch ? ` into ${branch}` : ''}`;
+    const canPublish = isMine && canWriteBranch && step.action === 'publish';
     return (
         <DevelopmentBar summary={null}>
             <TryItButton
                 projectUuid={projectUuid}
                 pullRequest={pullRequest}
-                look="primary"
+                look={canPublish ? 'secondary' : 'primary'}
             />
-            {isMine ? (
+            {isMine && !canWriteBranch ? (
                 <Tooltip
                     multiline
                     w={240}
                     label={
-                        canMerge
-                            ? `Merges ${destination}.`
-                            : getBlockedReason(ciChecks)
+                        mergesHere
+                            ? `Only people who can write to ${branch ?? "the project's branch"} can publish.`
+                            : 'Merge it in your repository to publish.'
                     }
                 >
                     <Button
                         size="xs"
                         variant="default"
-                        data-disabled={!canMerge || undefined}
-                        aria-disabled={!canMerge}
+                        component="a"
+                        href={prUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        Open pull request
+                    </Button>
+                </Tooltip>
+            ) : isMine ? (
+                <Tooltip multiline w={240} label={step.hint}>
+                    <Button
+                        size="xs"
+                        variant={canPublish ? 'filled' : 'default'}
+                        leftSection={
+                            compile?.status === 'compiling' ? (
+                                <Loader size={12} color="gray" />
+                            ) : compile?.status === 'failed' ? (
+                                <MantineIcon
+                                    icon={IconAlertTriangle}
+                                    size={14}
+                                    color="yellow"
+                                />
+                            ) : null
+                        }
+                        loading={compileAgain.isLoading}
+                        data-disabled={step.action === null || undefined}
+                        aria-disabled={step.action === null}
                         onClick={() => {
-                            if (canMerge) setMerging(true);
+                            if (step.action === 'compile')
+                                compileAgain.mutate();
+                            else if (step.action === 'publish')
+                                setPublishing(true);
                         }}
                     >
-                        Merge
+                        {step.label}
                     </Button>
                 </Tooltip>
             ) : null}
@@ -126,7 +133,8 @@ export const StudioDevelopmentBar: FC<{
                     <ActionIcon
                         size="md"
                         aria-label="More actions"
-                        variant="default"
+                        variant="subtle"
+                        color="gray"
                     >
                         <MantineIcon icon={IconDots} />
                     </ActionIcon>
@@ -144,6 +152,14 @@ export const StudioDevelopmentBar: FC<{
                             Open preview project
                         </Menu.Item>
                     ) : null}
+                    {pullRequest.changedModels[0] ? (
+                        <Menu.Item
+                            component={Link}
+                            to={`/projects/${projectUuid}/tables/${encodeURIComponent(pullRequest.changedModels[0])}`}
+                        >
+                            Open in Explore
+                        </Menu.Item>
+                    ) : null}
                     <Menu.Item
                         component="a"
                         href={prUrl}
@@ -153,6 +169,16 @@ export const StudioDevelopmentBar: FC<{
                     >
                         Open {name}
                     </Menu.Item>
+                    {isMine &&
+                    prUrl.startsWith('https://github.com/') &&
+                    credential === null ? (
+                        <Menu.Item
+                            component={Link}
+                            to="/generalSettings/profile"
+                        >
+                            Open pull requests as you
+                        </Menu.Item>
+                    ) : null}
                     {isMine ? (
                         <>
                             <Menu.Divider />
@@ -166,31 +192,12 @@ export const StudioDevelopmentBar: FC<{
                     ) : null}
                 </Menu.Dropdown>
             </Menu>
-            {merging ? (
-                <MantineModal
-                    opened
-                    title="Merge pull request"
-                    description={`This merges ${destination}, and everyone sees the changes once the project compiles.`}
-                    confirmLabel="Merge"
-                    confirmLoading={isMerging}
-                    onClose={() => setMerging(false)}
-                    onConfirm={() =>
-                        merge(
-                            { prUrl, sha: null },
-                            {
-                                // A failed merge keeps the dialog, under the toast that says why.
-                                onSuccess: ({ compileJobUuid }) => {
-                                    setMerging(false);
-                                    rememberGoingLive(
-                                        queryClient,
-                                        projectUuid,
-                                        prUrl,
-                                        compileJobUuid,
-                                    );
-                                },
-                            },
-                        )
-                    }
+            {publishing ? (
+                <PublishDraftModal
+                    projectUuid={projectUuid}
+                    prUrl={prUrl}
+                    destination={destination}
+                    onClose={() => setPublishing(false)}
                 />
             ) : null}
             {discarding ? (
@@ -221,30 +228,30 @@ export const StudioDevelopmentBar: FC<{
     );
 };
 
-/** A dbt change still running in the background, in the toolbar: the step it is on and how long it has been. */
+/** A dbt change still being saved, in the toolbar: only that it is under way, since the chat shows its steps. */
 export const StudioSavingBar: FC<{
     projectUuid: string;
     change: StudioPendingChange;
     /** The open pull request this save adds to; null when the save opens the first one. */
     pullRequest: StudioPullRequest | null;
 }> = ({ projectUuid, change, pullRequest }) => {
-    const progress = useWritebackProgress(
+    const { state } = useWritebackProgress(
         projectUuid,
         change.aiWritebackRunUuid,
     );
-    const { step, state } = progress;
-    const elapsed = useElapsed(change.startedAt);
     return (
         <DevelopmentBar
             summary={
-                <Group gap="xs" wrap="nowrap" miw={0}>
-                    <WritebackSegments progress={progress} size="sm" />
+                <Group gap={6} wrap="nowrap" miw={0}>
+                    {state === 'running' ? (
+                        <Loader size={12} color="gray" />
+                    ) : null}
                     <Text fz="xs" c="dimmed" truncate>
                         {state === 'running'
-                            ? `${WRITEBACK_STEPS[step]}, step ${step + 1} of ${WRITEBACK_STEPS.length}`
+                            ? 'Saving'
                             : state === 'done'
                               ? 'Saved'
-                              : 'The change stopped'}
+                              : 'The save stopped'}
                     </Text>
                 </Group>
             }
@@ -257,11 +264,6 @@ export const StudioSavingBar: FC<{
                     look="primary"
                 />
             ) : null}
-            <Tooltip label="Usually takes 2 to 3 minutes. The pull request shows up here when it is ready.">
-                <Text fz="xs" c="dimmed" ff="monospace">
-                    {elapsed}
-                </Text>
-            </Tooltip>
         </DevelopmentBar>
     );
 };

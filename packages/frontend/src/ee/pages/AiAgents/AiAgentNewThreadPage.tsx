@@ -135,6 +135,7 @@ const AiAgentNewThreadPage: FC = () => {
     const [searchParams] = useSearchParams();
     const chartUuid = searchParams.get('chartUuid');
     const sqlChartUuid = searchParams.get('sqlChartUuid');
+    const composerChartUuid = searchParams.get('composerChartUuid');
     const dashboardUuid = searchParams.get('dashboardUuid');
     const dataAppUuid = searchParams.get('dataAppUuid');
     const documentUuid = searchParams.get('documentUuid');
@@ -151,6 +152,7 @@ const AiAgentNewThreadPage: FC = () => {
         dataAppUuidOrSlug: dataAppUuid,
         documentUuid,
         sqlChartUuid,
+        composerChartUuid,
     });
     const boundDashboardUuid =
         aiAgentThreadSetup?.binding?.type === 'dashboard'
@@ -372,7 +374,7 @@ const AiAgentNewThreadPage: FC = () => {
                 );
                 return;
             }
-            void createAgentThread({
+            return createAgentThread({
                 agentUuid,
                 prompt: message,
                 context: mergedContext,
@@ -419,7 +421,9 @@ const AiAgentNewThreadPage: FC = () => {
             { pathname: location.pathname, search: location.search },
             { replace: true, state: undefined },
         );
-        onSubmit({ message: autoSubmitPrompt, toolHints: [] });
+        void Promise.resolve(
+            onSubmit({ message: autoSubmitPrompt, toolHints: [] }),
+        ).catch(() => undefined);
     }, [
         autoSubmitPrompt,
         agentUuid,
@@ -615,6 +619,11 @@ const AiAgentNewThreadPage: FC = () => {
                         <AgentChatInput
                             key={composerSeedKey}
                             onSubmit={onSubmit}
+                            imageAttachmentsUnavailableReason={
+                                isBattle
+                                    ? 'Start a single conversation to attach images'
+                                    : undefined
+                            }
                             onStartDeepResearch={
                                 canStartDeepResearch && !isBattle
                                     ? onStartDeepResearch

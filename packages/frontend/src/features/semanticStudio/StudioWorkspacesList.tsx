@@ -16,7 +16,7 @@ import { useStudioWorkspaces } from './useStudioWorkspaces';
 
 dayjs.extend(relativeTime);
 
-const STAGES = ['Proposed', 'Saved', 'In review', 'Live'] as const;
+const STAGES = ['Proposed', 'Saved', 'In review', 'Published'] as const;
 
 /** How many stages are behind the run, and the one it is on. */
 const stageOf = (run: StudioRun): number => {
@@ -137,9 +137,12 @@ const MineRow: FC<{
     </Box>
 );
 
-const whereItStands = ({ pullRequest }: SemanticStudioWorkspace): string => {
+const whereItStands = ({
+    pullRequest,
+    publishedLive,
+}: SemanticStudioWorkspace): string => {
     const number = pullRequestNumberOf(pullRequest?.url);
-    if (!pullRequest) return 'Not saved yet';
+    if (!pullRequest) return publishedLive ? 'Published' : 'Not saved yet';
     switch (pullRequest.state) {
         case 'merged':
             return number ? `Merged as #${number}` : 'Merged';
@@ -165,14 +168,15 @@ export const StudioWorkspacesList: FC<{
     if (error || !data) {
         return (
             <Text fz="sm" c="dimmed" ta="center" py="xl">
-                Changes could not be loaded.
+                Drafts could not be loaded.
             </Text>
         );
     }
     const { others } = data;
-    // Only merged work went live; discarded work is not listed.
+    // Discarded work is not listed.
     const recent = data.recent.filter(
-        ({ pullRequest }) => pullRequest?.state === 'merged',
+        ({ pullRequest, publishedLive }) =>
+            publishedLive || pullRequest?.state === 'merged',
     );
     const waiting = rows.filter(({ run }) => needsYou(run));
     const going = rows.filter(({ run }) => !needsYou(run));
@@ -195,24 +199,13 @@ export const StudioWorkspacesList: FC<{
     return (
         <Box className={classes.page}>
             <header className={classes.hero}>
-                <Text className={classes.title}>Changes</Text>
+                <Text className={classes.title}>Drafts</Text>
                 <Text className={classes.lede}>
                     {rows.length === 0
-                        ? 'Nothing in flight yet. Ask for a change to get started.'
+                        ? 'No drafts yet.'
                         : 'Pick up where you and your team left off.'}
                 </Text>
             </header>
-            {rows.length === 0 ? (
-                <div className={classes.empty}>
-                    <Text fz="sm" fw={500}>
-                        Nothing in flight
-                    </Text>
-                    <Text fz="xs" c="dimmed">
-                        Start one with New change, or ask for a change in the
-                        chat.
-                    </Text>
-                </div>
-            ) : null}
             {waiting.length > 0 ? (
                 <Section label="Needs you" count={waiting.length}>
                     {waiting.map(mineRow)}
@@ -266,7 +259,7 @@ export const StudioWorkspacesList: FC<{
                 </Section>
             ) : null}
             {recent.length > 0 ? (
-                <Section label="Live lately" count={recent.length}>
+                <Section label="Published lately" count={recent.length}>
                     <ol className={classes.timeline}>
                         {recent.map((workspace) => (
                             <li key={workspace.workspaceUuid}>

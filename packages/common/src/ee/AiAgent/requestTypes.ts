@@ -18,6 +18,7 @@ import {
     type AiAgentReviewRemediationStatus,
     type AiAgentRootCause,
 } from './aiAgentReviewClassifierTypes';
+import { type AiThreadImageMediaType } from './threadFileTypes';
 
 export type AiAgentModelConfig = {
     modelName: string;
@@ -330,6 +331,12 @@ export type AiPromptContextItemInput =
           sqlChartSlug: string | null;
       }
     | {
+          // A dashboard's composer chart; the server snapshots its name and latest version.
+          type: 'composer_chart';
+          composerChartUuid: string;
+          composerChartSlug: string | null;
+      }
+    | {
           type: 'thread';
           threadUuid: string;
           // The turn the reference points at (e.g. a flagged prompt).
@@ -357,6 +364,10 @@ export type AiPromptContextItemInput =
           // A text document the user uploaded for this conversation. Sending
           // the prompt claims the file for the thread in the same transaction.
           type: 'thread_file';
+          fileUuid: UUID;
+      }
+    | {
+          type: 'thread_image';
           fileUuid: UUID;
       }
     | {
@@ -479,6 +490,13 @@ export type AiPromptThreadFileSnapshot = {
     sizeBytes: number;
 };
 
+export type AiPromptThreadImageSnapshot = {
+    sizeBytes: number;
+    mediaType: AiThreadImageMediaType;
+    width: number;
+    height: number;
+};
+
 export type AiPromptContextItem =
     | {
           type: 'chart';
@@ -501,6 +519,13 @@ export type AiPromptContextItem =
           type: 'sql_chart';
           sqlChartUuid: string;
           sqlChartSlug: string | null;
+          pinnedVersionUuid: string | null;
+          displayName: string | null;
+      }
+    | {
+          type: 'composer_chart';
+          composerChartUuid: string;
+          composerChartSlug: string | null;
           pinnedVersionUuid: string | null;
           displayName: string | null;
       }
@@ -534,6 +559,11 @@ export type AiPromptContextItem =
           fileName: string;
           sizeBytes: number;
       }
+    | ({
+          type: 'thread_image';
+          fileUuid: string;
+          fileName: string;
+      } & AiPromptThreadImageSnapshot)
     | {
           type: 'pull_request';
           prUrl: string;

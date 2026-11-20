@@ -43,7 +43,9 @@ import {
     DbQueryHistory,
     DbQueryHistoryUpdate,
     QueryHistoryCacheOutcome,
-    queryHistoryRequestColumnSql,
+    queryHistoryExploreNameSql,
+    queryHistoryRequestColumnJsonSql,
+    queryHistoryRequestUuidSql,
     QueryHistoryTableName,
 } from '../../database/entities/queryHistory';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
@@ -732,17 +734,29 @@ export class QueryHistoryModel {
         content: CachedResultsContent,
         createdSince: Date,
     ): Promise<number> {
-        const contentColumn = queryHistoryRequestColumnSql(
-            QueryHistoryTableName,
+        const column =
             content.type === 'chart'
                 ? 'request_chart_uuid'
-                : 'request_dashboard_uuid',
-        );
+                : 'request_dashboard_uuid';
+        // Filled rows are matched on the copied column, so charts read only the covering index.
         const contentCacheKeys = this.database(QueryHistoryTableName)
-            .distinct('cache_key')
+            .select('cache_key')
             .where('project_uuid', projectUuid)
             .andWhere('created_at', '>', createdSince)
-            .whereRaw(`${contentColumn} = ANY(?)`, [content.identifiers]);
+            .whereNotNull('metric_query_explore_name')
+            .whereRaw(`${column} = ANY(?)`, [content.identifiers])
+            .union((unfilled) => {
+                void unfilled
+                    .select('cache_key')
+                    .from(QueryHistoryTableName)
+                    .where('project_uuid', projectUuid)
+                    .andWhere('created_at', '>', createdSince)
+                    .whereNull('metric_query_explore_name')
+                    .whereRaw(
+                        `${queryHistoryRequestColumnJsonSql(QueryHistoryTableName, column)} = ANY(?)`,
+                        [content.identifiers],
+                    );
+            });
         return this.invalidateCachedResultsByCacheKeys(
             projectUuid,
             contentCacheKeys,
@@ -1166,21 +1180,21 @@ export class QueryHistoryModel {
             .leftJoin(SavedChartsTableName, function joinRequestChart() {
                 this.on(
                     database.raw(
-                        `${SavedChartsTableName}.saved_query_uuid::text = ${queryHistoryRequestColumnSql(QueryHistoryTableName, 'request_chart_uuid')}`,
+                        `${SavedChartsTableName}.saved_query_uuid = ${queryHistoryRequestUuidSql(QueryHistoryTableName, 'request_chart_uuid')}`,
                     ),
                 );
             })
             .leftJoin(SavedSqlTableName, function joinRequestSqlChart() {
                 this.on(
                     database.raw(
-                        `${SavedSqlTableName}.saved_sql_uuid::text = ${queryHistoryRequestColumnSql(QueryHistoryTableName, 'request_saved_sql_uuid')}`,
+                        `${SavedSqlTableName}.saved_sql_uuid = ${queryHistoryRequestUuidSql(QueryHistoryTableName, 'request_saved_sql_uuid')}`,
                     ),
                 );
             })
             .leftJoin(DashboardsTableName, function joinRequestDashboard() {
                 this.on(
                     database.raw(
-                        `${DashboardsTableName}.dashboard_uuid::text = ${queryHistoryRequestColumnSql(QueryHistoryTableName, 'request_dashboard_uuid')}`,
+                        `${DashboardsTableName}.dashboard_uuid = ${queryHistoryRequestUuidSql(QueryHistoryTableName, 'request_dashboard_uuid')}`,
                     ),
                 );
             })
@@ -1242,7 +1256,7 @@ export class QueryHistoryModel {
                         searchPattern,
                     )
                     .orWhereRaw(
-                        `${QueryHistoryTableName}.metric_query->>'exploreName' ilike ?`,
+                        `${queryHistoryExploreNameSql(QueryHistoryTableName)} ilike ?`,
                         [searchPattern],
                     )
                     .orWhereRaw(

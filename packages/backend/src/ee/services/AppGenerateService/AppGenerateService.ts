@@ -101,6 +101,7 @@ import {
     type AppVersionStatusHistoryEntry,
     type AppVersionStatusHistoryEntryKind,
     type AppVizBuildContext,
+    type CaptureTranscriptWord,
     type ChartConfig,
     type ChartReference,
     type ChartRegistryEntry,
@@ -314,6 +315,11 @@ import {
     assertDataAppQueryAllowed,
     type DataAppQueryInputs,
 } from './appQueryAuthorization';
+import {
+    audioFilenameForMimeType,
+    transcribeCaptureAudio,
+    transcriptionLanguage,
+} from './captureTranscription';
 import {
     CLARIFY_APP_SYSTEM_PROMPT,
     CLARIFY_VIZ_SYSTEM_PROMPT,
@@ -2564,6 +2570,87 @@ export class AppGenerateService extends BaseService {
         throw new ParameterError(
             `Unsupported file type: ${declaredMimeType}. Supported: images (PNG, JPEG, GIF, WEBP), PDF, and text-based files (JSON, CSV, Markdown, XML/TWB, YAML, code, …)`,
         );
+    }
+
+    /** Voice Design is behind its feature flags on every surface that uses it. */
+    private async assertVoiceDesignEnabled(user: SessionUser): Promise<void> {
+        const flags = await Promise.all(
+            [FeatureFlags.DataAppCapture, FeatureFlags.DashboardCapture].map(
+                (featureFlagId) =>
+                    this.featureFlagModel.get({ user, featureFlagId }),
+            ),
+        );
+        if (!flags.some(({ enabled }) => enabled)) {
+            throw new ForbiddenError('Voice Design is not enabled');
+        }
+    }
+
+    /**
+     * Transcribes the audio of a Voice Design recording into timed words.
+     * The audio is sent to the transcription provider and not stored.
+     */
+    async transcribeCapture(
+        user: SessionUser,
+        projectUuid: string,
+        declaredMimeType: string,
+        body: Readable,
+        contentLength: number,
+        locale?: string,
+    ): Promise<CaptureTranscriptWord[]> {
+        await this.assertAnyAppsEnabled(user);
+        const { organizationUuid } = await this.assertDataAppAbility(
+            user,
+            'create',
+            projectUuid,
+            'Insufficient permissions to transcribe a capture',
+        );
+        await this.assertDataAppCapturesEnabled(organizationUuid);
+        await this.assertVoiceDesignEnabled(user);
+
+        const filename = audioFilenameForMimeType(declaredMimeType);
+        if (!filename) {
+            throw new ParameterError(
+                `Unsupported audio type: ${declaredMimeType}`,
+            );
+        }
+        const maxSize = 10 * 1024 * 1024; // 10 MB
+        if (contentLength > maxSize) {
+            throw new ParameterError(
+                `Audio too large: ${contentLength} bytes. Maximum: ${maxSize} bytes`,
+            );
+        }
+        const { openai } = this.lightdashConfig.ai.copilot.providers;
+        if (!openai) {
+            throw new MissingConfigError(
+                'Capture transcription needs an OpenAI API key',
+            );
+        }
+
+        const chunks: Buffer[] = [];
+        let received = 0;
+        for await (const chunk of body) {
+            const buffer = Buffer.from(chunk);
+            received += buffer.length;
+            if (received > maxSize) {
+                throw new ParameterError(
+                    `Audio too large. Maximum: ${maxSize} bytes`,
+                );
+            }
+            chunks.push(buffer);
+        }
+
+        const words = await transcribeCaptureAudio({
+            apiKey: openai.apiKey,
+            baseUrl: openai.baseUrl ?? null,
+            audio: Buffer.concat(chunks),
+            filename,
+            mimeType: declaredMimeType,
+            language: transcriptionLanguage(locale),
+        });
+        this.logger.debug(
+            `Capture transcription: ${received} bytes of ${declaredMimeType}, ${words.length} words`,
+        );
+        return words;
     }
 
     async uploadFile(

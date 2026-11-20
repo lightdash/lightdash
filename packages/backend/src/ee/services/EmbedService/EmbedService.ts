@@ -62,7 +62,6 @@ import {
     isExternalFetchComposerChartContext,
     isExternalFetchDocumentContext,
     isFilterInteractivityEnabled,
-    isFilterLockedOnTab,
     MetricQuery,
     NotFoundError,
     NotSupportedError,
@@ -75,7 +74,6 @@ import {
     SchedulerFormat,
     SessionAccount,
     SortField,
-    stripOverridesForLockedFiltersOnTab,
     UpdateEmbed,
     UserAccessControls,
     UserAttributeValueMap,
@@ -136,6 +134,7 @@ import {
     redactFieldSql,
     redactItemsMapSql,
 } from '../../../utils/embedCompiledSql';
+import { getEffectiveEmbedDashboardFilters } from '../../../utils/embedDashboardFilters';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
 import { getResultEntitlementFingerprint } from '../../../utils/queryResultProducer';
@@ -1456,6 +1455,27 @@ export class EmbedService extends BaseService {
         return chart;
     }
 
+    private _getEffectiveDashboardFilters(
+        account: AnonymousAccount,
+        dashboard: DashboardDAO,
+        tileUuid: string,
+        dashboardFilters?: DashboardFilters,
+    ): DashboardFilters {
+        const { filters, droppedCount, tileTabUuid } =
+            getEffectiveEmbedDashboardFilters(
+                dashboard,
+                tileUuid,
+                account.access.filtering,
+                dashboardFilters,
+            );
+        if (droppedCount > 0) {
+            this.logger.debug(
+                `Stripped ${droppedCount} embed filter override(s) targeting filters locked on tab ${tileTabUuid} (dashboard ${dashboard.uuid})`,
+            );
+        }
+        return filters;
+    }
+
     private async _getAppliedDashboardFilters(
         account: AnonymousAccount,
         explore: Explore,
@@ -1463,59 +1483,15 @@ export class EmbedService extends BaseService {
         tileUuid: string,
         dashboardFilters?: DashboardFilters,
     ) {
-        const availableFieldIds = getExecutableFilterFieldIds(explore);
-
-        // Look up which tab this tile belongs to so we can evaluate lock state
-        // for the right tab. Tiles created before tabs may have null/undefined.
-        const tile = dashboard.tiles.find((t) => t.uuid === tileUuid);
-        const tileTabUuid = tile?.tabUuid ?? undefined;
-        const hasTabs = (dashboard.tabs?.length ?? 0) > 0;
-
-        let effectiveFilters: DashboardFilters = dashboard.filters;
-
-        if (
-            dashboardFilters &&
-            isFilterInteractivityEnabled(account.access.filtering)
-        ) {
-            const { filters: safeOverrides, droppedCount } =
-                stripOverridesForLockedFiltersOnTab(
-                    dashboard.filters,
-                    dashboardFilters,
-                    tileTabUuid,
-                    hasTabs,
-                );
-
-            if (droppedCount > 0) {
-                this.logger.debug(
-                    `Stripped ${droppedCount} embed filter override(s) targeting filters locked on tab ${tileTabUuid} (dashboard ${dashboard.uuid})`,
-                );
-            }
-
-            const lockedDimensions = dashboard.filters.dimensions.filter(
-                (rule) => isFilterLockedOnTab(rule, tileTabUuid, hasTabs),
-            );
-            const lockedMetrics = dashboard.filters.metrics.filter((rule) =>
-                isFilterLockedOnTab(rule, tileTabUuid, hasTabs),
-            );
-            const lockedTableCalculations =
-                dashboard.filters.tableCalculations.filter((rule) =>
-                    isFilterLockedOnTab(rule, tileTabUuid, hasTabs),
-                );
-
-            effectiveFilters = {
-                dimensions: [...lockedDimensions, ...safeOverrides.dimensions],
-                metrics: [...lockedMetrics, ...safeOverrides.metrics],
-                tableCalculations: [
-                    ...lockedTableCalculations,
-                    ...safeOverrides.tableCalculations,
-                ],
-            };
-        }
-
         return getDashboardFiltersForTileAndTables(
             tileUuid,
-            availableFieldIds,
-            effectiveFilters,
+            getExecutableFilterFieldIds(explore),
+            this._getEffectiveDashboardFilters(
+                account,
+                dashboard,
+                tileUuid,
+                dashboardFilters,
+            ),
         );
     }
 
@@ -1598,13 +1574,21 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const appliedDashboardFilters = await this._getAppliedDashboardFilters(
-            account,
-            explore,
-            dashboard,
-            tileUuid,
-            dashboardFilters,
-        );
+        // A merged tile resolves each filter against every source's explore, not only the chart's
+        const appliedDashboardFilters = chart.merge
+            ? this._getEffectiveDashboardFilters(
+                  account,
+                  dashboard,
+                  tileUuid,
+                  dashboardFilters,
+              )
+            : await this._getAppliedDashboardFilters(
+                  account,
+                  explore,
+                  dashboard,
+                  tileUuid,
+                  dashboardFilters,
+              );
 
         // Record analytics event
         this.analytics.trackAccount<EmbedQueryViewed>(account, {
@@ -1820,23 +1804,26 @@ export class EmbedService extends BaseService {
             parameters,
         );
 
-        return this.asyncQueryService.executeAsyncDashboardSqlChartQuery({
-            account,
-            projectUuid,
-            savedSqlUuid,
-            tileUuid,
-            dashboardUuid,
-            dashboardFilters,
-            dashboardSorts,
-            invalidateCache,
-            limit,
-            context: QueryExecutionContext.EMBED,
-            parameters: acceptedUserParameters,
-            excludedParameterKeys: EmbedService.getGatedExcludedKeys(
+        return this.asyncQueryService.executeAsyncDashboardSqlChartQuery(
+            {
                 account,
-                excludedParameterKeys,
-            ),
-        });
+                projectUuid,
+                savedSqlUuid,
+                tileUuid,
+                dashboardUuid,
+                dashboardFilters,
+                dashboardSorts,
+                invalidateCache,
+                limit,
+                context: QueryExecutionContext.EMBED,
+                parameters: acceptedUserParameters,
+                excludedParameterKeys: EmbedService.getGatedExcludedKeys(
+                    account,
+                    excludedParameterKeys,
+                ),
+            },
+            dashboard,
+        );
     }
 
     /** @deprecated Only used by the deprecated embed chart-and-results endpoint; use executeAsyncDashboardTileQuery instead. */

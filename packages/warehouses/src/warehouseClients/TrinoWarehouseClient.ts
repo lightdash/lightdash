@@ -682,6 +682,32 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
         );
     }
 
+    async getSchemaColumns(
+        schemas: { database: string; schema: string }[],
+    ): Promise<WarehouseCatalog> {
+        // Each catalog has its own information_schema, so there is one query per catalog.
+        const databases = [...new Set(schemas.map(({ database }) => database))];
+        const rows = await Promise.all(
+            databases.map(async (database) => {
+                const names = schemas
+                    .filter((schema) => schema.database === database)
+                    .map(({ schema }) => `'${this.sanitizeInput(schema)}'`);
+                const query = `
+                    SELECT table_catalog, table_schema, table_name, column_name, data_type
+                    FROM "${database.replaceAll('"', '""')}".information_schema.columns
+                    WHERE table_schema IN (${[...new Set(names)].join(', ')})
+                    ORDER BY 1, 2, 3, ordinal_position
+                `;
+                return (await this.runQuery(query, {})).rows;
+            }),
+        );
+        return this.parseWarehouseCatalog(
+            rows.flat(),
+            convertDataTypeToDimensionType,
+            getTrinoTimestampDomain,
+        );
+    }
+
     async getAllTables() {
         const databaseName = this.connectionOptions.catalog;
         const whereSql = databaseName

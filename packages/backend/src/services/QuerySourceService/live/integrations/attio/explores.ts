@@ -1,14 +1,8 @@
-import {
-    DimensionType,
-    FilterOperator,
-    MetricType,
-    TimeFrames,
-} from '@lightdash/common';
+import { DimensionType, FilterOperator } from '@lightdash/common';
 import { z } from 'zod';
 import type {
     LiveDimensionDefinition,
     LiveExploreDefinition,
-    LiveMetricDefinition,
 } from '../../explores/definition';
 import {
     ATTIO_ATTRIBUTE_RULES,
@@ -26,32 +20,6 @@ const BUILT_IN_SLUGS = new Set(['record_id', 'created_at']);
 const MAX_SCANNED_ATTRIBUTES = 300;
 // Slugs are lowercase snake case; anything else would break API names
 const ATTIO_SLUG = /^[a-z0-9_]+$/;
-
-const createdAtGrain = (
-    grain: TimeFrames,
-    suffix: string,
-    label: string,
-    description: string,
-): LiveDimensionDefinition => ({
-    name: `created_at_${suffix}`,
-    apiName: `created_at_${suffix}`,
-    label,
-    description,
-    type: DimensionType.DATE,
-    filterOperators: [],
-    timeInterval: { base: 'created_at', grain },
-});
-
-export const ATTIO_COUNT: LiveMetricDefinition = {
-    name: 'count',
-    apiName: 'count',
-    label: 'Count',
-    description:
-        'How many records match the filters, counted from the records read.',
-    type: MetricType.COUNT,
-    filterOperators: [],
-    aggregation: { aggregation: 'additive' },
-};
 
 const BUILT_IN_DIMENSIONS: LiveDimensionDefinition[] = [
     {
@@ -77,46 +45,35 @@ const BUILT_IN_DIMENSIONS: LiveDimensionDefinition[] = [
         description: 'The day the record was created, in UTC.',
         type: DimensionType.DATE,
         filterOperators: ATTIO_DATE_FILTERS,
-        timeInterval: { base: 'created_at', grain: TimeFrames.DAY },
     },
-    createdAtGrain(
-        TimeFrames.WEEK,
-        'week',
-        'Created week',
-        'Monday of the week the record was created, in UTC. Filter Created to choose the weeks.',
-    ),
-    createdAtGrain(
-        TimeFrames.MONTH,
-        'month',
-        'Created month',
-        'First day of the month the record was created, in UTC. Filter Created to choose the months.',
-    ),
-    createdAtGrain(
-        TimeFrames.YEAR,
-        'year',
-        'Created year',
-        'First day of the year the record was created, in UTC. Filter Created to choose the years.',
-    ),
 ];
 
 /** The built-in fields a record always has; a scan adds the object's attributes. */
 export const ATTIO_RECORDS_EXPLORE: LiveExploreDefinition = {
     name: 'records',
     label: 'Records',
-    description: `Records of one Attio object, read live from Attio. Count and totals are computed from the matching records, at most ${ATTIO_MAX_RECORDS.toLocaleString(
+    description: `Records of one Attio object, read live from Attio, one row per record, at most ${ATTIO_MAX_RECORDS.toLocaleString(
         'en-US',
     )} per query.`,
     dimensions: BUILT_IN_DIMENSIONS,
-    metrics: [ATTIO_COUNT],
+    metrics: [],
     maxDimensions: null,
     maxMetrics: null,
     dateRange: null,
     incompatible: [],
 };
 
-const BUILT_IN_NAMES = new Set([
+/**
+ * Names attribute fields can't take: built-in fields, and fields of earlier
+ * versions (created_at grains, count, total_*) that saved charts may still
+ * name.
+ */
+const RESERVED_NAMES = new Set([
     ...BUILT_IN_DIMENSIONS.map(({ name }) => name),
-    ATTIO_COUNT.name,
+    'created_at_week',
+    'created_at_month',
+    'created_at_year',
+    'count',
 ]);
 
 /**
@@ -124,7 +81,7 @@ const BUILT_IN_NAMES = new Set([
  * changes as attributes come and go.
  */
 const toDimensionName = (slug: string) =>
-    BUILT_IN_NAMES.has(slug) || slug.startsWith('total_')
+    RESERVED_NAMES.has(slug) || slug.startsWith('total_')
         ? `attribute_${slug}`
         : slug;
 
@@ -142,8 +99,8 @@ const attributesSchema = z.object({
 });
 
 /**
- * Adds a dimension per attribute of the object, and a total per number and
- * currency attribute. Unknown types and unreadable lists add nothing.
+ * Adds a dimension per attribute of the object. Unknown types and unreadable
+ * lists add nothing.
  */
 export const withAttioAttributeFields = (
     definition: LiveExploreDefinition,
@@ -188,28 +145,8 @@ export const withAttioAttributeFields = (
             };
         },
     );
-    const metrics = scanned
-        .filter(({ type }) => ATTIO_ATTRIBUTE_RULES[type].summable)
-        .map(
-            ({ api_slug: slug, title, type }): LiveMetricDefinition => ({
-                name: `total_${slug}`,
-                apiName: `total:${toAttioApiName(
-                    slug,
-                    ATTIO_ATTRIBUTE_RULES[type].property,
-                )}`,
-                label: `Total ${title}`,
-                description:
-                    type === 'currency'
-                        ? `Sum of ${title} over the matching records, as stored, whatever each record's currency.`
-                        : `Sum of ${title} over the matching records.`,
-                type: MetricType.SUM,
-                filterOperators: [],
-                aggregation: { aggregation: 'additive' },
-            }),
-        );
     return {
         ...definition,
         dimensions: [...definition.dimensions, ...dimensions],
-        metrics: [...definition.metrics, ...metrics],
     };
 };

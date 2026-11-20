@@ -195,6 +195,7 @@ const SavedTreeCanvasFlow: FC<Props> = ({
                         <Stack h="100%" gap={0}>
                             <Box flex={1} mih={0}>
                                 <ReactFlow
+                                    proOptions={{ hideAttribution: true }}
                                     className={clsx(
                                         reactFlowStyles.reactFlow,
                                         styles.reactFlow,

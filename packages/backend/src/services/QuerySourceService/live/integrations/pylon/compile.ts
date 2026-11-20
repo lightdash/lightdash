@@ -201,13 +201,8 @@ const toSort = (
     kind: PylonKind,
     sorts: SortField[],
     apiName: (fieldId: string) => string,
-    hasMetrics: boolean,
 ): Pick<PylonRequest, 'sort'> & { localSorts: SortField[] } => {
     const [first, ...others] = sorts;
-    if (hasMetrics) {
-        // Every matching record is read, so the order of pages doesn't matter
-        return { localSorts: sorts };
-    }
     if (!first) {
         return kind === 'issues'
             ? { sort: { field: 'created_at', order: 'desc' }, localSorts: [] }
@@ -270,17 +265,11 @@ export const compilePylonQuery = ({
             toPylonFilter(kind, apiName(rule.target.fieldId), rule, today),
         ),
     ];
-    const { localSorts, ...sort } = toSort(
-        kind,
-        metricQuery.sorts,
-        apiName,
-        metricQuery.metrics.length > 0,
-    );
+    const { localSorts, ...sort } = toSort(kind, metricQuery.sorts, apiName);
     const request: PylonRequest = {
         kind,
         filters,
         columns: metricQuery.dimensions.map(apiName),
-        metrics: metricQuery.metrics.map(apiName),
         ...sort,
     };
     return { query: JSON.stringify(request), localSorts };

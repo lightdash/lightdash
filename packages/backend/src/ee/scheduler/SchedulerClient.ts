@@ -12,6 +12,7 @@ import {
     AiWritebackPipelineJobPayload,
     AppBuildFromSourceJobPayload,
     AppGeneratePipelineJobPayload,
+    CompileSemanticStudioBranchPayload,
     DataAppInstructionInvestigateJobPayload,
     DataAppInvestigateJobPayload,
     EE_SCHEDULER_TASKS,
@@ -343,6 +344,23 @@ export class CommercialSchedulerClient extends SchedulerClient {
                 runAt: new Date(),
                 maxAttempts: 1,
                 jobKey: `semantic-layer-draft-impact:${payload.projectUuid}:${payload.userUuid}`,
+            },
+        );
+        return { jobId };
+    }
+
+    /** One compile per change: a newer save replaces one that has not started. */
+    async compileSemanticStudioBranch(
+        payload: CompileSemanticStudioBranchPayload,
+    ) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.COMPILE_SEMANTIC_STUDIO_BRANCH,
+            payload,
+            {
+                runAt: new Date(),
+                maxAttempts: 1,
+                jobKey: `semantic-studio-branch-compile:${payload.workspaceUuid}`,
             },
         );
         return { jobId };

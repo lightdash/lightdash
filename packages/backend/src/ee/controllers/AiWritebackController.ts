@@ -276,6 +276,7 @@ export class AiWritebackController extends BaseController {
             projectUuid,
             prUrl: parsed.data.prUrl,
             sha: parsed.data.sha,
+            incrementalCompile: false,
         });
         // Recorded now, so the change reads merged from the moment it was, not from whenever its checks next load.
         if (results.merged) {

@@ -290,7 +290,8 @@ export const createS3AnalyticsSourceResolver = ({
                             history ||
                             userActivity ||
                             dimension === 'content' ||
-                            dimension === 'people'
+                            dimension === 'people' ||
+                            dimension === 'agent_evaluation_runs'
                         )
                             hasEvents = true;
                         // The activity builder writes each row's UTC day from its partition key.

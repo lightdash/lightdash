@@ -4,6 +4,8 @@ import {
     ChartType,
     CustomDimensionType,
     DashboardTileTypes,
+    DateGranularity,
+    DimensionType,
     FeatureNotEnabledError,
     FieldType,
     ForbiddenError,
@@ -226,6 +228,24 @@ const usedParametersByQuery: Record<string, ParametersValuesMap> = {
     'other-query': { region: 'UK' },
 };
 
+const runFieldsByQuery: Record<string, object> = {
+    'orders-query': {
+        orders_created_at: {
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.DATE,
+            name: 'created_at',
+            table: 'orders',
+            label: 'Created at month',
+        },
+    },
+};
+
+const savedDashboardFilters: DashboardFilters = {
+    dimensions: [],
+    metrics: [],
+    tableCalculations: [],
+};
+
 const setup = ({ flagEnabled = true } = {}) => {
     const querySourceService = {
         submitComposerRun: vi.fn(
@@ -259,6 +279,16 @@ const setup = ({ flagEnabled = true } = {}) => {
                                     name: 'amount',
                                     sql: '${TABLE}.amount',
                                 },
+                                created_at: {
+                                    name: 'created_at',
+                                    table: name,
+                                    type: DimensionType.TIMESTAMP,
+                                },
+                                shipped_at: {
+                                    name: 'shipped_at',
+                                    table: name,
+                                    type: DimensionType.TIMESTAMP,
+                                },
                             },
                             metrics: {},
                         },
@@ -272,12 +302,12 @@ const setup = ({ flagEnabled = true } = {}) => {
                 excludedParameterKeys,
             }: {
                 dashboardFilters: DashboardFilters;
-                parameters: ParametersValuesMap;
-                excludedParameterKeys: string[];
+                parameters: ParametersValuesMap | undefined;
+                excludedParameterKeys: string[] | undefined;
             }) => ({
                 dashboardFilters,
-                dashboardValues: parameters,
-                excludedKeys: excludedParameterKeys,
+                dashboardValues: parameters ?? {},
+                excludedKeys: excludedParameterKeys ?? [],
                 projectDefinitions: { region: { label: 'Region' } },
             }),
         ),
@@ -312,6 +342,7 @@ const setup = ({ flagEnabled = true } = {}) => {
                 spaceUuid: 'space-uuid',
             })),
             getByIdOrSlug: vi.fn(async () => ({
+                filters: savedDashboardFilters,
                 tiles: [
                     {
                         uuid: 'tile-uuid',
@@ -339,14 +370,22 @@ const setup = ({ flagEnabled = true } = {}) => {
         queryHistoryModel: {
             getByQueryUuid: vi.fn(async (queryUuid: string) => ({
                 queryUuid,
-                fields: { [`${queryUuid}_field`]: {} },
+                fields: {
+                    [`${queryUuid}_field`]: {},
+                    ...runFieldsByQuery[queryUuid],
+                },
                 usedParameters: usedParametersByQuery[queryUuid] ?? null,
             })),
         } as unknown as QueryHistoryModel,
         getQuerySourceService: () => querySourceService,
         getAsyncQueryService: () => asyncQueryService,
     });
-    return { service, composerChartModel, querySourceService };
+    return {
+        service,
+        composerChartModel,
+        querySourceService,
+        asyncQueryService,
+    };
 };
 
 describe('ComposerChartService.create', () => {
@@ -504,6 +543,33 @@ describe('ComposerChartService.create', () => {
     });
 });
 
+describe('ComposerChartService.preflightPipeline', () => {
+    const project = { organizationUuid, projectUuid };
+
+    test('refuses a SQL node from an editor without SQL runner, before any write', async () => {
+        const { service, composerChartModel } = setup();
+        await expect(
+            service.preflightPipeline(
+                sessionAccount(abilityWithout('SqlRunner')),
+                project,
+                createBody(PIPELINES.sql).pipeline,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(composerChartModel.create).not.toHaveBeenCalled();
+    });
+
+    test('passes an editor who holds every permission the nodes need', async () => {
+        const { service } = setup();
+        await expect(
+            service.preflightPipeline(
+                sessionAccount(abilityWithout(null)),
+                project,
+                createBody(PIPELINES.sql).pipeline,
+            ),
+        ).resolves.toBeUndefined();
+    });
+});
+
 describe('ComposerChartService.create with a custom chart type', () => {
     test('pins the latest renderable version when the chart names none', async () => {
         const { service, composerChartModel } = setup();
@@ -576,16 +642,22 @@ describe('ComposerChartService.run', () => {
         parameters: {},
         excludedParameterKeys: [],
         invalidateCache: false,
+        dateZoom: null,
     };
     const setupRun = (
         options: {
             flagEnabled?: boolean;
             chart?: CreateComposerChart['chart'];
+            nodes?: ComposerChartPipelineNode[];
         } = {},
     ) => {
-        const { service, composerChartModel, querySourceService } =
-            setup(options);
-        const body = createBody(PIPELINES.python);
+        const {
+            service,
+            composerChartModel,
+            querySourceService,
+            asyncQueryService,
+        } = setup(options);
+        const body = createBody(options.nodes ?? PIPELINES.python);
         const stored = body.pipeline;
         Object.assign(composerChartModel, {
             getOwner: vi.fn(async () => ({ projectUuid, dashboardUuid })),
@@ -604,8 +676,34 @@ describe('ComposerChartService.run', () => {
                 ? { ...node, parameters: {} }
                 : node,
         );
-        return { service, stored, resolvedNodes, submitComposerRun };
+        return {
+            service,
+            stored,
+            resolvedNodes,
+            submitComposerRun,
+            asyncQueryService,
+        };
     };
+
+    test('resolves the dashboard saved filters and parameter state for a run without app state', async () => {
+        const { service, asyncQueryService, submitComposerRun } = setupRun();
+        await service.runWithSavedDashboardState(
+            viewer(),
+            projectUuid,
+            'chart-uuid',
+            { dashboardUuid, tileUuid: 'tile-uuid', invalidateCache: false },
+        );
+        expect(asyncQueryService.getComposerTileContext).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dashboardFilters: savedDashboardFilters,
+                parameters: undefined,
+                excludedParameterKeys: undefined,
+            }),
+        );
+        expect(submitComposerRun).toHaveBeenCalledWith(
+            expect.objectContaining({ context: QueryExecutionContext.AI }),
+        );
+    });
 
     test('runs the stored pipeline for a dashboard viewer and returns every node query', async () => {
         const { service, stored, resolvedNodes, submitComposerRun } =
@@ -685,6 +783,99 @@ describe('ComposerChartService.run', () => {
         });
         expect(result.chartStageQueryUuid).toBe('chart_stage-query');
         expect(result.fields).toEqual({ 'result-query_field': {} });
+    });
+
+    test('zooms each semantic-layer node with a date dimension and reports the zoom applied', async () => {
+        const { service, submitComposerRun } = setupRun({
+            nodes: PIPELINES.python.map((node) =>
+                node.nodeId === 'orders'
+                    ? semantic({
+                          dimensions: ['orders_status', 'orders_created_at'],
+                      })
+                    : node,
+            ),
+        });
+        const zoomed = await service.run(
+            viewer(),
+            projectUuid,
+            'chart-uuid',
+            { ...runRequest, dateZoom: { granularity: DateGranularity.MONTH } },
+            QueryExecutionContext.DASHBOARD,
+        );
+        expect(
+            submitComposerRun.mock.calls[0][0].binding.dateZoomByNodeId,
+        ).toEqual({
+            orders: {
+                granularity: DateGranularity.MONTH,
+                xAxisFieldId: 'orders_created_at',
+            },
+        });
+        expect(zoomed.dateZoomApplied).toBe(true);
+        expect(zoomed.zoomedFieldLabels).toEqual({
+            orders_created_at: 'Created at month',
+        });
+        expect(zoomed.zoomableFields).toEqual([
+            {
+                fieldId: 'orders_created_at',
+                label: 'orders_created_at',
+                tableName: 'orders',
+            },
+        ]);
+
+        const unzoomed = await service.run(
+            viewer(),
+            projectUuid,
+            'chart-uuid',
+            runRequest,
+            QueryExecutionContext.DASHBOARD,
+        );
+        expect(
+            submitComposerRun.mock.calls[1][0].binding.dateZoomByNodeId,
+        ).toEqual({});
+        expect(unzoomed.dateZoomApplied).toBe(false);
+        expect(unzoomed.zoomedFieldLabels).toEqual({});
+        expect(unzoomed.zoomableFields).toEqual(zoomed.zoomableFields);
+    });
+
+    test("zooms the stored chart's x-axis field when the tile names none", async () => {
+        const body = createBody(PIPELINES.python);
+        const { service, submitComposerRun } = setupRun({
+            nodes: PIPELINES.python.map((node) =>
+                node.nodeId === 'orders'
+                    ? semantic({
+                          dimensions: [
+                              'orders_created_at',
+                              'orders_shipped_at',
+                          ],
+                      })
+                    : node,
+            ),
+            chart: {
+                ...body.chart,
+                chartConfig: {
+                    type: ChartType.CARTESIAN,
+                    config: {
+                        layout: { xField: 'orders_shipped_at', yField: ['n'] },
+                        eChartsConfig: { series: [] },
+                    },
+                },
+            },
+        });
+        await service.run(
+            viewer(),
+            projectUuid,
+            'chart-uuid',
+            { ...runRequest, dateZoom: { granularity: DateGranularity.WEEK } },
+            QueryExecutionContext.DASHBOARD,
+        );
+        expect(
+            submitComposerRun.mock.calls[0][0].binding.dateZoomByNodeId,
+        ).toEqual({
+            orders: {
+                granularity: DateGranularity.WEEK,
+                xAxisFieldId: 'orders_shipped_at',
+            },
+        });
     });
 
     test('returns the parameter values each node query ran with', async () => {

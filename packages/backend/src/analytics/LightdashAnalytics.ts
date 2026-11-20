@@ -104,6 +104,7 @@ import type { AiAgentToolCallCompletedProperties } from '../ee/services/ai/analy
 import Logger from '../logging/logger';
 import type { ExecutionContextInfo } from '../logging/winston';
 import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
+import type { QueryCostEstimateSource } from '../services/AsyncQueryService/queryCostEstimateTypes';
 import { type PersistentDownloadFileSource } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import type { LiveQueryOutcome } from '../services/QuerySourceService/live/query/outcome';
 import type { LiveQueryShape } from '../services/QuerySourceService/live/query/queryShape';
@@ -1125,6 +1126,36 @@ export type PgWireQueryExecutedEvent = BaseTrack & {
         rowCount: number | null;
         durationMs: number;
         applicationName: string | null;
+    };
+};
+
+export type QueryCostEstimateAgentRefusedEvent = BaseTrack & {
+    event: 'query_cost_estimate.agent_refused';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        queryContext: QueryExecutionContext | null;
+        queryUuid: string;
+        estimatedBytes: number;
+        limitBytes: number;
+        cacheHit: boolean;
+        warehouseType: WarehouseTypes;
+    };
+};
+
+export type QueryCostEstimateCompletedEvent = BaseTrack & {
+    event: 'query_cost_estimate.completed';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        source: Exclude<QueryCostEstimateSource, 'agent_limit'>;
+        outcome: 'ok' | 'error' | 'unavailable';
+        estimatedBytes: number | null;
+        confirmEstimatedBytesAbove: number | null;
+        requiresConfirmation: boolean | null;
+        cacheHit: boolean | null;
+        dryRunDurationMs: number | null;
+        warehouseType: WarehouseTypes;
     };
 };
 
@@ -2627,6 +2658,40 @@ export type DataAppViewOutcomeEvent = BaseTrack & {
     };
 };
 
+type DataAppStateEventProperties = {
+    organizationId: string;
+    projectId: string;
+    appUuid: string;
+};
+
+// App state events never carry keys or values: both are user content.
+export type DataAppStateReadEvent = BaseTrack & {
+    event: 'data_app.state.read';
+    userId: string;
+    properties: DataAppStateEventProperties & {
+        viewer: 'user' | 'embed';
+        userKeyCount: number;
+        sharedKeyCount: number;
+    };
+};
+
+export type DataAppStateSetEvent = BaseTrack & {
+    event: 'data_app.state.set';
+    userId: string;
+    properties: DataAppStateEventProperties & {
+        scope: 'user' | 'shared';
+        valueBytes: number;
+    };
+};
+
+export type DataAppStateDeletedEvent = BaseTrack & {
+    event: 'data_app.state.deleted';
+    userId: string;
+    properties: DataAppStateEventProperties & {
+        scope: 'user' | 'shared';
+    };
+};
+
 export type DataAppVersionRestoredEvent = BaseTrack & {
     event: 'data_app.version.restored';
     userId: string;
@@ -2807,6 +2872,9 @@ export type DataAppEvent =
     | DataAppFileUploadedEvent
     | DataAppViewedEvent
     | DataAppViewOutcomeEvent
+    | DataAppStateReadEvent
+    | DataAppStateSetEvent
+    | DataAppStateDeletedEvent
     | DataAppVersionRestoredEvent
     | DataAppThreadClearedEvent
     | DataAppThreadSessionLostEvent
@@ -5162,6 +5230,8 @@ type TypedEvent =
     | PgWireConnectedEvent
     | PgWireAuthenticationFailedEvent
     | PgWireQueryExecutedEvent
+    | QueryCostEstimateAgentRefusedEvent
+    | QueryCostEstimateCompletedEvent
     | DeprecatedRouteCalled
     | AiAgentCreatedEvent
     | AiAgentThreadDeletedEvent

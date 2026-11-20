@@ -43,8 +43,8 @@ type Props = Pick<
     /** Opens the running app in a new tab. Pass null where the app is
      *  already the page (the viewer). */
     openUrl: string | null;
-    /** Builder-only tools that act on the preview (element picker,
-     *  screenshot), shown first. Null on the viewer. */
+    /** Tools that act on the running app (element picker, screenshot,
+     *  capture), shown first. Null when there are none. */
     previewTools: ReactNode;
 };
 

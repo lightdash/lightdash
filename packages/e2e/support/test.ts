@@ -22,6 +22,7 @@ export * from './ui';
 export * from './cli';
 export * from './env';
 export * from './composer';
+export * from './explorerHistory';
 
 type RequestOptions = Parameters<APIRequestContext['fetch']>[1];
 
@@ -96,6 +97,13 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
                     'homepage-v2-default-notice-closed',
                     'true',
                 );
+                // The Voice Design first-run tours dim the page and swallow clicks
+                for (const surface of ['dashboard', 'builder', 'app']) {
+                    window.localStorage.setItem(
+                        `ld.voice-design.${surface}.tour.v1`,
+                        '1',
+                    );
+                }
             });
             // The dashboard edit tour dims the page and swallows clicks
             await context.route('**/api/v1/user/onboarding', async (route) => {
