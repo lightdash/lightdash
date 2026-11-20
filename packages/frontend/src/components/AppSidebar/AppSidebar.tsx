@@ -1,4 +1,4 @@
-import { Box, NavLink, Text } from '@mantine/core';
+import { AppShell, Box, NavLink, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { Link, useLocation } from 'react-router';
 import classes from './AppSidebar.module.css';
@@ -8,13 +8,11 @@ import { useAppSidebarSections } from './useAppSidebarSections';
 type Props = {
     projectUuid: string | undefined;
     projectUrlIdentifier: string | undefined;
-    hasBanner: boolean;
 };
 
 export const AppSidebar: FC<Props> = ({
     projectUuid,
     projectUrlIdentifier,
-    hasBanner,
 }) => {
     const { pathname } = useLocation();
     const activeItem = getActiveAppSidebarItem(pathname);
@@ -24,12 +22,10 @@ export const AppSidebar: FC<Props> = ({
     });
 
     return (
-        <Box
-            component="nav"
+        <AppShell.Navbar
             id="app-sidebar"
             aria-label="Main navigation"
             className={classes.sidebar}
-            data-has-banner={hasBanner}
         >
             {sections.map((section) => (
                 <Box key={section.key}>
@@ -54,6 +50,6 @@ export const AppSidebar: FC<Props> = ({
                     ))}
                 </Box>
             ))}
-        </Box>
+        </AppShell.Navbar>
     );
 };
