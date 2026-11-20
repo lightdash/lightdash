@@ -1,3 +1,13 @@
+## [3.351.1](https://github.com/lightdash/lightdash/compare/3.351.0...3.351.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **agents:** align project and server context ([#32498](https://github.com/lightdash/lightdash/issues/32498)) ([de954b9](https://github.com/lightdash/lightdash/commit/de954b94fc94d7fe019d9e6135197e6e5787c872))
+* align pending invitation renewals ([#32493](https://github.com/lightdash/lightdash/issues/32493)) ([ba7661a](https://github.com/lightdash/lightdash/commit/ba7661a9a38cb60f8797383f45e1cecbb96da645))
+* **embed:** align dashboard SQL chart filters ([#32501](https://github.com/lightdash/lightdash/issues/32501)) ([c2ad003](https://github.com/lightdash/lightdash/commit/c2ad003065cf0c6f5f0ebadfcd4c8ed836744513))
+* **git:** use the project context for integration operations ([#32496](https://github.com/lightdash/lightdash/issues/32496)) ([729bc78](https://github.com/lightdash/lightdash/commit/729bc78b6d2931eb18989b452f222a98fb9d21fa))
+
 # [3.351.0](https://github.com/lightdash/lightdash/compare/3.350.1...3.351.0) (2026-11-20)
 
 
