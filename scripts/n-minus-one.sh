@@ -43,15 +43,14 @@ SKIPPED_MODEL_TESTS="${N1_SKIPPED_MODEL_TESTS:-src/ee/models/AiAgentMemoryModel.
 SMOKE_TESTS="${N1_SMOKE_TESTS:-}"
 EXCLUDED_API_TESTS=(
     "tests/async-query.test.ts|it queries the jaffle tables in database postgres on port 5432, not the database this run seeds"
+    "tests/composerCharts.test.ts|it queries the jaffle tables in database postgres, not the database this run seeds, and switches its flag through the preview-only flag API"
 )
 PREVIEW_FEATURE_ENV=(
     # The preview stack resolves DB feature flags on via pr-mode preview
     # defaults, which this harness does not enable. SCIM provisioning is
     # gated on the commercial scim-token-management flag (#31474), and the
     # previous release's SCIM tests expect it on, so force that flag here.
-    # The composer charts tests turn their flag on through the preview-only
-    # flag API when it is off, so force composer-charts on as well.
-    LIGHTDASH_ENABLE_FEATURE_FLAGS=scim-token-management,composer-charts
+    LIGHTDASH_ENABLE_FEATURE_FLAGS=scim-token-management
     MCP_ENABLED=true
     CUSTOM_ROLES_ENABLED=true
     EMBEDDING_ENABLED=true
