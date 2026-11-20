@@ -12,6 +12,7 @@ import {
 import { GuidedTour } from '../../../components/common/GuidedTour';
 import MantineModal from '../../../components/common/MantineModal';
 import { ShareLinkButton } from '../../../components/common/ShareLinkButton';
+import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import { useOnboardingTour } from '../../../hooks/useOnboardingTour';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
@@ -378,13 +379,15 @@ const AgentPage = () => {
                 }
             />
             {editChartUuid && (
-                <Suspense fallback={null}>
-                    <AiThreadChartEditorModal
-                        chartUuid={editChartUuid}
-                        projectUuid={projectUuid}
-                        onClose={() => setEditChartUuid(null)}
-                    />
-                </Suspense>
+                <ErrorBoundary>
+                    <Suspense fallback={null}>
+                        <AiThreadChartEditorModal
+                            chartUuid={editChartUuid}
+                            projectUuid={projectUuid}
+                            onClose={() => setEditChartUuid(null)}
+                        />
+                    </Suspense>
+                </ErrorBoundary>
             )}
             <AiThreadChartEditContext.Provider
                 value={isEmbed ? undefined : openChartEditor}

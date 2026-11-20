@@ -143,7 +143,6 @@ const AiThreadChartEditorModal: FC<Props> = ({
     const { data: chart } = useSavedQuery({
         uuidOrSlug: chartUuid,
         projectUuid,
-        useQueryOptions: { enabled: !!projectUuid },
     });
 
     if (!chart || chart.uuid !== chartUuid) return null;

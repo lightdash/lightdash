@@ -4,7 +4,16 @@ import {
     type AiArtifact,
     type ApiError,
 } from '@lightdash/common';
-import { Box, Drawer, Group, Text, Tooltip } from '@mantine/core';
+import {
+    Box,
+    Center,
+    Drawer,
+    Group,
+    Loader,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import { useDisclosure, type UseSplitterReturnValue } from '@mantine/hooks';
 import {
     IconLayoutSidebarLeftCollapse,
@@ -23,7 +32,6 @@ import {
     type PropsWithChildren,
 } from 'react';
 import { useLocation, useParams } from 'react-router';
-import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ResizableSplitter from '../../../../../components/common/ResizableSplitter';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
@@ -43,6 +51,8 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
+import artifactStyles from '../ChatElements/AiArtifactPanel.module.css';
+import { ArtifactWindowControls } from '../ChatElements/ArtifactFocusToggle';
 import styles from './aiAgentPageLayout.module.css';
 import { ArtifactFocusContext, useArtifactFocusMode } from './artifactFocus';
 import {
@@ -98,10 +108,30 @@ const renderPreviewPanel = (preview: AiPreview) => {
     }
 };
 
+// Matches the panels' own loading state, Close included.
+const PreviewPanelLoading = () => {
+    const dispatch = useAiAgentStoreDispatch();
+    return (
+        <Box className={artifactStyles.floatingPanel}>
+            <Center h="100%">
+                <Stack gap="xs" align="center">
+                    <Loader type="dots" color="gray" />
+                    <ArtifactWindowControls
+                        onClose={() => dispatch(clearPreview())}
+                        separated={false}
+                    />
+                </Stack>
+            </Center>
+        </Box>
+    );
+};
+
 const PreviewPanel = ({ preview }: { preview: AiPreview }) => (
-    <Suspense fallback={<EmptyStateLoader h="100%" />}>
-        {renderPreviewPanel(preview)}
-    </Suspense>
+    <ErrorBoundary>
+        <Suspense fallback={<PreviewPanelLoading />}>
+            {renderPreviewPanel(preview)}
+        </Suspense>
+    </ErrorBoundary>
 );
 
 interface Props extends PropsWithChildren {

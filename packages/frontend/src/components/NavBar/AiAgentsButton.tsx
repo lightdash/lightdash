@@ -10,6 +10,7 @@ import {
 import { useAiAgentOrgPermission } from '../../ee/features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentButtonVisibility } from '../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
+import ErrorBoundary from '../../features/errorBoundary/ErrorBoundary';
 import EmptyStateLoader from '../common/EmptyStateLoader';
 import MantineIcon from '../common/MantineIcon';
 import { useNavBarPortalTarget } from './NavBarPortalContext';
@@ -178,16 +179,20 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
                 </Button>
             </HoverCard.Target>
             <HoverCard.Dropdown p="xs">
-                <Suspense fallback={<EmptyStateLoader py="sm" />}>
-                    <ReviewFindingsPreview
-                        items={projectReviewItems.slice(0, PREVIEW_LIMIT)}
-                        totalOpen={reviewCount}
-                        reviewsUrl={reviewsUrl}
-                        promptTrend={promptActivityQuery.data ?? []}
-                        promptTrendDays={PROMPT_TREND_DAYS}
-                        isLoadingPromptTrend={promptActivityQuery.isFetching}
-                    />
-                </Suspense>
+                <ErrorBoundary>
+                    <Suspense fallback={<EmptyStateLoader py="sm" />}>
+                        <ReviewFindingsPreview
+                            items={projectReviewItems.slice(0, PREVIEW_LIMIT)}
+                            totalOpen={reviewCount}
+                            reviewsUrl={reviewsUrl}
+                            promptTrend={promptActivityQuery.data ?? []}
+                            promptTrendDays={PROMPT_TREND_DAYS}
+                            isLoadingPromptTrend={
+                                promptActivityQuery.isFetching
+                            }
+                        />
+                    </Suspense>
+                </ErrorBoundary>
             </HoverCard.Dropdown>
         </HoverCard>
     );
