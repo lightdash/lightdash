@@ -7,8 +7,11 @@ import {
     removeModelParts,
     restoreModelParts,
     type ApplyModelFragmentResult,
+    type ModelFragmentRefusal,
+    type ModelFragmentRefusalReason,
     type SemanticLayerDraftItemResult,
     type SemanticLayerDraftModelInput,
+    type SemanticLayerProposalItemResult,
 } from '@lightdash/common';
 import { parse, stringify } from 'yaml';
 import { isDerivedSqlFrom, toDerivedSqlFrom } from './derivedModel';
@@ -16,6 +19,20 @@ import { isDerivedSqlFrom, toDerivedSqlFrom } from './derivedModel';
 const MODEL_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 export const toModelPath = (modelName: string) => `models/${modelName}.yml`;
+
+const REFUSAL_REASONS: Record<ModelFragmentRefusalReason, string> = {
+    access: 'changes who can see it, which cannot be changed here.',
+    name_taken: 'uses a name another field of this model already has.',
+    incomplete: 'is missing what it needs, such as its type or sql.',
+    invalid_filter: 'has a filter that is not a single field: value pair.',
+    not_found: 'is not in the model.',
+};
+
+/** Why a part was refused, as a sentence a person or the agent can act on. */
+export const describeRefusal = ({
+    path,
+    reason,
+}: ModelFragmentRefusal): string => `${path} ${REFUSAL_REASONS[reason]}`;
 
 type Merged = Omit<ApplyModelFragmentResult, 'contents'> & {
     /** Null when the model is removed or was never there. */
@@ -160,6 +177,73 @@ export const foldDraft = (
         }
     };
     return { results: changes.map((models) => models.map(fold)), writes };
+};
+
+/**
+ * Folds a proposal on top of a draft, whole model by whole model: when any part
+ * of a model's change is refused or fails, none of that model's change is kept.
+ * Results keep the order of `models`.
+ */
+export const foldProposal = (
+    documents: Map<string, string>,
+    drafted: SemanticLayerDraftModelInput[][],
+    models: SemanticLayerDraftModelInput[],
+): {
+    writes: Map<string, string | null>;
+    results: SemanticLayerProposalItemResult[];
+} => {
+    const attempt = foldDraft(documents, [...drafted, models]);
+    const attempted = attempt.results[drafted.length];
+    const leftOut = new Set(
+        attempted
+            .filter(
+                ({ status, refusals }) =>
+                    status === 'failed' || refusals.length > 0,
+            )
+            .map(({ model }) => model),
+    );
+    const kept = models.filter(({ name }) => !leftOut.has(name));
+    // Folded again without what is left out, so a check sees only what can join the draft.
+    const { writes, results } =
+        leftOut.size === 0 ? attempt : foldDraft(documents, [...drafted, kept]);
+    const keptResults = results[drafted.length];
+    let nextKept = 0;
+    return {
+        writes,
+        results: attempted.map((result) => {
+            if (leftOut.has(result.model)) {
+                return {
+                    model: result.model,
+                    status: 'failed',
+                    changes: [],
+                    refusals: result.refusals,
+                    error:
+                        result.error ??
+                        `None of this change to ${result.model} was added, because part of it could not be applied.`,
+                    notes: [],
+                };
+            }
+            const { model, changes } = keptResults[nextKept];
+            nextKept += 1;
+            return changes.length > 0
+                ? {
+                      model,
+                      status: 'ready',
+                      changes,
+                      refusals: [],
+                      error: null,
+                      notes: [],
+                  }
+                : {
+                      model,
+                      status: 'unchanged',
+                      changes: [],
+                      refusals: [],
+                      error: null,
+                      notes: [],
+                  };
+        }),
+    };
 };
 
 /** The documents with writes and removals on top. */

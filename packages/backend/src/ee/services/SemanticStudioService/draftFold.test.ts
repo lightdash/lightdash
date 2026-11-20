@@ -1,5 +1,5 @@
 import { diffModelDocuments } from '@lightdash/common';
-import { foldDraft, toDraftEdit } from './draftFold';
+import { foldDraft, foldProposal, toDraftEdit } from './draftFold';
 
 const current = `type: model
 name: orders
@@ -111,5 +111,138 @@ describe('foldDraft', () => {
         expect(writes.get('orders')).toMatch(
             /name: status[\s\S]*order_count:\n\s+type: count/,
         );
+    });
+});
+
+const ORDER_COUNT = '      order_count:\n        type: count\n';
+const PLACES = ['none', 'amount', 'status', 'customer_id', 'top'] as const;
+
+/** Every shape of one small model: which dimensions it has and where its metrics sit. */
+const SHAPES = [true, false].flatMap((hasStatus) =>
+    [true, false].flatMap((hasCustomer) =>
+        [true, false].flatMap((hasRevenue) =>
+            PLACES.filter(
+                (place) =>
+                    (place !== 'status' || hasStatus) &&
+                    (place !== 'customer_id' || hasCustomer),
+            ).map((place) => {
+                const dimension = (name: string, metrics: string) =>
+                    `  - name: ${name}\n    type: number\n    sql: \${TABLE}.${name}\n${
+                        metrics ? `    metrics:\n${metrics}` : ''
+                    }`;
+                const under = (name: string) =>
+                    place === name ? ORDER_COUNT : '';
+                return [
+                    'type: model\nname: orders\nsql_from: public.orders\ndimensions:\n',
+                    dimension(
+                        'amount',
+                        `${hasRevenue ? '      revenue:\n        type: sum\n' : ''}${under('amount')}`,
+                    ),
+                    hasStatus ? dimension('status', under('status')) : '',
+                    hasCustomer
+                        ? dimension('customer_id', under('customer_id'))
+                        : '',
+                    place === 'top'
+                        ? 'metrics:\n  order_count:\n    type: number\n    sql: COUNT(*)\n'
+                        : '',
+                ].join('');
+            }),
+        ),
+    ),
+);
+
+const EDITS = SHAPES.flatMap((from) =>
+    SHAPES.filter((to) => to !== from).map((to) => ({ from, to })),
+);
+
+describe('foldProposal', () => {
+    it('turns any shape of a model into any other, whatever moves or goes', () => {
+        const wrong = EDITS.filter(({ from, to }) => {
+            const { writes, results } = foldProposal(
+                new Map([['orders', from]]),
+                [],
+                toDraftEdit('orders', from, to),
+            );
+            return (
+                results.some(({ status }) => status === 'failed') ||
+                diffModelDocuments(writes.get('orders') ?? null, to).length > 0
+            );
+        });
+        expect(wrong).toEqual([]);
+    });
+
+    it('keeps none of a model whose change has a refused part, and all of the others', () => {
+        const refused = {
+            name: 'orders',
+            yaml: 'dimensions:\n  - name: amount\n    tags: [finance]\n',
+            remove: [],
+            removeModel: false,
+        };
+        const other = {
+            name: 'customers',
+            yaml: 'sql_from: public.customers\ndimensions:\n  - name: id\n    type: number\n    sql: ${TABLE}.id\n',
+            remove: [],
+            removeModel: false,
+        };
+        const partly = EDITS.filter(({ from, to }) => {
+            const { writes, results } = foldProposal(
+                new Map([['orders', from]]),
+                [],
+                [...toDraftEdit('orders', from, to), refused, other],
+            );
+            const last = results.at(-1);
+            return !(
+                results
+                    .slice(0, -1)
+                    .every(
+                        ({ status, changes }) =>
+                            status === 'failed' && changes.length === 0,
+                    ) &&
+                !writes.has('orders') &&
+                last?.status === 'ready' &&
+                last.refusals.length === 0 &&
+                writes.has('customers')
+            );
+        });
+        expect(partly).toEqual([]);
+    });
+
+    it('says why on the refused part and leaves what is already drafted alone', () => {
+        const drafted = [
+            {
+                name: 'orders',
+                yaml: 'label: All orders\n',
+                remove: [],
+                removeModel: false,
+            },
+        ];
+        const { writes, results } = foldProposal(
+            new Map([['orders', current]]),
+            [drafted],
+            [
+                {
+                    name: 'orders',
+                    yaml: null,
+                    remove: ['dimensions.amount.metrics.order_count'],
+                    removeModel: false,
+                },
+                {
+                    name: 'orders',
+                    yaml: 'dimensions:\n  - name: status\n    type: string\n    sql: ${TABLE}.status\n    metrics:\n      revenue:\n        type: count\n',
+                    remove: [],
+                    removeModel: false,
+                },
+            ],
+        );
+        expect(results).toMatchObject([
+            { status: 'failed', changes: [], refusals: [] },
+            {
+                status: 'failed',
+                changes: [],
+                refusals: [{ path: 'dimensions.status', reason: 'name_taken' }],
+            },
+        ]);
+        expect(writes.get('orders')).toContain('label: All orders');
+        expect(writes.get('orders')).toContain('order_count');
     });
 });
