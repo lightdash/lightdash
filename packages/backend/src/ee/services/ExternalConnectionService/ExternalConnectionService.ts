@@ -26,6 +26,7 @@ import {
     ParameterError,
     POSTHOG_REGION_ORIGINS,
     TimeoutError,
+    toLiveSourceErrorData,
     TooManyRequestsError,
     UnexpectedServerError,
     WarehouseConnectionError,
@@ -106,7 +107,6 @@ import {
     toFailedScan,
     toPostHogSchemaTable,
 } from '../../../services/QuerySourceService/live/integrations/postHog/scan';
-import { getLiveSourceQueryErrorCode } from '../../../services/QuerySourceService/live/query/outcome';
 import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
 import { getLiveIntegration } from '../../../services/QuerySourceService/live/registry';
 import { getLiveSourceTestCheck } from '../../../services/QuerySourceService/live/testCheck';
@@ -2195,7 +2195,7 @@ export class ExternalConnectionService extends BaseService {
                     );
                 }
                 // The query text stays out of analytics; it can hold filter values.
-                const errorCode = getLiveSourceQueryErrorCode(call.outcome);
+                const { errorCode } = call;
                 this.analytics.trackAccount(account, {
                     event: 'live_source.query_finished',
                     properties: {
@@ -2424,6 +2424,7 @@ export class ExternalConnectionService extends BaseService {
             if (isPerQuery && callsThisQuery > limits.callsPerQuery) {
                 throw new ParameterError(
                     `This query needs more than ${limits.callsPerQuery} ${label} API calls. Narrow it with filters or a shorter time range.`,
+                    toLiveSourceErrorData('live_source.refused.call_limit'),
                 );
             }
             return this.apiSourceCallLimiter.run(connection, limits, () =>

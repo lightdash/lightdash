@@ -1,6 +1,7 @@
 import {
     UnexpectedServerError,
     type ExternalConnectionApiSource,
+    type LiveSourceErrorCode,
     type QueryExecutionContext,
 } from '@lightdash/common';
 import type { LiveQueryOutcome } from './query/outcome';
@@ -61,6 +62,8 @@ export type LiveQueryCall = {
     query: string;
     rowLimit: number;
     outcome: LiveQueryOutcome;
+    /** The stable code of a failed query; null when it succeeded. */
+    errorCode: LiveSourceErrorCode | null;
     errorMessage: string | null;
     durationMs: number;
     rowCount: number | null;

@@ -1,5 +1,6 @@
 import {
     ParameterError,
+    toLiveSourceErrorData,
     type ApiConnectorType,
     type ApiSourceOf,
     type CreateExternalConnection,
@@ -48,7 +49,10 @@ export const jsonRequest =
 /** Refuses a limit past what one query can read, for APIs that can't cap it. */
 export const assertMaxRows = (limit: number, maxRows: number) => {
     if (limit > maxRows) {
-        throw new ParameterError(`limit must be between 1 and ${maxRows} rows`);
+        throw new ParameterError(
+            `limit must be between 1 and ${maxRows} rows`,
+            toLiveSourceErrorData('live_source.refused.row_limit'),
+        );
     }
 };
 
