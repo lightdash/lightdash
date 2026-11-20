@@ -76,8 +76,17 @@ export const useTitleAim = ({
             ];
 
             const inPill = !!pillRect && contains(pillRect, now.x, now.y);
+            // An expanded title may wrap: its extra lines below the first count too
+            const onWrappedLines =
+                !!title &&
+                !!titleRect &&
+                activeRef.current &&
+                now.y > titleRect.bottom &&
+                contains(title.getBoundingClientRect(), now.x, now.y);
             const inTitle =
-                !!titleRect && !inPill && contains(titleRect, now.x, now.y);
+                !!titleRect &&
+                !inPill &&
+                (contains(titleRect, now.x, now.y) || onWrappedLines);
             clearDwell();
             if (!inTitle) {
                 set(false);
