@@ -164,18 +164,12 @@
     display: none;
 }
 
-/* An editor sees what a press would drag: the open section's extent, drawn
-   outside its box so nothing moves */
-.capsule[data-can-drag]:not([data-collapsed]):hover,
+/* A dragged open section shows its extent, drawn outside its box so
+   nothing moves */
 .capsule[data-dragging]:not([data-collapsed]) {
     outline: 1px solid var(--mantine-color-ldGray-3);
     outline-offset: 3px;
     border-radius: 18px;
-}
-
-.capsule[data-can-drag]:not([data-collapsed]):hover::before,
-.capsule[data-can-drag]:not([data-collapsed]):hover::after {
-    background-color: transparent;
 }
 
 /* The line after "Add filter" sits on its box */
