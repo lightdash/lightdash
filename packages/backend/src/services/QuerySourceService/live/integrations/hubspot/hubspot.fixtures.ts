@@ -9,7 +9,7 @@ export const HUBSPOT_DEAL_PROPERTIES = {
             label: 'Deal Name',
             type: 'string',
             fieldType: 'text',
-            description: 'The name given to this deal.',
+            description: 'The name given to this deal',
             hidden: false,
         },
         {

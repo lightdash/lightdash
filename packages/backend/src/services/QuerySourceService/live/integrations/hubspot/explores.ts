@@ -266,8 +266,10 @@ const describeProperty = ({
 }: HubspotProperty) => {
     const listed = (options ?? []).slice(0, MAX_LISTED_OPTIONS);
     const more = (options ?? []).length - listed.length;
+    // HubSpot's own descriptions often end without a full stop
+    const own = description?.trim().replace(/([^.!?])$/, '$1.');
     return [
-        description?.trim() || `The ${label} property in HubSpot.`,
+        own || `The ${label} property in HubSpot.`,
         type === 'enumeration' && listed.length > 0
             ? `Values are HubSpot's internal option names: ${listed
                   .map(({ value, label: title }) =>
