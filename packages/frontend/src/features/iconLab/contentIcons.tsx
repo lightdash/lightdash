@@ -180,10 +180,12 @@ export const OUTLINE_ICONS: ContentIconSet = {
             />
         </>,
     ),
+    // Fallback for a custom chart type with no icon chosen: a generic chart tile.
     dataAppViz: createContentIcon(
         'OutlineDataAppViz',
         <>
-            <path d="M3.5 7.75a1.25 1.25 0 0 1 1.25 -1.25h3.25a2.5 2.5 0 1 1 5 0h3.25a1.25 1.25 0 0 1 1.25 1.25v3.25a2.5 2.5 0 1 1 0 5v3.25a1.25 1.25 0 0 1 -1.25 1.25h-11.5a1.25 1.25 0 0 1 -1.25 -1.25z" />
+            <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
+            <path d="M7.5 14.5l3 -3.5l2.5 2l3.5 -4" fill="none" />
         </>,
     ),
 };

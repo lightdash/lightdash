@@ -64,6 +64,7 @@ const BOX_LABELS: Record<IconBoxStyleKey, string> = {
     square: 'Tighter radius',
     tinted: 'Type-colour tint',
     none: 'No box',
+    compact: 'No box, compact',
 };
 
 const CHART_KIND_LABELS: Record<ChartKind, string> = {
@@ -81,8 +82,8 @@ const CHART_KIND_LABELS: Record<ChartKind, string> = {
     [ChartKind.GAUGE]: 'Gauge',
     [ChartKind.MAP]: 'Map',
     [ChartKind.SANKEY]: 'Sankey',
-    [ChartKind.CUSTOM]: 'Custom',
-    [ChartKind.DATA_APP_VIZ]: 'Data app viz',
+    [ChartKind.CUSTOM]: 'Vega (legacy)',
+    [ChartKind.DATA_APP_VIZ]: 'Custom chart type, no icon',
 };
 
 type IconRow = { name: ContentIconName; label: string; color: string };
@@ -107,8 +108,12 @@ const MATRIX_ROWS: IconRow[] = [
     { name: 'gauge', label: 'Gauge', color: CHART_COLOR },
     { name: 'map', label: 'Map', color: CHART_COLOR },
     { name: 'sankey', label: 'Sankey', color: CHART_COLOR },
-    { name: 'custom', label: 'Custom', color: CHART_COLOR },
-    { name: 'dataAppViz', label: 'Data app viz', color: CHART_COLOR },
+    { name: 'custom', label: 'Vega (legacy)', color: CHART_COLOR },
+    {
+        name: 'dataAppViz',
+        label: 'Custom chart type, no icon',
+        color: CHART_COLOR,
+    },
 ];
 
 const Section: FC<{ title: string; source: string; children: ReactNode }> = ({

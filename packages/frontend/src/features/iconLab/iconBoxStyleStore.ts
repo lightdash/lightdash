@@ -5,6 +5,7 @@ export const ICON_BOX_STYLE_KEYS = [
     'square',
     'tinted',
     'none',
+    'compact',
 ] as const;
 export type IconBoxStyleKey = (typeof ICON_BOX_STYLE_KEYS)[number];
 

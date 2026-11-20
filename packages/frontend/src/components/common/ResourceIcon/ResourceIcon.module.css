@@ -21,6 +21,13 @@
     flex: none;
 }
 
+/* Sits on the first text line and pulls the label closer than the boxed gap. */
+.iconBare[data-compact='true'] {
+    align-self: flex-start;
+    margin-top: 2px;
+    margin-right: -6px;
+}
+
 .tooltipPointerEvents {
     pointer-events: auto;
 }
