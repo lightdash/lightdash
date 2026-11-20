@@ -127,6 +127,8 @@ export const useDesignMode = (
         onSend: (payload: DesignPayload) => Promise<DesignSendResult>;
         /** The agent picker or thread shown inside a bubble. */
         renderBubbleBody: ((bubble: Bubble) => ReactNode) | null;
+        /** The bubble whose send waits on an agent choice, and how to call it off. */
+        picker: { bubbleId: string; cancel: () => void } | null;
     },
 ): {
     on: boolean;
@@ -158,6 +160,8 @@ export const useDesignMode = (
     surfaceRef.current = surface;
     const onSendRef = useRef(opts.onSend);
     onSendRef.current = opts.onSend;
+    const pickerRef = useRef(opts.picker);
+    pickerRef.current = opts.picker;
 
     const [session, setSession] = useState<DesignSession>(EMPTY);
     const sessionRef = useRef<DesignSession>(EMPTY);
@@ -167,6 +171,20 @@ export const useDesignMode = (
         setSession(next);
         return next;
     }, []);
+
+    // The bubble shows the agent picker for as long as its send waits on one.
+    const pickingBubbleId = opts.picker?.bubbleId ?? null;
+    useEffect(() => {
+        if (pickingBubbleId === null) return undefined;
+        dispatch({ type: 'picking', bubbleId: pickingBubbleId, open: true });
+        return () => {
+            dispatch({
+                type: 'picking',
+                bubbleId: pickingBubbleId,
+                open: false,
+            });
+        };
+    }, [dispatch, pickingBubbleId]);
 
     const [on, setOnState] = useState(false);
     const onRef = useRef(false);
@@ -783,12 +801,10 @@ export const useDesignMode = (
                                   transcript: phrases,
                               })
                             : '';
-                    const summary = [text, built]
-                        .filter((part) => part !== '')
-                        .join('\n\n');
                     const result = await onSendRef.current({
                         bubbleId,
-                        summary,
+                        summary: built,
+                        typed: text,
                         marks,
                         images,
                         transcript: phrases,
@@ -899,6 +915,15 @@ export const useDesignMode = (
                 (b) => b.id === bubbleId,
             );
             if (bubble?.status === 'sending') return;
+            // Choosing an agent: call the send off, and it removes the bubble.
+            const picker = pickerRef.current;
+            if (
+                bubble?.status === 'picking-agent' &&
+                picker?.bubbleId === bubbleId
+            ) {
+                picker.cancel();
+                return;
+            }
             removeBubble(bubbleId, 'discard');
         },
         [removeBubble],
@@ -925,6 +950,8 @@ export const useDesignMode = (
                 return;
             }
             cancelHold();
+            // A send left waiting on an agent choice would hold up later sends.
+            pickerRef.current?.cancel();
             const recording = recordingRef.current;
             if (recording) dropRecording(recording.bubbleId);
             framesRef.current.forEach((frames) =>

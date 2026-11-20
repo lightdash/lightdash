@@ -96,7 +96,10 @@ export type DesignSurface = {
 
 export type DesignPayload = {
     bubbleId: string;
+    /** The marks and speech from buildSummary; empty when there are none. */
     summary: string;
+    /** The words typed into the bubble, trimmed. */
+    typed: string;
     marks: CaptureMark[];
     images: File[];
     transcript: TranscriptPhrase[];

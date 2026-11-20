@@ -179,6 +179,17 @@ describe('designSessionReducer', () => {
         expect(s.bubbles[0].status).toBe('sending');
     });
 
+    it('picking moves a sending bubble to the agent picker and back', () => {
+        let s = run(empty, ...hold('a', 0));
+        s = run(s, { type: 'picking', bubbleId: 'a', open: true });
+        expect(s.bubbles[0].status).toBe('collecting');
+        s = run(s, { type: 'sendStarted', bubbleId: 'a', needsPicker: false });
+        s = run(s, { type: 'picking', bubbleId: 'a', open: true });
+        expect(s.bubbles[0].status).toBe('picking-agent');
+        s = run(s, { type: 'picking', bubbleId: 'a', open: false });
+        expect(s.bubbles[0].status).toBe('sending');
+    });
+
     it('a queued bubble can be removed and is skipped by the active-target rule', () => {
         let s = run(empty, ...hold('a', 0));
         s = run(s, { type: 'queue', bubbleId: 'a' });

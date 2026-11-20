@@ -3,18 +3,7 @@ import {
     type AiPromptContext,
     type AiPromptContextInput,
 } from '@lightdash/common';
-import {
-    Avatar,
-    Badge,
-    Box,
-    Button,
-    Center,
-    Group,
-    Loader,
-    Paper,
-    Stack,
-    Text,
-} from '@mantine/core';
+import { Avatar, Box, Center, Group, Loader, Stack, Text } from '@mantine/core';
 import {
     useCallback,
     useEffect,
@@ -72,6 +61,7 @@ import { contextItemsToContentMentionSuggestions } from '../ChatElements/content
 import { getPromptContextItemKey } from '../ChatElements/contentReferenceUtils';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
 import styles from './AiAgentsLauncher.module.css';
+import { LauncherAgentPicker } from './LauncherAgentPicker';
 import {
     getConcreteLauncherAgent,
     isLauncherAutoAgent,
@@ -81,10 +71,7 @@ import { LauncherAnalysisTeaser } from './LauncherAnalysisTeaser';
 import { LAUNCHER_THREAD_EXTRAS_ID } from './launcherDockExtras';
 import { LauncherPanelFrame } from './LauncherPanelFrame';
 import { PanelHeader } from './PanelHeader';
-import {
-    useAiAgentLauncherRouter,
-    type LauncherRouterCandidate,
-} from './useAiAgentLauncherRouter';
+import { useAiAgentLauncherRouter } from './useAiAgentLauncherRouter';
 import { useLauncherDock } from './useLauncherDock';
 
 type Props = {
@@ -474,58 +461,6 @@ const NewThreadPanel: FC<{
         </LauncherPanelFrame>
     );
 };
-
-const LauncherAgentPicker: FC<{
-    candidates: LauncherRouterCandidate[];
-    onPick: (agentUuid: string) => void;
-    waitingPrompt: string | null;
-}> = ({ candidates, onPick, waitingPrompt }) => (
-    <Stack gap="xs" px="md" pb="xs">
-        {waitingPrompt && (
-            <Stack gap="xxs">
-                <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-                    Your message
-                </Text>
-                <Paper p="xs" className={styles.waitingPrompt}>
-                    <Text size="sm" lineClamp={4}>
-                        {waitingPrompt}
-                    </Text>
-                </Paper>
-            </Stack>
-        )}
-        <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-            {waitingPrompt ? 'Choose an agent to send it to' : 'Choose agent'}
-        </Text>
-        <Stack gap="xxs">
-            {candidates.map((candidate) => (
-                <Button
-                    key={candidate.agentUuid}
-                    variant="default"
-                    justify="start"
-                    leftSection={
-                        <LightdashUserAvatar
-                            size="xs"
-                            name={candidate.name}
-                            src={candidate.agent?.imageUrl}
-                        />
-                    }
-                    onClick={() => onPick(candidate.agentUuid)}
-                >
-                    <Box className={styles.candidateContent}>
-                        <Box className={styles.candidateText}>
-                            {candidate.name}
-                        </Box>
-                        {candidate.isRecommended && (
-                            <Badge size="xs" color="violet">
-                                Recommended
-                            </Badge>
-                        )}
-                    </Box>
-                </Button>
-            ))}
-        </Stack>
-    </Stack>
-);
 
 const ExistingThreadPanel: FC<{
     projectUuid: string;

@@ -1,5 +1,5 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
-import { type FC } from 'react';
+import { useState, type FC } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import {
@@ -60,9 +60,48 @@ type Api = ReturnType<typeof useDesignMode>;
 let api: Api;
 const onSend = vi.fn<(payload: DesignPayload) => Promise<DesignSendResult>>();
 
+type Picker = { bubbleId: string; cancel: () => void };
+let showPicker: (picker: Picker | null) => void = () => {};
+
 const Harness: FC = () => {
-    api = useDesignMode(surface, { onSend, renderBubbleBody: null });
+    const [picker, setPicker] = useState<Picker | null>(null);
+    showPicker = setPicker;
+    api = useDesignMode(surface, {
+        onSend,
+        renderBubbleBody: (bubble) =>
+            bubble.status === 'picking-agent' ? (
+                <span>choose an agent</span>
+            ) : null,
+        picker,
+    });
     return <>{api.element}</>;
+};
+
+// A send that waits on an agent choice, the way useBubbleSend holds it.
+const startPickingSend = async () => {
+    let settle: (result: DesignSendResult) => void = () => {};
+    onSend.mockImplementationOnce(
+        () =>
+            new Promise((resolve) => {
+                settle = resolve;
+            }),
+    );
+    await turnOn();
+    await drawMark();
+    await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+    const { id } = api.session.bubbles[0];
+    await act(async () => {
+        api.send(id, 'hello');
+    });
+    await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+    const cancel = vi.fn(() => {
+        showPicker(null);
+        settle('cancelled');
+    });
+    await act(async () => {
+        showPicker({ bubbleId: id, cancel });
+    });
+    return { id, cancel, settle: (result: DesignSendResult) => settle(result) };
 };
 
 const keyDown = (init: KeyboardEventInit) =>
@@ -379,6 +418,68 @@ describe('useDesignMode', () => {
         expect(api.session.bubbles[0].threadId).toBe('t1');
     });
 
+    it('a bubble waiting on an agent choice shows the picker, then sends', async () => {
+        const { id, settle } = await startPickingSend();
+        expect(api.session.bubbles[0].status).toBe('picking-agent');
+        expect(screen.getByText('choose an agent')).toBeInTheDocument();
+
+        // Picked: the picker closes while the thread is created.
+        await act(async () => {
+            showPicker(null);
+        });
+        expect(api.session.bubbles[0].status).toBe('sending');
+        await act(async () => {
+            settle({ threadId: 't1', agentUuid: 'a1' });
+        });
+        await waitFor(() =>
+            expect(api.session.bubbles[0]).toMatchObject({
+                id,
+                status: 'thread',
+                threadId: 't1',
+            }),
+        );
+    });
+
+    it('Esc on a bubble choosing its agent calls the send off', async () => {
+        const { cancel } = await startPickingSend();
+        await keyDown({ key: 'Escape' });
+        await keyUp({ key: 'Escape' });
+        expect(cancel).toHaveBeenCalledTimes(1);
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(0));
+        expect(api.on).toBe(true);
+        expect(screen.queryByText('①')).not.toBeInTheDocument();
+    });
+
+    it('Discard on a bubble choosing its agent calls the send off', async () => {
+        const { cancel } = await startPickingSend();
+        fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+        expect(cancel).toHaveBeenCalledTimes(1);
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(0));
+    });
+
+    it('leaving Design Mode calls off a send that waits on an agent choice', async () => {
+        const { cancel } = await startPickingSend();
+        await act(async () => {
+            api.setOn(false);
+        });
+        expect(cancel).toHaveBeenCalledTimes(1);
+        expect(api.session.bubbles).toHaveLength(0);
+    });
+
+    it('typed words travel apart from the marks and speech', async () => {
+        await turnOn();
+        await drawMark();
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+        await act(async () => {
+            api.send(api.session.bubbles[0].id, '  make it blue ');
+        });
+        await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+        const [payload] = onSend.mock.calls[0];
+        expect(payload.typed).toBe('make it blue');
+        expect(payload.summary).toContain('①');
+        expect(payload.summary).not.toContain('make it blue');
+    });
+
     it("a cancelled reply drops the reply and keeps the thread's bubble", async () => {
         await turnOn();
         await drawMark();
@@ -610,6 +711,7 @@ describe('useDesignMode', () => {
                 renderBubbleBody: (bubble) => (
                     <span>thread {bubble.threadId}</span>
                 ),
+                picker: null,
             });
             return <>{api.element}</>;
         };
@@ -626,6 +728,6 @@ describe('useDesignMode', () => {
         await waitFor(() =>
             expect(screen.getByText('thread t1')).toBeInTheDocument(),
         );
-        expect(onSend.mock.calls[0][0].summary).toContain('make this green');
+        expect(onSend.mock.calls[0][0].typed).toBe('make this green');
     });
 });

@@ -52,6 +52,8 @@ export type DesignAction =
     | { type: 'inputChanged'; bubbleId: string; input: BubbleInput }
     | { type: 'queue'; bubbleId: string }
     | { type: 'sendStarted'; bubbleId: string; needsPicker: boolean }
+    // The agent picker opened or closed in a bubble that is being sent.
+    | { type: 'picking'; bubbleId: string; open: boolean }
     | {
           type: 'threadReady';
           bubbleId: string;
@@ -285,6 +287,15 @@ export const designSessionReducer = (
                           status: action.needsPicker
                               ? 'picking-agent'
                               : 'sending',
+                      }
+                    : b,
+            );
+        case 'picking':
+            return updateBubble(s, action.bubbleId, (b) =>
+                b.status === (action.open ? 'sending' : 'picking-agent')
+                    ? {
+                          ...b,
+                          status: action.open ? 'picking-agent' : 'sending',
                       }
                     : b,
             );
