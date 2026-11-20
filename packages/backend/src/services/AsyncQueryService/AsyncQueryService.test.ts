@@ -20467,6 +20467,46 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
         },
     );
 
+    it("runs a merged chart's legs for a view-only reader with RLS, and refuses the same merge sent by the client", async () => {
+        const { service, executeAsyncQuery, compiledLegs, trackAccount } =
+            buildServiceWithCompiledLegs();
+        const account = buildAccount() as RegisteredAccount;
+        account.user.ability = new Ability<PossibleAbilities>([
+            { subject: 'Project', action: 'view' },
+            { subject: 'SavedChart', action: 'view' },
+        ]);
+        const args = {
+            account,
+            projectUuid,
+            mergeQuery: attributeScopedMergeQuery,
+            context: QueryExecutionContext.DASHBOARD,
+            mode: { type: 'interactive' } as const,
+        };
+
+        await expect(service.executeAsyncMergeQuery(args)).rejects.toThrow(
+            ForbiddenError,
+        );
+        expect(executeAsyncQuery).not.toHaveBeenCalled();
+
+        const result = await service.executeAsyncMergeQuery({
+            ...args,
+            authority: {
+                kind: 'mergedChart',
+                run: MergedChartRun.fromLoadedChart({
+                    account,
+                    savedChart: { uuid: 'merged-chart', projectUuid },
+                }),
+            },
+        });
+        expect(result).toMatchObject({
+            outcome: 'started',
+            query: { queryUuid: 'merge-query-uuid' },
+        });
+        expect(compiledLegs()).toHaveLength(2);
+        compiledLegs().forEach(({ sql }) => expect(sql).toContain('base'));
+        await drainMergeEvents(trackAccount, 1);
+    });
+
     it('runs a saved Document merge for a view-only reader with RLS and provenance on every leg and root', async () => {
         const {
             service,
