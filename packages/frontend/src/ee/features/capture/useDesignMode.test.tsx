@@ -784,4 +784,41 @@ describe('useDesignMode', () => {
         );
         expect(onSend.mock.calls[0][0].typed).toBe('make this green');
     });
+
+    it('the body is drawn from the session as it is now', async () => {
+        const Body: FC = () => {
+            api = useDesignMode(surface, {
+                onSend,
+                renderBubbleBody: (bubble, session) => (
+                    <span>
+                        {session.active.kind === 'bubble' &&
+                        session.active.bubbleId === bubble.id
+                            ? 'the target'
+                            : 'not the target'}
+                    </span>
+                ),
+                picker: null,
+                cancelSend,
+            });
+            return <>{api.element}</>;
+        };
+        renderWithProviders(<Body />);
+        await act(async () => {
+            api.setOn(true);
+        });
+        await drawMark();
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+        const { id } = api.session.bubbles[0];
+        await act(async () => {
+            api.send(id, 'hello');
+        });
+        await waitFor(() =>
+            expect(screen.getByText('not the target')).toBeInTheDocument(),
+        );
+
+        await act(async () => {
+            api.arm(id, 'text');
+        });
+        expect(screen.getByText('the target')).toBeInTheDocument();
+    });
 });

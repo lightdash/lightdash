@@ -490,4 +490,6 @@ const DashboardCapture: FC = () => {
     );
 };
 
+// No longer mounted: Design Mode replaced it, and the file goes with the old capture code.
+// ts-unused-exports:disable-next-line
 export default DashboardCapture;

@@ -21,28 +21,18 @@ import { useCallback, useMemo, type FC } from 'react';
 import { createPath, useLocation, useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { useOptionalProjectRoute } from '../../../../../hooks/useProjectRoute';
 import useApp from '../../../../../providers/App/useApp';
 import { type BubbleInput } from '../../../capture/designSession';
 import { AgentContainerWidthContext } from '../../hooks/useAgentMaxWidth';
-import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
 import { useDashboardPageContextCuration } from '../../hooks/useDashboardPageContextCuration';
 import { usePendingThreadRefetch } from '../../hooks/usePendingThreadRefetch';
-import {
-    useAiAgentThread,
-    useCreateAgentThreadMessageMutation,
-    useProjectAiAgents,
-} from '../../hooks/useProjectAiAgents';
-import { useRefreshDocumentOnAgentSave } from '../../hooks/useRefreshDocumentOnAgentSave';
-import { selectThreadSqlMode } from '../../store/aiAgentThreadModeSlice';
-import { useAiAgentStoreSelector } from '../../store/hooks';
-import { type AiAgentToolResult } from '../../types';
-import { getDashboardNavigationUrlFromContentToolResult } from '../../utils/contentToolResultNavigation';
+import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../ChatElements/AgentChatInput';
 import { getPendingAskUser } from '../ChatElements/askUserQuestions';
 import { contextItemsToContentMentionSuggestions } from '../ChatElements/contentMentions';
 import classes from './BubbleThread.module.css';
+import { useBubbleThreadPost } from './useBubbleThreadPost';
 
 // The chat inside lays itself out for this width, not the window's.
 const BUBBLE_WIDTH_PX = 420;
@@ -105,15 +95,11 @@ export const BubbleThread: FC<Props> = ({
     const { user } = useApp();
     const navigate = useNavigate();
     const location = useLocation();
-    // The agents list never redirects on a refusal; the single-agent query does.
-    const { data: agents } = useProjectAiAgents({
-        projectUuid,
-        redirectOnUnauthorized: false,
-    });
-    const agent = useMemo(
-        () => agents?.find((a) => a.uuid === agentUuid) ?? null,
-        [agents, agentUuid],
-    );
+    const {
+        agent,
+        post,
+        isPosting: isCreatingMessage,
+    } = useBubbleThreadPost(projectUuid, agentUuid, threadId);
     const {
         data: thread,
         isLoading: isLoadingThread,
@@ -126,35 +112,6 @@ export const BubbleThread: FC<Props> = ({
         refetch,
     );
 
-    const refreshDocumentOnAgentSave =
-        useRefreshDocumentOnAgentSave(projectUuid);
-    const projectSlug = useOptionalProjectRoute()?.project.slug ?? null;
-    const handleToolResult = useCallback(
-        (toolResult: AiAgentToolResult) => {
-            refreshDocumentOnAgentSave(toolResult);
-            // Null when the agent edited the dashboard that is already open.
-            const dashboardUrl = getDashboardNavigationUrlFromContentToolResult(
-                { projectUuid, projectSlug },
-                toolResult,
-            );
-            if (!dashboardUrl) return;
-
-            void navigate(dashboardUrl, { viewTransition: true });
-        },
-        [navigate, projectSlug, projectUuid, refreshDocumentOnAgentSave],
-    );
-
-    const {
-        mutateAsync: createAgentThreadMessage,
-        isLoading: isCreatingMessage,
-    } = useCreateAgentThreadMessageMutation(projectUuid, agentUuid, threadId, {
-        onToolResult: handleToolResult,
-    });
-
-    const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
-    const sqlMode = useAiAgentStoreSelector(
-        selectThreadSqlMode(threadId, agent?.enableSqlMode),
-    );
     const threadContext = useMemo(
         () =>
             thread?.messages.flatMap((message) =>
@@ -197,11 +154,10 @@ export const BubbleThread: FC<Props> = ({
     }) => {
         const curated = curateContext({ context, optimisticContext });
 
-        return createAgentThreadMessage({
+        return post({
             prompt: message,
             context: curated.context,
             optimisticContext: curated.optimisticContext,
-            enableSqlMode: sqlModeAvailable && sqlMode,
             toolHints,
         }).then(() => {
             recordSubmittedContext(curated.context);

@@ -20,6 +20,7 @@ import {
     type ReactNode,
 } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { chipLabel } from '../chipLabel';
 import { type Bubble } from '../designSession';
 import { CAPTURE_IGNORE_ATTRIBUTE } from '../frameSource';
 import classes from './DesignBubble.module.css';
@@ -39,12 +40,6 @@ type Props = {
     /** The agent picker or the thread, once the bubble is sent. */
     children: ReactNode;
 };
-
-// ① to ⑳, then plain digits.
-const chipLabel = (number: number): string =>
-    number >= 1 && number <= 20
-        ? String.fromCodePoint(0x2460 + number - 1)
-        : `${number}`;
 
 const DesignBubble: FC<Props> = ({
     bubble,

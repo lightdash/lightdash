@@ -125,8 +125,10 @@ export const useDesignMode = (
     surface: DesignSurface | null,
     opts: {
         onSend: (payload: DesignPayload) => Promise<DesignSendResult>;
-        /** The agent picker or thread shown inside a bubble. */
-        renderBubbleBody: ((bubble: Bubble) => ReactNode) | null;
+        /** The agent picker or thread shown inside a bubble, given the session as it is now. */
+        renderBubbleBody:
+            | ((bubble: Bubble, session: DesignSession) => ReactNode)
+            | null;
         /** The bubble whose send waits on an agent choice, and how to call it off. */
         picker: { bubbleId: string; cancel: () => void } | null;
         /** Calls off a bubble's send if it still waits on an agent choice. */
@@ -1139,7 +1141,7 @@ export const useDesignMode = (
                               onDiscard={() => discard(bubble.id)}
                               onClose={() => close(bubble.id)}
                           >
-                              {opts.renderBubbleBody?.(bubble) ?? null}
+                              {opts.renderBubbleBody?.(bubble, session) ?? null}
                           </DesignBubble>
                       ))}
                       <DesignToolbar

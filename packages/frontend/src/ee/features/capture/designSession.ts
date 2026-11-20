@@ -69,7 +69,8 @@ const PAGE = { kind: 'page' } as const;
 const collectedMarks = (c: Collection | null): CaptureMark[] =>
     c && c.capture.status === 'recording' ? c.capture.marks : [];
 
-const isInProgress = (c: Collection | null): boolean =>
+/** Something has been marked, or a mark is being drawn. */
+export const isInProgress = (c: Collection | null): boolean =>
     c !== null &&
     c.capture.status === 'recording' &&
     (c.capture.marks.length > 0 || c.capture.drawing !== null);
