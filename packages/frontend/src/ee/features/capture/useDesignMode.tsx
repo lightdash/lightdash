@@ -54,7 +54,7 @@ import {
     type VoiceState,
 } from './types';
 import { type TabFrame } from './useTabFrame';
-import { useVoiceRecorder } from './useVoiceRecorder';
+import { useVoiceRecorder, type VoiceRecording } from './useVoiceRecorder';
 import { wordsToPhrases } from './wordsToPhrases';
 
 const FADE_MS = 600;
@@ -173,6 +173,10 @@ export const useDesignMode = (
     // When each bubble's current collection started, on the performance clock.
     const clocksRef = useRef(new Map<string, number>());
     const recordingRef = useRef<Recording | null>(null);
+    // Mic starts and stops run one after another, so a late stop hits its own start.
+    const voiceChainRef = useRef<Promise<void>>(Promise.resolve());
+    // Words already transcribed for a bubble whose send failed.
+    const phrasesRef = useRef(new Map<string, TranscriptPhrase[]>());
     const finishingRef = useRef(new Set<string>());
     const queueRef = useRef<Promise<void>>(Promise.resolve());
     const fadeTimerRef = useRef<number | null>(null);
@@ -188,13 +192,48 @@ export const useDesignMode = (
         framesRef.current.delete(bubbleId);
     }, []);
 
-    const dropRecording = useCallback(
-        (bubbleId: string) => {
-            if (recordingRef.current?.bubbleId !== bubbleId) return;
-            recordingRef.current = null;
-            void stopVoice();
+    const beginRecording = useCallback(
+        (bubbleId: string): Promise<VoiceState> => {
+            const available = (surfaceRef.current?.transcribe ?? null) !== null;
+            const voice = voiceChainRef.current.then(() =>
+                startVoice({ available }),
+            );
+            voiceChainRef.current = voice.then(
+                () => undefined,
+                () => undefined,
+            );
+            recordingRef.current = { bubbleId, voice };
+            return voice;
+        },
+        [startVoice],
+    );
+
+    // Stops only once the pending start has settled, so the mic never outlives its owner.
+    const endRecording = useCallback(
+        (recording: Recording): Promise<VoiceRecording | null> => {
+            const stopped = recording.voice.then((state) =>
+                state === 'on' ? stopVoice() : null,
+            );
+            voiceChainRef.current = Promise.all([
+                voiceChainRef.current,
+                stopped,
+            ]).then(
+                () => undefined,
+                () => undefined,
+            );
+            return stopped;
         },
         [stopVoice],
+    );
+
+    const dropRecording = useCallback(
+        (bubbleId: string) => {
+            const recording = recordingRef.current;
+            if (recording?.bubbleId !== bubbleId) return;
+            recordingRef.current = null;
+            endRecording(recording).catch(() => {});
+        },
+        [endRecording],
     );
 
     // A hold that never became a mark gives back the mic it started.
@@ -406,8 +445,7 @@ export const useDesignMode = (
             // The mic starts with the first press of a new bubble.
             const opensBubble = activeCollection(sessionRef.current) === null;
             if (opensBubble && micOnRef.current && !recordingRef.current) {
-                voice = startVoice({ available: current.transcribe !== null });
-                recordingRef.current = { bubbleId: newBubbleId, voice };
+                voice = beginRecording(newBubbleId);
             }
             if (fadeTimerRef.current) window.clearTimeout(fadeTimerRef.current);
             setFading(null);
@@ -427,7 +465,7 @@ export const useDesignMode = (
                 voice,
             };
         },
-        [startVoice],
+        [beginRecording],
     );
 
     const cancelHold = useCallback(() => {
@@ -533,9 +571,7 @@ export const useDesignMode = (
             const owns = recording?.bubbleId === bubbleId;
             if (owns) recordingRef.current = null;
             const recordingPromise = owns
-                ? recording.voice.then((voice) =>
-                      voice === 'on' ? stopVoice() : null,
-                  )
+                ? endRecording(recording)
                 : Promise.resolve(null);
 
             queueRef.current = queueRef.current.then(async () => {
@@ -586,6 +622,12 @@ export const useDesignMode = (
                     );
                     const capture = latest?.collection?.capture;
                     if (!latest || capture?.status !== 'recording') return;
+                    // Words from a send that failed go out with the retry.
+                    const kept = phrasesRef.current.get(bubbleId) ?? [];
+                    phrases = [...kept, ...phrases];
+                    if (phrases.length > 0) {
+                        phrasesRef.current.set(bubbleId, phrases);
+                    }
                     const text = typed.trim();
                     const { marks } = capture;
                     // No words from the mic: keep what was collected, in a text box.
@@ -653,7 +695,10 @@ export const useDesignMode = (
                     sending = false;
                     clearFrames(bubbleId);
                     clocksRef.current.delete(bubbleId);
+                    phrasesRef.current.delete(bubbleId);
                     if (result === 'cancelled') {
+                        // Back to unsent first, so a reply keeps its thread.
+                        dispatch({ type: 'sendFailed', bubbleId });
                         dispatch({ type: 'discard', bubbleId });
                     } else {
                         dispatch({
@@ -665,7 +710,15 @@ export const useDesignMode = (
                     }
                 } catch {
                     showToastError('Could not send your marks');
-                    if (sending) dispatch({ type: 'sendFailed', bubbleId });
+                    if (sending) {
+                        dispatch({ type: 'sendFailed', bubbleId });
+                        // The recording is spent: no Stop button with no mic.
+                        dispatch({
+                            type: 'inputChanged',
+                            bubbleId,
+                            input: 'text',
+                        });
+                    }
                 } finally {
                     finishingRef.current.delete(bubbleId);
                 }
@@ -675,9 +728,9 @@ export const useDesignMode = (
             clearFrames,
             dispatch,
             endHold,
+            endRecording,
             showToastError,
             showToastWarning,
-            stopVoice,
         ],
     );
 
@@ -692,27 +745,23 @@ export const useDesignMode = (
 
     const arm = useCallback(
         (bubbleId: string, input: BubbleInput) => {
-            const before = sessionRef.current.bubbles.find(
-                (b) => b.id === bubbleId,
-            );
+            const sessionBefore = sessionRef.current;
+            const before = sessionBefore.bubbles.find((b) => b.id === bubbleId);
             const next = dispatch({ type: 'arm', bubbleId, input });
-            if (
-                next.active.kind !== 'bubble' ||
-                next.active.bubbleId !== bubbleId
-            ) {
-                return;
-            }
+            // The reducer only arms a thread bubble; anything else is ignored.
+            if (next === sessionBefore) return;
             if (!before?.collection) {
                 clocksRef.current.set(bubbleId, performance.now());
             }
             const recording = recordingRef.current;
-            if (recording && recording.bubbleId !== bubbleId) {
+            if (
+                recording &&
+                (recording.bubbleId !== bubbleId || input === 'text')
+            ) {
                 dropRecording(recording.bubbleId);
             }
             if (input !== 'mic' || recordingRef.current) return;
-            const transcribe = surfaceRef.current?.transcribe ?? null;
-            const voice = startVoice({ available: transcribe !== null });
-            recordingRef.current = { bubbleId, voice };
+            const voice = beginRecording(bubbleId);
             void voice.then((state) => {
                 if (state === 'on') return;
                 if (recordingRef.current?.voice === voice) {
@@ -721,7 +770,7 @@ export const useDesignMode = (
                 dispatch({ type: 'inputChanged', bubbleId, input: 'text' });
             });
         },
-        [dispatch, dropRecording, startVoice],
+        [beginRecording, dispatch, dropRecording],
     );
 
     const removeBubble = useCallback(
@@ -729,12 +778,20 @@ export const useDesignMode = (
             dropRecording(bubbleId);
             clearFrames(bubbleId);
             clocksRef.current.delete(bubbleId);
+            phrasesRef.current.delete(bubbleId);
             dispatch({ type, bubbleId });
         },
         [clearFrames, dispatch, dropRecording],
     );
     const discard = useCallback(
-        (bubbleId: string) => removeBubble(bubbleId, 'discard'),
+        (bubbleId: string) => {
+            // A bubble being sent is no longer unsent: its send decides what happens.
+            const bubble = sessionRef.current.bubbles.find(
+                (b) => b.id === bubbleId,
+            );
+            if (bubble?.status === 'sending') return;
+            removeBubble(bubbleId, 'discard');
+        },
         [removeBubble],
     );
     const close = useCallback(
@@ -765,6 +822,7 @@ export const useDesignMode = (
             );
             framesRef.current.clear();
             clocksRef.current.clear();
+            phrasesRef.current.clear();
             downKeysRef.current.clear();
             if (fadeTimerRef.current) window.clearTimeout(fadeTimerRef.current);
             setFading(null);
@@ -781,12 +839,17 @@ export const useDesignMode = (
     // Esc throws away an unsent bubble; with none, it leaves Design Mode.
     const onEscape = useCallback(() => {
         const s = sessionRef.current;
+        const active = activeCollection(s)?.bubble ?? null;
+        // A send in flight is left alone: the bubble is no longer unsent.
+        if (active?.status === 'sending') return;
         const unsent =
-            activeCollection(s)?.bubble ??
-            s.bubbles.find(
-                (b) =>
-                    b.status === 'collecting' || b.status === 'picking-agent',
-            );
+            active && active.status !== 'queued'
+                ? active
+                : s.bubbles.find(
+                      (b) =>
+                          b.status === 'collecting' ||
+                          b.status === 'picking-agent',
+                  );
         if (unsent) discard(unsent.id);
         else setOn(false);
     }, [discard, setOn]);

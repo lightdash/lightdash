@@ -276,4 +276,179 @@ describe('useDesignMode', () => {
             surface.pickAt = null;
         }
     });
+
+    it('an empty hold that ends before the mic starts still stops it, before the next start', async () => {
+        let started: (state: 'on' | 'off') => void = () => {};
+        startVoice.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    started = resolve;
+                }),
+        );
+        await turnOn(true);
+        await keyDown({ key: 'Alt', altKey: true });
+        await keyUp({ key: 'Alt' });
+        expect(startVoice).toHaveBeenCalledTimes(1);
+        expect(stopVoice).not.toHaveBeenCalled();
+
+        // The next bubble's mic waits for the first one to be stopped.
+        await drawMark();
+        expect(startVoice).toHaveBeenCalledTimes(1);
+        expect(stopVoice).not.toHaveBeenCalled();
+
+        await act(async () => {
+            started('on');
+        });
+        await waitFor(() => expect(startVoice).toHaveBeenCalledTimes(2));
+        expect(stopVoice).toHaveBeenCalledTimes(1);
+        expect(stopVoice.mock.invocationCallOrder[0]).toBeLessThan(
+            startVoice.mock.invocationCallOrder[1],
+        );
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+        expect(api.session.bubbles[0].input).toBe('mic');
+        expect(stopVoice).toHaveBeenCalledTimes(1);
+    });
+
+    it('arming a bubble that is still collecting does not start the mic', async () => {
+        await turnOn();
+        await drawMark();
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+        const { id } = api.session.bubbles[0];
+        await act(async () => {
+            api.arm(id, 'mic');
+        });
+        expect(startVoice).not.toHaveBeenCalled();
+        expect(api.session.bubbles[0].input).toBe('text');
+    });
+
+    it('switching an armed reply from mic to text stops its recording', async () => {
+        await turnOn();
+        await drawMark();
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+        const { id } = api.session.bubbles[0];
+        await act(async () => {
+            api.send(id, '');
+        });
+        await waitFor(() =>
+            expect(api.session.bubbles[0].status).toBe('thread'),
+        );
+
+        await act(async () => {
+            api.arm(id, 'mic');
+        });
+        expect(startVoice).toHaveBeenCalledTimes(1);
+        await act(async () => {
+            api.arm(id, 'text');
+        });
+        expect(stopVoice).toHaveBeenCalledTimes(1);
+        expect(api.session.bubbles[0].input).toBe('text');
+    });
+
+    it('Esc while a bubble is being sent keeps the bubble and Design Mode', async () => {
+        let sent: (result: DesignSendResult) => void = () => {};
+        onSend.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    sent = resolve;
+                }),
+        );
+        await turnOn();
+        await drawMark();
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+        const { id } = api.session.bubbles[0];
+        await act(async () => {
+            api.send(id, 'hello');
+        });
+        await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+        expect(api.session.bubbles[0].status).toBe('sending');
+
+        await keyDown({ key: 'Escape' });
+        await keyUp({ key: 'Escape' });
+        expect(api.on).toBe(true);
+        expect(api.session.bubbles).toHaveLength(1);
+        expect(api.session.bubbles[0].status).toBe('sending');
+
+        await act(async () => {
+            sent({ threadId: 't1', agentUuid: 'a1' });
+        });
+        await waitFor(() =>
+            expect(api.session.bubbles[0].status).toBe('thread'),
+        );
+        expect(api.session.bubbles[0].threadId).toBe('t1');
+    });
+
+    it("a cancelled reply drops the reply and keeps the thread's bubble", async () => {
+        await turnOn();
+        await drawMark();
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+        const { id } = api.session.bubbles[0];
+        await act(async () => {
+            api.send(id, '');
+        });
+        await waitFor(() =>
+            expect(api.session.bubbles[0].status).toBe('thread'),
+        );
+
+        onSend.mockResolvedValueOnce('cancelled');
+        await act(async () => {
+            api.arm(id, 'text');
+        });
+        await act(async () => {
+            api.send(id, 'one more thing');
+        });
+        await waitFor(() => expect(onSend).toHaveBeenCalledTimes(2));
+        await waitFor(() =>
+            expect(api.session.active).toEqual({ kind: 'page' }),
+        );
+        expect(api.session.bubbles).toHaveLength(1);
+        expect(api.session.bubbles[0]).toMatchObject({
+            id,
+            status: 'thread',
+            threadId: 't1',
+            collection: null,
+        });
+        expect(api.session.bubbles[0].sentMarks).toHaveLength(1);
+    });
+
+    it('a failed send keeps the spoken words for the retry', async () => {
+        stopVoice.mockResolvedValue({
+            audio: new Blob(['audio'], { type: 'audio/webm' }),
+            startedAtMs: performance.now(),
+        });
+        transcribe.mockResolvedValue([
+            { startMs: 0, endMs: 300, text: 'make' },
+            { startMs: 300, endMs: 600, text: 'this' },
+            { startMs: 600, endMs: 900, text: 'blue' },
+        ]);
+        onSend.mockRejectedValueOnce(new Error('offline'));
+        await turnOn(true);
+        await drawMark();
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+        const { id } = api.session.bubbles[0];
+        expect(api.session.bubbles[0].input).toBe('mic');
+
+        await act(async () => {
+            api.stop(id);
+        });
+        await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+        await waitFor(() =>
+            expect(api.session.bubbles[0]).toMatchObject({
+                status: 'collecting',
+                input: 'text',
+            }),
+        );
+
+        await act(async () => {
+            api.send(id, '');
+        });
+        await waitFor(() => expect(onSend).toHaveBeenCalledTimes(2));
+        const [retry] = onSend.mock.calls[1];
+        expect(retry.transcript).toEqual(onSend.mock.calls[0][0].transcript);
+        expect(retry.transcript.length).toBeGreaterThan(0);
+        expect(retry.summary).toContain('make this blue');
+        expect(retry.marks).toHaveLength(1);
+        expect(retry.images).toHaveLength(1);
+        expect(stopVoice).toHaveBeenCalledTimes(1);
+        expect(transcribe).toHaveBeenCalledTimes(1);
+    });
 });
