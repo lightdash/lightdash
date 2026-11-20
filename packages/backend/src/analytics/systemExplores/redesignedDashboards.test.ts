@@ -163,7 +163,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 1,
                 12,
                 4,
-                null,
+                'big-number-with-sparkline-trend',
                 'big_number',
             ],
             [
@@ -215,23 +215,39 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             ],
         ],
         health: [
-            ['content-with-activity', 0, 1, 12, 4, null, 'big_number'],
+            [
+                'content-with-activity',
+                0,
+                1,
+                12,
+                4,
+                'big-number-with-sparkline-trend',
+                'big_number',
+            ],
             [
                 'content-without-activity-in-use',
                 12,
                 1,
                 12,
                 4,
-                null,
+                'big-number-with-sparkline-trend',
                 'big_number',
             ],
-            ['content-without-activity', 24, 1, 12, 4, null, 'big_number'],
+            [
+                'content-without-activity',
+                24,
+                1,
+                12,
+                4,
+                'big-number-with-sparkline-trend',
+                'big_number',
+            ],
             [
                 'review-candidates-activity-and-known-dependencies',
                 0,
                 5,
                 36,
-                5,
+                7,
                 'sortable-pivot-table',
                 'table',
             ],
@@ -241,24 +257,24 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 'content-ownership-current-snapshot',
                 0,
                 1,
-                18,
-                5,
-                'sortable-pivot-table',
+                36,
+                4,
+                'customizable-cartesian-chart',
                 'pie',
             ],
             [
                 'content-owners-needing-review',
-                18,
-                1,
-                18,
+                0,
                 5,
+                36,
+                6,
                 'sortable-pivot-table',
                 'table',
             ],
             [
                 'high-compute-dashboards-audience-versus-warehouse-time',
                 0,
-                7,
+                12,
                 36,
                 8,
                 'sortable-pivot-table',
@@ -606,7 +622,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 1,
                 36,
                 4,
-                null,
+                'big-number-with-sparkline-trend',
                 'big_number',
             ],
             [
@@ -946,11 +962,14 @@ describe.each(Object.entries(redesigned))('%s', (slug, tabs) => {
     });
 
     it('shows the latest day for a count of distinct things and the period total for a sum, in both versions', () => {
-        const cards = bound.filter(
-            (chart) =>
-                analyticsLibraryChartBindings.get(chart.slug)!.slug ===
-                'big-number-with-sparkline-trend',
-        );
+        // A card with a trend behind it. A lone number with no daily series has no day to map.
+        const cards = bound.filter((chart) => {
+            const binding = analyticsLibraryChartBindings.get(chart.slug)!;
+            return (
+                binding.slug === 'big-number-with-sparkline-trend' &&
+                binding.fieldMapping.time !== undefined
+            );
+        });
         cards.forEach((fallback) => {
             const { fieldMapping, optionValues, query } =
                 analyticsLibraryChartBindings.get(fallback.slug)!;
@@ -1056,8 +1075,11 @@ describe.each(Object.entries(redesigned))('%s', (slug, tabs) => {
                           ]
                         : [],
                 );
+                // Collapsed, except a short list that is the point of its tile
                 if (fieldMapping.rowDimension2)
-                    expect(optionValues.defaultCollapsed).toBe('collapsed');
+                    expect(['collapsed', 'expanded']).toContain(
+                        optionValues.defaultCollapsed,
+                    );
                 // Plain headers: one name for the row header and one for each measure
                 expect(String(optionValues.rowHeaderName)).toMatch(
                     fieldMapping.rowDimension2
@@ -2038,7 +2060,6 @@ describe('options of the newest chart versions', () => {
         expect(cards.length).toBeGreaterThan(10);
         cards.forEach(({ optionValues }) =>
             expect(optionValues).toMatchObject({
-                style: 'compact',
                 sizeMode: 'preset',
                 bigNumberSize: 6,
                 reserveComparisonSpace: false,
@@ -2053,5 +2074,72 @@ describe('options of the newest chart versions', () => {
                 showCaption: false,
             }),
         );
+    });
+});
+
+describe('columns of plain tables', () => {
+    const tables = analyticsContentAsCode
+        .flatMap(({ charts }) => charts)
+        .flatMap((chart) =>
+            chart.chartConfig.type === ChartType.TABLE
+                ? [{ chart, columns: chart.chartConfig.config?.columns ?? {} }]
+                : [],
+        );
+    const shown = (
+        chart: ChartAsCode,
+        columns: Record<string, { visible?: boolean; name?: string }>,
+    ) =>
+        [
+            ...chart.metricQuery.dimensions,
+            ...chart.metricQuery.metrics,
+            ...chart.metricQuery.tableCalculations.map(({ name }) => name),
+        ].filter((field) => columns[field]?.visible !== false);
+
+    const byKeyOfSpec = (key: string) =>
+        tables.find(({ chart }) => chart.slug.endsWith(`-${key}`))!
+            .columns as Record<string, { visible?: boolean }>;
+
+    it('never show a field beside the plain-name field made from it', () => {
+        expect(
+            tables.flatMap(({ chart, columns }) => {
+                const fields = shown(chart, columns);
+                return fields
+                    .filter((field) => fields.includes(`${field}_name`))
+                    .map((field) => `${chart.slug}: ${field}`);
+            }),
+        ).toEqual([]);
+    });
+
+    it('never show two columns with the same header', () => {
+        expect(
+            tables.flatMap(({ chart, columns }) => {
+                const headers = shown(chart, columns)
+                    .map((field) => columns[field]?.name)
+                    .filter((name): name is string => Boolean(name));
+                return headers
+                    .filter((name, index) => headers.indexOf(name) !== index)
+                    .map((name) => `${chart.slug}: ${name}`);
+            }),
+        ).toEqual([]);
+    });
+
+    it('hide every ID and every column a chart asks to hide', () => {
+        const run = byKeyOfSpec('recent-evaluation-runs');
+        expect(run.agent_evaluation_runs_event_ts_raw).toMatchObject({
+            visible: false,
+        });
+        const fieldUse = byKeyOfSpec('content-using-fields');
+        [
+            'semantic_usage_chart_name',
+            'semantic_usage_dashboard_name',
+            'semantic_usage_app_name',
+            'semantic_usage_chart_id',
+        ].forEach((field) =>
+            expect(fieldUse[field]).toMatchObject({ visible: false }),
+        );
+        const lastUsed = byKeyOfSpec('people-without-activity-30d-detail');
+        expect(
+            lastUsed.people_adoption_last_observed_activity_at_day,
+        ).toMatchObject({ visible: false });
     });
 });

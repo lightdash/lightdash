@@ -77,6 +77,33 @@ export const card = ({
     },
 });
 
+// One number as a card, with a line of plain words saying what it counts. For a number with no daily
+// series behind it, so no sparkline.
+export const numberCard = (
+    value: string,
+    label: string,
+    percent = false,
+): LibraryChartBinding => ({
+    slug: 'big-number-with-sparkline-trend',
+    minVersion: '0.8.2',
+    fieldMapping: { value },
+    optionValues: {
+        valueAggregation: 'latest',
+        showComparison: false,
+        // A share keeps its own format: 92.8%, not 0.93
+        style: percent ? 'default' : 'compact',
+        sizeMode: 'preset',
+        bigNumberSize: 6,
+        reserveComparisonSpace: false,
+        showLabel: true,
+        label,
+        labelTransform: 'none',
+        showCardBorder: false,
+        showCardShadow: false,
+    },
+    query: null,
+});
+
 // Smooth filled lines in full-width rows over a shared date axis, each row on its own scale.
 export const trendRows = (
     panels: boolean,
@@ -374,6 +401,7 @@ export const ranking = ({
     libraryDescription,
     visualization,
     extraMetrics = [],
+    expanded = false,
     ...spec
 }: Base &
     Partial<Pick<UsageChartSpec, 'visualization' | 'xField' | 'yFields'>> & {
@@ -389,6 +417,8 @@ export const ranking = ({
         libraryDescription?: string;
         // Measures only the plain table shows, such as a date
         extraMetrics?: string[];
+        // Groups start open, for a list that is short and is the point of the tile
+        expanded?: boolean;
     }): UsageChartSpec => {
     const grouped = [by, ...(then ? [then] : []), ...(series ? [series] : [])];
     // A table grouped by two names adds up the rows under each first name. Rows are asked for a
@@ -442,7 +472,9 @@ export const ranking = ({
                     .map(labelOf)
                     .join(' / '),
                 valueNames: metrics.map(labelOf).join(','),
-                ...(then ? { defaultCollapsed: 'collapsed' } : {}),
+                ...(then
+                    ? { defaultCollapsed: expanded ? 'expanded' : 'collapsed' }
+                    : {}),
             },
             query: {
                 dimensions: grouped,

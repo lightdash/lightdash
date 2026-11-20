@@ -161,7 +161,8 @@ describe('analytics chart presentation', () => {
         });
         expect(spec.layer[0].encoding.y?.axis).toMatchObject({
             labelOpacity: { expr: "length(domain('color')) ? 1 : 0" },
-            labelExpr: "length(domain('color')) ? datum.label : ''",
+            labelExpr:
+                "length(domain('color')) ? replace(replace(datum.label, 'k', 'K'), 'G', 'B') : ''",
             titleOpacity: { expr: "length(domain('color')) ? 1 : 0" },
             gridOpacity: { expr: "length(domain('color')) ? 0.18 : 0" },
         });

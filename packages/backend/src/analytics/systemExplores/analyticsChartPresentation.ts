@@ -176,16 +176,14 @@ const monthlyComparison = (chart: ChartAsCode): ChartAsCode => {
             config: {
                 layout: {
                     xField: monthLabel,
-                    yField: [total, 'monthly_change_percent'],
+                    yField: [total],
                     connectNulls: false,
                 },
                 eChartsConfig: {
                     xAxis: [{ name: 'Month (UTC)' }],
-                    // The change axis stops at 200%, so one very large change does not flatten the rest
-                    yAxis: [
-                        { name: 'Queries', min: '0' },
-                        { name: 'Change (%)', max: '2' },
-                    ],
+                    // Bars only. The change is in the table beside the chart: as a line it ran off
+                    // the top whenever a month doubled.
+                    yAxis: [{ name: 'Queries', min: '0' }],
                     series: [
                         {
                             type: CartesianSeriesType.BAR,
@@ -195,18 +193,6 @@ const monthlyComparison = (chart: ChartAsCode): ChartAsCode => {
                             encode: {
                                 xRef: { field: monthLabel },
                                 yRef: { field: total },
-                            },
-                        },
-                        {
-                            type: CartesianSeriesType.LINE,
-                            name: 'Change vs previous month (%)',
-                            color: colors[1],
-                            showSymbol: true,
-                            smooth: false,
-                            yAxisIndex: 1,
-                            encode: {
-                                xRef: { field: monthLabel },
-                                yRef: { field: 'monthly_change_percent' },
                             },
                         },
                     ],

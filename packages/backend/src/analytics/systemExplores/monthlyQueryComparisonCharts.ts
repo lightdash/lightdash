@@ -31,7 +31,7 @@ export const monthlyQueryComparisonCharts: UsageChartSpec[] = [
         newestFirst: false,
         compactCounts: true as const,
         description:
-            'Queries run in each month, including cache hits and queries that failed while running. The change axis stops at 200%, so a larger change runs off the top.',
+            'Queries run in each month, including cache hits and queries that failed while running. The table beside it has the change from month to month.',
     },
 ].map(({ metric, label, newestFirst, ...spec }) => {
     const value = `\${query_events.${metric}}`;

@@ -3,6 +3,7 @@ import {
     ANALYTICS_AI_USAGE_DASHBOARD_SLUG,
     ChartType,
     Compact,
+    CustomFormatType,
     DashboardTileTypes,
     FilterOperator,
     MetricType,
@@ -32,6 +33,12 @@ const scopeDescription =
     'Tokens from completed work on Lightdash-managed keys, for agents, deep research, agent tools, compaction and data apps. These tokens are not credits or cost.';
 
 type Query = ChartAsCode['metricQuery'];
+// Tokens in a table read 48.1M, like the cards and the share bars, not 48,123,257
+const compactTokens = {
+    [tokens]: {
+        formatOptions: { type: CustomFormatType.NUMBER, compact: Compact.AUTO },
+    },
+};
 type Breakdown = {
     // Names the charts' slugs, so it stays as it is when the title changes
     key: string;
@@ -47,6 +54,8 @@ type Breakdown = {
     billingScope: boolean;
     // How many groups to name before the rest are added up as Other. Five when not given.
     top?: number;
+    // Rows to keep, as a test on a row. Rows that fail it are left out of the chart and its shares.
+    where?: string;
     // A fixed colour for a named group, for groups that mean good or not good
     colors?: Record<string, string>;
     // Chart descriptions; billing-scope breakdowns derive theirs from the title.
@@ -60,7 +69,7 @@ const breakdownDescription = (
     if (!billingScope && descriptions) {
         return daily ? descriptions.daily : (descriptions.rank ?? '');
     }
-    const groups = `the ${top === 10 ? 'ten' : 'five'} largest ${plural ?? `${title.toLowerCase()}s`} plus Other`;
+    const groups = `the ${top === 6 ? 'six' : 'five'} largest ${plural ?? `${title.toLowerCase()}s`} plus Other`;
     return daily
         ? `Tokens in billing scope per day, for ${groups}.`
         : `Each group's share of tokens in billing scope, for ${groups}.`;
@@ -97,8 +106,10 @@ const breakdowns: Breakdown[] = [
             "datum.ai_usage_channel === 'embed' ? 'embedded-viewers' : datum.ai_usage_user_id || 'unattributed-user'",
         label: "datum.ai_usage_channel === 'embed' ? 'Embedded viewers' : datum.ai_usage_user_id ? (datum.ai_usage_user_name || 'Unknown user') : 'No user recorded'",
         billingScope: true,
-        // Tokens are spread across many people, so five of them would leave most usage in Other
-        top: 10,
+        // One more than the other tabs: tokens are spread across many people
+        top: 6,
+        // People only, like the rankings of people on the other dashboards
+        where: "datum.ai_usage_user_id && datum.ai_usage_channel !== 'embed'",
     },
     {
         key: 'project',
@@ -473,6 +484,7 @@ const visualSpec = (
         {
             filter: `isValid(datum.${tokens}) || datum.reported_rows === 0`,
         },
+        ...(breakdown.where ? [{ filter: breakdown.where }] : []),
         { calculate: breakdown.identity, as: 'identity' },
         { calculate: breakdown.label, as: 'label' },
         {
@@ -571,7 +583,7 @@ const visualSpec = (
                   },
                   {
                       calculate:
-                          "format(datum.tokens, '.3~s') + ' tokens · ' + format(datum.share, '.1%')",
+                          "replace(replace(format(datum.tokens, '.3~s'), 'k', 'K'), 'G', 'B') + ' tokens · ' + format(datum.share, '.1%')",
                       as: 'value_label',
                   },
               ]
@@ -658,8 +670,9 @@ const visualSpec = (
                                 // Unknown totals must not look like a zero
                                 // observation behind the missing-usage message.
                                 labelOpacity: reportedAxisOpacity,
+                                // 500K and 2B, like the cards: the format writes k and G
                                 labelExpr:
-                                    "length(domain('color')) ? datum.label : ''",
+                                    "length(domain('color')) ? replace(replace(datum.label, 'k', 'K'), 'G', 'B') : ''",
                                 titleOpacity: reportedAxisOpacity,
                                 tickOpacity: reportedAxisOpacity,
                                 domainOpacity: reportedAxisOpacity,
@@ -969,6 +982,7 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                 ],
                 sorts: [{ fieldId: tokens, descending: true }],
                 limit: 1000,
+                metricOverrides: compactTokens,
             }),
             {
                 ...tableConfig,
@@ -997,6 +1011,7 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                     'ai_usage_known_usage_records',
                 ],
                 sorts: [{ fieldId: tokens, descending: true }],
+                metricOverrides: compactTokens,
                 additionalMetrics: [
                     {
                         name: 'known_usage_records',
@@ -1037,7 +1052,7 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
         keys,
     });
     const attributionNotes: Record<string, string> = {
-        user: ' Embedded viewers are shown as one group. Usage with no person recorded is shown as No user recorded. A short ID tells apart people with the same name.',
+        user: ' Embedded viewers and usage with no person recorded are left out of these two tiles. A short ID tells apart people with the same name.',
         project:
             ' Project names are from the latest successful project snapshot. Projects with no name are still listed separately. Full UUIDs are in the tooltips and the attribution table.',
         agent: ' Usage with no agent, including data app generation, is shown as No agent. Unknown agent is an agent ID that matches no agent.',
@@ -1060,7 +1075,7 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                     row(8, `${key}-rank`),
                     note(
                         3,
-                        `**Top ${top === 10 ? 'ten' : 'five'} groups plus Other.** Bars show each group's share of tokens in billing scope, not remaining allowance. Groups with the same name are kept separate. Data updates when usage is processed.${attributionNotes[key] ?? ''}`,
+                        `**Top ${top === 6 ? 'six' : 'five'} groups plus Other.** Bars show each group's share of tokens in billing scope, not remaining allowance. Groups with the same name are kept separate. Data updates when usage is processed.${attributionNotes[key] ?? ''}`,
                     ),
                 ],
             })),
