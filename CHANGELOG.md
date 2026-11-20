@@ -1,3 +1,10 @@
+## [3.356.2](https://github.com/lightdash/lightdash/compare/3.356.1...3.356.2) (2026-11-20)
+
+
+### Bug Fixes
+
+* **merge-query:** keep the join key icon on the results header's name line ([#33067](https://github.com/lightdash/lightdash/issues/33067)) ([8a93609](https://github.com/lightdash/lightdash/commit/8a936093495a8cd6a799d213f69da1be1cbdf421))
+
 ## [3.356.1](https://github.com/lightdash/lightdash/compare/3.356.0...3.356.1) (2026-11-20)
 
 
