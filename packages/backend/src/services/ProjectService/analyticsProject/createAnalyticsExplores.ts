@@ -77,6 +77,7 @@ import {
     peopleAdoptionSql,
     totalMembersMetric,
 } from '../../../analytics/systemExplores/peopleAdoption';
+import { queryContextNameSql } from '../../../analytics/systemExplores/queryContextNames';
 import {
     semanticUsageColumns,
     semanticUsageMetrics,
@@ -514,6 +515,15 @@ export const createAnalyticsExplores = (): Explore[] => {
         }
         if (name === 'query_events') {
             table.dimensions.semantic_field_references.hidden = true;
+            // The same grouping as Context, under names a reader does not have to decode
+            table.dimensions.context_name = {
+                ...table.dimensions.context,
+                name: 'context_name',
+                label: 'Run from',
+                description:
+                    'Plain name for Context, such as Dashboard view, Explore or Scheduled delivery. A value with no plain name is shown as recorded. Filter on Context, which holds the recorded value.',
+                sql: queryContextNameSql(table.dimensions.context.sql),
+            };
             // Library charts title their axes with these labels
             metrics.unique_users.label = 'People';
             metrics.total_queries.label = 'Queries';

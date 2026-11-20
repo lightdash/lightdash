@@ -94,6 +94,7 @@ export const usageFieldLabels: Record<string, string> = {
     query_events_explore_name: 'Explore',
     query_events_status: 'Outcome',
     query_events_workload_origin: 'Origin',
+    query_events_context_name: 'Run from',
     query_events_initiating_actor_type: 'Started by',
     query_events_execution_source: 'Run or served by',
     semantic_usage_field_label: 'Field',

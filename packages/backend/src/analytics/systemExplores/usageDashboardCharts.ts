@@ -734,7 +734,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         dimensions: [
             'query_events_workload_origin',
             'query_events_initiating_actor_type',
-            'query_events_context',
+            'query_events_context_name',
         ],
         metrics: ['query_events_total_queries'],
         limit: 50,

@@ -728,7 +728,7 @@ export const analyticsSampleDashboards = [
                         fieldMapping: {
                             x: 'query_events_event_ts_day',
                             m1: 'query_events_total_queries',
-                            splitBy: 'query_events_context',
+                            splitBy: 'query_events_context_name',
                         },
                         optionValues: {
                             seriesType: 'bar',
@@ -743,12 +743,12 @@ export const analyticsSampleDashboards = [
                         query: {
                             dimensions: [
                                 'query_events_event_ts_day',
-                                'query_events_context',
+                                'query_events_context_name',
                             ],
                             metrics: ['query_events_total_queries'],
                             sorts: [
                                 {
-                                    fieldId: 'query_events_context',
+                                    fieldId: 'query_events_context_name',
                                     descending: false,
                                 },
                                 {
@@ -758,7 +758,7 @@ export const analyticsSampleDashboards = [
                             ],
                             limit: 5000,
                             description:
-                                'Queries per day, split by the six contexts that ran the most queries, with the rest grouped as Other.',
+                                'Queries per day, split by the six places that ran the most queries, such as a dashboard view or an Explore, with the rest grouped as Other.',
                         },
                     },
                 },
@@ -804,13 +804,13 @@ export const analyticsSampleDashboards = [
                 'Queries by context (top 10)',
                 'query_events',
                 'total_queries',
-                'context',
+                'context_name',
                 {
                     visualization: 'bar',
                     colors: ['#339AF0'],
                     axisLabel: 'Queries',
                     description:
-                        'Top 10 query contexts by number of queries in the selected period.',
+                        'The 10 places that ran the most queries in the selected period, such as a dashboard view, an Explore or a scheduled delivery.',
                 },
             ),
             chart(

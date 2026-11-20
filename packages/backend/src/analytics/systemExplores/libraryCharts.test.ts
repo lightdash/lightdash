@@ -616,7 +616,8 @@ describe('legacyLibraryChartBindings', () => {
             fieldMapping: {
                 x: 'query_events_event_ts_day',
                 m1: 'query_events_total_queries',
-                splitBy: 'query_events_context',
+                // The plain names of the contexts, not the recorded code names
+                splitBy: 'query_events_context_name',
             },
             optionValues: { splitTopN: 6, splitSort: 'total' },
         });
@@ -768,7 +769,7 @@ describe('legacyLibraryChartBindings', () => {
                 'lightdash-analytics-query-activity-queries-by-day',
             ),
         ).toBe(
-            'Queries per day, split by the six contexts that ran the most queries, with the rest grouped as Other.',
+            'Queries per day, split by the six places that ran the most queries, such as a dashboard view or an Explore, with the rest grouped as Other.',
         );
         // The fallback line chart needs no description beyond its title.
         expect(
