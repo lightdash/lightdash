@@ -503,6 +503,65 @@ describe('useDesignMode', () => {
         expect(document.querySelector('[data-mark-number]')).toBeNull();
     });
 
+    it('a scroll between release and the frame landing keeps the bubble beside its mark', async () => {
+        const px = (name: string, selector: string) =>
+            parseFloat(
+                (
+                    document.querySelector(selector) as HTMLElement
+                ).style.getPropertyValue(name),
+            );
+        const gap = () =>
+            px('--bubble-top', '[data-bubble-id]') -
+            px('--mark-top', '[data-mark-number="1"]');
+        const drawAt = async (top: number) => {
+            await keyDown({ key: 'Alt', altKey: true });
+            fireEvent.mouseMove(holdLayer(), { clientX: 10, clientY: top });
+            fireEvent.mouseMove(holdLayer(), {
+                clientX: 40,
+                clientY: top + 30,
+            });
+            fireEvent.mouseMove(holdLayer(), {
+                clientX: 70,
+                clientY: top + 10,
+            });
+            await keyUp({ key: 'Alt' });
+        };
+
+        // A mark low enough that the bubble is not held in by the top margin.
+        await turnOn();
+        await drawAt(40);
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+        const still = gap();
+        await act(async () => {
+            api.close(api.session.bubbles[0].id);
+        });
+        expect(api.session.bubbles).toHaveLength(0);
+
+        // The page scrolls up by 30 while the frame is being grabbed, so
+        // this mark ends at the same place on screen as the one above.
+        let land: (frame: ReturnType<typeof fakeFrame>) => void = () => {};
+        grabDomFrame.mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    land = resolve;
+                }),
+        );
+        scroll = { x: 0, y: 50 };
+        await act(async () => {
+            window.dispatchEvent(new Event('scroll'));
+        });
+        await drawAt(10);
+        expect(api.session.bubbles).toHaveLength(0);
+        scroll = { x: 0, y: 20 };
+        await act(async () => {
+            window.dispatchEvent(new Event('scroll'));
+            land(fakeFrame());
+        });
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+        expect(px('--mark-top', '[data-mark-number="1"]')).toBe(40);
+        expect(gap()).toBe(still);
+    });
+
     it('a mark drawn close to the open bubble moves the bubble out of the way', async () => {
         const rects = vi
             .spyOn(HTMLElement.prototype, 'getBoundingClientRect')

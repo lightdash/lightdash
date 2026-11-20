@@ -424,13 +424,24 @@ export const useDesignMode = (
                     box.width * region.width,
                     box.height * region.height,
                 );
+                // The page may have scrolled since the hold began: place the
+                // bubble against where the mark is on screen now.
+                const scrollNow = current.getScroll();
+                const dx = scrollNow.x - hold.scroll.x;
+                const dy = scrollNow.y - hold.scroll.y;
+                const markNow = new DOMRect(
+                    markRect.x - dx,
+                    markRect.y - dy,
+                    markRect.width,
+                    markRect.height,
+                );
                 // The bubble only moves here, on release, never mid-stroke.
                 const onScreen =
                     document
                         .querySelector(`[data-bubble-id="${got.bubble.id}"]`)
                         ?.getBoundingClientRect() ?? null;
                 const at = placeBubble({
-                    markRect,
+                    markRect: markNow,
                     current: onScreen,
                     size: onScreen ?? NEW_BUBBLE_SIZE,
                     viewport: new DOMRect(
@@ -439,9 +450,11 @@ export const useDesignMode = (
                         window.innerWidth,
                         window.innerHeight,
                     ),
-                    pointer: made.pointer,
+                    pointer: {
+                        x: made.pointer.x - dx,
+                        y: made.pointer.y - dy,
+                    },
                 });
-                const scrollNow = current.getScroll();
                 // Content coords: the viewport position plus the scroll.
                 const anchor = {
                     x: at.x + scrollNow.x,
