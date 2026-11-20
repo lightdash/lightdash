@@ -8,6 +8,7 @@ import {
     PersistentDownloadFileAccessMode,
     PivotConfig,
     PivotConfiguration,
+    RegisteredAccount,
     type AgentIdentityClaim,
     type AnalyticsActivityWindow,
     type AndFilterGroup,
@@ -322,6 +323,17 @@ export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {
     chart?: MergeQueryChart;
     /** A caller-derived pivot layout takes precedence over a chart-derived layout. */
     pivotConfiguration?: PivotConfiguration;
+};
+
+export type ExecuteAsyncSavedChartMergeQueryArgs = Omit<
+    CommonAsyncQueryArgs,
+    'account'
+> & {
+    account: RegisteredAccount;
+    savedChartUuid: UUID;
+    mode: MergeQueryExecutionMode;
+    pivotResults: boolean;
+    includeUnpublishedDraft: boolean;
 };
 
 export type ExecuteAsyncDashboardSqlChartCommonArgs = CommonAsyncQueryArgs & {

@@ -72,6 +72,8 @@ export type MergeContextValue = {
     isMerging: boolean;
     /** A saved chart in view mode shows its merge; it does not edit it. */
     readOnly: boolean;
+    /** Runs execute the saved chart's merge on the server, so their inputs are the saved ones. */
+    runsSavedChart: boolean;
     /**
      * The merge arrived with the chart or the link rather than being built
      * here, so it should run without being asked. Cleared once that run is

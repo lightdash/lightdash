@@ -188,6 +188,7 @@ import {
 } from './api/parameters';
 import { type ApiGetSpotlightTableConfig } from './api/spotlight';
 import { type ApiSuccessEmpty } from './api/success';
+import { type UUID } from './api/uuid';
 import { type Account } from './auth';
 import {
     type ApiAwsWebIdentityAudienceResponse,
@@ -1215,6 +1216,18 @@ export type ApiExecuteAsyncMergeQueryRequest = Omit<
 > & {
     mode?: MergeQueryExecutionMode;
     chart?: MergeQueryChart;
+};
+
+/** Runs a saved chart's own merge, named by the chart rather than sent. */
+export type ApiExecuteAsyncSavedMergeQueryRequest = {
+    savedChartUuid: UUID;
+    invalidateCache?: boolean;
+    parameters: ParametersValuesMap;
+    mode: MergeQueryExecutionMode;
+    /** Pivot the result with the chart's saved pivot config */
+    pivotResults: boolean;
+    /** Run the caller's own open draft of the chart, as the chart page shows it */
+    includeUnpublishedDraft: boolean;
 };
 
 /**

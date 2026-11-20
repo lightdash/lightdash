@@ -16,6 +16,7 @@ export const OAUTH_UNCHECKED_OPERATIONS = {
     'QueryController.getAsyncQueryResults': 'read',
     'QueryController.executeAsyncMergeQuery': 'read',
     'QueryController.executeAsyncComposeMergeQuery': 'read',
+    'QueryController.executeAsyncSavedMergeQuery': 'read',
     'QueryController.executeAsyncDashboardChartQuery': 'read',
     'QueryController.getResultsStream': 'read',
     'QueryController.downloadResults': 'read',

@@ -2,12 +2,15 @@ import {
     type ApiCompiledMergeQueryResults,
     type ApiExecuteAsyncComposeMergeQueryRequest,
     type ApiExecuteAsyncMergeQueryResults,
+    type ApiExecuteAsyncSavedMergeQueryRequest,
     type CompileMergeQueryRequest,
     isMetricSourcedMergeQuery,
     type MergeQuery,
+    type MergeQueryExecutionMode,
     type ParametersValuesMap,
     QueryExecutionContext,
     type SavedChartDAO,
+    type UUID,
 } from '@lightdash/common';
 import { type LightdashApi } from '../../../api';
 
@@ -30,6 +33,13 @@ export const compileMergeQuery = (
 
 export type MergeQueryRun = ApiExecuteAsyncMergeQueryResults;
 
+const toMergeMode = (
+    csvLimit: number | null | undefined,
+): MergeQueryExecutionMode =>
+    csvLimit === undefined
+        ? { type: 'interactive' }
+        : { type: 'export', limit: csvLimit };
+
 const runMergeQuery = (
     lightdashApi: LightdashApi,
     projectUuid: string,
@@ -49,10 +59,7 @@ const runMergeQuery = (
             mergeQuery,
             parameters,
             context: QueryExecutionContext.EXPLORE,
-            mode:
-                csvLimit === undefined
-                    ? { type: 'interactive' }
-                    : { type: 'export', limit: csvLimit },
+            mode: toMergeMode(csvLimit),
             chart: savedChart,
         } satisfies ApiExecuteAsyncComposeMergeQueryRequest),
     });
@@ -78,3 +85,30 @@ export const executeMergeQuery = async (
         csvLimit,
     );
 };
+
+/** The chart a view-mode merge runs from: the server runs its saved merge. */
+export type SavedMergeChartRun = {
+    savedChartUuid: UUID;
+    includeUnpublishedDraft: boolean;
+};
+
+export const executeSavedMergeQuery = (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    { savedChartUuid, includeUnpublishedDraft }: SavedMergeChartRun,
+    parameters: ParametersValuesMap,
+    pivotResults: boolean,
+    csvLimit?: number | null,
+): Promise<MergeQueryRun> =>
+    lightdashApi<ApiExecuteAsyncMergeQueryResults>({
+        url: `/projects/${projectUuid}/query/saved-merge-query`,
+        version: 'v2',
+        method: 'POST',
+        body: JSON.stringify({
+            savedChartUuid,
+            includeUnpublishedDraft,
+            parameters,
+            pivotResults,
+            mode: toMergeMode(csvLimit),
+        } satisfies ApiExecuteAsyncSavedMergeQueryRequest),
+    });
