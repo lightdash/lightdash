@@ -70,6 +70,7 @@ const breakdowns: Breakdown[] = [
     },
     {
         key: 'user',
+        // The tab's name is also its identity on sync, so it stays as it is
         title: 'User',
         dimensions: [
             'ai_usage_user_name',
@@ -746,7 +747,7 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                 tableCalculations: [
                     {
                         name: 'user_display_name',
-                        displayName: 'User name',
+                        displayName: 'Person',
                         type: TableCalculationType.STRING,
                         sql: `CASE
                             WHEN \${ai_usage.channel} = 'embed' THEN 'Embedded viewers'
@@ -827,7 +828,7 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
         keys,
     });
     const attributionNotes: Record<string, string> = {
-        user: ' Embedded viewers are shown as one group. Unattributed and deleted users are still shown. Short UUIDs tell apart users with the same name.',
+        user: ' Embedded viewers are shown as one group. People who are unattributed or deleted are still shown. A short ID tells apart people with the same name.',
         project:
             ' Project names are from the latest successful project snapshot. Projects with no name are still listed separately. Full UUIDs are in the tooltips and the attribution table.',
         agent: ' Usage with no agent ID, including data app generation, is shown as Unattributed agent.',
