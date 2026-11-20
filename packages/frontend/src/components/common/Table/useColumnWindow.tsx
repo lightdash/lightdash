@@ -11,8 +11,8 @@ import {
     type ReactNode,
     type RefObject,
 } from 'react';
+import { ColumnWindowingContext } from './ColumnWindowingContext';
 import { COLUMN_VIRTUALIZATION_THRESHOLD } from './constants';
-import { StaticTableRenderContext } from './StaticTableRenderContext';
 
 type WindowColumn = { id: string; width: number; pinned?: boolean };
 type ColumnSlot = { key: string; width: number; index?: number };
@@ -23,9 +23,9 @@ export function useColumnWindow(
     columns: readonly WindowColumn[],
     dataColumnCount = columns.length,
 ): ColumnWindow | undefined {
-    const staticRender = useContext(StaticTableRenderContext);
+    const windowingEnabled = useContext(ColumnWindowingContext);
     const active =
-        !staticRender && dataColumnCount > COLUMN_VIRTUALIZATION_THRESHOLD;
+        windowingEnabled && dataColumnCount > COLUMN_VIRTUALIZATION_THRESHOLD;
     const getItemKey = useCallback((i: number) => columns[i].id, [columns]);
     const pinned = useMemo(
         () => columns.flatMap((column, i) => (column.pinned ? [i] : [])),

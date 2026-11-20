@@ -1,6 +1,6 @@
-import { renderHook } from '@testing-library/react';
 import { createRef } from 'react';
 import { describe, expect, it } from 'vitest';
+import { renderHookWithProviders } from '../../../testing/testUtils';
 import { useColumnWindow } from './useColumnWindow';
 
 describe('useColumnWindow', () => {
@@ -13,7 +13,7 @@ describe('useColumnWindow', () => {
                 width: 100,
             }));
             const columns = [{ id: 'row-number', width: 40 }, ...fields];
-            const { result } = renderHook(() =>
+            const { result } = renderHookWithProviders(() =>
                 useColumnWindow(viewport, columns, count),
             );
             expect(result.current !== undefined).toBe(count > 40);

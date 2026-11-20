@@ -2,6 +2,7 @@ import { type FunnelQueryResult } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
+import { ColumnWindowingContext } from '../../../components/common/Table/ColumnWindowingContext';
 import { useAppSelector } from '../store';
 import { FunnelResultsTable } from './FunnelResultsTable';
 
@@ -25,7 +26,9 @@ function renderFunnel(count: number, breakdownValue?: string) {
     vi.mocked(useAppSelector).mockReturnValue(results);
     render(
         <MantineProvider env="test">
-            <FunnelResultsTable />
+            <ColumnWindowingContext.Provider value>
+                <FunnelResultsTable />
+            </ColumnWindowingContext.Provider>
         </MantineProvider>,
     );
 }

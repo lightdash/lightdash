@@ -10,6 +10,7 @@ import {
 } from '@testing-library/react';
 import { type FC, type PropsWithChildren, type ReactElement } from 'react';
 import { vi } from 'vitest';
+import { ColumnWindowingContext } from '../components/common/Table/ColumnWindowingContext';
 import ReactQueryProvider from '../providers/__mocks__/ReactQueryProvider';
 import MantineBaseProvider from '../providers/MantineBaseProvider';
 import MantineProvider from '../providers/MantineProvider';
@@ -28,7 +29,10 @@ const getMockedProviders = (appMocks?: AppProviderMockProps['mocks']) => {
                 <MantineProvider env="test">
                     <MantineBaseProvider env="test">
                         <AppProviderMock mocks={appMocks}>
-                            <TrackingProvider>{children}</TrackingProvider>
+                            {/* Tests run with the column windowing flag on. */}
+                            <ColumnWindowingContext.Provider value>
+                                <TrackingProvider>{children}</TrackingProvider>
+                            </ColumnWindowingContext.Provider>
                         </AppProviderMock>
                     </MantineBaseProvider>
                 </MantineProvider>

@@ -1,5 +1,5 @@
-import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { renderHookWithProviders } from '../../../testing/testUtils';
 import { useVirtualTable } from './useVirtualTable';
 
 describe('SQL results column widths', () => {
@@ -10,7 +10,7 @@ describe('SQL results column widths', () => {
                 throw new Error('offscreen serialization');
             },
         };
-        const { result } = renderHook(() =>
+        const { result } = renderHookWithProviders(() =>
             useVirtualTable({
                 isCompact: true,
                 enableJsonViewer: true,
@@ -28,7 +28,7 @@ describe('SQL results column widths', () => {
                 (_, i) => `field.${i}`,
             );
             const render = (value: string) =>
-                renderHook(() =>
+                renderHookWithProviders(() =>
                     useVirtualTable({
                         isCompact,
                         columnNames,

@@ -1,5 +1,6 @@
 import { useContext, useMemo, useRef, useState, type FC } from 'react';
 import { ColumnWindowColGroup } from '../ColumnWindowColGroup';
+import { ColumnWindowingContext } from '../ColumnWindowingContext';
 import {
     COLUMN_VIRTUALIZATION_THRESHOLD,
     DEFAULT_FROZEN_COLUMN_WIDTH,
@@ -11,7 +12,6 @@ import {
     measureColumnWidth,
     measureExploreColumn,
 } from '../measureColumnWidth';
-import { StaticTableRenderContext } from '../StaticTableRenderContext';
 import { Table, TableScrollableWrapper } from '../Table.styles';
 import { useColumnWindow } from '../useColumnWindow';
 import { useTableContext } from '../useTableContext';
@@ -48,9 +48,9 @@ const ScrollableTable: FC<ScrollableTableProps> = ({
     const dataColumnCount =
         (leafHeaders?.length ?? 0) -
         (leafHeaders?.[0]?.column.id === ROW_NUMBER_COLUMN_ID ? 1 : 0);
-    const staticRender = useContext(StaticTableRenderContext);
+    const windowingEnabled = useContext(ColumnWindowingContext);
     const windowed =
-        !staticRender && dataColumnCount > COLUMN_VIRTUALIZATION_THRESHOLD;
+        windowingEnabled && dataColumnCount > COLUMN_VIRTUALIZATION_THRESHOLD;
     const sizedColumns = useMemo(() => {
         const samples = windowed ? data.slice(0, COLUMN_WIDTH_SAMPLE_ROWS) : [];
         return (
