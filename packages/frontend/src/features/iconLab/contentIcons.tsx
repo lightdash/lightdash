@@ -32,14 +32,14 @@ export type ContentIcon = ForwardRefExoticComponent<
 
 export type ContentIconSet = Record<ContentIconName, ContentIcon>;
 
-/* A: outline, rebalanced, tight corner radius */
+/* A: outline, tight corner radius, at most four strokes on the framed icons */
 export const OUTLINE_ICONS: ContentIconSet = {
     dashboard: createContentIcon(
         'OutlineDashboard',
         <>
-            <rect x="3.5" y="3.5" width="17" height="6.5" rx="1.25" />
-            <rect x="3.5" y="13.5" width="7" height="7" rx="1.25" />
-            <rect x="13.5" y="13.5" width="7" height="7" rx="1.25" />
+            <rect x="3.5" y="3.5" width="7.5" height="17" rx="1.25" />
+            <rect x="14" y="3.5" width="6.5" height="6.5" rx="1.25" />
+            <rect x="14" y="13.5" width="6.5" height="7" rx="1.25" />
         </>,
     ),
     space: createContentIcon(
@@ -69,7 +69,7 @@ export const OUTLINE_ICONS: ContentIconSet = {
         'OutlineTable',
         <>
             <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
-            <path d="M3.5 9.5h17M3.5 15h17M9.5 9.5v11" fill="none" />
+            <path d="M3.5 9.5h17M9.5 9.5v11" fill="none" />
         </>,
     ),
     bar: createContentIcon(
@@ -136,16 +136,15 @@ export const OUTLINE_ICONS: ContentIconSet = {
     funnel: createContentIcon(
         'OutlineFunnel',
         <>
-            <rect x="3.5" y="3.5" width="17" height="4.5" rx="1" />
-            <rect x="6.25" y="9.75" width="11.5" height="4.5" rx="1" />
-            <rect x="9" y="16" width="6" height="4.5" rx="1" />
+            <path d="M4 4.5h16l-4.5 15h-7z" />
+            <path d="M6.1 11.5h11.8" fill="none" />
         </>,
     ),
     treemap: createContentIcon(
         'OutlineTreemap',
         <>
             <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
-            <path d="M11 3.5v17M11 12.5h9.5M15.75 12.5v8" fill="none" />
+            <path d="M11 3.5v17M11 12.5h9.5" fill="none" />
         </>,
     ),
     gauge: createContentIcon(
@@ -166,11 +165,9 @@ export const OUTLINE_ICONS: ContentIconSet = {
         'OutlineSankey',
         <>
             <path
-                d="M6.5 6.75c5.5 0 5.5 3.25 11 3.25M6.5 17.25c5.5 0 5.5 -3.25 11 -3.25"
+                d="M4 6.5c7 0 7 4 13.5 4M4 17.5c7 0 7 -4 13.5 -4"
                 fill="none"
             />
-            <rect x="3.5" y="3.5" width="3" height="6.5" rx="0.75" />
-            <rect x="3.5" y="14" width="3" height="6.5" rx="0.75" />
             <rect x="17.5" y="7.5" width="3" height="9" rx="0.75" />
         </>,
     ),
