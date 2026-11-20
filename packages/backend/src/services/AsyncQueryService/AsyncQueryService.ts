@@ -167,6 +167,7 @@ import {
     type ComposerChartRunSource,
     type CustomDimension,
     type DashboardTileParameterInputs,
+    type DateZoom,
     type DocumentQueryReference,
     type DocumentSqlChart,
     type DuckdbSourceQuery,
@@ -4582,6 +4583,7 @@ export class AsyncQueryService extends ProjectService {
         executionExplore,
         fieldsMap,
         pivotConfiguration,
+        pivotDimensions,
         startOfWeek,
         userAccessControls,
         availableParameterDefinitions,
@@ -4601,6 +4603,7 @@ export class AsyncQueryService extends ProjectService {
         executionExplore?: (name: string) => Promise<Explore>;
         fieldsMap: ItemsMap;
         pivotConfiguration?: PivotConfiguration;
+        pivotDimensions?: string[];
         startOfWeek: CreateWarehouseCredentials['startOfWeek'];
         userAccessControls?: UserAccessControls;
         availableParameterDefinitions?: ParameterDefinitions;
@@ -4628,6 +4631,7 @@ export class AsyncQueryService extends ProjectService {
                 parameters,
                 fieldsMap,
                 pivotConfiguration,
+                pivotDimensions,
                 startOfWeek,
                 userAccessControls,
                 availableParameterDefinitions,
@@ -7533,6 +7537,8 @@ export class AsyncQueryService extends ProjectService {
                               executionExplore,
                               fieldsMap,
                               pivotConfiguration,
+                              pivotDimensions:
+                                  queryComposer.getPivotDimensions(),
                               startOfWeek: warehouseCredentials.startOfWeek,
                               userAccessControls:
                                   queryComposer.getUserAccessControls(),
@@ -10318,8 +10324,9 @@ export class AsyncQueryService extends ProjectService {
         tileUuid: string;
         dashboardFilters: DashboardFilters;
         chartSavedValues: ParametersValuesMap;
-        parameters: ParametersValuesMap;
-        excludedParameterKeys: string[];
+        // Undefined: the dashboard's saved parameter state, as for a run with no app state.
+        parameters: ParametersValuesMap | undefined;
+        excludedParameterKeys: string[] | undefined;
     }): Promise<
         Pick<
             DashboardTileParameterInputs,
@@ -15983,6 +15990,7 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         userAttributeOverrides,
         sourceTitleById,
+        dateZoomBySourceId,
         authority,
     }: {
         authority: RequestAuthority | ComposerAuthority;
@@ -15993,6 +16001,7 @@ export class AsyncQueryService extends ProjectService {
         parameters: ParametersValuesMap;
         userAttributeOverrides: UserAttributeValueMap;
         sourceTitleById: Record<string, string>;
+        dateZoomBySourceId: Record<string, DateZoom>;
     }): Promise<RunnableCompiledMergeQuery> {
         const compiled = await this.compileMergeQuery({
             account,
@@ -16001,6 +16010,7 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             userAttributeOverrides,
             sourceTitleById,
+            dateZoomBySourceId,
             authority,
             sourcesRunAsNodes: true,
         });

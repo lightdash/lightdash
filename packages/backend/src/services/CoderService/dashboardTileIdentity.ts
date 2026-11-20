@@ -1,6 +1,9 @@
 import {
     assertUnreachable,
     DashboardTileTypes,
+    DEFAULT_DASHBOARD_HEADING_SIZE,
+    DEFAULT_DASHBOARD_HEADING_TEXT_ALIGN,
+    DEFAULT_DASHBOARD_HEADING_VERTICAL_ALIGN,
     type DashboardTile,
     type DashboardTileWithSlug,
 } from '@lightdash/common';
@@ -40,6 +43,11 @@ const getContentKey = (tile: DashboardTile): string | null => {
                 tile.type,
                 tile.properties.text,
                 tile.properties.showDivider ?? false,
+                tile.properties.size ?? DEFAULT_DASHBOARD_HEADING_SIZE,
+                tile.properties.textAlign ??
+                    DEFAULT_DASHBOARD_HEADING_TEXT_ALIGN,
+                tile.properties.verticalAlign ??
+                    DEFAULT_DASHBOARD_HEADING_VERTICAL_ALIGN,
             ]);
         default:
             return assertUnreachable(tile, 'Unknown dashboard tile type');

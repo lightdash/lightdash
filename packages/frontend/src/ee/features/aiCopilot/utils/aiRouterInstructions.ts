@@ -41,7 +41,7 @@ export const instructionTextToHtml = (instruction: string): string => {
                 lastIndex = matchIndex + match[0].length;
             }
             html += escapeHtml(line.slice(lastIndex));
-            return `<p>${html || '<br>'}</p>`;
+            return `<p>${html}</p>`;
         })
         .join('');
 };

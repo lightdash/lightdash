@@ -12,6 +12,7 @@ import {
 } from '@mantine/core';
 import { IconPencil } from '@tabler/icons-react';
 import {
+    useContext,
     useEffect,
     useRef,
     useState,
@@ -20,6 +21,7 @@ import {
 } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import styles from './AskUserQuestionCard.module.css';
+import { QuietCardsContext } from './ToolCalls/quietCards';
 
 const isTypingTarget = (target: EventTarget) =>
     target instanceof HTMLElement &&
@@ -59,6 +61,8 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
     const isLast = index === questions.length - 1;
     const current = answers[index];
     const canAdvance = getAnswerText(current) !== '';
+    // A lone question is already the reply above the card, so a narrow chat shows the choices only.
+    const isBare = useContext(QuietCardsContext) && questions.length === 1;
 
     // Focus the card so number keys pick options without a click first.
     const cardRef = useRef<HTMLDivElement>(null);
@@ -146,19 +150,30 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
                 <Box component="span" className={styles.optionMark}>
                     <Indicator size="xs" />
                 </Box>
-                <Box>
-                    <Text size="sm" fw={500}>
+                <Box miw={0}>
+                    <Text size={isBare ? 'xs' : 'sm'} fw={500}>
                         {option.label}
                     </Text>
                     {option.description && (
-                        <Text fz="xs" c="dimmed">
+                        <Text
+                            fz="xs"
+                            c="dimmed"
+                            lineClamp={isBare ? 2 : undefined}
+                            title={isBare ? option.description : undefined}
+                        >
                             {option.description}
                         </Text>
                     )}
                 </Box>
-                <Box component="span" className={styles.optionKey} aria-hidden>
-                    {i + 1}
-                </Box>
+                {isBare ? null : (
+                    <Box
+                        component="span"
+                        className={styles.optionKey}
+                        aria-hidden
+                    >
+                        {i + 1}
+                    </Box>
+                )}
             </OptionCard>
         );
     });
@@ -195,28 +210,40 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
             tabIndex={-1}
             onKeyDown={onKeyDown}
             className={styles.card}
+            data-dense={isBare || undefined}
         >
-            <Stack gap="xs" p="xs">
-                <Group justify="space-between" wrap="nowrap" px="xs" pt="xxs">
-                    <Text fz="xs" fw={500} c="dimmed">
-                        {question.header}
-                    </Text>
-                    {questions.length > 1 && (
-                        <Text fz="xs" c="dimmed">
-                            {index + 1} of {questions.length}
+            <Stack gap={isBare ? 4 : 'xs'} p={isBare ? 6 : 'xs'}>
+                {isBare ? null : (
+                    <Group
+                        justify="space-between"
+                        wrap="nowrap"
+                        px="xs"
+                        pt="xxs"
+                    >
+                        <Text fz="xs" fw={500} c="dimmed">
+                            {question.header}
                         </Text>
-                    )}
-                </Group>
-                <Box px="xs">
-                    <Text fz="sm" fw={500}>
-                        {question.question}
-                    </Text>
-                    {question.multiSelect && (
-                        <Text fz="xs" c="dimmed">
-                            Select all that apply
-                        </Text>
-                    )}
-                </Box>
+                        {questions.length > 1 && (
+                            <Text fz="xs" c="dimmed">
+                                {index + 1} of {questions.length}
+                            </Text>
+                        )}
+                    </Group>
+                )}
+                {isBare ? null : (
+                    <Box px="xs">
+                        {isBare ? null : (
+                            <Text fz="sm" fw={500}>
+                                {question.question}
+                            </Text>
+                        )}
+                        {question.multiSelect && (
+                            <Text fz="xs" c="dimmed">
+                                Select all that apply
+                            </Text>
+                        )}
+                    </Box>
+                )}
                 <Stack gap="xxs">
                     {question.multiSelect ? (
                         <Checkbox.Group
@@ -236,16 +263,20 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
                             {optionList}
                         </Radio.Group>
                     )}
-                    {ownAnswer}
+                    {/* In a narrow chat the composer right below takes any other answer. */}
+                    {isBare ? null : ownAnswer}
                 </Stack>
                 <Group
                     justify="space-between"
                     wrap="nowrap"
                     className={styles.footer}
                 >
-                    <Text fz="xs" c="dimmed" className={styles.keyHint}>
-                        1–{question.options.length} to pick, Enter to continue
-                    </Text>
+                    {isBare ? null : (
+                        <Text fz="xs" c="dimmed" className={styles.keyHint}>
+                            1–{question.options.length} to pick, Enter to
+                            continue
+                        </Text>
+                    )}
                     <Group gap="xs" wrap="nowrap" ml="auto">
                         {index > 0 && (
                             <Button
@@ -257,15 +288,20 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
                             </Button>
                         )}
                         <Button
-                            size="xs"
+                            size={isBare ? 'compact-xs' : 'xs'}
                             disabled={!canAdvance}
                             onClick={advance}
                         >
-                            {isLast
-                                ? questions.length > 1
-                                    ? 'Submit answers'
-                                    : 'Submit answer'
-                                : 'Next'}
+                            {isBare
+                                ? question.multiSelect &&
+                                  current.selected.length > 1
+                                    ? `Go with these ${current.selected.length}`
+                                    : 'Go with this'
+                                : isLast
+                                  ? questions.length > 1
+                                      ? 'Submit answers'
+                                      : 'Submit answer'
+                                  : 'Next'}
                         </Button>
                     </Group>
                 </Group>

@@ -11,9 +11,18 @@ export type SemanticLayerApplyMode =
     | 'pull_request'
     | 'dbt_pull_request';
 
+export type SemanticLayerBlocker =
+    | 'no_access'
+    | 'unsupported_connection'
+    | 'no_repository_access'
+    | 'github_app_missing'
+    | 'models_from_outside'
+    | 'preview_project';
+
 export type SemanticLayerStatus = {
     /** Whether this person can change this project's models from Semantic Studio. */
     enabled: boolean;
+    blocker: SemanticLayerBlocker | null;
     /** How a change lands: `live` applies a draft here, `pull_request` sends a draft to the project's repository, and `dbt_pull_request` has the agent edit the dbt project in a pull request, with no draft. */
     appliesAs: SemanticLayerApplyMode;
 };
@@ -109,6 +118,28 @@ export type SemanticStudioSourceSave =
 export type ApiSemanticStudioSourceSaveResponse =
     ApiSuccess<SemanticStudioSourceSave>;
 
+/** A hand edit of one model's whole YAML, saved into the person's draft. */
+export type SaveSemanticLayerDraftModelRequest = {
+    /** The model's YAML the edit started from, so an edit made over a newer version is refused. */
+    base: string;
+    content: string;
+};
+
+/** `failed` carries why the edit was not saved, and the draft is left as it was. */
+export type SemanticLayerDraftModelSave =
+    | {
+          status: 'saved';
+          draftChangeUuid: string;
+          /** The draft this started because the person was on Published; null otherwise. */
+          startedChange: { workspaceUuid: string; name: string } | null;
+          /** The model as the draft now holds it. */
+          content: string;
+      }
+    | { status: 'failed'; error: string };
+
+export type ApiSemanticLayerDraftModelSaveResponse =
+    ApiSuccess<SemanticLayerDraftModelSave>;
+
 /** How one model's part of a change fared when it was checked on top of a draft. */
 export type SemanticLayerDraftItemResult = {
     model: string;
@@ -201,6 +232,19 @@ export type SemanticLayerSettledDraftChange = {
     status: 'applied' | 'discarded' | 'undone';
     /** The pull request an applied change was sent as; null when it went live on the server. */
     pullRequestUrl: string | null;
+    /** The models the change touched. */
+    models: string[];
+};
+
+/** What this person's changes waiting in an open pull request do to one model, against what is live. */
+export type SemanticLayerInReviewModel = {
+    model: string;
+    pullRequestUrl: string;
+    changes: ModelFragmentChange[];
+    /** Null when the pull request creates the model. */
+    contentBefore: string | null;
+    /** Null when the pull request removes the model. */
+    contentAfter: string | null;
 };
 
 export type SemanticLayerDraft = {
@@ -210,6 +254,7 @@ export type SemanticLayerDraft = {
     /** Models the draft leaves unable to compile. */
     errors: { model: string; message: string }[];
     settled: SemanticLayerSettledDraftChange[];
+    inReview: SemanticLayerInReviewModel[];
     /** Every model other people have unpublished changes to, whether or not this draft touches it. */
     othersDrafting: { model: string; drafters: SemanticLayerDrafter[] }[];
 };
@@ -343,6 +388,8 @@ export type SemanticStudioWorkspace = {
     createdAt: Date;
     updatedAt: Date;
     finishedAt: Date | null;
+    /** Whether any of its draft went live here, without a pull request. */
+    publishedLive: boolean;
 };
 
 export type SemanticStudioWorkspaces = {

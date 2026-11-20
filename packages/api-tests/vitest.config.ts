@@ -25,8 +25,6 @@ const serialFiles = [
     'tests/catalog.test.ts',
     'tests/resultsCacheSettings.test.ts',
     'tests/contentAsCode.test.ts',
-    // Turns the composer-charts org flag on when a preview has it off.
-    'tests/composerCharts.test.ts',
 ];
 
 const shared = {

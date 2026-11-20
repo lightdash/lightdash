@@ -533,6 +533,7 @@ const ScopeTourHost: FC = () => {
         <GuidedTour
             steps={steps}
             opened
+            tracking={null}
             onClose={handleClose}
             onFinish={handleFinish}
             onStepChange={handleStepChange}

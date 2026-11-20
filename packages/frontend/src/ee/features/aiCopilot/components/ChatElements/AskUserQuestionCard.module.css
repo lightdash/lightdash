@@ -102,3 +102,18 @@
         display: none;
     }
 }
+
+/* In a narrow chat the rows are tighter and the label is a size down. */
+.card[data-dense] .optionRow,
+.card[data-dense] .ownAnswerRow {
+    --first-line: calc(
+        var(--mantine-font-size-xs) * var(--mantine-line-height-xs)
+    );
+
+    grid-template-columns: 18px minmax(0, 1fr);
+    padding: 5px 8px;
+}
+
+.card[data-dense] .footer {
+    padding: 6px 4px 0;
+}

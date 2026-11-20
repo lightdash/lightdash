@@ -337,6 +337,9 @@ export class HealthService extends BaseService {
                     this.lightdashConfig.ai.copilot.threadDumpEnabled,
                 fastDecisionsEnabled:
                     !!this.lightdashConfig.ai.decisions.apiKey,
+                // Same provider config transcribeCapture reads.
+                voiceTranscriptionAvailable:
+                    !!this.lightdashConfig.ai.copilot.providers.openai?.apiKey,
             },
             echarts6: {
                 enabled: false,

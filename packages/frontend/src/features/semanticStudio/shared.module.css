@@ -165,10 +165,35 @@
     color: var(--mantine-color-dimmed);
 }
 
+/* A field the draft or a fresh publish touched stands out in the list. */
+.fieldRow[data-change='new'] {
+    background: color-mix(
+        in srgb,
+        var(--mantine-color-green-6) 8%,
+        transparent
+    );
+}
+
+.fieldRow[data-change='changed'] {
+    background: color-mix(
+        in srgb,
+        var(--mantine-color-yellow-6) 8%,
+        transparent
+    );
+}
+
 .fieldUnsaved {
     flex: none;
     font-size: 12px;
     color: var(--mantine-color-yellow-8);
+}
+
+.fieldUnsaved[data-change='new'] {
+    color: var(--mantine-color-green-8);
+}
+
+.fieldUnsaved[data-change='removed'] {
+    color: var(--mantine-color-red-8);
 }
 
 .fieldRow[data-off='true'] .fieldLabel,

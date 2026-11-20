@@ -1981,6 +1981,9 @@ export class ServiceRepository
                         this.models.getWarehouseConnectionModel(),
                     appModel: this.models.getAppModel(),
                     getDocumentService: () => this.getDocumentService(),
+                    composerChartModel: this.models.getComposerChartModel(),
+                    getComposerChartService: () =>
+                        this.getComposerChartService(),
                     // Lazy accessor (not the instance) to promote embedded data
                     // apps during dashboard promotion. AppGenerateService depends
                     // on PromoteService, so resolving it eagerly here would cycle.

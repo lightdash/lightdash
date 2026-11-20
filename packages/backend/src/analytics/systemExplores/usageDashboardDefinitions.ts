@@ -1,3 +1,4 @@
+import { FilterOperator } from '@lightdash/common';
 import { peopleNoActivitySections } from './peopleNoActivityCharts';
 import type { UsageDashboardSpec } from './usageDashboardTypes';
 
@@ -390,6 +391,55 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         description:
                             'Captured download events with actor and available content attribution. This does not measure downstream recipients or use of the exported file.',
                         charts: ['export-audit-actor-content-and-outcome'],
+                    },
+                ],
+            },
+        ],
+    },
+    {
+        key: 'lightdash-analytics-agent-evaluations',
+        name: 'Agent Evaluations',
+        description:
+            'Track evaluation quality over time across agents and evaluations.',
+        filters: {
+            dimensions: [
+                { label: 'Agent', fieldId: 'agent_evaluation_runs_agent_name' },
+                {
+                    label: 'Evaluation',
+                    fieldId: 'agent_evaluation_runs_evaluation_name',
+                },
+            ].map(({ label, fieldId }) => ({
+                label,
+                target: { fieldId, tableName: 'agent_evaluation_runs' },
+                operator: FilterOperator.EQUALS,
+                values: [],
+                disabled: true,
+            })),
+            metrics: [],
+            tableCalculations: [],
+        },
+        tabs: [
+            {
+                key: 'quality',
+                name: 'Evaluation quality',
+                sections: [
+                    {
+                        title: 'Assessment trends',
+                        description:
+                            'Filter by agent or evaluation to track quality across runs. Pass rate uses all assessments, not all prompts. Runs still in progress, unassessed results and execution errors do not count as failed assessments.',
+                        charts: [
+                            'assessment-pass-rate-by-day',
+                            'assessment-volume-by-day',
+                        ],
+                    },
+                    {
+                        title: 'Results by evaluation and run',
+                        description:
+                            'Compare evaluations and inspect individual runs. Results reflect the latest nightly refresh and may change if evaluation history is removed.',
+                        charts: [
+                            'quality-by-evaluation',
+                            'recent-evaluation-runs',
+                        ],
                     },
                 ],
             },

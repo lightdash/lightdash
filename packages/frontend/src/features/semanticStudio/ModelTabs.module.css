@@ -14,10 +14,23 @@
 }
 
 .codePane {
+    position: relative;
     flex: 1;
     min-height: 0;
     display: flex;
     flex-direction: column;
+}
+
+.notice {
+    white-space: pre-wrap;
+}
+
+.codeHost {
+    color-scheme: light;
+
+    @mixin dark {
+        color-scheme: dark;
+    }
 }
 
 .codeToolbar {
@@ -27,6 +40,7 @@
 }
 
 .codeEditor {
+    position: relative;
     flex: 1;
     min-height: 0;
     overflow: auto;

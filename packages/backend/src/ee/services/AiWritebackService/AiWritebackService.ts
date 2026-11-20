@@ -103,6 +103,7 @@ import {
 import {
     diffLineCounts,
     runCodeMode,
+    unifiedDiffs,
     validateSemanticLayerYaml,
     type CodeModeRepo,
 } from '../SemanticStudioService/codeMode/codeMode';
@@ -211,7 +212,8 @@ const STALE_RUN_THRESHOLD_MINUTES = 45;
 
 export type ScriptSave =
     | { status: 'script_failed'; error: string; logs: string[] }
-    | { status: 'checked' }
+    /** A dry run's change as a unified diff per file, bounded in size. */
+    | { status: 'checked'; diffs: string[] }
     | {
           status: 'saved';
           result: AiWritebackRunResult;
@@ -767,12 +769,16 @@ export class AiWritebackService extends BaseService {
         projectUuid: string;
         prUrl: string;
         sha?: string;
+        /** Whether the compile may save only what the merge changed; false runs the full compile. */
+        incrementalCompile: boolean;
     }): Promise<WritebackMergeResult> {
-        const result = await this.ciService.mergePullRequest(args);
+        const { incrementalCompile, ...merge } = args;
+        const result = await this.ciService.mergePullRequest(merge);
         if (!result.merged) return { ...result, compileJobUuid: null };
         const compileJobUuid = await this.scheduleCompileAfterMerge(
             args.user,
             args.projectUuid,
+            incrementalCompile,
         );
         await this.trackMerged(args.user, args.projectUuid, {
             prUrl: args.prUrl,
@@ -853,9 +859,10 @@ export class AiWritebackService extends BaseService {
      * turns into an API error. Only git-connected projects re-clone on compile
      * and thus pick up the merged branch, so non-git projects are skipped.
      */
-    private async scheduleCompileAfterMerge(
+    async scheduleCompileAfterMerge(
         user: SessionUser,
         projectUuid: string,
+        incremental: boolean,
     ): Promise<string | null> {
         try {
             const project = await this.projectModel.get(projectUuid);
@@ -871,6 +878,10 @@ export class AiWritebackService extends BaseService {
                     projectUuid,
                     RequestMethod.BACKEND,
                     true,
+                    false,
+                    false,
+                    undefined,
+                    incremental,
                 );
             this.logger.info(
                 `Scheduled dbt compile (job ${jobUuid}) after writeback PR merge for project ${projectUuid}`,
@@ -2116,6 +2127,8 @@ export class AiWritebackService extends BaseService {
                         repoPaths(
                             await checkout.listFilesChangedSince(commitSha),
                         ),
+                    headCommitSha:
+                        checkout.prUrl === null ? checkout.headSha : null,
                 });
                 this.logger.info('AI writeback script checked', {
                     event: 'ai_writeback.script.checked',
@@ -2136,7 +2149,9 @@ export class AiWritebackService extends BaseService {
                     };
                 }
             }
-            if (dryRun) return { status: 'checked' };
+            if (dryRun) {
+                return { status: 'checked', diffs: unifiedDiffs(ran.edits) };
+            }
 
             // A policy that denies deleting files holds here as on the sandbox path.
             if (
@@ -2527,6 +2542,14 @@ export class AiWritebackService extends BaseService {
         message: string,
     ): Promise<boolean> {
         return this.aiWritebackRunModel.markError(aiWritebackRunUuid, message);
+    }
+
+    /** Fails a run its worker is shutting down on, with the same words the sweep uses. */
+    async markRunInterrupted(aiWritebackRunUuid: string): Promise<boolean> {
+        return this.aiWritebackRunModel.markError(
+            aiWritebackRunUuid,
+            STALE_RUN_ERROR_MESSAGE,
+        );
     }
 
     /**

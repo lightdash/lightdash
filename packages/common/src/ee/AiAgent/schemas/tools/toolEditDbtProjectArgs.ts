@@ -53,7 +53,35 @@ export const toolEditDbtProjectCodeModeArgsSchema =
                     'With a script, start prompt with a one-line summary under 72 characters, like a commit subject: it becomes the pull request title.',
                 ].join(' '),
             ),
+        note: z
+            .string()
+            .nullable()
+            .describe(
+                'The one thing about this change most worth checking, under 15 words, shown on its card; null when nothing is.',
+            ),
+        options: z
+            .array(z.string().trim().min(1))
+            .max(2)
+            .describe(
+                'At most two things the person might ask for next instead, each written as they would say it in under 8 words. Each shows as a button that sends it. Empty for none.',
+            ),
     });
+
+/** The line kept as the reply when a Studio save ends its turn on the card with nothing written. */
+export const DBT_SAVE_CARD_REPLY = 'Saved the change to the draft.';
+
+/** The note and offers a Studio save was called with, read back from its stored arguments; none on a call made before it carried them. */
+export const getEditDbtProjectCardExtras = (
+    toolArgs: unknown,
+): { note: string | null; options: string[] } => {
+    const parsed = z
+        .object({
+            note: z.string().nullable().default(null),
+            options: z.array(z.string()).default([]),
+        })
+        .safeParse(toolArgs);
+    return parsed.success ? parsed.data : { note: null, options: [] };
+};
 
 export const toolEditDbtProjectStructuredContentSchema = z.object({
     status: z
@@ -67,6 +95,8 @@ export const toolEditDbtProjectMetadataSchema = z.discriminatedUnion('status', [
     z.object({
         status: z.literal('pending'),
         aiWritebackRunUuid: z.string(),
+        // What a script save writes, one unified diff per file, shown while it runs. Nullish: sandbox saves and rows from before this field have none.
+        diffs: z.array(z.string()).nullish(),
     }),
     z.object({
         status: z.literal('success'),

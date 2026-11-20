@@ -9,6 +9,7 @@ type Props = {
     projectUuid: string | undefined;
     chartUuid?: string;
     sqlChartUuid?: string;
+    composerChartUuid?: string;
     dashboardUuid?: string;
     dataAppUuid?: string;
     clickedFrom: AiAgentAskClickedSource;
@@ -27,6 +28,7 @@ export const AskAiAgentButton: FC<Props> = ({
     projectUuid,
     chartUuid,
     sqlChartUuid,
+    composerChartUuid,
     dashboardUuid,
     dataAppUuid,
     clickedFrom,
@@ -40,6 +42,7 @@ export const AskAiAgentButton: FC<Props> = ({
         projectUuid,
         chartUuid,
         sqlChartUuid,
+        composerChartUuid,
         dashboardUuid,
         dataAppUuid,
         clickedFrom,

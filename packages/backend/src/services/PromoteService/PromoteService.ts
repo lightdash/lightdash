@@ -6,11 +6,14 @@ import {
     ConflictError,
     DashboardDAO,
     DashboardTileTypes,
+    FeatureFlags,
+    FeatureNotEnabledError,
     ForbiddenError,
     getDeepestPaths,
     getDocumentSavedChartLinks,
     getErrorMessage,
     isDashboardChartTileType,
+    isDashboardComposerChartTile,
     isDashboardDataAppTileType,
     isSubPath,
     mapDocumentCharts,
@@ -69,7 +72,13 @@ import type {
     SpaceAccessContextForCasl,
     SpacePermissionService,
 } from '../SpaceService/SpacePermissionService';
-import { assertDashboardIsPromotable } from './composerChartTiles';
+import {
+    getComposerChartChanges,
+    preflightComposerChartChanges,
+    upsertComposerCharts,
+    type PromoteComposerChartModel,
+    type PromoteComposerChartService,
+} from './composerChartTiles';
 
 export type PromotedChart = {
     projectUuid: string;
@@ -153,6 +162,9 @@ type PromoteServiceArguments = {
         'findApp' | 'getLatestRenderableDataAppVizVersion'
     >;
     warehouseConnectionModel: ContentConnectionModels['warehouseConnectionModel'];
+    composerChartModel: PromoteComposerChartModel;
+    // A thunk: ComposerChartService reaches services that may depend on promotion.
+    getComposerChartService: () => PromoteComposerChartService;
 };
 
 type SavedSqlChart = Awaited<ReturnType<SavedSqlModel['getByUuid']>>;
@@ -239,6 +251,10 @@ export class PromoteService extends BaseService {
 
     private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
 
+    private readonly composerChartModel: PromoteComposerChartModel;
+
+    private readonly getComposerChartService: () => PromoteComposerChartService;
+
     constructor(args: PromoteServiceArguments) {
         super();
         this.agentActionLogModel = args.agentActionLogModel;
@@ -254,6 +270,8 @@ export class PromoteService extends BaseService {
         this.getDocumentService = args.getDocumentService;
         this.appModel = args.appModel;
         this.warehouseConnectionModel = args.warehouseConnectionModel;
+        this.composerChartModel = args.composerChartModel;
+        this.getComposerChartService = args.getComposerChartService;
     }
 
     private async getPromotedSqlChartBindings(
@@ -1389,6 +1407,15 @@ export class PromoteService extends BaseService {
                 appUuids.add(chartConfig.config.dataAppVizUuid);
             }
         });
+        (promotionChanges.composerCharts ?? []).forEach(({ data }) => {
+            const { chartConfig } = data.chart;
+            if (
+                chartConfig.type === ChartType.DATA_APP_VIZ &&
+                chartConfig.config?.dataAppVizUuid
+            ) {
+                appUuids.add(chartConfig.config.dataAppVizUuid);
+            }
+        });
         return Array.from(appUuids);
     }
 
@@ -1513,10 +1540,49 @@ export class PromoteService extends BaseService {
             };
         });
 
+        const updatedComposerCharts = promotionChanges.composerCharts?.map(
+            (change) => {
+                const { chartConfig } = change.data.chart;
+                if (
+                    chartConfig.type !== ChartType.DATA_APP_VIZ ||
+                    !chartConfig.config?.dataAppVizUuid
+                ) {
+                    return change;
+                }
+                const upstreamAppUuid = appUuidMap.get(
+                    chartConfig.config.dataAppVizUuid,
+                );
+                const upstreamAppVersion = appVersionMap.get(
+                    chartConfig.config.dataAppVizUuid,
+                );
+                if (!upstreamAppUuid || upstreamAppVersion === undefined) {
+                    return change;
+                }
+                return {
+                    ...change,
+                    data: {
+                        ...change.data,
+                        chart: {
+                            ...change.data.chart,
+                            chartConfig: {
+                                ...chartConfig,
+                                config: {
+                                    ...chartConfig.config,
+                                    dataAppVizUuid: upstreamAppUuid,
+                                    dataAppVizVersion: upstreamAppVersion,
+                                },
+                            },
+                        },
+                    },
+                };
+            },
+        );
+
         return {
             ...promotionChanges,
             dashboards: updatedDashboards,
             charts: updatedCharts,
+            composerCharts: updatedComposerCharts,
         };
     }
 
@@ -1869,10 +1935,11 @@ export class PromoteService extends BaseService {
     }
 
     async getPromoteDashboardDiff(
-        user: SessionUser,
+        account: RegisteredAccount,
         dashboardUuidOrSlug: UuidOrSlug,
         options?: { projectUuid?: UUID },
     ) {
+        const user = toSessionUser(account);
         const dashboard = await this.getDashboardToPromote(
             user,
             dashboardUuidOrSlug,
@@ -1931,14 +1998,21 @@ export class PromoteService extends BaseService {
             ),
         );
 
+        const composerCharts = await this.getAuthorizedComposerChartChanges(
+            account,
+            dashboard,
+            upstreamDashboard,
+        );
+
         const dataApps = await this.getDataAppDiffChanges(
             user,
             dashboard.projectUuid,
-            promotionChanges,
+            { ...promotionChanges, composerCharts },
         );
 
         return {
             ...promotionChanges,
+            composerCharts,
             sqlCharts: sqlCharts.map((sqlChartChange) => ({
                 action: sqlChartChange.action,
                 data: PromoteService.toPromotedSqlChartChange(sqlChartChange),
@@ -1982,11 +2056,18 @@ export class PromoteService extends BaseService {
             organizationUuid: user.organizationUuid ?? null,
         });
         const promotedDashboard = dashboardChange.data;
+        // Composer tiles need their charts upstream first; updateDashboard adds them
+        const composerTiles = promotedDashboard.tiles.filter(
+            isDashboardComposerChartTile,
+        );
         // Update dashboard with new space if it was created
         const newDashboard = await this.dashboardModel.create(
             promotedDashboard.spaceUuid,
             {
                 ...promotedDashboard,
+                tiles: promotedDashboard.tiles.filter(
+                    (tile) => !isDashboardComposerChartTile(tile),
+                ),
                 ownerUserUuid: promotedDashboard.owner?.userUuid ?? null,
                 forceSlug: true,
             },
@@ -2027,6 +2108,9 @@ export class PromoteService extends BaseService {
                     action: dashboardChange.action,
                     data: {
                         ...newDashboard,
+                        ...(composerTiles.length > 0 && {
+                            tiles: [...newDashboard.tiles, ...composerTiles],
+                        }),
                         spaceSlug: promotedDashboard.spaceSlug,
                         spacePath: promotedDashboard.spacePath,
                     },
@@ -2385,6 +2469,7 @@ export class PromoteService extends BaseService {
         );
 
         return {
+            ...promotionChanges,
             spaces: allSpaces,
             dashboards: updateDashboardWithSpace,
             charts: updateChartsWithSpace,
@@ -2854,6 +2939,50 @@ export class PromoteService extends BaseService {
         ];
     }
 
+    private async getAuthorizedComposerChartChanges(
+        account: RegisteredAccount,
+        dashboard: DashboardDAO,
+        upstreamDashboard: UpstreamDashboard,
+    ) {
+        if (!dashboard.tiles.some(isDashboardComposerChartTile)) return [];
+        // Unchanged charts skip the write checks, but their tiles still move upstream
+        if (
+            !(await this.getComposerChartService().isEnabled({
+                userUuid: account.user.userUuid,
+                organizationUuid: account.organization.organizationUuid!,
+            }))
+        ) {
+            throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
+        }
+        // The promote checks match the upstream space by path, not where the dashboard is now
+        if (upstreamDashboard.dashboard) {
+            await this.getComposerChartService().preflightDashboard(
+                account,
+                upstreamDashboard.projectUuid,
+                upstreamDashboard.dashboard.uuid,
+            );
+        }
+        const changes = await getComposerChartChanges(
+            this.composerChartModel,
+            dashboard.tiles,
+            {
+                projectUuid: upstreamDashboard.projectUuid,
+                dashboardUuid: upstreamDashboard.dashboard?.uuid ?? null,
+            },
+        );
+        await preflightComposerChartChanges(
+            this.composerChartModel,
+            this.getComposerChartService(),
+            account,
+            {
+                organizationUuid: account.organization.organizationUuid!,
+                projectUuid: upstreamDashboard.projectUuid,
+            },
+            changes,
+        );
+        return changes;
+    }
+
     async getPromotedDashboard(
         user: SessionUser,
         dashboard: DashboardDAO,
@@ -2946,19 +3075,15 @@ export class PromoteService extends BaseService {
             space: upstreamSpace,
             spaceAccessContext: upstreamCtx,
         };
-        // Content-as-code upload reuses this path within one project
-        if (dashboard.projectUuid !== upstreamProjectUuid) {
-            assertDashboardIsPromotable(dashboard);
-        }
-
         return { promotedDashboard, upstreamDashboard };
     }
 
     async promoteDashboard(
-        user: SessionUser,
+        account: RegisteredAccount,
         dashboardUuidOrSlug: UuidOrSlug,
         options?: { projectUuid?: UUID },
     ) {
+        const user = toSessionUser(account);
         const dashboard = await this.getDashboardToPromote(
             user,
             dashboardUuidOrSlug,
@@ -3022,6 +3147,15 @@ export class PromoteService extends BaseService {
                     ),
             );
 
+            promotionChanges = {
+                ...promotionChanges,
+                composerCharts: await this.getAuthorizedComposerChartChanges(
+                    account,
+                    dashboard,
+                    upstreamDashboard,
+                ),
+            };
+
             const sqlChartBindings = await this.getPromotedSqlChartBindings(
                 dashboard.projectUuid,
                 upstreamProjectUuid,
@@ -3070,6 +3204,13 @@ export class PromoteService extends BaseService {
                 sqlChartBindings,
             );
 
+            promotionChanges = await upsertComposerCharts(
+                this.composerChartModel,
+                this.getComposerChartService(),
+                account,
+                promotionChanges,
+            );
+
             promotionChanges = await this.updateDashboard(
                 user,
                 promotionChanges,
@@ -3085,6 +3226,10 @@ export class PromoteService extends BaseService {
                     orphanedCharts.map((chart) =>
                         this.savedChartModel.permanentDelete(chart.uuid),
                     ),
+                );
+                await this.composerChartModel.deleteOrphans(
+                    upstreamDashboard.dashboard.uuid,
+                    new Set(),
                 );
             }
 

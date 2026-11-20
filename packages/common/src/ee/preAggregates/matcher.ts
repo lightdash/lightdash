@@ -10,7 +10,6 @@ import {
     convertFieldRefToFieldId,
     isCustomBinDimension,
     isCustomSqlDimension,
-    isSqlTableCalculation,
     MetricType,
     type CustomDimension,
     type CustomSqlDimension,
@@ -1462,20 +1461,9 @@ export const findMatch = (
         };
     }
 
-    const sqlTableCalculation = (metricQuery.tableCalculations || []).find(
-        isSqlTableCalculation,
-    );
-    if (sqlTableCalculation) {
-        return {
-            hit: false,
-            preAggregateName: null,
-            miss: {
-                reason: PreAggregateMissReason.TABLE_CALCULATION_PRESENT,
-                fieldId: getItemId(sqlTableCalculation),
-            },
-        };
-    }
-
+    // Table calculations never block a match: they are compiled on top of the
+    // aggregated result and can only reference fields selected in the query,
+    // which the per-definition checks below already require to be covered.
     const firstAdditionalMetric = metricQuery.additionalMetrics?.[0];
     if (firstAdditionalMetric) {
         return {

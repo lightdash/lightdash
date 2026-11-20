@@ -1,4 +1,9 @@
-import { combineReducers, configureStore } from '@reduxjs/toolkit';
+import {
+    combineReducers,
+    configureStore,
+    type UnknownAction,
+} from '@reduxjs/toolkit';
+import { changeOriginOf, stampChangeOrigin } from '../../../utils/changeOrigin';
 import {
     bigNumberEditorReducer,
     type BigNumberEditorState,
@@ -49,6 +54,13 @@ export type VisualizationStoreState = {
     sankeyEditor: SankeyEditorState;
     tableEditor: TableEditorState;
     treemapEditor: TreemapEditorState;
+    /** The gesture of the latest action the user dispatched; 0 before any */
+    userEditGesture: number;
+};
+
+const userEditGestureReducer = (gesture: number = 0, action: UnknownAction) => {
+    const origin = changeOriginOf(action);
+    return origin && !origin.isDerived ? origin.gesture : gesture;
 };
 
 const visualizationReducer = combineReducers({
@@ -64,6 +76,7 @@ const visualizationReducer = combineReducers({
     sankeyEditor: sankeyEditorReducer,
     tableEditor: tableEditorReducer,
     treemapEditor: treemapEditorReducer,
+    userEditGesture: userEditGestureReducer,
 });
 
 // One store per mounted VisualizationProvider and chart type
@@ -73,6 +86,8 @@ export const createVisualizationStore = (
     configureStore({
         reducer: visualizationReducer,
         preloadedState,
+        middleware: (getDefaultMiddleware) =>
+            getDefaultMiddleware().concat(stampChangeOrigin),
         // Every mounted chart has a store, so only development registers them
         devTools: process.env.NODE_ENV === 'development',
     });

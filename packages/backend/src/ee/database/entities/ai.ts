@@ -600,6 +600,7 @@ export type AiPromptContextEntityType =
     | 'data_app'
     | 'document'
     | 'sql_chart'
+    | 'composer_chart'
     | 'design'
     | 'skill';
 

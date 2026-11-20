@@ -64,6 +64,7 @@ const submitArgs = (query: ApiSourceQuery): SubmitSourceQueryArgs => ({
     invalidateCache: false,
     pivotConfiguration: null,
     plan: null,
+    dateZoom: null,
     authority: { kind: 'request' },
 });
 

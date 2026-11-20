@@ -199,6 +199,25 @@ describe('request logging', () => {
             expect(serializedLog).not.toContain(secret);
         });
     });
+
+    it('percent-encodes braces in completed request log messages', () => {
+        vi.useFakeTimers({ toFake: ['Date'], now: 1000 });
+        const logSpy = vi
+            .spyOn(winstonLogger, 'log')
+            .mockImplementation(() => winstonLogger);
+        const request = createRequest();
+        request.url = '/search?filters={"a":{"b":1}}';
+        const response = createResponse();
+
+        expressWinstonMiddleware(request, response, vi.fn() as NextFunction);
+        response.end();
+
+        expect(logSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'GET /search?filters=%7B"a":%7B"b":1%7D%7D 200 - 0 ms',
+            }),
+        );
+    });
 });
 
 describe('formatAuditAction', () => {

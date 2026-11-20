@@ -157,6 +157,9 @@ describe('Document runtime access', () => {
                 },
                 aiAgentModel: {
                     findPinnedThreadContextUuids: vi.fn().mockResolvedValue([]),
+                    findSlackChannelServiceAccount: vi
+                        .fn()
+                        .mockResolvedValue(null),
                 },
                 aiThreadFileModel: {
                     findForThread: vi.fn().mockResolvedValue([]),

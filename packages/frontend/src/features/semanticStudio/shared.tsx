@@ -2,14 +2,7 @@
  * Building blocks for Semantic Layer: the field table, the details modals,
  * search results and the small controls around them.
  */
-import {
-    DbtProjectType,
-    DimensionType,
-    FieldType,
-    MetricType,
-    type Field as LightdashField,
-    type WarehouseTypes,
-} from '@lightdash/common';
+import { DbtProjectType, type WarehouseTypes } from '@lightdash/common';
 import {
     Autocomplete,
     Box,
@@ -64,7 +57,6 @@ import {
     type ReactNode,
 } from 'react';
 import { Link } from 'react-router';
-import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import { ItemDetailMarkdown } from '../../components/Explorer/ExploreTree/TableTree/ItemDetailPreview';
 import dbtLogo from '../../components/ProjectConnection/ProjectConnectFlow/Assets/dbt.svg';
@@ -78,6 +70,7 @@ import googleSheetsLogo from '../../svgs/google-sheets.svg';
 import { useUpdateLiveSourceFields } from '../externalConnections/hooks/useLiveSourceFields';
 import { useExternalSourceActions } from './externalSources/externalSourceActions';
 import { isSameDraft, toFieldChange, toFieldDraft } from './fieldDraft';
+import { KindTypeIcon } from './KindTypeIcon';
 import { useLiveSourceActions } from './liveSources/liveSourceActions';
 import {
     getExplore,
@@ -169,41 +162,6 @@ const SourceLogo: FC<{ source: Source; size?: number }> = ({
 
 const KindIcon: FC<{ kind: Kind; size?: number }> = ({ kind, size = 16 }) => (
     <MantineIcon icon={KIND_ICONS[kind]} size={size} color="dimmed" />
-);
-
-const isDimensionType = (type: string): type is DimensionType =>
-    Object.values<string>(DimensionType).includes(type);
-const isMetricType = (type: string): type is MetricType =>
-    Object.values<string>(MetricType).includes(type);
-
-/** The explorer's field icon, from a field kind and type. */
-const KindTypeIcon: FC<{
-    fieldKind: FieldKind;
-    type: string;
-    name: string;
-    size?: 'md' | 'lg';
-}> = ({ fieldKind, type, name, size = 'md' }) => (
-    <FieldIcon
-        size={size}
-        item={
-            {
-                fieldType:
-                    fieldKind === 'metric'
-                        ? FieldType.METRIC
-                        : FieldType.DIMENSION,
-                type:
-                    fieldKind === 'metric'
-                        ? isMetricType(type)
-                            ? type
-                            : MetricType.NUMBER
-                        : isDimensionType(type)
-                          ? type
-                          : DimensionType.STRING,
-                name,
-                label: name,
-            } as LightdashField
-        }
-    />
 );
 
 const FieldTypeIcon: FC<{ field: Field; size?: 'md' | 'lg' }> = ({
@@ -535,6 +493,7 @@ const FieldRow = memo<{
         onOpen,
         onDragStart,
     }) => {
+        const canDrag = useAddToStudioChat() !== null;
         const summary = summaryOf(field.description);
         return (
             <Box className={classes.fieldItem} top={top}>
@@ -542,18 +501,21 @@ const FieldRow = memo<{
                     className={classes.fieldRow}
                     data-selected={selected}
                     data-off={!field.inUse || field.draftState === 'removed'}
+                    data-change={field.draftState ?? undefined}
                     data-field-index={index}
                     data-field-id={field.id}
                     role="row"
                     aria-selected={selected}
                     tabIndex={tabStop ? 0 : -1}
-                    draggable
+                    draggable={canDrag}
                     onDragStart={(event) => onDragStart(event, field)}
                     onClick={() => onOpen(field)}
                 >
-                    <Box className={classes.dragGrip} aria-hidden>
-                        <MantineIcon icon={IconGripVertical} size={12} />
-                    </Box>
+                    {canDrag ? (
+                        <Box className={classes.dragGrip} aria-hidden>
+                            <MantineIcon icon={IconGripVertical} size={12} />
+                        </Box>
+                    ) : null}
                     <Group gap={8} wrap="nowrap" className={classes.fieldName}>
                         <Box flex="none" display="flex">
                             <FieldTypeIcon field={field} />
@@ -576,7 +538,10 @@ const FieldRow = memo<{
                             </Text>
                         ) : null}
                         {field.draftState ? (
-                            <Text className={classes.fieldUnsaved}>
+                            <Text
+                                className={classes.fieldUnsaved}
+                                data-change={field.draftState}
+                            >
                                 {CHANGE_KIND_LABELS[field.draftState]}
                             </Text>
                         ) : null}
@@ -617,6 +582,8 @@ export const FieldList: FC<{
     onShowHidden: () => void;
     /** The field whose details are open, from the URL. */
     openFieldId: string | null;
+    /** A field to bring into view on arrival, such as one just published. */
+    revealFieldId: string | null;
     /** Click or Enter opens a field's details; arrows move between rows. */
     onOpen: (field: Field) => void;
     toolbar?: ReactNode;
@@ -627,6 +594,7 @@ export const FieldList: FC<{
     hiddenCount,
     onShowHidden,
     openFieldId,
+    revealFieldId,
     onOpen,
     toolbar,
 }) => {
@@ -668,17 +636,18 @@ export const FieldList: FC<{
                 fieldName: field.id,
                 modelLabel: explore.label,
                 fieldLabel: field.label,
+                fieldKind: field.fieldKind,
+                fieldType: field.type,
                 code: null,
             }),
         [explore.id, explore.label],
     );
     const selectedIndex = fields.findIndex(({ id }) => id === activeFieldId);
     const tabStop = selectedIndex < 0 ? 0 : selectedIndex;
-    // Arriving on an open field (a link, back, reload): show its row.
+    // Arriving on an open field (a link, back, reload), or one to reveal: show its row.
     useEffect(() => {
-        const rowIndex = openFieldId
-            ? rowIndexByField.get(openFieldId)
-            : undefined;
+        const arrivedAt = openFieldId ?? revealFieldId;
+        const rowIndex = arrivedAt ? rowIndexByField.get(arrivedAt) : undefined;
         if (rowIndex === undefined) return;
         virtualizer.scrollToIndex(rowIndex, { align: 'center' });
         // Only on arrival, not on every render.
@@ -1200,7 +1169,12 @@ export const FieldDetailModal: FC<{
                 </Text>
             </Group>
         ) : onViewCode || addToChat ? (
-            <Group gap={4} wrap="nowrap">
+            <Group gap={4} wrap="nowrap" miw={0}>
+                {isLive ? null : (
+                    <Text fz="xs" c="dimmed" truncate mr="xs">
+                        A model's fields are edited in its code.
+                    </Text>
+                )}
                 {onViewCode ? (
                     <Button
                         size="xs"
@@ -1224,6 +1198,8 @@ export const FieldDetailModal: FC<{
                                 fieldName: field.id,
                                 modelLabel: explore.label,
                                 fieldLabel: field.label,
+                                fieldKind: field.fieldKind,
+                                fieldType: field.type,
                                 code: null,
                             });
                             onClose();

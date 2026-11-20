@@ -4,68 +4,85 @@ import {
     type SemanticLayerDraftImpact,
     type SemanticLayerProposal,
 } from '@lightdash/common';
-import {
-    Box,
-    Button,
-    Group,
-    Paper,
-    Text,
-    UnstyledButton,
-    VisuallyHidden,
-} from '@mantine/core';
+import { Button } from '@mantine/core';
 import {
     IconAlertTriangle,
+    IconArrowsJoin,
     IconCircleCheck,
     IconCircleMinus,
     IconGitBranch,
     IconGitPullRequest,
     IconTable,
-    IconTrash,
 } from '@tabler/icons-react';
-import { useEffect, useState, type FC } from 'react';
+import { lazy, Suspense, useEffect, useState, type FC } from 'react';
 import { Link } from 'react-router';
-import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
 import MantineIcon from '../../components/common/MantineIcon';
-import { TryIt } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/TryItButton';
 import { cannotApply } from './draftState';
+import { FieldChangeIcon } from './KindTypeIcon';
 import {
     describeModelChange,
     DRAFT_PARAM,
     DRAFT_REVIEW,
+    CHANGE_KIND_LABELS,
     getChangeKind,
+    type ChangeKind,
     getModelCodeSearch,
     listFieldChanges,
-    type ChangeKind,
     type FieldChange,
 } from './modelCode';
-import { ISSUE_KINDS, listProposalIssues } from './proposalIssues';
-import { ApplyModal } from './SemanticLayerDraft';
-import { Task, TaskIcon, type TaskState } from './TaskRow';
-import classes from './TurnSummaryCard.module.css';
+import { listTurnIssues } from './proposalIssues';
+import { TaskIcon } from './TaskRow';
+import { draftActions, fixAction } from './turnActions';
+import { TurnCard, type Safety } from './TurnCard';
 import { getSemanticStudioUrl } from './urls';
 import {
-    useDiscardDraftChange,
     usePublishMode,
     useRefreshSemanticLayerDraft,
     useSemanticLayerDraft,
     useSemanticLayerDraftImpact,
 } from './useSemanticLayerModel';
+import { useDraftPullRequest } from './useStudioCheckout';
 
-const GLYPHS: Record<ChangeKind, { glyph: string; word: string }> = {
-    new: { glyph: '+', word: 'Added' },
-    changed: { glyph: '~', word: 'Changed' },
-    removed: { glyph: '−', word: 'Removed' },
+// The review and its diff viewer stay out of the chat's bundle until someone publishes from a card.
+const ApplyModal = lazy(() =>
+    import('./SemanticLayerDraft').then((module) => ({
+        default: module.ApplyModal,
+    })),
+);
+
+/** What was done to a part of a model, as the start of a sentence its name ends. */
+const ACTIONS: Record<FieldChange['kind'], Record<ChangeKind, string>> = {
+    dimension: {
+        new: 'Added the dimension',
+        changed: 'Changed the dimension',
+        removed: 'Removed the dimension',
+    },
+    metric: {
+        new: 'Added the metric',
+        changed: 'Changed the metric',
+        removed: 'Removed the metric',
+    },
+    join: {
+        new: 'Joined to',
+        changed: 'Changed the join to',
+        removed: 'Removed the join to',
+    },
+    model: { new: 'Added', changed: 'Changed', removed: 'Removed' },
 };
 
-const KIND_LABELS: Record<FieldChange['kind'], string> = {
-    dimension: 'Dimension',
-    metric: 'Metric',
-    join: 'Join',
-    model: 'Model',
+/** "New · 12 dimensions · 1 metric" beside a name reads as a sentence under it: "Created with 12 dimensions and 1 metric". */
+const describeWholeModel = (subtitle: string | null): string | null => {
+    if (subtitle === null) return null;
+    const [state, ...counts] = subtitle.split(' · ');
+    if (state === CHANGE_KIND_LABELS.removed) return 'Removed from the layer';
+    return counts.length > 0
+        ? `Created with ${counts.join(' and ')}`
+        : 'Created';
 };
 
 type ModelGroup = {
     model: string;
+    change: ChangeKind;
     title: string;
     subtitle: string | null;
     removed: boolean;
@@ -105,9 +122,12 @@ const groupByModel = (proposals: SemanticLayerProposal[]): ModelGroup[] => {
                       contentAfter: diffs[diffs.length - 1].contentAfter,
                   }
                 : null;
+        const { title, subtitle } = describeModelChange(model, span);
         return {
             model,
-            ...describeModelChange(model, span),
+            title,
+            subtitle: describeWholeModel(subtitle),
+            change: span === null ? 'changed' : getChangeKind(span),
             removed: span !== null && getChangeKind(span) === 'removed',
             fields: [...fields.values()],
         };
@@ -164,14 +184,20 @@ const getPhase = (
     };
 };
 
-type Safety = { state: TaskState; text: string; why: string | null };
-
 /** Whether the draft is safe to try, in one line with its reason. */
 const getSafety = (
     error: string | null,
     impact: SemanticLayerDraftImpact | undefined,
+    conflicts: number,
 ): Safety => {
     if (error) return { state: 'failed', text: "Doesn't compile", why: error };
+    if (conflicts > 0) {
+        return {
+            state: 'failed',
+            text: `${conflicts} ${conflicts === 1 ? 'conflict' : 'conflicts'}`,
+            why: 'choose a version',
+        };
+    }
     if (!impact) {
         return { state: 'running', text: 'Checking saved charts', why: null };
     }
@@ -213,49 +239,17 @@ const getSafety = (
     }
 };
 
-const FieldRow: FC<{ to: string; field: FieldChange }> = ({ to, field }) => {
-    const { glyph, word } = GLYPHS[field.change];
-    return (
-        <UnstyledButton
-            component={Link}
-            to={to}
-            className={classes.row}
-            data-change={field.change}
-            title={field.name}
-        >
-            <Text span fz="xs" className={classes.glyph} aria-hidden>
-                {glyph}
-            </Text>
-            <Text span fz="xs" c="dimmed">
-                <VisuallyHidden>{word} </VisuallyHidden>
-                {KIND_LABELS[field.kind]}
-            </Text>
-            <Text span fz="xs" truncate className={classes.label}>
-                {field.label}
-            </Text>
-            {field.detail ? (
-                <Text span fz="xs" c="dimmed" truncate className={classes.sub}>
-                    {field.detail}
-                </Text>
-            ) : null}
-        </UnstyledButton>
-    );
-};
-
 /** The end of an agent turn in Studio: what changed in semantic terms, whether it is safe, and what to do next. */
 export const TurnSummaryCard: FC<{
     projectUuid: string;
     proposals: SemanticLayerProposal[];
     /** Asks the agent in this chat; null while it is busy. */
     onAsk: ((message: string) => void) | null;
-}> = ({ projectUuid, proposals, onAsk }) => {
+    isLatest: boolean;
+}> = ({ projectUuid, proposals, onAsk, isLatest }) => {
     const { data: draft } = useSemanticLayerDraft(projectUuid);
     const { data: impact } = useSemanticLayerDraftImpact(projectUuid, null);
     const refresh = useRefreshSemanticLayerDraft(projectUuid);
-    const discard = useDiscardDraftChange(projectUuid);
-    const publishMode = usePublishMode(projectUuid);
-    const [trial, setTrial] = useState<'idle' | 'trying' | 'tried'>('idle');
-    const [publishing, setPublishing] = useState(false);
     const uuids = proposals.flatMap(({ draftChangeUuid }) =>
         draftChangeUuid ? [draftChangeUuid] : [],
     );
@@ -286,84 +280,50 @@ export const TurnSummaryCard: FC<{
         }
         return modelUrl(model);
     };
-    const issues = proposals.flatMap(listProposalIssues);
-    const name =
-        proposals.find(({ startedChange }) => startedChange)?.startedChange
-            ?.name ??
-        groups[0]?.title ??
-        null;
-
+    const issues = listTurnIssues(proposals);
     const isDraft = phase.kind === 'draft';
-    const safety = isDraft ? getSafety(phase.error, impact) : null;
-    const tryModels = draft
-        ? draft.models
-              .filter((entry) => getChangeKind(entry) !== 'removed')
-              .map(({ model }) => model)
-        : [];
-    const publishLabel =
-        publishMode === 'pull_request' ? 'Open pull request' : 'Publish';
-    const blocked = !!draft && cannotApply(draft, null);
-
-    const viewChanges = (primary: boolean) => (
-        <Button
-            key="view"
-            size="compact-xs"
-            variant={primary ? 'filled' : 'subtle'}
-            component={Link}
-            to={reviewUrl}
-        >
-            View changes
-        </Button>
-    );
-    const tryIt = (primary: boolean) =>
-        tryModels.length > 0 ? (
-            <Button
-                key="try"
-                size="compact-xs"
-                variant={primary ? 'filled' : 'subtle'}
-                onClick={() => setTrial('trying')}
-            >
-                {trial === 'tried' ? 'Try again' : 'Try it'}
-            </Button>
-        ) : null;
+    const conflicts = (draft?.models ?? []).filter(
+        ({ reconciliation }) => reconciliation?.state === 'conflict',
+    ).length;
+    const safety = isDraft ? getSafety(phase.error, impact, conflicts) : null;
+    const [publishing, setPublishing] = useState(false);
+    const asPullRequest = usePublishMode(projectUuid) === 'pull_request';
+    const isSent = useDraftPullRequest() !== null;
+    // A clean draft can go out from where it was made, as the toolbar's button would send it.
+    const canPublish =
+        safety?.state === 'done' &&
+        !!draft &&
+        !cannotApply(draft, null) &&
+        !issues.some(({ kind }) => kind === 'failed');
+    const publishLabel = isSent ? 'Update pull request' : 'Open pull request';
+    // A model the agent could not add, and did not go on to fix, is one more thing to hand back to it.
+    const failure = issues.find(({ kind }) => kind === 'failed');
+    const fixFailure = failure
+        ? fixAction(
+              `${failure.model} was not added: ${failure.detail}. Fix it.`,
+              onAsk,
+          )
+        : null;
     const actions = (() => {
         switch (phase.kind) {
             case 'draft':
-                if (phase.error) {
-                    return [
-                        viewChanges(!onAsk),
-                        onAsk ? (
-                            <Button
-                                key="fix"
-                                size="compact-xs"
-                                onClick={() =>
-                                    onAsk(
-                                        `The draft doesn't compile: ${phase.error}. Fix it.`,
-                                    )
-                                }
-                            >
-                                Fix with agent
-                            </Button>
-                        ) : null,
-                    ];
-                }
-                if (safety?.state === 'running' || safety?.state === 'failed') {
-                    return [tryIt(false), viewChanges(true)];
-                }
-                if (trial === 'tried' && !blocked) {
-                    return [
-                        viewChanges(false),
-                        tryIt(false),
+                return [
+                    ...draftActions({
+                        error: phase.error,
+                        reviewTo: reviewUrl,
+                        onAsk,
+                    }),
+                    phase.error ? null : fixFailure,
+                    canPublish ? (
                         <Button
                             key="publish"
                             size="compact-xs"
                             onClick={() => setPublishing(true)}
                         >
-                            {publishLabel}
-                        </Button>,
-                    ];
-                }
-                return [viewChanges(false), tryIt(true)];
+                            {asPullRequest ? publishLabel : 'Publish'}
+                        </Button>
+                    ) : null,
+                ];
             case 'published':
                 return phase.model
                     ? [
@@ -393,52 +353,10 @@ export const TurnSummaryCard: FC<{
                         View pull request
                     </Button>,
                 ];
+            case 'none':
+                return [fixFailure];
             case 'gone':
             case 'loading':
-            case 'none':
-                return [];
-            default:
-                return assertUnreachable(phase, 'Unknown turn phase');
-        }
-    })();
-
-    const steps = (() => {
-        switch (phase.kind) {
-            case 'draft':
-                return [
-                    <Task key="draft" state="done" label="In your draft" />,
-                    <Task
-                        key="try"
-                        state={
-                            phase.error
-                                ? 'failed'
-                                : trial === 'trying'
-                                  ? 'running'
-                                  : trial === 'tried'
-                                    ? 'done'
-                                    : 'todo'
-                        }
-                        label={trial === 'tried' ? 'Tried' : 'Try'}
-                    />,
-                    <Task key="publish" state="todo" label={publishLabel} />,
-                ];
-            case 'published':
-                return [
-                    <Task key="draft" state="done" label="In your draft" />,
-                    <Task key="publish" state="done" label="Published" />,
-                ];
-            case 'pull_request':
-                return [
-                    <Task key="draft" state="done" label="In your draft" />,
-                    <Task
-                        key="publish"
-                        state="done"
-                        label="Pull request opened"
-                    />,
-                ];
-            case 'gone':
-            case 'loading':
-            case 'none':
                 return [];
             default:
                 return assertUnreachable(phase, 'Unknown turn phase');
@@ -458,10 +376,7 @@ export const TurnSummaryCard: FC<{
                           icon: <TaskIcon state="failed" />,
                           status: "Draft doesn't compile",
                       }
-                    : {
-                          icon: <MantineIcon icon={IconGitBranch} size={14} />,
-                          status: 'Draft',
-                      };
+                    : { icon: null, status: 'Drafted' };
             case 'published':
                 return {
                     icon: (
@@ -506,154 +421,78 @@ export const TurnSummaryCard: FC<{
     })();
 
     return (
-        <Paper
-            mt="xs"
-            className={classes.card}
-            data-settled={
-                phase.kind === 'published' ||
-                phase.kind === 'pull_request' ||
-                phase.kind === 'gone'
-            }
-            data-gone={phase.kind === 'gone'}
-        >
-            <Group className={classes.section} gap={6} wrap="nowrap">
-                {header.icon}
-                <Text fz="xs" fw={500} truncate flex={1}>
-                    {header.status}
-                    {name ? (
-                        <Text span fz="xs" fw={400} c="dimmed">
-                            {` · ${name}`}
-                        </Text>
-                    ) : null}
-                </Text>
-                {isDraft ? (
-                    <ConfirmDeleteButton
-                        size="sm"
-                        aria-label="Discard these changes"
-                        tooltip="Click again to discard these changes"
-                        disabled={discard.isLoading}
-                        onConfirm={() =>
-                            uuids.forEach((uuid) => discard.mutate(uuid))
-                        }
-                    >
-                        <MantineIcon icon={IconTrash} />
-                    </ConfirmDeleteButton>
-                ) : null}
-            </Group>
-            {groups.map(({ model, title, subtitle, fields }) => {
-                const modelIssues = issues.filter((i) => i.model === model);
-                if (
-                    fields.length === 0 &&
-                    modelIssues.length === 0 &&
-                    !subtitle
-                )
-                    return null;
-                return (
-                    <Box key={model} className={classes.model}>
-                        <Group
-                            gap={4}
-                            wrap="nowrap"
-                            className={classes.modelName}
-                        >
-                            <MantineIcon
-                                icon={IconTable}
-                                size={12}
-                                color="ldGray.5"
-                            />
-                            <Text fz="xs" c="dimmed" truncate title={model}>
-                                {title}
-                                {subtitle ? ` · ${subtitle}` : ''}
-                            </Text>
-                        </Group>
-                        {fields.map((field) => (
-                            <FieldRow
-                                key={`${field.kind}:${field.name}`}
-                                to={fieldUrl(model, field)}
-                                field={field}
-                            />
-                        ))}
-                        {modelIssues.map(({ kind, detail }) => (
-                            <Group
-                                key={`${kind}|${detail}`}
-                                className={classes.issue}
-                                gap={6}
-                                wrap="nowrap"
-                                align="flex-start"
-                            >
+        <TurnCard
+            icon={header.icon}
+            status={header.status}
+            name={null}
+            headerAction={null}
+            groups={groups.map(
+                ({ model, change, title, subtitle, fields }) => ({
+                    model,
+                    change,
+                    title,
+                    subtitle,
+                    rows: fields.map((field) => ({
+                        id: `${field.kind}:${field.name}`,
+                        change: field.change,
+                        action: ACTIONS[field.kind][field.change],
+                        // A field keeps the Explorer's own icon and colour; a join is blue and a table green.
+                        icon:
+                            field.kind === 'dimension' ||
+                            field.kind === 'metric' ? (
+                                <FieldChangeIcon field={field} />
+                            ) : field.kind === 'join' ? (
                                 <MantineIcon
-                                    icon={ISSUE_KINDS[kind].icon}
+                                    icon={IconArrowsJoin}
                                     size={14}
-                                    color={ISSUE_KINDS[kind].color}
+                                    color="blue"
                                 />
-                                <Text
-                                    fz="xs"
-                                    fw={500}
-                                    flex={1}
-                                    miw={0}
-                                    className={classes.wrap}
-                                >
-                                    {ISSUE_KINDS[kind].label}
-                                    <Text span fz="xs" fw={400} c="dimmed">
-                                        {` · ${detail}`}
-                                    </Text>
-                                </Text>
-                            </Group>
-                        ))}
-                    </Box>
-                );
-            })}
-            {safety ? (
-                <Group
-                    className={classes.section}
-                    gap={6}
-                    wrap="nowrap"
-                    align="flex-start"
-                >
-                    <Box className={classes.icon}>
-                        <TaskIcon state={safety.state} />
-                    </Box>
-                    <Text fz="xs" flex={1} miw={0} className={classes.wrap}>
-                        {safety.text}
-                        {safety.why ? (
-                            <Text span fz="xs" c="dimmed">
-                                {` · ${safety.why}`}
-                            </Text>
-                        ) : null}
-                    </Text>
-                </Group>
-            ) : null}
-            {steps.length > 0 || actions.length > 0 ? (
-                <Group
-                    className={classes.section}
-                    gap="xs"
-                    justify="space-between"
-                    wrap="wrap"
-                >
-                    <Group gap="sm" wrap="wrap" aria-live="polite">
-                        {steps}
-                    </Group>
-                    <Group gap={4} wrap="nowrap" ml="auto">
-                        {actions}
-                    </Group>
-                </Group>
-            ) : null}
-            {trial === 'trying' ? (
-                <TryIt
-                    projectUuid={projectUuid}
-                    models={tryModels}
-                    previewProjectUuid={null}
-                    prUrl={null}
-                    onClose={() => setTrial('tried')}
-                />
-            ) : null}
+                            ) : (
+                                <MantineIcon
+                                    icon={IconTable}
+                                    size={14}
+                                    color="green"
+                                />
+                            ),
+                        label: (() => {
+                            // A model's own keys have no name of their own to show.
+                            if (field.kind === 'model') {
+                                return `its ${field.detail ?? 'settings'}`;
+                            }
+                            // A join to a model this turn touched reads by that model's name.
+                            if (field.kind === 'join') {
+                                return (
+                                    groups.find((g) => g.model === field.name)
+                                        ?.title ?? field.label
+                                );
+                            }
+                            return field.label;
+                        })(),
+                        // How it is defined waits on hover and in the review; the card names what changed.
+                        detail: null,
+                        title: [field.name, field.detail]
+                            .filter(Boolean)
+                            .join(' · '),
+                        to: fieldUrl(model, field),
+                    })),
+                    issues: issues.filter((issue) => issue.model === model),
+                }),
+            )}
+            safety={safety}
+            isLatest={isLatest}
+            actions={actions}
+            isGone={phase.kind === 'gone'}
+        >
             {publishing && draft ? (
-                <ApplyModal
-                    projectUuid={projectUuid}
-                    draft={draft}
-                    model={null}
-                    onClose={() => setPublishing(false)}
-                />
+                <Suspense fallback={null}>
+                    <ApplyModal
+                        projectUuid={projectUuid}
+                        draft={draft}
+                        model={null}
+                        onClose={() => setPublishing(false)}
+                    />
+                </Suspense>
             ) : null}
-        </Paper>
+        </TurnCard>
     );
 };

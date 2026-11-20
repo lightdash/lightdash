@@ -1,11 +1,13 @@
 import {
     type ApiError,
+    type ApiExploresResults,
     type Explore,
     type SemanticLayerDraft,
     type SemanticLayerDraftModel,
     type SemanticStudioWorkspace,
     type SummaryExplore,
 } from '@lightdash/common';
+import { useQuery } from '@tanstack/react-query';
 import {
     createContext,
     useContext,
@@ -14,6 +16,8 @@ import {
     type MutableRefObject,
 } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
+import { DEVELOPMENT_VIEW_HEADER, PUBLISHED_VIEW } from './developmentView';
 import {
     useSemanticLayerStatus,
     useSemanticLayerWorkspaceDraft,
@@ -138,6 +142,31 @@ const toSummary = (
     };
 };
 
+/**
+ * The published explore list, asked for by name so a page on a draft reads it
+ * too. A draft kept in the app is laid over it here, so leaving the draft shows
+ * what is published at once.
+ */
+export const usePublishedExplores = (
+    projectUuid: string | undefined,
+    enabled: boolean,
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiExploresResults, ApiError>({
+        // Under `tables`, so whatever refreshes the explore list refreshes this.
+        queryKey: ['tables', projectUuid, 'filtered', PUBLISHED_VIEW],
+        queryFn: () =>
+            lightdashApi<ApiExploresResults>({
+                url: `/projects/${projectUuid}/explores?filtered=true&includePreAggregates=false`,
+                method: 'GET',
+                body: undefined,
+                headers: { [DEVELOPMENT_VIEW_HEADER]: 'false' },
+            }),
+        enabled: !!projectUuid && enabled,
+        retry: false,
+    });
+};
+
 /** The explore list as a change leaves it: its additions, edits and removals on top of live. */
 export const foldDraftExplores = (
     live: SummaryExplore[],
@@ -215,4 +244,10 @@ export const useCheckOut = (projectUuid: string) => {
         );
     };
     return { checkOut, createChange, isBusy, isError: action.isError };
+};
+
+/** The open pull request the checked-out draft was already sent as, which sending again updates; null without one. */
+export const useDraftPullRequest = (): string | null => {
+    const pullRequest = useStudioCheckout().shown?.workspace?.pullRequest;
+    return pullRequest?.state === 'open' ? pullRequest.url : null;
 };

@@ -12,6 +12,7 @@ import {
     NotFoundError,
     ParameterError,
     ProjectType,
+    SupportedDbtAdapter,
     ValidationErrorType,
     ValidationSourceType,
     WarehouseTypes,
@@ -29,6 +30,10 @@ import {
 } from '@lightdash/common';
 import { Readable } from 'node:stream';
 import { stringify } from 'yaml';
+import {
+    readCompiledDbtManifest,
+    saveCompiledDbtManifest,
+} from '../../../services/ProjectService/compiledDbtManifest';
 import { user } from '../../../services/ProjectService/ProjectService.mock';
 import { type DbSemanticStudioBranchCompile } from '../../database/entities/semanticStudioBranchCompiles';
 import {
@@ -38,6 +43,9 @@ import {
     type ProjectModelDocumentModel,
     type StoredDraftChange,
 } from '../../models/ProjectModelDocumentModel';
+import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
+import { type ApiCheckout } from '../AiWritebackService/providers/GithubProvider';
+import { type DbtScriptChange } from './codeMode/dbtManifestPatch';
 import {
     isSourcePath,
     SemanticStudioService,
@@ -147,6 +155,7 @@ const BRANCH_EXPLORE: ExploreError = {
 const setup = ({
     stored = [{ name: 'orders', content: orders }],
     otherDrafters = [],
+    inReview = [],
     baseContents = [],
     usedFields = [],
     previewOf = PROJECT_UUID,
@@ -163,12 +172,23 @@ const setup = ({
     changeSets = [],
     staleCommits = 0,
     validationFor = () => [],
+    exploreSummaries = exploreTypes.map((type, index) => ({
+        name: `explore_${index}`,
+        type,
+    })),
+    latestCompileJob = null,
+    checkout = null,
 }: {
     stored?: { name: string; content: string; version?: number }[];
     otherDrafters?: {
         name: string;
         models: string[];
         changes: ReturnType<typeof draftModel>[][];
+    }[];
+    /** Changes sent as pull requests that are still open. */
+    inReview?: {
+        pullRequestUrl: string;
+        models: ReturnType<typeof draftModel>[];
     }[];
     baseContents?: [string, string | null][];
     /** Field ids a saved chart reads. */
@@ -196,6 +216,15 @@ const setup = ({
     validationFor?: (
         explores: (Explore | ExploreError)[],
     ) => CreateValidation[];
+    exploreSummaries?: {
+        name: string;
+        type?: ExploreType;
+        baseTable?: string;
+    }[];
+    /** The job of the project's last explore save. */
+    latestCompileJob?: string | null;
+    /** The project branch as Studio reads it. */
+    checkout?: ApiCheckout | null;
 } = {}) => {
     const upsert = vi.fn(
         (
@@ -327,12 +356,20 @@ const setup = ({
             body: string;
         }) => ({ url: PULL_REQUEST_URL }),
     );
+    const updatePullRequest = vi.fn(
+        async ({
+            prUrl,
+        }: {
+            writes: Map<string, string | null>;
+            prUrl: string;
+        }): Promise<{ url: string } | null> => ({ url: prUrl }),
+    );
     const queueImpactCheck = vi.fn(async () => undefined);
     const createPreviewForPullRequest = vi.fn(async () => null);
     const compileExploresFromManifest = vi.fn(
         async (): Promise<(Explore | ExploreError)[]> => [TRY_OUT_EXPLORE],
     );
-    const files = new Map<string, string>();
+    const files = new Map<string, Buffer>();
     const branchCompiles = new Map<string, DbSemanticStudioBranchCompile>();
     let compileRequests = 0;
     const queueBranchCompile = vi.fn(
@@ -347,6 +384,14 @@ const setup = ({
         sha: 'merge-sha',
         compileJobUuid: 'job-1',
     }));
+    const scheduleCompileAfterMerge = vi.fn(async () => 'job-2');
+    const saveExploresToCacheAndIndexCatalog = vi.fn(
+        async (_args: {
+            explores: (Explore | ExploreError)[];
+            complete?: boolean;
+            jobUuid?: string | null;
+        }) => 'index-job',
+    );
     let activeWorkspace: { threadUuid: string; prUrl: string | null } | null =
         null;
     const unused = async (): Promise<never> => {
@@ -381,6 +426,7 @@ const setup = ({
             createdAt: new Date(),
             updatedAt: new Date(),
             finishedAt: null,
+            publishedLive: false,
         };
     const workspaces: SemanticStudioWorkspace[] = [];
     const getPullRequestState = vi.fn(
@@ -392,6 +438,7 @@ const setup = ({
             _projectUuid: string,
             url: string,
             state: SemanticStudioWorkspacePullRequestState,
+            finishes: boolean,
         ) => {
             for (const workspace of workspaces) {
                 if (workspace.pullRequest?.url === url) {
@@ -400,14 +447,25 @@ const setup = ({
                     workspace.isActive = false;
                 }
             }
+            if (
+                activeWorkspace?.prUrl === url &&
+                state !== 'open' &&
+                finishes
+            ) {
+                activeWorkspace = null;
+            }
         },
     );
     const args: SemanticStudioServiceArguments = {
         aiWritebackService: {
-            openStudioCheckout: unused,
+            openStudioCheckout: async () => {
+                if (checkout === null) throw new Error('No checkout');
+                return { checkout, root: '' };
+            },
             saveWithScript: unused,
             findPullRequestBranch,
             mergePullRequest,
+            scheduleCompileAfterMerge,
         },
         workspaceModel: {
             listChanges: async () => [],
@@ -445,6 +503,7 @@ const setup = ({
                           createdAt: new Date(),
                           updatedAt: new Date(),
                           finishedAt: null,
+                          publishedLive: false,
                       }
                     : null,
             start: startWorkspace,
@@ -452,7 +511,9 @@ const setup = ({
             leave: unused,
             rename: unused,
             finish: finishWorkspace,
-            attachPullRequest: async () => undefined,
+            attachPullRequest: async (_owner, url) => {
+                if (activeWorkspace) activeWorkspace.prUrl = url;
+            },
             attachThreadPullRequest: async () => undefined,
             recordPullRequestState,
             requestBranchCompile: async (workspaceUuid) => {
@@ -518,11 +579,16 @@ const setup = ({
                           createdByUserUuid: USER_UUID,
                           dbtConnection,
                       },
-            getAllExploreSummaries: async () =>
-                exploreTypes.map((type, index) => ({
-                    name: `explore_${index}`,
-                    type,
-                })),
+            getAllExploreSummaries: async () => exploreSummaries,
+            findExploresByBaseTables: async (
+                _projectUuid: string,
+                baseTables: string[],
+            ) =>
+                exploreSummaries.flatMap(({ name, type, baseTable }) =>
+                    baseTable !== undefined && baseTables.includes(baseTable)
+                        ? [{ name, type: type ?? null }]
+                        : [],
+                ),
             findExploresFromCache: async () => previewExplores,
             deleteCachedExplores,
         },
@@ -578,6 +644,7 @@ const setup = ({
                 [drafts[a], drafts[b]] = [drafts[b], drafts[a]];
             },
             findPublishedSince: async () => publishedSince,
+            findInReviewDraftChanges: async () => inReview,
             findSettledDraftChanges: async () => [],
             createCheckedOutDraftChange: async ({
                 workspaceUuid,
@@ -675,6 +742,7 @@ const setup = ({
                 modelsDirectory: 'models',
             }),
             openPullRequest,
+            updatePullRequest,
         },
         projectService: {
             getWarehouseSqlBuilderSettings: async () => ({
@@ -692,13 +760,17 @@ const setup = ({
             setExplores,
             compileExploresFromManifest,
             compileExploresFromBranch,
+            saveExploresToCacheAndIndexCatalog,
         },
         jobModel: { findLatestCompileStatus: async () => previewCompile },
+        projectCompileLogModel: {
+            findLatestJobUuid: async () => latestCompileJob,
+        },
         writebackPreviewService: { createPreviewForPullRequest },
         fileStorageClient: {
             isEnabled: () => true,
             uploadTxt: async (txt, id) => {
-                files.set(`${id}.txt`, txt.toString());
+                files.set(`${id}.txt`, txt);
                 return `${id}.txt`;
             },
             getFileStream: async (fileId) => {
@@ -721,6 +793,7 @@ const setup = ({
         getPullRequestState,
         recordPullRequestState,
         aiWritebackService: args.aiWritebackService,
+        fileStorageClient: args.fileStorageClient,
         workspaceModel: args.workspaceModel,
         setActiveWorkspace: (next: typeof activeWorkspace) => {
             activeWorkspace = next;
@@ -737,7 +810,10 @@ const setup = ({
         queueBranchCompile,
         branchCompiles,
         upsert,
+        scheduleCompileAfterMerge,
+        saveExploresToCacheAndIndexCatalog,
         openPullRequest,
+        updatePullRequest,
         recordedPullRequests,
         commitCalls,
         setExplores,
@@ -1007,6 +1083,188 @@ describe('SemanticStudioService', () => {
                     null,
                     null,
                 ),
+            ).rejects.toThrow();
+        });
+    });
+
+    describe('saving a hand edit of a model to the draft', () => {
+        const ordersWithRevenue = `type: model
+name: orders
+label: Orders
+sql_from: public.orders
+dimensions:
+  - name: amount
+    type: number
+    sql: \${TABLE}.amount
+    metrics:
+      revenue:
+        type: sum
+  - name: customer_id
+    type: number
+    sql: \${TABLE}.customer_id
+`;
+
+        const save = (
+            context: ReturnType<typeof setup>,
+            content: string,
+            base = orders,
+        ) =>
+            context.service.saveDraftModel(deployer, PROJECT_UUID, 'orders', {
+                base,
+                content,
+            });
+
+        it('saves the edit as a draft change named after the model, with no question behind it', async () => {
+            const context = setup();
+            const saved = await save(context, ordersWithRevenue);
+            expect(saved).toMatchObject({
+                status: 'saved',
+                draftChangeUuid: 'draft-1',
+                startedChange: { name: 'Edit Orders' },
+            });
+            expect(context.drafts[0].promptUuid).toBeNull();
+            expect(context.drafts[0].models[0].yaml).toContain('revenue');
+            expect(context.upsert).not.toHaveBeenCalled();
+            const read = await context.service.readDraftedModel(
+                deployer,
+                PROJECT_UUID,
+                'orders',
+            );
+            expect(read.inDraft).toBe(true);
+            expect(read.content).toContain('revenue');
+            expect(read.content).toContain('label: Orders');
+        });
+
+        it('is built on by a later agent change, not undone by it', async () => {
+            const context = setup();
+            await save(context, ordersWithRevenue);
+            const proposal = await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel('description: Every order\n')],
+                null,
+                null,
+            );
+            expect(proposal.diffs[0].contentAfter).toContain('revenue');
+            expect(proposal.diffs[0].contentAfter).toContain('label: Orders');
+            expect(proposal.diffs[0].contentAfter).toContain('Every order');
+        });
+
+        it('removes and renames parts, giving a name up and taking it again in one edit', async () => {
+            const context = setup({
+                stored: [{ name: 'orders', content: ordersWithRevenue }],
+            });
+            const edited = `type: model
+name: orders
+sql_from: public.orders
+dimensions:
+  - name: order_amount
+    type: number
+    sql: \${TABLE}.amount
+    metrics:
+      revenue:
+        type: sum
+`;
+            const saved = await save(context, edited, ordersWithRevenue);
+            expect(saved.status).toBe('saved');
+            const read = await context.service.readDraftedModel(
+                deployer,
+                PROJECT_UUID,
+                'orders',
+            );
+            expect(read.content).toContain('order_amount');
+            expect(read.content).not.toContain('customer_id');
+            expect(read.content).not.toContain('label');
+        });
+
+        it('refuses an edit started from a version the draft has moved on from', async () => {
+            const context = setup();
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel('label: Orders\n')],
+                null,
+                null,
+            );
+            const saved = await save(context, ordersWithRevenue);
+            expect(saved).toEqual({
+                status: 'failed',
+                error: expect.stringContaining('changed since you started'),
+            });
+            expect(context.drafts).toHaveLength(1);
+        });
+
+        it('refuses a change to who can see a field, and saves nothing', async () => {
+            const context = setup();
+            const saved = await save(
+                context,
+                orders.replace(
+                    '  - name: customer_id\n',
+                    '  - name: customer_id\n    required_attributes:\n      team: sales\n',
+                ),
+            );
+            expect(saved).toEqual({
+                status: 'failed',
+                error: 'dimensions.customer_id.required_attributes changes who can see it, which cannot be changed here.',
+            });
+            expect(context.drafts).toEqual([]);
+        });
+
+        it('refuses showing a hidden field', async () => {
+            const hidden = orders.replace(
+                '  - name: customer_id\n',
+                '  - name: customer_id\n    hidden: true\n',
+            );
+            const context = setup({
+                stored: [{ name: 'orders', content: hidden }],
+            });
+            const saved = await save(context, orders, hidden);
+            expect(saved).toEqual({
+                status: 'failed',
+                error: 'dimensions.customer_id.hidden changes who can see it, which cannot be changed here.',
+            });
+            expect(context.drafts).toEqual([]);
+        });
+
+        it('refuses renaming the model', async () => {
+            const saved = await save(
+                setup(),
+                orders.replace('name: orders', 'name: purchases'),
+            );
+            expect(saved).toEqual({
+                status: 'failed',
+                error: expect.stringContaining('stays orders'),
+            });
+        });
+
+        it('says so when the edit changes nothing the model means', async () => {
+            const context = setup();
+            const saved = await save(context, `# A comment\n${orders}`);
+            expect(saved).toEqual({
+                status: 'failed',
+                error: 'This edit changes nothing the model means.',
+            });
+            expect(context.drafts).toEqual([]);
+        });
+
+        it('fails YAML that is not a model', async () => {
+            const saved = await save(setup(), 'dimensions: nope\n');
+            expect(saved.status).toBe('failed');
+        });
+
+        it('keeps an edit the warehouse rejects out of the draft', async () => {
+            const context = setup({ rejectSql: 'orders' });
+            const saved = await save(context, ordersWithRevenue);
+            expect(saved.status).toBe('failed');
+            expect(context.drafts).toEqual([]);
+        });
+
+        it('refuses someone who cannot change the models', async () => {
+            await expect(
+                setup().service.saveDraftModel(viewer, PROJECT_UUID, 'orders', {
+                    base: orders,
+                    content: ordersWithRevenue,
+                }),
             ).rejects.toThrow();
         });
     });
@@ -1638,6 +1896,29 @@ describe('SemanticStudioService', () => {
                 }),
             ]);
         });
+    });
+
+    test('a change waiting in an open pull request is described against what is live', async () => {
+        const pullRequestUrl = 'https://github.example/acme/analytics/pull/7';
+        const context = setup({
+            inReview: [{ pullRequestUrl, models: [draftModel(REVENUE_YAML)] }],
+        });
+        const draft = await context.service.getDraft(deployer, PROJECT_UUID);
+        expect(draft.changes).toEqual([]);
+        expect(draft.inReview).toEqual([
+            {
+                model: 'orders',
+                pullRequestUrl,
+                changes: [
+                    {
+                        path: 'dimensions.amount.metrics.revenue',
+                        action: 'added',
+                    },
+                ],
+                contentBefore: orders,
+                contentAfter: expect.stringContaining('revenue:'),
+            },
+        ]);
     });
 
     describe('reconciling the draft with live', () => {
@@ -2563,6 +2844,32 @@ describe('SemanticStudioService', () => {
         expect(outcome.exploreCount).toBe(1);
     });
 
+    it('says so up front when the models were deployed from elsewhere', async () => {
+        expect(
+            await setup({
+                stored: [],
+                exploreTypes: [ExploreType.DEFAULT],
+            }).service.getPageStatus(deployer, PROJECT_UUID),
+        ).toEqual({
+            enabled: false,
+            blocker: 'models_from_outside',
+            appliesAs: 'live',
+        });
+        expect(
+            await setup({
+                stored: [],
+                exploreTypes: [ExploreType.VIRTUAL],
+            }).service.getPageStatus(deployer, PROJECT_UUID),
+        ).toMatchObject({ enabled: true, blocker: null });
+        // What the rest of the app polls stays as cheap as it was.
+        expect(
+            await setup({
+                stored: [],
+                exploreTypes: [ExploreType.DEFAULT],
+            }).service.getStatus(deployer, PROJECT_UUID),
+        ).toMatchObject({ enabled: true, blocker: null });
+    });
+
     describe('concurrent writes', () => {
         it('rereads and retries when another write lands first', async () => {
             const context = setup({ staleCommits: 1 });
@@ -2724,10 +3031,11 @@ describe('SemanticStudioService', () => {
             const [{ writes, title }] = context.openPullRequest.mock.calls[0];
             expect(writes.get('orders')).toContain('revenue');
             expect(title).toBe('Update semantic layer: orders');
-            expect(context.recordedPullRequests).toEqual([PULL_REQUEST_URL]);
             expect(context.commitCalls).toHaveLength(0);
             expect(context.setExplores).not.toHaveBeenCalled();
-            expect(context.drafts).toHaveLength(0);
+            // The draft stays while its pull request is open, so it can still be read, tried and added to.
+            expect(context.drafts).toHaveLength(1);
+            expect(context.recordedPullRequests).toEqual([]);
         });
 
         it('merges the pull request when publishing asks to', async () => {
@@ -2750,7 +3058,11 @@ describe('SemanticStudioService', () => {
                 user: repoWriter,
                 projectUuid: PROJECT_UUID,
                 prUrl: PULL_REQUEST_URL,
+                incrementalCompile: true,
             });
+            // The merge is what settles the draft.
+            expect(context.drafts).toHaveLength(0);
+            expect(context.recordedPullRequests).toEqual([PULL_REQUEST_URL]);
         });
 
         it('leaves the pull request open and says why when the repository refuses the merge', async () => {
@@ -2779,7 +3091,58 @@ describe('SemanticStudioService', () => {
                     reason: 'Required status check "ci" is expected.',
                 },
             });
-            expect(context.recordedPullRequests).toEqual([PULL_REQUEST_URL]);
+            expect(context.drafts).toHaveLength(1);
+        });
+
+        it('keeps the draft and its workspace when the pull request closes, and settles it when it merges elsewhere', async () => {
+            const context = repo();
+            await context.service.proposeDraftChange(
+                repoWriter,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+                null,
+            );
+            await context.service.applyDraft(repoWriter, PROJECT_UUID, null);
+            await context.service.recordPullRequestState(
+                PROJECT_UUID,
+                PULL_REQUEST_URL,
+                'closed',
+            );
+            expect(context.recordPullRequestState).toHaveBeenLastCalledWith(
+                PROJECT_UUID,
+                PULL_REQUEST_URL,
+                'closed',
+                false,
+            );
+            expect(context.drafts).toHaveLength(1);
+            await context.service.recordPullRequestState(
+                PROJECT_UUID,
+                PULL_REQUEST_URL,
+                'merged',
+            );
+            expect(context.recordPullRequestState).toHaveBeenLastCalledWith(
+                PROJECT_UUID,
+                PULL_REQUEST_URL,
+                'merged',
+                true,
+            );
+            expect(context.drafts).toHaveLength(0);
+        });
+
+        it('sends a draft whole, never one model of it', async () => {
+            const context = repo();
+            await context.service.proposeDraftChange(
+                repoWriter,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+                null,
+            );
+            await expect(
+                context.service.applyDraft(repoWriter, PROJECT_UUID, 'orders'),
+            ).rejects.toThrow(/sent whole/);
+            expect(context.openPullRequest).not.toHaveBeenCalled();
         });
 
         it('opens one pull request when the same draft is applied twice', async () => {
@@ -2797,8 +3160,13 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 null,
             );
-            expect(second.pullRequestUrl).toBeNull();
+            // The second send goes to the pull request the first one opened.
+            expect(second.pullRequestUrl).toBe(PULL_REQUEST_URL);
             expect(context.openPullRequest).toHaveBeenCalledTimes(1);
+            expect(context.updatePullRequest).toHaveBeenCalledTimes(1);
+            expect(context.updatePullRequest.mock.calls[0][0].prUrl).toBe(
+                PULL_REQUEST_URL,
+            );
         });
 
         it('is off for a repository the GitHub App cannot reach', async () => {
@@ -2810,7 +3178,11 @@ describe('SemanticStudioService', () => {
                         authorization_method: 'personal_access_token',
                     },
                 }).service.getStatus(repoWriter, PROJECT_UUID),
-            ).toEqual({ enabled: false, appliesAs: 'pull_request' });
+            ).toEqual({
+                enabled: false,
+                blocker: 'unsupported_connection',
+                appliesAs: 'pull_request',
+            });
         });
 
         it('opens no pull request for a draft that stopped passing', async () => {
@@ -2835,10 +3207,14 @@ describe('SemanticStudioService', () => {
         it('says how a draft applies', async () => {
             expect(
                 await repo().service.getStatus(repoWriter, PROJECT_UUID),
-            ).toEqual({ enabled: true, appliesAs: 'pull_request' });
+            ).toEqual({
+                enabled: true,
+                blocker: null,
+                appliesAs: 'pull_request',
+            });
             expect(
                 await setup().service.getStatus(deployer, PROJECT_UUID),
-            ).toEqual({ enabled: true, appliesAs: 'live' });
+            ).toEqual({ enabled: true, blocker: null, appliesAs: 'live' });
         });
 
         it('shows changes only to those who can make them', async () => {
@@ -2861,16 +3237,28 @@ describe('SemanticStudioService', () => {
             const dbt = () => setup({ dbtConnection: DBT_IN_GITHUB });
             expect(
                 await dbt().service.getStatus(repoWriter, PROJECT_UUID),
-            ).toEqual({ enabled: true, appliesAs: 'dbt_pull_request' });
+            ).toEqual({
+                enabled: true,
+                blocker: null,
+                appliesAs: 'dbt_pull_request',
+            });
             expect(
                 await dbt().service.getStatus(deployer, PROJECT_UUID),
-            ).toEqual({ enabled: false, appliesAs: 'dbt_pull_request' });
+            ).toEqual({
+                enabled: false,
+                blocker: 'no_repository_access',
+                appliesAs: 'dbt_pull_request',
+            });
             expect(
                 await setup({
                     dbtConnection: DBT_IN_GITHUB,
                     enabled: false,
                 }).service.getStatus(repoWriter, PROJECT_UUID),
-            ).toEqual({ enabled: false, appliesAs: 'dbt_pull_request' });
+            ).toEqual({
+                enabled: false,
+                blocker: 'no_access',
+                appliesAs: 'dbt_pull_request',
+            });
             expect(
                 await dbt().service.canEditModels(repoWriter, PROJECT_UUID),
             ).toBe(false);
@@ -3081,7 +3469,7 @@ describe('saving a hand edit', () => {
         const context = setup();
         const save = vi
             .spyOn(context.aiWritebackService, 'saveWithScript')
-            .mockResolvedValueOnce({ status: 'checked' })
+            .mockResolvedValueOnce({ status: 'checked', diffs: [] })
             .mockResolvedValueOnce({
                 status: 'script_failed',
                 error: 'changed',
@@ -3101,6 +3489,57 @@ describe('saving a hand edit', () => {
                 revision: 'original',
             });
         }
+    });
+
+    it("says in a person's words that a closed pull request can no longer be edited", async () => {
+        const context = setup();
+        vi.spyOn(
+            context.aiWritebackService,
+            'saveWithScript',
+        ).mockRejectedValue(new WritebackThreadPrClosedError('merged'));
+        await expect(
+            context.service.saveSource(deployer, PROJECT_UUID, edit(null)),
+        ).rejects.toThrow(
+            "This draft's pull request is merged, so it can no longer be edited. Go back to Published and edit there to start a new draft.",
+        );
+    });
+
+    it('keeps a save with no conversation as a draft of its own', async () => {
+        const context = setup();
+        vi.spyOn(context.aiWritebackService, 'saveWithScript')
+            .mockResolvedValueOnce({ status: 'checked', diffs: [] })
+            .mockResolvedValueOnce({
+                status: 'saved',
+                changedModels: [],
+                explores: null,
+                result: {
+                    output: '',
+                    exitCode: 0,
+                    prUrl: 'https://github.com/acme/shop/pull/7',
+                    prAction: 'opened',
+                    commitSha: 'abc',
+                    additions: 1,
+                    deletions: 0,
+                    projectName: 'Shop',
+                    repository: 'acme/shop',
+                    steps: [],
+                    dbtSourceUuid: null,
+                },
+            });
+        const create = vi
+            .spyOn(context.workspaceModel, 'create')
+            .mockResolvedValue('workspace-new');
+        const attach = vi.spyOn(context.workspaceModel, 'attachPullRequest');
+        await context.service.saveSource(deployer, PROJECT_UUID, edit(null));
+        expect(create).toHaveBeenCalledWith(
+            { projectUuid: PROJECT_UUID, userUuid: deployer.userUuid },
+            ORGANIZATION_UUID,
+            'Edit orders.yml',
+        );
+        expect(attach).toHaveBeenCalledWith(
+            expect.objectContaining({ workspaceUuid: 'workspace-new' }),
+            'https://github.com/acme/shop/pull/7',
+        );
     });
 
     it('refuses to continue a thread owned by someone else', async () => {
@@ -3196,6 +3635,312 @@ describe('saving a hand edit', () => {
     });
 });
 
+describe('checking a dbt change against the compiled manifest', () => {
+    const MODEL = {
+        unique_id: 'model.shop.orders',
+        resource_type: 'model',
+        name: 'orders',
+        package_name: 'shop',
+        patch_path: 'shop://models/schema.yml',
+        description: '',
+        meta: {},
+        columns: {},
+    };
+    const COMPILED = {
+        commitSha: 'compiled-sha',
+        manifest: {
+            metadata: {
+                dbt_schema_version:
+                    'https://schemas.getdbt.com/dbt/manifest/v12.json',
+                generated_at: '',
+                adapter_type: 'postgres',
+                project_name: 'shop',
+            },
+            nodes: { [MODEL.unique_id]: MODEL },
+            metrics: {},
+            docs: {},
+        },
+        exploresJobUuid: 'compile-job',
+    };
+    const SCHEMA = 'version: 2\nmodels:\n  - name: orders\n';
+    /** A branch where one commit since the compile changed `path`; nothing changed since `head-sha`. */
+    const branchWith = (
+        path: string,
+        next: string,
+        headCommitSha: string | null,
+    ): DbtScriptChange => ({
+        edits: new Map(),
+        readHead: async (at) => (at === path ? next : null),
+        readAt: async (at, commitSha) => {
+            if (at !== path) return null;
+            return commitSha === COMPILED.commitSha ? SCHEMA : next;
+        },
+        listChangedSince: async (commitSha) =>
+            commitSha === 'head-sha' ? [] : [path],
+        headCommitSha,
+    });
+    const check = async (change: DbtScriptChange) => {
+        const context = setup({ dbtConnection: DBT_IN_GITHUB });
+        await saveCompiledDbtManifest(
+            context.fileStorageClient,
+            PROJECT_UUID,
+            COMPILED,
+        );
+        const result = await context.service.checkDbtScriptChange(
+            repoWriter,
+            PROJECT_UUID,
+            change,
+            { checkQueries: false },
+        );
+        const compiled = await readCompiledDbtManifest(
+            context.fileStorageClient,
+            PROJECT_UUID,
+        );
+        return { context, result, compiled };
+    };
+    const described = `${SCHEMA}    description: Orders\n`;
+
+    it('moves the compiled manifest on to the project branch head, so a save checks only its own change', async () => {
+        const { context, result, compiled } = await check(
+            branchWith('models/schema.yml', described, 'head-sha'),
+        );
+        expect(compiled?.commitSha).toBe('head-sha');
+        expect(compiled?.manifest.nodes[MODEL.unique_id]).toMatchObject({
+            description: 'Orders',
+        });
+        expect(result).toEqual({
+            status: 'passed',
+            changedModels: [],
+            explores: [],
+        });
+        expect(context.compileExploresFromManifest).not.toHaveBeenCalled();
+    });
+
+    it('leaves the compiled manifest alone from a pull request branch', async () => {
+        const { context, result, compiled } = await check(
+            branchWith('models/schema.yml', described, null),
+        );
+        expect(compiled?.commitSha).toBe(COMPILED.commitSha);
+        expect(result).toMatchObject({
+            status: 'passed',
+            changedModels: ['orders'],
+        });
+        expect(context.compileExploresFromManifest).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves the compiled manifest alone when only dbt can parse what changed', async () => {
+        const { result, compiled } = await check(
+            branchWith('models/orders.sql', 'select 1', 'head-sha'),
+        );
+        expect(compiled?.commitSha).toBe(COMPILED.commitSha);
+        expect(result).toEqual({
+            status: 'unsupported',
+            reason: 'models/orders.sql needs dbt to parse',
+        });
+    });
+});
+
+describe('compiling after a merge', () => {
+    const model = (name: string, meta: Record<string, unknown> = {}) => ({
+        unique_id: `model.shop.${name}`,
+        resource_type: 'model',
+        name,
+        package_name: 'shop',
+        patch_path: `shop://models/${name}.yml`,
+        description: '',
+        meta,
+        columns: {},
+    });
+    const STORED = {
+        commitSha: 'compiled-sha',
+        manifest: {
+            metadata: {
+                dbt_schema_version:
+                    'https://schemas.getdbt.com/dbt/manifest/v12.json',
+                generated_at: '',
+                adapter_type: 'postgres',
+                project_name: 'shop',
+            },
+            nodes: Object.fromEntries(
+                [
+                    model('orders', {
+                        joins: [{ join: 'customers' }, { join: 'payments' }],
+                    }),
+                    model('customers'),
+                    model('payments'),
+                ].map((node) => [node.unique_id, node]),
+            ),
+            metrics: {},
+            docs: {},
+        },
+        exploresJobUuid: 'compile-job',
+    };
+    const explore = (name: string, baseTable = name): Explore => ({
+        name,
+        label: name,
+        tags: [],
+        baseTable,
+        joinedTables: [],
+        tables: {},
+        targetDatabase: SupportedDbtAdapter.POSTGRES,
+    });
+    const schemaOf = (path: string) =>
+        path.endsWith('.sql')
+            ? 'select 1'
+            : `version: 2\nmodels:\n  - name: ${path.slice('models/'.length, -'.yml'.length)}\n`;
+    /** The project branch at `head-sha`, where `changes` are the files changed since the compile. */
+    const branchWith = (changes: Record<string, string>): ApiCheckout => ({
+        prUrl: null,
+        branch: 'main',
+        baseBranch: null,
+        headSha: 'head-sha',
+        listFiles: async () => [],
+        readFile: async (path) => changes[path] ?? null,
+        readFileAt: async (path, commitSha) => {
+            if (!(path in changes)) return null;
+            return commitSha === 'head-sha' ? changes[path] : schemaOf(path);
+        },
+        listFilesChangedSince: async () => Object.keys(changes),
+    });
+    const DESCRIBED = {
+        'models/customers.yml': `${schemaOf('models/customers.yml')}    description: Who buys\n`,
+    };
+    const SUMMARIES = ['orders', 'customers', 'payments'].map((name) => ({
+        name,
+        baseTable: name,
+    }));
+    const compileAfterMerge = async ({
+        changes = DESCRIBED,
+        latestCompileJob = 'compile-job',
+        exploreSummaries = SUMMARIES,
+        compiled = [
+            explore('orders'),
+            explore('customers'),
+            explore('payments'),
+        ],
+    }: {
+        changes?: Record<string, string>;
+        latestCompileJob?: string | null;
+        exploreSummaries?: {
+            name: string;
+            type?: ExploreType;
+            baseTable?: string;
+        }[];
+        compiled?: (Explore | ExploreError)[];
+    } = {}) => {
+        const context = setup({
+            dbtConnection: DBT_IN_GITHUB,
+            latestCompileJob,
+            exploreSummaries,
+            checkout: branchWith(changes),
+        });
+        context.compileExploresFromManifest.mockResolvedValue(compiled);
+        await saveCompiledDbtManifest(
+            context.fileStorageClient,
+            PROJECT_UUID,
+            STORED,
+        );
+        const result = await context.service.compileAfterMerge(
+            repoWriter,
+            PROJECT_UUID,
+            'merge-job',
+        );
+        const stored = await readCompiledDbtManifest(
+            context.fileStorageClient,
+            PROJECT_UUID,
+        );
+        return { context, result, stored };
+    };
+
+    it('saves only the explores a YAML change reaches, and moves the manifest on with them', async () => {
+        const { context, result, stored } = await compileAfterMerge();
+        // Orders joins customers, so it changes too; payments only compiles to be joined.
+        expect(context.compileExploresFromManifest).toHaveBeenCalledWith(
+            repoWriter,
+            PROJECT_UUID,
+            expect.anything(),
+            null,
+            [
+                'model.shop.orders',
+                'model.shop.customers',
+                'model.shop.payments',
+            ],
+        );
+        expect(
+            context.saveExploresToCacheAndIndexCatalog,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+            context.saveExploresToCacheAndIndexCatalog.mock.calls[0][0],
+        ).toMatchObject({
+            explores: [explore('orders'), explore('customers')],
+            complete: false,
+            jobUuid: 'merge-job',
+        });
+        expect(result).toEqual({
+            indexCatalogJobUuid: 'index-job',
+            errorCount: 0,
+            total: 2,
+        });
+        expect(stored).toMatchObject({
+            commitSha: 'head-sha',
+            exploresJobUuid: 'merge-job',
+        });
+        expect(stored?.manifest.nodes['model.shop.customers']).toMatchObject({
+            description: 'Who buys',
+        });
+    });
+
+    it('stays incremental when a reached model has pre-aggregate explores in the cache', async () => {
+        const { result } = await compileAfterMerge({
+            exploreSummaries: [
+                ...SUMMARIES,
+                {
+                    name: '__preagg__customers__daily',
+                    type: ExploreType.PRE_AGGREGATE,
+                    baseTable: 'customers',
+                },
+            ],
+        });
+        expect(result).not.toBeNull();
+    });
+
+    it.each([
+        [
+            'only dbt can parse the change',
+            { changes: { 'models/customers.sql': 'select 2' } },
+        ],
+        [
+            'something else saved explores since the manifest was compiled',
+            { latestCompileJob: 'cli-deploy-job' },
+        ],
+        [
+            'the change adds or removes an explore',
+            {
+                exploreSummaries: [
+                    ...SUMMARIES,
+                    { name: 'vip_customers', baseTable: 'customers' },
+                ],
+            },
+        ],
+        [
+            'an explore it reaches does not compile',
+            {
+                compiled: [
+                    explore('orders'),
+                    { name: 'customers', label: 'customers', errors: [] },
+                ],
+            },
+        ],
+    ])('runs the full compile when %s', async (_label, options) => {
+        const { context, result, stored } = await compileAfterMerge(options);
+        expect(result).toBeNull();
+        expect(
+            context.saveExploresToCacheAndIndexCatalog,
+        ).not.toHaveBeenCalled();
+        expect(stored).toEqual(STORED);
+    });
+});
+
 describe('isSourcePath', () => {
     it('takes model and project files, and nothing that steps outside them', () => {
         expect(isSourcePath('models/orders.yml')).toBe(true);
@@ -3226,6 +3971,7 @@ describe('workspace pull request reconciliation', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         finishedAt: null,
+        publishedLive: false,
     });
 
     it.each(['merged', 'closed'] as const)(
@@ -3245,7 +3991,20 @@ describe('workspace pull request reconciliation', () => {
                 PROJECT_UUID,
                 workspace(1).pullRequest?.url,
                 state,
+                // A dbt draft has nothing kept on the server, so a closed pull request ends it too.
+                true,
             );
+            // Only a merge brings new models, so only a merge refreshes the project.
+            expect(context.scheduleCompileAfterMerge).toHaveBeenCalledTimes(
+                state === 'merged' ? 1 : 0,
+            );
+            if (state === 'merged') {
+                expect(context.scheduleCompileAfterMerge).toHaveBeenCalledWith(
+                    deployer,
+                    PROJECT_UUID,
+                    true,
+                );
+            }
         },
     );
 
@@ -3422,14 +4181,19 @@ describe('compiling a dbt change on its branch', () => {
         ).toMatchObject({
             workspaceUuid: 'workspace-thread',
             appliesAs: 'dbt_pull_request',
-            branchCompile: null,
+            // A draft with a pull request that was never compiled starts compiling when it is read.
+            branchCompile: { status: 'compiling', hasExplores: false },
         });
+        expect(context.queueBranchCompile).toHaveBeenCalledTimes(1);
+        await context.service.getCheckout(repoWriter, PROJECT_UUID);
+        expect(context.queueBranchCompile).toHaveBeenCalledTimes(1);
         await context.service.compileCheckout(repoWriter, PROJECT_UUID);
         expect(
             (await context.service.getCheckout(repoWriter, PROJECT_UUID))
                 ?.branchCompile,
         ).toMatchObject({ status: 'compiling', hasExplores: false });
-        await runQueued(context);
+        // The compile asked for last is the one that is kept.
+        await runQueued(context, 1);
         expect(
             (await context.service.getCheckout(repoWriter, PROJECT_UUID))
                 ?.branchCompile,
@@ -3486,11 +4250,13 @@ describe('compiling a dbt change on its branch', () => {
             user: repoWriter,
             projectUuid: PROJECT_UUID,
             prUrl: OWN_PULL_REQUEST,
+            incrementalCompile: true,
         });
         expect(context.recordPullRequestState).toHaveBeenCalledWith(
             PROJECT_UUID,
             OWN_PULL_REQUEST,
             'merged',
+            true,
         );
     });
 

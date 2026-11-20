@@ -3,11 +3,13 @@ import {
     FeatureFlags,
     type ApiError,
     type ApiResponse,
+    type SaveSemanticLayerDraftModelRequest,
     type SemanticLayerDraft,
     type SemanticLayerDraftedModels,
     type SemanticLayerDraftState,
     type SemanticLayerDraftApplyResult,
     type SemanticLayerDraftImpact,
+    type SemanticLayerDraftModelSave,
     type SemanticLayerDraftMoveDirection,
     type SemanticLayerDraftUsage,
     type SemanticLayerTouchedField,
@@ -23,7 +25,7 @@ import useToaster from '../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
-import { isDevelopmentViewOn, useCheckedOutView } from './developmentView';
+import { useCheckedOutView } from './developmentView';
 import { canWriteProjectBranch } from './permissions';
 
 export const DRAFT_KEY = 'semantic-layer-draft';
@@ -80,6 +82,7 @@ export const useSemanticLayerStatus = (projectUuid: string) =>
     ).data;
 
 export const CHECKOUT_KEY = 'semantic-studio-checkout';
+export const WORKSPACES_KEY = 'semantic-studio-workspaces';
 
 /** The draft this person has checked out, which the whole app shows them; null on what is published. */
 export const useDraftCheckout = (projectUuid: string | undefined) =>
@@ -320,9 +323,18 @@ export const useRefreshSemanticLayerDraft = (projectUuid: string) => {
     const queryClient = useQueryClient();
     return useCallback(
         () =>
-            queryClient.invalidateQueries({
-                queryKey: [DRAFT_KEY, projectUuid],
-            }),
+            // The agent's edit can start a draft and check it out, so everything that reads the draft moves with it.
+            Promise.all(
+                [
+                    [DRAFT_KEY, projectUuid],
+                    [DRAFT_STATE_KEY, projectUuid],
+                    [CHECKOUT_KEY, projectUuid],
+                    [WORKSPACES_KEY, projectUuid],
+                    ['tables'],
+                ].map((queryKey) =>
+                    queryClient.invalidateQueries({ queryKey }),
+                ),
+            ),
         [queryClient, projectUuid],
     );
 };
@@ -340,7 +352,8 @@ const useWrite = <TResult extends ApiResponse['results'], TInput>({
         method: 'POST' | 'DELETE';
         body: string | undefined;
     };
-    errorTitle: string;
+    /** Null when the caller shows the error itself. */
+    errorTitle: string | null;
     changesLive: boolean;
 }) => {
     const lightdashApi = useLightdashApi();
@@ -360,8 +373,11 @@ const useWrite = <TResult extends ApiResponse['results'], TInput>({
                 [
                     [DRAFT_KEY, projectUuid],
                     [DRAFT_STATE_KEY, projectUuid],
-                    // Explores read the draft while the development view is on.
-                    ...(isDevelopmentViewOn() ? [['tables']] : []),
+                    // Sending a draft gives its workspace a pull request, and publishing ends it.
+                    [WORKSPACES_KEY, projectUuid],
+                    [CHECKOUT_KEY, projectUuid],
+                    // Explore reads the checked-out draft, on this page or any other.
+                    ['tables'],
                     ...(changesLive
                         ? [
                               [MODEL_KEY, projectUuid],
@@ -373,7 +389,9 @@ const useWrite = <TResult extends ApiResponse['results'], TInput>({
                 ),
             ),
         onError: ({ error }) => {
-            showToastApiError({ title: errorTitle, apiError: error });
+            if (errorTitle !== null) {
+                showToastApiError({ title: errorTitle, apiError: error });
+            }
             // A refusal often means the draft on screen is out of date.
             void queryClient.invalidateQueries({
                 queryKey: [DRAFT_KEY, projectUuid],
@@ -449,6 +467,22 @@ export const useKeepDraftModel = (projectUuid: string) =>
         changesLive: false,
     });
 
+/** Saves a hand edit of a model's YAML into the draft, starting one on Published. */
+export const useSaveDraftModel = (projectUuid: string) =>
+    useWrite<
+        SemanticLayerDraftModelSave,
+        { model: string } & SaveSemanticLayerDraftModelRequest
+    >({
+        projectUuid,
+        request: ({ model, base, content }) => ({
+            path: `${toDraftPath(model)}/edit`,
+            method: 'POST',
+            body: JSON.stringify({ base, content }),
+        }),
+        errorTitle: null,
+        changesLive: false,
+    });
+
 /** Leaves one part of a drafted model as it is live. */
 export const useTakeLiveDraftPart = (projectUuid: string) =>
     useWrite<undefined, { model: string; path: string }>({
@@ -458,7 +492,7 @@ export const useTakeLiveDraftPart = (projectUuid: string) =>
             method: 'POST',
             body: JSON.stringify({ path }),
         }),
-        errorTitle: 'Could not take the live version',
+        errorTitle: 'Could not take the published version',
         changesLive: false,
     });
 

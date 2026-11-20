@@ -255,6 +255,7 @@ const setup = ({ personReadAccess = false } = {}) => {
         lightdashConfig: config,
         featureFlagService: { get: async () => flags },
         aiAgentModel: {
+            findSlackChannelServiceAccount: vi.fn().mockResolvedValue(null),
             getAgent: vi.fn(async () => agent),
             getArtifact: vi.fn(async () => artifact),
             findThread: vi.fn(async () => ({

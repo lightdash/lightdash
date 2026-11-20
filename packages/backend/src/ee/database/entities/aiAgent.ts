@@ -72,6 +72,7 @@ export type DbAiAgentSlackIntegration = {
     organization_uuid: string;
     ai_agent_integration_uuid: string;
     slack_channel_id: string;
+    service_account_uuid: string | null;
     created_at: Date;
 };
 
@@ -79,8 +80,11 @@ export type AiAgentSlackIntegrationTable = Knex.CompositeTableType<
     DbAiAgentSlackIntegration,
     Omit<
         DbAiAgentSlackIntegration,
-        'ai_agent_integration_slack_uuid' | 'created_at'
-    >
+        | 'ai_agent_integration_slack_uuid'
+        | 'created_at'
+        | 'service_account_uuid'
+    > &
+        Partial<Pick<DbAiAgentSlackIntegration, 'service_account_uuid'>>
 >;
 
 export const AiAgentInstructionVersionsTableName =

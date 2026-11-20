@@ -41,6 +41,11 @@
     font-weight: 500;
 }
 
+/* In the side panel the name sits in a button, whose size the reply's paragraph rule would inherit. */
+:global([data-quiet-cards]) .header .path {
+    font-size: var(--mantine-font-size-xs);
+}
+
 .plain {
     margin: 0;
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);

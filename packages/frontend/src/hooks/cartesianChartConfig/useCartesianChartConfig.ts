@@ -49,6 +49,7 @@ import {
     type CartesianRepairInputs,
     type ReferenceLineUpdate,
 } from '../../features/visualization/store/cartesianEditorSlice';
+import { derived } from '../../utils/changeOrigin';
 
 export {
     applyReferenceLines,
@@ -288,7 +289,9 @@ export const useCartesianEditorSync = () => {
 
     useEffect(() => {
         if (cartesianType === undefined) return;
-        dispatch(cartesianEditorActions.typeApply(cartesianType));
+        derived(() =>
+            dispatch(cartesianEditorActions.typeApply(cartesianType)),
+        );
     }, [cartesianType, dispatch]);
 
     const applyStacking = useCallback(
@@ -307,13 +310,13 @@ export const useCartesianEditorSync = () => {
             (tc) => tc.name === xField,
         );
         if (tableCalculation && isNumericItem(tableCalculation)) {
-            applyStacking(false);
+            derived(() => applyStacking(false));
         }
     }, [xField, yFields, tableCalculations, stacking, applyStacking]);
 
     // Re-applied when the y fields or pivots change
     useEffect(() => {
-        if (stacking !== undefined) applyStacking(stacking);
+        if (stacking !== undefined) derived(() => applyStacking(stacking));
     }, [stacking, applyStacking, yFields]);
 
     const repairInputs = useVisualizationInputSelector(
@@ -328,28 +331,34 @@ export const useCartesianEditorSync = () => {
         // Layout fallbacks follow the query's fields, never an edit in progress
         if (repairedFor.current !== repairInputs) {
             repairedFor.current = repairInputs;
-            dispatch(cartesianEditorActions.inputsChanged(repairInputs));
+            derived(() =>
+                dispatch(cartesianEditorActions.inputsChanged(repairInputs)),
+            );
         }
         const editor = selectCartesianEditor(store.getState());
         const layout = editor.dirtyLayout;
-        dispatch(
-            cartesianEditorActions.seriesReconciled({
-                expectedSeries:
-                    isCompleteLayout(layout) && resultsData?.hasFetchedAllRows
-                        ? buildCartesianSeries({
-                              layout,
-                              existingSeries: editor.dirtyEchartsConfig?.series,
-                              cartesianType,
-                              isStacked: editor.isStacked,
-                              pivotKeys,
-                              resultsData,
-                              itemsMap,
-                              columnLimit: editor.columnLimit,
-                              referenceLines: editor.referenceLines,
-                          })
-                        : undefined,
-                pivotKeys,
-            }),
+        derived(() =>
+            dispatch(
+                cartesianEditorActions.seriesReconciled({
+                    expectedSeries:
+                        isCompleteLayout(layout) &&
+                        resultsData?.hasFetchedAllRows
+                            ? buildCartesianSeries({
+                                  layout,
+                                  existingSeries:
+                                      editor.dirtyEchartsConfig?.series,
+                                  cartesianType,
+                                  isStacked: editor.isStacked,
+                                  pivotKeys,
+                                  resultsData,
+                                  itemsMap,
+                                  columnLimit: editor.columnLimit,
+                                  referenceLines: editor.referenceLines,
+                              })
+                            : undefined,
+                    pivotKeys,
+                }),
+            ),
         );
     }, [
         repairInputs,

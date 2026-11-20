@@ -62,6 +62,7 @@ import { type UserWithAbility } from '../../../../hooks/user/useUser';
 import useApp from '../../../../providers/App/useApp';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
+import { consumeEmbedAgentContentEvents } from '../streaming/agentContentEvents';
 import { useAiAgentThreadStreamMutation } from '../streaming/useAiAgentThreadStreamMutation';
 import {
     type AiAgentToolCallHandler,
@@ -1109,6 +1110,14 @@ const toOptimisticContextItem = (
                 displayName: null,
                 pinnedVersionUuid: null,
             };
+        case 'composer_chart':
+            return {
+                type: 'composer_chart',
+                composerChartUuid: item.composerChartUuid,
+                composerChartSlug: item.composerChartSlug,
+                displayName: null,
+                pinnedVersionUuid: null,
+            };
         // System-only pins are seeded by the remediation flow or the thread
         // restore endpoint, never optimistically attached from the UI.
         case 'proposed_change':
@@ -1320,6 +1329,7 @@ export const useCreateAgentThreadMutation = (
             agentUuid: string;
             optimisticContext?: AiPromptContext;
             enableSqlMode?: boolean;
+            autoApproveSql?: boolean;
             toolHints?: string[];
             skipAgentResponse?: boolean;
         }
@@ -1328,12 +1338,13 @@ export const useCreateAgentThreadMutation = (
             agentUuid,
             optimisticContext: _optimisticContext,
             enableSqlMode: _enableSqlMode,
+            autoApproveSql: _autoApproveSql,
             toolHints: _toolHints,
             skipAgentResponse: _skipAgentResponse,
             ...data
         }) => createAgentThread(lightdashApi, projectUuid, agentUuid, data),
-        onMutate: ({ skipAgentResponse }) => {
-            if (!isEmbed && !skipAgentResponse) {
+        onMutate: ({ skipAgentResponse, autoApproveSql }) => {
+            if (!isEmbed && !skipAgentResponse && !autoApproveSql) {
                 requestSqlApprovalNotificationPermission();
             }
         },
@@ -1413,6 +1424,7 @@ export const useCreateAgentThreadMutation = (
                     threadUuid: thread.uuid,
                     messageUuid: thread.firstMessage.uuid,
                     enableSqlMode: variables.enableSqlMode,
+                    autoApproveSql: variables.autoApproveSql,
                     toolHints: variables.toolHints,
                     onFinish: () =>
                         queryClient.invalidateQueries({
@@ -1706,6 +1718,7 @@ export const useCreateAgentThreadMessageMutation = (
 };
 
 export const useRetryAiAgentThreadMessageMutation = () => {
+    const isEmbed = useIsEmbedded();
     const { streamMessage } = useAiAgentThreadStreamMutation();
     const queryClient = useQueryClient();
 
@@ -1720,6 +1733,25 @@ export const useRetryAiAgentThreadMessageMutation = () => {
             enableSqlMode?: boolean;
         }
     >({
+        onMutate: ({ projectUuid, agentUuid, threadUuid, messageUuid }) => {
+            if (!isEmbed) return;
+            const thread = queryClient.getQueryData<
+                ApiAiAgentThreadResponse['results']
+            >(getAiAgentThreadQueryKey(projectUuid, agentUuid, threadUuid));
+            const message = thread?.messages.find(
+                (item) =>
+                    item.role === 'assistant' && item.uuid === messageUuid,
+            );
+            // Retry reuses this prompt, including the previous attempt's persisted writes.
+            if (message?.role === 'assistant') {
+                consumeEmbedAgentContentEvents(
+                    projectUuid,
+                    agentUuid,
+                    [],
+                    message,
+                );
+            }
+        },
         mutationFn: ({
             projectUuid,
             agentUuid,

@@ -21,6 +21,7 @@ import {
     CustomSqlQueryForbiddenError,
     DatabricksAuthenticationType,
     DatabricksTokenError,
+    DateGranularity,
     DbtError,
     DbtExposureType,
     DbtProjectType,
@@ -1270,6 +1271,69 @@ describe('ProjectService', () => {
                 aiPlan === null ? 1 : 0,
             );
         });
+    });
+
+    describe('getWarehouseColumns', () => {
+        const tables = [
+            { database: 'db', schema: 'raw', table: 'orders' },
+            { database: 'db', schema: 'raw', table: 'customers' },
+        ];
+        const bySchema = {
+            db: {
+                raw: { orders: { id: DimensionType.NUMBER }, customers: {} },
+            },
+        };
+        const byTable = { db: { raw: { orders: {}, customers: {} } } };
+        const read = async (
+            getSchemaColumns: WarehouseClient['getSchemaColumns'],
+        ) => {
+            const configured = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
+            const getCatalog = vi.fn(async () => byTable);
+            vi.spyOn(
+                configured.warehouseClientFactory,
+                'withWarehouseClient',
+            ).mockImplementation(async (_ref, _context, consume) =>
+                consume({
+                    warehouseClient: {
+                        ...warehouseClientMock,
+                        getCatalog,
+                        getSchemaColumns,
+                    },
+                } as never),
+            );
+            const result = await configured.getWarehouseColumns(
+                user,
+                projectUuid,
+                QueryExecutionContext.AI,
+                tables,
+            );
+            return { result, getCatalog };
+        };
+
+        test('reads a schema at a time where the warehouse can', async () => {
+            const getSchemaColumns = vi.fn(async () => bySchema);
+            const { result, getCatalog } = await read(getSchemaColumns);
+            expect(getSchemaColumns).toHaveBeenCalledWith([
+                { database: 'db', schema: 'raw' },
+            ]);
+            expect(result).toEqual({ catalog: bySchema, tables });
+            expect(getCatalog).not.toHaveBeenCalled();
+        });
+
+        test.each([
+            ['fails', vi.fn().mockRejectedValue(new Error('no access'))],
+            ['names tables differently', vi.fn(async () => ({ DB: {} }))],
+            ['is not there', undefined],
+        ])(
+            'reads table by table when the schema read %s',
+            async (_why, getSchemaColumns) => {
+                const { result, getCatalog } = await read(getSchemaColumns);
+                expect(getCatalog).toHaveBeenCalledWith(tables);
+                expect(result).toEqual({ catalog: byTable, tables });
+            },
+        );
     });
 
     describe('Document counts in legacy Space listing', () => {
@@ -16101,6 +16165,84 @@ describe('ProjectService', () => {
             expect(result.legs[0].sql).toContain('AS `a_dim2`');
         });
 
+        test.each([
+            ['a plain date', '${TABLE}.created'],
+            [
+                'a date reading the reserved date_zoom',
+                '${TABLE}.created_${ld.parameters.date_zoom}',
+            ],
+        ])(
+            "compiles a zoomed source on %s against its zoomed explore, so the merged key has the zoom's grain",
+            async (_, sql) => {
+                const created = {
+                    ...validExplore.tables.a.dimensions.dim1,
+                    type: DimensionType.TIMESTAMP,
+                    name: 'created',
+                    label: 'Created',
+                    sql,
+                    compiledSql: '"a".created',
+                };
+                const getExplore = vi
+                    .spyOn(service, 'getExplore')
+                    .mockResolvedValue({
+                        ...validExplore,
+                        tables: {
+                            ...validExplore.tables,
+                            a: {
+                                ...validExplore.tables.a,
+                                dimensions: {
+                                    ...validExplore.tables.a.dimensions,
+                                    created,
+                                },
+                            },
+                        },
+                    });
+                const dated = (id: string): MergeQueryMetricSource => ({
+                    ...source(id),
+                    metricQuery: {
+                        ...source(id).metricQuery,
+                        dimensions: ['a_created'],
+                    },
+                });
+                const result = await service.compileMergeQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    mergeQuery: mergeQuery({
+                        sources: [dated('a'), dated('b')],
+                        joinKey: [
+                            {
+                                name: 'created',
+                                fieldIdBySourceId: {
+                                    a: 'a_created',
+                                    b: 'a_created',
+                                },
+                            },
+                        ],
+                    }),
+                    dateZoomBySourceId: {
+                        a: {
+                            granularity: DateGranularity.MONTH,
+                            xAxisFieldId: 'a_created',
+                        },
+                        b: {
+                            granularity: DateGranularity.MONTH,
+                            xAxisFieldId: 'a_created',
+                        },
+                    },
+                });
+                getExplore.mockRestore();
+
+                expect(result.errors).toEqual([]);
+                expect(result.legs[0].sql).toMatch(/MONTH/);
+                expect(
+                    result.fields.find(({ column }) => column === 'created'),
+                ).toMatchObject({
+                    label: 'Created month',
+                    type: DimensionType.DATE,
+                });
+            },
+        );
+
         test('refuses a join key the source explore has no dimension for', async () => {
             const result = await service.compileMergeQuery({
                 account: sessionAccount,
@@ -16240,6 +16382,28 @@ describe('ProjectService', () => {
                 ).rejects.toThrow(
                     'Merge source "a" asks for 25,000 rows, but one Google Analytics query returns at most 24,999.',
                 );
+            });
+
+            test('refuses a date zoom on a live data source node, as the node would', async () => {
+                vi.spyOn(
+                    service as unknown as {
+                        getDateZoomedExplore: () => Promise<unknown>;
+                    },
+                    'getDateZoomedExplore',
+                ).mockResolvedValue(liveExplore);
+                await expect(
+                    service.compileMergeQuery({
+                        account: sessionAccount,
+                        projectUuid,
+                        mergeQuery: liveMerge([liveSource('a'), source('b')]),
+                        sourcesRunAsNodes: true,
+                        dateZoomBySourceId: { a: { granularity: 'MONTH' } },
+                    }),
+                ).rejects.toMatchObject({
+                    data: {
+                        liveSourceErrorCode: 'live_source.refused.date_zoom',
+                    },
+                });
             });
 
             test('keeps refusing a live data source in an Explorer merge', async () => {

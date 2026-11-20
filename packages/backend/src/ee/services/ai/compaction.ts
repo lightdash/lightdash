@@ -240,6 +240,8 @@ export class Compaction {
                 return `data app ${item.displayName ?? item.appUuid} (${item.appSlug ?? item.appUuid})`;
             case 'sql_chart':
                 return `SQL chart ${item.displayName ?? item.sqlChartUuid} (${item.sqlChartSlug ?? item.sqlChartUuid}; read it with readContent type sql_chart)`;
+            case 'composer_chart':
+                return `composer chart ${item.displayName ?? item.composerChartUuid} (${item.composerChartSlug ?? item.composerChartUuid}; read it with readContent type composer_chart)`;
             case 'document':
                 return `Document ${item.displayName ?? item.documentUuid} (${item.documentUuid}; read it with readContent)`;
             case 'data_app_element':

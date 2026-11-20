@@ -206,6 +206,7 @@ import {
     type AgentToolName,
     type AgentWorkMarker,
     type AiAgentEditDbtProjectPipelineJobPayload,
+    type AiAgentIntegration,
     type AiAgentModelConfig,
     type AiAgentNodeCitationPipeline,
     type AiAgentSkill,
@@ -222,6 +223,7 @@ import {
     type AiDeepResearchPhase,
     type AiPromptContextInput,
     type AiPromptContextItem,
+    type AiPromptContextItemInput,
     type AiSemanticChartArtifactConfig,
     type AiThreadCreatedFrom,
     type AiWebAppThreadCreatedFrom,
@@ -373,12 +375,14 @@ import { REQUEST_AUTHORITY } from '../../../services/AsyncQueryService/types';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
 import { CoderService } from '../../../services/CoderService/CoderService';
+import { type ComposerChartService } from '../../../services/ComposerChartService/ComposerChartService';
 import { ContentService } from '../../../services/ContentService/ContentService';
 import { DashboardService } from '../../../services/DashboardService/DashboardService';
 import { DocumentService } from '../../../services/DocumentService/DocumentService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { GithubAppService } from '../../../services/GithubAppService/GithubAppService';
 import { PersistentDownloadFileService } from '../../../services/PersistentDownloadFileService/PersistentDownloadFileService';
+import { developmentView } from '../../../services/ProjectService/developmentView';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import {
     describeLiveTarget,
@@ -519,10 +523,10 @@ import {
     type DocumentEditResolution,
 } from '../ai/decisions/documentEdit';
 import { composeInstantReply } from '../ai/decisions/instantReplies';
+import { getPreviousAnswer } from '../ai/decisions/previousAnswer';
 import { classifyResponseSignals } from '../ai/decisions/responseSignals';
 import { selectVerifiedAnswers } from '../ai/decisions/verifiedAnswers';
 import {
-    findPreferredPreset,
     getCompactionModelMetadata,
     getDefaultModel,
     getModel,
@@ -532,7 +536,6 @@ import {
     resolveKeyManagement,
     resolveModelConfigForPrompt,
 } from '../ai/models';
-import { type ModelTier } from '../ai/models/presets';
 import {
     OrgAiCopilotConfigResolver,
     type AiConfigScope,
@@ -598,6 +601,7 @@ import {
     EditProjectContextFn,
     ExploreRepoFn,
     ExportCustomChartTypeImageFn,
+    GetExploreFn,
     GetPromptFn,
     GetPullRequestDiffFn,
     ListWorkstreamsFn,
@@ -606,6 +610,7 @@ import {
     ReadSemanticModelFn,
     RecordMcpToolCallFn,
     RecordPromptDecisionFn,
+    RunAsyncQueryFn,
     SendFileFn,
     SendSlackBlocksFn,
     StoreLoadoutFn,
@@ -692,6 +697,10 @@ import {
     type SlackChartBlocks,
 } from '../ai/utils/slackNativeCharts';
 import {
+    checkSlackServiceAccountChannel,
+    SLACK_SERVICE_ACCOUNT_REFUSAL_TEXT,
+} from '../ai/utils/slackServiceAccountChannel';
+import {
     getSlackTableBlocks,
     splitSlackDataMessage,
     type SlackTableQueryResults,
@@ -726,7 +735,7 @@ import { type ExternalConnectionService } from '../ExternalConnectionService/Ext
 import { type MobilePushNotificationService } from '../MobilePushNotificationService/MobilePushNotificationService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
 import { createReviewRemediationAgentWorkGuard } from '../reviewRemediationAgentWork';
-import { SEMANTIC_STUDIO_MODEL_TIER } from '../SemanticStudioService/modelPreference';
+import { findSemanticStudioPreset } from '../SemanticStudioService/modelPreference';
 import { type SemanticStudioService } from '../SemanticStudioService/SemanticStudioService';
 import {
     parseAgentSelectionValue,
@@ -744,6 +753,12 @@ import {
     redactStreamToolOutputs,
     redactThreadToolResults,
 } from './embedDebugRedaction';
+import {
+    agentsReachingPinnedSpaces,
+    isOutsideAgentSpaces,
+    OUTSIDE_AGENT_SPACES_NOTE,
+    spaceScopedPinnedUuid,
+} from './pinnedOutsideAgentSpaces';
 import {
     responseMatchesPromptInputRequestGate,
     runPromptInputRequestClassification,
@@ -1067,6 +1082,7 @@ type AiAgentServiceDependencies = {
     documentService: DocumentService;
     savedChartService: SavedChartService;
     savedSqlService: SavedSqlService;
+    composerChartService: Pick<ComposerChartService, 'get' | 'isEnabled'>;
     contentService: ContentService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
     aiCreditService: Pick<AiCreditService, 'assertAiCreditsAvailable'>;
@@ -1438,6 +1454,11 @@ export class AiAgentService extends BaseService {
 
     private readonly savedSqlService: SavedSqlService;
 
+    private readonly composerChartService: Pick<
+        ComposerChartService,
+        'get' | 'isEnabled'
+    >;
+
     private readonly savedChartService: SavedChartService;
 
     private readonly contentService: ContentService;
@@ -1522,7 +1543,7 @@ export class AiAgentService extends BaseService {
         threadModelConfig,
         agentModelConfig,
         requestedModelConfig,
-        preferredTier,
+        prefersStudioModel,
     }: {
         organizationUuid: string;
         projectUuid: string;
@@ -1530,8 +1551,8 @@ export class AiAgentService extends BaseService {
         threadModelConfig: AiAgentModelConfig | null;
         agentModelConfig: AiAgentModelConfig | null;
         requestedModelConfig: AiAgentModelConfig | null;
-        /** The tier to prefer when nobody chose a model; null to take the default. */
-        preferredTier: ModelTier | null;
+        /** Whether the thread is a Studio one, which has its own model when nobody chose one. */
+        prefersStudioModel: boolean;
     }): Promise<AiAgentModelConfig | null> {
         if (threadModelConfig) return threadModelConfig;
         const pickedModelConfig = requestedModelConfig ?? agentModelConfig;
@@ -1540,7 +1561,7 @@ export class AiAgentService extends BaseService {
             (await this.aiOrganizationSettingsService.getDefaultModelConfig(
                 organizationUuid,
             ));
-        if (!modelConfig && !preferredTier) return null;
+        if (!modelConfig && !prefersStudioModel) return null;
         const { catalogue, copilotConfig } =
             await this.orgAiCopilotConfigResolver.getOrgModelCatalogue({
                 organizationUuid,
@@ -1557,14 +1578,15 @@ export class AiAgentService extends BaseService {
         const inherited = resolved
             ? reconcileInheritedModelConfig(copilotConfig, resolved)
             : null;
-        // A preference only replaces a model nobody chose, and only within the provider already in use.
-        const provider =
-            inherited?.modelProvider ??
-            getDefaultModel(copilotConfig)?.provider;
-        const preferred =
-            preferredTier && provider
-                ? findPreferredPreset(catalogue, provider, preferredTier)
-                : null;
+        // A preference only replaces a model nobody chose, among those the org is offered.
+        const preferred = prefersStudioModel
+            ? findSemanticStudioPreset(
+                  catalogue,
+                  inherited?.modelProvider ??
+                      getDefaultModel(copilotConfig)?.provider ??
+                      null,
+              )
+            : null;
         if (!preferred) return inherited;
         this.logger.info(
             `Running a thread on preferred model "${preferred.provider}/${preferred.name}" in place of ${inherited ? `"${inherited.modelProvider}/${inherited.modelName}"` : 'the instance default'}`,
@@ -1697,6 +1719,9 @@ export class AiAgentService extends BaseService {
                     break;
                 case 'sql_chart':
                     key = `sql_chart:${item.sqlChartUuid}`;
+                    break;
+                case 'composer_chart':
+                    key = `composer_chart:${item.composerChartUuid}`;
                     break;
                 case 'design':
                     key = designContextKey(item.designUuid);
@@ -1960,6 +1985,30 @@ export class AiAgentService extends BaseService {
                     return;
                 }
 
+                if (item.type === 'composer_chart') {
+                    // Composer charts do not draw in embeds.
+                    if (allowedSpaces) {
+                        throw new ForbiddenError(
+                            'Composer charts are not available in embedded AI',
+                        );
+                    }
+                    if (
+                        !(await this.composerChartService.isEnabled({
+                            userUuid: user.userUuid,
+                            organizationUuid: agent.organizationUuid,
+                        }))
+                    ) {
+                        throw new NotFoundError('Composer chart not found');
+                    }
+                    // Checks view through the chart's dashboard.
+                    await this.composerChartService.get(
+                        fromSession(user),
+                        agent.projectUuid,
+                        item.composerChartUuid,
+                    );
+                    return;
+                }
+
                 if (item.type === 'document') {
                     // Checks project and space access for this user.
                     const document = await this.documentService.get(
@@ -2163,6 +2212,7 @@ export class AiAgentService extends BaseService {
         this.dashboardService = dependencies.dashboardService;
         this.documentService = dependencies.documentService;
         this.savedSqlService = dependencies.savedSqlService;
+        this.composerChartService = dependencies.composerChartService;
         this.savedChartService = dependencies.savedChartService;
         this.contentService = dependencies.contentService;
         this.prometheusMetrics = dependencies.prometheusMetrics;
@@ -2336,8 +2386,9 @@ export class AiAgentService extends BaseService {
                           prompt.createdByUserUuid,
                           prompt.organizationUuid,
                       );
-            agent = await this.getAgent(
+            agent = await this.getAgentForSlackPrompt(
                 user,
+                prompt,
                 prompt.agentUuid,
                 prompt.projectUuid,
             );
@@ -5924,10 +5975,7 @@ export class AiAgentService extends BaseService {
             threadModelConfig: null,
             agentModelConfig: agent.modelConfig,
             requestedModelConfig: body.modelConfig ?? null,
-            preferredTier:
-                body.createdFrom === 'semantic_studio'
-                    ? SEMANTIC_STUDIO_MODEL_TIER
-                    : null,
+            prefersStudioModel: body.createdFrom === 'semantic_studio',
         });
 
         if (body.prompt) {
@@ -6154,10 +6202,7 @@ export class AiAgentService extends BaseService {
                 await this.aiAgentModel.findThreadModelConfig(threadUuid),
             agentModelConfig: agent.modelConfig,
             requestedModelConfig: body.modelConfig ?? null,
-            preferredTier:
-                thread.createdFrom === 'semantic_studio'
-                    ? SEMANTIC_STUDIO_MODEL_TIER
-                    : null,
+            prefersStudioModel: thread.createdFrom === 'semantic_studio',
         });
 
         const messageUuid = await this.aiAgentModel.createWebAppPrompt({
@@ -6390,6 +6435,54 @@ export class AiAgentService extends BaseService {
         }
     }
 
+    // Answering as a service account in a channel lets anyone there act above
+    // their own role, so only org admins may set or change it.
+    private async assertSlackServiceAccountChangesAllowed(
+        user: SessionUser,
+        organizationUuid: string,
+        integrations: AiAgentIntegration[] | undefined,
+        currentIntegrations: AiAgentIntegration[],
+    ): Promise<void> {
+        if (!integrations) return;
+        const current = new Map(
+            currentIntegrations.map((i) => [
+                i.channelId,
+                i.serviceAccountUuid ?? null,
+            ]),
+        );
+        const added = integrations.flatMap((integration) => {
+            const next =
+                integration.serviceAccountUuid === undefined
+                    ? (current.get(integration.channelId) ?? null)
+                    : integration.serviceAccountUuid;
+            return next !== null && next !== current.get(integration.channelId)
+                ? [next]
+                : [];
+        });
+        if (added.length === 0) return;
+
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Only organization admins can set a service account for a Slack channel',
+            );
+        }
+        const uniqueAdded = [...new Set(added)];
+        const usable = await this.aiAgentModel.findUsableServiceAccountUuids(
+            organizationUuid,
+            uniqueAdded,
+        );
+        if (usable.length !== uniqueAdded.length) {
+            throw new ParameterError(
+                'Service account not found in this organization',
+            );
+        }
+    }
+
     public async createAgent(
         user: SessionUser,
         body: ApiCreateAiAgent,
@@ -6421,6 +6514,12 @@ export class AiAgentService extends BaseService {
             throw new ForbiddenError();
         }
         await this.assertAgentStaysInsideTraining(body.projectUuid, body);
+        await this.assertSlackServiceAccountChangesAllowed(
+            user,
+            organizationUuid,
+            body.integrations,
+            [],
+        );
 
         if (body.threadRetentionHours != null) {
             await this.validateThreadRetentionUpdate(
@@ -8154,6 +8253,12 @@ export class AiAgentService extends BaseService {
             body.projectUuid ?? agent.projectUuid,
             body,
         );
+        await this.assertSlackServiceAccountChangesAllowed(
+            user,
+            organizationUuid,
+            body.integrations,
+            agent.integrations,
+        );
 
         const nextEnableDataAccess =
             body.enableDataAccess ?? agent.enableDataAccess;
@@ -8697,11 +8802,14 @@ export class AiAgentService extends BaseService {
             deferCurrentVerifiedExamples = false,
             enableFastDecisions = true,
             aiCreditCheck,
+            flagPinnedOutsideAgentSpaces = true,
         }: {
             agentUuid: string;
             threadUuid: string;
             promptUuid?: string;
             aiCreditCheck: AiCreditCheck | null;
+            /** Off for embeds, whose space limits come from the token, not the agent. */
+            flagPinnedOutsideAgentSpaces?: boolean;
             retrieveRelevantArtifacts?: boolean;
             enableFastDecisions?: boolean;
             /** Look up the prompt's verified examples without blocking fast decisions on them. */
@@ -8895,6 +9003,9 @@ export class AiAgentService extends BaseService {
                 agentCredentialUuid: agent.providerCredentialUuid,
             })),
             threadUuid: prompt.threadUuid,
+            agentScope: flagPinnedOutsideAgentSpaces
+                ? { user, spaceAccess: agent.spaceAccess }
+                : null,
         };
         // Fast decisions only need the conversation; the example lookup embeds the
         // prompt, so it starts now and the agent awaits it only if it runs.
@@ -9183,6 +9294,7 @@ export class AiAgentService extends BaseService {
                 deferCurrentVerifiedExamples: true,
                 enableFastDecisions,
                 aiCreditCheck: { isEmbedViewer: runtimeOptions !== undefined },
+                flagPinnedOutsideAgentSpaces: runtimeOptions === undefined,
                 onPromptResolved: (promptUuid, responseState) => {
                     trackedPromptUuid = promptUuid;
                     this.trackStreamPrompt(promptUuid, responseState);
@@ -10027,6 +10139,7 @@ export class AiAgentService extends BaseService {
                         ? execution.runUuid
                         : null,
                 aiCreditCheck,
+                flagPinnedOutsideAgentSpaces: !aiCreditCheck?.isEmbedViewer,
                 onPromptResolved: (uuid) => {
                     resolvedPromptUuid = uuid;
                 },
@@ -13056,6 +13169,8 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
         context: AiPromptContext,
         options: {
             threadFiles?: Map<string, { content: string; path: string }>;
+            /** Pinned items the agent's space limits keep it from reading. */
+            outsideAgentSpaces?: ReadonlySet<string>;
         } = {},
     ): UserModelMessage | null {
         if (context.length === 0) return null;
@@ -13065,7 +13180,7 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
         let inlineBudget = AI_THREAD_FILE_INLINE_BUDGET_BYTES;
         const inlinedFiles: { path: string; content: string }[] = [];
 
-        const lines = context.map((item) => {
+        const describeItem = (item: AiPromptContextItem): string => {
             switch (item.type) {
                 case 'chart': {
                     const name = item.displayName ?? '(name unavailable)';
@@ -13236,6 +13351,12 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                     const slugText = item.appSlug ?? '(slug unavailable)';
                     return `- Data app "${name}" (dataAppSlug: ${slugText})`;
                 }
+                case 'composer_chart': {
+                    const name = item.displayName ?? '(name unavailable)';
+                    const slugText =
+                        item.composerChartSlug ?? '(slug unavailable)';
+                    return `- Composer chart "${name}" (composerChartSlug: ${slugText}) — the dashboard composer chart the user asked about. When the user says "this" or asks for a change without naming content, they mean this chart. Read it with readContent (type composer_chart, slug) before answering or editing, check its rows with runContentQuery (source dashboardChart, chartType composer_chart, its dashboard's slug), and save changes with editContent (type composer_chart).`;
+                }
                 case 'sql_chart': {
                     const name = item.displayName ?? '(name unavailable)';
                     const slugText = item.sqlChartSlug ?? '(slug unavailable)';
@@ -13271,6 +13392,17 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                         'Unknown AiPromptContextItem type',
                     );
             }
+        };
+        const lines = context.map((item) => {
+            const line = describeItem(item);
+            const pinnedUuid = spaceScopedPinnedUuid(item);
+            if (!pinnedUuid || !options.outsideAgentSpaces?.has(pinnedUuid)) {
+                return line;
+            }
+            const [headline, ...rest] = line.split('\n');
+            return [`${headline}${OUTSIDE_AGENT_SPACES_NOTE}`, ...rest].join(
+                '\n',
+            );
         });
 
         // A per-message random tag name means file content cannot close the
@@ -13594,6 +13726,123 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         }
     }
 
+    /**
+     * Space of each pinned dashboard, chart and data app, keyed by its id.
+     * Items the user cannot open are left out, so nothing here is new to them.
+     */
+    private async findPinnedSpaces(
+        user: SessionUser,
+        projectUuid: string,
+        pinned: (AiPromptContextItem | AiPromptContextItemInput)[],
+    ): Promise<Map<string, string | null>> {
+        const items = new Map<
+            string,
+            AiPromptContextItem | AiPromptContextItemInput
+        >();
+        for (const item of pinned) {
+            const uuid = spaceScopedPinnedUuid(item);
+            if (uuid) items.set(uuid, item);
+        }
+        const spaceUuidOf = async (
+            item: AiPromptContextItem | AiPromptContextItemInput,
+        ): Promise<string | null | undefined> => {
+            switch (item.type) {
+                case 'dashboard':
+                    return (
+                        await this.dashboardService.getByIdOrSlug(
+                            user,
+                            item.dashboardUuid,
+                            { projectUuid },
+                        )
+                    ).spaceUuid;
+                case 'chart':
+                    return (
+                        await this.savedChartService.get(
+                            item.chartUuid,
+                            fromSession(user),
+                            { projectUuid },
+                        )
+                    ).spaceUuid;
+                case 'data_app': {
+                    const app = await this.appModel.findAppByUuid(item.appUuid);
+                    if (
+                        !app ||
+                        app.project_uuid !== projectUuid ||
+                        !(await this.appGenerateService.canViewApp(user, app))
+                    ) {
+                        return undefined;
+                    }
+                    return app.space_uuid;
+                }
+                default:
+                    return undefined;
+            }
+        };
+        const found = await Promise.all(
+            [...items].map(async ([uuid, item]) => {
+                try {
+                    const spaceUuid = await spaceUuidOf(item);
+                    return spaceUuid === undefined
+                        ? null
+                        : ([uuid, spaceUuid] as const);
+                } catch {
+                    return null;
+                }
+            }),
+        );
+        return new Map(
+            found.filter(
+                (entry): entry is readonly [string, string | null] =>
+                    entry !== null,
+            ),
+        );
+    }
+
+    /** Agents whose spaces hold everything the user pinned; all of them when none do. */
+    public async filterAgentsReachingPinnedContext<
+        T extends { spaceAccess: string[] },
+    >(
+        user: SessionUser,
+        projectUuid: string,
+        agents: T[],
+        context: AiPromptContextInput,
+    ): Promise<T[]> {
+        if (!agents.some((agent) => agent.spaceAccess.length > 0)) {
+            return agents;
+        }
+        const pinnedSpaces = await this.findPinnedSpaces(
+            user,
+            projectUuid,
+            context,
+        );
+        return agentsReachingPinnedSpaces(agents, [...pinnedSpaces.values()]);
+    }
+
+    // The user attached these, so naming them as out of reach reveals nothing
+    // they cannot already see. Items the user cannot open are left unflagged.
+    private async findPinnedOutsideAgentSpaces(
+        contextMap: Map<string, AiPromptContext>,
+        projectUuid: string,
+        agentScope: { user: SessionUser; spaceAccess: string[] } | null,
+    ): Promise<Set<string>> {
+        if (!agentScope || agentScope.spaceAccess.length === 0) {
+            return new Set();
+        }
+        const { user, spaceAccess } = agentScope;
+        const pinnedSpaces = await this.findPinnedSpaces(
+            user,
+            projectUuid,
+            [...contextMap.values()].flat(),
+        );
+        return new Set(
+            [...pinnedSpaces]
+                .filter(([, spaceUuid]) =>
+                    isOutsideAgentSpaces(spaceAccess, spaceUuid),
+                )
+                .map(([uuid]) => uuid),
+        );
+    }
+
     // Only files the thread owns are readable; a pinned row can only reference
     // a file claimed by this thread, so the thread lookup is the boundary.
     private async getThreadFiles(
@@ -13631,6 +13880,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             currentPromptExamples?: CurrentPromptExamples;
             pendingRejectedSqlApprovalResults?: Parameters<StoreToolResultsFn>[0];
             threadUuid: string;
+            /** The answering agent's space limits, to flag pinned items it cannot read. */
+            agentScope?: { user: SessionUser; spaceAccess: string[] } | null;
         },
     ): Promise<ModelMessage[]> {
         const currentPromptExamples = options.currentPromptExamples ?? {
@@ -13641,10 +13892,14 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         );
         const contextMap =
             await this.aiAgentModel.getContextForPromptUuids(promptUuids);
-        const threadFiles = await this.getThreadFiles(
-            options.threadUuid,
-            contextMap,
-        );
+        const [threadFiles, outsideAgentSpaces] = await Promise.all([
+            this.getThreadFiles(options.threadUuid, contextMap),
+            this.findPinnedOutsideAgentSpaces(
+                contextMap,
+                options.projectUuid,
+                options.agentScope ?? null,
+            ),
+        ]);
 
         const messagesWithToolCalls = await Promise.all(
             threadMessages.map(async (message, index) => {
@@ -13661,7 +13916,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 const pinnedContextMessage =
                     AiAgentService.createPinnedContextMessage(
                         contextMap.get(message.ai_prompt_uuid) ?? [],
-                        { threadFiles },
+                        { threadFiles, outsideAgentSpaces },
                     );
                 if (pinnedContextMessage) {
                     messages.push(pinnedContextMessage);
@@ -15106,6 +15361,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 );
             }
             let { script } = args;
+            let diffs: string[] | null = null;
             if (script) {
                 // Run it once now so a broken script goes back to the model instead of failing in the background.
                 const checked = await this.aiWritebackService.saveWithScript(
@@ -15135,6 +15391,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 );
                 if (checked?.status === 'script_failed') return checked;
                 if (checked === null) script = null;
+                if (checked?.status === 'checked') diffs = checked.diffs;
             }
             const { aiWritebackRunUuid } =
                 await this.aiWritebackService.createPendingRun({
@@ -15176,6 +15433,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 status: 'started',
                 aiWritebackRunUuid,
                 inSandbox: !script,
+                diffs,
             };
         };
 
@@ -15506,6 +15764,34 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         const listChanges = () =>
             this.semanticStudioService.listChanges(user, projectUuid);
 
+        // Studio queries read the person's draft over what is published, the way trying their changes does.
+        const inDraft = <T>(run: () => Promise<T>): Promise<T> => {
+            let drafted:
+                | ReturnType<SemanticStudioService['findDevelopmentExplores']>
+                | undefined;
+            // Reading the draft reads the project itself, which must see what is published.
+            const findExplores = () => {
+                drafted ??= developmentView.exit(() =>
+                    this.semanticStudioService.findDevelopmentExplores(
+                        user,
+                        projectUuid,
+                    ),
+                );
+                return drafted;
+            };
+            return developmentView.run(
+                {
+                    findExplores,
+                    hasChanges: async () => (await findExplores()) !== null,
+                },
+                run,
+            );
+        };
+        const getDraftExplore: GetExploreFn = (args) =>
+            inDraft(() => toolsRuntime.getExplore(args));
+        const runDraftQuery: RunAsyncQueryFn = (...args) =>
+            inDraft(() => toolsRuntime.runAsyncQuery(...args));
+
         const readSemanticModel: ReadSemanticModelFn = (name) =>
             this.semanticStudioService.readDraftedModel(
                 user,
@@ -15586,6 +15872,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             listDataAppConnections: toolsRuntime.listDataAppConnections,
             resolveUrl: toolsRuntime.resolveUrl,
             editContent: toolsRuntime.editContent,
+            prepareComposerChartEdit: toolsRuntime.prepareComposerChartEdit,
             createContent: toolsRuntime.createContent,
             recordSqlChartRefusal: toolsRuntime.recordSqlChartRefusal,
             createScheduledDelivery: toolsRuntime.createScheduledDelivery,
@@ -15606,15 +15893,18 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             runAsyncQuery: toolsRuntime.runAsyncQuery,
             runSavedChartQuery: toolsRuntime.runSavedChartQuery,
             runSqlChartQuery: toolsRuntime.runSqlChartQuery,
+            runComposerChartQuery: toolsRuntime.runComposerChartQuery,
             runSqlJob: toolsRuntime.runSqlJob,
             runComposerQueries: toolsRuntime.runComposerQueries,
             listWarehouseTables: toolsRuntime.listWarehouseTables,
             describeWarehouseTable: toolsRuntime.describeWarehouseTable,
+            listWarehouseColumns: toolsRuntime.listWarehouseColumns,
             listKnowledgeDocuments: toolsRuntime.listKnowledgeDocuments,
             getKnowledgeDocumentContent:
                 toolsRuntime.getKnowledgeDocumentContent,
             getSavedChart: toolsRuntime.getSavedChart,
             getSqlChart: toolsRuntime.getSqlChart,
+            getComposerChart: toolsRuntime.getComposerChart,
             sendFile,
             deferSlackVisualization,
             exportCustomChartTypeImage,
@@ -15640,6 +15930,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             editProjectContext,
             proposeSemanticLayerChange,
             listChanges,
+            getDraftExplore,
+            runDraftQuery,
             readSemanticModel,
             exploreRepo,
             readAttachments,
@@ -17368,6 +17660,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                               prompt: prompt.prompt,
                               instructions: agentSettings.instruction,
                               conversation: decisionHistory.slice(-3),
+                              previousAnswer:
+                                  getPreviousAnswer(decisionHistory),
                               context: chartTurn?.intentContext ?? null,
                           })
                         : null);
@@ -17567,16 +17861,17 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 const enableSqlMode =
                     options.enableSqlMode ?? agentSettings.enableSqlMode;
 
-                // Permission-sensitive tools need the prompt actor to be the real
-                // sender. Web prompts always are; Slack prompts are only trusted when
-                // Slack OAuth is required, otherwise the actor is the workspace
-                // installer.
+                // Permission-sensitive tools need a deliberate prompt actor. Web
+                // prompts always have one; Slack prompts only when Slack OAuth is
+                // required or the channel answers as its configured service
+                // account. Otherwise the actor is the workspace installer.
                 let hasTrustedPromptUserIdentity = true;
                 let slackLinksOnly = false;
                 if (isSlackPrompt(prompt) && user.organizationUuid) {
                     const slackSettings = slackInstallation;
                     hasTrustedPromptUserIdentity =
-                        !!slackSettings?.aiRequireOAuth;
+                        !!slackSettings?.aiRequireOAuth ||
+                        (await this.isSlackChannelServiceAccountPrompt(prompt));
                     slackLinksOnly = !!slackSettings?.aiLinksOnly;
                 }
                 const promptProject = await this.projectModel.get(
@@ -17727,7 +18022,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                             user,
                             projectUuid: prompt.projectUuid,
                             agentUuid: agentSettings.uuid,
+                            // Studio's loadout takes no MCP tools, so its turns do not wait on those servers.
                             includeAttachedMcpServers:
+                                !isSemanticStudioThread &&
                                 shouldIncludeAttachedMcpServers(
                                     responseExecution.mode,
                                     responseExecution.mode === 'deep_research'
@@ -17788,14 +18085,16 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         user,
                         featureFlagId: FeatureFlags.AiFilterExpressions,
                     });
+                // Studio's chat offers a change as a choice, so its threads ask without the flag.
                 const enableAskUser =
                     canOfferAskUser(prompt, responseExecution.mode) &&
-                    (
-                        await this.featureFlagService.get({
-                            user,
-                            featureFlagId: FeatureFlags.AiAgentAskUser,
-                        })
-                    ).enabled;
+                    (isSemanticStudioThread ||
+                        (
+                            await this.featureFlagService.get({
+                                user,
+                                featureFlagId: FeatureFlags.AiAgentAskUser,
+                            })
+                        ).enabled);
                 // A dbt project keeps no draft in Semantic Studio; its thread edits the repository instead.
                 const semanticStudioStatus = isSemanticStudioThread
                     ? await this.semanticStudioService.getStatus(
@@ -17985,6 +18284,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     listDataAppConnections,
                     resolveUrl,
                     editContent,
+                    prepareComposerChartEdit,
                     createContent,
                     recordSqlChartRefusal,
                     createScheduledDelivery,
@@ -18005,14 +18305,17 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     runAsyncQuery,
                     runSavedChartQuery,
                     runSqlChartQuery,
+                    runComposerChartQuery,
                     runSqlJob,
                     runComposerQueries,
                     listWarehouseTables,
                     describeWarehouseTable,
+                    listWarehouseColumns,
                     listKnowledgeDocuments,
                     getKnowledgeDocumentContent,
                     getSavedChart,
                     getSqlChart,
+                    getComposerChart,
                     sendFile,
                     deferSlackVisualization,
                     exportCustomChartTypeImage,
@@ -18030,6 +18333,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     editProjectContext,
                     proposeSemanticLayerChange,
                     listChanges,
+                    getDraftExplore,
+                    runDraftQuery,
                     readSemanticModel,
                     exploreRepo,
                     readAttachments,
@@ -18487,6 +18792,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     listDataAppConnections,
                     resolveUrl,
                     editContent,
+                    prepareComposerChartEdit,
                     createContent,
                     recordSqlChartRefusal,
                     createScheduledDelivery,
@@ -18505,10 +18811,12 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     runAsyncQuery,
                     runSavedChartQuery,
                     runSqlChartQuery,
+                    runComposerChartQuery,
                     runSqlJob,
                     runComposerQueries,
                     listWarehouseTables,
                     describeWarehouseTable,
+                    listWarehouseColumns,
                     listKnowledgeDocuments,
                     getKnowledgeDocumentContent,
                     // Only conversations pinned as context on this thread are
@@ -18536,6 +18844,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     },
                     getSavedChart,
                     getSqlChart,
+                    getComposerChart,
                     getPrompt,
                     sendFile,
                     deferSlackVisualization,
@@ -18554,6 +18863,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     editProjectContext,
                     proposeSemanticLayerChange,
                     listChanges,
+                    getDraftExplore,
+                    runDraftQuery,
                     readSemanticModel,
                     exploreRepo,
                     readAttachments,
@@ -19172,7 +19483,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 : null,
             agentModelConfig: agent?.modelConfig ?? null,
             requestedModelConfig: data.modelConfig ?? null,
-            preferredTier: null,
+            prefersStudioModel: false,
         });
 
         if (!threadUuid) {
@@ -19590,6 +19901,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             agent,
             response,
         });
+        const serviceAccountBlocks =
+            await this.getSlackServiceAccountContextBlocks(slackPrompt);
 
         return {
             blocks: [
@@ -19603,11 +19916,44 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     accessRefusal,
                     this.lightdashConfig.siteUrl,
                 ),
+                ...serviceAccountBlocks,
                 ...feedbackBlocks,
                 ...historyBlocks,
             ],
             chartBlocks,
         };
+    }
+
+    private async getSlackServiceAccountContextBlocks(
+        slackPrompt: SlackPrompt,
+    ): Promise<KnownBlock[]> {
+        const serviceAccount =
+            await this.aiAgentModel.findSlackChannelServiceAccount({
+                organizationUuid: slackPrompt.organizationUuid,
+                slackChannelId: slackPrompt.slackChannelId,
+            });
+        if (
+            serviceAccount === null ||
+            serviceAccount.serviceAccountUserUuid !==
+                slackPrompt.createdByUserUuid
+        ) {
+            return [];
+        }
+        const name = serviceAccount.name
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        return [
+            {
+                type: 'context',
+                elements: [
+                    {
+                        type: 'mrkdwn',
+                        text: `:robot_face: Ran with *${name}*'s permissions · Asked by <@${slackPrompt.slackUserId}>`,
+                    },
+                ],
+            },
+        ];
     }
 
     private getAgentThreadUrl(
@@ -20460,6 +20806,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 case 'searchSemanticLayer':
                 case 'listWarehouseTables':
                 case 'describeWarehouseTable':
+                case 'grepWarehouseColumns':
                     return 'Reviewing the semantic layer...';
                 case 'generateVisualization':
                 case 'generateDashboard':
@@ -20469,6 +20816,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 case 'query':
                 case 'runComposerQueries':
                 case 'runContentQuery':
+                case 'runMetricQuery':
                 case 'runSavedChart':
                 case 'runQuery':
                     return 'Reviewing the results...';
@@ -21137,7 +21485,12 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             }
 
             if (thread.agentUuid) {
-                agent = await this.getAgent(user, thread.agentUuid);
+                agent = await this.getAgentForSlackPrompt(
+                    user,
+                    slackPrompt,
+                    thread.agentUuid,
+                    undefined,
+                );
             }
 
             const installation =
@@ -23804,6 +24157,110 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         }
     }
 
+    private async resolveSlackChannelServiceAccountActor({
+        organizationUuid,
+        teamId,
+        enterpriseId,
+        channelId,
+        slackUserId,
+        threadTs,
+        client,
+    }: {
+        organizationUuid: string;
+        teamId: string;
+        enterpriseId: string | null;
+        channelId: string;
+        slackUserId: string;
+        threadTs: string | null;
+        client: WebClient;
+    }): Promise<{ userUuid: string } | 'refused' | null> {
+        const serviceAccount =
+            await this.aiAgentModel.findSlackChannelServiceAccount({
+                organizationUuid,
+                slackChannelId: channelId,
+            });
+        if (!serviceAccount) return null;
+
+        const refusal = serviceAccount.isExpired
+            ? 'expired_service_account'
+            : await checkSlackServiceAccountChannel({
+                  client,
+                  channelId,
+                  slackUserId,
+                  teamId,
+                  enterpriseId,
+              });
+        Logger.info('AI agent Slack service account check', {
+            event: 'ai_agent.slack_service_account',
+            organizationUuid,
+            slackUserId,
+            channelId,
+            serviceAccountUuid: serviceAccount.serviceAccountUuid,
+            result: refusal ?? 'allowed',
+        });
+        if (refusal) {
+            await client.chat.postEphemeral({
+                channel: channelId,
+                user: slackUserId,
+                ...(threadTs ? { thread_ts: threadTs } : {}),
+                text: SLACK_SERVICE_ACCOUNT_REFUSAL_TEXT[refusal],
+            });
+            return 'refused';
+        }
+        return { userUuid: serviceAccount.serviceAccountUserUuid };
+    }
+
+    private async isSlackChannelServiceAccountPrompt(
+        prompt: SlackPrompt,
+    ): Promise<boolean> {
+        const serviceAccount =
+            await this.aiAgentModel.findSlackChannelServiceAccount({
+                organizationUuid: prompt.organizationUuid,
+                slackChannelId: prompt.slackChannelId,
+            });
+        return (
+            serviceAccount !== null &&
+            !serviceAccount.isExpired &&
+            serviceAccount.serviceAccountUserUuid === prompt.createdByUserUuid
+        );
+    }
+
+    // The admin's channel mapping grants the service account this agent, so the
+    // agent's own user and group access lists don't apply to it.
+    private async getAgentForSlackPrompt(
+        user: SessionUser,
+        prompt: SlackPrompt,
+        agentUuid: string,
+        projectUuid: string | undefined,
+    ): Promise<AiAgent> {
+        const serviceAccount =
+            await this.aiAgentModel.findSlackChannelServiceAccount({
+                organizationUuid: prompt.organizationUuid,
+                slackChannelId: prompt.slackChannelId,
+            });
+        if (
+            serviceAccount === null ||
+            serviceAccount.isExpired ||
+            serviceAccount.serviceAccountUserUuid !==
+                prompt.createdByUserUuid ||
+            serviceAccount.agentUuid !== agentUuid
+        ) {
+            return this.getAgent(user, agentUuid, projectUuid);
+        }
+        if (!(await this.getIsCopilotEnabled(user))) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid: prompt.organizationUuid,
+            agentUuid,
+            projectUuid,
+        });
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+        return agent;
+    }
+
     private async handleAiAgentAuth(
         slackSettings: { aiRequireOAuth?: boolean },
         {
@@ -24352,18 +24809,36 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             return;
         }
 
-        const authResult = await this.handleAiAgentAuth(
-            slackSettings,
-            {
-                userId: event.user,
-                teamId,
-                threadTs: event.thread_ts || event.ts, // Use event.ts for new messages to create a thread
-                channelId: event.channel,
-                messageId: event.ts,
-                organizationUuid,
-            },
-            client,
-        );
+        const channelServiceAccount =
+            slackSettings.aiMultiAgentChannelId === event.channel
+                ? null
+                : await this.resolveSlackChannelServiceAccountActor({
+                      organizationUuid,
+                      teamId,
+                      enterpriseId: context.enterpriseId ?? null,
+                      channelId: event.channel,
+                      slackUserId: event.user,
+                      threadTs: event.thread_ts ?? null,
+                      client,
+                  });
+        if (channelServiceAccount === 'refused') {
+            return;
+        }
+
+        const authResult =
+            channelServiceAccount ??
+            (await this.handleAiAgentAuth(
+                slackSettings,
+                {
+                    userId: event.user,
+                    teamId,
+                    threadTs: event.thread_ts || event.ts, // Use event.ts for new messages to create a thread
+                    channelId: event.channel,
+                    messageId: event.ts,
+                    organizationUuid,
+                },
+                client,
+            ));
 
         if (!authResult) {
             return;
@@ -24536,8 +25011,14 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 throw new Error('No agent selected - this should not happen');
             }
 
-            // Verify access for the selected agent
-            await this.verifyAgentAccess(agentConfig, userUuid, slackSettings);
+            // The admin's channel mapping is the grant for service account channels.
+            if (!channelServiceAccount) {
+                await this.verifyAgentAccess(
+                    agentConfig,
+                    userUuid,
+                    slackSettings,
+                );
+            }
 
             if (event.thread_ts) {
                 const aiThreadAccessConsent =

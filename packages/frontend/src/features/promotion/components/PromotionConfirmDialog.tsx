@@ -39,6 +39,7 @@ const PromotionChangesAccordion: FC<{
         | 'charts'
         | 'dashboards'
         | 'sqlCharts'
+        | 'composerCharts'
         | 'dataApps'
         | 'documents';
     items: {
@@ -163,6 +164,20 @@ export const PromotionConfirmDialog: FC<Props> = ({
                     (item) => item.action === PromotionAction.DELETE,
                 ),
             },
+            composerCharts: {
+                total: (promotionChanges.composerCharts ?? []).filter(
+                    (item) => item.action !== PromotionAction.NO_CHANGES,
+                ).length,
+                created: (promotionChanges.composerCharts ?? []).filter(
+                    (item) => item.action === PromotionAction.CREATE,
+                ),
+                updated: (promotionChanges.composerCharts ?? []).filter(
+                    (item) => item.action === PromotionAction.UPDATE,
+                ),
+                deleted: (promotionChanges.composerCharts ?? []).filter(
+                    (item) => item.action === PromotionAction.DELETE,
+                ),
+            },
             dataApps: {
                 total: (promotionChanges.dataApps ?? []).filter(
                     (item) => item.action !== PromotionAction.NO_CHANGES,
@@ -211,6 +226,7 @@ export const PromotionConfirmDialog: FC<Props> = ({
             changes.spaces.total +
             changes.charts.total +
             changes.sqlCharts.total +
+            changes.composerCharts.total +
             changes.dataApps.total +
             changes.documents.total +
             changes.dashboards.total;
@@ -225,6 +241,9 @@ export const PromotionConfirmDialog: FC<Props> = ({
                 (item) => item.action === PromotionAction.NO_CHANGES,
             ).length +
             (promotionChanges.sqlCharts ?? []).filter(
+                (item) => item.action === PromotionAction.NO_CHANGES,
+            ).length +
+            (promotionChanges.composerCharts ?? []).filter(
                 (item) => item.action === PromotionAction.NO_CHANGES,
             ).length +
             (promotionChanges.dataApps ?? []).filter(
@@ -359,6 +378,24 @@ export const PromotionConfirmDialog: FC<Props> = ({
                                 <PromotionChangesAccordion
                                     type="sqlCharts"
                                     items={groupedChanges.sqlCharts}
+                                />
+                            </>
+                        )}
+                        {groupedChanges.composerCharts.total > 0 && (
+                            <>
+                                <Text fz="sm">
+                                    These changes will be applied:
+                                </Text>
+                                <Flex gap="xs" align="center">
+                                    <MantineIcon
+                                        icon={IconChartAreaLine}
+                                        color="blue.7"
+                                    />
+                                    <Text fw={600}>Composer charts:</Text>
+                                </Flex>
+                                <PromotionChangesAccordion
+                                    type="composerCharts"
+                                    items={groupedChanges.composerCharts}
                                 />
                             </>
                         )}

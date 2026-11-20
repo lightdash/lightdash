@@ -632,6 +632,27 @@ describe('AiAgentService.createPinnedContextMessage SQL charts', () => {
     });
 });
 
+describe('AiAgentService.createPinnedContextMessage composer charts', () => {
+    it('names the composer chart and how to read, run and edit it', () => {
+        const content = buildMessage([
+            {
+                type: 'composer_chart',
+                composerChartUuid: 'composer-1',
+                composerChartSlug: 'revenue-vs-target',
+                displayName: 'Revenue vs target',
+                pinnedVersionUuid: 'version-1',
+            },
+        ]);
+
+        expect(content).toContain(
+            '- Composer chart "Revenue vs target" (composerChartSlug: revenue-vs-target)',
+        );
+        expect(content).toContain('readContent (type composer_chart, slug)');
+        expect(content).toContain('editContent (type composer_chart)');
+        expect(content).toContain('chartType composer_chart');
+    });
+});
+
 describe('AiAgentService.createPinnedContextMessage attached documents', () => {
     const file = {
         type: 'thread_file' as const,
@@ -736,5 +757,44 @@ describe('AiAgentService.createPinnedContextMessage attached documents', () => {
         expect(content.lastIndexOf(`</${tag}>`)).toBeGreaterThan(
             content.indexOf(hostile),
         );
+    });
+});
+
+describe('AiAgentService.createPinnedContextMessage outside agent spaces', () => {
+    const dashboard = {
+        type: 'dashboard' as const,
+        dashboardUuid: 'dashboard-1',
+        dashboardSlug: 'exec-dashboard',
+        displayName: 'Executive dashboard',
+        pinnedVersionUuid: null,
+        runtimeOverrides: null,
+    };
+    const chart = {
+        type: 'chart' as const,
+        chartUuid: 'chart-1',
+        chartSlug: 'revenue',
+        displayName: 'Revenue',
+        pinnedVersionUuid: null,
+        runtimeOverrides: null,
+        chartKind: null,
+    };
+
+    it('says an attached item is outside the agent spaces', () => {
+        const message = AiAgentService.createPinnedContextMessage(
+            [dashboard, chart],
+            { outsideAgentSpaces: new Set(['dashboard-1']) },
+        );
+        const content = message!.content as string;
+        expect(content).toContain(
+            '- Dashboard "Executive dashboard" (dashboardSlug: exec-dashboard) — outside the spaces this agent may use',
+        );
+        expect(content).toContain('- Chart "Revenue" (chartSlug: revenue)\n');
+        expect(content).not.toContain(
+            '- Chart "Revenue" (chartSlug: revenue) — outside',
+        );
+    });
+
+    it('adds nothing when every item is in reach', () => {
+        expect(buildMessage([dashboard])).not.toContain('outside the spaces');
     });
 });

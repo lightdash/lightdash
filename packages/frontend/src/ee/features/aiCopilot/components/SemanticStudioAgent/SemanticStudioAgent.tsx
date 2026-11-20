@@ -154,6 +154,8 @@ const useStartThread = (
                 agentUuid: agent.uuid,
                 createdFrom: 'semantic_studio',
                 enableSqlMode: sqlMode,
+                // Studio runs the agent's SQL without asking for approval.
+                autoApproveSql: true,
                 ...withOpenModel(openModel, attached, submitted),
             });
             onAttachedSent();
@@ -288,16 +290,32 @@ const ExistingThread: FC<
     const send = (submitted: Submitted) => {
         void sendMessage({
             enableSqlMode: sqlMode,
+            autoApproveSql: true,
             ...withOpenModel({ modelName, fieldName }, attached, submitted),
         });
         onAttachedSent();
     };
     useAskedPrompt({ prompt, onPromptTaken }, (message) => send({ message }));
+    // The composer stays put while the conversation loads, so opening one never blanks the panel.
     if (isLoading || !thread) {
         return (
-            <Center flex={1}>
-                <Loader size="sm" color="gray" />
-            </Center>
+            <>
+                <Center flex={1}>
+                    <Loader size="sm" color="gray" />
+                </Center>
+                <StudioChatRefChips refs={attached} onRemove={onDetach} />
+                <AgentChatInput
+                    allowAttachments={false}
+                    accessCalloutVariant="inline"
+                    loading
+                    onSubmit={send}
+                    placeholder="What should I build or change?"
+                    projectUuid={projectUuid}
+                    agentUuid={agent.uuid}
+                    threadUuid={threadUuid}
+                    fullWidth
+                />
+            </>
         );
     }
     const isBusy = isSending || isStreaming || isThreadPending;
@@ -312,10 +330,13 @@ const ExistingThread: FC<
                 projectUuid={projectUuid}
                 agentUuid={agent.uuid}
                 renderArtifactsInline
+                onChoiceSelect={
+                    isBusy ? undefined : (message) => send({ message })
+                }
             >
                 {thread.messages.length === 0 && !isBusy ? (
                     <Text fz="xs" c="dimmed" ta="center" px="md" pb="xs">
-                        You edited this change by hand. Ask for more here, or
+                        You edited this draft by hand. Ask for more here, or
                         publish it when it is ready.
                     </Text>
                 ) : null}
@@ -384,21 +405,11 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
 
     if (!isEnabled) return null;
     if (!agent) {
-        return (
+        return isLoadingAgents ? (
             <Box className={classes.panel} p="md">
-                {isLoadingAgents ? (
-                    <Loader size="sm" />
-                ) : (
-                    <>
-                        <Text fw={500}>No agent available</Text>
-                        <Text size="sm" c="dimmed">
-                            Ask a project administrator to set up an agent or
-                            grant you access.
-                        </Text>
-                    </>
-                )}
+                <Loader size="sm" />
             </Box>
-        );
+        ) : null;
     }
     if (!isOpen) return null;
     return (

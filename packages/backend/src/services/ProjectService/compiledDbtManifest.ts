@@ -6,8 +6,13 @@ import { type FileStorageClient } from '../../clients/FileStorage/FileStorageCli
 const gzipAsync = promisify(gzip);
 const gunzipAsync = promisify(gunzip);
 
-/** The manifest a project's dbt compile read, and the commit it was parsed at. */
-export type CompiledDbtManifest = { commitSha: string; manifest: DbtManifest };
+/** The manifest a project's dbt compile read, or Semantic Studio patched on to a later commit, and that commit. */
+export type CompiledDbtManifest = {
+    commitSha: string;
+    manifest: DbtManifest;
+    /** The compile job whose explores the cache holds as this manifest compiles; null when it may hold others. */
+    exploresJobUuid: string | null;
+};
 
 const fileId = (projectUuid: string) => `compiled-dbt-manifest/${projectUuid}`;
 
@@ -33,12 +38,16 @@ export const readCompiledDbtManifest = async (
         );
         const chunks: Buffer[] = [];
         for await (const chunk of stream) chunks.push(Buffer.from(chunk));
-        const compiled: CompiledDbtManifest = JSON.parse(
+        const compiled: Partial<CompiledDbtManifest> = JSON.parse(
             (await gunzipAsync(Buffer.concat(chunks))).toString('utf8'),
         );
         return typeof compiled.commitSha === 'string' &&
             compiled.manifest?.nodes
-            ? compiled
+            ? {
+                  commitSha: compiled.commitSha,
+                  manifest: compiled.manifest,
+                  exploresJobUuid: compiled.exploresJobUuid ?? null,
+              }
             : null;
     } catch (error) {
         if (

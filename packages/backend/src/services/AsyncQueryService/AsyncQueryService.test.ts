@@ -450,6 +450,7 @@ const createQueryComposerMock = ({
         getExplore: () => explore,
         getMetricQuery: () => metricQuery,
         getPivotConfiguration: () => undefined,
+        getPivotDimensions: () => undefined,
         getFields: () => fields,
         getMissingParameterReferences: () => missingParameterReferences,
         getParameterReferences: () => [],
@@ -7514,6 +7515,7 @@ describe('AsyncQueryService', () => {
                               submission: [],
                               pivotConfiguration: null,
                               plan: null,
+                              dateZoom: null,
                               authority: { kind: 'request' },
                           });
                 await expect(result).rejects.toThrow('Raw SQL');
@@ -15906,6 +15908,57 @@ describe('AsyncQueryService', () => {
                         ...overrides,
                     });
 
+                test('a composer tile run with no app state takes its own control value', async () => {
+                    const service = buildService().service as AnyType;
+                    Object.assign(service, {
+                        dashboardModel: {
+                            getDashboardParameterStateByIdOrSlug: vi.fn(
+                                async () => ({
+                                    parameters: undefined,
+                                    parameterControls: sharedKeyControls,
+                                    spaceUuid: 'dashboard-space-uuid',
+                                }),
+                            ),
+                        },
+                        featureFlagModel: {
+                            get: vi.fn(async () => ({
+                                id: FeatureFlags.DashboardControls,
+                                enabled: true,
+                            })),
+                        },
+                        projectParametersModel: { find: vi.fn(async () => []) },
+                        projectModel: {
+                            findExploreContainingTable: vi.fn(async () => null),
+                        },
+                    });
+                    const tileContext = (tileUuid: string) =>
+                        service.getComposerTileContext({
+                            account: viewer,
+                            projectUuid,
+                            organizationUuid: 'organization-uuid',
+                            dashboardUuid: 'dashboard-uuid',
+                            tileUuid,
+                            dashboardFilters: {
+                                dimensions: [],
+                                metrics: [],
+                                tableCalculations: [],
+                            },
+                            chartSavedValues: { status: 'Cancelled' },
+                            parameters: undefined,
+                            excludedParameterKeys: undefined,
+                        });
+                    await expect(tileContext('tile-1')).resolves.toMatchObject({
+                        dashboardValues: { status: 'Shipped' },
+                    });
+                    await expect(tileContext('tile-2')).resolves.toMatchObject({
+                        dashboardValues: { status: 'Returned' },
+                    });
+                    await expect(tileContext('tile-3')).resolves.toMatchObject({
+                        dashboardValues: {},
+                        excludedKeys: ['status'],
+                    });
+                });
+
                 test('with the flag on, each tile runs with its own control value', async () => {
                     await expect(runControlledTile('tile-1')).resolves.toEqual({
                         status: 'Shipped',
@@ -20797,6 +20850,7 @@ describe('query sources carry the execution context', () => {
         invalidateCache: false,
         pivotConfiguration: null,
         plan: null,
+        dateZoom: null,
     };
 
     const createSemanticLayerHarness = () => {
@@ -33336,6 +33390,7 @@ describe('bound composer chart runs', () => {
                 metrics: [],
                 tableCalculations: [],
             },
+            dateZoomByNodeId: {},
         });
     const stamp = {
         composerChartUuid: 'composer-chart-uuid',

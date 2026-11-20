@@ -67,6 +67,8 @@ import type {
     ApiAppendInstructionResponse,
     ApiAppImageUploadResponse,
     ApiAppThumbnailUrlResponse,
+    ApiCaptureRouteResponse,
+    ApiCaptureTranscriptResponse,
     ApiCloneAiAgentThreadShareResponse,
     ApiCreateEvaluationResponse,
     ApiDataAppActivityResponse,
@@ -483,6 +485,7 @@ import {
     type ApiSemanticLayerDraftApplyResponse,
     type ApiSemanticLayerDraftedModelsResponse,
     type ApiSemanticLayerDraftImpactResponse,
+    type ApiSemanticLayerDraftModelSaveResponse,
     type ApiSemanticLayerDraftResponse,
     type ApiSemanticLayerDraftStateResponse,
     type ApiSemanticLayerDraftUsageResponse,
@@ -919,6 +922,8 @@ export type HealthState = {
         isAmbientAiEnabled: boolean;
         threadDumpEnabled: boolean;
         fastDecisionsEnabled: boolean;
+        /** Instance can turn recorded speech into text (Voice Design). */
+        voiceTranscriptionAvailable: boolean;
     };
     echarts6: {
         enabled: boolean;
@@ -1827,6 +1832,7 @@ type ApiResults =
     | ApiAiReviewNotificationSettingsResponse['results']
     | ApiAiRouterResponse['results']
     | ApiAiRouterRouteResponse['results']
+    | ApiCaptureRouteResponse['results']
     | ApiAiRouterInstructionResponse['results']
     | ApiAiRouterDecisionCommitResponse['results']
     | ApiAiRouterDecisionListResponse['results']
@@ -1874,6 +1880,7 @@ type ApiResults =
     | ApiPromoteAppDiffResponse['results']
     | ApiPreviewTokenResponse['results']
     | ApiAppImageUploadResponse['results']
+    | ApiCaptureTranscriptResponse['results']
     | ApiAppThumbnailUrlResponse['results']
     | ApiOrganizationDesignResponse['results']
     | ApiOrganizationDesignsResponse['results']
@@ -1913,6 +1920,7 @@ type ApiResults =
     | ApiAiProviderCredentialCreatedResponse['results']
     | ApiProjectAiCredentialResponse['results']
     | ApiSemanticLayerDraftResponse['results']
+    | ApiSemanticLayerDraftModelSaveResponse['results']
     | ApiSemanticLayerDraftedModelsResponse['results']
     | ApiSemanticLayerDraftStateResponse['results']
     | ApiSemanticStudioWorkspacesResponse['results']

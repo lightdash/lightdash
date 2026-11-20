@@ -752,6 +752,63 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
         };
     }
 
+    async getSchemaColumns(
+        schemas: { database: string; schema: string }[],
+    ): Promise<WarehouseCatalog> {
+        const catalog: WarehouseCatalog = {};
+        await processPromisesInBatches(
+            schemas,
+            ALL_TABLES_DATABASE_CONCURRENCY,
+            async ({ database, schema }) => {
+                let nextToken: string | undefined;
+                try {
+                    do {
+                        // eslint-disable-next-line no-await-in-loop
+                        const response = await this.client.send(
+                            new ListTableMetadataCommand({
+                                CatalogName: database,
+                                DatabaseName: schema,
+                                NextToken: nextToken,
+                                MaxResults: 50,
+                            }),
+                        );
+                        response.TableMetadataList?.forEach((table) => {
+                            if (!table.Name) return;
+                            const tableName = table.Name;
+                            catalog[database] = catalog[database] || {};
+                            catalog[database][schema] =
+                                catalog[database][schema] || {};
+                            catalog[database][schema][tableName] = {};
+                            table.Columns?.forEach((column) => {
+                                const name = normalizeColumnName(
+                                    column.Name || '',
+                                );
+                                const type = column.Type || 'varchar';
+                                catalog[database][schema][tableName][name] =
+                                    convertDataTypeToDimensionType(type);
+                                setCatalogTimestampDomain(
+                                    catalog,
+                                    database,
+                                    schema,
+                                    tableName,
+                                    name,
+                                    getAthenaTimestampDomain(type),
+                                );
+                            });
+                        });
+                        nextToken = response.NextToken;
+                    } while (nextToken);
+                } catch (e: unknown) {
+                    throw translateAthenaError(e, {
+                        contextPrefix: `Failed to list columns in '${database}.${schema}'.`,
+                        defaultErrorClass: 'connection',
+                    });
+                }
+            },
+        );
+        return catalog;
+    }
+
     async getTablesForDatabase(
         listedDatabase: WarehouseListedDatabase,
     ): Promise<WarehouseTables> {

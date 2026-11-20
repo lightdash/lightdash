@@ -8,6 +8,21 @@ import {
 import { useCallback } from 'react';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 
+/** Open Try it sessions; each keeps the view it started on, so no other tab or page moves it or switches it off under them. */
+let pins = 0;
+let pinnedPreview: string | null = null;
+export const pinDevelopmentView = (
+    previewProjectUuid: string | null = null,
+): (() => void) => {
+    pins += 1;
+    pinnedPreview = previewProjectUuid;
+    return () => {
+        pins -= 1;
+        if (pins === 0) pinnedPreview = null;
+    };
+};
+export const isDevelopmentViewPinned = (): boolean => pins > 0;
+
 const STORAGE_KEY = 'lightdash-development-view-project';
 const PREVIEW_STORAGE_KEY = 'lightdash-development-preview';
 /** The project the person has a draft checked out on, so the whole app reads it from the first request. */
@@ -27,11 +42,19 @@ const SAME_IN_EITHER_VIEW = new Set([
     'semantic-studio-workspaces',
     'semantic-studio-model-version',
     'semantic-studio-checkout',
+    // The draft is the person's own whichever view reads the models.
+    'semantic-layer-draft',
+    'semantic-layer-draft-state',
 ]);
 
+/** Ends the key of a query that asks for what is published by name, whatever view the page is in. */
+export const PUBLISHED_VIEW = 'published-view';
+
+const isSameInEitherView = (queryKey: QueryKey): boolean =>
+    SAME_IN_EITHER_VIEW.has(String(queryKey[0])) ||
+    queryKey.at(-1) === PUBLISHED_VIEW;
+
 const PROJECT_IN_PATH = /\/projects\/([^/]+)/;
-// Studio shows the checkout itself, and its Try switch decides what it reads.
-const STUDIO_PATH = /\/projects\/[^/]+\/semantic-layer(?=\/|$)/;
 
 const findProjectInPath = (pathname: string): string | null =>
     PROJECT_IN_PATH.exec(pathname)?.[1] ?? null;
@@ -57,6 +80,7 @@ export const clearDevelopmentView = () => {
 
 /** The preview project the view reads, or null when it reads the person's latest change directly. */
 export const getDevelopmentPreview = (): string | null => {
+    if (pins > 0) return pinnedPreview;
     try {
         return localStorage.getItem(PREVIEW_STORAGE_KEY);
     } catch {
@@ -68,6 +92,14 @@ export const getDevelopmentPreview = (): string | null => {
 export const getDevelopmentViewHeaders = (): Record<string, string> => {
     try {
         const { pathname } = window.location;
+        if (pins > 0 && findProjectInPath(pathname) !== null) {
+            return {
+                [DEVELOPMENT_VIEW_HEADER]: 'true',
+                ...(pinnedPreview
+                    ? { [DEVELOPMENT_PREVIEW_HEADER]: pinnedPreview }
+                    : {}),
+            };
+        }
         if (isOnFor(localStorage.getItem(STORAGE_KEY), pathname)) {
             const preview = localStorage.getItem(PREVIEW_STORAGE_KEY);
             return {
@@ -75,8 +107,7 @@ export const getDevelopmentViewHeaders = (): Record<string, string> => {
                 ...(preview ? { [DEVELOPMENT_PREVIEW_HEADER]: preview } : {}),
             };
         }
-        return isOnFor(localStorage.getItem(CHECKOUT_STORAGE_KEY), pathname) &&
-            !STUDIO_PATH.test(pathname)
+        return isOnFor(localStorage.getItem(CHECKOUT_STORAGE_KEY), pathname)
             ? { [DEVELOPMENT_VIEW_HEADER]: 'true' }
             : {};
     } catch {
@@ -87,15 +118,14 @@ export const getDevelopmentViewHeaders = (): Record<string, string> => {
 /** Caches each view apart, since one key reads the draft on one page and what is published on another. */
 export const hashQueryKeyByView = (queryKey: QueryKey): string => {
     const hash = hashQueryKey(queryKey);
-    if (SAME_IN_EITHER_VIEW.has(String(queryKey[0]))) return hash;
+    if (isSameInEitherView(queryKey)) return hash;
     const headers = getDevelopmentViewHeaders();
     return Object.keys(headers).length > 0
         ? `${hash}${JSON.stringify(headers)}`
         : hash;
 };
 
-const readsTheView = (queryKey: QueryKey) =>
-    !SAME_IN_EITHER_VIEW.has(String(queryKey[0]));
+const readsTheView = (queryKey: QueryKey) => !isSameInEitherView(queryKey);
 
 /** Switches the view and refetches what it reads, keeping each query's data meanwhile so no page drops back to its loader. */
 const switchView = (queryClient: QueryClient, write: () => void) => {
@@ -118,17 +148,15 @@ const switchView = (queryClient: QueryClient, write: () => void) => {
     });
 };
 
-/** Open Try it sessions; each keeps the view it started on, so nothing moves it under them. */
-let pins = 0;
-export const pinDevelopmentView = (): (() => void) => {
-    pins += 1;
-    return () => {
-        pins -= 1;
-    };
+const isCheckedOutHere = (pathname: string): boolean => {
+    try {
+        return isOnFor(localStorage.getItem(CHECKOUT_STORAGE_KEY), pathname);
+    } catch {
+        return false;
+    }
 };
-export const isDevelopmentViewPinned = (): boolean => pins > 0;
 
-export const isDevelopmentViewOn = (): boolean =>
+const isDevelopmentViewOn = (): boolean =>
     Object.keys(getDevelopmentViewHeaders()).length > 0;
 
 /**
@@ -156,14 +184,7 @@ export const useDevelopmentView = (): [
         (next: boolean, previewProjectUuid: string | null = null) => {
             const here = findProjectInPath(pathname);
             const preview = next && here ? previewProjectUuid : null;
-            // Asked for what is already showing: nothing reads differently, so nothing is fetched again.
-            if (
-                next === isDevelopmentViewOn() &&
-                preview === getDevelopmentPreview()
-            ) {
-                return;
-            }
-            switchView(queryClient, () => {
+            const write = () => {
                 try {
                     if (next && here && previewProjectUuid) {
                         localStorage.setItem(
@@ -185,11 +206,18 @@ export const useDevelopmentView = (): [
                           ].join(' ')
                         : null,
                 );
-            });
+            };
+            // A checked-out draft already has every request reading it, so the switch is recorded and nothing is fetched again.
+            const readsTheSame =
+                ((next && !!here) || isCheckedOutHere(pathname)) ===
+                    isDevelopmentViewOn() &&
+                preview === getDevelopmentPreview();
+            if (readsTheSame) write();
+            else switchView(queryClient, write);
         },
         [pathname, queryClient, setProject, projectRoute],
     );
-    return [isOnFor(project, pathname), set];
+    return [isOnFor(project, pathname) || pins > 0, set];
 };
 
 /** What the checked-out view last showed in this page: its change and compile. */

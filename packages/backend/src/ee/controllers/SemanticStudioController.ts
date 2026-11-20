@@ -5,6 +5,7 @@ import {
     type ApiSemanticLayerDraftedModelsResponse,
     type ApiSemanticLayerDraftImpactResponse,
     type ApiSemanticLayerDraftKeepRequest,
+    type ApiSemanticLayerDraftModelSaveResponse,
     type ApiSemanticLayerDraftMoveRequest,
     type ApiSemanticLayerDraftResponse,
     type ApiSemanticLayerDraftStateResponse,
@@ -22,6 +23,7 @@ import {
     type ApiSemanticStudioWorkspacesResponse,
     type ApiSuccessEmpty,
     type ApiWritebackMergeResponse,
+    type SaveSemanticLayerDraftModelRequest,
     type SaveSemanticStudioSourceRequest,
     type SemanticLayerFieldUsageBody,
     type SemanticLayerUndoRequest,
@@ -78,7 +80,7 @@ export class SemanticStudioController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results: await this.getService().getStatus(
+            results: await this.getService().getPageStatus(
                 toSessionUser(req.account),
                 projectUuid,
             ),
@@ -757,6 +759,32 @@ export class SemanticStudioController extends BaseController {
             body.liveVersion,
         );
         return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Saves a hand edit of one model's YAML into this person's draft, checked the way an agent's change is.
+     * @summary Save an edit of a model to my semantic layer draft
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/draft/models/{model}/edit')
+    @OperationId('saveSemanticLayerDraftModel')
+    async saveDraftModel(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() model: string,
+        @Body() body: SaveSemanticLayerDraftModelRequest,
+    ): Promise<ApiSemanticLayerDraftModelSaveResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().saveDraftModel(
+                toSessionUser(req.account),
+                projectUuid,
+                model,
+                body,
+            ),
+        };
     }
 
     /**

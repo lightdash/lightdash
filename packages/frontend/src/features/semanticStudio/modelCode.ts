@@ -3,8 +3,11 @@ import {
     diffModelDocuments,
     type ModelFragmentChange,
     type ModelFragmentRefusal,
+    type SemanticLayerDraft,
+    type SemanticLayerDraftModel,
     type SemanticLayerModelChange,
 } from '@lightdash/common';
+import { parseDiffFromFile } from '@pierre/diffs';
 import { load } from 'js-yaml';
 
 export const VIEW_PARAM = 'view';
@@ -202,6 +205,8 @@ export type FieldChange = {
     name: string;
     change: ChangeKind;
     label: string;
+    /** Its declared type, such as `sum` or `date`; null for a join, the model, or a field that declares none. */
+    type: string | null;
     /** How it is defined when new, or which keys changed; null when removed. */
     detail: string | null;
 };
@@ -322,11 +327,17 @@ export const listFieldChanges = (
             name,
         );
         const label = definition?.part.label;
+        const type = definition?.part.type;
         return {
             kind,
             name,
             change,
             label: typeof label === 'string' ? label : name,
+            type:
+                (kind === 'dimension' || kind === 'metric') &&
+                typeof type === 'string'
+                    ? type
+                    : null,
             detail:
                 change === 'removed'
                     ? null
@@ -384,6 +395,37 @@ const parseModel = (content: string): ModelSummary => {
 export const count = (amount: number, noun: string) =>
     `${amount} ${noun}${amount === 1 ? '' : 's'}`;
 
+const CHANGE_KIND_PAST: Record<ChangeKind, string> = {
+    new: 'Added',
+    changed: 'Changed',
+    removed: 'Removed',
+};
+
+/** A change's fields in a sentence each: "Added 2 metrics: Revenue, Orders. Changed 1 dimension: Status". */
+export const describeFieldChanges = (fields: FieldChange[]): string =>
+    (['new', 'changed', 'removed'] as const)
+        .flatMap((change) =>
+            (['metric', 'dimension', 'join', 'model'] as const).flatMap(
+                (kind) => {
+                    const hits = fields.filter(
+                        (field) =>
+                            field.change === change && field.kind === kind,
+                    );
+                    if (hits.length === 0) return [];
+                    // A model's own keys have no name of their own to list.
+                    if (kind === 'model') {
+                        return [
+                            `${CHANGE_KIND_PAST[change]} its ${hits[0].detail ?? 'settings'}`,
+                        ];
+                    }
+                    return [
+                        `${CHANGE_KIND_PAST[change]} ${count(hits.length, kind)}: ${hits.map(({ label }) => label).join(', ')}`,
+                    ];
+                },
+            ),
+        )
+        .join('. ');
+
 /** A model's title and, when it is new or removed, what happened to it, in words. */
 export const describeModelChange = (
     model: string,
@@ -404,9 +446,55 @@ export const describeModelChange = (
     };
 };
 
+/** How many lines a change adds and removes, as a diff counts them. */
+export const countChangedLines = ({
+    contentBefore,
+    contentAfter,
+}: ContentChange): { additions: number; deletions: number } => {
+    const { hunks } = parseDiffFromFile(
+        { name: 'model.yml', contents: contentBefore ?? '' },
+        { name: 'model.yml', contents: contentAfter ?? '' },
+    );
+    return {
+        additions: hunks.reduce((sum, hunk) => sum + hunk.additionLines, 0),
+        deletions: hunks.reduce((sum, hunk) => sum + hunk.deletionLines, 0),
+    };
+};
+
 /** Where a peek at a model's YAML starts: its metrics are what people came to see. */
 export const findPeekStart = (lines: string[]): number =>
     Math.max(
         lines.findIndex((line) => line.trim() === 'metrics:'),
         0,
     );
+
+/** The fields, joins and model keys the draft touches on one model, as its card and its review list them. */
+export const listPublishedParts = (
+    draft: SemanticLayerDraft,
+    entry: SemanticLayerDraftModel,
+): FieldChange[] =>
+    listFieldChanges(
+        entry.model,
+        draft.changes.flatMap(({ models }) =>
+            models
+                .filter(
+                    ({ model, error }) =>
+                        model === entry.model && error === null,
+                )
+                .flatMap(({ changes }) => changes),
+        ),
+        entry,
+    );
+
+/** How many changes a publish carries: each part touched, and each model added or removed whole. */
+export const countPublishedChanges = (
+    draft: SemanticLayerDraft,
+    model: string | null,
+): number =>
+    draft.models
+        .filter((entry) => model === null || entry.model === model)
+        .reduce(
+            (total, entry) =>
+                total + Math.max(listPublishedParts(draft, entry).length, 1),
+            0,
+        );

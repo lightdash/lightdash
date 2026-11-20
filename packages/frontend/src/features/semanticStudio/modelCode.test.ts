@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+    countChangedLines,
     getChangeKind,
+    describeFieldChanges,
     describeModelChange,
     findPeekStart,
     changeTitle,
@@ -263,6 +265,7 @@ describe('listFieldChanges', () => {
                 name: 'points',
                 change: 'changed',
                 label: 'Round points',
+                type: 'number',
                 detail: 'label',
             },
             {
@@ -270,6 +273,7 @@ describe('listFieldChanges', () => {
                 name: 'avg_points',
                 change: 'new',
                 label: 'Average points',
+                type: 'average',
                 detail: 'average of points',
             },
             {
@@ -277,6 +281,7 @@ describe('listFieldChanges', () => {
                 name: 'old_points',
                 change: 'removed',
                 label: 'Old points',
+                type: 'sum',
                 detail: null,
             },
             {
@@ -284,6 +289,7 @@ describe('listFieldChanges', () => {
                 name: 'total',
                 change: 'new',
                 label: 'total',
+                type: 'sum',
                 detail: 'sum of points',
             },
             {
@@ -291,6 +297,7 @@ describe('listFieldChanges', () => {
                 name: 'drivers',
                 change: 'new',
                 label: 'drivers',
+                type: null,
                 detail: null,
             },
             {
@@ -298,6 +305,7 @@ describe('listFieldChanges', () => {
                 name: 'rounds',
                 change: 'changed',
                 label: 'Rounds',
+                type: null,
                 detail: 'label',
             },
         ]);
@@ -314,5 +322,43 @@ describe('listFieldChanges', () => {
                 },
             ),
         ).toEqual([]);
+    });
+});
+
+describe('countChangedLines', () => {
+    it('counts the lines a change adds and removes', () => {
+        expect(
+            countChangedLines({
+                contentBefore: 'a\nb\nc\n',
+                contentAfter: 'a\nB\nc\nd\n',
+            }),
+        ).toEqual({ additions: 2, deletions: 1 });
+        expect(
+            countChangedLines({ contentBefore: null, contentAfter: 'a\nb\n' }),
+        ).toEqual({ additions: 2, deletions: 0 });
+    });
+});
+
+describe('describeFieldChanges', () => {
+    const field = (
+        kind: 'metric' | 'dimension',
+        change: 'new' | 'changed',
+        label: string,
+    ) => ({ kind, change, label, name: label, type: null, detail: null });
+
+    it('groups fields by what happened to them and their kind', () => {
+        expect(
+            describeFieldChanges([
+                field('metric', 'new', 'Podium Rate'),
+                field('dimension', 'changed', 'Status'),
+                field('metric', 'new', 'Win Rate'),
+            ]),
+        ).toBe(
+            'Added 2 metrics: Podium Rate, Win Rate. Changed 1 dimension: Status',
+        );
+    });
+
+    it('is empty when no field changed', () => {
+        expect(describeFieldChanges([])).toBe('');
     });
 });
