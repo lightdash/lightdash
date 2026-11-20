@@ -6,7 +6,6 @@ import {
     bundleImageName,
 } from '../../../features/apps/utils/bundleDesignBubbles';
 import { imagesThatFit } from '../../../features/apps/utils/captureAttachments';
-import { type DesignSession } from '../capture/designSession';
 import { type DesignPayload } from '../capture/types';
 
 type Entry = {
@@ -26,7 +25,6 @@ export type BundleChip = { bubbleId: string; label: string };
  * at a time, so bubbles wait here and go out together.
  */
 export const useDesignBundle = ({
-    session,
     busy,
     attachedCount,
     attach,
@@ -34,7 +32,6 @@ export const useDesignBundle = ({
     close,
     onDropped,
 }: {
-    session: DesignSession;
     /** The builder cannot take a prompt right now. */
     busy: boolean;
     /** Files already attached to the builder's next prompt. */
@@ -53,6 +50,8 @@ export const useDesignBundle = ({
     waiting: boolean;
     sendAll: () => void;
     remove: (bubbleId: string) => void;
+    /** A bubble was closed on the page: it leaves the bundle with it. */
+    drop: (bubbleId: string) => void;
 } => {
     const [entries, setEntries] = useState<Entry[]>([]);
     const [waiting, setWaiting] = useState(false);
@@ -61,16 +60,10 @@ export const useDesignBundle = ({
     const hostRef = useRef(host);
     hostRef.current = host;
 
-    // A bubble closed on the page leaves the bundle with it.
-    const bundled = useMemo(
-        () =>
-            entries.filter((entry) =>
-                session.bubbles.some((b) => b.id === entry.bubbleId),
-            ),
-        [entries, session.bubbles],
-    );
-    const bundledRef = useRef(bundled);
-    bundledRef.current = bundled;
+    // The bundle keeps its own entries: leaving Design Mode, or a preview
+    // reload that resets the session, must not lose what is waiting to send.
+    const bundledRef = useRef(entries);
+    bundledRef.current = entries;
 
     const add = useCallback((payload: DesignPayload): 'queued' => {
         const entry: Entry = {
@@ -130,7 +123,7 @@ export const useDesignBundle = ({
         }
     }, []);
 
-    const isEmpty = bundled.length === 0;
+    const isEmpty = entries.length === 0;
     useEffect(() => {
         if (!waiting) return;
         if (isEmpty) {
@@ -146,14 +139,25 @@ export const useDesignBundle = ({
         if (bundledRef.current.length > 0) setWaiting(true);
     }, []);
 
-    const remove = useCallback((bubbleId: string) => {
-        setEntries((prev) => prev.filter((e) => e.bubbleId !== bubbleId));
-        hostRef.current.close(bubbleId);
+    const drop = useCallback((bubbleId: string) => {
+        setEntries((prev) =>
+            prev.some((e) => e.bubbleId === bubbleId)
+                ? prev.filter((e) => e.bubbleId !== bubbleId)
+                : prev,
+        );
     }, []);
+
+    const remove = useCallback(
+        (bubbleId: string) => {
+            drop(bubbleId);
+            hostRef.current.close(bubbleId);
+        },
+        [drop],
+    );
 
     const chips = useMemo(
         () =>
-            bundled.map((entry, index) => ({
+            entries.map((entry, index) => ({
                 bubbleId: entry.bubbleId,
                 label: bundleChipLabel(
                     index + 1,
@@ -161,8 +165,8 @@ export const useDesignBundle = ({
                     entry.words,
                 ),
             })),
-        [bundled],
+        [entries],
     );
 
-    return { add, chips, waiting, sendAll, remove };
+    return { add, chips, waiting, sendAll, remove, drop };
 };

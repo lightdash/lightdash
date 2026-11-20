@@ -137,6 +137,8 @@ export const useDesignMode = (
         picker: { bubbleId: string; cancel: () => void } | null;
         /** Calls off a bubble's send if it still waits on an agent choice. */
         cancelSend: (bubbleId: string) => void;
+        /** A bubble left the page on its own (closed or thrown away), not by leaving Design Mode. */
+        onBubbleRemoved: ((bubbleId: string) => void) | null;
     },
 ): {
     on: boolean;
@@ -176,6 +178,8 @@ export const useDesignMode = (
     pickerRef.current = opts.picker;
     const cancelSendRef = useRef(opts.cancelSend);
     cancelSendRef.current = opts.cancelSend;
+    const onBubbleRemovedRef = useRef(opts.onBubbleRemoved);
+    onBubbleRemovedRef.current = opts.onBubbleRemoved;
 
     const [session, setSession] = useState<DesignSession>(EMPTY);
     const sessionRef = useRef<DesignSession>(EMPTY);
@@ -946,6 +950,9 @@ export const useDesignMode = (
                     ),
                 ),
             );
+            if (!bubbles.some((b) => b.id === bubbleId)) {
+                onBubbleRemovedRef.current?.(bubbleId);
+            }
         },
         [clearFrames, dispatch, dropRecording],
     );

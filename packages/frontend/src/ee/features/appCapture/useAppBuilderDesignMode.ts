@@ -60,24 +60,13 @@ export const useAppBuilderDesignMode = ({
         captureScreenshot,
     });
 
-    // Set below, once the bundle that needs Design Mode's session exists.
-    const addRef = useRef<(payload: DesignPayload) => DesignSendResult>(
-        () => 'cancelled',
-    );
-    const onSend = useCallback(
-        async (payload: DesignPayload) => addRef.current(payload),
+    // Set below, once Design Mode exists: the bundle takes bubbles off the page.
+    const closeRef = useRef<(bubbleId: string) => void>(noCancel);
+    const close = useCallback(
+        (bubbleId: string) => closeRef.current(bubbleId),
         [],
     );
-    const design = useDesignMode(surface, {
-        onSend,
-        renderBubbleBody: null,
-        picker: null,
-        cancelSend: noCancel,
-    });
-    const { on, setOn, session, close, framePick, frameHold } = design;
-
     const bundle = useDesignBundle({
-        session,
         busy,
         attachedCount,
         attach,
@@ -85,7 +74,22 @@ export const useAppBuilderDesignMode = ({
         close,
         onDropped,
     });
-    addRef.current = bundle.add;
+    const { add, drop } = bundle;
+    const onSend = useCallback(
+        async (payload: DesignPayload): Promise<DesignSendResult> =>
+            add(payload),
+        [add],
+    );
+    // The bundle outlives the session: leaving Design Mode keeps what is bundled.
+    const design = useDesignMode(surface, {
+        onSend,
+        renderBubbleBody: null,
+        picker: null,
+        cancelSend: noCancel,
+        onBubbleRemoved: drop,
+    });
+    const { on, setOn, framePick, frameHold } = design;
+    closeRef.current = design.close;
 
     const toggle = useCallback(() => setOn(!on), [on, setOn]);
     const hold = useCallback(

@@ -66,6 +66,7 @@ const AppViewDesignMode = forwardRef<AppViewDesignModeHandle, Props>(
                 conversations.renderBody(bubble, session, null),
             picker: conversations.picker,
             cancelSend: conversations.cancelSend,
+            onBubbleRemoved: null,
         });
         conversations.attach(design);
 

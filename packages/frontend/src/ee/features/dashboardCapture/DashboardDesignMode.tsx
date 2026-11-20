@@ -148,6 +148,7 @@ const DashboardDesignSurface: FC<Props> = ({
             conversations.renderBody(bubble, session, marksElsewhere(bubble)),
         picker: conversations.picker,
         cancelSend: conversations.cancelSend,
+        onBubbleRemoved: null,
     });
     conversations.attach(design);
 

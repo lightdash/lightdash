@@ -68,6 +68,7 @@ const onSend = vi.fn<(payload: DesignPayload) => Promise<DesignSendResult>>();
 type Picker = { bubbleId: string; cancel: () => void };
 let showPicker: (picker: Picker | null) => void = () => {};
 const cancelSend = vi.fn<(bubbleId: string) => void>();
+const onBubbleRemoved = vi.fn<(bubbleId: string) => void>();
 
 const Harness: FC = () => {
     const [picker, setPicker] = useState<Picker | null>(null);
@@ -80,6 +81,7 @@ const Harness: FC = () => {
             ) : null,
         picker,
         cancelSend,
+        onBubbleRemoved,
     });
     return <>{api.element}</>;
 };
@@ -151,6 +153,7 @@ describe('useDesignMode', () => {
         transcribe.mockReset();
         onSend.mockReset();
         cancelSend.mockReset();
+        onBubbleRemoved.mockReset();
         startVoice.mockResolvedValue('on');
         stopVoice.mockResolvedValue(null);
         grabDomFrame.mockImplementation(async () => fakeFrame());
@@ -726,6 +729,36 @@ describe('useDesignMode', () => {
         fireEvent.click(screen.getAllByRole('button', { name: 'Close' })[0]);
         await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
         expect(api.session.bubbles[0].id).not.toBe(id);
+        expect(onBubbleRemoved.mock.calls).toEqual([[id]]);
+    });
+
+    it('leaving Design Mode does not report its queued bubbles as removed', async () => {
+        onSend.mockResolvedValue('queued');
+        await turnOn();
+        await drawMark();
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+        await act(async () => {
+            api.send(api.session.bubbles[0].id, 'make it blue');
+        });
+        await waitFor(() =>
+            expect(api.session.bubbles[0].status).toBe('queued'),
+        );
+
+        // Esc with only queued bubbles leaves Design Mode.
+        await keyDown({ key: 'Escape' });
+        expect(api.on).toBe(false);
+        expect(api.session.bubbles).toHaveLength(0);
+        expect(onBubbleRemoved).not.toHaveBeenCalled();
+    });
+
+    it('throwing away an unsent bubble reports it as removed', async () => {
+        await turnOn();
+        await drawMark();
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+        const { id } = api.session.bubbles[0];
+        await keyDown({ key: 'Escape' });
+        expect(api.session.bubbles).toHaveLength(0);
+        expect(onBubbleRemoved.mock.calls).toEqual([[id]]);
     });
 
     it('a failed send keeps the spoken words for the retry', async () => {
@@ -928,6 +961,7 @@ describe('useDesignMode', () => {
                 ),
                 picker: null,
                 cancelSend,
+                onBubbleRemoved: null,
             });
             return <>{api.element}</>;
         };
@@ -961,6 +995,7 @@ describe('useDesignMode', () => {
                 ),
                 picker: null,
                 cancelSend,
+                onBubbleRemoved: null,
             });
             return <>{api.element}</>;
         };

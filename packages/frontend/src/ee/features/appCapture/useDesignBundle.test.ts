@@ -1,26 +1,8 @@
 import { MAX_APP_FILES_PER_VERSION } from '@lightdash/common';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { type Bubble, type DesignSession } from '../capture/designSession';
 import { type DesignPayload } from '../capture/types';
 import { useDesignBundle } from './useDesignBundle';
-
-const bubble = (id: string): Bubble => ({
-    id,
-    homeTabUuid: null,
-    anchor: { x: 0, y: 0 },
-    status: 'queued',
-    input: 'text',
-    collection: null,
-    sentMarks: [],
-    threadId: null,
-    agentUuid: null,
-});
-
-const sessionOf = (...ids: string[]): DesignSession => ({
-    bubbles: ids.map(bubble),
-    active: { kind: 'page' },
-});
 
 const payload = (
     bubbleId: string,
@@ -44,7 +26,7 @@ const submit = vi.fn<(prompt: string) => void>();
 const close = vi.fn<(bubbleId: string) => void>();
 const onDropped = vi.fn<(count: number) => void>();
 
-type Props = { session: DesignSession; busy: boolean; attachedCount: number };
+type Props = { busy: boolean; attachedCount: number };
 
 const setup = (initial: Props) =>
     renderHook(
@@ -61,7 +43,6 @@ describe('useDesignBundle', () => {
 
     it('Send all attaches every bubble’s screenshots and submits once', async () => {
         const props = {
-            session: sessionOf('a', 'b'),
             busy: false,
             attachedCount: 0,
         };
@@ -97,7 +78,6 @@ describe('useDesignBundle', () => {
 
     it('Send all during a build waits and submits when the build finishes', async () => {
         const props = {
-            session: sessionOf('a'),
             busy: true,
             attachedCount: 0,
         };
@@ -111,8 +91,7 @@ describe('useDesignBundle', () => {
         expect(submit).not.toHaveBeenCalled();
 
         // More can be bundled while the build runs.
-        const more = { ...props, session: sessionOf('a', 'b') };
-        rerender(more);
+        const more = { ...props };
         act(() => {
             result.current.add(payload('b', 'darker', 0));
         });
@@ -127,19 +106,16 @@ describe('useDesignBundle', () => {
 
     it('removing a chip drops its bubble and its images', async () => {
         const props = {
-            session: sessionOf('a', 'b'),
             busy: false,
             attachedCount: 0,
         };
-        const { result, rerender } = setup(props);
+        const { result } = setup(props);
         act(() => {
             result.current.add(payload('a', 'bigger', 2));
             result.current.add(payload('b', 'darker', 1));
         });
         act(() => result.current.remove('a'));
         expect(close).toHaveBeenCalledWith('a');
-        // The host's close takes the bubble out of the session.
-        rerender({ ...props, session: sessionOf('b') });
         expect(result.current.chips.map((c) => c.bubbleId)).toEqual(['b']);
 
         close.mockClear();
@@ -154,22 +130,20 @@ describe('useDesignBundle', () => {
 
     it('closing a bubble on the page drops it from the bundle', () => {
         const props = {
-            session: sessionOf('a', 'b'),
             busy: false,
             attachedCount: 0,
         };
-        const { result, rerender } = setup(props);
+        const { result } = setup(props);
         act(() => {
             result.current.add(payload('a', 'bigger', 0));
             result.current.add(payload('b', 'darker', 0));
         });
-        rerender({ ...props, session: sessionOf('a') });
+        act(() => result.current.drop('b'));
         expect(result.current.chips.map((c) => c.bubbleId)).toEqual(['a']);
     });
 
     it('images that do not fit are left out and counted', async () => {
         const props = {
-            session: sessionOf('a'),
             busy: false,
             attachedCount: MAX_APP_FILES_PER_VERSION - 1,
         };
@@ -187,16 +161,56 @@ describe('useDesignBundle', () => {
     });
 
     it('waiting ends when the last bundled bubble is removed', () => {
-        const props = { session: sessionOf('a'), busy: true, attachedCount: 0 };
+        const props = { busy: true, attachedCount: 0 };
         const { result, rerender } = setup(props);
         act(() => {
             result.current.add(payload('a', 'bigger', 0));
         });
         act(() => result.current.sendAll());
         expect(result.current.waiting).toBe(true);
-        rerender({ ...props, session: sessionOf() });
+        act(() => result.current.drop('a'));
         expect(result.current.waiting).toBe(false);
-        rerender({ session: sessionOf(), busy: false, attachedCount: 0 });
+        rerender({ busy: false, attachedCount: 0 });
         expect(submit).not.toHaveBeenCalled();
+    });
+
+    // The session empties when Design Mode is left or the preview reloads.
+    // The bundle is told only about single closes, so a reset reaches it as
+    // nothing but a rerender.
+    it('a session reset keeps the bundle, and Send all still submits', async () => {
+        const props = { busy: false, attachedCount: 0 };
+        const { result, rerender } = setup(props);
+        act(() => {
+            result.current.add(payload('a', 'bigger', 1));
+            result.current.add(payload('b', 'darker', 1));
+        });
+        rerender({ ...props });
+        expect(result.current.chips.map((c) => c.bubbleId)).toEqual(['a', 'b']);
+
+        act(() => result.current.sendAll());
+        await waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
+        expect(attach).toHaveBeenCalledTimes(2);
+        expect(submit.mock.calls[0][0]).toContain('### Bubble 2');
+        await waitFor(() => expect(result.current.chips).toHaveLength(0));
+    });
+
+    it('a bundle armed during a build still sends after a session reset', async () => {
+        const props = { busy: true, attachedCount: 0 };
+        const { result, rerender } = setup(props);
+        act(() => {
+            result.current.add(payload('a', 'bigger', 1));
+        });
+        act(() => result.current.sendAll());
+        // The reset lands first, while the builder is still busy.
+        rerender({ ...props });
+        expect(result.current.waiting).toBe(true);
+        expect(result.current.chips).toHaveLength(1);
+        expect(submit).not.toHaveBeenCalled();
+
+        rerender({ ...props, busy: false });
+        await waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
+        expect(submit.mock.calls[0][0]).toContain('bigger');
+        expect(attach).toHaveBeenCalledTimes(1);
+        expect(result.current.waiting).toBe(false);
     });
 });
