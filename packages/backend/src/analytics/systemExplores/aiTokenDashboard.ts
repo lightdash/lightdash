@@ -701,7 +701,11 @@ const visualSpec = (
             y: {
                 field: 'group',
                 type: 'ordinal',
-                sort: { field: 'group_order', op: 'min' },
+                // Largest share first. Models keep their provider's colour, so the list need not be
+                // grouped by provider to show it.
+                sort: byProvider
+                    ? { field: 'share', op: 'max', order: 'descending' }
+                    : { field: 'group_order', op: 'min' },
                 axis: null,
                 scale: { paddingInner: 0.65, paddingOuter: 0.5 },
             },

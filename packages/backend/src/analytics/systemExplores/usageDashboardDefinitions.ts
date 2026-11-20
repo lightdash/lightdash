@@ -186,7 +186,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'People and content',
                         description:
-                            'See who uses each field, and which charts, dashboards or data apps the queries came from. Rows with no name or no linked content are still shown.',
+                            'See who uses each field, and which charts, dashboards or data apps the queries came from. Queries with no linked content are left out of the content table.',
                         charts: ['people-using-fields', 'content-using-fields'],
                     },
                     {
@@ -194,6 +194,9 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         description:
                             'For each query, Lightdash keeps a list of the metrics and dimensions it used, and the tiles above count only what is on those lists. A low share here means the tiles above undercount how much each field is used, because SQL queries and older queries have no list.',
                         charts: ['field-capture-coverage'],
+                        // One number: a short tile, not a tall empty one
+                        layout: 'row',
+                        rowHeight: 3,
                     },
                 ],
             },
