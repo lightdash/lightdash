@@ -5,6 +5,14 @@ import {
     UnitOfTime,
 } from '@lightdash/common';
 import {
+    card,
+    heatmapByDay,
+    ranking,
+    seriesByDay,
+    trend,
+    trendRows,
+} from './chartBuilders';
+import {
     peopleNoActivityChartSpecs,
     peopleNoActivitySections,
 } from './peopleNoActivityCharts';
@@ -21,58 +29,101 @@ const askAi: NonNullable<UsageChartSpec['filters']> = [
 ];
 const dashboardKey = 'lightdash-analytics-adoption';
 
+// The Date filter reaches only the two outcome charts. Every other chart covers all recorded history.
+const allHistory = 5000;
+const activityDay = 'user_activity_activity_date_day';
+const requestDay = 'agent_requests_requested_at_day';
+const reachDay = 'data_app_reach_event_ts_day';
+const latestDayNote = 'The Date filter does not apply.';
+
 export const adoptionChartSpecs: UsageChartSpec[] = [
-    ...(['day', 'week'] as const).map(
-        (period): UsageChartSpec => ({
-            key: `adoption-active-people-${period}`,
-            name:
-                period === 'day'
-                    ? 'Daily active people'
-                    : 'Weekly active people',
-            description:
-                'Distinct identified people with recorded activity in each period. Includes activity attributed to users by background work; this is not a login count or the share of people with access.',
-            explore: 'user_activity',
-            dimensions: [`user_activity_activity_date_${period}`],
-            metrics: ['user_activity_unique_users'],
-            limit: 5000,
-            sorts: [
-                {
-                    fieldId: `user_activity_activity_date_${period}`,
-                    descending: false,
-                },
-            ],
-            visualization: 'line',
-            fieldLabels: { user_activity_unique_users: 'Active people' },
-        }),
-    ),
-    {
-        key: 'adoption-people-history',
-        name: 'Who is active, and when?',
-        description:
-            'Recorded activity by person and week. A missing name is retained separately by user identity. Recent activity is not evidence of a recent login.',
+    card({
+        key: 'adoption-active-people-latest-day',
+        name: 'Active people',
+        description: `People with any recorded activity on the latest day in recorded history. Includes activity that background work attributed to a person. ${latestDayNote}`,
         explore: 'user_activity',
-        dimensions: [
-            'user_activity_user_name',
-            'user_activity_user_id',
-            'user_activity_activity_date_week',
+        day: activityDay,
+        metric: 'user_activity_unique_users',
+        latestDay: true,
+        history: allHistory,
+    }),
+    card({
+        key: 'adoption-dashboard-viewers-latest-day',
+        name: 'People viewing dashboards',
+        description: `People who viewed a dashboard on the latest day in recorded history. ${latestDayNote}`,
+        explore: 'content_reach',
+        day: 'content_reach_event_ts_day',
+        metric: 'content_reach_distinct_viewers',
+        filters: [
+            { field: 'content_reach_content_type', values: ['dashboard'] },
         ],
-        metrics: ['user_activity_total_events'],
-        limit: 100,
-        sorts: [
-            { fieldId: 'user_activity_activity_date_week', descending: true },
-        ],
+        latestDay: true,
+        history: allHistory,
+    }),
+    card({
+        key: 'adoption-app-viewers-latest-day',
+        name: 'People loading data apps',
+        description: `People who loaded a data app from a standalone page, dashboard or chart on the latest day in recorded history. ${latestDayNote}`,
+        explore: 'data_app_reach',
+        day: reachDay,
+        metric: 'data_app_reach_distinct_viewers',
+        filters: appViewingSurfaces,
+        latestDay: true,
+        history: allHistory,
+    }),
+    trend({
+        key: 'adoption-active-people-day',
+        name: 'Daily active people',
+        description:
+            'Distinct identified people with recorded activity each day. Includes activity that background work attributed to a person. This is not a count of logins or the share of people with access.',
+        explore: 'user_activity',
+        day: activityDay,
+        metric: 'user_activity_unique_users',
+        limit: allHistory,
+        fieldLabels: { user_activity_unique_users: 'Active people' },
+    }),
+    trend({
+        key: 'adoption-active-people-week',
+        name: 'Weekly active people',
+        description:
+            'Distinct identified people with recorded activity each week. A person active on several days counts once for the week, so this is not a sum of the daily counts.',
+        explore: 'user_activity',
+        day: 'user_activity_activity_date_week',
+        metric: 'user_activity_unique_users',
+        limit: allHistory,
         fieldLabels: {
-            user_activity_total_events: 'Recorded activities',
+            user_activity_unique_users: 'Active people',
             user_activity_activity_date_week: 'Week',
-            user_activity_user_name: 'Person',
         },
-    },
-    {
+    }),
+    heatmapByDay({
+        key: 'adoption-activity-by-person-and-day',
+        name: 'Recorded activity by person and day, last 30 days',
+        description:
+            'The 15 people with the most recorded activity in the last 30 complete days. Recent activity does not mean a recent login.',
+        explore: 'user_activity',
+        day: activityDay,
+        metric: 'user_activity_total_events',
+        category: 'user_activity_user_name',
+        identity: ['user_activity_user_id'],
+        top: 15,
+        filters: [
+            {
+                field: activityDay,
+                operator: FilterOperator.IN_THE_PAST,
+                values: [30],
+                settings: { unitOfTime: UnitOfTime.days, completed: true },
+            },
+        ],
+        titles: { category: 'Person', metric: 'Recorded activities' },
+    }),
+    ranking({
         key: 'adoption-dashboard-audience',
         name: 'Which dashboards are people viewing?',
         description:
-            'Distinct people and recorded dashboard views. Repeat fetches can add views; visits served entirely from the browser cache are not captured. Viewer counts overlap between dashboards.',
+            'Distinct viewers and recorded views for each dashboard. Reloads can add views. Views served entirely from the browser cache are not counted. One person can view several dashboards, so viewer counts overlap.',
         explore: 'content_reach',
+        by: 'content_reach_content_name',
         dimensions: [
             'content_reach_content_name',
             'content_reach_project_name',
@@ -82,15 +133,13 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         metrics: [
             'content_reach_distinct_viewers',
             'content_reach_qualifying_views',
-            'content_reach_last_viewed_at',
         ],
+        extraMetrics: ['content_reach_last_viewed_at'],
         filters: [
             { field: 'content_reach_content_type', values: ['dashboard'] },
         ],
         limit: 30,
-        sorts: [
-            { fieldId: 'content_reach_distinct_viewers', descending: true },
-        ],
+        libraryLimit: 30,
         fieldLabels: {
             content_reach_content_name: 'Dashboard',
             content_reach_project_name: 'Project',
@@ -98,13 +147,14 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
             content_reach_distinct_viewers: 'People viewing',
             content_reach_qualifying_views: 'Recorded views',
         },
-    },
-    {
+    }),
+    ranking({
         key: 'adoption-app-audience',
-        name: 'Which apps are people loading?',
+        name: 'Which data apps are people loading?',
         description:
-            'Recorded app loads from standalone pages, dashboards and charts. Reloads and creators using their own apps count. Builder previews, embeds, deliveries and older loads with unknown context are excluded. Loads do not confirm successful rendering or readership.',
+            'Recorded data app loads from standalone pages, dashboards and charts. Reloads count, and so do creators using their own apps. Builder previews, embeds, deliveries and older loads with unknown context are left out. A load does not confirm the app rendered or was read.',
         explore: 'data_app_reach',
+        by: 'data_app_reach_app_name',
         dimensions: [
             'data_app_reach_app_name',
             'data_app_reach_project_name',
@@ -114,58 +164,52 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         metrics: [
             'data_app_reach_distinct_viewers',
             'data_app_reach_total_loads',
-            'data_app_reach_last_loaded_at',
         ],
+        extraMetrics: ['data_app_reach_last_loaded_at'],
         filters: appViewingSurfaces,
         limit: 30,
-        sorts: [
-            { fieldId: 'data_app_reach_distinct_viewers', descending: true },
-        ],
+        libraryLimit: 30,
         fieldLabels: {
+            data_app_reach_app_name: 'Data app',
             data_app_reach_distinct_viewers: 'Identified viewers',
             data_app_reach_total_loads: 'App loads',
             data_app_reach_last_loaded_at: 'Last app load',
         },
-    },
-    {
-        key: 'adoption-apps-created',
-        name: 'Apps created each week',
+    }),
+    trend({
+        key: 'adoption-apps-created-by-day',
+        name: 'Data apps created by day',
         description:
-            'Distinct apps with a recorded creation event each week. Creating an app does not mean it has been shared or read. Earlier creation history may be unavailable.',
+            'Distinct data apps created each day. Older creation history may be missing.',
         explore: 'data_app_events',
-        dimensions: ['data_app_events_event_ts_week'],
-        metrics: ['data_app_events_unique_apps'],
+        day: 'data_app_events_event_ts_day',
+        metric: 'data_app_events_unique_apps',
         filters: [
             {
                 field: 'data_app_events_event_name',
                 values: ['data_app.created'],
             },
         ],
-        limit: 5000,
-        sorts: [
-            { fieldId: 'data_app_events_event_ts_week', descending: false },
-        ],
-        visualization: 'bar',
-        fieldLabels: {
-            data_app_events_unique_apps: 'Apps created',
-            data_app_events_event_ts_week: 'Creation week',
-        },
-    },
-    {
+        limit: allHistory,
+        fieldLabels: { data_app_events_unique_apps: 'Data apps created' },
+    }),
+    ranking({
         key: 'adoption-app-creators',
-        name: 'Who is creating apps?',
+        name: 'Who is creating data apps?',
         description:
-            'Creators and apps from recorded creation events, grouped by week. Names reflect the latest available lookup. Iterations and reads are excluded.',
+            'People who created data apps, and the apps they created, by day. Names are the latest available. Iterations and loads are not counted.',
         explore: 'data_app_events',
+        by: 'data_app_events_user_name',
+        then: 'data_app_events_app_name',
         dimensions: [
             'data_app_events_user_name',
             'data_app_events_app_name',
-            'data_app_events_event_ts_week',
+            'data_app_events_event_ts_day',
             'data_app_events_user_id',
             'data_app_events_app_id',
             'data_app_events_project_id',
         ],
-        metrics: [],
+        metrics: ['data_app_events_total_events'],
         filters: [
             {
                 field: 'data_app_events_event_name',
@@ -173,108 +217,127 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
             },
         ],
         limit: 100,
-        sorts: [{ fieldId: 'data_app_events_event_ts_week', descending: true }],
         fieldLabels: {
-            data_app_events_event_ts_week: 'Creation week',
+            data_app_events_event_ts_day: 'Created',
             data_app_events_user_name: 'Creator',
-            data_app_events_app_name: 'App',
+            data_app_events_total_events: 'Data apps created',
         },
-    },
+        libraryDescription:
+            'Data apps created by each person. Open a person to see their data apps. Iterations and loads are not counted.',
+    }),
     {
         key: 'adoption-app-reader-trend',
-        name: 'App loads and viewers each day',
+        name: 'Data app loads and viewers by day',
         description:
-            'Recorded loads and distinct identified viewers from standalone pages, dashboards and charts each day. Includes reloads. Older loads with unknown context are shown separately in the surface breakdown. Viewer counts cannot be summed across days.',
+            'Loads and distinct identified viewers per day, from standalone pages, dashboards and charts. Older loads with unknown context appear in the surface breakdown instead. Daily viewer counts cannot be added up across days. Reloads count.',
         explore: 'data_app_reach',
-        dimensions: ['data_app_reach_event_ts_day'],
+        dimensions: [reachDay],
         metrics: [
             'data_app_reach_distinct_viewers',
             'data_app_reach_total_loads',
         ],
         filters: appViewingSurfaces,
-        limit: 5000,
-        sorts: [{ fieldId: 'data_app_reach_event_ts_day', descending: false }],
+        limit: allHistory,
+        sorts: [{ fieldId: reachDay, descending: false }],
         visualization: 'line',
         fieldLabels: {
             data_app_reach_distinct_viewers: 'Identified viewers',
             data_app_reach_total_loads: 'App loads',
         },
+        libraryChart: {
+            slug: 'vega-trellis',
+            minVersion: '0.7.0',
+            fieldMapping: {
+                x: reachDay,
+                value: 'data_app_reach_total_loads',
+                panel: 'data_app_reach_view_context',
+            },
+            optionValues: trendRows(true),
+            query: {
+                dimensions: [reachDay, 'data_app_reach_view_context'],
+                metrics: ['data_app_reach_total_loads'],
+                sorts: [
+                    {
+                        fieldId: 'data_app_reach_view_context',
+                        descending: false,
+                    },
+                    { fieldId: reachDay, descending: false },
+                ],
+                limit: allHistory,
+                description:
+                    'Loads per day, with one row for standalone pages, one for dashboards and one for charts. Each row has its own scale. Reloads count.',
+            },
+        },
     },
-    {
+    ranking({
         key: 'adoption-app-reader-detail',
-        name: 'Who loads each app?',
+        name: 'Who loads each data app?',
         description:
-            'People loading apps from standalone pages, dashboards and charts, grouped by app and week. Includes reloads and creators viewing their own apps. The same person can appear across apps and weeks; do not sum rows to count distinct people.',
+            'People who loaded data apps from standalone pages, dashboards and charts, by app. Creators loading their own apps count. The same person can appear for several apps, so rows cannot be added up to count people.',
         explore: 'data_app_reach',
+        by: 'data_app_reach_app_name',
+        then: 'data_app_reach_user_name',
         dimensions: [
             'data_app_reach_app_name',
             'data_app_reach_user_name',
-            'data_app_reach_event_ts_week',
             'data_app_reach_app_id',
             'data_app_reach_project_id',
             'data_app_reach_user_id',
         ],
-        metrics: [
-            'data_app_reach_total_loads',
-            'data_app_reach_last_loaded_at',
-        ],
+        metrics: ['data_app_reach_total_loads'],
+        extraMetrics: ['data_app_reach_last_loaded_at'],
         filters: appViewingSurfaces,
         limit: 100,
-        sorts: [
-            { fieldId: 'data_app_reach_event_ts_week', descending: true },
-            { fieldId: 'data_app_reach_total_loads', descending: true },
-        ],
         fieldLabels: {
+            data_app_reach_app_name: 'Data app',
+            data_app_reach_user_name: 'Person',
             data_app_reach_total_loads: 'App loads',
             data_app_reach_last_loaded_at: 'Last app load',
-            data_app_reach_event_ts_week: 'Week',
         },
-    },
-    {
+    }),
+    ranking({
         key: 'adoption-app-first-audience',
-        name: 'Where are apps being loaded?',
+        name: 'Where are data apps being loaded?',
         description:
-            'All recorded app loads by surface, including builder previews, embeds, deliveries and older loads with unknown context. Embed viewers are unidentified. Historical unknown context cannot separate viewers from embed token issuers. Apps with no captured loads are absent.',
+            'All recorded data app loads by surface, including builder previews, embeds, deliveries and older loads with unknown context. Viewers of embeds are not identified. For older loads with unknown context, viewers cannot be told apart from embed token issuers. Apps with no recorded loads are not shown.',
         explore: 'data_app_reach',
-        dimensions: ['data_app_reach_view_context'],
+        by: 'data_app_reach_view_context',
         metrics: [
             'data_app_reach_total_loads',
             'data_app_reach_distinct_viewers',
         ],
         limit: 100,
-        sorts: [{ fieldId: 'data_app_reach_total_loads', descending: true }],
         fieldLabels: {
             data_app_reach_view_context: 'Surface',
             data_app_reach_total_loads: 'App loads',
             data_app_reach_distinct_viewers: 'Identified viewers',
         },
-    },
-    {
+    }),
+    seriesByDay({
         key: 'adoption-app-outcome-trend',
-        name: 'Observed app errors each day',
+        name: 'Data app errors by day',
         description:
-            'Distinct app navigations with an HTML delivery failure or an observed runtime error each day, across all surfaces. An app can appear in both series. Missing SDK signals are unknown, not evidence of an error.',
+            'Distinct data app navigations each day with an HTML delivery failure or a runtime error, on all surfaces. A navigation with both kinds of error is counted in both series. Daily counts cannot be added up across days.',
         explore: 'data_app_outcomes',
-        dimensions: ['data_app_outcomes_event_ts_day'],
-        metrics: [
-            'data_app_outcomes_html_error',
-            'data_app_outcomes_runtime_error',
+        day: 'data_app_outcomes_event_ts_day',
+        series: [
+            {
+                metric: 'data_app_outcomes_html_error',
+                name: 'HTML delivery failures',
+            },
+            {
+                metric: 'data_app_outcomes_runtime_error',
+                name: 'Runtime errors',
+            },
         ],
-        limit: 5000,
-        sorts: [
-            { fieldId: 'data_app_outcomes_event_ts_day', descending: false },
-        ],
-        visualization: 'line',
-        fieldLabels: {
-            data_app_outcomes_html_error: 'HTML delivery failures',
-            data_app_outcomes_runtime_error: 'Runtime errors observed',
-        },
-    },
+        yName: 'Page loads with an error',
+        seriesType: 'line',
+    }),
     {
         key: 'adoption-app-outcome-detail',
-        name: 'App outcomes by app and surface',
+        name: 'Data app outcomes by app and surface',
         description:
-            'Observed HTML delivery, SDK startup and runtime errors, deduplicated by app navigation. Includes builder previews, embeds and deliveries. Captured signals include repeats and observations that cannot be linked to a navigation; missing SDK signals remain unknown.',
+            'HTML delivery, SDK startup and runtime errors for each data app and surface, each counted once per navigation. Includes builder previews, embeds and deliveries. The Signals recorded column is a raw count: it includes repeated signals and signals with no navigation ID. SDK startup does not confirm the data app rendered fully or was read. Older app bundles may send no SDK signals: that is unknown, not an error.',
         explore: 'data_app_outcomes',
         dimensions: [
             'data_app_outcomes_app_name',
@@ -297,57 +360,49 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
             { fieldId: 'data_app_outcomes_app_name', descending: false },
         ],
         fieldLabels: {
-            data_app_outcomes_app_name: 'App',
+            data_app_outcomes_app_name: 'Data app',
             data_app_outcomes_project_name: 'Project',
             data_app_outcomes_view_context: 'Surface',
             data_app_outcomes_html_loaded: 'HTML delivered',
-            data_app_outcomes_sdk_started: 'SDK startup observed',
+            data_app_outcomes_sdk_started: 'SDK started',
             data_app_outcomes_html_error: 'HTML delivery failures',
-            data_app_outcomes_runtime_error: 'Runtime errors observed',
-            data_app_outcomes_total_signals: 'Captured signals',
+            data_app_outcomes_runtime_error: 'Runtime errors',
+            data_app_outcomes_total_signals: 'Signals recorded',
         },
     },
-    {
+    trend({
         key: 'adoption-ask-ai-questions',
-        name: 'Ask AI questions each day',
+        name: 'Agent requests in the web app by day',
         description:
-            'Captured prompts submitted to the AI agent in the web app, including follow-ups and requests still pending or failed. Excludes Slack and embedded requests; one question can cause several AI calls.',
+            'Requests sent to agents in the web app, including follow-ups and requests that are pending or failed. One request can make several AI calls.',
         explore: 'agent_request_starts',
-        dimensions: ['agent_requests_requested_at_day'],
-        metrics: ['agent_requests_total_requests'],
+        day: requestDay,
+        metric: 'agent_requests_total_requests',
         filters: askAi,
-        limit: 5000,
-        sorts: [
-            { fieldId: 'agent_requests_requested_at_day', descending: false },
-        ],
-        visualization: 'line',
-        fieldLabels: { agent_requests_total_requests: 'Questions' },
-    },
-    {
+        limit: allHistory,
+    }),
+    trend({
         key: 'adoption-ask-ai-people',
-        name: 'People asking AI each week',
+        name: 'People asking agents in the web app by week',
         description:
-            'Distinct identified people submitting web-app AI agent prompts each week. Using other AI-powered features does not count here.',
+            'Distinct identified people who sent an agent request in the web app each week. Using other AI features does not count.',
         explore: 'agent_request_starts',
-        dimensions: ['agent_requests_requested_at_week'],
-        metrics: ['agent_requests_distinct_requesters'],
+        day: 'agent_requests_requested_at_week',
+        metric: 'agent_requests_distinct_requesters',
         filters: askAi,
-        limit: 5000,
-        sorts: [
-            { fieldId: 'agent_requests_requested_at_week', descending: false },
-        ],
-        visualization: 'line',
+        limit: allHistory,
         fieldLabels: {
-            agent_requests_distinct_requesters: 'People asking questions',
+            agent_requests_distinct_requesters: 'People asking agents',
         },
-    },
-    {
+    }),
+    trend({
         key: 'adoption-ask-ai-frequency',
-        name: 'Questions per active AI user each day',
+        name: 'Agent requests per person asking, by day',
         description:
-            'Questions from identified web-app requesters divided by the distinct people asking that day. People who asked nothing are outside this average. No activity is not shown as a zero-person average.',
+            'Agent requests from identified people in the web app, divided by the number of people who asked that day. People who asked nothing are not in the average. Days with no requests show no value, not zero.',
         explore: 'agent_request_starts',
-        dimensions: ['agent_requests_requested_at_day'],
+        day: requestDay,
+        metric: 'questions_per_person',
         metrics: [
             'agent_requests_total_requests',
             'agent_requests_distinct_requesters',
@@ -363,39 +418,34 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         tableCalculations: [
             {
                 name: 'questions_per_person',
-                displayName: 'Questions per active person',
+                displayName: 'Agent requests per person asking',
                 type: TableCalculationType.NUMBER,
                 sql: '1.0 * ${agent_requests.total_requests} / NULLIF(${agent_requests.distinct_requesters}, 0)',
                 format: { type: CustomFormatType.NUMBER, round: 1 },
             },
         ],
-        limit: 5000,
-        sorts: [
-            { fieldId: 'agent_requests_requested_at_day', descending: false },
-        ],
-        visualization: 'line',
-        yFields: ['questions_per_person'],
-        fieldLabels: { questions_per_person: 'Questions per active person' },
-    },
-    {
+        limit: allHistory,
+        fieldLabels: {
+            questions_per_person: 'Agent requests per person asking',
+        },
+    }),
+    ranking({
         key: 'adoption-ask-ai-users',
-        name: 'Who is asking AI?',
-        description:
-            'People ranked by captured web-app AI agent questions. Missing names remain separate by identity; this does not count app building or background AI calls.',
+        name: 'Who is asking agents?',
+        description: 'People ranked by agent requests in the web app.',
         explore: 'agent_request_starts',
+        by: 'agent_requests_user_name',
         dimensions: ['agent_requests_user_name', 'agent_requests_user_id'],
         metrics: ['agent_requests_total_requests'],
         filters: askAi,
-        limit: 50,
-        sorts: [{ fieldId: 'agent_requests_total_requests', descending: true }],
-        fieldLabels: { agent_requests_total_requests: 'Questions asked' },
-    },
-    {
+    }),
+    ranking({
         key: 'adoption-ask-ai-agents',
         name: 'Which agents are people asking?',
         description:
-            'Web-app questions and distinct requesters for each AI agent. People can use several agents, so audiences overlap.',
+            'Agent requests in the web app and distinct people asking, for each agent. One person can use several agents, so the people counts overlap.',
         explore: 'agent_request_starts',
+        by: 'agent_requests_agent_name',
         dimensions: ['agent_requests_agent_name', 'agent_requests_agent_id'],
         metrics: [
             'agent_requests_total_requests',
@@ -403,18 +453,15 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         ],
         filters: askAi,
         limit: 30,
-        sorts: [{ fieldId: 'agent_requests_total_requests', descending: true }],
-        fieldLabels: {
-            agent_requests_total_requests: 'Questions asked',
-            agent_requests_distinct_requesters: 'People asking',
-        },
-    },
+        fieldLabels: { agent_requests_distinct_requesters: 'People asking' },
+    }),
 ];
 
 export const adoptionDashboardSpec: UsageDashboardSpec = {
     key: dashboardKey,
     name: 'Adoption',
-    description: 'Active people, content reach and Ask AI use.',
+    description:
+        'Active people, dashboard and data app use, and agent requests.',
     filters: {
         dimensions: [
             {
@@ -428,7 +475,7 @@ export const adoptionDashboardSpec: UsageDashboardSpec = {
                 settings: { unitOfTime: UnitOfTime.days },
             },
             {
-                label: 'App',
+                label: 'Data app',
                 target: {
                     fieldId: 'data_app_outcomes_app_name',
                     tableName: 'data_app_outcomes',
@@ -471,55 +518,99 @@ export const adoptionDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'Are more people using Lightdash?',
                     description:
-                        'Distinct people with recorded activity, counted separately each day and week. Weekly counts are not sums of daily counts.',
+                        'People on the latest day of recorded history, by what they did. These tiles cover all recorded history: the Date filter does not apply.',
+                    charts: [
+                        'adoption-active-people-latest-day',
+                        'adoption-dashboard-viewers-latest-day',
+                        'adoption-app-viewers-latest-day',
+                    ],
+                },
+                {
+                    title: 'Active people by day',
+                    description: '',
+                    note: false,
                     charts: [
                         'adoption-active-people-day',
                         'adoption-active-people-week',
-                        'adoption-people-history',
                     ],
+                    layout: 'row',
+                    rowHeight: 5,
                 },
-                ...peopleNoActivitySections,
+                {
+                    title: 'Activity by person',
+                    description: '',
+                    note: false,
+                    charts: ['adoption-activity-by-person-and-day'],
+                    layout: 'row',
+                    rowHeight: 9,
+                },
                 {
                     title: 'What are people using?',
                     description:
-                        'Dashboard viewers and app loads are shown separately because they measure different activity. Their audiences overlap; do not add them together.',
+                        'Dashboard viewers and data app loads are shown separately because they measure different activity. Their audiences overlap; do not add them together.',
                     charts: [
                         'adoption-dashboard-audience',
                         'adoption-app-audience',
                     ],
+                    layout: 'row',
+                    rowHeight: 8,
                 },
             ],
+        },
+        {
+            key: 'inactive',
+            name: 'People who have not used Lightdash',
+            sections: peopleNoActivitySections,
         },
         {
             key: 'data-apps',
             name: 'Data apps',
             sections: [
                 {
-                    title: 'Who is creating apps?',
+                    title: 'Who is creating data apps?',
                     description:
-                        'Recorded app creation and the people behind it. Creation does not mean an app is ready or shared.',
-                    charts: ['adoption-apps-created', 'adoption-app-creators'],
+                        'Recorded data app creation and the people behind it. Creation does not mean an app is ready or shared.',
+                    charts: ['adoption-apps-created-by-day'],
+                    layout: 'row',
+                    rowHeight: 5,
                 },
                 {
-                    title: 'Who is loading apps, and where?',
+                    title: 'Creators',
+                    description: '',
+                    note: false,
+                    charts: ['adoption-app-creators'],
+                    layout: 'row',
+                    rowHeight: 8,
+                },
+                {
+                    title: 'Who is loading data apps, and where?',
                     description:
-                        'Trends and named viewers cover standalone pages, dashboards and charts. The surface breakdown also includes builder previews, embeds, deliveries and unknown context. Loads include reloads and do not prove readership.',
+                        'Trends and named viewers cover standalone pages, dashboards and charts. The surface breakdown adds builder previews, embeds, deliveries and unknown context.',
+                    charts: ['adoption-app-reader-trend'],
+                    layout: 'row',
+                    rowHeight: 8,
+                },
+                {
+                    title: 'Viewers and surfaces',
+                    description: '',
+                    note: false,
                     charts: [
-                        'adoption-app-reader-trend',
                         'adoption-app-reader-detail',
                         'adoption-app-first-audience',
                     ],
+                    layout: 'row',
+                    rowHeight: 8,
                 },
             ],
         },
         {
             key: 'app-outcomes',
-            name: 'App outcomes',
+            name: 'Data app outcomes',
             sections: [
                 {
-                    title: 'Are apps loading reliably?',
+                    title: 'Are data apps loading reliably?',
                     description:
-                        'Technical observations across all surfaces, including previews, embeds and deliveries. SDK startup does not confirm complete rendering or readership. Older bundles may have no SDK signals. Counts are per navigation, not people; daily counts should not be summed to deduplicate a longer period.',
+                        'Technical signals from every surface, counted once for each load of a data app page. The Date, Data app and Surface filters change only the tiles on this tab.',
                     charts: [
                         'adoption-app-outcome-trend',
                         'adoption-app-outcome-detail',
@@ -529,23 +620,34 @@ export const adoptionDashboardSpec: UsageDashboardSpec = {
         },
         {
             key: 'ask-ai',
-            name: 'Ask AI',
+            name: 'Agents',
             sections: [
                 {
-                    title: 'Are people asking more questions?',
+                    title: 'Are people sending more agent requests?',
                     description:
-                        'Questions sent to the AI agent in the web app, including follow-ups. These charts exclude Slack, embeds, app-building conversations and underlying AI calls.',
+                        'Agent requests sent in the web app, including follow-ups. Slack, embeds and conversations that build data apps are left out.',
+                    charts: ['adoption-ask-ai-questions'],
+                    layout: 'row',
+                    rowHeight: 5,
+                },
+                {
+                    title: 'Requests per person',
+                    description: '',
+                    note: false,
                     charts: [
-                        'adoption-ask-ai-questions',
                         'adoption-ask-ai-people',
                         'adoption-ask-ai-frequency',
                     ],
+                    layout: 'row',
+                    rowHeight: 5,
                 },
                 {
-                    title: 'Who is using Ask AI?',
+                    title: 'Who is using agents?',
                     description:
-                        'Named people and agents make it easier to see where usage is growing. Missing names do not necessarily mean anonymous use.',
+                        'Agent requests by person and by agent. A missing name does not necessarily mean anonymous use.',
                     charts: ['adoption-ask-ai-users', 'adoption-ask-ai-agents'],
+                    layout: 'row',
+                    rowHeight: 8,
                 },
             ],
         },

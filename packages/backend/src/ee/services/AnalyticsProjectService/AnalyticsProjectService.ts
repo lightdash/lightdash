@@ -22,10 +22,11 @@ import {
     type DataAppCode,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
-import { memoize } from 'es-toolkit/compat';
+import { isEqual, memoize } from 'es-toolkit/compat';
 import { z } from 'zod';
 import { UsageHistoryBackfill } from '../../../analytics/eventStream/UsageHistoryBackfill';
 import { type LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
+import { analyticsColorPalette } from '../../../analytics/systemExplores/analyticsColorPalette';
 import {
     withLibraryCharts,
     type UsableLibraryChartType,
@@ -47,6 +48,7 @@ import {
 import { type ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { type DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import type { OrganizationMemberProfileModel } from '../../../models/OrganizationMemberProfileModel';
+import type { OrganizationModel } from '../../../models/OrganizationModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type SavedChartModel } from '../../../models/SavedChartModel';
 import { type SpaceModel } from '../../../models/SpaceModel';
@@ -109,6 +111,10 @@ type Dependencies = {
         OrganizationMemberProfileModel,
         'getOrganizationAdmins'
     >;
+    organizationModel: Pick<
+        OrganizationModel,
+        'getColorPalettes' | 'createColorPalette' | 'updateColorPalette'
+    >;
     usageDimensionsModel: Pick<UsageDimensionsModel, 'getOrganizations'>;
     coderService: Pick<
         CoderService,
@@ -123,7 +129,10 @@ type Dependencies = {
         ProjectHomepageModel,
         'createPublishedDefaultIfAbsent'
     >;
-    savedChartModel: Pick<SavedChartModel, 'get' | 'find'>;
+    savedChartModel: Pick<
+        SavedChartModel,
+        'get' | 'find' | 'resolveColorPalette'
+    >;
     spaceModel: Pick<SpaceModel, 'get' | 'find'>;
     projectModel: Pick<
         ProjectModel,
@@ -132,6 +141,7 @@ type Dependencies = {
         | 'getAnalyticsModelCounts'
         | 'runInAnalyticsProvisioningLock'
         | 'saveExploresToCache'
+        | 'updateColorPalette'
     >;
     projectService: Pick<
         ProjectService,
@@ -585,6 +595,59 @@ export class AnalyticsProjectService extends BaseService {
         }
     }
 
+    // The palette is best effort: failures leave the charts on inherited colours.
+    private async ensureColorPalette(
+        organizationUuid: string,
+        projectUuid: string,
+    ): Promise<void> {
+        try {
+            const { name, colors, darkColors } = analyticsColorPalette;
+            const palettes =
+                await this.dependencies.organizationModel.getColorPalettes(
+                    organizationUuid,
+                );
+            const existing = palettes.find((palette) => palette.name === name);
+            // Creating a palette never makes it the organization's active one.
+            const { colorPaletteUuid } =
+                existing ??
+                (await this.dependencies.organizationModel.createColorPalette(
+                    organizationUuid,
+                    analyticsColorPalette,
+                ));
+            if (
+                existing &&
+                !(
+                    isEqual(existing.colors, colors) &&
+                    isEqual(existing.darkColors, darkColors)
+                )
+            ) {
+                await this.dependencies.organizationModel.updateColorPalette(
+                    organizationUuid,
+                    colorPaletteUuid,
+                    { uuid: colorPaletteUuid, colors, darkColors },
+                );
+            }
+            // With no chart, dashboard or space, this reports the project's own
+            // palette, or the one it inherits when it has none.
+            const { source } =
+                await this.dependencies.savedChartModel.resolveColorPalette({
+                    projectUuid,
+                });
+            // Keep a palette an admin chose for the project. An instance-wide
+            // override hides the project's choice, so leave that alone too.
+            if (source.type === 'project' || source.type === 'config') return;
+            await this.dependencies.projectModel.updateColorPalette(
+                projectUuid,
+                colorPaletteUuid,
+            );
+        } catch (error) {
+            this.logger.warn('Unable to set the analytics color palette', {
+                projectUuid,
+                error: getErrorMessage(error),
+            });
+        }
+    }
+
     async installSampleContent(user: SessionUser): Promise<void> {
         const organizationUuid = await this.authorize(user);
         await this.dependencies.projectModel.runInAnalyticsProvisioningLock(
@@ -627,6 +690,10 @@ export class AnalyticsProjectService extends BaseService {
                 );
                 const usableTypes = await this.ensureLibraryChartTypes(
                     user,
+                    project.projectUuid,
+                );
+                await this.ensureColorPalette(
+                    organizationUuid,
                     project.projectUuid,
                 );
                 for (const { dashboard, charts } of analyticsContentAsCode) {

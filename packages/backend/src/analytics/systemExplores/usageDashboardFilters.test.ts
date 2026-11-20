@@ -96,6 +96,6 @@ describe('usage dashboard filters', () => {
             bundleOf(
                 'lightdash-analytics-adoption',
             ).dashboard.filters?.dimensions?.map(({ label }) => label),
-        ).toEqual(['Date', 'App', 'Surface']);
+        ).toEqual(['Date', 'Data app', 'Surface']);
     });
 });

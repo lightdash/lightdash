@@ -4,69 +4,119 @@ import {
     UnitOfTime,
     type ChartAsCode,
 } from '@lightdash/common';
+import { analyticsColorPalette } from './analyticsColorPalette';
+import { card, seriesByDay, trend } from './chartBuilders';
 import type { UsageChartSpec, UsageDashboardSpec } from './usageDashboardTypes';
 
 const dashboardKey = 'lightdash-analytics-embed';
 const embedQueries: NonNullable<UsageChartSpec['filters']> = [
     { field: 'query_events_context', values: ['embed'] },
 ];
-const loadDescription =
-    'Observed authorized embedded-dashboard fetches. Repeat fetches count; browser-cached views can be absent. These are not rendered visits or billed loads.';
+
+const timezone = 'UTC';
+const reachDay = 'embed_reach_event_ts_day';
+const queryDay = 'query_events_event_ts_day';
+
+// A split of one count into a few groups. The plain version is a donut for the period. The library
+// version stacks the groups by day.
+const shareByDay = ({
+    day,
+    dimension,
+    metric,
+    yName,
+    splitDescription,
+    ...spec
+}: Pick<
+    UsageChartSpec,
+    'key' | 'name' | 'description' | 'explore' | 'filters'
+> & {
+    day: string;
+    dimension: string;
+    metric: string;
+    yName: string;
+    splitDescription: string;
+}): UsageChartSpec => ({
+    ...spec,
+    dimensions: [dimension],
+    metrics: [metric],
+    limit: 10,
+    sorts: [{ fieldId: metric, descending: true }],
+    visualization: 'donut',
+    timezone,
+    libraryChart: {
+        slug: 'customizable-cartesian-chart',
+        minVersion: '0.17.1',
+        fieldMapping: { x: day, m1: metric, splitBy: dimension },
+        optionValues: {
+            seriesType: 'bar',
+            stack: 'normal',
+            xAxisType: 'time',
+            xTimeFormat: '{MMM} {d}',
+            xName: 'Day',
+            yName,
+        },
+        query: {
+            dimensions: [day, dimension],
+            metrics: [metric],
+            sorts: [
+                { fieldId: dimension, descending: false },
+                { fieldId: day, descending: false },
+            ],
+            limit: 5000,
+            description: splitDescription,
+        },
+    },
+});
 
 export const embedChartSpecs: UsageChartSpec[] = [
-    ...[
-        {
-            key: 'embed-loads',
-            name: 'Observed dashboard loads',
-            metric: 'total_loads',
-            description: loadDescription,
-        },
-        {
-            key: 'embed-viewers',
-            name: 'Identified external viewers',
-            metric: 'unique_viewers',
-            description:
-                'Distinct supplied external viewer IDs in the selected period. Missing IDs and token issuers are excluded. An ID represents the identity supplied by the embedding application, not a verified person.',
-        },
-        {
-            key: 'embed-dashboards',
-            name: 'Dashboards loaded',
-            metric: 'unique_dashboards',
-            description:
-                'Distinct dashboards with an observed authorized embed fetch. This is not an inventory of every dashboard that can be embedded.',
-        },
-    ].map(
-        ({ key, name, metric, description }): UsageChartSpec => ({
-            key,
-            name,
-            description,
-            explore: 'embed_reach',
-            dimensions: [],
-            metrics: [`embed_reach_${metric}`],
-            limit: 1,
-            sorts: [],
-            visualization: 'number',
-            timezone: 'UTC',
-        }),
-    ),
-    {
-        key: 'embed-load-trend',
-        name: 'Dashboard loads each day',
-        description: `${loadDescription} Missing days are not evidence of zero usage.`,
+    card({
+        key: 'embed-viewers-latest-day',
+        name: 'Identified external viewers',
+        description:
+            'External viewer IDs sent by your embedding application on the latest day in the selected period. Loads with no ID, and token issuers, are left out. An ID is whatever identity your application sends, not a verified person.',
         explore: 'embed_reach',
-        dimensions: ['embed_reach_event_ts_day'],
-        metrics: ['embed_reach_total_loads'],
-        limit: 5000,
-        sorts: [{ fieldId: 'embed_reach_event_ts_day', descending: false }],
-        visualization: 'line',
-        timezone: 'UTC',
-        fieldLabels: { embed_reach_total_loads: 'Observed loads' },
-    },
+        day: reachDay,
+        metric: 'embed_reach_unique_viewers',
+        latestDay: true,
+        hero: true,
+        timezone,
+    }),
+    card({
+        key: 'embed-loads',
+        name: 'Dashboard loads',
+        description:
+            'Authorized loads of embedded dashboards. Reloads count. Views served from the browser cache can be missing. A load is not a billed load, and does not prove the dashboard rendered.',
+        explore: 'embed_reach',
+        day: reachDay,
+        metric: 'embed_reach_total_loads',
+        timezone,
+    }),
+    card({
+        key: 'embed-dashboards-latest-day',
+        name: 'Dashboards loaded',
+        description:
+            'Dashboards with at least one authorized embedded load on the latest day in the selected period. This is not a list of every dashboard that can be embedded.',
+        explore: 'embed_reach',
+        day: reachDay,
+        metric: 'embed_reach_unique_dashboards',
+        latestDay: true,
+        timezone,
+    }),
+    trend({
+        key: 'embed-load-trend',
+        name: 'Dashboard loads by day',
+        description: '',
+        explore: 'embed_reach',
+        day: reachDay,
+        metric: 'embed_reach_total_loads',
+        timezone,
+        fieldLabels: { embed_reach_total_loads: 'Loads' },
+    }),
     {
         key: 'embed-popular-dashboards',
         name: 'Most-loaded dashboards',
         description:
-            'Top 10 dashboards by observed embed fetches. IDs keep dashboards with the same name separate; names reflect the latest captured fetch. Missing names retain their dashboard identity.',
+            'Top 10 dashboards by embedded loads. Dashboards with the same name are kept separate by ID. Names are from the latest recorded load. A dashboard with no name is still listed separately.',
         explore: 'embed_reach',
         dimensions: ['embed_reach_dashboard_label'],
         metrics: ['embed_reach_total_loads'],
@@ -74,123 +124,71 @@ export const embedChartSpecs: UsageChartSpec[] = [
         sorts: [{ fieldId: 'embed_reach_total_loads', descending: true }],
         visualization: 'bar',
         flipAxes: true,
-        timezone: 'UTC',
-        fieldLabels: { embed_reach_total_loads: 'Observed loads' },
+        timezone,
+        fieldLabels: { embed_reach_total_loads: 'Loads' },
     },
-    {
+    shareByDay({
         key: 'embed-identity-coverage',
-        name: 'How much usage has a viewer ID?',
+        name: 'Loads with and without a viewer ID',
         description:
-            'Share of observed loads with and without a supplied external viewer ID. Unidentified loads remain visible and do not become a single anonymous person. This does not measure tenant attribution.',
+            'Share of loads with and without an external viewer ID. Loads with no ID are shown, and are not counted as one anonymous person. An external ID does not show which tenant a viewer belongs to.',
         explore: 'embed_reach',
-        dimensions: ['embed_reach_identity_coverage'],
-        metrics: ['embed_reach_total_loads'],
-        limit: 10,
-        sorts: [{ fieldId: 'embed_reach_total_loads', descending: true }],
-        visualization: 'donut',
-        timezone: 'UTC',
-    },
-    {
-        key: 'embed-viewer-trend',
-        name: 'Identified viewers each week',
+        day: reachDay,
+        dimension: 'embed_reach_identity_coverage',
+        metric: 'embed_reach_total_loads',
+        yName: 'Loads',
+        splitDescription:
+            'Loads per day, with and without an external viewer ID. Loads with no ID are not counted as one anonymous person. An external ID does not show which tenant a viewer belongs to.',
+    }),
+    card({
+        key: 'embed-query-count',
+        name: 'Queries',
         description:
-            'Distinct supplied external viewer IDs per UTC week, within the selected date range. First and last weeks can be partial. Do not sum weekly distinct counts to obtain the period audience.',
-        explore: 'embed_reach',
-        dimensions: ['embed_reach_event_ts_week'],
-        metrics: ['embed_reach_unique_viewers'],
-        limit: 1000,
-        sorts: [{ fieldId: 'embed_reach_event_ts_week', descending: false }],
-        visualization: 'bar',
-        timezone: 'UTC',
-        fieldLabels: { embed_reach_unique_viewers: 'Identified viewers' },
-    },
-    ...[
-        {
-            key: 'embed-query-count',
-            name: 'Recorded query attempts',
-            filters: embedQueries,
-            description:
-                'Terminal query outcomes from embeds, including cached results and errors. Dashboard tiles and repeated queries count separately; this is not dashboard loads or billing usage.',
-        },
-        {
-            key: 'embed-query-errors',
-            name: 'Query errors',
-            filters: [
-                ...embedQueries,
-                { field: 'query_events_status', values: ['error'] },
-            ],
-            description:
-                'Recorded embedded-query error outcomes. Failures before query execution and browser rendering failures are not captured here.',
-        },
-    ].map(
-        ({ key, name, filters, description }): UsageChartSpec => ({
-            key,
-            name,
-            description,
-            explore: 'query_events',
-            dimensions: [],
-            metrics: ['query_events_total_queries'],
-            filters,
-            limit: 1,
-            sorts: [],
-            visualization: 'number',
-            timezone: 'UTC',
-        }),
-    ),
-    {
-        key: 'embed-query-trend',
-        name: 'Query attempts each day',
-        description:
-            'Recorded embedded-query outcomes each UTC day, including cache hits and errors. One dashboard load can produce several queries. Missing days are not evidence of zero usage.',
+            'Finished queries from embeds, including cached results and errors. Each tile and each repeated query counts separately. This is not dashboard loads or billed usage.',
         explore: 'query_events',
-        dimensions: ['query_events_event_ts_day'],
-        metrics: ['query_events_total_queries'],
+        day: queryDay,
+        metric: 'query_events_total_queries',
         filters: embedQueries,
-        limit: 5000,
-        sorts: [{ fieldId: 'query_events_event_ts_day', descending: false }],
-        visualization: 'line',
-        timezone: 'UTC',
-        fieldLabels: { query_events_total_queries: 'Query attempts' },
-    },
-    {
-        key: 'embed-query-outcomes',
-        name: 'Query outcomes',
+        timezone,
+    }),
+    card({
+        key: 'embed-query-errors',
+        name: 'Query errors',
         description:
-            'Recorded success and error outcomes from embed queries. Query success does not confirm that the dashboard rendered successfully.',
+            'Embedded queries that ended in an error. Failures before the query ran, and rendering failures in the browser, are not recorded here.',
         explore: 'query_events',
-        dimensions: ['query_events_status'],
-        metrics: ['query_events_total_queries'],
-        filters: embedQueries,
-        limit: 10,
-        sorts: [{ fieldId: 'query_events_total_queries', descending: true }],
-        visualization: 'donut',
-        timezone: 'UTC',
-    },
-    {
-        key: 'embed-query-cache',
-        name: 'Cached query results',
-        description:
-            'Recorded cache hits (true), misses (false) and missing cache flags (∅) for embed queries. Missing flags are unknown, not misses; this does not estimate money saved.',
-        explore: 'query_events',
-        dimensions: ['query_events_cache_hit'],
-        metrics: ['query_events_total_queries'],
-        filters: embedQueries,
-        limit: 10,
-        sorts: [{ fieldId: 'query_events_total_queries', descending: true }],
-        visualization: 'donut',
-        timezone: 'UTC',
-    },
-    {
-        key: 'embed-query-latency',
-        name: 'Successful query response time (ms)',
-        description:
-            'Median and P95 backend time from request start for successful embed queries with recorded timing, including queueing and result storage. Excludes browser transfer/rendering, cancelled queries and missing historical timing.',
-        explore: 'query_events',
-        dimensions: ['query_events_event_ts_day'],
-        metrics: [
-            'query_events_p50_response_time_ms',
-            'query_events_p95_response_time_ms',
+        day: queryDay,
+        metric: 'query_events_total_queries',
+        filters: [
+            ...embedQueries,
+            { field: 'query_events_status', values: ['error'] },
         ],
+        timezone,
+    }),
+    trend({
+        key: 'embed-query-trend',
+        name: 'Queries by day',
+        description:
+            'Embedded queries per UTC day, including cache hits and errors. A day with no data is not proof of zero usage.',
+        explore: 'query_events',
+        day: queryDay,
+        metric: 'query_events_total_queries',
+        filters: embedQueries,
+        timezone,
+    }),
+    seriesByDay({
+        key: 'embed-query-latency',
+        name: 'Response time for successful queries (ms)',
+        description:
+            'Median and P95 backend time, from the start of the request, for successful embedded queries that have timing. Includes queueing and result storage. Leaves out transfer to and rendering in the browser, cancelled queries and older queries with no timing.',
+        explore: 'query_events',
+        day: queryDay,
+        series: [
+            { metric: 'query_events_p50_response_time_ms', name: 'Median' },
+            { metric: 'query_events_p95_response_time_ms', name: 'P95' },
+        ],
+        yName: 'Response time (ms)',
+        seriesType: 'line',
         filters: [
             ...embedQueries,
             { field: 'query_events_status', values: ['success'] },
@@ -204,15 +202,34 @@ export const embedChartSpecs: UsageChartSpec[] = [
                 values: [],
             },
         ],
-        limit: 5000,
-        sorts: [{ fieldId: 'query_events_event_ts_day', descending: false }],
-        visualization: 'line',
-        timezone: 'UTC',
-        fieldLabels: {
-            query_events_p50_response_time_ms: 'Median (ms)',
-            query_events_p95_response_time_ms: 'P95 (ms)',
-        },
-    },
+        timezone,
+    }),
+    shareByDay({
+        key: 'embed-query-outcomes',
+        name: 'Queries by outcome',
+        description: 'Embedded queries by success or error.',
+        explore: 'query_events',
+        day: queryDay,
+        dimension: 'query_events_status',
+        metric: 'query_events_total_queries',
+        yName: 'Queries',
+        filters: embedQueries,
+        splitDescription: 'Embedded queries per day, by success or error.',
+    }),
+    shareByDay({
+        key: 'embed-query-cache',
+        name: 'Queries by cache hit',
+        description:
+            'Cache hits (true), misses (false) and unknown (∅) for embedded queries. This does not estimate cost saved.',
+        explore: 'query_events',
+        day: queryDay,
+        dimension: 'query_events_cache_hit',
+        metric: 'query_events_total_queries',
+        yName: 'Queries',
+        filters: embedQueries,
+        splitDescription:
+            'Embedded queries per day by cache hit (true), miss (false) and unknown (∅). This does not estimate cost saved.',
+    }),
 ];
 
 export const embedDashboardSpec: UsageDashboardSpec = {
@@ -252,28 +269,34 @@ export const embedDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'Who is using your embedded dashboards?',
                     description:
-                        'Observed authorized dashboard fetches and supplied external viewer IDs. Reloads count; browser-cached views can be absent. These are not billed loads or proof of successful rendering. New capture only; earlier usage is not backfilled.',
-                    noteHeight: 2,
+                        'Loads of embedded dashboards and the external viewer IDs your application sends. Only usage since recording began is included.',
                     charts: [
+                        'embed-viewers-latest-day',
                         'embed-loads',
-                        'embed-viewers',
-                        'embed-dashboards',
+                        'embed-dashboards-latest-day',
                     ],
+                    layout: 'row',
+                    rowHeight: 4,
+                    widths: [18, 9, 9],
                 },
                 {
                     title: 'Usage over time',
                     description:
-                        'Daily loads and weekly distinct identified viewers. The default period is the last 30 completed UTC days; partial weeks remain visible. Missing data is not zero usage.',
-                    charts: ['embed-load-trend', 'embed-viewer-trend'],
+                        'Loads of embedded dashboards by day. Missing data is not zero usage.',
+                    charts: ['embed-load-trend'],
+                    layout: 'row',
+                    rowHeight: 5,
                 },
                 {
-                    title: 'Popular dashboards and audience coverage',
+                    title: 'Most-loaded dashboards and viewer IDs',
                     description:
-                        'Compare the top 10 dashboards and see how often an external viewer ID is available. Anonymous loads stay in the totals. External IDs do not establish tenant membership.',
+                        'The top 10 dashboards, and how often a load has an external viewer ID. Loads with no ID stay in the totals.',
                     charts: [
                         'embed-popular-dashboards',
                         'embed-identity-coverage',
                     ],
+                    layout: 'row',
+                    rowHeight: 8,
                 },
             ],
         },
@@ -284,20 +307,24 @@ export const embedDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'Embedded query demand',
                     description:
-                        'Queries are separate from dashboard loads: tiles, refreshes and interactions can each run queries. Historical query data can cover a different period from dashboard-load capture.',
+                        'Queries are separate from dashboard loads: tiles, refreshes and interactions can each run queries. Query history can cover a different period from dashboard-load history.',
                     charts: ['embed-query-count', 'embed-query-errors'],
                 },
                 {
-                    title: 'Demand and response time',
+                    title: 'Queries and response time',
                     description:
-                        'Query volume and successful request-start latency. Timing includes queueing and result storage, but not browser rendering. Older events without timing are excluded from latency.',
+                        'Queries per day, and response time for successful queries. Timing includes queueing and result storage, and stops before the browser draws the result.',
                     charts: ['embed-query-trend', 'embed-query-latency'],
+                    layout: 'row',
+                    rowHeight: 7,
                 },
                 {
                     title: 'Outcomes and caching',
                     description:
-                        'Technical query outcomes and cache flags. Query success does not prove a rendered dashboard; a missing cache flag is unknown, not a miss.',
+                        'A successful query does not prove the dashboard rendered. A missing cache flag is unknown, not a miss.',
                     charts: ['embed-query-outcomes', 'embed-query-cache'],
+                    layout: 'row',
+                    rowHeight: 7,
                 },
             ],
         },
@@ -319,7 +346,7 @@ export const withEmbedRankingPresentation = (
                     autosize: { type: 'fit', contains: 'padding' },
                     mark: {
                         type: 'bar',
-                        color: '#4263EB',
+                        color: analyticsColorPalette.colors[0],
                         cornerRadiusEnd: 3,
                         tooltip: true,
                     },
@@ -334,7 +361,7 @@ export const withEmbedRankingPresentation = (
                         x: {
                             field: 'embed_reach_total_loads',
                             type: 'quantitative',
-                            title: 'Observed loads',
+                            title: 'Loads',
                             axis: { tickMinStep: 1 },
                         },
                         tooltip: [
@@ -346,7 +373,7 @@ export const withEmbedRankingPresentation = (
                             {
                                 field: 'embed_reach_total_loads',
                                 type: 'quantitative',
-                                title: 'Observed loads',
+                                title: 'Loads',
                                 format: ',',
                             },
                         ],

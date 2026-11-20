@@ -126,30 +126,30 @@ const activityDaily = query(
     true,
 );
 const activeUsers: AnalyticsChartSpec = {
-    title: 'Daily observed active people',
+    title: 'People with any recorded activity by day',
     query: activityDaily,
-    series: [{ metric: 'unique_users', label: 'Active people' }],
+    series: [{ metric: 'unique_users', label: 'People' }],
     kind: 'time',
 };
 const dailyQueries: AnalyticsChartSpec = {
     ...activeUsers,
-    title: 'Queries per day',
+    title: 'Queries by day',
     series: [{ metric: 'total_queries', label: 'Queries' }],
 };
 const topUsers = ranking(
-    'Most active users',
+    'Most active people (top 10)',
     'activity',
     ['user_name', 'user_id'],
     'total_events',
 );
 const dailyRequests = time(
-    'AI agent requests per day',
+    'Agent requests by day',
     'requests',
     'total_requests',
 );
 const appSeries = [
-    { metric: 'total_views', label: 'App loads' },
-    { metric: 'unique_viewers', label: 'Observed viewers' },
+    { metric: 'total_views', label: 'Data app loads' },
+    { metric: 'unique_viewers', label: 'Viewers' },
 ];
 const inventoryFilter = {
     content_type: ['saved_chart', 'sql_chart', 'dashboard'],
@@ -165,29 +165,29 @@ const activityTotals = query('activity', [], ['unique_users', 'total_queries']);
 
 export const analyticsHeadlineMetrics = [
     {
-        title: 'Active users',
-        description: 'People with recorded activity',
+        title: 'Active people',
+        description: 'People with any recorded activity',
         tab: 'people',
         query: activityTotals,
         metric: 'unique_users',
     },
     {
-        title: 'Queries run',
-        description: 'Recorded queries',
+        title: 'Queries',
+        description: 'Queries run',
         tab: 'queries',
         query: activityTotals,
         metric: 'total_queries',
     },
     {
         title: 'Content created',
-        description: 'Charts and dashboards in the inventory',
+        description: 'Charts and dashboards created',
         tab: 'content',
         query: query('inventory', [], ['total_content'], inventoryFilter),
         metric: 'total_content',
     },
     {
-        title: 'AI agent requests',
-        description: 'Questions sent to agents',
+        title: 'Agent requests',
+        description: 'Requests sent to agents',
         tab: 'agents',
         query: dailyRequests.query,
         metric: 'total_requests',
@@ -209,7 +209,7 @@ const analyticsAiSummary = {
     metrics: [
         { title: 'AI calls', metric: 'total_ai_calls', compact: false },
         { title: 'Tokens used', metric: 'total_tokens_used', compact: true },
-        { title: 'Users using AI', metric: 'unique_users', compact: false },
+        { title: 'People using AI', metric: 'unique_users', compact: false },
         {
             title: 'Output tokens',
             metric: 'total_output_tokens',
@@ -235,14 +235,14 @@ const querySummary: AnalyticsSummarySpec = {
         ],
     ),
     metrics: [
-        { title: 'Queries executed', metric: 'total_queries', compact: false },
+        { title: 'Queries', metric: 'total_queries', compact: false },
         {
             title: 'Users running queries',
             metric: 'unique_users',
             compact: false,
         },
         {
-            title: 'Avg. warehouse time (ms)',
+            title: 'Average warehouse time (ms)',
             metric: 'avg_warehouse_execution_time_ms',
             compact: false,
         },
@@ -258,14 +258,14 @@ const appSummary: AnalyticsSummarySpec = {
         event_name: ['data_app.view'],
     }),
     metrics: [
-        { title: 'Recorded app loads', metric: 'total_views', compact: false },
+        { title: 'Data app loads', metric: 'total_views', compact: false },
         {
-            title: 'Distinct app viewers',
+            title: 'Data app viewers',
             metric: 'unique_viewers',
             compact: false,
         },
         {
-            title: 'Apps with recorded loads',
+            title: 'Data apps loaded',
             metric: 'unique_apps',
             compact: false,
         },
@@ -279,7 +279,7 @@ const embedSummary: AnalyticsSummarySpec = {
     ),
     metrics: [
         {
-            title: 'Observed dashboard loads',
+            title: 'Dashboard loads',
             metric: 'total_loads',
             compact: false,
         },
@@ -311,8 +311,9 @@ export const analyticsTabs: {
         summary: null,
         label: 'Overview',
         description:
-            'A quick view of active users, query activity, content creation and AI agent requests.',
-        dashboardSlug: null,
+            'People, queries, agent requests and new content across Lightdash.',
+        // Shown once the Overview dashboard has synced; until then the tab draws the charts below
+        dashboardSlug: 'lightdash-analytics-home',
         charts: [activeUsers, topUsers, dailyQueries, dailyRequests],
     },
     {
@@ -350,9 +351,8 @@ export const analyticsTabs: {
     {
         id: 'people',
         summary: null,
-        label: 'Users',
-        description:
-            'Observed activity, returning users and activity channels.',
+        label: 'People',
+        description: 'Active people, returning people and channels.',
         dashboardSlug: 'lightdash-analytics-people',
         charts: [
             activeUsers,
@@ -364,7 +364,7 @@ export const analyticsTabs: {
                 'total_events',
             ),
             ranking(
-                'Users by project',
+                'People by project',
                 'activity',
                 ['project_id'],
                 'unique_users',
@@ -403,13 +403,13 @@ export const analyticsTabs: {
     {
         id: 'apps',
         summary: appSummary,
-        label: 'Apps',
+        label: 'Data apps',
         description:
-            'App loads, audiences, builders and generation consumption.',
+            'Data app usage, audiences, builders and generation activity.',
         dashboardSlug: 'lightdash-analytics-apps',
         charts: [
             {
-                title: 'Daily app loads and viewers',
+                title: 'Data app loads and viewers by day',
                 query: query(
                     'apps',
                     ['event_ts_day'],
@@ -421,7 +421,7 @@ export const analyticsTabs: {
                 kind: 'time',
             },
             {
-                title: 'Apps · loads and observed viewers',
+                title: 'Data apps by loads and viewers',
                 query: query(
                     'apps',
                     ['app_name', 'project_name', 'app_id', 'project_id'],
@@ -437,8 +437,7 @@ export const analyticsTabs: {
         id: 'tools',
         summary: null,
         label: 'Tools & operations',
-        description:
-            'MCP tool activity, exports and operational capture boundaries.',
+        description: 'MCP tool usage, exports and outcomes.',
         dashboardSlug: 'lightdash-analytics-tools',
         charts: [
             time('Tool calls per day', 'tools', 'total_calls'),
@@ -474,10 +473,13 @@ export const analyticsTabs: {
                 'distinct_viewers',
                 { content_type: ['dashboard'] },
             ),
-            time('Ask AI users per day', 'requests', 'distinct_requesters', {
-                surface: ['web_app'],
-            }),
-            time('Apps in use per day', 'apps', 'unique_apps', {
+            time(
+                'People asking agents in the web app by day',
+                'requests',
+                'distinct_requesters',
+                { surface: ['web_app'] },
+            ),
+            time('Data apps in use by day', 'apps', 'unique_apps', {
                 event_name: ['data_app.view'],
             }),
         ],
@@ -485,9 +487,9 @@ export const analyticsTabs: {
     {
         id: 'tokens',
         summary: null,
-        label: 'AI usage',
+        label: 'AI token usage',
         description:
-            'All captured token usage for the selected dates. The full dashboard also includes billing-specific views with a narrower scope.',
+            'All token usage for the selected dates. The full dashboard also has billing views with a narrower scope.',
         dashboardSlug: 'lightdash-analytics-ai-tokens',
         charts: [
             time('Tokens per day · all usage', 'tokens', 'total_tokens_used'),
@@ -516,7 +518,7 @@ export const analyticsTabs: {
         summary: embedSummary,
         label: 'Embed',
         description:
-            'Observed embedded-dashboard loads, external viewers and query health.',
+            'Embedded dashboard loads, external viewers and query health.',
         dashboardSlug: 'lightdash-analytics-embed',
         charts: [
             time('Dashboard loads each day', 'embed', 'total_loads'),
@@ -630,7 +632,7 @@ export const formatAnalyticsNumber = (value: number) =>
 export const analyticsCategoryLabels: Record<string, Record<string, string>> = {
     stream: {
         query_events: 'Queries',
-        ai_usage: 'AI model calls',
+        ai_usage: 'AI calls',
         content_views: 'Content views',
         data_app_events: 'Data apps',
         export_events: 'Exports',

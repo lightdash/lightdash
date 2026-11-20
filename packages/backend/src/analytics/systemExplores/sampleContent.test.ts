@@ -108,6 +108,55 @@ describe('analytics sample content', () => {
         }
     });
 
+    it('shows the latest day on both versions of the latest-day cards', () => {
+        const allCharts = analyticsContentAsCode.flatMap(
+            ({ charts }) => charts,
+        );
+        const cards = [
+            ['lightdash-analytics-overview-ai-users', 'ai_usage_event_ts_day'],
+            [
+                'lightdash-analytics-overview-agent-requesters-trend',
+                'agent_requests_requested_at_day',
+            ],
+            [
+                'lightdash-analytics-query-activity-query-users',
+                'query_events_event_ts_day',
+            ],
+            [
+                'lightdash-analytics-query-activity-avg-execution-time',
+                'query_events_event_ts_day',
+            ],
+            [
+                'lightdash-analytics-query-activity-p90-execution-time',
+                'query_events_event_ts_day',
+            ],
+        ];
+        for (const [slug, day] of cards) {
+            const fallback = allCharts.find((chart) => chart.slug === slug)!;
+            // A big number shows the first row: one row, newest day first.
+            expect(fallback.chartConfig.type).toBe(ChartType.BIG_NUMBER);
+            expect(fallback.metricQuery.dimensions).toEqual([day]);
+            expect(fallback.metricQuery.sorts).toEqual([
+                { fieldId: day, descending: true },
+            ]);
+            expect(fallback.metricQuery.limit).toBe(1);
+            expect(fallback.description).toContain(
+                'on the latest day in the selected period',
+            );
+            expect(fallback.description).not.toContain('daily trend');
+
+            const binding = analyticsLibraryChartBindings.get(slug)!;
+            expect(binding.optionValues).toMatchObject({
+                valueAggregation: 'latest',
+                label: 'Latest day',
+            });
+            expect(binding.query?.dimensions).toEqual([day]);
+            expect(binding.query?.description).toContain(
+                'on the latest day in the selected period, with the daily trend',
+            );
+        }
+    });
+
     it('keeps existing identities while separating AI and query content', () => {
         expect(analyticsSampleDashboards[0].key).toBe(
             'lightdash-analytics-overview',
@@ -146,20 +195,54 @@ describe('analytics sample content', () => {
                     h,
                 }));
 
+        it('opens the overview with one caption row saying tokens are not cost', () => {
+            const { dashboard, charts } = analyticsContentAsCode.find(
+                ({ dashboard: { slug } }) =>
+                    slug === 'lightdash-analytics-overview',
+            )!;
+            const notes = dashboard.tiles.filter(
+                (tile) =>
+                    tile.tabSlug === 'overview' &&
+                    tile.type === DashboardTileTypes.MARKDOWN,
+            );
+            expect(notes).toHaveLength(1);
+            expect(notes[0]).toMatchObject({
+                x: 0,
+                y: 0,
+                w: 36,
+                h: 1,
+                properties: {
+                    content: 'Tokens measure usage, not cost.',
+                    hideFrame: true,
+                },
+            });
+            // The caption carries the caveat, so the token tiles do not repeat it.
+            const overviewSlugs = dashboard.tiles
+                .filter((tile) => tile.tabSlug === 'overview')
+                .flatMap(({ properties }) =>
+                    'chartSlug' in properties ? [properties.chartSlug] : [],
+                );
+            for (const chart of charts.filter(({ slug }) =>
+                overviewSlugs.includes(slug),
+            )) {
+                expect(chart.description).not.toMatch(/cost/i);
+            }
+        });
+
         it('lays out the overview tiles at their explicit positions', () => {
             const prefix = 'lightdash-analytics-overview-';
             expect(overviewTiles('lightdash-analytics-overview')).toEqual(
                 expect.arrayContaining(
                     [
-                        ['ai-calls', 0, 0, 9, 3],
-                        ['tokens', 9, 0, 9, 3],
-                        ['ai-users', 18, 0, 9, 3],
-                        ['output-tokens', 27, 0, 9, 3],
-                        ['tokens-by-feature', 0, 3, 36, 7],
-                        ['ai-calls-by-day', 0, 10, 18, 7],
-                        ['tokens-by-day', 18, 10, 18, 7],
-                        ['tokens-by-model', 0, 17, 18, 8],
-                        ['calls-by-model', 18, 17, 18, 8],
+                        ['ai-calls', 0, 1, 9, 4],
+                        ['tokens', 9, 1, 9, 4],
+                        ['ai-users', 18, 1, 9, 4],
+                        ['output-tokens', 27, 1, 9, 4],
+                        ['tokens-by-feature', 0, 5, 36, 7],
+                        ['ai-calls-by-day', 0, 12, 18, 7],
+                        ['tokens-by-day', 18, 12, 18, 7],
+                        ['tokens-by-model', 0, 19, 18, 8],
+                        ['calls-by-model', 18, 19, 18, 8],
                     ].map(([key, x, y, w, h]) => ({
                         chartSlug: `${prefix}${key}`,
                         x,
@@ -169,8 +252,9 @@ describe('analytics sample content', () => {
                     })),
                 ),
             );
+            // Nine charts and the caption row above them.
             expect(overviewTiles('lightdash-analytics-overview')).toHaveLength(
-                9,
+                10,
             );
         });
 
@@ -185,7 +269,7 @@ describe('analytics sample content', () => {
             ]);
             expect(analyticsLibraryChartBindings.get(slug)).toMatchObject({
                 slug: 'heatmap',
-                minVersion: '0.4.2',
+                minVersion: '0.5.0',
             });
         });
 
@@ -193,16 +277,16 @@ describe('analytics sample content', () => {
             const prefix = 'lightdash-analytics-query-activity-';
             expect(overviewTiles('lightdash-analytics-query-activity')).toEqual(
                 [
-                    ['queries', 0, 0, 9, 3],
-                    ['query-users', 9, 0, 9, 3],
-                    ['avg-execution-time', 18, 0, 9, 3],
-                    ['p90-execution-time', 27, 0, 9, 3],
-                    ['queries-by-day', 0, 9, 18, 8],
-                    ['active-users-by-day', 18, 9, 18, 8],
-                    ['query-cache', 0, 17, 18, 8],
-                    ['queries-by-context', 18, 17, 18, 8],
-                    ['query-latency-by-day', 0, 25, 36, 8],
-                    ['query-calendar', 0, 3, 36, 6],
+                    ['queries', 0, 0, 9, 4],
+                    ['query-users', 9, 0, 9, 4],
+                    ['avg-execution-time', 18, 0, 9, 4],
+                    ['p90-execution-time', 27, 0, 9, 4],
+                    ['queries-by-day', 0, 10, 18, 8],
+                    ['active-users-by-day', 18, 10, 18, 8],
+                    ['query-cache', 0, 18, 18, 8],
+                    ['queries-by-context', 18, 18, 18, 8],
+                    ['query-latency-by-day', 0, 26, 36, 8],
+                    ['query-calendar', 0, 4, 36, 6],
                 ].map(([key, x, y, w, h]) => ({
                     chartSlug: `${prefix}${key}`,
                     x,
