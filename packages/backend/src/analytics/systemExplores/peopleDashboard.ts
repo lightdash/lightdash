@@ -1,11 +1,4 @@
-import {
-    card,
-    heatmapByDay,
-    ranking,
-    seriesByDay,
-    trend,
-} from './chartBuilders';
-import { peopleNoActivitySections } from './peopleNoActivityCharts';
+import { card, ranking, seriesByDay, trend } from './chartBuilders';
 import type { UsageChartSpec, UsageDashboardSpec } from './usageDashboardTypes';
 
 const anyActivity =
@@ -83,18 +76,6 @@ export const peopleChartSpecs: UsageChartSpec[] = [
         libraryLimit: 20,
         libraryDescription: `The 20 people with the most recorded activity in the selected period. ${anyActivity} People without a display name are grouped as Unknown user.`,
     }),
-    heatmapByDay({
-        key: 'people-activity-by-person-and-day',
-        name: 'Recorded activity by person and day',
-        description: `The 15 people with the most recorded activity in the selected period. ${anyActivity}`,
-        explore: 'user_activity',
-        day,
-        metric: 'user_activity_total_events',
-        category: 'user_activity_user_name',
-        identity: ['user_activity_user_id'],
-        top: 15,
-        titles: { category: 'Person', metric: 'Recorded activities' },
-    }),
     trend({
         key: 'people-google-sheets-queries-by-day',
         name: 'Google Sheets queries by day',
@@ -122,7 +103,8 @@ export const peopleChartSpecs: UsageChartSpec[] = [
 export const peopleDashboardSpec: UsageDashboardSpec = {
     key: 'lightdash-analytics-people',
     name: 'People',
-    description: 'Active people, inactive people and Google Sheets use.',
+    // People who have not used Lightdash, and activity by person and day, are on the Adoption dashboard
+    description: 'Active people and Google Sheets use.',
     tabs: [
         {
             key: 'activity',
@@ -163,20 +145,6 @@ export const peopleDashboardSpec: UsageDashboardSpec = {
                     charts: ['power-users-queries-ai-and-exports'],
                     layout: 'row',
                     rowHeight: 8,
-                },
-            ],
-        },
-        {
-            key: 'returning',
-            name: 'Returning & inactive people',
-            sections: [
-                ...peopleNoActivitySections,
-                {
-                    title: 'Activity over time',
-                    description: `Recorded activity by person and day, for the 15 most active people. ${anyActivity}`,
-                    charts: ['people-activity-by-person-and-day'],
-                    layout: 'row',
-                    rowHeight: 9,
                 },
             ],
         },

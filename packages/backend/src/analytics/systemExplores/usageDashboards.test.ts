@@ -516,13 +516,22 @@ describe('built-in usage dashboards', () => {
         }
     });
 
-    it('shares inactivity charts between People and Adoption without changing their fixed windows', () => {
+    it('keeps the inactivity charts on Adoption only, with their fixed windows', () => {
+        // People no longer repeats them
+        expect(
+            analyticsContentAsCode
+                .find(
+                    ({ dashboard }) =>
+                        dashboard.slug === 'lightdash-analytics-people',
+                )!
+                .charts.filter(
+                    ({ tableName }) => tableName === 'people_adoption',
+                ),
+        ).toEqual([]);
         const inactivityCharts = analyticsContentAsCode
-            .filter(({ dashboard }) =>
-                [
-                    'lightdash-analytics-people',
-                    'lightdash-analytics-adoption',
-                ].includes(dashboard.slug),
+            .filter(
+                ({ dashboard }) =>
+                    dashboard.slug === 'lightdash-analytics-adoption',
             )
             .map((bundle) => {
                 const populationCharts = bundle.charts.filter(
@@ -564,7 +573,7 @@ describe('built-in usage dashboards', () => {
                 }
                 return populationCharts.map(({ metricQuery }) => metricQuery);
             });
-        expect(inactivityCharts[0]).toEqual(inactivityCharts[1]);
+        expect(inactivityCharts).toHaveLength(1);
     });
 
     it('lists the Agent adoption charts in order with their fallback types', () => {
@@ -1153,7 +1162,7 @@ describe('built-in usage dashboards', () => {
             const populationCharts = charts.filter(
                 ({ tableName, dashboardSlug }) =>
                     tableName === 'people_adoption' &&
-                    dashboardSlug === 'lightdash-analytics-people',
+                    dashboardSlug === 'lightdash-analytics-adoption',
             );
             const count = populationCharts.find(({ slug }) =>
                 slug.endsWith('-people-without-observed-activity'),

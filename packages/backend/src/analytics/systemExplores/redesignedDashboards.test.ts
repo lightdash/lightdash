@@ -194,36 +194,6 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 'table',
             ],
         ],
-        returning: [
-            [
-                'people-without-observed-activity',
-                0,
-                2,
-                36,
-                4,
-                null,
-                'big_number',
-            ],
-            [
-                'people-without-observed-activity-detail',
-                0,
-                8,
-                36,
-                7,
-                null,
-                'table',
-            ],
-            ['people-without-activity-30d-detail', 0, 15, 36, 7, null, 'table'],
-            [
-                'people-activity-by-person-and-day',
-                0,
-                24,
-                36,
-                9,
-                'heatmap',
-                'table',
-            ],
-        ],
         channels: [
             [
                 'people-google-sheets-queries-by-day',
@@ -1482,7 +1452,7 @@ describe('top categories', () => {
             .find(
                 ({ slug }) =>
                     slug ===
-                    'lightdash-analytics-people-people-activity-by-person-and-day',
+                    'lightdash-analytics-adoption-adoption-activity-by-person-and-day',
             )!;
         const instance = await DuckDBInstance.create(':memory:', {
             threads: '1',
@@ -1504,8 +1474,8 @@ describe('top categories', () => {
                     `INSERT INTO lightdash_users VALUES ('org','u${n}','Person ${n}',NULL)`,
                 );
                 await db.run(`INSERT INTO user_activity (org_id,project_id,user_id,activity_date,event_count,stream) VALUES
-                    ('org','project','u${n}','2026-01-05',${n},'query_events'),
-                    ('org','project','u${n}','2026-01-06',${n},'query_events')`);
+                    ('org','project','u${n}',CURRENT_DATE - 3,${n},'query_events'),
+                    ('org','project','u${n}',CURRENT_DATE - 2,${n},'query_events')`);
             }
             const rows = (
                 await db.runAndReadAll(sqlOf(chart))

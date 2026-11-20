@@ -352,7 +352,7 @@ export const analyticsTabs: {
         id: 'people',
         summary: null,
         label: 'People',
-        description: 'Active people, returning people and channels.',
+        description: 'Active people and Google Sheets use.',
         dashboardSlug: 'lightdash-analytics-people',
         charts: [
             activeUsers,
