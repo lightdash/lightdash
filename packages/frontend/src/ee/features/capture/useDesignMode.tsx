@@ -35,7 +35,7 @@ import { grabDomFrame } from './domFrame';
 import { sameScreen } from './frameGeometry';
 import { cancelsHold, escapeIsForDesignMode, holdToolForKey } from './holdKeys';
 import { coveredTargets } from './markCoverage';
-import { intoView, placeBubble } from './placeBubble';
+import { intoView, placeBubble, placeClear } from './placeBubble';
 import { type TabFrame } from './tabFrame';
 import {
     type Box,
@@ -58,6 +58,10 @@ const TRAIL_SAMPLES = 24;
 const RECT_REFRESH_MS = 500;
 // Used to place a bubble that is not on screen yet.
 const NEW_BUBBLE_SIZE = { width: 320, height: 120 };
+// The room a sent bubble is given: its conversation grows to about this.
+const SENT_BUBBLE_SIZE = { width: 420, height: 500 };
+// Bubbles keep off the strip along the bottom where the toolbar sits.
+const TOOLBAR_STRIP_PX = 72;
 const EMPTY: DesignSession = { bubbles: [], active: { kind: 'page' } };
 
 type Hold = {
@@ -76,7 +80,7 @@ type Hold = {
 };
 
 const viewportRect = (): DOMRect =>
-    new DOMRect(0, 0, window.innerWidth, window.innerHeight);
+    new DOMRect(0, 0, window.innerWidth, window.innerHeight - TOOLBAR_STRIP_PX);
 
 type Recording = { bubbleId: string; voice: Promise<VoiceState> };
 
@@ -1212,6 +1216,50 @@ export const useDesignMode = (
             anchor: { x: at.x + scrollNow.x, y: at.y + scrollNow.y },
         });
     }, [dispatch, tabUuid]);
+
+    // A sent bubble grows into a conversation: once, when it first shows as
+    // one, it moves to where that leaves its marks uncovered.
+    const roomedRef = useRef(new Set<string>());
+    useEffect(() => {
+        const current = surfaceRef.current;
+        if (!current) return;
+        const scrollNow = current.getScroll();
+        visibleBubbles(session, tabUuid).forEach((bubble) => {
+            if (bubble.status !== 'thread' && bubble.status !== 'picking-agent')
+                return;
+            if (roomedRef.current.has(bubble.id)) return;
+            const onScreen = document
+                .querySelector(`[data-bubble-id="${bubble.id}"]`)
+                ?.getBoundingClientRect();
+            if (!onScreen) return;
+            roomedRef.current.add(bubble.id);
+            const at = placeClear({
+                marks: placed
+                    .filter(
+                        (m) =>
+                            m.bubbleId === bubble.id && m.tabUuid === tabUuid,
+                    )
+                    .map(
+                        (m) =>
+                            new DOMRect(
+                                m.box.x - scrollNow.x,
+                                m.box.y - scrollNow.y,
+                                m.box.width,
+                                m.box.height,
+                            ),
+                    ),
+                current: { x: onScreen.left, y: onScreen.top },
+                size: SENT_BUBBLE_SIZE,
+                viewport: viewportRect(),
+            });
+            if (at.x === onScreen.left && at.y === onScreen.top) return;
+            dispatch({
+                type: 'moved',
+                bubbleId: bubble.id,
+                anchor: { x: at.x + scrollNow.x, y: at.y + scrollNow.y },
+            });
+        });
+    }, [dispatch, placed, session, tabUuid]);
 
     const passthrough = holding !== null;
     // The app's own picker takes the click, so the ink layer stays out of the way.

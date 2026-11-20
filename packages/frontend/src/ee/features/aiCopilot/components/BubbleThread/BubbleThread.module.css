@@ -4,7 +4,7 @@
     flex-direction: column;
     width: 420px;
     max-width: 100%;
-    max-height: 420px;
+    max-height: min(420px, calc(100vh - 200px));
 }
 
 .header {

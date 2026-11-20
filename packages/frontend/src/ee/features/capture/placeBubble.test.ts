@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { placeBubble } from './placeBubble';
+import { placeBubble, placeClear } from './placeBubble';
 
 const viewport = new DOMRect(0, 0, 800, 600);
 const size = { width: 200, height: 100 };
@@ -125,5 +125,81 @@ describe('placeBubble', () => {
                 ),
             ).toBe(false);
         });
+    });
+});
+
+describe('placeClear', () => {
+    const big = { width: 300, height: 300 };
+    const at = (p: { x: number; y: number }) =>
+        new DOMRect(p.x, p.y, big.width, big.height);
+
+    it('a bubble that grew over its mark moves off it', () => {
+        const mark = new DOMRect(380, 250, 80, 60);
+        const placed = placeClear({
+            marks: [mark],
+            current: { x: 300, y: 200 },
+            size: big,
+            viewport,
+        });
+        expect(overlaps(at(placed), mark)).toBe(false);
+    });
+
+    it('stays clear of every mark, not only the newest', () => {
+        const first = new DOMRect(40, 150, 80, 60);
+        const newest = new DOMRect(380, 150, 80, 60);
+        const placed = placeClear({
+            marks: [first, newest],
+            current: { x: 100, y: 100 },
+            size: big,
+            viewport,
+        });
+        expect(overlaps(at(placed), first)).toBe(false);
+        expect(overlaps(at(placed), newest)).toBe(false);
+    });
+
+    it('stays inside the room it is given', () => {
+        const room = new DOMRect(0, 0, 800, 520);
+        const mark = new DOMRect(600, 400, 80, 60);
+        const placed = placeClear({
+            marks: [mark],
+            current: { x: 560, y: 380 },
+            size: big,
+            viewport: room,
+        });
+        expect(placed.y + big.height).toBeLessThanOrEqual(520 - 16);
+        expect(placed.x).toBeGreaterThanOrEqual(16);
+    });
+
+    it('covers as little of the marks as it can when no place is clear', () => {
+        const block = new DOMRect(0, 0, 560, 600);
+        const placed = placeClear({
+            marks: [block],
+            current: { x: 100, y: 80 },
+            size: big,
+            viewport,
+        });
+        expect(placed.x).toBe(484);
+    });
+
+    it('stays where it is when that covers no mark', () => {
+        expect(
+            placeClear({
+                marks: [new DOMRect(600, 400, 80, 60)],
+                current: { x: 100, y: 100 },
+                size: big,
+                viewport,
+            }),
+        ).toEqual({ x: 100, y: 100 });
+    });
+
+    it('with no marks on screen it only comes inside the room', () => {
+        expect(
+            placeClear({
+                marks: [],
+                current: { x: -50, y: 900 },
+                size: big,
+                viewport,
+            }),
+        ).toEqual({ x: 16, y: 284 });
     });
 });

@@ -82,3 +82,47 @@ export const placeBubble = ({
     );
     return clear ?? sides[0];
 };
+
+const overlapArea = (a: DOMRect, b: DOMRect): number =>
+    Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) *
+    Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+
+/**
+ * Where a bubble that has grown goes: where it is when that is clear of its
+ * marks, else beside one of them (newest last), else over as little as it can.
+ */
+export const placeClear = ({
+    marks,
+    current,
+    size,
+    viewport,
+}: {
+    marks: DOMRect[];
+    current: Position;
+    size: Size;
+    viewport: DOMRect;
+}): Position => {
+    const around = [...marks].reverse().flatMap((mark) => [
+        { x: mark.right + GAP_PX, y: mark.top },
+        { x: mark.left - GAP_PX - size.width, y: mark.top },
+        { x: mark.left, y: mark.bottom + GAP_PX },
+        { x: mark.left, y: mark.top - GAP_PX - size.height },
+    ]);
+    const places = [current, ...around].map((place) => {
+        const at = clampTo(place, size, viewport);
+        const rect = new DOMRect(at.x, at.y, size.width, size.height);
+        return {
+            at,
+            near: marks.some((mark) => isNear(rect, mark)),
+            covered: marks.reduce(
+                (sum, mark) => sum + overlapArea(rect, mark),
+                0,
+            ),
+        };
+    });
+    const clear = places.find((place) => !place.near);
+    if (clear) return clear.at;
+    return places.reduce((best, place) =>
+        place.covered < best.covered ? place : best,
+    ).at;
+};
