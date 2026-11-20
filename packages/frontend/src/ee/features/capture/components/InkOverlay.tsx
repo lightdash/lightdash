@@ -14,8 +14,12 @@ type Props = {
     inkVisible: boolean;
     strokes: Stroke[];
     fading: FadingMark | null;
+    /** Cursor: the outline of the element under the pointer. */
+    hover: Box | null;
     onStrokePoint: (point: Point) => void;
     onStrokeEnd: () => void;
+    /** Cursor: a press picks what is under the pointer. Null for the stylus. */
+    onPick: ((point: Point) => void) | null;
 };
 
 const toPath = (stroke: Stroke): string =>
@@ -29,8 +33,10 @@ const InkOverlay: FC<Props> = ({
     inkVisible,
     strokes,
     fading,
+    hover,
     onStrokePoint,
     onStrokeEnd,
+    onPick,
 }) => {
     const toPoint = (event: MouseEvent<HTMLDivElement>): Point => ({
         x: Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)),
@@ -79,7 +85,10 @@ const InkOverlay: FC<Props> = ({
                     } as CSSProperties
                 }
                 // Moving the mouse draws; a click must not reach the app.
-                onMouseDown={(event) => event.preventDefault()}
+                onMouseDown={(event) => {
+                    event.preventDefault();
+                    if (holding && onPick) onPick(toPoint(event));
+                }}
                 onMouseMove={(event) => {
                     if (holding) onStrokePoint(toPoint(event));
                 }}
@@ -97,6 +106,19 @@ const InkOverlay: FC<Props> = ({
                         </g>
                     )}
                 </svg>
+                {hover && (
+                    <div
+                        className={classes.hover}
+                        style={
+                            {
+                                '--hover-left': `${hover.x * 100}%`,
+                                '--hover-top': `${hover.y * 100}%`,
+                                '--hover-width': `${hover.width * 100}%`,
+                                '--hover-height': `${hover.height * 100}%`,
+                            } as CSSProperties
+                        }
+                    />
+                )}
                 {fading && (
                     <div
                         className={`${classes.badge} ${classes.fading}`}

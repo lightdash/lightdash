@@ -581,8 +581,10 @@ export const useCapture = (
                           inkVisible={inkVisible}
                           strokes={ink}
                           fading={fading}
+                          hover={null}
                           onStrokePoint={onStrokePoint}
                           onStrokeEnd={onStrokeEnd}
+                          onPick={null}
                       />
                   </>,
                   document.body,

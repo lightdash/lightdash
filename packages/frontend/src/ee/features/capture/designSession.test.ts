@@ -205,4 +205,20 @@ describe('designSessionReducer', () => {
         s = run(s, { type: 'sendStarted', bubbleId: 'a', needsPicker: false });
         expect(canStartHold(s)).toBe(false);
     });
+
+    it('inputChanged turns a mic bubble into a text box, keeping its marks', () => {
+        const s = run(
+            empty,
+            ...hold('a', 0).map((a) =>
+                a.type === 'holdStarted'
+                    ? { ...a, newBubble: { id: 'a', input: 'mic' as const } }
+                    : a,
+            ),
+            { type: 'inputChanged', bubbleId: 'a', input: 'text' },
+        );
+        expect(s.bubbles[0].input).toBe('text');
+        expect(activeCollection(s)?.collection.capture).toMatchObject({
+            marks: [{ number: 1 }],
+        });
+    });
 });

@@ -48,6 +48,7 @@ export type DesignAction =
           anchor: { x: number; y: number };
       }
     | { type: 'arm'; bubbleId: string; input: BubbleInput }
+    | { type: 'inputChanged'; bubbleId: string; input: BubbleInput }
     | { type: 'queue'; bubbleId: string }
     | { type: 'sendStarted'; bubbleId: string; needsPicker: boolean }
     | {
@@ -253,6 +254,11 @@ export const designSessionReducer = (
                 active: { kind: 'bubble', bubbleId: target.id },
             };
         }
+        case 'inputChanged':
+            return updateBubble(s, action.bubbleId, (b) => ({
+                ...b,
+                input: action.input,
+            }));
         case 'queue': {
             const bubble = s.bubbles.find((b) => b.id === action.bubbleId);
             if (!bubble || bubble.status !== 'collecting') return s;

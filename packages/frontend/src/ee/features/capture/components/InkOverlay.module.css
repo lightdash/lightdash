@@ -35,6 +35,17 @@
     overflow: visible;
 }
 
+.hover {
+    position: absolute;
+    left: var(--hover-left);
+    top: var(--hover-top);
+    width: var(--hover-width);
+    height: var(--hover-height);
+    border: 2px dashed #e03131;
+    border-radius: 6px;
+    pointer-events: none;
+}
+
 .badge {
     position: absolute;
     left: var(--badge-left);

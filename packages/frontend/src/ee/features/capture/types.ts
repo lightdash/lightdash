@@ -71,3 +71,37 @@ export type CaptureSurface = {
 export type VoiceState = 'on' | 'off';
 
 export const MAX_CAPTURE_IMAGES = 5;
+
+/** A page that offers Design Mode: where to draw, how to picture it, what is on it. */
+export type DesignSurface = {
+    getRegion: () => DOMRect;
+    /** Scroll offset of the surface's content, for content coords. */
+    getScroll: () => { x: number; y: number };
+    frameSource: 'dom' | 'app';
+    /** Required when frameSource is 'app'. */
+    grabAppImage: (() => Promise<Blob>) | null;
+    getTab: () => { uuid: string; name: string } | null;
+    resolveTarget:
+        | ((point: { x: number; y: number }) => CaptureTarget | null)
+        | null;
+    /** Cursor: the element under a viewport point, with its bounds. Null when Cursor is unsupported. */
+    pickAt:
+        | ((point: {
+              x: number;
+              y: number;
+          }) => { target: CaptureTarget; rect: DOMRect } | null)
+        | null;
+    transcribe: ((audio: Blob) => Promise<TranscriptWord[]>) | null;
+};
+
+export type DesignPayload = {
+    bubbleId: string;
+    summary: string;
+    marks: CaptureMark[];
+    images: File[];
+    transcript: TranscriptPhrase[];
+};
+
+export type DesignSendResult =
+    | { threadId: string; agentUuid: string }
+    | 'cancelled';

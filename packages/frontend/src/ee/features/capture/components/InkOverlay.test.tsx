@@ -14,8 +14,10 @@ const setup = (holding: boolean) => {
             inkVisible
             strokes={[]}
             fading={null}
+            hover={null}
             onStrokePoint={onStrokePoint}
             onStrokeEnd={onStrokeEnd}
+            onPick={null}
         />,
     );
     const layer = container.querySelector('[data-holding]') as HTMLElement;
