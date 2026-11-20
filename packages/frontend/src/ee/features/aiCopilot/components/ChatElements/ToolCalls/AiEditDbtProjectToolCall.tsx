@@ -43,7 +43,7 @@ import {
 } from './pullRequestCardUtils';
 import { PullRequestCiChecks } from './PullRequestCiChecks';
 import { PullRequestViewMenu } from './PullRequestViewMenu';
-import { QuietCardsContext } from './quietCards';
+import { QuietCardsContext, StudioAskContext } from './quietCards';
 import { WritebackProgressCard } from './WritebackProgressCard';
 
 type Props = {
@@ -61,7 +61,6 @@ type Props = {
     startedAt?: string;
     isLatest?: boolean;
     note?: string | null;
-    options?: string[];
 };
 
 // ts-unused-exports:disable-next-line
@@ -255,9 +254,9 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     startedAt,
     isLatest = true,
     note = null,
-    options = [],
 }) => {
     const quiet = useContext(QuietCardsContext);
+    const askStudio = useContext(StudioAskContext);
     // Hooks must run before the early returns below; the query is disabled until
     // there's a PR URL, so the error/no-PR branches don't fetch anything.
     const prUrl = metadata.status === 'success' ? metadata.prUrl : null;
@@ -447,6 +446,17 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                             No pull request was opened. Ask again, or rephrase
                             the request, to retry.
                         </Text>
+                        {askStudio && isLatest ? (
+                            <Button
+                                size="compact-xs"
+                                variant="default"
+                                w="fit-content"
+                                mt={4}
+                                onClick={() => askStudio('Try that again.')}
+                            >
+                                Try again
+                            </Button>
+                        ) : null}
                     </Stack>
                 </Group>
             </Paper>
@@ -502,7 +512,6 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                 ciChecks={ciChecks ?? null}
                 isLatestTurn={isLatest}
                 note={note}
-                options={options}
             />
         );
     }

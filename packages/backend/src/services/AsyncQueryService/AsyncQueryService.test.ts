@@ -450,6 +450,7 @@ const createQueryComposerMock = ({
         getExplore: () => explore,
         getMetricQuery: () => metricQuery,
         getPivotConfiguration: () => undefined,
+        getPivotDimensions: () => undefined,
         getFields: () => fields,
         getMissingParameterReferences: () => missingParameterReferences,
         getParameterReferences: () => [],

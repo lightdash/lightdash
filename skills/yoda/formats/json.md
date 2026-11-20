@@ -9,8 +9,9 @@ Fields are in output order; omit inapplicable optional fields, retain empty arra
 ```ts
 type Review = {
     subject: string;               // plain-language claim, ≤12 words
+    summary: string;               // what changed and why it matters, ≤25 words; no findings
     repo: string;                  // owner/repo
-    pr?: number | number[];        // a stack bottom first; otherwise branch
+    pr?: number;                   // one PR, even inside a stack; otherwise branch
     branch?: string;
     base?: string;                 // branch/local only
     head: string;                  // short sha; "+<checksum>" for a dirty worktree
@@ -22,7 +23,9 @@ type Review = {
         rows: { kind: "gap" | "verification"; what: string; how: string }[];
     };
     diffs: Diff[];                 // every lens and coverage-drop row, minor included
-    lines: number;                 // added + deleted (git diff --numstat), files triage doesn't skip, plus tests
+    added: number;                 // lines added (git diff --numstat), files triage doesn't skip, tests included
+    deleted: number;               // lines deleted, counted the same way
+    version: number;               // SKILL.md version: Unix epoch of the skill's last edit
 };
 ```
 
@@ -36,6 +39,7 @@ type Review = {
 ```json
 {
   "subject": "People can attach screenshots to AI chat",
+  "summary": "AI chat accepts pasted screenshots, stores them in S3 and sends them with the message, behind the ai-thread-images flag.",
   "repo": "lightdash/lightdash",
   "pr": 32203,
   "head": "e78c7aa",
@@ -47,6 +51,8 @@ type Review = {
     "rows": [{ "kind": "gap", "what": "replay against real S3", "how": "mocked" }]
   },
   "diffs": [{ "lens": "Config", "change": "added", "impact": "notable", "name": "ai-thread-images", "kind": "flag", "default": "off", "note": "kept off in previews" }],
-  "lines": 8020
+  "added": 6900,
+  "deleted": 1120,
+  "version": 1795104641
 }
 ```

@@ -1,4 +1,5 @@
 import {
+    APP_SDK_CAPTURE_HOTKEY_MESSAGE,
     APP_SDK_COLOR_SCHEME_MESSAGE,
     APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE,
     APP_SDK_INSIGHTS_REQUEST_MESSAGE,
@@ -1153,6 +1154,92 @@ describe('lineage message routing', () => {
         });
 
         expect(onLineageAvailable).not.toHaveBeenCalled();
+    });
+});
+
+describe('capture hotkey forwarding', () => {
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    const message = { type: APP_SDK_CAPTURE_HOTKEY_MESSAGE };
+
+    const renderWithHandler = (onCaptureHotkey: (() => void) | undefined) => {
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge({
+                colorScheme: 'light',
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
+                onCaptureHotkey,
+            }),
+        );
+    };
+
+    it('calls onCaptureHotkey each time the preview forwards the hotkey', () => {
+        const onCaptureHotkey = vi.fn();
+        renderWithHandler(onCaptureHotkey);
+
+        dispatchFetchMessage(message);
+        expect(onCaptureHotkey).toHaveBeenCalledTimes(1);
+        dispatchFetchMessage(message);
+        expect(onCaptureHotkey).toHaveBeenCalledTimes(2);
+    });
+
+    it('ignores the message from a window that is not the preview', () => {
+        const onCaptureHotkey = vi.fn();
+        renderWithHandler(onCaptureHotkey);
+
+        window.dispatchEvent(
+            new MessageEvent('message', {
+                data: message,
+                source: null,
+                origin: 'null',
+            }),
+        );
+        expect(onCaptureHotkey).not.toHaveBeenCalled();
+    });
+
+    it('ignores the message from another origin', () => {
+        const onCaptureHotkey = vi.fn();
+        renderWithHandler(onCaptureHotkey);
+
+        window.dispatchEvent(
+            new MessageEvent('message', {
+                data: message,
+                source: window,
+                origin: 'https://foreign.example',
+            }),
+        );
+        expect(onCaptureHotkey).not.toHaveBeenCalled();
+    });
+
+    it('does not treat other app messages as the hotkey', () => {
+        const onCaptureHotkey = vi.fn();
+        renderWithHandler(onCaptureHotkey);
+
+        dispatchFetchMessage({ type: 'lightdash:sdk:theme-request' });
+        dispatchFetchMessage({ type: 'lightdash:inspect:available' });
+        expect(onCaptureHotkey).not.toHaveBeenCalled();
+    });
+
+    it('drops the message when the host offers no capture', () => {
+        const fetchSpy = vi.fn();
+        vi.stubGlobal('fetch', fetchSpy);
+        const postSpy = vi.spyOn(window, 'postMessage');
+        renderWithHandler(undefined);
+        postSpy.mockClear();
+
+        dispatchFetchMessage(message);
+        expect(fetchSpy).not.toHaveBeenCalled();
+        expect(postSpy).not.toHaveBeenCalled();
+        postSpy.mockRestore();
+        vi.unstubAllGlobals();
     });
 });
 

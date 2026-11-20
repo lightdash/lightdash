@@ -899,6 +899,30 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         );
     }
 
+    async getSchemaColumns(
+        schemas: { database: string; schema: string }[],
+    ): Promise<WarehouseCatalog> {
+        const names = [...new Set(schemas.map(({ schema }) => schema))];
+        if (names.length === 0) return {};
+        // Reads the current catalog's information_schema, as the table listing does.
+        const query = `
+            SELECT table_catalog,
+                   table_schema,
+                   table_name,
+                   column_name,
+                   data_type
+            FROM information_schema.columns
+            WHERE table_schema IN (${names.map(() => '?').join(', ')})
+            ORDER BY 1, 2, 3, ordinal_position
+        `;
+        const { rows } = await this.runQuery(query, {}, undefined, names);
+        return this.parseWarehouseCatalog(
+            rows,
+            mapFieldType,
+            getDatabricksTimestampDomain,
+        );
+    }
+
     // Every table_type in Unity Catalog is queryable: managed and external
     // tables, views, materialized views, streaming tables and foreign tables
     async getAllTables() {

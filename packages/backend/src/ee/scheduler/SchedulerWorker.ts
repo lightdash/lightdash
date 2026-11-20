@@ -8,6 +8,7 @@ import {
     SCHEDULER_TASKS,
     SchedulerJobStatus,
     type AnonymousAccount,
+    type SessionUser,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
 import { type ContentReviewRequestModel } from '../../models/ContentReviewRequestModel';
@@ -24,6 +25,7 @@ import {
 import { TypedEETaskList } from '../../scheduler/types';
 import { type JiraAppService } from '../../services/JiraAppService/JiraAppService';
 import { type LinearAppService } from '../../services/LinearAppService/LinearAppService';
+import { type IncrementalCompileResult } from '../../services/ProjectService/ProjectService';
 import { toFailedScan } from '../../services/QuerySourceService/live/integrations/postHog/scan';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiAgentReviewNotificationModel } from '../models/AiAgentReviewNotificationModel';
@@ -133,6 +135,38 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
 };
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
+    // Saves this worker is running, so one a shutdown cuts short fails now and not when the sweep finds it.
+    private readonly activeWritebackRuns = new Map<
+        string,
+        { promptUuid: string; toolCallId: string }
+    >();
+
+    async stop() {
+        await super.stop();
+        await Promise.all(
+            [...this.activeWritebackRuns].map(
+                async ([aiWritebackRunUuid, { promptUuid, toolCallId }]) => {
+                    try {
+                        const marked =
+                            await this.aiWritebackService.markRunInterrupted(
+                                aiWritebackRunUuid,
+                            );
+                        if (!marked) return;
+                        await this.aiAgentService.markEditDbtProjectToolResultError(
+                            promptUuid,
+                            toolCallId,
+                            'Error running AI writeback: the run stopped unexpectedly before it finished.',
+                        );
+                    } catch (error) {
+                        Logger.warn(
+                            `Failed to fail interrupted writeback run ${aiWritebackRunUuid}: ${getErrorMessage(error)}`,
+                        );
+                    }
+                },
+            ),
+        );
+    }
+
     protected readonly analyticsProjectService: CommercialSchedulerWorkerArguments['analyticsProjectService'];
 
     protected readonly aiAgentService: AiAgentService;
@@ -248,6 +282,18 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected findAiUsageLedgerRetainedOrganizations(): Promise<string[]> {
         return this.findRetainedOrganizations();
+    }
+
+    protected compileIncrementally(
+        user: SessionUser,
+        projectUuid: string,
+        jobUuid: string,
+    ): Promise<IncrementalCompileResult | null> {
+        return this.semanticStudioService.compileAfterMerge(
+            user,
+            projectUuid,
+            jobUuid,
+        );
     }
 
     protected getCronItems() {
@@ -1153,9 +1199,19 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         helpers.job.run_at,
                         payload,
                         async () => {
-                            await this.aiAgentService.runEditDbtProjectPipeline(
+                            this.activeWritebackRuns.set(
+                                payload.aiWritebackRunUuid,
                                 payload,
                             );
+                            try {
+                                await this.aiAgentService.runEditDbtProjectPipeline(
+                                    payload,
+                                );
+                            } finally {
+                                this.activeWritebackRuns.delete(
+                                    payload.aiWritebackRunUuid,
+                                );
+                            }
                         },
                     ),
                     helpers.job,

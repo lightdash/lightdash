@@ -1,6 +1,12 @@
 import { type AiAgentThread } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { getOpenProposal, isInPullRequest } from './studioProposal';
+import {
+    getOpenProposal,
+    getSavingChange,
+    isInPullRequest,
+} from './studioProposal';
+
+const PR_URL = 'https://github.com/acme/analytics/pull/7';
 
 const thread = (
     ...replies: {
@@ -9,6 +15,8 @@ const thread = (
         pending?: boolean;
         saving?: boolean;
         failed?: boolean;
+        saved?: boolean;
+        diffs?: string[];
     }[]
 ): AiAgentThread['messages'] =>
     replies.map(
@@ -18,23 +26,29 @@ const thread = (
             pending = false,
             saving = false,
             failed = false,
+            saved = false,
+            diffs,
         }) => ({
             role: 'assistant',
             status: pending ? 'pending' : 'idle',
             message,
             toolCalls: tools.map((toolName) => ({ toolName })),
             toolResults:
-                saving || failed
+                saving || failed || saved
                     ? [
                           {
                               toolType: 'built-in',
                               toolName: 'editDbtProject',
+                              toolCallId: 'call',
                               metadata: failed
                                   ? { status: 'error', errorCode: 'unknown' }
-                                  : {
-                                        status: 'pending',
-                                        aiWritebackRunUuid: 'run',
-                                    },
+                                  : saved
+                                    ? { status: 'success', prUrl: PR_URL }
+                                    : {
+                                          status: 'pending',
+                                          aiWritebackRunUuid: 'run',
+                                          diffs,
+                                      },
                           },
                       ]
                     : [],
@@ -162,5 +176,65 @@ describe('isInPullRequest', () => {
             false,
         );
         expect(isInPullRequest(proposed, '')).toBe(false);
+    });
+});
+
+describe('getSavingChange', () => {
+    const diffs = ['--- a/x.yml\n+++ b/x.yml\n@@ -1,1 +1,1 @@\n-a\n+b\n'];
+    const proposed = { message: '```diff\n+a\n```' };
+    const running = thread(proposed, {
+        message: 'Saving.',
+        tools: ['editDbtProject'],
+        saving: true,
+        diffs,
+    });
+
+    it('shows what a running save writes', () => {
+        expect(getSavingChange(running, null, true)).toEqual({
+            toolCallId: 'call',
+            diffs,
+        });
+    });
+
+    it('keeps it once the commit lands, until the pull request diff is read at it', () => {
+        const shown = getSavingChange(running, null, true);
+        const landed = thread(proposed, {
+            message: 'Saved.',
+            tools: ['editDbtProject'],
+            saved: true,
+        });
+        expect(getSavingChange(landed, shown, false)).toBe(shown);
+        expect(getSavingChange(landed, shown, true)).toBe(null);
+        expect(getSavingChange(landed, null, false)).toBe(null);
+    });
+
+    it('drops it when the save fails, so the proposal comes back as not saved', () => {
+        const shown = getSavingChange(running, null, true);
+        const failed = thread(proposed, {
+            message: 'Saving.',
+            tools: ['editDbtProject'],
+            failed: true,
+        });
+        expect(getSavingChange(failed, shown, false)).toBe(null);
+        expect(getOpenProposal(failed)).toEqual(['+a\n']);
+    });
+
+    it('has nothing for a save in the sandbox, which leaves the proposal as it was', () => {
+        const sandbox = thread(proposed, {
+            message: 'Saving.',
+            tools: ['editDbtProject'],
+            saving: true,
+        });
+        expect(getSavingChange(sandbox, null, true)).toBe(null);
+        expect(getOpenProposal(sandbox)).toEqual(['+a\n']);
+    });
+
+    it('is not shown again once the pull request carries it', () => {
+        expect(
+            isInPullRequest(
+                diffs[0],
+                'diff --git a/dbt/x.yml b/dbt/x.yml\n--- a/dbt/x.yml\n+++ b/dbt/x.yml\n@@ -1 +1 @@\n-a\n+b\n',
+            ),
+        ).toBe(true);
     });
 });

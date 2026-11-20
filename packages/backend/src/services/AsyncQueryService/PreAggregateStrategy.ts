@@ -117,6 +117,12 @@ export type ResolveExecutionArgs = {
     parameters: ParametersValuesMap | undefined;
     fieldsMap: ItemsMap;
     pivotConfiguration: PivotConfiguration | undefined;
+    /**
+     * The source query's pivot dimensions, so row_total() resolves the same
+     * way on the pre-aggregate as on the warehouse when no pivotConfiguration
+     * is sent (e.g. the unpivoted results-table query).
+     */
+    pivotDimensions?: string[];
     startOfWeek: CreateWarehouseCredentials['startOfWeek'];
     userAccessControls?: UserAccessControls;
     availableParameterDefinitions?: ParameterDefinitions;

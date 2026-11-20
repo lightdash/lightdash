@@ -3,16 +3,19 @@ import {
     buildAbilityFromScopes,
     defineUserAbility,
     ExpectedNotFoundError,
+    FeatureFlags,
     ForbiddenError,
     OrganizationMemberRole,
     ProjectMemberRole,
     type AiAgentWithContext,
+    type ApiCaptureRouteRequest,
     type MemberAbility,
     type RegisteredAccount,
 } from '@lightdash/common';
 import { selectAgent } from '../ai/agents/agentSelector';
 import { getModel } from '../ai/models';
 import { AiRouterService } from './AiRouterService';
+import { routeCaptureWithModel } from './captureRouter';
 
 vi.mock('../ai/agents/agentSelector', () => ({
     selectAgent: vi.fn(),
@@ -20,6 +23,10 @@ vi.mock('../ai/agents/agentSelector', () => ({
 
 vi.mock('../ai/models', () => ({
     getModel: vi.fn(),
+}));
+
+vi.mock('./captureRouter', () => ({
+    routeCaptureWithModel: vi.fn(),
 }));
 
 const organizationUuid = 'org-uuid';
@@ -146,10 +153,15 @@ const makeService = ({
     candidates,
     routerEnabled = true,
     instruction = 'Route finance questions to @[Finance](agent-2)',
+    dashboardCaptureEnabled = true,
+    reachingPinnedUuids = null,
 }: {
     candidates: AiAgentWithContext[];
     routerEnabled?: boolean;
     instruction?: string | null;
+    dashboardCaptureEnabled?: boolean;
+    /** Agents that can open the pinned content; null means all of them. */
+    reachingPinnedUuids?: string[] | null;
 }) => {
     const analytics = { track: vi.fn() };
     const aiRouterModel = {
@@ -201,6 +213,17 @@ const makeService = ({
     const aiAgentService = {
         getDecisionClient: vi.fn().mockResolvedValue(undefined),
         getAvailableAgents: vi.fn().mockResolvedValue(candidates),
+        // A plain function, so the suite's resetAllMocks leaves it working.
+        filterAgentsReachingPinnedContext: async (
+            _user: unknown,
+            _projectUuid: string,
+            agents: AiAgentWithContext[],
+        ) =>
+            reachingPinnedUuids === null
+                ? agents
+                : agents.filter((agent) =>
+                      reachingPinnedUuids.includes(agent.uuid),
+                  ),
     };
     const dashboardService = {
         getByIdOrSlug: vi.fn().mockResolvedValue({ name: '[MRS] Weekly KPIs' }),
@@ -212,6 +235,16 @@ const makeService = ({
     const orgAiCopilotConfigResolver = {
         getCopilotConfig: vi.fn().mockResolvedValue({}),
     };
+    // A plain function, so the suite's resetAllMocks leaves it working.
+    const featureFlagModel = {
+        get: async ({ featureFlagId }: { featureFlagId: string }) => ({
+            id: featureFlagId,
+            enabled:
+                featureFlagId === FeatureFlags.DashboardCapture
+                    ? dashboardCaptureEnabled
+                    : false,
+        }),
+    };
 
     const service = new AiRouterService({
         analytics: analytics as never,
@@ -221,6 +254,7 @@ const makeService = ({
         dashboardService: dashboardService as never,
         savedChartService: savedChartService as never,
         orgAiCopilotConfigResolver: orgAiCopilotConfigResolver as never,
+        featureFlagModel: featureFlagModel as never,
     });
 
     return {
@@ -655,5 +689,94 @@ describe('routing from pinned content', () => {
             }),
         ).rejects.toThrow(ForbiddenError);
         expect(selectAgent).not.toHaveBeenCalled();
+    });
+
+    it('offers only the agents that can open the pinned dashboard', async () => {
+        const three = [
+            ...candidates,
+            { uuid: 'agent-3', name: 'Ops' },
+        ] as unknown as AiAgentWithContext[];
+        const { service, aiRouterModel } = makeService({
+            candidates: three,
+            reachingPinnedUuids: ['agent-2', 'agent-3'],
+        });
+
+        const result = await service.route(account, {
+            prompt: 'what is the conversion rate here?',
+            projectUuid,
+            context: [{ type: 'dashboard', dashboardUuid: 'dash-1' }],
+        });
+
+        expect(selectAgent).toHaveBeenCalledWith(
+            expect.objectContaining({ candidates: three.slice(1) }),
+        );
+        expect(
+            result.decision.candidates.map(({ agentUuid }) => agentUuid),
+        ).toEqual(['agent-2', 'agent-3']);
+        expect(aiRouterModel.createDecision).toHaveBeenCalledWith(
+            expect.objectContaining({
+                candidateAgentUuids: ['agent-2', 'agent-3'],
+            }),
+        );
+    });
+
+    it('sends straight to the only agent that can open the pinned dashboard', async () => {
+        const { service, aiRouterModel } = makeService({
+            candidates,
+            reachingPinnedUuids: ['agent-1'],
+        });
+
+        const result = await service.route(account, {
+            prompt: 'what is the conversion rate here?',
+            projectUuid,
+            context: [{ type: 'dashboard', dashboardUuid: 'dash-1' }],
+        });
+
+        expect(selectAgent).not.toHaveBeenCalled();
+        expect(result.nextAction).toBe('create_thread');
+        expect(result.decision.suggestedAgentUuid).toBe('agent-1');
+        expect(aiRouterModel.createDecision).toHaveBeenCalledWith(
+            expect.objectContaining({ candidateAgentUuids: ['agent-1'] }),
+        );
+    });
+});
+
+describe('routing a Voice Design recording', () => {
+    const request: ApiCaptureRouteRequest = {
+        dashboardName: 'Weekly KPIs',
+        gridColumns: 36,
+        tiles: [],
+        marks: [],
+        looseSpeech: [],
+        images: [],
+    };
+    const route = { layout: [], questions: [], edits: [] };
+
+    beforeEach(() => {
+        vi.resetAllMocks();
+        (getModel as import('vitest').Mock).mockReturnValue({ model: {} });
+        (routeCaptureWithModel as import('vitest').Mock).mockResolvedValue(
+            route,
+        );
+    });
+
+    it('refuses while the dashboard flag is off, before calling a model', async () => {
+        const { service } = makeService({
+            candidates: [],
+            dashboardCaptureEnabled: false,
+        });
+
+        await expect(
+            service.routeCapture(account, projectUuid, request),
+        ).rejects.toThrow(ForbiddenError);
+        expect(routeCaptureWithModel).not.toHaveBeenCalled();
+    });
+
+    it('sorts the recording while the dashboard flag is on', async () => {
+        const { service } = makeService({ candidates: [] });
+
+        await expect(
+            service.routeCapture(account, projectUuid, request),
+        ).resolves.toEqual(route);
     });
 });

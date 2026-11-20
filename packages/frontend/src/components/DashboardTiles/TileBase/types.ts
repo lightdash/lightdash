@@ -28,6 +28,8 @@ export type TileBaseProps<T> = {
     children?: ReactNode;
     extraHeaderElement?: ReactNode;
     visibleHeaderElement?: ReactNode;
+    /** Takes the place of the tile's actions while the tile's content has focus */
+    focusedActions?: ReactNode;
     hasNonMenuHeaderContent?: boolean;
     minimal?: boolean;
     tabs?: DashboardTab[];

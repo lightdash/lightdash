@@ -17,8 +17,7 @@ import {
     useComputedColorScheme,
 } from '@mantine/core';
 import {
-    Editor as CodeEditor,
-    type EditorFactory,
+    type Editor as CodeEditor,
     type EditorOptions,
     type EditorType,
 } from '@pierre/diffs/edit';
@@ -35,6 +34,7 @@ import {
     IconChevronDown,
     IconGitCompare,
     IconListDetails,
+    IconPencil,
     IconSearch,
 } from '@tabler/icons-react';
 import {
@@ -56,6 +56,7 @@ import { splitPatchIntoFiles } from '../../ee/features/aiCopilot/components/Chat
 import { type StoredThread } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import { useWholePullRequestDiff } from '../../ee/features/aiCopilot/hooks/usePullRequestDiff';
 import tabClasses from './ModelTabs.module.css';
+import { createEditor } from './pierreEditor';
 import { applyProposal, fileBefore, proposedPathOf } from './proposedFile';
 import { type StudioChatCode, type StudioChatRef } from './studioChatRefs';
 import {
@@ -94,6 +95,8 @@ export type SourcesTarget = {
     changeName: string | null;
     /** False on someone else's change or one that is merged or closed: it is read, not edited. */
     canEdit: boolean;
+    /** Why it is read and not edited, as a sentence; null when it can be edited. */
+    readOnlyReason: string | null;
 };
 
 type ChangedFile = {
@@ -223,9 +226,11 @@ const SOURCE_ICONS: FileTreeIconConfig = {
 export const SourcesRail: FC<{
     target: SourcesTarget;
     proposal: string[];
+    /** The proposal is a save of the agent's that is running. */
+    isSaving: boolean;
     /** On a change, nothing open is its overview, listed first. */
     hasOverview: boolean;
-}> = ({ target, proposal, hasOverview }) => {
+}> = ({ target, proposal, isSaving, hasOverview }) => {
     const { data, isLoading, error } = useStudioSources(
         target.projectUuid,
         target.prUrl,
@@ -329,7 +334,9 @@ export const SourcesRail: FC<{
                             </Text>
                             <Text fz="xs" c="dimmed" truncate flex={1}>
                                 {change.isProposed
-                                    ? 'proposed'
+                                    ? isSaving
+                                        ? 'being saved'
+                                        : 'proposed'
                                     : change.path
                                           .split('/')
                                           .slice(0, -1)
@@ -422,12 +429,6 @@ const createChip = (onClick: () => void) => {
 
 type Layout = 'code' | 'diff' | 'split';
 
-const createEditor: EditorFactory<undefined, undefined> = (
-    type,
-    options,
-    key,
-) => new CodeEditor(type, options, key);
-
 const editorOptionsFor = <T extends EditorType>(
     onAttach: (code: Attached) => void,
     onAddToChat: () => void,
@@ -453,7 +454,9 @@ export const SourcePane: FC<{
     onSaved: (prUrl: string, thread: StoredThread | null) => void;
     onAddToChat: (ref: StudioChatRef) => void;
     proposal: string[];
-}> = ({ target, onSaved, onAddToChat, proposal }) => {
+    /** The proposal is a save of the agent's that is running, so it is shown and not saved again. */
+    isSaving: boolean;
+}> = ({ target, onSaved, onAddToChat, proposal, isSaving }) => {
     const colorScheme = useComputedColorScheme('light');
     const [path] = useOpenFile();
     const { data: sources } = useStudioSources(
@@ -522,8 +525,12 @@ export const SourcePane: FC<{
     }
     const value = text ?? loaded ?? '';
     const isDirty = text !== null && text !== loaded;
+    // Code is read until the person asks to edit it; unsaved text keeps it in editing.
+    const [editingKey, setEditingKey] = useState<string | null>(null);
+    const isEditing = target.canEdit && (isDirty || editingKey === editKey);
     // A proposal shown in the editor is the agent's until the person types over it.
     const hasOwnEdits = isDirty && text !== offered;
+    const isBeingSaved = isSaving && isDirty && !hasOwnEdits;
     const open = useRef({ key: editKey, path });
     open.current = { key: editKey, path };
     // Null at first, so coming back to Sources brings back what was left unsaved.
@@ -589,7 +596,14 @@ export const SourcePane: FC<{
         setRevision((current) => current + 1);
     };
     const submit = () => {
-        if (!path || !isDirty || save.isLoading || !target.canEdit) return;
+        if (
+            !path ||
+            !isDirty ||
+            isBeingSaved ||
+            save.isLoading ||
+            !target.canEdit
+        )
+            return;
         // The save may land after another file is opened; it then leaves that file alone.
         const savedKey = editKey;
         const isStillOpen = () => open.current.key === savedKey;
@@ -726,17 +740,24 @@ export const SourcePane: FC<{
     const status = !change
         ? null
         : change.isProposed
-          ? { label: 'Proposed', color: 'violet' }
+          ? { label: isSaving ? 'Saving' : 'Proposed', color: 'violet' }
           : change.isNew
             ? { label: 'Added', color: 'green' }
             : { label: 'Modified', color: 'yellow' };
     // Like a pull request's compare: what the diff starts from, and what it shows.
     const comparison = `${!target.canEdit ? 'Before' : isChangedFile || !target.prUrl ? 'Published' : 'This draft'} → ${
-        proposedFrom !== null ? 'Proposal' : isDirty ? 'Unsaved' : 'This change'
+        proposedFrom !== null
+            ? isSaving
+                ? 'Being saved'
+                : 'Proposal'
+            : isDirty
+              ? 'Unsaved'
+              : 'This change'
     }`;
     const check = (isOn: boolean) =>
         isOn ? <MantineIcon icon={IconCheck} size={14} /> : null;
-    const surfaceKey = `${path}:${shownLayout}:${revision}`;
+    // Pierre takes `edit` when it mounts, so entering or leaving editing mounts it again.
+    const surfaceKey = `${path}:${shownLayout}:${revision}:${isEditing}`;
     return (
         <Box className={tabClasses.codePane}>
             <Group
@@ -792,7 +813,7 @@ export const SourcePane: FC<{
                             </Text>
                         </Tooltip>
                     ) : null}
-                    {isDirty ? (
+                    {isDirty && !isBeingSaved ? (
                         <Tooltip label="Not saved">
                             <Box
                                 className={classes.unsavedDot}
@@ -802,11 +823,40 @@ export const SourcePane: FC<{
                     ) : null}
                 </Group>
                 <Group gap="xs" wrap="nowrap" flex="none">
-                    {target.canEdit ? null : (
-                        <Text fz="xs" c="dimmed">
-                            Read only
+                    {!target.canEdit ? (
+                        <Text fz="xs" c="dimmed" truncate maw={320}>
+                            {target.readOnlyReason ?? 'Read only'}
                         </Text>
+                    ) : isEditing ? null : (
+                        <Tooltip
+                            label={
+                                target.prUrl
+                                    ? `Saves to ${where}`
+                                    : 'Saving starts a draft. Published stays as it is.'
+                            }
+                        >
+                            <Button
+                                size="compact-xs"
+                                variant="default"
+                                leftSection={
+                                    <MantineIcon icon={IconPencil} size={12} />
+                                }
+                                onClick={() => setEditingKey(editKey)}
+                            >
+                                Edit
+                            </Button>
+                        </Tooltip>
                     )}
+                    {isEditing && !isDirty ? (
+                        <Button
+                            size="compact-xs"
+                            variant="subtle"
+                            color="gray"
+                            onClick={() => setEditingKey(null)}
+                        >
+                            Done
+                        </Button>
+                    ) : null}
                     {isFetching && !isDirty ? (
                         <Loader size={12} color="gray" />
                     ) : null}
@@ -873,7 +923,7 @@ export const SourcePane: FC<{
                             </Menu.Dropdown>
                         </Menu>
                     ) : null}
-                    {isDirty ? (
+                    {isDirty && !isBeingSaved ? (
                         <>
                             <Button
                                 size="compact-xs"
@@ -883,6 +933,7 @@ export const SourcePane: FC<{
                                 onClick={() => {
                                     reset();
                                     setNotice(null);
+                                    setEditingKey(null);
                                 }}
                             >
                                 Discard
@@ -915,8 +966,9 @@ export const SourcePane: FC<{
             {proposed && proposed !== offered && hasOwnEdits ? (
                 <Alert color="violet" radius={0} py={8}>
                     <Text fz="xs">
-                        The agent proposed a change to this file. Discard your
-                        edits to see it here.
+                        {isSaving
+                            ? 'The agent is saving a change to this file. Discard your edits to see it here.'
+                            : 'The agent proposed a change to this file. Discard your edits to see it here.'}
                     </Text>
                 </Alert>
             ) : null}
@@ -963,7 +1015,11 @@ export const SourcePane: FC<{
                                     className={classes.sourceHost}
                                     file={current}
                                     options={options}
-                                    edit={target.canEdit && !save.isLoading}
+                                    edit={
+                                        isEditing &&
+                                        !save.isLoading &&
+                                        !isBeingSaved
+                                    }
                                     editorOptions={fileOptions}
                                     onEditChange={(event) =>
                                         setText(event.file.contents)
@@ -988,7 +1044,11 @@ export const SourcePane: FC<{
                                         diffIndicators: 'bars',
                                         lineDiffType: 'word',
                                     }}
-                                    edit={target.canEdit && !save.isLoading}
+                                    edit={
+                                        isEditing &&
+                                        !save.isLoading &&
+                                        !isBeingSaved
+                                    }
                                     editorOptions={diffOptions}
                                     onEditChange={(event) =>
                                         setText(event.file.contents)

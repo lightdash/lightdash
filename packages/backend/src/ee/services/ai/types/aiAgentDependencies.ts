@@ -921,6 +921,22 @@ export type DescribeWarehouseTableFn = (args: {
     warehouseType: WarehouseTypes;
 }>;
 
+export type WarehouseColumn = { name: string; type: string };
+
+export type ListWarehouseColumnsFn = (args: {
+    /** Null reads every schema. */
+    schema: string | null;
+}) => Promise<{
+    tables: {
+        database: string;
+        schema: string;
+        table: string;
+        columns: WarehouseColumn[];
+    }[];
+    /** Tables left out because one call reads a bounded number of them. */
+    unreadTableCount: number;
+}>;
+
 export type ListKnowledgeDocumentsFn = () => Promise<AiAgentDocumentSummary[]>;
 
 export type GetKnowledgeDocumentContentFn = (args: {
@@ -983,6 +999,8 @@ export type EditDbtProjectFn = (args: {
           aiWritebackRunUuid: string;
           /** Saved by a sandbox that runs dbt, which takes minutes rather than seconds. */
           inSandbox: boolean;
+          /** What a script save writes, one unified diff per file; null in the sandbox. */
+          diffs: string[] | null;
       }
     | { status: 'script_failed'; error: string; logs: string[] }
 >;

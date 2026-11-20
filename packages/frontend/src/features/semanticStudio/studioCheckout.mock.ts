@@ -49,6 +49,7 @@ export const draftOf = (
     models,
     errors: [],
     settled: [],
+    inReview: [],
     othersDrafting: [],
 });
 

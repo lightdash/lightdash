@@ -55,7 +55,6 @@ const AgentPage = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const isEmbed = useIsEmbedded();
-    useEmitEmbedAgentContentEvents({ projectUuid, agentUuid });
     const canManageAgents = useAiAgentPermission({
         action: 'manage',
         projectUuid,
@@ -79,6 +78,12 @@ const AgentPage = () => {
         agentUuid,
         threadUuid,
     );
+    useEmitEmbedAgentContentEvents({
+        projectUuid,
+        agentUuid,
+        threadUuid,
+        thread,
+    });
 
     const { addItem: addDockItem } = useLauncherDock(projectUuid);
     const { track } = useTracking();

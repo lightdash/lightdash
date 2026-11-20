@@ -1,5 +1,6 @@
 import {
     DashboardTileTypes,
+    defaultTileSize,
     FeatureFlags,
     getDashboardTileCountsByTab,
     type Dashboard,
@@ -15,11 +16,14 @@ import {
 } from '@tabler/icons-react';
 import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
+import { v4 as uuid4 } from 'uuid';
 import {
+    dashboardEditActions,
     selectDashboardFilters,
     selectDashboardTiles,
     selectHaveFiltersChanged,
     selectHaveTilesChanged,
+    useDashboardDispatch,
     useDashboardSelector,
 } from '../../features/dashboard/store';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
@@ -34,7 +38,6 @@ import { TileAddModal } from './TileForms/TileAddModal';
 type FormTileType =
     | DashboardTileTypes.MARKDOWN
     | DashboardTileTypes.LOOM
-    | DashboardTileTypes.HEADING
     | DashboardTileTypes.DATA_APP;
 
 export type AddTileOptionId =
@@ -95,6 +98,7 @@ export const useAddTileOptions = ({
     const haveTilesChanged = useDashboardSelector(selectHaveTilesChanged);
     const haveFiltersChanged = useDashboardSelector(selectHaveFiltersChanged);
     const dashboard = useDashboardContext((c) => c.dashboard);
+    const dashboardDispatch = useDashboardDispatch();
 
     const { storeDashboard } = useDashboardStorage();
     const navigate = useNavigate();
@@ -141,6 +145,23 @@ export const useAddTileOptions = ({
             dashboard?.slug,
         );
         void navigate(`/projects/${projectUrlIdentifier}/tables`);
+    };
+
+    // A heading is typed on the tile itself, so it is added ready to rename
+    const addHeading = () => {
+        const uuid = uuid4();
+        onAddTiles([
+            {
+                uuid,
+                type: DashboardTileTypes.HEADING,
+                properties: { text: 'Heading', showDivider: false },
+                tabUuid: undefined,
+                ...defaultTileSize,
+                h: 1,
+                w: 36,
+            },
+        ]);
+        dashboardDispatch(dashboardEditActions.focusTileText(uuid));
     };
 
     const candidates: (AddTileOption & { isShown: boolean })[] = [
@@ -193,7 +214,7 @@ export const useAddTileOptions = ({
             label: 'Heading',
             icon: IconHeading,
             hint: null,
-            onSelect: () => setFormTileType(DashboardTileTypes.HEADING),
+            onSelect: addHeading,
             isShown: isTileTypeAllowed(DashboardTileTypes.HEADING),
         },
     ];

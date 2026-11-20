@@ -324,9 +324,14 @@ vi.mock('../src/ee/pages/AiAgents/AgentPage', async () => {
 
     return {
         default: function MockAgentPage() {
-            const { agentUuid, projectUuid } = useParams();
+            const { agentUuid, projectUuid, threadUuid } = useParams();
             const isEmbedded = useIsEmbedded();
-            useEmitEmbedAgentContentEvents({ projectUuid, agentUuid });
+            useEmitEmbedAgentContentEvents({
+                projectUuid,
+                agentUuid,
+                threadUuid,
+                thread: undefined,
+            });
             return (
                 <div
                     data-testid="agent-page"
@@ -341,7 +346,7 @@ vi.mock('../src/ee/pages/AiAgents/AgentPage', async () => {
 });
 
 vi.mock('../src/ee/pages/AiAgents/AiAgentNewThreadPage', async () => {
-    const { useParams } = await import('react-router');
+    const { useParams, useLocation } = await import('react-router');
     const { useEmitEmbedAiAgentThreadChange } =
         await import('../src/ee/features/aiCopilot/hooks/embedAiAgentThreadChange');
     const { default: useEmbedForSetup } =
@@ -352,10 +357,12 @@ vi.mock('../src/ee/pages/AiAgents/AiAgentNewThreadPage', async () => {
             const { projectUuid, agentUuid } = useParams();
             const emitThreadChange = useEmitEmbedAiAgentThreadChange();
             const { aiAgentThreadSetup } = useEmbedForSetup();
+            const { state } = useLocation();
             return (
                 <button
                     data-testid="agent-new-thread"
                     data-thread-setup={JSON.stringify(aiAgentThreadSetup)}
+                    data-auto-submit-prompt={state?.autoSubmitPrompt}
                     onClick={() =>
                         emitThreadChange({
                             projectUuid: projectUuid!,
@@ -1179,6 +1186,7 @@ describe('SDK AI agent', () => {
                 threadContext: 'Earlier: revenue & churn',
             },
             aiAgentNavigationDisabled: false,
+            aiAgentInitialPrompt: null,
         });
     });
 
@@ -1206,7 +1214,105 @@ describe('SDK AI agent', () => {
                 threadContext: null,
             },
             aiAgentNavigationDisabled: false,
+            aiAgentInitialPrompt: null,
         });
+    });
+
+    it('passes the initial prompt in the iframe hash', async () => {
+        const { container } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                initialPrompt="Why did margin drop?"
+            />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+
+        const iframeSrc = new URL(
+            container.querySelector('iframe')?.getAttribute('src') ?? '',
+        );
+        expect(iframeSrc.search).toBe('');
+        expect(parseEmbedHash(iframeSrc.hash)).toEqual({
+            token: mockToken,
+            aiAgentThreadSetup: null,
+            aiAgentNavigationDisabled: false,
+            aiAgentInitialPrompt: 'Why did margin drop?',
+        });
+    });
+
+    it('leaves the initial prompt out when opening an existing thread', async () => {
+        const { container } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                threadUuid="test-thread-uuid"
+                initialPrompt="Why did margin drop?"
+            />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+
+        const iframeSrc = new URL(
+            container.querySelector('iframe')?.getAttribute('src') ?? '',
+        );
+        expect(parseEmbedHash(iframeSrc.hash).aiAgentInitialPrompt).toBeNull();
+    });
+
+    it('keeps the iframe when the host clears the initial prompt', async () => {
+        const props = {
+            token: mockToken,
+            instanceUrl: mockInstanceUrl,
+            agentUuid: 'test-agent-uuid',
+        };
+        const { container, rerender } = render(
+            <AiAgent {...props} initialPrompt="Why did margin drop?" />,
+        );
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+        const iframe = container.querySelector('iframe');
+        const src = iframe?.getAttribute('src');
+
+        rerender(<AiAgent {...props} />);
+
+        expect(container.querySelector('iframe')).toBe(iframe);
+        expect(iframe?.getAttribute('src')).toBe(src);
+    });
+
+    it('reloads the iframe when the host passes another initial prompt', async () => {
+        const props = {
+            token: mockToken,
+            instanceUrl: mockInstanceUrl,
+            agentUuid: 'test-agent-uuid',
+        };
+        const { container, rerender } = render(
+            <AiAgent {...props} initialPrompt="Why did margin drop?" />,
+        );
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+        const iframe = container.querySelector('iframe');
+
+        rerender(<AiAgent {...props} />);
+        rerender(<AiAgent {...props} initialPrompt="Why did margin drop?" />);
+
+        expect(container.querySelector('iframe')).not.toBe(iframe);
+
+        rerender(<AiAgent {...props} initialPrompt="What changed in Q3?" />);
+
+        const reloaded = new URL(
+            container.querySelector('iframe')?.getAttribute('src') ?? '',
+        );
+        expect(parseEmbedHash(reloaded.hash).aiAgentInitialPrompt).toBe(
+            'What changed in Q3?',
+        );
     });
 
     it('passes disableNavigation in the iframe hash', async () => {
@@ -1231,6 +1337,7 @@ describe('SDK AI agent', () => {
             token: mockToken,
             aiAgentThreadSetup: null,
             aiAgentNavigationDisabled: true,
+            aiAgentInitialPrompt: null,
         });
     });
 
@@ -1520,6 +1627,76 @@ describe('SDK native AI agent', () => {
 
         const newThread = await findByTestId('agent-new-thread');
         expect(newThread).toHaveAttribute('data-thread-setup', 'null');
+    });
+
+    it('starts a new thread with the initial prompt from the host', async () => {
+        const { findByTestId } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                initialPrompt="Why did margin drop?"
+                renderMode="native"
+            />,
+        );
+
+        expect(await findByTestId('agent-new-thread')).toHaveAttribute(
+            'data-auto-submit-prompt',
+            'Why did margin drop?',
+        );
+    });
+
+    it('waits for a typed question when the host passes no initial prompt', async () => {
+        const { findByTestId } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                renderMode="native"
+            />,
+        );
+
+        expect(await findByTestId('agent-new-thread')).not.toHaveAttribute(
+            'data-auto-submit-prompt',
+        );
+    });
+
+    it('ignores the initial prompt when opening an existing thread', async () => {
+        const { findByTestId, queryByTestId } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                threadUuid="test-thread-uuid"
+                initialPrompt="Why did margin drop?"
+                renderMode="native"
+            />,
+        );
+
+        expect(await findByTestId('agent-thread')).toBeTruthy();
+        expect(queryByTestId('agent-new-thread')).toBeNull();
+    });
+
+    it('starts another thread when the host changes the initial prompt', async () => {
+        const props = {
+            token: mockToken,
+            instanceUrl: mockInstanceUrl,
+            agentUuid: 'test-agent-uuid',
+            renderMode: 'native' as const,
+        };
+        const { findByTestId, rerender } = render(
+            <AiAgent {...props} threadUuid="test-thread-uuid" />,
+        );
+        expect(await findByTestId('agent-thread')).toBeTruthy();
+
+        rerender(<AiAgent {...props} initialPrompt="Why did margin drop?" />);
+
+        await waitFor(() => {
+            expect(mockNavigate).toHaveBeenCalledWith(
+                '/embed/test-project-uuid/ai-agents/test-agent-uuid/threads',
+                { state: { autoSubmitPrompt: 'Why did margin drop?' } },
+            );
+        });
     });
 
     it('reports agent dashboard edits to onEvent once', async () => {

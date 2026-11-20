@@ -40,7 +40,7 @@ A custom chart type is chosen the same way: by its own description first, then a
         .nullish()
         .default(null)
         .describe(
-            'Value columns. big_number, pie and funnel use y[0]. null to use every numeric column not on x or groupBy.',
+            'Value columns, one series each on bar/line/area/scatter. big_number, pie and funnel use y[0]. null to use every numeric column not on x or groupBy.',
         ),
     groupBy: z
         .array(refSchema)
@@ -54,7 +54,7 @@ A custom chart type is chosen the same way: by its own description first, then a
         .nullish()
         .default(null)
         .describe(
-            'bar: stack series on top of each other, for parts that add up to a total (sums and counts; averages, ratios and distinct counts sit side by side). area always stacks. Ignored elsewhere.',
+            'bar: stack series (several y columns, or a groupBy split) on top of each other, for parts that add up to a total (sums and counts; averages, ratios and distinct counts sit side by side). area always stacks. Ignored elsewhere.',
         ),
     horizontal: z
         .boolean()

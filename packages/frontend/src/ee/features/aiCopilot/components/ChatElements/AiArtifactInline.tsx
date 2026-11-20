@@ -8,6 +8,7 @@ import {
 import { memo, useContext, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
+import classes from './AiArtifactInline.module.css';
 import { AiArtifactPanel } from './AiArtifactPanel';
 import { QuietCardsContext } from './ToolCalls/quietCards';
 
@@ -80,6 +81,14 @@ export const AiArtifactInline: FC<AiArtifactInlineProps> = memo(
             </UnstyledButton>
         ) : null;
         if (!isOpen) return toggle;
+        if (quiet) {
+            return (
+                <>
+                    {toggle}
+                    <Box className={classes.fitted}>{artifactJsx}</Box>
+                </>
+            );
+        }
 
         return (
             <>

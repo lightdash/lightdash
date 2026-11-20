@@ -236,6 +236,91 @@ describe('SchedulerWorker migration quiesce', () => {
         },
     );
 
+    it('resumes workers after a runner stop fails on a dropped connection', async () => {
+        vi.spyOn(Math, 'random').mockReturnValue(0);
+        let active = false;
+        const worker = makeWorker(() => active);
+        await worker.run();
+        vi.mocked(fakeRunners[0].runner.stop).mockRejectedValueOnce(
+            new Error('Connection terminated unexpectedly'),
+        );
+
+        active = true;
+        await vi.advanceTimersByTimeAsync(10);
+        active = false;
+        await vi.advanceTimersByTimeAsync(250);
+
+        expect(runnerOptions.map(({ concurrency }) => concurrency)).toEqual([
+            3, 1, 2,
+        ]);
+        expect(worker.isQuiesced).toBe(false);
+        await worker.stop();
+    });
+
+    it('lets an active job finish before closing the pool when another worker fails to fetch', async () => {
+        vi.spyOn(Math, 'random').mockReturnValue(0);
+        let active = false;
+        const worker = makeWorker(() => active);
+        await worker.run();
+
+        let failFetch!: (error: Error) => void;
+        let finishJob!: () => void;
+        const fetching = new Promise<void>((_resolve, reject) => {
+            failFetch = reject;
+        });
+        const running = new Promise<void>((resolve) => {
+            finishJob = resolve;
+        });
+        const graphileWorkers = [fetching, running].map((promise) => ({
+            promise,
+            release: () => promise,
+        }));
+        for (const graphileWorker of graphileWorkers) {
+            runnerOptions[0].events?.emit('worker:create', {
+                worker: graphileWorker,
+            } as never);
+        }
+        // Mirrors Graphile 0.13: Promise.all over workers, then the pool
+        // closes even when a worker release rejected.
+        let poolClosed = false;
+        vi.mocked(fakeRunners[0].runner.stop).mockImplementationOnce(
+            async () => {
+                try {
+                    await Promise.all(
+                        graphileWorkers.map((graphileWorker) =>
+                            graphileWorker.release(),
+                        ),
+                    );
+                } finally {
+                    poolClosed = true;
+                }
+            },
+        );
+
+        try {
+            active = true;
+            await vi.advanceTimersByTimeAsync(10);
+            active = false;
+            await vi.advanceTimersByTimeAsync(10);
+            failFetch(new Error('Connection terminated unexpectedly'));
+            await vi.advanceTimersByTimeAsync(500);
+
+            expect(poolClosed).toBe(false);
+            expect(runGraphileWorker).toHaveBeenCalledOnce();
+
+            finishJob();
+            await vi.advanceTimersByTimeAsync(250);
+            expect(poolClosed).toBe(true);
+            expect(runnerOptions.map(({ concurrency }) => concurrency)).toEqual(
+                [3, 1, 2],
+            );
+            expect(worker.isQuiesced).toBe(false);
+        } finally {
+            finishJob();
+            await worker.stop();
+        }
+    });
+
     it('joins an ongoing migration drain on shutdown without restarting workers', async () => {
         let active = false;
         const worker = makeWorker(() => active);

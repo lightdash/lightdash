@@ -52,7 +52,7 @@ describe('StudioCheckoutPicker', () => {
 
         await user.click(trigger());
         await user.click(
-            await screen.findByRole('menuitem', { name: 'Change B' }),
+            await screen.findByRole('menuitem', { name: /^Change B/ }),
         );
         expect(mutate).toHaveBeenLastCalledWith(
             { kind: 'activate', workspaceUuid: 'B' },
@@ -72,7 +72,7 @@ describe('StudioCheckoutPicker', () => {
 
         await user.click(trigger());
         await user.click(
-            await screen.findByRole('menuitem', { name: 'Published' }),
+            await screen.findByRole('menuitem', { name: 'Back to Published' }),
         );
         expect(mutate).toHaveBeenLastCalledWith(
             { kind: 'leave' },
@@ -96,14 +96,15 @@ describe('StudioCheckoutPicker', () => {
         );
     });
 
-    it('does nothing for the change already checked out', async () => {
-        mutate.mockClear();
+    it('lists where you can go, not where you are', async () => {
         const user = userEvent.setup();
         renderWithProviders(picker(on(A)));
         await user.click(trigger());
-        await user.click(
-            await screen.findByRole('menuitem', { name: 'Change A' }),
-        );
-        expect(mutate).not.toHaveBeenCalled();
+        expect(
+            await screen.findByRole('menuitem', { name: /^Change B/ }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('menuitem', { name: /^Change A/ }),
+        ).not.toBeInTheDocument();
     });
 });

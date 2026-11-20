@@ -1273,6 +1273,69 @@ describe('ProjectService', () => {
         });
     });
 
+    describe('getWarehouseColumns', () => {
+        const tables = [
+            { database: 'db', schema: 'raw', table: 'orders' },
+            { database: 'db', schema: 'raw', table: 'customers' },
+        ];
+        const bySchema = {
+            db: {
+                raw: { orders: { id: DimensionType.NUMBER }, customers: {} },
+            },
+        };
+        const byTable = { db: { raw: { orders: {}, customers: {} } } };
+        const read = async (
+            getSchemaColumns: WarehouseClient['getSchemaColumns'],
+        ) => {
+            const configured = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
+            const getCatalog = vi.fn(async () => byTable);
+            vi.spyOn(
+                configured.warehouseClientFactory,
+                'withWarehouseClient',
+            ).mockImplementation(async (_ref, _context, consume) =>
+                consume({
+                    warehouseClient: {
+                        ...warehouseClientMock,
+                        getCatalog,
+                        getSchemaColumns,
+                    },
+                } as never),
+            );
+            const result = await configured.getWarehouseColumns(
+                user,
+                projectUuid,
+                QueryExecutionContext.AI,
+                tables,
+            );
+            return { result, getCatalog };
+        };
+
+        test('reads a schema at a time where the warehouse can', async () => {
+            const getSchemaColumns = vi.fn(async () => bySchema);
+            const { result, getCatalog } = await read(getSchemaColumns);
+            expect(getSchemaColumns).toHaveBeenCalledWith([
+                { database: 'db', schema: 'raw' },
+            ]);
+            expect(result).toEqual({ catalog: bySchema, tables });
+            expect(getCatalog).not.toHaveBeenCalled();
+        });
+
+        test.each([
+            ['fails', vi.fn().mockRejectedValue(new Error('no access'))],
+            ['names tables differently', vi.fn(async () => ({ DB: {} }))],
+            ['is not there', undefined],
+        ])(
+            'reads table by table when the schema read %s',
+            async (_why, getSchemaColumns) => {
+                const { result, getCatalog } = await read(getSchemaColumns);
+                expect(getCatalog).toHaveBeenCalledWith(tables);
+                expect(result).toEqual({ catalog: byTable, tables });
+            },
+        );
+    });
+
     describe('Document counts in legacy Space listing', () => {
         it.each([
             { canViewDocument: false, expectedCount: 0 },

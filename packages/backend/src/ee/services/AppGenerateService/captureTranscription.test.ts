@@ -1,7 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { ParameterError } from '@lightdash/common';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
     audioFilenameForMimeType,
     parseTranscriptionWords,
+    transcribeCaptureAudio,
     transcriptionLanguage,
 } from './captureTranscription';
 
@@ -81,5 +83,39 @@ describe('transcriptionLanguage', () => {
         expect(transcriptionLanguage(undefined)).toBeNull();
         expect(transcriptionLanguage('')).toBeNull();
         expect(transcriptionLanguage('english please')).toBeNull();
+    });
+});
+
+describe('transcribeCaptureAudio', () => {
+    const call = () =>
+        transcribeCaptureAudio({
+            apiKey: 'key',
+            baseUrl: 'https://transcribe.test/v1',
+            audio: Buffer.from('definitely not audio'),
+            filename: 'capture.webm',
+            mimeType: 'audio/webm',
+            language: null,
+        });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it('reports a recording the provider cannot read as a bad request', async () => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(async () => new Response('{}', { status: 400 })),
+        );
+        await expect(call()).rejects.toBeInstanceOf(ParameterError);
+    });
+
+    it('keeps other provider failures as server errors', async () => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(async () => new Response('{}', { status: 503 })),
+        );
+        const error = await call().catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(Error);
+        expect(error).not.toBeInstanceOf(ParameterError);
     });
 });

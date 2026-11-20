@@ -4583,6 +4583,7 @@ export class AsyncQueryService extends ProjectService {
         executionExplore,
         fieldsMap,
         pivotConfiguration,
+        pivotDimensions,
         startOfWeek,
         userAccessControls,
         availableParameterDefinitions,
@@ -4602,6 +4603,7 @@ export class AsyncQueryService extends ProjectService {
         executionExplore?: (name: string) => Promise<Explore>;
         fieldsMap: ItemsMap;
         pivotConfiguration?: PivotConfiguration;
+        pivotDimensions?: string[];
         startOfWeek: CreateWarehouseCredentials['startOfWeek'];
         userAccessControls?: UserAccessControls;
         availableParameterDefinitions?: ParameterDefinitions;
@@ -4629,6 +4631,7 @@ export class AsyncQueryService extends ProjectService {
                 parameters,
                 fieldsMap,
                 pivotConfiguration,
+                pivotDimensions,
                 startOfWeek,
                 userAccessControls,
                 availableParameterDefinitions,
@@ -7534,6 +7537,8 @@ export class AsyncQueryService extends ProjectService {
                               executionExplore,
                               fieldsMap,
                               pivotConfiguration,
+                              pivotDimensions:
+                                  queryComposer.getPivotDimensions(),
                               startOfWeek: warehouseCredentials.startOfWeek,
                               userAccessControls:
                                   queryComposer.getUserAccessControls(),
