@@ -32,7 +32,7 @@ import {
     type JSONValue,
     type ToolSet,
 } from 'ai';
-import { isEqual } from 'es-toolkit/compat';
+import Ajv from 'ajv';
 import dns from 'node:dns';
 import type { LookupFunction } from 'node:net';
 import { Agent, type Dispatcher } from 'undici';
@@ -1212,36 +1212,55 @@ const toMcpToolDefinition = (
     _meta: (tool.meta ?? undefined) as McpToolDefinition['_meta'],
 });
 
+const liveSchemaValidator = new Ajv({
+    strict: false,
+    validateFormats: false,
+    logger: false,
+});
+
+// A schema the validator cannot compile passes, as live tools ran unchecked before.
+const isValidForLiveSchema = (schema: unknown, input: unknown): boolean => {
+    try {
+        return !!liveSchemaValidator.validate(schema as object, input);
+    } catch {
+        return true;
+    }
+};
+
+const toMcpToolErrorResult = (message: string) => ({
+    isError: true,
+    content: [{ type: 'text', text: message }],
+});
+
 // Mirrors @ai-sdk/mcp's toolsFromDefinitions for a stored definition.
 const toOnDemandMcpTool = (
     definition: McpToolDefinition,
     getLiveTools: () => Promise<ToolSet>,
 ): ToolSet[string] => {
-    const storedInputSchema = jsonSchema({
-        ...definition.inputSchema,
-        properties: definition.inputSchema.properties ?? {},
-        additionalProperties: false,
-    });
     let liveTool: ToolSet[string] | undefined;
     return dynamicTool({
         description: definition.description,
         title: definition.title ?? definition.annotations?.title,
-        inputSchema: storedInputSchema,
+        inputSchema: jsonSchema({
+            ...definition.inputSchema,
+            properties: definition.inputSchema.properties ?? {},
+            additionalProperties: false,
+        }),
         execute: async (input, options) => {
             liveTool = (await getLiveTools())[definition.name];
             if (!liveTool?.execute) {
-                throw new Error(
-                    `MCP tool "${definition.name}" is no longer available on this server.`,
+                return toMcpToolErrorResult(
+                    `MCP tool "${definition.name}" is no longer available on this server. Ask an admin to refresh this MCP server's tools.`,
                 );
             }
             if (
-                !isEqual(
+                !isValidForLiveSchema(
                     await asSchema(liveTool.inputSchema).jsonSchema,
-                    await storedInputSchema.jsonSchema,
+                    input,
                 )
             ) {
-                throw new Error(
-                    `MCP tool "${definition.name}" has changed since its tools were last refreshed. Refresh this MCP server's tools and try again.`,
+                return toMcpToolErrorResult(
+                    `MCP tool "${definition.name}" has changed since its tools were last refreshed, and this call does not match its current inputs. Ask an admin to refresh this MCP server's tools.`,
                 );
             }
             return liveTool.execute(input, options);

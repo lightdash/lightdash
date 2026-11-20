@@ -1361,9 +1361,10 @@ describe('resolveMcpTools', () => {
         const liveExecute = vi.fn().mockResolvedValue({
             content: [{ type: 'text', text: 'found it' }],
         });
+        // Live schema gained optional inputs since the catalog was stored.
         const liveInputSchema = jsonSchema({
             type: 'object',
-            properties: {},
+            properties: { query: { type: 'string' }, page: { type: 'string' } },
             additionalProperties: false,
         });
         vi.mocked(mcpSdk.createMCPClient).mockResolvedValue({
@@ -1473,7 +1474,7 @@ describe('resolveMcpTools', () => {
         expect(mcpSdk.createMCPClient).not.toHaveBeenCalled();
     });
 
-    it('fails the tool call when the live tool schema no longer matches the stored one', async () => {
+    it('returns a tool error without running it when the call no longer fits the live schema', async () => {
         const server = getMcpServer({
             name: 'Lightdash Docs',
             enabledToolNames: ['search_lightdash'],
@@ -1502,13 +1503,17 @@ describe('resolveMcpTools', () => {
             userUuid: 'user-uuid',
             debugLoggingEnabled: false,
         });
+        const output = (await result.tools.mcp_lightdash_docs__search_lightdash
+            .execute!({ project: 'a' } as never, {
+            toolCallId: 'call-1',
+            messages: [],
+            context: {},
+        })) as { isError: boolean; content: { text: string }[] };
 
-        await expect(
-            result.tools.mcp_lightdash_docs__search_lightdash.execute!(
-                { query: 'a' } as never,
-                { toolCallId: 'call-1', messages: [], context: {} },
-            ),
-        ).rejects.toThrow(/has changed since its tools were last refreshed/);
+        expect(output.isError).toBe(true);
+        expect(output.content.at(-1)?.text).toMatch(
+            /has changed since its tools were last refreshed/,
+        );
         expect(liveExecute).not.toHaveBeenCalled();
         await result.closeMcpClients();
     });
