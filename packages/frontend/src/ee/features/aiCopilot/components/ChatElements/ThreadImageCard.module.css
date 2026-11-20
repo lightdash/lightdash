@@ -1,0 +1,52 @@
+.gridContainer {
+    container-type: inline-size;
+}
+
+/* Two equal columns, so any number of images lines up; one in a narrow composer. */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--mantine-spacing-xs);
+}
+
+@container (max-width: 26rem) {
+    .grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.card {
+    min-width: 0;
+}
+
+/* Tiles share one row and shrink together before any of them wraps. */
+.tileRow {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: rem(6px);
+    min-width: 0;
+    max-width: 100%;
+}
+
+.tile {
+    flex: 1 1 6.5rem;
+    max-width: max-content;
+    padding-right: var(--mantine-spacing-xs);
+}
+
+.placeholder {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 48px;
+    border-radius: var(--mantine-radius-sm);
+    background: var(--mantine-color-ldGray-1);
+}
+
+.placeholder[data-layout='tile'] {
+    width: 32px;
+    height: 32px;
+}

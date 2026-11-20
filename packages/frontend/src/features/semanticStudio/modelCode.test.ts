@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     countChangedLines,
     getChangeKind,
+    describeFieldChanges,
     describeModelChange,
     findPeekStart,
     changeTitle,
@@ -335,5 +336,29 @@ describe('countChangedLines', () => {
         expect(
             countChangedLines({ contentBefore: null, contentAfter: 'a\nb\n' }),
         ).toEqual({ additions: 2, deletions: 0 });
+    });
+});
+
+describe('describeFieldChanges', () => {
+    const field = (
+        kind: 'metric' | 'dimension',
+        change: 'new' | 'changed',
+        label: string,
+    ) => ({ kind, change, label, name: label, type: null, detail: null });
+
+    it('groups fields by what happened to them and their kind', () => {
+        expect(
+            describeFieldChanges([
+                field('metric', 'new', 'Podium Rate'),
+                field('dimension', 'changed', 'Status'),
+                field('metric', 'new', 'Win Rate'),
+            ]),
+        ).toBe(
+            'Added 2 metrics: Podium Rate, Win Rate. Changed 1 dimension: Status',
+        );
+    });
+
+    it('is empty when no field changed', () => {
+        expect(describeFieldChanges([])).toBe('');
     });
 });

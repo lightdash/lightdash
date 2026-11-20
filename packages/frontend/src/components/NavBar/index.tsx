@@ -7,7 +7,6 @@ import {
 import { Box } from '@mantine/core';
 import { clsx } from 'clsx';
 import { memo } from 'react';
-import { useLocation } from 'react-router';
 import { useDraftCheckoutView } from '../../features/semanticStudio/useSemanticLayerModel';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useOrganizationAccess } from '../../hooks/organization/useOrganizationAccess';
@@ -23,15 +22,12 @@ import { isPlaygroundProvisioningSource } from '../../utils/playgroundProject';
 import { getProjectUrlIdentifier } from '../../utils/projectUrl';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../common/Page/constants';
 import { DashboardExplorerBanner } from './DashboardExplorerBanner';
-import { DraftCheckoutBanner } from './DraftCheckoutBanner';
 import { ImpersonationBanner } from './ImpersonationBanner';
 import classes from './index.module.css';
 import { MainNavBarContent } from './MainNavBarContent';
 import { PreviewBanner } from './PreviewBanner';
 import { SampleDataBanner } from './SampleDataBanner';
 import { TrialWarningBanner } from './TrialWarningBanner';
-
-const STUDIO_PATH = /\/projects\/[^/]+\/semantic-layer(?=\/|$)/;
 
 enum NavBarMode {
     DEFAULT = 'default',
@@ -132,19 +128,15 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
             }),
         ) === true;
 
-    const draftCheckout = useDraftCheckoutView(
+    // Keeps every request reading the checked-out draft; the project switcher says so.
+    useDraftCheckoutView(
         activeProjectUuid,
         project ? getProjectUrlIdentifier(project) : undefined,
     );
-    const { pathname } = useLocation();
-    // Studio shows the checkout in its own header.
-    const showDraftBanner =
-        draftCheckout !== null && !STUDIO_PATH.test(pathname);
 
     const hasBanner =
         isImpersonating ||
         (isCurrentProjectPreview && !isTrainingCopy) ||
-        showDraftBanner ||
         showSampleDataBanner ||
         showTrialWarning;
 
@@ -184,11 +176,6 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                                       }
                                     : null
                             }
-                        />
-                    ) : showDraftBanner && activeProjectUuid ? (
-                        <DraftCheckoutBanner
-                            projectUuid={activeProjectUuid}
-                            checkout={draftCheckout}
                         />
                     ) : showSampleDataBanner ? (
                         <SampleDataBanner />

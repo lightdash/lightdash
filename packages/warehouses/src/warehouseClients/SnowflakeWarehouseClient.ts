@@ -1961,6 +1961,35 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         return catalog;
     }
 
+    async getSchemaColumns(
+        schemas: { database: string; schema: string }[],
+    ): Promise<WarehouseCatalog> {
+        const names = [...new Set(schemas.map(({ schema }) => schema))];
+        if (names.length === 0) return {};
+        // information_schema belongs to the connection's database, which is where the listed tables come from.
+        const databaseName = this.connectionOptions.database;
+        const query = `
+            SELECT TABLE_CATALOG as "table_catalog",
+                   TABLE_SCHEMA  as "table_schema",
+                   TABLE_NAME    as "table_name",
+                   COLUMN_NAME   as "column_name",
+                   DATA_TYPE     as "data_type"
+            FROM information_schema.columns
+            WHERE TABLE_SCHEMA IN (${names.map(() => '?').join(', ')})
+            ${databaseName ? 'AND TABLE_CATALOG ILIKE ?' : ''}
+            ORDER BY 1, 2, 3, ORDINAL_POSITION
+        `;
+        const { rows } = await this.runQuery(query, {}, undefined, [
+            ...names,
+            ...(databaseName ? [databaseName] : []),
+        ]);
+        return this.parseWarehouseCatalog(
+            rows,
+            mapFieldType,
+            getSnowflakeTimestampDomain,
+        );
+    }
+
     async getAllTables() {
         const databaseName = this.connectionOptions.database;
         const whereSql = databaseName ? `AND TABLE_CATALOG ILIKE ?` : '';

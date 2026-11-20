@@ -162,6 +162,7 @@ const buildService = ({
                       new ForbiddenError('Direct access is not available'),
                   ),
         isEnabledForUser: vi.fn().mockResolvedValue(enabled),
+        isEnabled: vi.fn().mockResolvedValue(enabled),
     };
     const spacePermissionService = {
         resolveAccess: vi.fn().mockResolvedValue(context),
@@ -190,6 +191,40 @@ const buildService = ({
 };
 
 describe('DirectAccessService', () => {
+    it('checks only grants that take effect when a pending recipient activates', async () => {
+        const { service, directAccessModel, grantReadModel } = buildService();
+        const inviter = buildAccount(OrganizationMemberRole.MEMBER);
+        directAccessModel.findCandidateResourceUuidsForUser.mockImplementation(
+            async (type) =>
+                type === DirectAccessResourceType.DASHBOARD
+                    ? [DASHBOARD_UUID]
+                    : [],
+        );
+        await expect(
+            service.assertCanRenewSharedAccess(inviter, OTHER_USER_UUID),
+        ).resolves.toBeUndefined();
+        expect(grantReadModel.getUserAccess).toHaveBeenCalledWith(
+            [DASHBOARD_UUID],
+            OTHER_USER_UUID,
+            {
+                organizationUuid: ORGANIZATION_UUID,
+                includePendingUser: true,
+            },
+        );
+        expect(directAccessModel.findResourceLocation).not.toHaveBeenCalled();
+
+        grantReadModel.getUserAccess.mockResolvedValue({
+            [DASHBOARD_UUID]: {
+                projectUuid: PROJECT_UUID,
+                userRole: SpaceMemberRole.VIEWER,
+                groupRoles: [],
+            },
+        });
+        await expect(
+            service.assertCanRenewSharedAccess(inviter, OTHER_USER_UUID),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+    });
+
     it.each([
         SpaceMemberRole.VIEWER,
         SpaceMemberRole.EDITOR,

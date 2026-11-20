@@ -62,6 +62,7 @@ import {
     withAgentActionScope,
 } from '../../../services/AiAccessService/agentActionTestUtils.mock';
 import { CoderService } from '../../../services/CoderService/CoderService';
+import { developmentView } from '../../../services/ProjectService/developmentView';
 import { validatePagination } from '../../../services/ProjectService/resultsPagination';
 import { PromoteService } from '../../../services/PromoteService/PromoteService';
 import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
@@ -986,6 +987,76 @@ describe('AiAgentToolsService', () => {
         expect(executeMetricQueryAndGetResults).not.toHaveBeenCalled();
     });
 
+    describe('listWarehouseColumns', () => {
+        const catalog = {
+            analytics: {
+                jaffle: { orders: {}, customers: {} },
+                retired: { old_orders: {} },
+            },
+        };
+        const getWarehouseColumns = vi.fn(
+            async (
+                _user: unknown,
+                _projectUuid: unknown,
+                _context: unknown,
+                tables: { database: string; schema: string; table: string }[],
+            ) => ({
+                catalog: {
+                    analytics: {
+                        jaffle: Object.fromEntries(
+                            tables.map(({ table }) => [
+                                table,
+                                { id: DimensionType.NUMBER },
+                            ]),
+                        ),
+                    },
+                },
+                tables,
+            }),
+        );
+        const makeColumnsRuntime = (schemas: string[]) =>
+            makeService({
+                projectService: {
+                    getWarehouseTables: vi.fn().mockResolvedValue(catalog),
+                    getWarehouseColumns,
+                },
+            }).createRuntime(
+                makeRuntimeContext({
+                    sqlScope: { schemas, deniedCatalogs: [] },
+                }),
+            );
+
+        beforeEach(() => {
+            getWarehouseColumns.mockClear();
+        });
+
+        it('reads only the tables the agent may list, and reads them once', async () => {
+            const runtime = makeColumnsRuntime(['jaffle']);
+
+            const first = await runtime.listWarehouseColumns({ schema: null });
+            expect(first.tables.map(({ table }) => table).sort()).toEqual([
+                'customers',
+                'orders',
+            ]);
+            expect(first.tables[0].columns).toEqual([
+                { name: 'id', type: 'number' },
+            ]);
+            expect(first.unreadTableCount).toBe(0);
+
+            await runtime.listWarehouseColumns({ schema: 'jaffle' });
+            expect(getWarehouseColumns).toHaveBeenCalledOnce();
+        });
+
+        it('reads nothing for a schema outside the agent scope', async () => {
+            const runtime = makeColumnsRuntime(['jaffle']);
+
+            await expect(
+                runtime.listWarehouseColumns({ schema: 'retired' }),
+            ).resolves.toEqual({ tables: [], unreadTableCount: 0 });
+            expect(getWarehouseColumns).not.toHaveBeenCalled();
+        });
+    });
+
     describe('describeWarehouseTable scope', () => {
         it('keeps a credential refusal in the describe tool output', async () => {
             const refusal = new AiAccessRefusedError(
@@ -1786,6 +1857,56 @@ describe('AiAgentToolsService', () => {
         ).resolves.toEqual([
             expect.objectContaining({ name: 'public' }),
             expect.objectContaining({ name: 'secure' }),
+        ]);
+    });
+
+    it('reads unpublished models over the live ones in the development view', async () => {
+        const service = makeService({
+            userAttributes: { access_level: ['1'] },
+            explores: {
+                orders: makeExplore({ name: 'orders', tags: ['live'] }),
+                removed: makeExplore({ name: 'removed' }),
+                untouched: makeExplore({ name: 'untouched' }),
+            },
+        });
+        const drafted = new Map([
+            ['orders', makeExplore({ name: 'orders', tags: ['drafted'] })],
+            ['added', makeExplore({ name: 'added' })],
+            [
+                'secure',
+                makeExplore({
+                    name: 'secure',
+                    requiredAttributes: { access_level: '2' },
+                }),
+            ],
+            ['removed', null],
+        ]);
+        const read = (exploreNames?: string[]) =>
+            developmentView.run(
+                {
+                    findExplores: async () => drafted,
+                    hasChanges: async () => true,
+                },
+                () =>
+                    service.getAvailableExplores({
+                        user: { ...defaultSessionUser, ...user },
+                        projectUuid,
+                        availableTags: null,
+                        exploreNames,
+                    }),
+            );
+
+        const all = await read();
+        expect(all.map(({ name }) => name).sort()).toEqual([
+            'added',
+            'orders',
+            'untouched',
+        ]);
+        expect(all.find(({ name }) => name === 'orders')?.tags).toEqual([
+            'drafted',
+        ]);
+        expect((await read(['added'])).map(({ name }) => name)).toEqual([
+            'added',
         ]);
     });
 

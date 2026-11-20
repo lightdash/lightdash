@@ -194,6 +194,7 @@ import {
     MergeQueryErrorKind,
     MergeQueryField,
     MergeQueryMetricSource,
+    mergeReservedDefinitions,
     mergeWarehouseCredentials,
     MetricQuery,
     MetricType,
@@ -292,6 +293,7 @@ import {
     validateMergeQuery,
     VizAggregationOptions,
     VizColumn,
+    WarehouseCatalog,
     WarehouseClient,
     WarehouseConnection,
     WarehouseConnectionError,
@@ -496,6 +498,7 @@ import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { ExploreCompilationSummary } from '../../utils/ExploreCompilationSummary';
 import { inheritUpstreamSshTunnelPrivateKey } from '../../utils/inheritUpstreamSshTunnelPrivateKey';
 import { createComposeMergeQueryBuilder } from '../../utils/QueryBuilder/composeMergeSql';
+import { updateExploreWithDateZoom } from '../../utils/QueryBuilder/dateZoom';
 import { applyMergeTerminalWrapper } from '../../utils/QueryBuilder/MergeQueryBuilder';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
@@ -705,6 +708,11 @@ const withGitBranch = (
 
 const gzipAsync = promisify(gzip);
 
+// Reading columns table by table costs one warehouse request each.
+const MAX_TABLES_READ_ONE_BY_ONE = 500;
+
+type WarehouseTableRef = { database: string; schema: string; table: string };
+
 type TestProjectAdapterCredentials =
     | { kind: 'submitted_resolved'; credentials: CreateWarehouseCredentials }
     | {
@@ -868,6 +876,13 @@ type ResolvedCompileAdapter = {
     failedDbtSourceUuids?: string[];
     exploreNaming?: ExploreNaming;
 };
+/** What a compile that saved only the explores a change reaches reports to its job. */
+export type IncrementalCompileResult = {
+    indexCatalogJobUuid: string;
+    errorCount: number;
+    total: number;
+};
+
 type SaveCompiledExploresArgs = {
     userUuid: string;
     projectUuid: string;
@@ -7187,6 +7202,13 @@ export class ProjectService
                                 projectUuid,
                                 user.organizationUuid,
                                 compileAdapter,
+                                ProjectService.isWholeCacheCompile({
+                                    multiConnection,
+                                    stagedMergedManifest,
+                                    exploreNaming,
+                                })
+                                    ? job.jobUuid
+                                    : null,
                             );
                             timings.compileExplores.end = performance.now();
                             timings.getConfig.start = performance.now();
@@ -8757,11 +8779,26 @@ export class ProjectService
         }
     }
 
+    /** Whether the explores a compile saves are exactly what its one dbt manifest compiles to, the whole cache over. */
+    private static isWholeCacheCompile(compile: {
+        multiConnection: MultiConnectionCompilation | null;
+        stagedMergedManifest: Buffer | undefined;
+        exploreNaming: ExploreNaming | undefined;
+    }): boolean {
+        return (
+            compile.multiConnection === null &&
+            compile.stagedMergedManifest === undefined &&
+            compile.exploreNaming === undefined &&
+            !agentExecutionContext.getStore()?.agentConnectionExecution
+        );
+    }
+
     /** Keeps what a single-source dbt compile parsed, so Semantic Studio's code mode can change its YAML without running dbt. */
     private async saveCompiledDbtManifestBestEffort(
         projectUuid: string,
         organizationUuid: string,
         adapter: ProjectAdapter,
+        exploresJobUuid: string | null,
     ): Promise<void> {
         if (
             !(adapter instanceof DbtGitProjectAdapter) ||
@@ -8781,6 +8818,7 @@ export class ProjectService
             await saveCompiledDbtManifest(this.fileStorageClient, projectUuid, {
                 commitSha,
                 manifest: projectMergedManifest(adapter.lastManifest),
+                exploresJobUuid,
             });
         } catch (error) {
             this.logger.warn(
@@ -10113,6 +10151,7 @@ export class ProjectService
             userAttributeOverrides?: UserAttributeValueMap;
             /** Saved chart whose custom SQL an embed viewer may compile */
             customSqlProvenanceChartUuid?: UUID;
+            dateZoom?: DateZoom;
         } & ({ exploreName: string } | { explore: Explore }),
     ) {
         const {
@@ -10264,7 +10303,7 @@ export class ProjectService
                 timezone,
                 availableParameterDefinitions,
                 parameters: combinedParameters,
-                dateZoom: undefined,
+                dateZoom: args.dateZoom,
                 pivotDimensions,
                 pivotItemsMap: undefined,
                 continueOnError: true, // Return SQL even with compilation errors for debugging
@@ -10447,6 +10486,32 @@ export class ProjectService
             .map((calculation) => calculation.name);
     }
 
+    /** The explore with one dimension re-grained under its own name, as a dashboard tile's metric query is zoomed. */
+    private async getDateZoomedExplore(
+        projectUuid: string,
+        explore: Explore,
+        metricQuery: MetricQuery,
+        dateZoom: DateZoom,
+    ): Promise<Explore> {
+        const settings = await this.getWarehouseSqlBuilderSettings(
+            projectUuid,
+            { kind: 'explore', exploreName: explore.name },
+        );
+        // As QueryComposer: the reserved parameters, such as date_zoom, are available too
+        const availableParameters = Object.keys(
+            mergeReservedDefinitions(
+                await this.getAvailableParameters(projectUuid, explore),
+            ),
+        );
+        return updateExploreWithDateZoom(
+            explore,
+            metricQuery,
+            warehouseSqlBuilderFromType(settings.type, settings.startOfWeek),
+            availableParameters,
+            dateZoom,
+        ).explore;
+    }
+
     /**
      * Compiles a merge of several metric queries into one warehouse statement.
      *
@@ -10465,6 +10530,8 @@ export class ProjectService
         userAttributeOverrides?: UserAttributeValueMap;
         /** Composer only: names a source of a shared explore by its node title, not its slot. */
         sourceTitleById?: Record<string, string>;
+        /** Composer only: the date zoom each metric source's leg runs with. */
+        dateZoomBySourceId?: Record<string, DateZoom>;
     }): Promise<ApiCompiledMergeQueryResults> {
         const {
             account,
@@ -10529,11 +10596,20 @@ export class ProjectService
                         return null;
                     }
                 }
-                const explore = await this.getExplore(
+                const savedExplore = await this.getExplore(
                     account,
                     projectUuid,
                     source.metricQuery.exploreName,
                 );
+                const dateZoom = args.dateZoomBySourceId?.[source.id];
+                const explore = dateZoom
+                    ? await this.getDateZoomedExplore(
+                          projectUuid,
+                          savedExplore,
+                          source.metricQuery,
+                          dateZoom,
+                      )
+                    : savedExplore;
                 const itemMap = getItemMap(
                     explore,
                     source.metricQuery.additionalMetrics,
@@ -10729,6 +10805,7 @@ export class ProjectService
                     account,
                     projectUuid,
                     exploreName: resolvedMetricQuery.exploreName,
+                    dateZoom: args.dateZoomBySourceId?.[source.id],
                     body: {
                         ...resolvedMetricQuery,
                         sorts: [],
@@ -13858,6 +13935,13 @@ export class ProjectService
                             projectUuid,
                             project.organizationUuid,
                             adapter,
+                            ProjectService.isWholeCacheCompile({
+                                multiConnection,
+                                stagedMergedManifest,
+                                exploreNaming,
+                            })
+                                ? (jobUuid ?? null)
+                                : null,
                         );
                         const lightdashProjectConfig =
                             await adapter.getLightdashProjectConfig(
@@ -14155,6 +14239,7 @@ export class ProjectService
         validateAfterCompile: boolean = false,
         syncContentAfterCompile: boolean = false,
         existingJobUuid?: string,
+        incremental: boolean = false,
     ): Promise<{ jobUuid: string }> {
         const { organizationUuid, type } =
             await this.projectModel.getSummary(projectUuid);
@@ -14223,6 +14308,7 @@ export class ProjectService
             isPreview: type === ProjectType.PREVIEW,
             validateAfterCompile,
             syncContentAfterCompile: syncContent,
+            incremental,
             ...connectionTask,
             userUuid: user.userUuid,
         });
@@ -14238,6 +14324,8 @@ export class ProjectService
         requestMethod: RequestMethod,
         jobUuid: string,
         afterCompile?: { stepType: JobStepType; run: () => Promise<void> },
+        /** Saves only what changed since the last compile; null runs the full compile. */
+        compileIncrementally?: () => Promise<IncrementalCompileResult | null>,
     ) {
         if (agentExecutionContext.getStore()?.agentConnectionExecution) {
             try {
@@ -14371,6 +14459,7 @@ export class ProjectService
                     job.jobUuid,
                     JobStepType.COMPILING,
                     async () =>
+                        (await compileIncrementally?.()) ??
                         this.refreshTablesAndProjectConfig(
                             user,
                             projectUuid,
@@ -15515,6 +15604,86 @@ export class ProjectService
                         }),
                 ]);
                 return { ...fields, partitioning, warehouseType };
+            },
+        );
+    }
+
+    /**
+     * The columns of many tables the caller has already been allowed to list,
+     * read a schema at a time where the warehouse can, and table by table for a
+     * bounded number of them where it cannot. Says which tables it read.
+     */
+    async getWarehouseColumns(
+        user: SessionUser,
+        projectUuid: string,
+        queryContext: QueryExecutionContext,
+        tables: WarehouseTableRef[],
+        querySurface?: QuerySurface,
+    ): Promise<{ catalog: WarehouseCatalog; tables: WarehouseTableRef[] }> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('SqlRunner', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.assertConnectionDiscovery(user, projectUuid);
+        return this.warehouseClientFactory.withWarehouseClient(
+            {
+                kind: 'binding',
+                projectUuid,
+                binding: { kind: 'connection', warehouseConnectionUuid: null },
+            },
+            connectionContextFromUser(
+                { userUuid: user.userUuid, isRegisteredUser: true },
+                {
+                    organizationUuid,
+                    queryContext,
+                    surface:
+                        querySurface === undefined
+                            ? undefined
+                            : connectionSurfaceFromQuerySurface(
+                                  querySurface,
+                                  queryContext,
+                              ),
+                },
+            ),
+            async ({ warehouseClient }) => {
+                if (warehouseClient.getSchemaColumns) {
+                    const schemas = uniqBy(
+                        tables.map(({ database, schema }) => ({
+                            database,
+                            schema,
+                        })),
+                        ({ database, schema }) => `${database}.${schema}`,
+                    );
+                    try {
+                        const catalog =
+                            await warehouseClient.getSchemaColumns(schemas);
+                        // A read that names tables differently from the listing would look like no columns anywhere.
+                        if (
+                            tables.some(
+                                ({ database, schema, table }) =>
+                                    catalog[database]?.[schema]?.[table],
+                            )
+                        ) {
+                            return { catalog, tables };
+                        }
+                    } catch (error) {
+                        this.logger.warn(
+                            `Reading columns by schema failed, reading by table instead: ${getErrorMessage(error)}`,
+                        );
+                    }
+                }
+                const read = tables.slice(0, MAX_TABLES_READ_ONE_BY_ONE);
+                return {
+                    catalog: await warehouseClient.getCatalog(read),
+                    tables: read,
+                };
             },
         );
     }

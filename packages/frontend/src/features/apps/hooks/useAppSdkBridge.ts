@@ -1,5 +1,6 @@
 import {
     APP_SDK_APP_STATE_MESSAGE,
+    APP_SDK_CAPTURE_HOTKEY_MESSAGE,
     APP_SDK_APP_STATE_RESPONSE_MESSAGE,
     APP_SDK_COLOR_SCHEME_MESSAGE,
     APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE,
@@ -655,6 +656,13 @@ export type UseAppSdkBridgeParams = {
     onInsightAnalyseOnLoadChange?: (analyseOnLoad: boolean | null) => void;
     /** Which query uuids the app currently has on screen (SDKs that report). */
     onMountedQueriesChange?: (queryUuids: string[]) => void;
+    /**
+     * The user pressed the capture hotkey (mod+shift+X) while focus was inside
+     * the app, where the host page cannot see key presses. Absent = the host
+     * offers no capture here and the message is dropped. Bundles built before
+     * the SDK forwarded the hotkey never send it.
+     */
+    onCaptureHotkey?: () => void;
 };
 
 export function useAppSdkBridge({
@@ -700,6 +708,7 @@ export function useAppSdkBridge({
     onInsightInstructionsChange,
     onInsightAnalyseOnLoadChange,
     onMountedQueriesChange,
+    onCaptureHotkey,
 }: UseAppSdkBridgeParams) {
     const lightdashApi = useLightdashApi();
     // Embed mode adapts the bridge's outgoing fetches in two ways:
@@ -877,6 +886,13 @@ export function useAppSdkBridge({
             // listener is live, so it can't miss the load-time push.
             if (data?.type === APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE) {
                 pushColorScheme();
+                return;
+            }
+
+            // The one key combination the SDK forwards. It carries no payload,
+            // so there is nothing to validate beyond the sender checks above.
+            if (data?.type === APP_SDK_CAPTURE_HOTKEY_MESSAGE) {
+                onCaptureHotkey?.();
                 return;
             }
 
@@ -1908,6 +1924,7 @@ export function useAppSdkBridge({
             onInsightInstructionsChange,
             onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
+            onCaptureHotkey,
             lightdashApi,
         ],
     );

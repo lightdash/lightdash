@@ -131,6 +131,7 @@ import {
     renderCandidateBlock,
     selectCandidateFields,
 } from '../tools/grepFieldsIndex';
+import { getGrepWarehouseColumns } from '../tools/grepWarehouseColumns';
 import { getIterateDataApp } from '../tools/iterateDataApp';
 import { getListContent } from '../tools/listContent';
 import { getListDataAppConnections } from '../tools/listDataAppConnections';
@@ -153,6 +154,7 @@ import {
     canRunContentQuerySql,
     getRunContentQuery,
 } from '../tools/runContentQuery';
+import { getRunMetricQuery } from '../tools/runMetricQuery';
 import { getRunQuery } from '../tools/runQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
@@ -181,6 +183,7 @@ import type {
 } from '../types/aiAgent';
 import { toAbsoluteHref } from '../utils/absoluteHref';
 import { AgentContext } from '../utils/AgentContext';
+import { hasBinaryModelInputs } from '../utils/aiCallTelemetry';
 import {
     AiAgentEmptyResponseError,
     AiAgentStepCapReachedError,
@@ -2264,11 +2267,19 @@ export const getAgentTools = (
             getProposeSemanticLayerChange({
                 proposeSemanticLayerChange:
                     dependencies.proposeSemanticLayerChange,
+                canRunMetrics: loadout.toolNames.has('runMetricQuery'),
             }),
         listChanges: () => getListChanges(dependencies.listChanges),
         readSemanticModel: () =>
             getReadSemanticModel({
                 readSemanticModel: dependencies.readSemanticModel,
+            }),
+        runMetricQuery: () =>
+            getRunMetricQuery({
+                agentContext,
+                getExplore: dependencies.getDraftExplore,
+                runAsyncQuery: dependencies.runDraftQuery,
+                maxLimit: args.maxQueryLimit,
             }),
         syncDbtProject: () =>
             getSyncDbtProject({
@@ -2402,6 +2413,10 @@ export const getAgentTools = (
         describeWarehouseTable: () =>
             getDescribeWarehouseTable({
                 describeWarehouseTable: dependencies.describeWarehouseTable,
+            }),
+        grepWarehouseColumns: () =>
+            getGrepWarehouseColumns({
+                listWarehouseColumns: dependencies.listWarehouseColumns,
             }),
         loadSkill: () => {
             const listed = new Set(
@@ -2800,6 +2815,7 @@ export const getAgentMessages = (
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
         semanticStudioCodeMode: args.semanticStudioCodeMode,
+        semanticStudioQueriesDraft: loadout.toolNames.has('runMetricQuery'),
         slackLinksOnly: args.slackLinksOnly,
         enableComposerPythonNodes: args.enableComposerQueries,
         liveSources: args.liveSources,
@@ -2830,6 +2846,13 @@ export const getAgentMessages = (
                 case 'assistant':
                 case 'tool':
                 case 'user':
+                    if (hasBinaryModelInputs([msg])) {
+                        logger(
+                            'Agent Messages',
+                            `${msg.role} message - binary content skipped`,
+                        );
+                        break;
+                    }
                     logger(
                         'Agent Messages',
                         `${msg.role} message: ${JSON.stringify(msg.content)}`,

@@ -84,26 +84,45 @@ export const RichTextEditor: StoryObj = {
                 hint="PromptComposer.module.css: :global(.mantine-RichTextEditor-content)"
             >
                 <PromptComposer
+                    ariaLabel="Large composer"
                     size="lg"
                     placeholder="Ask anything about your data"
                     defaultValue="Large composer with a default value"
                 />
-                <PromptComposer size="md" placeholder="Medium composer" />
-                <PromptComposer size="sm" placeholder="Small composer" />
+                <PromptComposer
+                    ariaLabel="Medium composer"
+                    size="md"
+                    placeholder="Medium composer"
+                />
+                <PromptComposer
+                    ariaLabel="Small composer"
+                    size="sm"
+                    placeholder="Small composer"
+                />
             </Section>
             <Section
                 title="PromptComposer inline and accent"
                 hint="Inline variant is used inside cards; indigo accent marks deep research"
             >
                 <Paper p="sm">
-                    <PromptComposer variant="inline" placeholder="Inline" />
+                    <PromptComposer
+                        ariaLabel="Inline composer"
+                        variant="inline"
+                        placeholder="Inline"
+                    />
                 </Paper>
                 <PromptComposer
+                    ariaLabel="Indigo composer"
                     accent="indigo"
                     size="md"
                     placeholder="Indigo accent"
                 />
-                <PromptComposer size="md" disabled defaultValue="Disabled" />
+                <PromptComposer
+                    ariaLabel="Disabled composer"
+                    size="md"
+                    disabled
+                    defaultValue="Disabled"
+                />
             </Section>
         </Stack>
     ),

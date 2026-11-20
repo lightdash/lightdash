@@ -3543,6 +3543,21 @@ export class ProjectModel {
         }));
     }
 
+    /** The cached explores built on any of these base tables, by name. */
+    async findExploresByBaseTables(
+        projectUuid: string,
+        baseTables: string[],
+    ): Promise<{ name: string; type: ExploreType | null }[]> {
+        if (baseTables.length === 0) return [];
+        return this.database(CachedExploreTableName)
+            .select<{ name: string; type: ExploreType | null }[]>(
+                'name',
+                this.database.raw(`explore->>'type' as "type"`),
+            )
+            .where('project_uuid', projectUuid)
+            .whereRaw(`explore->>'baseTable' = ANY(?)`, [baseTables]);
+    }
+
     async findExploreWarehouseConnectionUuids(
         projectUuid: string,
         exploreNames: string[],

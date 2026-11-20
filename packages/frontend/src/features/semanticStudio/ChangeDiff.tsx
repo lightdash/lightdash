@@ -81,9 +81,7 @@ export const ChangeDiff: FC<{
             </Box>
         );
     }
-    // A whole file is coloured as YAML, by its name; the short diffs stay plain.
-    const lang = variant === 'whole' ? {} : ({ lang: 'text' } as const);
-    // Virtualizer is the scroll viewport.
+    // Virtualizer is the scroll viewport. The file's name colours it as YAML.
     return (
         <Virtualizer {...viewport}>
             {/* The diff does not redraw when its contents change under the same file name. */}
@@ -92,12 +90,10 @@ export const ChangeDiff: FC<{
                 oldFile={{
                     name,
                     contents: change.contentBefore ?? '',
-                    ...lang,
                 }}
                 newFile={{
                     name,
                     contents: change.contentAfter ?? '',
-                    ...lang,
                 }}
                 className={classes.diffHost}
                 options={{

@@ -195,6 +195,17 @@ export const getComposerChartDraw = ({
     };
 };
 
+/** A date zoom keeps column names, so a column whose name is a zoomed field gets that field's zoomed label. */
+export const withZoomedColumnLabels = (
+    columns: ResultColumn[],
+    zoomedFieldLabels: Record<string, string>,
+): ResultColumn[] =>
+    columns.map((column) =>
+        Object.hasOwn(zoomedFieldLabels, column.reference)
+            ? { ...column, label: zoomedFieldLabels[column.reference] }
+            : column,
+    );
+
 /** Rows reduced to the chart's columns: builders read any extra key as data (funnel labels). */
 export const pickComposerChartRows = (
     draw: ComposerChartDraw,

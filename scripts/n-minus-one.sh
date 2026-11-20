@@ -43,6 +43,7 @@ SKIPPED_MODEL_TESTS="${N1_SKIPPED_MODEL_TESTS:-src/ee/models/AiAgentMemoryModel.
 SMOKE_TESTS="${N1_SMOKE_TESTS:-}"
 EXCLUDED_API_TESTS=(
     "tests/async-query.test.ts|it queries the jaffle tables in database postgres on port 5432, not the database this run seeds"
+    "tests/composerCharts.test.ts|it queries the jaffle tables in database postgres, not the database this run seeds, and switches its flag through the preview-only flag API"
 )
 PREVIEW_FEATURE_ENV=(
     # The preview stack resolves DB feature flags on via pr-mode preview

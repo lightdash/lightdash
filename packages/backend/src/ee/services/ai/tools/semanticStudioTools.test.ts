@@ -1,8 +1,12 @@
 import {
+    describeSemanticLayerProposals,
     toolProposeSemanticLayerChangeOutputSchema,
     toolReadSemanticModelOutputSchema,
 } from '@lightdash/common';
-import { findNewModelAdvice } from '../../SemanticStudioService/draftLint';
+import {
+    findMetricsToRun,
+    findNewModelAdvice,
+} from '../../SemanticStudioService/draftLint';
 import type { ProposeSemanticLayerChangeFn } from '../types/aiAgentDependencies';
 import {
     getListChanges,
@@ -30,8 +34,12 @@ const callOptions = {
 const propose = async (
     proposeSemanticLayerChange: ProposeSemanticLayerChangeFn,
     yaml: string,
+    canRunMetrics = false,
 ) => {
-    const tool = getProposeSemanticLayerChange({ proposeSemanticLayerChange });
+    const tool = getProposeSemanticLayerChange({
+        proposeSemanticLayerChange,
+        canRunMetrics,
+    });
     if (!tool.execute) throw new Error('tool has no execute');
     const output = await tool.execute(
         {
@@ -93,6 +101,38 @@ describe('getProposeSemanticLayerChange', () => {
         });
     });
 
+    it('asks for a changed metric to be run on the draft when the agent can query it', async () => {
+        const proposeMetric: ProposeSemanticLayerChangeFn = async () => ({
+            results: [
+                {
+                    model: 'orders',
+                    status: 'ready',
+                    changes: [{ path: 'metrics.total', action: 'added' }],
+                    refusals: [],
+                    error: null,
+                    notes: [],
+                },
+            ],
+            diffs: [
+                {
+                    model: 'orders',
+                    contentBefore: 'before',
+                    contentAfter: 'after',
+                },
+            ],
+            draftChangeUuid: 'draft-1',
+            startedChange: null,
+        });
+        const asked = await propose(proposeMetric, 'metrics: {}', true);
+        expect(asked.result).toContain(
+            'check: run orders_total once with runMetricQuery',
+        );
+        expect(asked.metadata).toMatchObject({ needsFollowUp: true });
+        const notAsked = await propose(proposeMetric, 'metrics: {}');
+        expect(notAsked.result).not.toContain('runMetricQuery');
+        expect(notAsked.metadata).toMatchObject({ needsFollowUp: false });
+    });
+
     it('says when the edit started a change and checked it out', async () => {
         const output = await propose(
             async () => ({
@@ -118,6 +158,37 @@ describe('getProposeSemanticLayerChange', () => {
         expect(output.metadata).toMatchObject({
             startedChange: { workspaceUuid: 'w-1', name: 'Order totals' },
         });
+    });
+
+    it('keeps the turn open when a part of a ready model was refused', async () => {
+        const output = await propose(
+            async () => ({
+                results: [
+                    {
+                        model: 'orders',
+                        status: 'ready',
+                        changes: [{ path: 'metrics.total', action: 'removed' }],
+                        refusals: [
+                            { path: 'dimensions.status', reason: 'name_taken' },
+                        ],
+                        error: null,
+                        notes: [],
+                    },
+                ],
+                diffs: [],
+                draftChangeUuid: 'draft-1',
+                startedChange: null,
+            }),
+            'label: Orders',
+        );
+        expect(output.result).toContain('without the refused parts');
+        expect(output.result).not.toContain('write nothing more');
+        expect(output.metadata).toMatchObject({ needsFollowUp: true });
+        expect(
+            output.metadata.status === 'success'
+                ? describeSemanticLayerProposals([output.metadata])
+                : null,
+        ).toBe('Changed orders in the draft. Some parts were left out.');
     });
 
     it('says nothing joined the draft when no model passed', async () => {
@@ -180,6 +251,53 @@ describe('getReadSemanticModel', () => {
 
     it('names the models when the name is unknown', async () => {
         expect((await read(null)).result).toContain('orders, customers');
+    });
+});
+
+describe('findMetricsToRun', () => {
+    it('names the metrics a change adds or redefines, and no others', () => {
+        expect(
+            findMetricsToRun(
+                'orders',
+                [
+                    { path: 'metrics.total', action: 'added' },
+                    {
+                        path: 'dimensions.amount.metrics.net.sql',
+                        action: 'redefined',
+                    },
+                    { path: 'metrics.net_rate.filters', action: 'removed' },
+                    { path: 'metrics.total.label', action: 'patched' },
+                    { path: 'metrics.renamed.label', action: 'patched' },
+                    { path: 'metrics.gone', action: 'removed' },
+                    { path: 'dimensions.status', action: 'added' },
+                ],
+                null,
+            ),
+        ).toEqual(['orders_total', 'orders_net', 'orders_net_rate']);
+    });
+
+    it('names every metric of a model that is new', () => {
+        expect(
+            findMetricsToRun(
+                'orders',
+                [{ path: 'orders', action: 'created' }],
+                `type: model
+name: orders
+sql_from: public.orders
+dimensions:
+  - name: id
+    type: number
+    sql: \${TABLE}.id
+    metrics:
+      order_count:
+        type: count_distinct
+metrics:
+  total:
+    type: sum
+    sql: \${TABLE}.id
+`,
+            ),
+        ).toEqual(['orders_order_count', 'orders_total']);
     });
 });
 

@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ExpectedNotFoundError,
+    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     ParameterError,
@@ -13,6 +14,8 @@ import {
     type AiRouterRouteRequest,
     type AiRouterRouteResponseResult,
     type AiRouterSelectionMode,
+    type ApiCaptureRouteRequest,
+    type CaptureRoute,
     type RegisteredAccount,
     type UpsertAiRouterInstructionRequest,
     type UpsertAiRouterRequest,
@@ -24,6 +27,7 @@ import {
     type LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../../config/parseConfig';
+import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { BaseService } from '../../../services/BaseService';
 import { type DashboardService } from '../../../services/DashboardService/DashboardService';
 import { type SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
@@ -32,6 +36,7 @@ import { selectAgent, type RoutingAskedFrom } from '../ai/agents/agentSelector';
 import { getModel } from '../ai/models';
 import { OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
 import { type AiAgentService } from '../AiAgentService/AiAgentService';
+import { routeCaptureWithModel } from './captureRouter';
 
 type Deps = {
     analytics: LightdashAnalytics;
@@ -41,6 +46,7 @@ type Deps = {
     dashboardService: DashboardService;
     savedChartService: SavedChartService;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+    featureFlagModel: FeatureFlagModel;
 };
 
 type RoutePromptMode = 'web' | 'mcp';
@@ -70,6 +76,8 @@ export class AiRouterService extends BaseService {
 
     private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 
+    private readonly featureFlagModel: FeatureFlagModel;
+
     constructor({
         analytics,
         lightdashConfig,
@@ -78,6 +86,7 @@ export class AiRouterService extends BaseService {
         dashboardService,
         savedChartService,
         orgAiCopilotConfigResolver,
+        featureFlagModel,
     }: Deps) {
         super({ serviceName: 'AiRouterService' });
         this.analytics = analytics;
@@ -87,6 +96,7 @@ export class AiRouterService extends BaseService {
         this.dashboardService = dashboardService;
         this.savedChartService = savedChartService;
         this.orgAiCopilotConfigResolver = orgAiCopilotConfigResolver;
+        this.featureFlagModel = featureFlagModel;
     }
 
     /**
@@ -198,14 +208,14 @@ export class AiRouterService extends BaseService {
         const organizationUuid = AiRouterService.organizationUuidOf(account);
         this.assertViewAiAgent(account, organizationUuid, projectUuid);
 
-        const candidates = await this.aiAgentService.getAvailableAgents(
+        const accessibleAgents = await this.aiAgentService.getAvailableAgents(
             organizationUuid,
             account.user.userUuid,
             { aiRequireOAuth: true },
             { projectFilter: { projectUuid } },
         );
 
-        if (candidates.length === 0) {
+        if (accessibleAgents.length === 0) {
             throw new ParameterError(
                 'No accessible AI agents are available for this project',
             );
@@ -214,13 +224,23 @@ export class AiRouterService extends BaseService {
         // The web routing UI is short-circuited when fewer than two agents are
         // accessible, so the web endpoint keeps requiring at least two. MCP has
         // no such picker, so a sole agent is routed to directly.
-        if (mode === 'web' && candidates.length < 2) {
+        if (mode === 'web' && accessibleAgents.length < 2) {
             throw new ParameterError(
                 'AI router requires at least two accessible agents',
             );
         }
 
-        if (candidates.length === 1) {
+        // Only offer agents that can open what the user pinned.
+        const candidates = context
+            ? await this.aiAgentService.filterAgentsReachingPinnedContext(
+                  account.user,
+                  projectUuid,
+                  accessibleAgents,
+                  context,
+              )
+            : accessibleAgents;
+
+        if (accessibleAgents.length === 1) {
             return {
                 candidates,
                 suggestedAgent: candidates[0],
@@ -233,6 +253,18 @@ export class AiRouterService extends BaseService {
         }
 
         const router = await this.getEnabledRouter(organizationUuid);
+        if (candidates.length === 1) {
+            return {
+                candidates,
+                suggestedAgent: candidates[0],
+                routerUuid: router.routerUuid,
+                confidence: 'high',
+                reasoning: 'Only agent that can use the pinned content',
+                shouldSkipForwardingQuery: false,
+                nextAction: 'create_thread',
+            };
+        }
+
         const instruction = await this.aiRouterModel.getLatestInstruction({
             routerUuid: router.routerUuid,
             projectUuid,
@@ -290,6 +322,45 @@ export class AiRouterService extends BaseService {
                     ? 'create_thread'
                     : 'show_picker',
         };
+    }
+
+    /**
+     * Sorts a Voice Design recording made on a dashboard into layout changes
+     * the page applies itself and questions for an agent.
+     */
+    async routeCapture(
+        account: RegisteredAccount,
+        projectUuid: string,
+        request: ApiCaptureRouteRequest,
+    ): Promise<CaptureRoute> {
+        const organizationUuid = AiRouterService.organizationUuidOf(account);
+        this.assertViewAiAgent(account, organizationUuid, projectUuid);
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid, userUuid: account.user.userUuid },
+            featureFlagId: FeatureFlags.DashboardCapture,
+        });
+        if (!enabled) {
+            throw new ForbiddenError('Voice Design is not enabled');
+        }
+        if (
+            request.tiles.length > 200 ||
+            request.marks.length > 50 ||
+            request.images.length > 6
+        ) {
+            throw new ParameterError('Capture is too large to route');
+        }
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig({
+                organizationUuid,
+                projectUuid,
+                credentialUuid: null,
+            });
+        const { model } = getModel(copilotConfig);
+        const route = await routeCaptureWithModel({ model, request });
+        this.logger.debug(
+            `Capture route: ${route.layout.length} layout, ${route.questions.length} questions, ${route.edits.length} edits`,
+        );
+        return route;
     }
 
     async getConfig(account: RegisteredAccount): Promise<AiRouter> {

@@ -135,6 +135,7 @@ const runAsk = async (prompt: string, canRunSql: boolean) => {
             projectContext: null,
             warehouse: canRunSql ? { type: 'duckdb', schema: 'public' } : null,
             dbt: { saves: false, codeMode: false, sections: [] },
+            canQueryDraft: false,
         }),
         prompt,
         tools: {

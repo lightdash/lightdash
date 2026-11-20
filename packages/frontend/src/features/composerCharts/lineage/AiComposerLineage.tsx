@@ -248,6 +248,7 @@ const LineageFlow: FC<
     return (
         <Box className={styles.graph} ref={ref}>
             <ReactFlow<PipelineFlowNode>
+                proOptions={{ hideAttribution: true }}
                 className={clsx(
                     reactFlowStyles.reactFlow,
                     !laidOut.current && styles.flowPending,

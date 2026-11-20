@@ -88,6 +88,7 @@ import {
     isCustomBinDimension,
     isCustomDimension,
     isDashboardChartTileType,
+    isDashboardSqlChartTile,
     isDateItem,
     isDateZoomRefusedOnExplore,
     isExecuteAsyncChartRequestParams,
@@ -168,7 +169,9 @@ import {
     type CompiledMetric,
     type ComposerChartRunSource,
     type CustomDimension,
+    type DashboardDAO,
     type DashboardTileParameterInputs,
+    type DateZoom,
     type DocumentQueryReference,
     type DocumentSqlChart,
     type DuckdbSourceQuery,
@@ -307,6 +310,7 @@ import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfi
 import { sanitizeDuckdbError } from '../../utils/duckdb/sanitizeDuckdbError';
 import { isAiAgentEmbedAccount } from '../../utils/embedAiAgentAccount';
 import { redactItemsMapSql } from '../../utils/embedCompiledSql';
+import { getEffectiveEmbedDashboardFilters } from '../../utils/embedDashboardFilters';
 import {
     processFieldsForExport,
     streamJsonlData,
@@ -4674,6 +4678,7 @@ export class AsyncQueryService extends ProjectService {
         executionExplore,
         fieldsMap,
         pivotConfiguration,
+        pivotDimensions,
         startOfWeek,
         userAccessControls,
         availableParameterDefinitions,
@@ -4693,6 +4698,7 @@ export class AsyncQueryService extends ProjectService {
         executionExplore?: (name: string) => Promise<Explore>;
         fieldsMap: ItemsMap;
         pivotConfiguration?: PivotConfiguration;
+        pivotDimensions?: string[];
         startOfWeek: CreateWarehouseCredentials['startOfWeek'];
         userAccessControls?: UserAccessControls;
         availableParameterDefinitions?: ParameterDefinitions;
@@ -4720,6 +4726,7 @@ export class AsyncQueryService extends ProjectService {
                 parameters,
                 fieldsMap,
                 pivotConfiguration,
+                pivotDimensions,
                 startOfWeek,
                 userAccessControls,
                 availableParameterDefinitions,
@@ -7625,6 +7632,8 @@ export class AsyncQueryService extends ProjectService {
                               executionExplore,
                               fieldsMap,
                               pivotConfiguration,
+                              pivotDimensions:
+                                  queryComposer.getPivotDimensions(),
                               startOfWeek: warehouseCredentials.startOfWeek,
                               userAccessControls:
                                   queryComposer.getUserAccessControls(),
@@ -16076,6 +16085,7 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         userAttributeOverrides,
         sourceTitleById,
+        dateZoomBySourceId,
         authority,
     }: {
         authority: RequestAuthority | ComposerAuthority;
@@ -16086,6 +16096,7 @@ export class AsyncQueryService extends ProjectService {
         parameters: ParametersValuesMap;
         userAttributeOverrides: UserAttributeValueMap;
         sourceTitleById: Record<string, string>;
+        dateZoomBySourceId: Record<string, DateZoom>;
     }): Promise<RunnableCompiledMergeQuery> {
         const compiled = await this.compileMergeQuery({
             account,
@@ -16094,6 +16105,7 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             userAttributeOverrides,
             sourceTitleById,
+            dateZoomBySourceId,
             authority,
         });
         if (!isRunnableCompiledMergeQuery(compiled)) {
@@ -16805,6 +16817,7 @@ export class AsyncQueryService extends ProjectService {
 
     async executeAsyncDashboardSqlChartQuery(
         args: ExecuteAsyncDashboardSqlChartArgs,
+        embedDashboard?: DashboardDAO,
     ): Promise<ApiExecuteAsyncDashboardSqlChartQueryResults> {
         // An embed token can call this route directly, so its parameter rules apply here too
         const { parameters, excludedParameterKeys } =
@@ -16826,17 +16839,19 @@ export class AsyncQueryService extends ProjectService {
         const {
             account,
             projectUuid,
-            tileUuid,
+            tileUuid: requestedTileUuid,
             dashboardUuid: requestDashboardUuid,
             context,
             querySurface,
             invalidateCache,
-            dashboardFilters,
+            dashboardFilters: requestedDashboardFilters,
             dashboardSorts,
             limit,
         } = args;
 
         let dashboardUuid: string | undefined = requestDashboardUuid;
+        let tileUuid = requestedTileUuid;
+        let dashboardFilters = requestedDashboardFilters;
 
         // For JWT users without write actions, the dashboard scope is bound to
         // the token. Write-action embeds may use a dashboard from their write
@@ -16877,6 +16892,40 @@ export class AsyncQueryService extends ProjectService {
                     account,
                     savedChart.savedSqlUuid,
                 );
+            }
+
+            // Write-action embeds can preview new tiles that have not been
+            // saved. A published tile query uses its stored dashboard context.
+            const dashboard =
+                embedDashboard ??
+                (canUseWriteDashboard
+                    ? undefined
+                    : await this.dashboardModel.getByIdOrSlug(
+                          resolvedDashboardUuid,
+                          { projectUuid },
+                      ));
+            if (dashboard?.filters?.dimensions.length) {
+                const matchingTiles = dashboard.tiles.filter(
+                    (tile) =>
+                        isDashboardSqlChartTile(tile) &&
+                        tile.properties.savedSqlUuid ===
+                            savedChart.savedSqlUuid &&
+                        (!requestedTileUuid || tile.uuid === requestedTileUuid),
+                );
+                if (matchingTiles.length !== 1) {
+                    throw new ParameterError(
+                        'Select a matching dashboard tile for this SQL chart',
+                    );
+                }
+                tileUuid = matchingTiles[0].uuid;
+            }
+            if (dashboard) {
+                dashboardFilters = getEffectiveEmbedDashboardFilters(
+                    dashboard,
+                    tileUuid,
+                    account.access.filtering,
+                    requestedDashboardFilters,
+                ).filters;
             }
         } else {
             await this.assertSavedChartAccess(account, 'view', savedChart);

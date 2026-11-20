@@ -296,6 +296,10 @@ export class QueryComposer {
         return this.context.availableParameterDefinitions;
     }
 
+    getPivotDimensions(): string[] | undefined {
+        return this.context.pivotDimensions;
+    }
+
     getUseTimezoneAwareDateTrunc(): boolean {
         return this.context.useTimezoneAwareDateTrunc ?? false;
     }

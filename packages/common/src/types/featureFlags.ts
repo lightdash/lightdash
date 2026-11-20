@@ -82,6 +82,13 @@ export enum FeatureFlags {
     DataAppCapture = 'data-app-capture',
 
     /**
+     * Voice Design on dashboards in view mode: layout changes the user asks
+     * for are applied as an unsaved preview, and questions or other changes
+     * go to an AI agent thread. Off by default; per user or organization.
+     */
+    DashboardCapture = 'dashboard-capture',
+
+    /**
      * AI access (in-app agent, Slack agent, MCP) skips the results cache,
      * earlier results and pre-aggregates. Off by default; organization scope.
      */
@@ -240,6 +247,8 @@ export enum FeatureFlags {
      * experiment, off by default.
      */
     AiAgentBattleMode = 'ai-agent-battle-mode',
+    /** Browser chat images, off by default; requires compatible readers and durable storage before enablement. */
+    AiThreadImages = 'ai-thread-images',
     /**
      * Slack agent answers send eligible bar/line charts as native charts. Off by default; standard
      * resolver for the prompt author: ENV enable/disable lists, then user → org override → default.

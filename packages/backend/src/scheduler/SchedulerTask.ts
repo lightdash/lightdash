@@ -241,7 +241,10 @@ import {
     getDashboardTileParameterLayer,
     getEnabledParameterControls,
 } from '../services/ProjectService/parameters';
-import { ProjectService } from '../services/ProjectService/ProjectService';
+import {
+    ProjectService,
+    type IncrementalCompileResult,
+} from '../services/ProjectService/ProjectService';
 import { RenameService } from '../services/RenameService/RenameService';
 import { SchedulerService } from '../services/SchedulerService/SchedulerService';
 import {
@@ -2140,6 +2143,7 @@ export default class SchedulerTask {
                                         composerTileParameters?.excludedParameterKeys ??
                                         [],
                                     invalidateCache: !useCachedResults,
+                                    dateZoom: dateZoom ?? null,
                                     context:
                                         QueryExecutionContext.SCHEDULED_DELIVERY,
                                     download: {
@@ -3383,6 +3387,14 @@ export default class SchedulerTask {
                                       ),
                               }
                             : undefined,
+                        !account && payload.incremental === true
+                            ? () =>
+                                  this.compileIncrementally(
+                                      user,
+                                      payload.projectUuid,
+                                      payload.jobUuid,
+                                  )
+                            : undefined,
                     );
                     if (revalidate) await revalidate();
                     await this.schedulerService.logSchedulerJob({
@@ -3442,6 +3454,15 @@ export default class SchedulerTask {
                 }
             },
         );
+    }
+
+    // Only the commercial worker can patch a dbt manifest, so this one always runs the full compile.
+    protected async compileIncrementally(
+        _user: SessionUser,
+        _projectUuid: string,
+        _jobUuid: string,
+    ): Promise<IncrementalCompileResult | null> {
+        return null;
     }
 
     // Files that could not be applied fail the step so the job details say why
@@ -7143,6 +7164,7 @@ export default class SchedulerTask {
                                     parameters: {},
                                     excludedParameterKeys: [],
                                     invalidateCache: true,
+                                    dateZoom: dateZoom ?? null,
                                     context: QueryExecutionContext.CSV,
                                     download: {
                                         accessMode:
@@ -7233,6 +7255,7 @@ export default class SchedulerTask {
         parameters,
         excludedParameterKeys,
         invalidateCache,
+        dateZoom,
         context,
         download,
     }: {
@@ -7245,6 +7268,7 @@ export default class SchedulerTask {
         parameters: ParametersValuesMap;
         excludedParameterKeys: string[];
         invalidateCache: boolean;
+        dateZoom: DateZoom | null;
         context: ComposerChartRunContext;
         download: Pick<
             DownloadAsyncQueryResultsArgs,
@@ -7274,6 +7298,7 @@ export default class SchedulerTask {
                     parameters,
                     excludedParameterKeys,
                     invalidateCache,
+                    dateZoom,
                 },
                 context,
             )

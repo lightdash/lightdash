@@ -2,10 +2,14 @@ import { FeatureFlags } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen } from '@testing-library/react';
-import { type ComponentProps } from 'react';
+import userEvent from '@testing-library/user-event';
+import { useImperativeHandle, type ComponentProps } from 'react';
 import type * as ReactRouter from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AgentChatInput } from '../aiCopilot/components/ChatElements/AgentChatInput';
+import type {
+    AgentChatInput,
+    AgentChatInputHandle,
+} from '../aiCopilot/components/ChatElements/AgentChatInput';
 import { DayOneAskInput } from './DayOneAskInput';
 
 type AgentChatInputModule = {
@@ -15,6 +19,7 @@ type AgentChatInputModule = {
 const {
     agentChatInputProps,
     agents,
+    composerSubmit,
     createAgentThread,
     deepResearchAccess,
     deepResearchHookArgs,
@@ -34,6 +39,7 @@ const {
             },
         ],
     },
+    composerSubmit: vi.fn<AgentChatInputHandle['submitWithAttachments']>(),
     createAgentThread: vi.fn(),
     deepResearchAccess: { current: true },
     deepResearchHookArgs: {
@@ -163,6 +169,9 @@ vi.mock(
                 props: ComponentProps<typeof original.AgentChatInput>,
             ) => {
                 agentChatInputProps.current = props;
+                useImperativeHandle(props.composerRef, () => ({
+                    submitWithAttachments: composerSubmit,
+                }));
                 return <div data-testid="agent-chat-input" />;
             },
         };
@@ -264,6 +273,9 @@ describe('DayOneAskInput', () => {
         renderInput();
 
         expect(agentChatInputProps.current?.agentUuid).toBe('agent-1');
+        expect(
+            agentChatInputProps.current?.imageAttachmentsUnavailableReason,
+        ).toBeUndefined();
         expect(deepResearchHookArgs.current).toEqual(['project-1', 'homepage']);
         expect(agentChatInputProps.current?.onStartDeepResearch).toBeDefined();
 
@@ -295,11 +307,59 @@ describe('DayOneAskInput', () => {
         renderInput(true);
 
         expect(agentChatInputProps.current?.selectedAgent).toBe('auto');
+        expect(
+            agentChatInputProps.current?.imageAttachmentsUnavailableReason,
+        ).toBe('Choose an agent to attach images');
         expect(agentChatInputProps.current?.agentUuid).toBeUndefined();
         expect(
             agentChatInputProps.current?.onStartDeepResearch,
         ).toBeUndefined();
         expect(agentChatInputProps.current?.onSqlModeChange).toBeUndefined();
+    });
+
+    it('returns the selected-agent mutation promise and forwards image identity/metadata', () => {
+        renderInput();
+        const props = agentChatInputProps.current;
+        if (!props) throw new Error('Expected the homepage composer');
+        const pending = Promise.resolve({ uuid: 'created-thread' });
+        createAgentThread.mockReturnValueOnce(pending);
+        const context = [
+            { type: 'thread_image', fileUuid: 'image-1' },
+        ] as const;
+        expect(
+            props.onSubmit({
+                message: 'Recreate this chart',
+                toolHints: [],
+                context: [...context],
+            }),
+        ).toBe(pending);
+        expect(createAgentThread).toHaveBeenCalledWith(
+            expect.objectContaining({ context: [...context] }),
+        );
+    });
+
+    it('suggestion chips submit through the composer so attachments go with them', async () => {
+        const context = [
+            { type: 'thread_image', fileUuid: 'image-1' },
+        ] as const;
+        composerSubmit.mockImplementationOnce((message, toolHints, submit) => {
+            void submit({ message, toolHints, context: [...context] });
+            return true;
+        });
+        renderWithSuggestions(['Top customers']);
+        await userEvent.click(screen.getByText('Top customers'));
+        expect(composerSubmit).toHaveBeenCalledWith(
+            'Top customers',
+            ['generateQuery'],
+            expect.any(Function),
+        );
+        expect(createAgentThread).toHaveBeenCalledWith(
+            expect.objectContaining({
+                prompt: 'Top customers',
+                toolHints: ['generateQuery'],
+                context: [...context],
+            }),
+        );
     });
 
     it('hides Deep Research when the user cannot start a run', () => {
@@ -333,7 +393,7 @@ describe('DayOneAskInput', () => {
         expect(agentChatInputProps.current?.onSqlModeChange).toBeDefined();
 
         act(() => {
-            agentChatInputProps.current?.onSubmit({
+            void agentChatInputProps.current?.onSubmit({
                 message: 'Show revenue',
                 toolHints: [],
             });
@@ -356,7 +416,7 @@ describe('DayOneAskInput', () => {
 
         expect(agentChatInputProps.current?.sqlMode).toBe(true);
         act(() => {
-            agentChatInputProps.current?.onSubmit({
+            void agentChatInputProps.current?.onSubmit({
                 message: 'Show revenue',
                 toolHints: [],
             });

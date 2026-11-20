@@ -18,7 +18,11 @@ const textDragEvent = (type: string) => dragEvent(type, ['text/plain']);
 describe('useFileDropTarget', () => {
     it('reports a file drag anywhere over the window and clears on leave', () => {
         const { result } = renderHook(() =>
-            useFileDropTarget({ enabled: true, onDropFiles: vi.fn() }),
+            useFileDropTarget({
+                enabled: true,
+                acceptsFileTypes: () => true,
+                onDropFiles: vi.fn(),
+            }),
         );
         expect(result.current.isDraggingFiles).toBe(false);
 
@@ -41,7 +45,11 @@ describe('useFileDropTarget', () => {
 
     it('ignores drags that carry no files', () => {
         const { result } = renderHook(() =>
-            useFileDropTarget({ enabled: true, onDropFiles: vi.fn() }),
+            useFileDropTarget({
+                enabled: true,
+                acceptsFileTypes: () => true,
+                onDropFiles: vi.fn(),
+            }),
         );
         act(() => {
             window.dispatchEvent(textDragEvent('dragenter'));
@@ -52,7 +60,11 @@ describe('useFileDropTarget', () => {
     it('hands dropped files to the callback and resets', () => {
         const onDropFiles = vi.fn();
         const { result } = renderHook(() =>
-            useFileDropTarget({ enabled: true, onDropFiles }),
+            useFileDropTarget({
+                enabled: true,
+                acceptsFileTypes: () => true,
+                onDropFiles,
+            }),
         );
         const file = new File(['hello'], 'notes.md', { type: 'text/markdown' });
         act(() => {
@@ -68,10 +80,51 @@ describe('useFileDropTarget', () => {
         expect(result.current.isDraggingFiles).toBe(false);
     });
 
+    it('offers no drop target for file types the caller turns down', () => {
+        const onDropFiles = vi.fn();
+        const { result } = renderHook(() =>
+            useFileDropTarget({
+                enabled: true,
+                acceptsFileTypes: (types) =>
+                    types.some((type) => !type.startsWith('image/')),
+                onDropFiles,
+            }),
+        );
+        const imageDrag = (type: string) => {
+            const event = new Event(type, { bubbles: true, cancelable: true });
+            Object.defineProperty(event, 'dataTransfer', {
+                value: {
+                    types: ['Files'],
+                    items: [{ kind: 'file', type: 'image/png' }],
+                    files: [
+                        new File(['x'], 'chart.png', { type: 'image/png' }),
+                    ],
+                    dropEffect: 'none',
+                },
+            });
+            return event;
+        };
+        act(() => {
+            window.dispatchEvent(imageDrag('dragenter'));
+        });
+        expect(result.current.isDraggingFiles).toBe(false);
+        // The window still swallows the drop so the browser never opens the file.
+        const drop = imageDrag('drop');
+        act(() => {
+            window.dispatchEvent(drop);
+        });
+        expect(drop.defaultPrevented).toBe(true);
+        expect(onDropFiles).not.toHaveBeenCalled();
+    });
+
     it('does nothing while disabled', () => {
         const onDropFiles = vi.fn();
         const { result } = renderHook(() =>
-            useFileDropTarget({ enabled: false, onDropFiles }),
+            useFileDropTarget({
+                enabled: false,
+                acceptsFileTypes: () => true,
+                onDropFiles,
+            }),
         );
         act(() => {
             window.dispatchEvent(fileDragEvent('dragenter'));

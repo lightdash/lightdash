@@ -8,6 +8,21 @@ import {
 import { useCallback } from 'react';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 
+/** Open Try it sessions; each keeps the view it started on, so no other tab or page moves it or switches it off under them. */
+let pins = 0;
+let pinnedPreview: string | null = null;
+export const pinDevelopmentView = (
+    previewProjectUuid: string | null = null,
+): (() => void) => {
+    pins += 1;
+    pinnedPreview = previewProjectUuid;
+    return () => {
+        pins -= 1;
+        if (pins === 0) pinnedPreview = null;
+    };
+};
+export const isDevelopmentViewPinned = (): boolean => pins > 0;
+
 const STORAGE_KEY = 'lightdash-development-view-project';
 const PREVIEW_STORAGE_KEY = 'lightdash-development-preview';
 /** The project the person has a draft checked out on, so the whole app reads it from the first request. */
@@ -27,7 +42,26 @@ const SAME_IN_EITHER_VIEW = new Set([
     'semantic-studio-workspaces',
     'semantic-studio-model-version',
     'semantic-studio-checkout',
+    // The draft is the person's own whichever view reads the models.
+    'semantic-layer-draft',
+    'semantic-layer-draft-state',
+    // Who may ask the agent is the same in either view; refetching it blanks the chat's composer.
+    'ai-access',
 ]);
+
+/** Ends the key of a query that asks for what is published by name, whatever view the page is in. */
+export const PUBLISHED_VIEW = 'published-view';
+
+// A chat thread is a conversation, not models: switching the view must not swap it for an older copy.
+const isAgentThread = (queryKey: QueryKey): boolean =>
+    queryKey.length === 5 &&
+    queryKey[0] === 'aiAgents' &&
+    queryKey[3] === 'threads';
+
+const isSameInEitherView = (queryKey: QueryKey): boolean =>
+    SAME_IN_EITHER_VIEW.has(String(queryKey[0])) ||
+    queryKey.at(-1) === PUBLISHED_VIEW ||
+    isAgentThread(queryKey);
 
 const PROJECT_IN_PATH = /\/projects\/([^/]+)/;
 
@@ -55,6 +89,7 @@ export const clearDevelopmentView = () => {
 
 /** The preview project the view reads, or null when it reads the person's latest change directly. */
 export const getDevelopmentPreview = (): string | null => {
+    if (pins > 0) return pinnedPreview;
     try {
         return localStorage.getItem(PREVIEW_STORAGE_KEY);
     } catch {
@@ -66,6 +101,14 @@ export const getDevelopmentPreview = (): string | null => {
 export const getDevelopmentViewHeaders = (): Record<string, string> => {
     try {
         const { pathname } = window.location;
+        if (pins > 0 && findProjectInPath(pathname) !== null) {
+            return {
+                [DEVELOPMENT_VIEW_HEADER]: 'true',
+                ...(pinnedPreview
+                    ? { [DEVELOPMENT_PREVIEW_HEADER]: pinnedPreview }
+                    : {}),
+            };
+        }
         if (isOnFor(localStorage.getItem(STORAGE_KEY), pathname)) {
             const preview = localStorage.getItem(PREVIEW_STORAGE_KEY);
             return {
@@ -84,23 +127,25 @@ export const getDevelopmentViewHeaders = (): Record<string, string> => {
 /** Caches each view apart, since one key reads the draft on one page and what is published on another. */
 export const hashQueryKeyByView = (queryKey: QueryKey): string => {
     const hash = hashQueryKey(queryKey);
-    if (SAME_IN_EITHER_VIEW.has(String(queryKey[0]))) return hash;
+    if (isSameInEitherView(queryKey)) return hash;
     const headers = getDevelopmentViewHeaders();
     return Object.keys(headers).length > 0
         ? `${hash}${JSON.stringify(headers)}`
         : hash;
 };
 
-const readsTheView = (queryKey: QueryKey) =>
-    !SAME_IN_EITHER_VIEW.has(String(queryKey[0]));
+const readsTheView = (queryKey: QueryKey) => !isSameInEitherView(queryKey);
 
 /** Switches the view and refetches what it reads, keeping each query's data meanwhile so no page drops back to its loader. */
 const switchView = (queryClient: QueryClient, write: () => void) => {
     const shown = queryClient
         .getQueryCache()
         .getAll()
-        .flatMap(({ queryKey, state }) =>
-            readsTheView(queryKey) && state.data !== undefined
+        .flatMap(({ queryKey, queryHash, state }) =>
+            readsTheView(queryKey) &&
+            state.data !== undefined &&
+            // Only what the page shows now; a third view's copy is older.
+            queryHash === hashQueryKeyByView(queryKey)
                 ? [{ queryKey, data: state.data }]
                 : [],
         );
@@ -114,16 +159,6 @@ const switchView = (queryClient: QueryClient, write: () => void) => {
         predicate: ({ queryKey }) => readsTheView(queryKey),
     });
 };
-
-/** Open Try it sessions; each keeps the view it started on, so nothing moves it under them. */
-let pins = 0;
-export const pinDevelopmentView = (): (() => void) => {
-    pins += 1;
-    return () => {
-        pins -= 1;
-    };
-};
-export const isDevelopmentViewPinned = (): boolean => pins > 0;
 
 const isCheckedOutHere = (pathname: string): boolean => {
     try {
@@ -194,7 +229,7 @@ export const useDevelopmentView = (): [
         },
         [pathname, queryClient, setProject, projectRoute],
     );
-    return [isOnFor(project, pathname), set];
+    return [isOnFor(project, pathname) || pins > 0, set];
 };
 
 /** What the checked-out view last showed in this page: its change and compile. */

@@ -7,15 +7,15 @@ import {
 import { Button } from '@mantine/core';
 import {
     IconAlertTriangle,
+    IconArrowsJoin,
     IconCircleCheck,
     IconCircleMinus,
     IconGitBranch,
     IconGitPullRequest,
-    IconTrash,
+    IconTable,
 } from '@tabler/icons-react';
 import { lazy, Suspense, useEffect, useState, type FC } from 'react';
 import { Link } from 'react-router';
-import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
 import MantineIcon from '../../components/common/MantineIcon';
 import { cannotApply } from './draftState';
 import { FieldChangeIcon } from './KindTypeIcon';
@@ -23,7 +23,9 @@ import {
     describeModelChange,
     DRAFT_PARAM,
     DRAFT_REVIEW,
+    CHANGE_KIND_LABELS,
     getChangeKind,
+    type ChangeKind,
     getModelCodeSearch,
     listFieldChanges,
     type FieldChange,
@@ -34,13 +36,12 @@ import { draftActions, fixAction } from './turnActions';
 import { TurnCard, type Safety } from './TurnCard';
 import { getSemanticStudioUrl } from './urls';
 import {
-    useDiscardDraftChange,
     usePublishMode,
     useRefreshSemanticLayerDraft,
     useSemanticLayerDraft,
     useSemanticLayerDraftImpact,
 } from './useSemanticLayerModel';
-import { useDraftPullRequest, useStudioCheckout } from './useStudioCheckout';
+import { useDraftPullRequest } from './useStudioCheckout';
 
 // The review and its diff viewer stay out of the chat's bundle until someone publishes from a card.
 const ApplyModal = lazy(() =>
@@ -49,15 +50,39 @@ const ApplyModal = lazy(() =>
     })),
 );
 
-const KIND_LABELS: Record<FieldChange['kind'], string> = {
-    dimension: 'Dimension',
-    metric: 'Metric',
-    join: 'Join',
-    model: 'Model',
+/** What was done to a part of a model, as the start of a sentence its name ends. */
+const ACTIONS: Record<FieldChange['kind'], Record<ChangeKind, string>> = {
+    dimension: {
+        new: 'Added the dimension',
+        changed: 'Changed the dimension',
+        removed: 'Removed the dimension',
+    },
+    metric: {
+        new: 'Added the metric',
+        changed: 'Changed the metric',
+        removed: 'Removed the metric',
+    },
+    join: {
+        new: 'Joined to',
+        changed: 'Changed the join to',
+        removed: 'Removed the join to',
+    },
+    model: { new: 'Added', changed: 'Changed', removed: 'Removed' },
+};
+
+/** "New · 12 dimensions · 1 metric" beside a name reads as a sentence under it: "Created with 12 dimensions and 1 metric". */
+const describeWholeModel = (subtitle: string | null): string | null => {
+    if (subtitle === null) return null;
+    const [state, ...counts] = subtitle.split(' · ');
+    if (state === CHANGE_KIND_LABELS.removed) return 'Removed from the layer';
+    return counts.length > 0
+        ? `Created with ${counts.join(' and ')}`
+        : 'Created';
 };
 
 type ModelGroup = {
     model: string;
+    change: ChangeKind;
     title: string;
     subtitle: string | null;
     removed: boolean;
@@ -97,9 +122,12 @@ const groupByModel = (proposals: SemanticLayerProposal[]): ModelGroup[] => {
                       contentAfter: diffs[diffs.length - 1].contentAfter,
                   }
                 : null;
+        const { title, subtitle } = describeModelChange(model, span);
         return {
             model,
-            ...describeModelChange(model, span),
+            title,
+            subtitle: describeWholeModel(subtitle),
+            change: span === null ? 'changed' : getChangeKind(span),
             removed: span !== null && getChangeKind(span) === 'removed',
             fields: [...fields.values()],
         };
@@ -220,10 +248,8 @@ export const TurnSummaryCard: FC<{
     isLatest: boolean;
 }> = ({ projectUuid, proposals, onAsk, isLatest }) => {
     const { data: draft } = useSemanticLayerDraft(projectUuid);
-    const { shown: checkedOut } = useStudioCheckout();
     const { data: impact } = useSemanticLayerDraftImpact(projectUuid, null);
     const refresh = useRefreshSemanticLayerDraft(projectUuid);
-    const discard = useDiscardDraftChange(projectUuid);
     const uuids = proposals.flatMap(({ draftChangeUuid }) =>
         draftChangeUuid ? [draftChangeUuid] : [],
     );
@@ -255,11 +281,6 @@ export const TurnSummaryCard: FC<{
         return modelUrl(model);
     };
     const issues = listTurnIssues(proposals);
-    const name =
-        proposals.find(({ startedChange }) => startedChange)?.startedChange
-            ?.name ??
-        (phase.kind === 'draft' ? (checkedOut?.workspace?.name ?? null) : null);
-
     const isDraft = phase.kind === 'draft';
     const conflicts = (draft?.models ?? []).filter(
         ({ reconciliation }) => reconciliation?.state === 'conflict',
@@ -355,10 +376,7 @@ export const TurnSummaryCard: FC<{
                           icon: <TaskIcon state="failed" />,
                           status: "Draft doesn't compile",
                       }
-                    : {
-                          icon: <MantineIcon icon={IconGitBranch} size={14} />,
-                          status: 'Draft',
-                      };
+                    : { icon: null, status: 'Drafted' };
             case 'published':
                 return {
                     icon: (
@@ -372,8 +390,14 @@ export const TurnSummaryCard: FC<{
                 };
             case 'pull_request':
                 return {
-                    icon: <MantineIcon icon={IconGitPullRequest} size={14} />,
-                    status: 'Pull request',
+                    icon: (
+                        <MantineIcon
+                            icon={IconCircleCheck}
+                            size={14}
+                            color="green"
+                        />
+                    ),
+                    status: 'Pull request opened',
                 };
             case 'gone':
                 return {
@@ -406,52 +430,69 @@ export const TurnSummaryCard: FC<{
         <TurnCard
             icon={header.icon}
             status={header.status}
-            name={name}
-            headerAction={
-                isDraft ? (
-                    <ConfirmDeleteButton
-                        size="sm"
-                        aria-label="Discard these changes"
-                        tooltip="Click again to discard these changes"
-                        disabled={discard.isLoading}
-                        onConfirm={() =>
-                            uuids.forEach((uuid) => discard.mutate(uuid))
-                        }
-                    >
-                        <MantineIcon icon={IconTrash} />
-                    </ConfirmDeleteButton>
-                ) : null
-            }
-            groups={groups.map(({ model, title, subtitle, fields }) => ({
-                model,
-                title,
-                subtitle,
-                rows: fields.map((field) => ({
-                    id: `${field.kind}:${field.name}`,
-                    change: field.change,
-                    kind: KIND_LABELS[field.kind],
-                    icon: <FieldChangeIcon field={field} />,
-                    label: field.label,
-                    // How it is defined waits on hover and in the review; the card names what changed.
-                    detail: null,
-                    title: [field.name, field.detail]
-                        .filter(Boolean)
-                        .join(' · '),
-                    to: fieldUrl(model, field),
-                })),
-                issues: issues.filter((issue) => issue.model === model),
-            }))}
+            name={null}
+            headerAction={null}
+            groups={groups.map(
+                ({ model, change, title, subtitle, fields }) => ({
+                    model,
+                    change,
+                    title,
+                    subtitle,
+                    rows: fields.map((field) => ({
+                        id: `${field.kind}:${field.name}`,
+                        change: field.change,
+                        action: ACTIONS[field.kind][field.change],
+                        // A field keeps the Explorer's own icon and colour; a join is blue and a table green.
+                        icon:
+                            field.kind === 'dimension' ||
+                            field.kind === 'metric' ? (
+                                <FieldChangeIcon field={field} />
+                            ) : field.kind === 'join' ? (
+                                <MantineIcon
+                                    icon={IconArrowsJoin}
+                                    size={14}
+                                    color="blue"
+                                />
+                            ) : (
+                                <MantineIcon
+                                    icon={IconTable}
+                                    size={14}
+                                    color="green"
+                                />
+                            ),
+                        label: (() => {
+                            // A model's own keys have no name of their own to show.
+                            if (field.kind === 'model') {
+                                return `its ${field.detail ?? 'settings'}`;
+                            }
+                            // A join to a model this turn touched reads by that model's name.
+                            if (field.kind === 'join') {
+                                return (
+                                    groups.find((g) => g.model === field.name)
+                                        ?.title ?? field.label
+                                );
+                            }
+                            return field.label;
+                        })(),
+                        // How it is defined waits on hover and in the review; the card names what changed.
+                        detail: null,
+                        title: [field.name, field.detail]
+                            .filter(Boolean)
+                            .join(' · '),
+                        to: fieldUrl(model, field),
+                    })),
+                    issues: issues.filter((issue) => issue.model === model),
+                }),
+            )}
             safety={safety}
-            note={
-                isDraft
-                    ? (proposals.findLast(({ note }) => note)?.note ?? null)
-                    : null
-            }
-            options={isDraft ? (proposals.at(-1)?.options ?? []) : []}
-            onAsk={onAsk}
             isLatest={isLatest}
             actions={actions}
             isGone={phase.kind === 'gone'}
+            isSettled={
+                phase.kind === 'published' ||
+                phase.kind === 'pull_request' ||
+                phase.kind === 'gone'
+            }
         >
             {publishing && draft ? (
                 <Suspense fallback={null}>

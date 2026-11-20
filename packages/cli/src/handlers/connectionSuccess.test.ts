@@ -174,7 +174,9 @@ it('omits a rejected server path', async () => {
                 { path: `../${marker}`, contentBase64: '' },
             ]),
         ),
-    ).rejects.toThrow('Refusing to write a file outside the target directory.');
+    ).rejects.toMatchObject({
+        message: 'Path resolves outside the target directory',
+    });
 });
 it.each([marker, 1, null])(
     'rejects a mistyped timestamp setting %s before debug output',

@@ -1,4 +1,8 @@
-import { FeatureFlags, isAppVersionInProgress } from '@lightdash/common';
+import {
+    DATA_APP_VIZ_TEMPLATE,
+    FeatureFlags,
+    isAppVersionInProgress,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -20,8 +24,12 @@ import {
     useRegisterLauncherAnalysisAdapter,
     type LauncherAnalysisAdapter,
 } from '../ee/features/aiCopilot/components/Launcher/launcherAnalysisAdapter';
+import { useDefaultAiAgent } from '../ee/features/aiCopilot/components/Launcher/useDefaultAiAgent';
+import { useProjectAiAgentButtonVisibility } from '../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { store as aiAgentStore } from '../ee/features/aiCopilot/store';
 import { openAnalysisPanel } from '../ee/features/aiCopilot/store/aiAgentLauncherSlice';
+import AppViewCapture from '../ee/features/appCapture/AppViewCapture';
+import { type CaptureHostHandle } from '../ee/features/capture';
 import {
     useDataAppAnalysisAvailability,
     useIsAnalysisEntryVisible,
@@ -34,6 +42,7 @@ import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
 import DataAppAiAgentContextBridge from '../features/apps/components/DataAppAiAgentContextBridge';
+import VoiceDesignButton from '../features/apps/components/VoiceDesignButton';
 import { getVisiblePreviewTokenError } from '../features/apps/hooks/previewTokenQueryOptions';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppInspector } from '../features/apps/hooks/useAppInspector';
@@ -42,6 +51,7 @@ import { useCanEditVerifiedDataApp } from '../features/apps/hooks/useCanEditData
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useNewerAppVersion } from '../features/apps/hooks/useNewerAppVersion';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
+import { canCaptureOnAppView } from '../features/apps/utils/appViewCapture';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useRecordContentView } from '../hooks/useRecordContentView';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -56,6 +66,11 @@ export default function AppPreviewTest() {
     const explicitVersion = versionParam ? Number(versionParam) : undefined;
 
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const captureFlag = useServerFeatureFlag(FeatureFlags.DataAppCapture);
+    // Same check the agent launcher uses before it shows itself.
+    const canUseAgents = useProjectAiAgentButtonVisibility(projectUuid);
+    const defaultAgent = useDefaultAiAgent(projectUuid);
+    const hasCaptureAgent = defaultAgent.agents.length > 0;
 
     // Always fetch app to get creator info + latest ready version when needed.
     // The backend enforces space-aware view permissions and will 403 if the
@@ -223,6 +238,22 @@ export default function AppPreviewTest() {
         }
         return capture();
     }, []);
+
+    // Voice Design: draw on the running app while talking; the recording goes
+    // to an agent thread that opens in the launcher on this page.
+    const previewBodyRef = useRef<HTMLDivElement>(null);
+    const captureRef = useRef<CaptureHostHandle>(null);
+    const [isCaptureRecording, setIsCaptureRecording] = useState(false);
+    const captureAvailable = canCaptureOnAppView({
+        flagEnabled: captureFlag.data?.enabled === true,
+        canUseAgents,
+        hasAgent: hasCaptureAgent,
+        hasPreview: Boolean(token && version !== undefined && !isFullscreen),
+    });
+    const getCaptureRegion = useCallback(
+        () => previewBodyRef.current?.getBoundingClientRect() ?? new DOMRect(),
+        [],
+    );
 
     if (dataAppsFlag.isLoading) {
         return null;
@@ -428,7 +459,16 @@ export default function AppPreviewTest() {
                     }}
                     rightSection={
                         <AppHeaderActions
-                            previewTools={null}
+                            previewTools={
+                                captureAvailable && (
+                                    <VoiceDesignButton
+                                        onClick={() =>
+                                            captureRef.current?.start()
+                                        }
+                                        disabled={isCaptureRecording}
+                                    />
+                                )
+                            }
                             openUrl={null}
                             capturedQueryCount={inspector.readyQueryCount}
                             fullscreenToggle={
@@ -520,8 +560,25 @@ export default function AppPreviewTest() {
                 data-tour-docs="data-apps.mdx#sharing-an-app:p4:1"
                 data-tour-resultdocs="data-apps.mdx#space-access:li1"
                 data-tour-return="none"
+                ref={previewBodyRef}
                 className={classes.previewBody}
             >
+                {captureAvailable && (
+                    <AppViewCapture
+                        ref={captureRef}
+                        projectUuid={projectUuid}
+                        // The server refuses chart types as attachments.
+                        attachedAppUuid={
+                            !firstPage ||
+                            firstPage.template === DATA_APP_VIZ_TEMPLATE
+                                ? null
+                                : firstPage.appUuid
+                        }
+                        appName={appName}
+                        getRegion={getCaptureRegion}
+                        onRecordingChange={setIsCaptureRecording}
+                    />
+                )}
                 {body}
             </Box>
         </Box>

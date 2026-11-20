@@ -7,7 +7,10 @@ import {
     type ToolProposeSemanticLayerChangeOutput,
 } from '@lightdash/common';
 import { tool } from 'ai';
-import { findNewModelAdvice } from '../../SemanticStudioService/draftLint';
+import {
+    findMetricsToRun,
+    findNewModelAdvice,
+} from '../../SemanticStudioService/draftLint';
 import type {
     ProposeSemanticLayerChangeFn,
     ReadSemanticModelFn,
@@ -24,6 +27,7 @@ const renderProposedModel = (
         notes,
     }: SemanticLayerDraftItemResult,
     advice: string[],
+    metricsToRun: string[],
 ): string =>
     [
         `${model}: ${status}`,
@@ -40,6 +44,11 @@ const renderProposedModel = (
         ...(error ? [`  error: ${error}`] : []),
         ...notes.map((note) => `  note: ${note}`),
         ...advice.map((line) => `  advice: ${line}`),
+        ...(metricsToRun.length > 0
+            ? [
+                  `  check: run ${metricsToRun.join(', ')} once with runMetricQuery, which reads the draft. A null, a zero or a total the table cannot produce means the definition is wrong: propose the fix. Otherwise end the turn.`,
+              ]
+            : []),
     ].join('\n');
 
 /** A model can escape the quotes inside a string it writes; the card shows text, so they are plain again. */
@@ -48,8 +57,11 @@ const unescapeQuotes = (text: string | null): string | null =>
 
 export const getProposeSemanticLayerChange = ({
     proposeSemanticLayerChange,
+    canRunMetrics,
 }: {
     proposeSemanticLayerChange: ProposeSemanticLayerChangeFn;
+    /** Whether the agent can run a metric on the draft, so a changed one is checked on real rows before the turn ends. */
+    canRunMetrics: boolean;
 }) =>
     tool({
         ...proposeSemanticLayerChangeToolDefinition.for('agent'),
@@ -62,30 +74,47 @@ export const getProposeSemanticLayerChange = ({
                         ({ model, contentBefore }) =>
                             model === result.model && contentBefore === null,
                     );
+                    const isReady = result.status === 'ready';
                     return {
                         result,
                         advice:
-                            result.status === 'ready' && created?.contentAfter
+                            isReady && created?.contentAfter
                                 ? findNewModelAdvice(
                                       result.model,
                                       created.contentAfter,
                                   )
                                 : [],
+                        metricsToRun:
+                            isReady && canRunMetrics
+                                ? findMetricsToRun(
+                                      result.model,
+                                      result.changes,
+                                      created?.contentAfter ?? null,
+                                  )
+                                : [],
                     };
                 });
+                const hasRefusals = results.some(
+                    ({ status, refusals }) =>
+                        status === 'ready' && refusals.length > 0,
+                );
+                const joinedLine = hasRefusals
+                    ? "This joined the person's draft without the refused parts, which changed nothing. Propose those again in a way that can pass, or tell the person what was left out. Nothing is published until they publish the draft."
+                    : "This joined the person's draft, and its card shows them what changed, your note and your options, so write nothing more. Nothing is published until they publish the draft.";
+                const joinedDraftLine = draftChangeUuid
+                    ? joinedLine
+                    : 'Nothing joined the draft.';
                 const output: ToolProposeSemanticLayerChangeOutput = {
                     result: [
-                        ...advised.map(({ result, advice }) =>
-                            renderProposedModel(result, advice),
+                        ...advised.map(({ result, advice, metricsToRun }) =>
+                            renderProposedModel(result, advice, metricsToRun),
                         ),
                         ...(startedChange
                             ? [
                                   `Started draft "${startedChange.name}" and checked it out.`,
                               ]
                             : []),
-                        draftChangeUuid
-                            ? "This joined the person's draft, and its card shows them what changed, your note and your options, so write nothing more. Nothing is published until they publish the draft."
-                            : 'Nothing joined the draft.',
+                        joinedDraftLine,
                     ].join('\n'),
                     metadata: {
                         status: 'success',
@@ -93,9 +122,13 @@ export const getProposeSemanticLayerChange = ({
                         diffs,
                         draftChangeUuid,
                         startedChange,
-                        needsFollowUp: advised.some(
-                            ({ advice }) => advice.length > 0,
-                        ),
+                        needsFollowUp:
+                            hasRefusals ||
+                            advised.some(
+                                ({ advice, metricsToRun }) =>
+                                    advice.length > 0 ||
+                                    metricsToRun.length > 0,
+                            ),
                         note: draftChangeUuid ? unescapeQuotes(note) : null,
                         options: draftChangeUuid
                             ? options.map(

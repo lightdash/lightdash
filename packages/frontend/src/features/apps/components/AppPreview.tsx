@@ -57,6 +57,7 @@ export type AppPreviewProps = {
     onInsightInstructionsChange?: (instructions: string | null) => void;
     onInsightAnalyseOnLoadChange?: (analyseOnLoad: boolean | null) => void;
     onMountedQueriesChange?: (queryUuids: string[]) => void;
+    onCaptureHotkey?: () => void;
 };
 
 const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
@@ -91,6 +92,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
             onInsightInstructionsChange,
             onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
+            onCaptureHotkey,
         },
         ref,
     ) => {
@@ -170,6 +172,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
                 onInsightInstructionsChange={onInsightInstructionsChange}
                 onInsightAnalyseOnLoadChange={onInsightAnalyseOnLoadChange}
                 onMountedQueriesChange={onMountedQueriesChange}
+                onCaptureHotkey={onCaptureHotkey}
             />
         );
     },

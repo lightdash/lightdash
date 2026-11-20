@@ -11,9 +11,22 @@ A composer chart is a dashboard chart whose definition is a pipeline of queries 
 
 Pass `type: "composer_chart"` to `createContent`, `readContent` and `editContent`. A composer chart can share its slug with a chart or SQL chart, so the type picks which one you mean.
 
+## When to create one
+
+A new chart is a chart from explore fields by default. Pick its type with these rules:
+
+- The user asked for a composer chart: create it.
+- The node to chart reads other nodes (a merge, a duckdb or python node): create a composer chart. Judge that node and the nodes it reads, not every node of the `query` call.
+- A lone semanticLayer node is saved as a chart that keeps its fields, filters, sorts, custom metrics, period comparisons (`period-over-period-reference`) and parameters; a lone `sql` node follows `sql-chart-reference`.
+- Where the `query` tool is available, one explore cannot produce the dashboard chart but a `query` pipeline over explores can (a merge across explores, a duckdb or python step): build it with `query` and save it as a composer chart. A chart saved outside a dashboard follows `sql-chart-reference`.
+
+When you save a composer chart, tell the user it is a composer chart built from that pipeline. Do not claim a normal chart could not show the result.
+
+A pipeline with an `external` node cannot be saved. Composer charts already on a dashboard were chosen for those tiles; a new tile there follows these rules too.
+
 ## Create
 
-Create one only when the user asks to save a result to a dashboard. It needs an existing dashboard (`dashboardSlug`) and gets a tile at the bottom of the dashboard's first tab. Pass the content in one of two shapes:
+Create one only when the user wants the chart on a dashboard. It needs an existing dashboard (`dashboardSlug`) and gets a tile at the bottom of the dashboard's first tab. Pass the content in one of two shapes:
 
 - **From a query node** (usual): `{ from: "node", nodeId, sessionId, dashboardSlug, name, description, vizConfig }`. `nodeId` names a node from a successful `query` call; the chart saves it and every node it reads. `vizConfig` references that node's result columns: pass the one the user saw with `visualize`, or over MCP the one you chose for the result. `sessionId` is the query result's session id over MCP, and null in an agent conversation. The node's SQL was approved when `query` ran it, so this asks no approval.
 - **From full JSON**: `{ from: "json", dashboardSlug, name, description, pipeline, chart }`, with `pipeline` and `chart` shaped as `readContent` returns them; a `slug` is not kept. Warehouse SQL in it needs approval, as for a SQL chart.
@@ -28,6 +41,10 @@ Done when the result links the dashboard and `runContentQuery` on the new chart 
 4. Check the saved chart with `runContentQuery` (`source.type: "dashboardChart"`, `chartType: "composer_chart"`, the dashboard's slug). Done when the terminal node's rows show the change you made.
 
 The edit is saved in place as a new version of the chart, so the dashboard shows it straight away; restoring an earlier dashboard version restores the chart with it. `slug`, `contentType` and `dashboardSlug` cannot change. In a conversation bound to a dashboard, only that dashboard's composer charts can be edited.
+
+## Rename
+
+A saved composer tile starts with its `title` set to the chart's `name`, and shows its `title` over the chart's `name`. When you change `name`, update each `composer_chart` tile with this `chartSlug` whose `title` equals the old name: set it to the new name with `editContent` on the dashboard. Leave other titles as they are.
 
 ## Columns
 

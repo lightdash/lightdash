@@ -33,9 +33,11 @@ export class DocumentAccessModel {
         {
             trx = this.database,
             organizationUuid,
+            includePendingUser = false,
         }: {
             trx?: Knex;
             organizationUuid: string;
+            includePendingUser?: boolean;
         },
     ): Promise<Record<string, DocumentDirectAccess>> {
         const uniqueDocumentUuids = [...new Set(documentUuids)];
@@ -98,7 +100,7 @@ export class DocumentAccessModel {
                 `${OrganizationTableName}.organization_uuid`,
                 organizationUuid,
             )
-            .where(getActiveProjectMemberPredicate(trx))
+            .where(getActiveProjectMemberPredicate(trx, { includePendingUser }))
             .whereNull(`${DocumentsTableName}.deleted_at`)
             .whereNull(`${SpaceTableName}.deleted_at`)
             .unionAll(
@@ -162,7 +164,11 @@ export class DocumentAccessModel {
                         `${OrganizationTableName}.organization_uuid`,
                         organizationUuid,
                     )
-                    .where(getActiveProjectMemberPredicate(trx))
+                    .where(
+                        getActiveProjectMemberPredicate(trx, {
+                            includePendingUser,
+                        }),
+                    )
                     .where(
                         `${GroupMembershipTableName}.organization_id`,
                         trx.ref(`${ProjectTableName}.organization_id`),

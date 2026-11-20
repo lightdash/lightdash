@@ -129,20 +129,6 @@
     --xy-controls-box-shadow: var(--mantine-shadow-xs);
 }
 
-/* Attribution stays (license) but sits quietly in the corner, clear of nodes. */
-.flow :global(.react-flow__attribution) {
-    /* Same inset as the controls panel, clear of the rounded corner. */
-    margin: 15px;
-    padding: 0;
-    background: transparent;
-    font-size: var(--mantine-font-size-xs);
-    opacity: 0.6;
-}
-
-.flow :global(.react-flow__attribution) a {
-    color: var(--mantine-color-dimmed);
-}
-
 /* One colour per relationship, shared by edges, the legend and the details panel. */
 .flow,
 .details {
