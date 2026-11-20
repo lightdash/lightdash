@@ -70,6 +70,7 @@ import {
 import express from 'express';
 import { getContextFromHeader } from '../../analytics/LightdashAnalytics';
 import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
+import { pipeS3BodyToResponse } from '../../clients/Aws/s3Streams';
 import {
     allowApiKeyAuthentication,
     getDeprecatedRouteMiddleware,
@@ -922,13 +923,7 @@ export class QueryController extends BaseController {
 
         const { res } = req;
         if (res) {
-            readStream.pipe(res);
-            await new Promise<void>((resolve, reject) => {
-                readStream.on('end', () => {
-                    res.end();
-                    resolve();
-                });
-            });
+            await pipeS3BodyToResponse(readStream, res);
         }
     }
 
