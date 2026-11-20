@@ -1500,6 +1500,92 @@ describe('names of people who have left', () => {
     });
 });
 
+describe('who ran a query, by the kind of actor recorded', () => {
+    it('names service accounts, embedded viewers and anonymous use, and keeps Unknown user for an unmatched person', async () => {
+        const chart = {
+            ...analyticsContentAsCode
+                .flatMap((bundle) => bundle.charts)
+                .find(({ slug }) =>
+                    slug.endsWith('-tools-google-sheets-queries-by-person'),
+                )!,
+        };
+        // The same person table, over every query instead of only Google Sheets ones
+        chart.metricQuery = { ...chart.metricQuery, filters: {}, limit: 500 };
+        const instance = await DuckDBInstance.create(':memory:', {
+            threads: '1',
+            memory_limit: '128MB',
+        });
+        const db = await instance.connect();
+        try {
+            const { usageDimensionSchemas } =
+                await import('../eventStream/usageDimensions');
+            await db.run(
+                `CREATE TABLE query_events (${compactedStreamSchemas.query_events.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
+            );
+            await db.run(
+                `CREATE TABLE lightdash_users (${usageDimensionSchemas.users.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
+            );
+            await db.run(`INSERT INTO lightdash_users (org_id,user_id,name,is_active) VALUES
+                ('org','member','Alex Active',true),
+                ('org','left','Dana Whitcombe',false),
+                ('org','named-account','Reporting bot',true)`);
+            const row = (
+                id: string,
+                user: string | null,
+                actor: string | null,
+                context: string,
+                externalUser: string | null = null,
+            ) =>
+                `('org','${id}',${user ? `'${user}'` : 'NULL'},${actor ? `'${actor}'` : 'NULL'},'${context}',${externalUser ? `'${externalUser}'` : 'NULL'},CURRENT_TIMESTAMP,'success')`;
+            await db.run(`INSERT INTO query_events (org_id,query_id,user_id,initiating_actor_type,context,external_user_id,event_ts,status) VALUES
+                ${[
+                    row('1', 'member', 'registered_user', 'dashboardView'),
+                    row('2', 'left', 'registered_user', 'dashboardView'),
+                    row('3', 'gone', 'registered_user', 'dashboardView'),
+                    row('4', 'abcdef12-3456', 'service_account', 'api'),
+                    row('5', 'named-account', 'service_account', 'api'),
+                    row('6', null, 'anonymous', 'embed', 'viewer-9'),
+                    row('7', null, 'anonymous', 'api'),
+                    // Older rows with no actor type recorded
+                    row('8', null, null, 'embed'),
+                    row('9', null, null, 'dashboardView'),
+                    row('10', 'member', null, 'dashboardView'),
+                ].join(',')}`);
+            const rows = (
+                await db.runAndReadAll(sqlOf(chart))
+            ).getRowObjectsJS();
+            expect(
+                rows
+                    .map((line) => [
+                        line.user_display_name,
+                        Number(line.query_events_total_queries),
+                    ])
+                    .sort(),
+            ).toEqual(
+                [
+                    ['Alex Active', 2],
+                    ['Dana Whitcombe (deactivated)', 1],
+                    // A signed-in person whose ID matches no member: the only Unknown user. The plain
+                    // table shows the ID so two of them stay apart.
+                    ['User gone', 1],
+                    ['Service account abcdef12', 1],
+                    ['Service account Reporting bot', 1],
+                    ['Embedded viewer', 2],
+                    ['Anonymous', 1],
+                    ['No user recorded', 1],
+                ].sort(),
+            );
+            expect(
+                rows.find((line) => line.query_events_user_id === 'gone')!
+                    .query_events_user_name,
+            ).toBe('Unknown user');
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
+    });
+});
+
 describe('MCP tool calls by person and tool', () => {
     it('lists each service account by itself, not together under Unknown user', async () => {
         const chart = analyticsContentAsCode

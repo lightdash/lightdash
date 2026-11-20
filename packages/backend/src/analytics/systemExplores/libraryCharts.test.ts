@@ -892,7 +892,7 @@ describe('legacyLibraryChartBindings', () => {
                     (tile) => (tile.properties as { content: string }).content,
                 );
         expect(queryDescription(agentChart('agent-adoption-by-week'))).toBe(
-            'Requests per person and agent in the selected period. People without a display name are grouped as Unknown user.',
+            'Requests per person and agent in the selected period. Requests with no person recorded are grouped as No user recorded.',
         );
         expect(
             captions('lightdash-analytics-overview', 'adoption').filter(

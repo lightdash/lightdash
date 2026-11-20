@@ -415,7 +415,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 ],
                 limit: 500,
                 description:
-                    'Requests per person and agent in the selected period. People without a display name are grouped as Unknown user.',
+                    'Requests per person and agent in the selected period. Requests with no person recorded are grouped as No user recorded.',
             },
         },
     },
@@ -666,7 +666,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 ],
                 limit: 24,
                 description:
-                    'Top 24 person and model pairs by tokens in the selected period, so a person near the cut-off can be missing their smaller models. People without a display name are grouped as Unknown user.',
+                    'Top 24 person and model pairs by tokens in the selected period, so a person near the cut-off can be missing their smaller models. Usage with no person recorded is grouped as No user recorded.',
             },
         },
     },
