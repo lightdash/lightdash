@@ -320,10 +320,11 @@ export const contentChartSpecs: UsageChartSpec[] = [
             'content_health_content_id',
             'content_health_project_id',
         ],
+        // Dashboards using it comes first, so the items most in use head each status
         metrics: [
-            'content_health_total_content',
-            'content_health_total_enabled_schedules',
             'content_health_total_dashboard_references',
+            'content_health_total_enabled_schedules',
+            'content_health_total_content',
         ],
         filters: [
             {
@@ -336,11 +337,12 @@ export const contentChartSpecs: UsageChartSpec[] = [
         ],
         limit: 200,
         fieldLabels: {
-            content_health_total_content: 'Items',
+            // Two charts in different places can share a name, and they share a row
+            content_health_total_content: 'Items with this name',
             content_health_total_enabled_schedules: 'Schedules switched on',
             content_health_total_dashboard_references: 'Dashboards using it',
         },
-        libraryDescription: `Content with no recorded activity, by status, with its items and what still uses them. ${allHistory}`,
+        libraryDescription: `Up to 5,000 items with no recorded activity, by status, with the dashboards and schedules that still use each, most dashboards first. ${allHistory}`,
         // The items are the point of the tile, so the statuses start open
         expanded: true,
     }),

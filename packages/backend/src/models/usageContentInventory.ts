@@ -142,7 +142,7 @@ export const usageContentInventoryQuery = (
     SELECT i.content_id AS cursor,
         json_build_object(
             'org_id', ?::text, 'project_id', i.project_id, 'project_name', p.name,
-            'project_type', p.project_type,
+            'project_type', CASE WHEN p.provisioning_source = 'analytics' THEN 'ANALYTICS' ELSE p.project_type::text END,
             'content_type', i.content_type, 'content_id', i.content_id,
             'content_name', i.content_name, 'space_id', s.space_uuid, 'space_name', s.name,
             'content_url', CASE WHEN i.content_type IN ('data_app', 'chart_type') THEN NULL ELSE

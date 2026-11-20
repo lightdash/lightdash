@@ -43,8 +43,10 @@ import {
     contentHealthSql,
 } from '../../../analytics/systemExplores/contentHealth';
 import {
+    analyticsProjectType,
     contentCreatedByDaySql,
     contentInventoryMetrics,
+    customerContentSql,
 } from '../../../analytics/systemExplores/contentInventory';
 import {
     contentReachColumns,
@@ -632,7 +634,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                           tool_activity: toolActivitySql,
                           content_reach: contentReachSql,
                           content_health: contentHealthSql,
-                          content_inventory: '"lightdash_content"',
+                          content_inventory: customerContentSql,
                           content_created: contentCreatedByDaySql,
                           agent_requests: agentRequestsSql,
                           agent_evaluation_runs: `"${usageDimensionTable('agent_evaluation_runs')}"`,
@@ -814,6 +816,21 @@ export const createAnalyticsExplores = (): Explore[] => {
             addPlainName('field_kind');
             addPlainName('field_origin');
         }
+        // Views and queries of Lightdash's own analytics dashboards are real activity, so they stay in
+        // counts of people and queries. A tile that lists the customer's content filters them out.
+        if (
+            (name === 'content_reach' || name === 'query_events') &&
+            table.dimensions.project_id
+        )
+            table.dimensions.in_analytics_project = {
+                ...table.dimensions.project_id,
+                name: 'in_analytics_project',
+                label: 'In the Analytics project',
+                type: DimensionType.BOOLEAN,
+                description:
+                    "Whether the activity was on Lightdash's own analytics dashboards and charts. Filter to No to list only content your organization made.",
+                sql: `EXISTS (SELECT 1 FROM lightdash_content analytics_content WHERE analytics_content.project_type = '${analyticsProjectType}' AND analytics_content.org_id = ${table.dimensions.org_id.sql} AND analytics_content.project_id = ${table.dimensions.project_id.sql})`,
+            };
         if (table.dimensions.user_id)
             table.dimensions.user_id.label = 'Person ID';
         if (table.dimensions.project_id)
