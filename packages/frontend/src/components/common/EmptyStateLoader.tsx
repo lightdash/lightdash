@@ -1,10 +1,11 @@
 import { type StackProps } from '@mantine/core';
-import { type FC } from 'react';
+import { type FC, type ReactNode } from 'react';
 import SuboptimalState from './SuboptimalState/SuboptimalState';
 
 type EmptyStateLoaderProps = StackProps & {
     title?: string;
     description?: string;
+    action?: ReactNode;
     'data-testid'?: string;
 };
 

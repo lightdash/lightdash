@@ -4,16 +4,7 @@ import {
     type AiArtifact,
     type ApiError,
 } from '@lightdash/common';
-import {
-    Box,
-    Center,
-    Drawer,
-    Group,
-    Loader,
-    Stack,
-    Text,
-    Tooltip,
-} from '@mantine/core';
+import { Box, Drawer, Group, Text, Tooltip } from '@mantine/core';
 import { useDisclosure, type UseSplitterReturnValue } from '@mantine/hooks';
 import {
     IconLayoutSidebarLeftCollapse,
@@ -32,6 +23,7 @@ import {
     type PropsWithChildren,
 } from 'react';
 import { useLocation, useParams } from 'react-router';
+import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ResizableSplitter from '../../../../../components/common/ResizableSplitter';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
@@ -108,20 +100,19 @@ const renderPreviewPanel = (preview: AiPreview) => {
     }
 };
 
-// Matches the panels' own loading state, Close included.
+// Keeps Close available while the panel's code loads.
 const PreviewPanelLoading = () => {
     const dispatch = useAiAgentStoreDispatch();
     return (
         <Box className={artifactStyles.floatingPanel}>
-            <Center h="100%">
-                <Stack gap="xs" align="center">
-                    <Loader type="dots" color="gray" />
+            <EmptyStateLoader
+                action={
                     <ArtifactWindowControls
                         onClose={() => dispatch(clearPreview())}
                         separated={false}
                     />
-                </Stack>
-            </Center>
+                }
+            />
         </Box>
     );
 };
@@ -388,15 +379,11 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                         min={PREVIEW_PANE_MIN}
                         max={PREVIEW_PANE_MAX}
                     >
-                        <ErrorBoundary>
-                            <ArtifactFocusContext.Provider
-                                value={artifactFocus}
-                            >
-                                <Box className={styles.floatingArtifactWrap}>
-                                    <PreviewPanel preview={preview} />
-                                </Box>
-                            </ArtifactFocusContext.Provider>
-                        </ErrorBoundary>
+                        <ArtifactFocusContext.Provider value={artifactFocus}>
+                            <Box className={styles.floatingArtifactWrap}>
+                                <PreviewPanel preview={preview} />
+                            </Box>
+                        </ArtifactFocusContext.Provider>
                     </ResizableSplitter.Pane>
                 )}
             </ResizableSplitter>
