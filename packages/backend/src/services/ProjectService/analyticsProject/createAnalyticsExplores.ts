@@ -7,6 +7,7 @@ import {
     friendlyName,
     JoinRelationship,
     MetricType,
+    TimeFrames,
     WarehouseTypes,
     type Explore,
     type Metric,
@@ -108,6 +109,91 @@ const dimensionFields = {
 
 // Shown in a plain-name field when nothing was recorded
 const notRecorded = 'Not recorded';
+// Plain labels, by field name, for every explore
+const intervalLabels: Partial<Record<TimeFrames, string>> = {
+    [TimeFrames.DAY]: 'Day',
+    [TimeFrames.WEEK]: 'Week',
+    [TimeFrames.MONTH]: 'Month',
+};
+const dimensionLabels: Record<string, string> = {
+    user_name: 'Person',
+    project_name: 'Project',
+    content_name: 'Content',
+    retry_count: 'Retries',
+    observed_viewers: 'Viewers',
+    identity_coverage: 'Viewer ID',
+    agent_name: 'Agent',
+    app_name: 'Data app',
+    dashboard_name: 'Dashboard',
+    chart_name: 'Chart',
+    tool_name: 'Tool',
+    field_label: 'Field',
+    view_context: 'Surface',
+    evaluation_name: 'Evaluation',
+};
+// Plain labels for measures with the same name in several explores
+const sharedMetricLabels: Record<string, string> = {
+    unique_users: 'People',
+    unique_viewers: 'Viewers',
+    distinct_viewers: 'Viewers',
+    unique_dashboards: 'Dashboards',
+    unique_charts: 'Charts',
+    unique_apps: 'Data apps',
+    total_input_tokens: 'Input tokens',
+    total_output_tokens: 'Output tokens',
+    total_cache_read_tokens: 'Cache read tokens',
+    total_cache_write_tokens: 'Cache write tokens',
+    total_reasoning_tokens: 'Reasoning tokens',
+    total_csv_downloads: 'CSV downloads',
+    total_observed_queries: 'Queries',
+    total_warehouse_execution_time_s: 'Warehouse time (seconds)',
+};
+// Plain labels for measures, by base table
+const metricLabels: Record<string, Record<string, string>> = {
+    ai_usage: { total_tokens_used: 'Tokens', total_ai_calls: 'AI calls' },
+    user_activity: {
+        total_events: 'Recorded activities',
+        total_queries: 'Queries',
+        total_ai_calls: 'AI calls',
+        total_downloads: 'Downloads',
+    },
+    data_app_reach: { total_loads: 'Loads' },
+    data_app_events: {
+        unique_apps: 'Data apps',
+        total_events: 'Events',
+        total_views: 'Loads',
+    },
+    data_app_outcomes: {
+        html_error: 'Page delivery failures',
+        runtime_error: 'Runtime errors',
+    },
+    embed_reach: { total_loads: 'Loads' },
+    content_health: { total_content: 'Content' },
+    content_reach: { qualifying_views: 'Views' },
+    agent_requests: { distinct_requesters: 'People asking' },
+    agent_evaluation_runs: { total_runs: 'Runs' },
+    tool_activity: { total_calls: 'Tool calls' },
+    export_events: { total_downloads: 'Downloads' },
+    semantic_usage: { total_queries: 'Queries' },
+};
+// What a plain-name field is called, by the column it is made from
+const plainNameLabels: Record<string, string> = {
+    feature: 'Feature',
+    content_type: 'Content type',
+    format: 'Format',
+    run_status: 'Status',
+    status: 'Outcome',
+    cache_hit: 'Cache',
+    event_name: 'Activity',
+    activity_status: 'Activity status',
+    organization_role: 'Organization role',
+    workload_origin: 'Origin',
+    initiating_actor_type: 'Started by',
+    execution_source: 'Run or served by',
+    field_kind: 'Kind',
+    field_origin: 'Defined in',
+    is_deleted: 'Deleted',
+};
 const contentTypeNames = {
     saved_chart: 'Chart',
     chart: 'Chart',
@@ -349,7 +435,8 @@ export const createAnalyticsExplores = (): Explore[] => {
                     ...base,
                     ...definition,
                     name: secondsName,
-                    label: `${friendlyName(definition.name.slice(0, -3))} (seconds)`,
+                    // "P95", not "P 95"
+                    label: `${friendlyName(definition.name.slice(0, -3)).replace(/^P (\d+)/, 'P$1')} (seconds)`,
                     description: `${definition.description} Shown in seconds.`,
                     sql: `\${${column}} / 1000.0`,
                     formatOptions: { type: CustomFormatType.NUMBER, round: 1 },
@@ -500,22 +587,20 @@ export const createAnalyticsExplores = (): Explore[] => {
             metrics,
         };
         // A second field beside one whose values are code names, showing them in plain words
-        const addPlainName = (
-            column: string,
-            names: PlainNames = {},
-            plainLabel?: string,
-        ) => {
+        const addPlainName = (column: string, names: PlainNames = {}) => {
             const recorded = table.dimensions[column];
             // Not every model that shares a table has the column
             if (!recorded) return;
             table.dimensions[`${column}_name`] = {
                 ...recorded,
                 name: `${column}_name`,
-                label: plainLabel ?? `${recorded.label} name`,
+                label: plainNameLabels[column],
                 type: DimensionType.STRING,
-                description: `${recorded.label} in plain words. Filter on ${recorded.label}, which holds the recorded value.`,
+                description: `${recorded.label} in plain words. Filter on ${recorded.label} (recorded value).`,
                 sql: plainNameSql(recorded.sql, names),
             };
+            // Two fields cannot share a name in the field list
+            recorded.label = `${recorded.label} (recorded value)`;
         };
         if (name === 'ai_usage') addPlainName('feature', aiFeatureNames);
         if (name === 'query_events') {
@@ -672,7 +757,6 @@ export const createAnalyticsExplores = (): Explore[] => {
             // Library charts title their axes with these labels
             metrics.unique_users.label = 'People';
             metrics.total_queries.label = 'Queries';
-            table.dimensions.event_ts_day.label = 'Day';
             metrics.queries_per_user = {
                 ...base,
                 name: 'queries_per_user',
@@ -783,7 +867,6 @@ export const createAnalyticsExplores = (): Explore[] => {
         }
         if (name === 'agent_requests') {
             metrics.total_requests.label = 'Agent requests';
-            table.dimensions.requested_at_day.label = 'Day';
         }
         if (name === 'agent_evaluation_runs') {
             for (const column of [
@@ -801,7 +884,6 @@ export const createAnalyticsExplores = (): Explore[] => {
         }
         if (name === 'user_activity') {
             metrics.unique_users.label = 'People';
-            table.dimensions.activity_date_day.label = 'Day';
             table.dimensions.org_id.hidden = true;
             for (const column of userActivityColumns.filter(
                 ({ type }) => type === 'BIGINT',
@@ -1100,6 +1182,22 @@ export const createAnalyticsExplores = (): Explore[] => {
                     },
                 ];
             }
+        }
+        // Library charts title their axes, legends and columns with these labels, so the fields a
+        // dashboard tile can show are named the way a tile would name them.
+        for (const dimension of Object.values(baseTable.dimensions)) {
+            const plain =
+                (dimension.timeInterval &&
+                    intervalLabels[dimension.timeInterval]) ??
+                dimensionLabels[dimension.name];
+            if (plain) dimension.label = plain;
+        }
+        for (const [metric, plain] of Object.entries({
+            ...sharedMetricLabels,
+            ...metricLabels[explore.baseTable],
+        })) {
+            if (baseTable.metrics[metric])
+                baseTable.metrics[metric].label = plain;
         }
         return compiler.compileExplore(explore);
     });

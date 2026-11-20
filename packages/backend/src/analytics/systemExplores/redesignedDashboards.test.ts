@@ -1379,6 +1379,56 @@ describe('hover descriptions', () => {
     });
 });
 
+describe('field labels a library chart can show', () => {
+    // A library chart titles its axes, legends and columns with the label of each field it draws
+    it('are plain words, with no column-style names', () => {
+        const labels = new Map(
+            explores.flatMap((explore) =>
+                Object.values(explore.tables).flatMap((table) =>
+                    [
+                        ...Object.values(table.dimensions),
+                        ...Object.values(table.metrics),
+                    ].map((field) => [
+                        `${explore.name}|${table.name}_${field.name}`,
+                        field.label,
+                    ]),
+                ),
+            ),
+        );
+        const shown = analyticsContentAsCode.flatMap(({ charts }) =>
+            charts.flatMap((chart) =>
+                Object.values(
+                    analyticsLibraryChartBindings.get(chart.slug)
+                        ?.fieldMapping ?? {},
+                )
+                    .flat()
+                    .flatMap((field) => {
+                        const label = labels.get(`${chart.tableName}|${field}`);
+                        return label ? [label] : [];
+                    }),
+            ),
+        );
+        expect(shown.length).toBeGreaterThan(100);
+        expect(
+            [...new Set(shown)].filter((label) =>
+                /\b(ts|at|Total|Unique|Distinct|Qualifying|Observed|coverage|count|name|label|User|Users)\b| name$/i.test(
+                    label,
+                ),
+            ),
+        ).toEqual([]);
+        expect(labels.get('ai_usage|ai_usage_feature_name')).toBe('Feature');
+        expect(labels.get('ai_usage|ai_usage_feature')).toBe(
+            'Feature (recorded value)',
+        );
+        expect(labels.get('query_events|query_events_event_ts_day')).toBe(
+            'Day',
+        );
+        expect(
+            labels.get('query_events|query_events_p95_response_time_s'),
+        ).toBe('P95 response time (seconds)');
+    });
+});
+
 describe('axis titles of the area charts', () => {
     // The trellis has no title options: it titles its axes with the labels of the fields it draws
     it.each([
