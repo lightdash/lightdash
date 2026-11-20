@@ -129,6 +129,8 @@ export const useDesignMode = (
         renderBubbleBody: ((bubble: Bubble) => ReactNode) | null;
         /** The bubble whose send waits on an agent choice, and how to call it off. */
         picker: { bubbleId: string; cancel: () => void } | null;
+        /** Calls off a bubble's send if it still waits on an agent choice. */
+        cancelSend: (bubbleId: string) => void;
     },
 ): {
     on: boolean;
@@ -162,6 +164,8 @@ export const useDesignMode = (
     onSendRef.current = opts.onSend;
     const pickerRef = useRef(opts.picker);
     pickerRef.current = opts.picker;
+    const cancelSendRef = useRef(opts.cancelSend);
+    cancelSendRef.current = opts.cancelSend;
 
     const [session, setSession] = useState<DesignSession>(EMPTY);
     const sessionRef = useRef<DesignSession>(EMPTY);
@@ -176,6 +180,11 @@ export const useDesignMode = (
     const pickingBubbleId = opts.picker?.bubbleId ?? null;
     useEffect(() => {
         if (pickingBubbleId === null) return undefined;
+        // Its bubble is gone: nothing can show the picker, so call the send off.
+        if (!sessionRef.current.bubbles.some((b) => b.id === pickingBubbleId)) {
+            pickerRef.current?.cancel();
+            return undefined;
+        }
         dispatch({ type: 'picking', bubbleId: pickingBubbleId, open: true });
         return () => {
             dispatch({
@@ -951,7 +960,9 @@ export const useDesignMode = (
             }
             cancelHold();
             // A send left waiting on an agent choice would hold up later sends.
-            pickerRef.current?.cancel();
+            sessionRef.current.bubbles.forEach((b) =>
+                cancelSendRef.current(b.id),
+            );
             const recording = recordingRef.current;
             if (recording) dropRecording(recording.bubbleId);
             framesRef.current.forEach((frames) =>

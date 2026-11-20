@@ -33,6 +33,8 @@ export type BubbleSendPicker = {
 // The one send that is waiting on the automatic agent choice.
 type Waiting = {
     input: BubbleSendInput;
+    /** The router has been asked; until then its answers belong to an older send. */
+    submitted: boolean;
     /** An agent is chosen and the thread is being created: too late to cancel. */
     started: boolean;
     resolve: (result: DesignSendResult) => void;
@@ -50,6 +52,8 @@ export const useBubbleSend = (
     projectUuid: string,
 ): {
     send: (input: BubbleSendInput) => Promise<DesignSendResult>;
+    /** Calls off a send still waiting on the agent choice: it resolves 'cancelled'. */
+    cancel: (bubbleId: string) => void;
     picker: BubbleSendPicker | null;
 } => {
     const lightdashApi = useLightdashApi();
@@ -57,9 +61,16 @@ export const useBubbleSend = (
     const canSendImages = imagesFlag.data?.enabled === true;
     const { selectedAgent, agents } = useDefaultAiAgent(projectUuid);
     const { mutateAsync: createThread, isLoading: isCreatingThread } =
-        useCreateAgentThreadMutation(projectUuid, { skipNavigation: true });
+        useCreateAgentThreadMutation(projectUuid, {
+            skipNavigation: true,
+            // The caller reports a failed send; no second toast, no redirect.
+            silentErrors: true,
+        });
 
     const waitingRef = useRef<Waiting | null>(null);
+    // The router's answer to the latest send it was asked about, and how to mark it in.
+    const routedRef = useRef<Promise<void> | null>(null);
+    const routedDoneRef = useRef<() => void>(() => {});
     const [waitingBubbleId, setWaitingBubbleId] = useState<string | null>(null);
 
     const createFor = useCallback(
@@ -91,8 +102,10 @@ export const useBubbleSend = (
     // Called by the router once it, or the user, has chosen the agent.
     const createThreadForAgent = useCallback(
         async ({ agentUuid }: { agentUuid: string }) => {
+            routedDoneRef.current();
             const waiting = waitingRef.current;
-            if (!waiting || waiting.started) return NEVER;
+            // Cancelled, or an answer to an older send: nothing to create.
+            if (!waiting || !waiting.submitted || waiting.started) return NEVER;
             waiting.started = true;
             try {
                 const thread = await createFor(waiting.input, agentUuid);
@@ -124,6 +137,9 @@ export const useBubbleSend = (
             projectUuid,
         });
 
+    const handleSubmitRef = useRef(handleSubmit);
+    handleSubmitRef.current = handleSubmit;
+
     const send = useCallback(
         async (input: BubbleSendInput): Promise<DesignSendResult> => {
             if (!selectedAgent) throw new Error('No agent to send to');
@@ -135,29 +151,56 @@ export const useBubbleSend = (
                 throw new Error('Another bubble is choosing its agent');
             }
             return new Promise<DesignSendResult>((resolve, reject) => {
-                waitingRef.current = {
+                const waiting: Waiting = {
                     input,
+                    submitted: false,
                     started: false,
                     resolve,
                     reject,
                 };
-                setWaitingBubbleId(input.bubbleId);
-                void handleSubmit({
-                    message: input.buildPrompt(false),
-                    toolHints: [],
-                    context: input.context,
-                });
+                waitingRef.current = waiting;
+                const submit = () => {
+                    if (waitingRef.current !== waiting) return;
+                    waiting.submitted = true;
+                    let done = () => {};
+                    const routed = new Promise<void>((answered) => {
+                        done = () => {
+                            if (routedRef.current === routed) {
+                                routedRef.current = null;
+                            }
+                            answered();
+                        };
+                    });
+                    routedRef.current = routed;
+                    routedDoneRef.current = done;
+                    setWaitingBubbleId(input.bubbleId);
+                    void handleSubmitRef
+                        .current({
+                            message: input.buildPrompt(false),
+                            toolHints: [],
+                            context: input.context,
+                        })
+                        .finally(done);
+                };
+                // A cancelled send's route may still be out: let it land first.
+                const previous = routedRef.current;
+                if (previous) void previous.then(submit);
+                else submit();
             });
         },
-        [createFor, handleSubmit, selectedAgent],
+        [createFor, selectedAgent],
     );
 
-    const cancel = useCallback(() => {
-        const waiting = waitingRef.current;
-        if (!waiting || waiting.started) return;
-        settle();
-        waiting.resolve('cancelled');
-    }, [settle]);
+    const cancel = useCallback(
+        (bubbleId: string) => {
+            const waiting = waitingRef.current;
+            if (!waiting || waiting.started) return;
+            if (waiting.input.bubbleId !== bubbleId) return;
+            settle();
+            waiting.resolve('cancelled');
+        },
+        [settle],
+    );
 
     const onPick = useCallback(
         (agentUuid: string) => {
@@ -173,11 +216,11 @@ export const useBubbleSend = (
                       bubbleId: waitingBubbleId,
                       candidates: sortedCandidates,
                       onPick,
-                      cancel,
+                      cancel: () => cancel(waitingBubbleId),
                   }
                 : null,
         [cancel, isPickingAgent, onPick, sortedCandidates, waitingBubbleId],
     );
 
-    return { send, picker };
+    return { send, cancel, picker };
 };

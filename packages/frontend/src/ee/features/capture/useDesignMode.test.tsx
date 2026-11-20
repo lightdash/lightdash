@@ -62,6 +62,7 @@ const onSend = vi.fn<(payload: DesignPayload) => Promise<DesignSendResult>>();
 
 type Picker = { bubbleId: string; cancel: () => void };
 let showPicker: (picker: Picker | null) => void = () => {};
+const cancelSend = vi.fn<(bubbleId: string) => void>();
 
 const Harness: FC = () => {
     const [picker, setPicker] = useState<Picker | null>(null);
@@ -73,6 +74,7 @@ const Harness: FC = () => {
                 <span>choose an agent</span>
             ) : null,
         picker,
+        cancelSend,
     });
     return <>{api.element}</>;
 };
@@ -143,6 +145,7 @@ describe('useDesignMode', () => {
         grabDomFrame.mockReset();
         transcribe.mockReset();
         onSend.mockReset();
+        cancelSend.mockReset();
         startVoice.mockResolvedValue('on');
         stopVoice.mockResolvedValue(null);
         grabDomFrame.mockImplementation(async () => fakeFrame());
@@ -458,9 +461,59 @@ describe('useDesignMode', () => {
     });
 
     it('leaving Design Mode calls off a send that waits on an agent choice', async () => {
-        const { cancel } = await startPickingSend();
+        const { id, cancel } = await startPickingSend();
+        cancelSend.mockImplementation(() => cancel());
         await act(async () => {
             api.setOn(false);
+        });
+        expect(cancelSend).toHaveBeenCalledWith(id);
+        expect(cancel).toHaveBeenCalledTimes(1);
+        expect(api.session.bubbles).toHaveLength(0);
+    });
+
+    it('leaving while the agent is still being chosen frees later sends', async () => {
+        let settle: (result: DesignSendResult) => void = () => {};
+        onSend.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    settle = resolve;
+                }),
+        );
+        cancelSend.mockImplementation(() => settle('cancelled'));
+        await turnOn();
+        await drawMark();
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+        const { id } = api.session.bubbles[0];
+        await act(async () => {
+            api.send(id, 'hello');
+        });
+        await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+        // No picker yet: the route has not answered.
+        await act(async () => {
+            api.setOn(false);
+        });
+        expect(cancelSend).toHaveBeenCalledWith(id);
+        expect(api.session.bubbles).toHaveLength(0);
+
+        await act(async () => {
+            api.setOn(true);
+        });
+        await drawMark();
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+        await act(async () => {
+            api.send(api.session.bubbles[0].id, 'again');
+        });
+        await waitFor(() => expect(onSend).toHaveBeenCalledTimes(2));
+        await waitFor(() =>
+            expect(api.session.bubbles[0].status).toBe('thread'),
+        );
+    });
+
+    it('a picker for a bubble that is gone is called off', async () => {
+        await turnOn();
+        const cancel = vi.fn(() => showPicker(null));
+        await act(async () => {
+            showPicker({ bubbleId: 'gone', cancel });
         });
         expect(cancel).toHaveBeenCalledTimes(1);
         expect(api.session.bubbles).toHaveLength(0);
@@ -712,6 +765,7 @@ describe('useDesignMode', () => {
                     <span>thread {bubble.threadId}</span>
                 ),
                 picker: null,
+                cancelSend,
             });
             return <>{api.element}</>;
         };

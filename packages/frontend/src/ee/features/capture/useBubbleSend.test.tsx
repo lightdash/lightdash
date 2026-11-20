@@ -125,7 +125,11 @@ describe('useBubbleSend', () => {
                 ],
             }),
         );
-        expect(mocks.mutationOptions).toMatchObject({ skipNavigation: true });
+        // The caller toasts a failed send; the mutation must not toast or redirect.
+        expect(mocks.mutationOptions).toMatchObject({
+            skipNavigation: true,
+            silentErrors: true,
+        });
         expect(result.current.picker).toBeNull();
     });
 
@@ -215,6 +219,124 @@ describe('useBubbleSend', () => {
         expect(mocks.uploadCaptureImages).not.toHaveBeenCalled();
         expect(mocks.createThread).not.toHaveBeenCalled();
         expect(mocks.commitDecision).not.toHaveBeenCalled();
+    });
+
+    describe('cancelled while the route is still out', () => {
+        const startRouting = async () => {
+            select(LAUNCHER_AUTO_AGENT);
+            let answer: (
+                result: AiRouterRouteResponseResult,
+            ) => void = () => {};
+            let fail: (error: Error) => void = () => {};
+            mocks.routePrompt.mockImplementationOnce(
+                () =>
+                    new Promise((resolve, reject) => {
+                        answer = resolve;
+                        fail = reject;
+                    }),
+            );
+            const hook = renderHook(() => useBubbleSend('project-1'));
+            let sent: unknown = null;
+            act(() => {
+                void hook.result.current.send(input()).then((value) => {
+                    sent = value;
+                });
+            });
+            await waitFor(() =>
+                expect(mocks.routePrompt).toHaveBeenCalledTimes(1),
+            );
+            expect(hook.result.current.picker).toBeNull();
+            await act(async () => {
+                hook.result.current.cancel('bubble-1');
+            });
+            await waitFor(() => expect(sent).toBe('cancelled'));
+            return {
+                result: hook.result,
+                answer: (result: AiRouterRouteResponseResult) => answer(result),
+                fail: (error: Error) => fail(error),
+            };
+        };
+        const expectNothingSent = () => {
+            expect(mocks.uploadCaptureImages).not.toHaveBeenCalled();
+            expect(mocks.createThread).not.toHaveBeenCalled();
+            expect(mocks.commitDecision).not.toHaveBeenCalled();
+        };
+
+        it('a late picker answer shows no picker and creates nothing', async () => {
+            const { result, answer } = await startRouting();
+            await act(async () => {
+                answer(routed('show_picker'));
+            });
+            expect(result.current.picker).toBeNull();
+            expectNothingSent();
+        });
+
+        it('a late confident answer creates nothing', async () => {
+            const { result, answer } = await startRouting();
+            await act(async () => {
+                answer(routed('create_thread'));
+            });
+            expect(result.current.picker).toBeNull();
+            expectNothingSent();
+        });
+
+        it('a late routing failure does not fall back to an agent', async () => {
+            const { fail } = await startRouting();
+            await act(async () => {
+                fail(new Error('offline'));
+            });
+            expectNothingSent();
+        });
+
+        it('cancelling another bubble leaves the send waiting', async () => {
+            select(LAUNCHER_AUTO_AGENT);
+            mocks.routePrompt.mockResolvedValue(routed('show_picker'));
+            const { result } = renderHook(() => useBubbleSend('project-1'));
+            act(() => {
+                void result.current.send(input());
+            });
+            await waitFor(() => expect(result.current.picker).not.toBeNull());
+            await act(async () => {
+                result.current.cancel('bubble-2');
+            });
+            expect(result.current.picker?.bubbleId).toBe('bubble-1');
+        });
+
+        it('the next send waits for the old answer, then gets its own agent', async () => {
+            const { result, answer } = await startRouting();
+            mocks.routePrompt.mockResolvedValueOnce({
+                ...routed('create_thread'),
+                decision: {
+                    ...routed('create_thread').decision,
+                    decisionUuid: 'decision-2',
+                    suggestedAgentUuid: 'agent-a',
+                },
+            });
+            let sent: unknown = null;
+            await act(async () => {
+                void result.current
+                    .send({ ...input(), bubbleId: 'bubble-2' })
+                    .then((value) => {
+                        sent = value;
+                    });
+            });
+            // The old route has not answered: the router is not asked again yet.
+            expect(mocks.routePrompt).toHaveBeenCalledTimes(1);
+            await act(async () => {
+                answer(routed('create_thread'));
+            });
+            await waitFor(() =>
+                expect(sent).toEqual({
+                    threadId: 'thread-1',
+                    agentUuid: 'agent-a',
+                }),
+            );
+            expect(mocks.routePrompt).toHaveBeenCalledTimes(2);
+            expect(mocks.createThread).toHaveBeenCalledTimes(1);
+            expect(mocks.commitDecision).toHaveBeenCalledWith(
+                expect.objectContaining({ decisionUuid: 'decision-2' }),
+            );
+        });
     });
 
     it('without the ai-thread-images flag, text only', async () => {
