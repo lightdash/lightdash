@@ -43,7 +43,6 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
-import artifactStyles from '../ChatElements/AiArtifactPanel.module.css';
 import { ArtifactWindowControls } from '../ChatElements/ArtifactFocusToggle';
 import styles from './aiAgentPageLayout.module.css';
 import { ArtifactFocusContext, useArtifactFocusMode } from './artifactFocus';
@@ -104,16 +103,14 @@ const renderPreviewPanel = (preview: AiPreview) => {
 const PreviewPanelLoading = () => {
     const dispatch = useAiAgentStoreDispatch();
     return (
-        <Box className={artifactStyles.floatingPanel}>
-            <EmptyStateLoader
-                action={
-                    <ArtifactWindowControls
-                        onClose={() => dispatch(clearPreview())}
-                        separated={false}
-                    />
-                }
-            />
-        </Box>
+        <EmptyStateLoader
+            action={
+                <ArtifactWindowControls
+                    onClose={() => dispatch(clearPreview())}
+                    separated={false}
+                />
+            }
+        />
     );
 };
 
