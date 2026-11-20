@@ -38,11 +38,13 @@ export const queryContextNames: Record<QueryExecutionContext, string> = {
     [QueryExecutionContext.METRICS_EXPLORER]: 'Metrics explorer',
     [QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION]:
         'Pre-aggregate build',
-    [QueryExecutionContext.COMPOSE_SQL_RUNNER]: 'Compose SQL runner',
+    // SQL run over the results of other queries
+    [QueryExecutionContext.COMPOSE_SQL_RUNNER]: 'Compose SQL query',
     [QueryExecutionContext.PYTHON_RUNNER]: 'Python runner',
     [QueryExecutionContext.MULTI_SOURCE_QUERY]: 'Multi-source query',
-    [QueryExecutionContext.DATA_APP_SAMPLE]: 'Data app sample',
-    [QueryExecutionContext.DESKTOP]: 'Desktop',
+    // A few sample rows of a chart, read while a data app is being generated
+    [QueryExecutionContext.DATA_APP_SAMPLE]: 'Data app builder sample',
+    [QueryExecutionContext.DESKTOP]: 'Desktop app',
 };
 
 // SQL that turns the recorded value in `column` into its plain name.

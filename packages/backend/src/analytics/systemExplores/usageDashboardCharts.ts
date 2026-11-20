@@ -154,7 +154,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'semantic_usage_dashboard_id',
             'semantic_usage_app_name',
             'semantic_usage_app_id',
-            'semantic_usage_context',
+            'semantic_usage_context_name',
         ],
         metrics: ['semantic_usage_total_queries'],
         filters: [

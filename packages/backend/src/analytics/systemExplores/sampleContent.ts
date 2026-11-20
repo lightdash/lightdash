@@ -801,7 +801,7 @@ export const analyticsSampleDashboards = [
             ),
             chart(
                 'queries-by-context',
-                'Queries by context (top 10)',
+                'Where queries run from (top 10)',
                 'query_events',
                 'total_queries',
                 'context_name',

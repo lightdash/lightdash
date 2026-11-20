@@ -549,6 +549,14 @@ export const createAnalyticsExplores = (): Explore[] => {
                 'Meaning of the database record. Chart view records can include query executions; these counts must not be added to captured view totals.';
         }
         if (name === 'semantic_usage') {
+            table.dimensions.context_name = {
+                ...table.dimensions.context,
+                name: 'context_name',
+                label: 'Run from',
+                description:
+                    'Plain name for Context, such as Dashboard view, Explore or Scheduled delivery. A value with no plain name is shown as recorded. Filter on Context, which holds the recorded value.',
+                sql: queryContextNameSql(table.dimensions.context.sql),
+            };
             table.dimensions.org_id.hidden = true;
             table.dimensions.field_identity.hidden = true;
             table.dimensions.definition_hash.description =

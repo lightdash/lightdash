@@ -109,4 +109,5 @@ export const usageFieldLabels: Record<string, string> = {
     semantic_usage_app_name: 'Data app',
     semantic_usage_user_name: 'User',
     semantic_usage_lineage_status: 'Field detail',
+    semantic_usage_context_name: 'Run from',
 };
