@@ -72,6 +72,16 @@ describe('designSessionReducer', () => {
         expect(s.active).toEqual({ kind: 'bubble', bubbleId: 'a' });
     });
 
+    it('moved puts the bubble at its new anchor', () => {
+        const s = run(empty, ...hold('a', 0), {
+            type: 'moved',
+            bubbleId: 'a',
+            anchor: { x: 300, y: 40 },
+        });
+        expect(s.bubbles[0].anchor).toEqual({ x: 300, y: 40 });
+        expect(s.active).toEqual({ kind: 'bubble', bubbleId: 'a' });
+    });
+
     it('later holds add numbered marks to the open bubble', () => {
         const s = run(
             empty,

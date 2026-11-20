@@ -44,9 +44,10 @@ const fakeFrame = () => ({
 });
 
 const transcribe = vi.fn();
+let scroll = { x: 0, y: 0 };
 const surface: DesignSurface = {
     getRegion: () => new DOMRect(0, 0, 100, 100),
-    getScroll: () => ({ x: 0, y: 0 }),
+    getScroll: () => scroll,
     frameSource: 'dom',
     grabAppImage: null,
     getTab: () => null,
@@ -60,7 +61,7 @@ let api: Api;
 const onSend = vi.fn<(payload: DesignPayload) => Promise<DesignSendResult>>();
 
 const Harness: FC = () => {
-    api = useDesignMode(surface, { onSend });
+    api = useDesignMode(surface, { onSend, renderBubbleBody: null });
     return <>{api.element}</>;
 };
 
@@ -97,6 +98,7 @@ const turnOn = async (mic = false) => {
 
 describe('useDesignMode', () => {
     beforeEach(() => {
+        scroll = { x: 0, y: 0 };
         startVoice.mockReset();
         stopVoice.mockReset();
         grabDomFrame.mockReset();
@@ -450,5 +452,121 @@ describe('useDesignMode', () => {
         expect(retry.images).toHaveLength(1);
         expect(stopVoice).toHaveBeenCalledTimes(1);
         expect(transcribe).toHaveBeenCalledTimes(1);
+    });
+
+    it('the toolbar shows the hold hints and its close button leaves Design Mode', async () => {
+        await turnOn();
+        expect(screen.getByText('Hold ⌥')).toBeInTheDocument();
+        expect(screen.getByText('Hold ⌃')).toBeInTheDocument();
+        await keyDown({ key: 'Alt', altKey: true });
+        expect(document.querySelector('[data-tool="stylus"]')).toHaveAttribute(
+            'data-active',
+            'true',
+        );
+        await keyUp({ key: 'Alt' });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Mic' }));
+        expect(api.micOn).toBe(true);
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Leave Design Mode' }),
+        );
+        expect(api.on).toBe(false);
+    });
+
+    it('a bubble and its mark sit beside each other and move with scroll', async () => {
+        await turnOn();
+        expect(document.querySelector('[data-bubble-id]')).toBeNull();
+        await drawMark();
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+        const bubble = () =>
+            document.querySelector('[data-bubble-id]') as HTMLElement;
+        const badge = () =>
+            document.querySelector('[data-mark-number="1"]') as HTMLElement;
+        const px = (el: HTMLElement, name: string) =>
+            parseFloat(el.style.getPropertyValue(name));
+        const bubbleTop = px(bubble(), '--bubble-top');
+        const badgeTop = px(badge(), '--mark-top');
+        // The pointer ended on the mark's right with no room on its left.
+        expect(px(bubble(), '--bubble-left')).toBeGreaterThan(70);
+        expect(screen.getByText('①')).toBeInTheDocument();
+
+        scroll = { x: 0, y: 12 };
+        await act(async () => {
+            window.dispatchEvent(new Event('scroll'));
+        });
+        expect(px(bubble(), '--bubble-top')).toBe(bubbleTop - 12);
+        expect(px(badge(), '--mark-top')).toBe(badgeTop - 12);
+
+        await act(async () => {
+            api.close(api.session.bubbles[0].id);
+        });
+        expect(document.querySelector('[data-mark-number]')).toBeNull();
+    });
+
+    it('a mark drawn close to the open bubble moves the bubble out of the way', async () => {
+        const rects = vi
+            .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+            .mockImplementation(function rectOf(this: HTMLElement) {
+                if (!this.hasAttribute('data-bubble-id')) return new DOMRect();
+                return new DOMRect(
+                    parseFloat(this.style.getPropertyValue('--bubble-left')),
+                    parseFloat(this.style.getPropertyValue('--bubble-top')),
+                    320,
+                    140,
+                );
+            });
+        try {
+            await turnOn();
+            await drawMark();
+            await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+            const first = api.session.bubbles[0].anchor;
+
+            // Far from the bubble: it stays put.
+            await keyDown({ key: 'Alt', altKey: true });
+            fireEvent.mouseMove(holdLayer(), { clientX: 5, clientY: 60 });
+            fireEvent.mouseMove(holdLayer(), { clientX: 20, clientY: 90 });
+            await keyUp({ key: 'Alt' });
+            await waitFor(() =>
+                expect(screen.getByText('②')).toBeInTheDocument(),
+            );
+            expect(api.session.bubbles[0].anchor).toEqual(first);
+
+            await keyDown({ key: 'Alt', altKey: true });
+            fireEvent.mouseMove(holdLayer(), { clientX: 80, clientY: 10 });
+            fireEvent.mouseMove(holdLayer(), { clientX: 99, clientY: 40 });
+            await keyUp({ key: 'Alt' });
+            await waitFor(() =>
+                expect(screen.getByText('③')).toBeInTheDocument(),
+            );
+            expect(api.session.bubbles[0].anchor.x).toBeGreaterThan(first.x);
+        } finally {
+            rects.mockRestore();
+        }
+    });
+
+    it('a sent bubble shows the body the page gives it', async () => {
+        const Body: FC = () => {
+            api = useDesignMode(surface, {
+                onSend,
+                renderBubbleBody: (bubble) => (
+                    <span>thread {bubble.threadId}</span>
+                ),
+            });
+            return <>{api.element}</>;
+        };
+        renderWithProviders(<Body />);
+        await act(async () => {
+            api.setOn(true);
+        });
+        await drawMark();
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+        fireEvent.change(screen.getByRole('textbox'), {
+            target: { value: 'make this green' },
+        });
+        fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
+        await waitFor(() =>
+            expect(screen.getByText('thread t1')).toBeInTheDocument(),
+        );
+        expect(onSend.mock.calls[0][0].summary).toContain('make this green');
     });
 });

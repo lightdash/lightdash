@@ -47,6 +47,7 @@ export type DesignAction =
           mark: Omit<ShiftUpAction, 'type' | 'atMs'>;
           anchor: { x: number; y: number };
       }
+    | { type: 'moved'; bubbleId: string; anchor: { x: number; y: number } }
     | { type: 'arm'; bubbleId: string; input: BubbleInput }
     | { type: 'inputChanged'; bubbleId: string; input: BubbleInput }
     | { type: 'queue'; bubbleId: string }
@@ -219,6 +220,11 @@ export const designSessionReducer = (
                 };
             });
         }
+        case 'moved':
+            return updateBubble(s, action.bubbleId, (b) => ({
+                ...b,
+                anchor: action.anchor,
+            }));
         case 'arm': {
             const target = s.bubbles.find((b) => b.id === action.bubbleId);
             if (!target || target.status !== 'thread') return s;

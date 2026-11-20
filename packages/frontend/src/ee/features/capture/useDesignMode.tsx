@@ -1,14 +1,4 @@
 import { AI_THREAD_IMAGES_MAX_PER_PROMPT } from '@lightdash/common';
-import {
-    Affix,
-    Button,
-    Group,
-    Paper,
-    Stack,
-    Switch,
-    Text,
-    Textarea,
-} from '@mantine/core';
 import { useHotkeys } from '@mantine/hooks';
 import {
     useCallback,
@@ -24,22 +14,27 @@ import { grabAppFrame } from './appFrame';
 import { buildSummary } from './buildSummary';
 import { type ShiftUpAction } from './captureReducer';
 import { classifyMark } from './classifyStroke';
-import InkOverlay, { type FadingMark } from './components/InkOverlay';
+import DesignBubble from './components/DesignBubble';
+import DesignToolbar from './components/DesignToolbar';
+import InkOverlay from './components/InkOverlay';
+import MarkLayer from './components/MarkLayer';
 import { composeImage } from './composeImage';
 import {
     activeCollection,
     canStartHold,
     designSessionReducer,
+    nextMarkNumber,
     visibleBubbles,
+    type Bubble,
     type BubbleInput,
     type DesignAction,
     type DesignSession,
 } from './designSession';
 import { grabDomFrame } from './domFrame';
 import { sameScreen } from './frameGeometry';
-import { CAPTURE_IGNORE_ATTRIBUTE } from './frameSource';
 import { cancelsHold, holdToolForKey } from './holdKeys';
 import { coveredTargets } from './markCoverage';
+import { placeBubble } from './placeBubble';
 import {
     type Box,
     type CaptureMark,
@@ -48,6 +43,7 @@ import {
     type DesignSendResult,
     type DesignSurface,
     type DesignTool,
+    type LayerMark,
     type Point,
     type Stroke,
     type TranscriptPhrase,
@@ -57,9 +53,10 @@ import { type TabFrame } from './useTabFrame';
 import { useVoiceRecorder, type VoiceRecording } from './useVoiceRecorder';
 import { wordsToPhrases } from './wordsToPhrases';
 
-const FADE_MS = 600;
 const TRAIL_SAMPLES = 24;
 const RECT_REFRESH_MS = 500;
+// Used to place a bubble that is not on screen yet.
+const NEW_BUBBLE_SIZE = { width: 320, height: 120 };
 const EMPTY: DesignSession = { bubbles: [], active: { kind: 'page' } };
 
 type Hold = {
@@ -79,9 +76,21 @@ type Hold = {
 
 type Recording = { bubbleId: string; voice: Promise<VoiceState> };
 
+// pointer is where the mouse was when the mark was made, in viewport pixels.
 type Commit =
-    | { kind: 'strokes'; strokes: Stroke[]; endAbs: number }
-    | { kind: 'pick'; target: CaptureTarget; rect: DOMRect; endAbs: number };
+    | {
+          kind: 'strokes';
+          strokes: Stroke[];
+          endAbs: number;
+          pointer: { x: number; y: number };
+      }
+    | {
+          kind: 'pick';
+          target: CaptureTarget;
+          rect: DOMRect;
+          endAbs: number;
+          pointer: { x: number; y: number };
+      };
 
 const grabFrame = (
     surface: DesignSurface,
@@ -116,6 +125,8 @@ export const useDesignMode = (
     surface: DesignSurface | null,
     opts: {
         onSend: (payload: DesignPayload) => Promise<DesignSendResult>;
+        /** The agent picker or thread shown inside a bubble. */
+        renderBubbleBody: ((bubble: Bubble) => ReactNode) | null;
     },
 ): {
     on: boolean;
@@ -165,7 +176,8 @@ export const useDesignMode = (
     const [holding, setHolding] = useState<DesignTool | null>(null);
     const [ink, setInk] = useState<Stroke[]>([]);
     const [hover, setHover] = useState<Box | null>(null);
-    const [fading, setFading] = useState<FadingMark | null>(null);
+    const [placed, setPlaced] = useState<LayerMark[]>([]);
+    const [scroll, setScroll] = useState({ x: 0, y: 0 });
 
     const holdRef = useRef<Hold | null>(null);
     const downKeysRef = useRef(new Set<string>());
@@ -179,13 +191,20 @@ export const useDesignMode = (
     const phrasesRef = useRef(new Map<string, TranscriptPhrase[]>());
     const finishingRef = useRef(new Set<string>());
     const queueRef = useRef<Promise<void>>(Promise.resolve());
-    const fadeTimerRef = useRef<number | null>(null);
     const toolbarRef = useRef<HTMLDivElement | null>(null);
 
     const absoluteNow = useCallback(() => performance.now(), []);
     const { start: startVoice, stop: stopVoice } = useVoiceRecorder({
         now: absoluteNow,
     });
+
+    const refreshScroll = useCallback(() => {
+        const next = surfaceRef.current?.getScroll();
+        if (!next) return;
+        setScroll((prev) =>
+            prev.x === next.x && prev.y === next.y ? prev : next,
+        );
+    }, []);
 
     const clearFrames = useCallback((bubbleId: string) => {
         framesRef.current.get(bubbleId)?.forEach((f) => f.bitmap.close());
@@ -284,6 +303,8 @@ export const useDesignMode = (
                     capture?.status === 'recording'
                         ? capture.imageCount - 1
                         : -1;
+                const marksBefore =
+                    capture?.status === 'recording' ? capture.marks.length : 0;
                 const previous = framesRef.current.get(bubbleId)?.[lastSlot];
                 const tabUuid = tab?.uuid ?? null;
                 const isNewScreen =
@@ -397,40 +418,99 @@ export const useDesignMode = (
                         box,
                     };
                 }
+                const markRect = new DOMRect(
+                    region.left + box.x * region.width,
+                    region.top + box.y * region.height,
+                    box.width * region.width,
+                    box.height * region.height,
+                );
+                // The bubble only moves here, on release, never mid-stroke.
+                const onScreen =
+                    document
+                        .querySelector(`[data-bubble-id="${got.bubble.id}"]`)
+                        ?.getBoundingClientRect() ?? null;
+                const at = placeBubble({
+                    markRect,
+                    current: onScreen,
+                    size: onScreen ?? NEW_BUBBLE_SIZE,
+                    viewport: new DOMRect(
+                        0,
+                        0,
+                        window.innerWidth,
+                        window.innerHeight,
+                    ),
+                    pointer: made.pointer,
+                });
+                const scrollNow = current.getScroll();
+                // Content coords: the viewport position plus the scroll.
+                const anchor = {
+                    x: at.x + scrollNow.x,
+                    y: at.y + scrollNow.y,
+                };
                 const done = dispatch({
                     type: 'holdEnded',
                     atMs: made.endAbs - clock,
                     mark,
-                    // Content coords: the mark's top right plus the scroll.
-                    anchor: {
-                        x:
-                            region.left +
-                            (box.x + box.width) * region.width +
-                            hold.scroll.x,
-                        y: region.top + box.y * region.height + hold.scroll.y,
-                    },
+                    anchor,
                 });
                 const after = activeCollection(done)?.collection.capture;
                 const marks: CaptureMark[] =
                     after?.status === 'recording' ? after.marks : [];
                 setInk([]);
-                if (made.kind === 'strokes' && marks.length > 0) {
-                    setFading({
-                        strokes: made.strokes,
-                        number: marks[marks.length - 1].number,
-                        box,
+                const newest = marks[marks.length - 1];
+                if (!newest || marks.length <= marksBefore) return;
+                if (
+                    onScreen &&
+                    (at.x !== onScreen.left || at.y !== onScreen.top)
+                ) {
+                    dispatch({
+                        type: 'moved',
+                        bubbleId: got.bubble.id,
+                        anchor,
                     });
-                    if (fadeTimerRef.current) {
-                        window.clearTimeout(fadeTimerRef.current);
-                    }
-                    fadeTimerRef.current = window.setTimeout(
-                        () => setFading(null),
-                        FADE_MS,
-                    );
                 }
+                const toContent = (point: Point) => ({
+                    x: region.left + point.x * region.width + hold.scroll.x,
+                    y: region.top + point.y * region.height + hold.scroll.y,
+                });
+                const layerMark: LayerMark = {
+                    bubbleId: got.bubble.id,
+                    number: newest.number,
+                    tabUuid,
+                    box: {
+                        x: markRect.x + hold.scroll.x,
+                        y: markRect.y + hold.scroll.y,
+                        width: markRect.width,
+                        height: markRect.height,
+                    },
+                    strokes:
+                        made.kind === 'strokes'
+                            ? made.strokes.map((stroke) => ({
+                                  points: stroke.points.map(toContent),
+                              }))
+                            : [],
+                    outlined: made.kind === 'pick',
+                };
+                // A number used again replaces the mark thrown away before it.
+                setPlaced((prev) => [
+                    ...prev.filter(
+                        (m) =>
+                            m.bubbleId !== layerMark.bubbleId ||
+                            m.number < layerMark.number,
+                    ),
+                    layerMark,
+                ]);
+                refreshScroll();
             });
         },
-        [abandon, dispatch, dropRecording, showToastError, showToastWarning],
+        [
+            abandon,
+            dispatch,
+            dropRecording,
+            refreshScroll,
+            showToastError,
+            showToastWarning,
+        ],
     );
 
     const beginHold = useCallback(
@@ -447,8 +527,6 @@ export const useDesignMode = (
             if (opensBubble && micOnRef.current && !recordingRef.current) {
                 voice = beginRecording(newBubbleId);
             }
-            if (fadeTimerRef.current) window.clearTimeout(fadeTimerRef.current);
-            setFading(null);
             setInk([]);
             setHover(null);
             setRect(region);
@@ -497,7 +575,16 @@ export const useDesignMode = (
             abandon(hold);
             return;
         }
-        commit(hold, { kind: 'strokes', strokes, endAbs: performance.now() });
+        const lastStroke = strokes[strokes.length - 1];
+        commit(hold, {
+            kind: 'strokes',
+            strokes,
+            endAbs: performance.now(),
+            pointer: holdPoint(
+                hold,
+                lastStroke.points[lastStroke.points.length - 1],
+            ),
+        });
     }, [abandon, commit]);
 
     const refreshInk = useCallback(() => {
@@ -549,6 +636,7 @@ export const useDesignMode = (
                 target: hit.target,
                 rect: hit.rect,
                 endAbs: performance.now(),
+                pointer: holdPoint(hold, point),
             });
         },
         [commit],
@@ -779,7 +867,15 @@ export const useDesignMode = (
             clearFrames(bubbleId);
             clocksRef.current.delete(bubbleId);
             phrasesRef.current.delete(bubbleId);
-            dispatch({ type, bubbleId });
+            const { bubbles } = dispatch({ type, bubbleId });
+            setPlaced((prev) =>
+                prev.filter((m) =>
+                    bubbles.some(
+                        (b) =>
+                            b.id === m.bubbleId && m.number < nextMarkNumber(b),
+                    ),
+                ),
+            );
         },
         [clearFrames, dispatch, dropRecording],
     );
@@ -812,6 +908,7 @@ export const useDesignMode = (
             setOnState(value);
             if (value) {
                 setRect(surfaceRef.current?.getRegion() ?? null);
+                refreshScroll();
                 return;
             }
             cancelHold();
@@ -824,12 +921,11 @@ export const useDesignMode = (
             clocksRef.current.clear();
             phrasesRef.current.clear();
             downKeysRef.current.clear();
-            if (fadeTimerRef.current) window.clearTimeout(fadeTimerRef.current);
-            setFading(null);
+            setPlaced([]);
             sessionRef.current = EMPTY;
             setSession(EMPTY);
         },
-        [cancelHold, dropRecording],
+        [cancelHold, dropRecording, refreshScroll],
     );
 
     const toggle = useCallback(() => setOn(!onRef.current), [setOn]);
@@ -908,14 +1004,21 @@ export const useDesignMode = (
             const region = surfaceRef.current?.getRegion();
             if (region) setRect(region);
         };
-        const rectTimer = window.setInterval(refreshRect, RECT_REFRESH_MS);
+        // An app frame scrolls without telling this window, so ask on a timer too.
+        const refreshPlace = () => {
+            refreshRect();
+            refreshScroll();
+        };
+        const rectTimer = window.setInterval(refreshPlace, RECT_REFRESH_MS);
 
         window.addEventListener('keydown', onKeyDown, true);
         window.addEventListener('keyup', onKeyUp, true);
         window.addEventListener('contextmenu', onContextMenu, true);
         window.addEventListener('blur', onBlur);
         window.addEventListener('resize', refreshRect);
+        window.addEventListener('scroll', refreshScroll, true);
         return () => {
+            window.removeEventListener('scroll', refreshScroll, true);
             window.clearInterval(rectTimer);
             window.removeEventListener('keydown', onKeyDown, true);
             window.removeEventListener('keyup', onKeyUp, true);
@@ -923,7 +1026,7 @@ export const useDesignMode = (
             window.removeEventListener('blur', onBlur);
             window.removeEventListener('resize', refreshRect);
         };
-    }, [beginHold, cancelHold, endHold, on, onEscape]);
+    }, [beginHold, cancelHold, endHold, on, onEscape, refreshScroll]);
 
     // The page stops offering Design Mode (flag off, preview closed).
     useEffect(() => {
@@ -933,7 +1036,18 @@ export const useDesignMode = (
     const tabUuid = surface?.getTab()?.uuid ?? null;
     const passthrough = holding !== null;
 
-    // Placeholder toolbar and bubbles; the real components replace them.
+    // A bubble shows once its first mark has landed and it has a place.
+    const shownBubbles = visibleBubbles(session, tabUuid).filter(
+        (b) => nextMarkNumber(b) > 1,
+    );
+    const shownMarks = placed.filter(
+        (m) =>
+            m.tabUuid === tabUuid &&
+            session.bubbles.some(
+                (b) => b.id === m.bubbleId && m.number < nextMarkNumber(b),
+            ),
+    );
+
     const element =
         on && rect
             ? createPortal(
@@ -943,103 +1057,47 @@ export const useDesignMode = (
                           holding={passthrough}
                           inkVisible
                           strokes={ink}
-                          fading={fading}
+                          fading={null}
                           hover={hover}
                           onStrokePoint={onStrokePoint}
                           onStrokeEnd={onStrokeEnd}
                           onPick={holding === 'cursor' ? onPick : null}
                       />
-                      <Affix
-                          position={{ bottom: 16, right: 16 }}
-                          zIndex={9997}
-                          withinPortal={false}
-                      >
-                          <Stack
-                              gap="xs"
-                              {...{ [CAPTURE_IGNORE_ATTRIBUTE]: '' }}
+                      <MarkLayer
+                          region={rect}
+                          scroll={scroll}
+                          marks={shownMarks}
+                      />
+                      {shownBubbles.map((bubble) => (
+                          <DesignBubble
+                              key={bubble.id}
+                              bubble={bubble}
+                              position={{
+                                  x: bubble.anchor.x - scroll.x,
+                                  y: bubble.anchor.y - scroll.y,
+                              }}
+                              passthrough={passthrough}
+                              listening={
+                                  bubble.collection !== null &&
+                                  bubble.input === 'mic' &&
+                                  (bubble.status === 'collecting' ||
+                                      bubble.status === 'thread')
+                              }
+                              onSend={(text) => send(bubble.id, text)}
+                              onStop={() => stop(bubble.id)}
+                              onDiscard={() => discard(bubble.id)}
+                              onClose={() => close(bubble.id)}
                           >
-                              {visibleBubbles(session, tabUuid).map(
-                                  (bubble) => (
-                                      <Paper
-                                          key={bubble.id}
-                                          p="xs"
-                                          data-passthrough={passthrough}
-                                      >
-                                          {bubble.collection &&
-                                              bubble.input === 'text' && (
-                                                  <Textarea
-                                                      aria-label="Message"
-                                                      placeholder="Say what to change"
-                                                      autosize
-                                                      onKeyDown={(event) => {
-                                                          if (
-                                                              event.key !==
-                                                                  'Enter' ||
-                                                              event.shiftKey
-                                                          ) {
-                                                              return;
-                                                          }
-                                                          event.preventDefault();
-                                                          send(
-                                                              bubble.id,
-                                                              event
-                                                                  .currentTarget
-                                                                  .value,
-                                                          );
-                                                      }}
-                                                  />
-                                              )}
-                                          <Group gap="xs" mt="xs">
-                                              {bubble.collection &&
-                                                  bubble.input === 'mic' && (
-                                                      <Button
-                                                          size="xs"
-                                                          onClick={() =>
-                                                              stop(bubble.id)
-                                                          }
-                                                      >
-                                                          Stop
-                                                      </Button>
-                                                  )}
-                                              <Button
-                                                  size="xs"
-                                                  variant="subtle"
-                                                  onClick={() =>
-                                                      close(bubble.id)
-                                                  }
-                                              >
-                                                  Close
-                                              </Button>
-                                          </Group>
-                                      </Paper>
-                                  ),
-                              )}
-                              <Paper ref={toolbarRef} tabIndex={-1} p="xs">
-                                  <Group gap="xs">
-                                      <Text size="sm" fw={600}>
-                                          Design Mode
-                                      </Text>
-                                      <Switch
-                                          size="xs"
-                                          label="Mic"
-                                          checked={micOn}
-                                          onChange={(event) =>
-                                              setMicOn(
-                                                  event.currentTarget.checked,
-                                              )
-                                          }
-                                      />
-                                      <Button
-                                          size="xs"
-                                          variant="subtle"
-                                          onClick={() => setOn(false)}
-                                      >
-                                          Done
-                                      </Button>
-                                  </Group>
-                              </Paper>
-                          </Stack>
-                      </Affix>
+                              {opts.renderBubbleBody?.(bubble) ?? null}
+                          </DesignBubble>
+                      ))}
+                      <DesignToolbar
+                          ref={toolbarRef}
+                          tool={holding}
+                          micOn={micOn}
+                          onMicChange={setMicOn}
+                          onClose={() => setOn(false)}
+                      />
                   </>,
                   document.body,
               )

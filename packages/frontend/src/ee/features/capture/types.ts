@@ -105,3 +105,14 @@ export type DesignPayload = {
 export type DesignSendResult =
     | { threadId: string; agentUuid: string }
     | 'cancelled';
+
+/** A mark kept on screen. Box and stroke points are content pixels (viewport plus scroll). */
+export type LayerMark = {
+    bubbleId: string;
+    number: number;
+    tabUuid: string | null;
+    box: Box;
+    strokes: Stroke[];
+    /** A cursor pick: the element's bounds are outlined. */
+    outlined: boolean;
+};
