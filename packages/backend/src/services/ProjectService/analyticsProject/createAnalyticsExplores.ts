@@ -831,6 +831,18 @@ export const createAnalyticsExplores = (): Explore[] => {
                     "Whether the activity was on Lightdash's own analytics dashboards and charts. Filter to No to list only content your organization made.",
                 sql: `EXISTS (SELECT 1 FROM lightdash_content analytics_content WHERE analytics_content.project_type = '${analyticsProjectType}' AND analytics_content.org_id = ${table.dimensions.org_id.sql} AND analytics_content.project_id = ${table.dimensions.project_id.sql})`,
             };
+        // A data app the organization made: in the inventory as a data app, not a custom chart type,
+        // and not in the Analytics project
+        if (name === 'data_app_events')
+            table.dimensions.is_organization_data_app = {
+                ...table.dimensions.app_id,
+                name: 'is_organization_data_app',
+                label: "One of the organization's data apps",
+                type: DimensionType.BOOLEAN,
+                description:
+                    "Whether the event is for a data app your organization made. No for a custom chart type and for Lightdash's own analytics apps.",
+                sql: `EXISTS (SELECT 1 FROM lightdash_content own_app WHERE own_app.content_type = 'data_app' AND (own_app.project_type IS NULL OR own_app.project_type <> '${analyticsProjectType}') AND own_app.org_id = ${table.dimensions.org_id.sql} AND own_app.content_id = ${table.dimensions.app_id.sql})`,
+            };
         if (table.dimensions.user_id)
             table.dimensions.user_id.label = 'Person ID';
         if (table.dimensions.project_id)

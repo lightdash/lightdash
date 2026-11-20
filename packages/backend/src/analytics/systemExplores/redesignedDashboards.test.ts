@@ -9,7 +9,10 @@ import {
     type DataAppVizSchema,
     type Filters,
 } from '@lightdash/common';
-import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+import {
+    DuckdbWarehouseClient,
+    warehouseSqlBuilderFromType,
+} from '@lightdash/warehouses';
 import { compileMetricQuery } from '../../queryCompiler';
 import { createAnalyticsExplores } from '../../services/ProjectService/analyticsProject/createAnalyticsExplores';
 import { MetricQueryBuilder } from '../../utils/QueryBuilder/MetricQueryBuilder';
@@ -2171,5 +2174,39 @@ describe("Lightdash's own analytics content", () => {
                     'in_analytics_project',
                 ),
             );
+    });
+});
+
+describe('SQL the query engine will accept', () => {
+    // The engine refuses a query that reads a file: a file function, or FROM or JOIN followed by a
+    // quoted string. A comparison written IS DISTINCT FROM 'x' matches the second rule and every tile
+    // on it fails live, so every managed chart goes through the engine's own check here.
+    it('passes the file-access check for every managed chart, plain and library', () => {
+        const all = analyticsContentAsCode.flatMap((bundle) => bundle.charts);
+        const { charts: drawn } = withLibraryCharts(
+            all,
+            analyticsLibraryChartBindings,
+            installedTypes(),
+        );
+        const refused = [...all, ...drawn].flatMap((chart) => {
+            if (!explores.some(({ name }) => name === chart.tableName))
+                return [`${chart.slug}: no explore`];
+            try {
+                DuckdbWarehouseClient.validateUserSqlFileAccess(sqlOf(chart));
+                return [];
+            } catch (error) {
+                return [`${chart.slug}: ${(error as Error).message}`];
+            }
+        });
+        expect(refused).toEqual([]);
+        expect(all.length).toBeGreaterThan(100);
+    });
+
+    it('would have caught a comparison written IS DISTINCT FROM a string', () => {
+        expect(() =>
+            DuckdbWarehouseClient.validateUserSqlFileAccess(
+                "SELECT 1 FROM t WHERE a IS DISTINCT FROM 'ANALYTICS'",
+            ),
+        ).toThrow('file table paths are not allowed');
     });
 });

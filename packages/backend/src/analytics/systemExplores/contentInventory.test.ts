@@ -336,7 +336,7 @@ describe('Content inventory charts', () => {
                 filters: chart.metricQuery.filters as Filters,
             });
             expect(query).toContain(
-                "FROM lightdash_content WHERE project_type IS DISTINCT FROM 'ANALYTICS'",
+                "FROM lightdash_content WHERE (project_type IS NULL OR project_type <> 'ANALYTICS')",
             );
             expect(query).not.toMatch(
                 /content_views|query_events|data_app_events|lightdash_users/,
