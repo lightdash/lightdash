@@ -1,7 +1,7 @@
 import { isAiAppThreadCreatedFrom, type AiAgent } from '@lightdash/common';
 import { Center, Group, Loader, Stack, Text, TextInput } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
-import { useCallback, useState } from 'react';
+import { lazy, Suspense, useCallback, useState } from 'react';
 import {
     Navigate,
     Outlet,
@@ -26,7 +26,6 @@ import { launcherSession } from '../../features/aiCopilot/components/Launcher/la
 import { useLauncherDock } from '../../features/aiCopilot/components/Launcher/useLauncherDock';
 import { MyMemoriesModal } from '../../features/aiCopilot/components/MyMemories/MyMemoriesModal';
 import { MEMORY_TOUR_STEPS } from '../../features/aiCopilot/components/MyMemories/onboarding';
-import AiThreadChartEditorModal from '../../features/aiCopilot/components/ThreadChartEditor/AiThreadChartEditorModal';
 import { AiThreadChartEditContext } from '../../features/aiCopilot/components/ThreadChartEditor/useAiThreadChartEdit';
 import { getAiAgentPageBase } from '../../features/aiCopilot/hooks/aiAgentRouting';
 import { useMyAiAgentMemories } from '../../features/aiCopilot/hooks/useAiAgentMemory';
@@ -43,6 +42,12 @@ import { store as aiAgentStore } from '../../features/aiCopilot/store';
 import { openPanel } from '../../features/aiCopilot/store/aiAgentLauncherSlice';
 import useIsEmbedded from '../../providers/Embed/useIsEmbedded';
 import styles from './AgentPage.module.css';
+
+// Explorer and the chart engine load when a chart is first opened.
+const AiThreadChartEditorModal = lazy(
+    () =>
+        import('../../features/aiCopilot/components/ThreadChartEditor/AiThreadChartEditorModal'),
+);
 
 type NavigateFromAgentChatOptions = {
     threadUuid?: string;
@@ -372,11 +377,15 @@ const AgentPage = () => {
                     setIsMemoriesModalOpen(stepIndex === 1)
                 }
             />
-            <AiThreadChartEditorModal
-                chartUuid={editChartUuid}
-                projectUuid={projectUuid}
-                onClose={() => setEditChartUuid(null)}
-            />
+            {editChartUuid && (
+                <Suspense fallback={null}>
+                    <AiThreadChartEditorModal
+                        chartUuid={editChartUuid}
+                        projectUuid={projectUuid}
+                        onClose={() => setEditChartUuid(null)}
+                    />
+                </Suspense>
+            )}
             <AiThreadChartEditContext.Provider
                 value={isEmbed ? undefined : openChartEditor}
             >

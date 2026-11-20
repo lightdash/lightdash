@@ -13,6 +13,8 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import clsx from 'clsx';
 import {
+    lazy,
+    Suspense,
     useCallback,
     useEffect,
     useLayoutEffect,
@@ -21,6 +23,7 @@ import {
     type PropsWithChildren,
 } from 'react';
 import { useLocation, useParams } from 'react-router';
+import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ResizableSplitter from '../../../../../components/common/ResizableSplitter';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
@@ -40,11 +43,6 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
-import { AiArtifactPanel } from '../ChatElements/AiArtifactPanel';
-import { AiDataAppPreviewPanel } from '../ChatElements/AiDataAppPreviewPanel';
-import { AiDocumentPreviewPanel } from '../ChatElements/AiDocumentPreviewPanel';
-import { AiQueryPipelinePreviewPanel } from '../ChatElements/AiQueryPipelinePreviewPanel';
-import { AiSavedChartPreviewPanel } from '../ChatElements/AiSavedChartPreviewPanel';
 import styles from './aiAgentPageLayout.module.css';
 import { ArtifactFocusContext, useArtifactFocusMode } from './artifactFocus';
 import {
@@ -53,6 +51,33 @@ import {
     previewPaneOf,
 } from './previewPane';
 import { SidebarButton } from './SidebarButton';
+
+// Panels (and the chart engine) load when a preview first opens.
+const AiArtifactPanel = lazy(() =>
+    import('../ChatElements/AiArtifactPanel').then((m) => ({
+        default: m.AiArtifactPanel,
+    })),
+);
+const AiDataAppPreviewPanel = lazy(() =>
+    import('../ChatElements/AiDataAppPreviewPanel').then((m) => ({
+        default: m.AiDataAppPreviewPanel,
+    })),
+);
+const AiDocumentPreviewPanel = lazy(() =>
+    import('../ChatElements/AiDocumentPreviewPanel').then((m) => ({
+        default: m.AiDocumentPreviewPanel,
+    })),
+);
+const AiQueryPipelinePreviewPanel = lazy(() =>
+    import('../ChatElements/AiQueryPipelinePreviewPanel').then((m) => ({
+        default: m.AiQueryPipelinePreviewPanel,
+    })),
+);
+const AiSavedChartPreviewPanel = lazy(() =>
+    import('../ChatElements/AiSavedChartPreviewPanel').then((m) => ({
+        default: m.AiSavedChartPreviewPanel,
+    })),
+);
 
 const renderPreviewPanel = (preview: AiPreview) => {
     switch (preview.type) {
@@ -72,6 +97,12 @@ const renderPreviewPanel = (preview: AiPreview) => {
             return assertUnreachable(preview, 'Unknown preview type');
     }
 };
+
+const PreviewPanel = ({ preview }: { preview: AiPreview }) => (
+    <Suspense fallback={<EmptyStateLoader h="100%" />}>
+        {renderPreviewPanel(preview)}
+    </Suspense>
+);
 
 interface Props extends PropsWithChildren {
     Sidebar?: React.ReactNode;
@@ -332,7 +363,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                                 value={artifactFocus}
                             >
                                 <Box className={styles.floatingArtifactWrap}>
-                                    {renderPreviewPanel(preview)}
+                                    <PreviewPanel preview={preview} />
                                 </Box>
                             </ArtifactFocusContext.Provider>
                         </ErrorBoundary>
@@ -394,7 +425,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                         timingFunction: 'ease-out',
                     }}
                 >
-                    {preview && renderPreviewPanel(preview)}
+                    {preview && <PreviewPanel preview={preview} />}
                 </Drawer>
             )}
         </div>
