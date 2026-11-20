@@ -198,7 +198,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'new-content-adoption-creation-week-proxy',
                 0,
-                2,
+                1,
                 36,
                 8,
                 'sortable-pivot-table',
@@ -207,7 +207,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'content-creation-by-month',
                 0,
-                10,
+                9,
                 36,
                 7,
                 'customizable-cartesian-chart',
@@ -403,7 +403,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'tools-downloads',
                 0,
-                2,
+                1,
                 12,
                 4,
                 'big-number-with-sparkline-trend',
@@ -412,7 +412,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'tools-people-downloading-latest-day',
                 12,
-                2,
+                1,
                 12,
                 4,
                 'big-number-with-sparkline-trend',
@@ -421,7 +421,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'tools-csv-downloads',
                 24,
-                2,
+                1,
                 12,
                 4,
                 'big-number-with-sparkline-trend',
@@ -430,7 +430,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'tools-downloads-by-format-and-day',
                 0,
-                6,
+                5,
                 36,
                 7,
                 'customizable-cartesian-chart',
@@ -439,7 +439,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'export-audit-actor-content-and-outcome',
                 0,
-                13,
+                12,
                 36,
                 8,
                 'sortable-pivot-table',
@@ -448,7 +448,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'tools-google-sheets-queries-by-day',
                 0,
-                22,
+                21,
                 36,
                 5,
                 'vega-trellis',
@@ -457,7 +457,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'tools-google-sheets-queries-by-person',
                 0,
-                27,
+                26,
                 36,
                 8,
                 'sortable-pivot-table',
@@ -642,7 +642,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'adoption-app-reader-trend',
                 0,
-                9,
+                8,
                 36,
                 8,
                 'vega-trellis',
@@ -651,7 +651,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'adoption-app-reader-detail',
                 0,
-                17,
+                16,
                 18,
                 8,
                 'sortable-pivot-table',
@@ -660,7 +660,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'adoption-app-first-audience',
                 18,
-                17,
+                16,
                 18,
                 8,
                 'sortable-pivot-table',
@@ -671,13 +671,13 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'adoption-app-outcome-trend',
                 0,
-                2,
+                1,
                 36,
                 7,
                 'customizable-cartesian-chart',
                 'cartesian',
             ],
-            ['adoption-app-outcome-detail', 0, 9, 36, 7, null, 'table'],
+            ['adoption-app-outcome-detail', 0, 8, 36, 7, null, 'table'],
         ],
         'ask-ai': [
             [
@@ -772,7 +772,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'embed-query-count',
                 0,
-                2,
+                1,
                 18,
                 4,
                 'big-number-with-sparkline-trend',
@@ -781,17 +781,17 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'embed-query-errors',
                 18,
-                2,
+                1,
                 18,
                 4,
                 'big-number-with-sparkline-trend',
                 'big_number',
             ],
-            ['embed-query-trend', 0, 7, 18, 7, 'vega-trellis', 'cartesian'],
+            ['embed-query-trend', 0, 6, 18, 7, 'vega-trellis', 'cartesian'],
             [
                 'embed-query-latency',
                 18,
-                7,
+                6,
                 18,
                 7,
                 'customizable-cartesian-chart',
@@ -800,7 +800,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'embed-query-outcomes',
                 0,
-                15,
+                14,
                 18,
                 7,
                 'customizable-cartesian-chart',
@@ -809,7 +809,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'embed-query-cache',
                 18,
-                15,
+                14,
                 18,
                 7,
                 'customizable-cartesian-chart',

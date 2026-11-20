@@ -610,7 +610,7 @@ export const adoptionDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'Who is loading data apps, and where?',
                     description:
-                        'Trends and named viewers cover standalone pages and dashboards. The surface breakdown adds chart tiles drawn by a custom chart type, builder previews, embeds, deliveries and unknown context.',
+                        'Trends and named viewers cover standalone pages and dashboards. The surface breakdown adds custom chart tiles, builder previews, embeds, deliveries and unknown context.',
                     charts: ['adoption-app-reader-trend'],
                     layout: 'row',
                     rowHeight: 8,

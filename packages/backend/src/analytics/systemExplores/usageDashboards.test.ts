@@ -836,10 +836,11 @@ describe('built-in usage dashboards', () => {
                 tile.type === DashboardTileTypes.SAVED_CHART,
         )!;
         expect([firstNote.y, firstChart.y]).toEqual([0, 1]);
-        const adoption = dashboardBySlug('lightdash-analytics-adoption');
-        const [heading] = adoption.tiles.filter(
+        // A description too long for one line keeps a heading above it, on two rows
+        const content = dashboardBySlug('lightdash-analytics-content');
+        const [heading] = content.tiles.filter(
             (tile) =>
-                tile.tabSlug === 'app-outcomes' &&
+                tile.tabSlug === 'ownership' &&
                 tile.type === DashboardTileTypes.MARKDOWN,
         );
         expect(heading.h).toBe(2);
@@ -1053,9 +1054,9 @@ describe('built-in usage dashboards', () => {
             .filter((tile) => tile.tabSlug === 'app-outcomes')
             .map((tile) => [tile.x, tile.y, tile.w, tile.h]);
         expect(geometry).toEqual([
-            [0, 0, 36, 2],
-            [0, 2, 36, 7],
-            [0, 9, 36, 7],
+            [0, 0, 36, 1],
+            [0, 1, 36, 7],
+            [0, 8, 36, 7],
         ]);
     });
 
