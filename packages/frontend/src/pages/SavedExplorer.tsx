@@ -83,12 +83,22 @@ const SavedExplorerSession = () => {
     const versionKey = isEditMode
         ? 'editing'
         : JSON.stringify(pickSavedChartVersion(savedChart));
+    const savedChartUuid = savedChart?.uuid;
+    const includeUnpublishedDraft = savedChart?.hasUnpublishedChanges ?? false;
+    const savedChartRun = useMemo(
+        () =>
+            !isEditMode && savedChartUuid
+                ? { savedChartUuid, includeUnpublishedDraft }
+                : null,
+        [isEditMode, savedChartUuid, includeUnpublishedDraft],
+    );
 
     return (
         <MergeProvider
             key={versionKey}
             savedMerge={savedChart?.merge ?? null}
             readOnly={!isEditMode}
+            savedChartRun={savedChartRun}
         >
             <SavedExplorerContent />
         </MergeProvider>

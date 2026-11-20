@@ -324,6 +324,13 @@ export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {
     pivotConfiguration?: PivotConfiguration;
 };
 
+export type ExecuteAsyncSavedChartMergeQueryArgs = CommonAsyncQueryArgs & {
+    savedChartUuid: string;
+    mode: MergeQueryExecutionMode;
+    pivotResults: boolean;
+    includeUnpublishedDraft: boolean;
+};
+
 export type ExecuteAsyncDashboardSqlChartCommonArgs = CommonAsyncQueryArgs & {
     dashboardUuid: string;
     tileUuid: string;

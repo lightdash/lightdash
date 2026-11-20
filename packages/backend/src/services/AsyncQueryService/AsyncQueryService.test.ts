@@ -17597,6 +17597,72 @@ describe('AsyncQueryService', () => {
             );
         });
 
+        describe('run by saved chart uuid', () => {
+            const runArgs = {
+                projectUuid,
+                savedChartUuid: mergedChart.uuid,
+                context: QueryExecutionContext.CHART,
+                parameters: {},
+                mode: { type: 'export', limit: 10 } as const,
+                pivotResults: true,
+                includeUnpublishedDraft: false,
+            };
+
+            test("runs the chart's saved merge for a viewer under the merged chart's authority", async () => {
+                const { service, mergeSpy } = buildService();
+                (service as AnyType).getMergeSourceExplores = vi
+                    .fn()
+                    .mockResolvedValue({});
+
+                await expect(
+                    service.executeAsyncSavedChartMergeQuery({
+                        ...runArgs,
+                        account: authorizedAccount,
+                    }),
+                ).resolves.toBe(startedOutcome);
+
+                const args = mergeSpy.mock.calls[0][0];
+                expect(args.authority.kind).toBe('mergedChart');
+                expect(() =>
+                    args.authority.run.assertExecution(
+                        authorizedAccount,
+                        projectUuid,
+                    ),
+                ).not.toThrow();
+                expect(args).toMatchObject({
+                    mode: runArgs.mode,
+                    chart: { chartConfig: mergedChart.chartConfig },
+                });
+                expect(
+                    args.mergeQuery.sources.map(({ id }: { id: string }) => id),
+                ).toHaveLength(2);
+            });
+
+            test('refuses a chart the viewer cannot view', async () => {
+                const { service, mergeSpy } = buildService();
+                (service as AnyType).getMergeSourceExplores = vi
+                    .fn()
+                    .mockResolvedValue({});
+                const account = {
+                    ...authorizedAccount,
+                    user: {
+                        ...authorizedAccount.user,
+                        ability: new Ability<PossibleAbilities>([
+                            { subject: 'Project', action: ['view'] },
+                        ]),
+                    },
+                } as unknown as Account;
+
+                await expect(
+                    service.executeAsyncSavedChartMergeQuery({
+                        ...runArgs,
+                        account,
+                    }),
+                ).rejects.toThrow(ForbiddenError);
+                expect(mergeSpy).not.toHaveBeenCalled();
+            });
+        });
+
         test('refuses a tile filter that names a merged column instead of dropping it', async () => {
             const { service, mergeSpy } = buildService();
 

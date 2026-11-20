@@ -1217,6 +1217,19 @@ export type ApiExecuteAsyncMergeQueryRequest = Omit<
     chart?: MergeQueryChart;
 };
 
+/** Runs a saved chart's own merge, named by the chart rather than sent. */
+export type ApiExecuteAsyncSavedMergeQueryRequest = {
+    savedChartUuid: string;
+    context?: QueryExecutionContext;
+    invalidateCache?: boolean;
+    parameters: ParametersValuesMap;
+    mode: MergeQueryExecutionMode;
+    /** Pivot the result with the chart's saved pivot config */
+    pivotResults: boolean;
+    /** Run the caller's own open draft of the chart, as the chart page shows it */
+    includeUnpublishedDraft: boolean;
+};
+
 /**
  * Merge execution request for the compose endpoint, which accepts the full
  * MergeQuerySource union (including references to existing query results).

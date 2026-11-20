@@ -35,7 +35,11 @@ import {
     PRIMARY_SOURCE_ID,
 } from '../constants';
 import { useCanAuthorMerge } from '../hooks/useCanAuthorMerge';
-import { executeMergeQuery } from '../hooks/useMergeQuery';
+import {
+    executeMergeQuery,
+    executeSavedMergeQuery,
+    type SavedMergeChartRun,
+} from '../hooks/useMergeQuery';
 import {
     MergeContext,
     type MergeEditorSource,
@@ -87,8 +91,15 @@ export const MergeProvider: FC<
         savedMerge?: SavedMergeDefinition | null;
         /** View mode: show the merge, allow nothing, keep the URL clean. */
         readOnly?: boolean;
+        /** View mode on a saved chart: runs name the chart, never send its merge. */
+        savedChartRun?: SavedMergeChartRun | null;
     }>
-> = ({ children, savedMerge, readOnly: isViewMode = false }) => {
+> = ({
+    children,
+    savedMerge,
+    readOnly: isViewMode = false,
+    savedChartRun = null,
+}) => {
     const canAuthorMerge = useCanAuthorMerge();
     const readOnly = isViewMode || !canAuthorMerge;
     const lightdashApi = useLightdashApi();
@@ -147,6 +158,35 @@ export const MergeProvider: FC<
         parameters?: ParametersValuesMap;
         savedChart?: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>;
     } | null>(null);
+    const startMerge = useCallback(
+        (
+            currentProjectUuid: string,
+            mergeQuery: MergeQuery,
+            parameters: ParametersValuesMap | undefined,
+            savedChart:
+                | Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>
+                | undefined,
+            csvLimit?: number | null,
+        ) =>
+            savedChartRun
+                ? executeSavedMergeQuery(
+                      lightdashApi,
+                      currentProjectUuid,
+                      savedChartRun,
+                      parameters ?? {},
+                      savedChart !== undefined,
+                      csvLimit,
+                  )
+                : executeMergeQuery(
+                      lightdashApi,
+                      currentProjectUuid,
+                      mergeQuery,
+                      parameters,
+                      savedChart,
+                      csvLimit,
+                  ),
+        [lightdashApi, savedChartRun],
+    );
     const [runState, setRunState] = useState<{
         isRunning: boolean;
         errors: MergeQueryError[];
@@ -520,13 +560,7 @@ export const MergeProvider: FC<
                 ranMergeQuery: null,
                 lastRunMergeQuery: mergeQuery,
             }));
-            executeMergeQuery(
-                lightdashApi,
-                projectUuid,
-                mergeQuery,
-                parameters,
-                savedChart,
-            )
+            startMerge(projectUuid, mergeQuery, parameters, savedChart)
                 .then(async (result) => {
                     if (activeRun.current !== runId) return;
                     if (result.outcome === 'refused') {
@@ -554,11 +588,11 @@ export const MergeProvider: FC<
                         let unpivoted = null;
                         if (pivotConfiguration) {
                             try {
-                                unpivoted = await executeMergeQuery(
-                                    lightdashApi,
+                                unpivoted = await startMerge(
                                     projectUuid,
                                     mergeQuery,
                                     parameters,
+                                    undefined,
                                 );
                             } catch (error) {
                                 if (activeRun.current !== runId) return;
@@ -628,7 +662,7 @@ export const MergeProvider: FC<
                     }));
                 });
         },
-        [projectUuid, lightdashApi],
+        [projectUuid, startMerge],
     );
 
     const getDownloadQueryUuid = useCallback(
@@ -637,8 +671,7 @@ export const MergeProvider: FC<
                 throw new Error('Missing merged query');
             }
             const { mergeQuery, parameters, savedChart } = lastRun.current;
-            const result = await executeMergeQuery(
-                lightdashApi,
+            const result = await startMerge(
                 projectUuid,
                 mergeQuery,
                 parameters,
@@ -652,7 +685,7 @@ export const MergeProvider: FC<
             }
             return result.query.queryUuid;
         },
-        [projectUuid, lightdashApi],
+        [projectUuid, startMerge],
     );
 
     const { started, unpivotedStarted } = runState;
@@ -699,6 +732,7 @@ export const MergeProvider: FC<
         () => ({
             isMerging,
             readOnly,
+            runsSavedChart: savedChartRun !== null,
             wasRestored: restored !== null && !restoredRunRefused,
             refuseRestoredRun,
             run,
@@ -743,6 +777,7 @@ export const MergeProvider: FC<
         [
             isMerging,
             readOnly,
+            savedChartRun,
             restored,
             restoredRunRefused,
             refuseRestoredRun,

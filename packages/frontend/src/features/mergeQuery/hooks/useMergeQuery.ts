@@ -2,6 +2,7 @@ import {
     type ApiCompiledMergeQueryResults,
     type ApiExecuteAsyncComposeMergeQueryRequest,
     type ApiExecuteAsyncMergeQueryResults,
+    type ApiExecuteAsyncSavedMergeQueryRequest,
     type CompileMergeQueryRequest,
     isMetricSourcedMergeQuery,
     type MergeQuery,
@@ -78,3 +79,34 @@ export const executeMergeQuery = async (
         csvLimit,
     );
 };
+
+/** The chart a view-mode merge runs from: the server runs its saved merge. */
+export type SavedMergeChartRun = {
+    savedChartUuid: string;
+    includeUnpublishedDraft: boolean;
+};
+
+export const executeSavedMergeQuery = (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    { savedChartUuid, includeUnpublishedDraft }: SavedMergeChartRun,
+    parameters: ParametersValuesMap,
+    pivotResults: boolean,
+    csvLimit?: number | null,
+): Promise<MergeQueryRun> =>
+    lightdashApi<ApiExecuteAsyncMergeQueryResults>({
+        url: `/projects/${projectUuid}/query/saved-merge-query`,
+        version: 'v2',
+        method: 'POST',
+        body: JSON.stringify({
+            savedChartUuid,
+            includeUnpublishedDraft,
+            parameters,
+            pivotResults,
+            context: QueryExecutionContext.CHART,
+            mode:
+                csvLimit === undefined
+                    ? { type: 'interactive' }
+                    : { type: 'export', limit: csvLimit },
+        } satisfies ApiExecuteAsyncSavedMergeQueryRequest),
+    });
