@@ -293,6 +293,9 @@ const refreshPreviewWarehouseCredentials = async (
         );
         return;
     }
+    if (loaded.credentials === null) {
+        return;
+    }
     const project = await getProject(projectUuid);
     const { connection: sourceConnection } = await resolveSourceConnection(
         project,
