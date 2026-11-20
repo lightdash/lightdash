@@ -4,6 +4,7 @@ import {
     FeatureFlags,
     type AiAccessRefusal,
     type AiAgentSummary,
+    type AiPromptContextItem,
 } from '@lightdash/common';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { type ComponentProps, type PropsWithChildren } from 'react';
@@ -22,6 +23,10 @@ const state = vi.hoisted(() => ({
     login: vi.fn(),
     isPickingAgent: false,
     waitingPrompt: null as string | null,
+    waitingImages: [] as Extract<
+        AiPromptContextItem,
+        { type: 'thread_image' }
+    >[],
 }));
 vi.mock('../../../../../features/aiAccess/api', () => ({
     useMyAiAccess: () => ({
@@ -126,6 +131,7 @@ vi.mock('./useAiAgentLauncherRouter', () => ({
                   },
               ]
             : [],
+        waitingImages: state.waitingImages,
         waitingPrompt: state.waitingPrompt,
     }),
 }));
@@ -163,6 +169,7 @@ describe('LauncherPanel AI access', () => {
         state.isLoading = false;
         state.isPickingAgent = false;
         state.waitingPrompt = null;
+        state.waitingImages = [];
         state.refusal = {
             code: 'ai_access_refused',
             reason: AiAccessRefusalReason.NEEDS_SIGN_IN,
@@ -173,12 +180,14 @@ describe('LauncherPanel AI access', () => {
         };
     });
 
-    it('gates images in the new-conversation Auto composer', () => {
+    it('allows images in the new-conversation Auto composer', async () => {
         state.refusal = null;
         renderWithProviders(panel(null, LAUNCHER_AUTO_AGENT));
-        expect(
-            screen.queryByLabelText('Image attachments'),
-        ).not.toBeInTheDocument();
+        await waitFor(() =>
+            expect(
+                screen.getAllByLabelText('Image attachments').length,
+            ).toBeGreaterThan(0),
+        );
     });
 
     it.each([null, 'thread-1'])(
@@ -260,6 +269,7 @@ describe('LauncherPanel agent picker', () => {
         state.refusal = null;
         state.isPickingAgent = true;
         state.waitingPrompt = 'Why did revenue drop in March?';
+        state.waitingImages = [];
     });
 
     it('shows the message waiting for an agent above the choices', () => {
@@ -274,5 +284,21 @@ describe('LauncherPanel agent picker', () => {
         expect(
             screen.getByRole('button', { name: /Finance agent/ }),
         ).toBeInTheDocument();
+    });
+
+    it('shows the images held with the waiting message', () => {
+        state.waitingImages = [
+            {
+                type: 'thread_image',
+                fileUuid: 'image-1',
+                fileName: 'march-revenue.png',
+                sizeBytes: 1024,
+                mediaType: 'image/png',
+                width: 800,
+                height: 600,
+            },
+        ];
+        renderWithProviders(panel(null, LAUNCHER_AUTO_AGENT));
+        expect(screen.getByText('march-revenue.png')).toBeInTheDocument();
     });
 });
