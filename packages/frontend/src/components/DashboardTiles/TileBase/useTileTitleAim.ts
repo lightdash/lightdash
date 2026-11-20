@@ -103,9 +103,31 @@ export const useTileTitleAim = ({
         if (dwellRef.current) clearTimeout(dwellRef.current);
         dwellRef.current = null;
     };
+    const reset = useCallback(() => {
+        clearDwell();
+        trailRef.current = [];
+        restingTitleRef.current = null;
+        setDescriptionDismissed(false);
+        setHovered(false);
+    }, [setHovered]);
     useEffect(function clearDwellOnUnmount() {
         return clearDwell;
     }, []);
+    useEffect(
+        function resetWhenDisabled() {
+            if (!enabled) reset();
+        },
+        [enabled, reset],
+    );
+    // A still pointer gets no moves while the page scrolls under it
+    useEffect(
+        function resetOnScroll() {
+            if (!titleHovered) return;
+            window.addEventListener('scroll', reset, true);
+            return () => window.removeEventListener('scroll', reset, true);
+        },
+        [titleHovered, reset],
+    );
     useEffect(
         function dismissOnEscape() {
             if (!titleHovered) return;
@@ -121,9 +143,15 @@ export const useTileTitleAim = ({
     const onPointerMove = useCallback(
         (e: PointerEvent<HTMLElement>) => {
             if (!enabled || e.pointerType === 'touch') return;
+            // A pen pressed to the screen is dragging, not hovering
+            if (e.pointerType === 'pen' && e.buttons !== 0) return;
             const title = titleRef.current;
+            if (!title) {
+                reset();
+                return;
+            }
             // The expanded title covers the header, so measure it at rest
-            if (title && !hoveredRef.current)
+            if (!hoveredRef.current)
                 restingTitleRef.current = title.getBoundingClientRect();
 
             const point = { x: e.clientX, y: e.clientY, t: e.timeStamp };
@@ -139,7 +167,7 @@ export const useTileTitleAim = ({
                 point,
                 from: trailRef.current[0],
                 restingTitle: restingTitleRef.current,
-                expandedTitleLines: title ? textLines(title) : [],
+                expandedTitleLines: textLines(title),
                 actions:
                     e.currentTarget
                         .querySelector(actionsSelector)
@@ -154,19 +182,12 @@ export const useTileTitleAim = ({
                     AIM_DWELL_MS,
                 );
         },
-        [enabled, titleRef, actionsSelector, setHovered],
+        [enabled, titleRef, actionsSelector, setHovered, reset],
     );
-
-    const onPointerLeave = useCallback(() => {
-        clearDwell();
-        trailRef.current = [];
-        setDescriptionDismissed(false);
-        setHovered(false);
-    }, [setHovered]);
 
     return {
         titleHovered: enabled && titleHovered,
         descriptionOpened: enabled && titleHovered && !descriptionDismissed,
-        pointerHandlers: { onPointerMove, onPointerLeave },
+        pointerHandlers: { onPointerMove, onPointerLeave: reset },
     };
 };
