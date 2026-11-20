@@ -124,7 +124,7 @@ export const OUTLINE_ICONS: ContentIconSet = {
         'OutlinePie',
         <>
             <circle cx="12" cy="12" r="8.5" />
-            <path d="M12 3.5v8.5h8.5" fill="none" />
+            <path d="M12 3.5v8.5h8.5M12 12l-6 6" fill="none" />
         </>,
     ),
     bigNumber: createContentIcon(
