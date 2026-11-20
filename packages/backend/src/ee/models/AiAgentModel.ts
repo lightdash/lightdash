@@ -3172,20 +3172,15 @@ export class AiAgentModel {
                 `${OrganizationTableName}.organization_id`,
                 `${ProjectTableName}.organization_id`,
             )
-            .innerJoin(
-                { server_project: ProjectTableName },
-                'server_project.project_uuid',
-                `${AiMcpServerTableName}.project_uuid`,
-            )
             .select<DbAiMcpServer[]>(AiAgentModel.getMcpServerSelect(trx))
             .where(`${AiAgentMcpServerTableName}.ai_agent_uuid`, agentUuid)
-            .whereColumn(
+            .where(
                 `${AiAgentTableName}.organization_uuid`,
-                `${OrganizationTableName}.organization_uuid`,
+                trx.ref(`${OrganizationTableName}.organization_uuid`),
             )
-            .whereColumn(
-                'server_project.organization_id',
-                `${ProjectTableName}.organization_id`,
+            .where(
+                `${AiMcpServerTableName}.project_uuid`,
+                trx.ref(`${AiAgentTableName}.project_uuid`),
             )
             .orderBy(`${AiMcpServerTableName}.created_at`, 'asc');
     }

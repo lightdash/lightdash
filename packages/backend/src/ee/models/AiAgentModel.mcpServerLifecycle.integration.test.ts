@@ -98,6 +98,10 @@ describe('AiAgentModel MCP server lifecycle', () => {
                 SEED_ORG_2.organization_uuid,
             ),
         ).rejects.toBeInstanceOf(ForbiddenError);
+    });
+
+    it('loads the attached server from the agent project', async () => {
+        const server = await createServer('Project server');
         const agent = await createAgent('Agent in the project organization', [
             server.uuid,
         ]);
