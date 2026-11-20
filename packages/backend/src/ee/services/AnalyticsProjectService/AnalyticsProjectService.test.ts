@@ -152,6 +152,8 @@ describe('AnalyticsProjectService', () => {
                 flushBatchSize: 1000,
                 bufferMaxSize: 1000,
             },
+            // Off, as by default: nothing retired is removed in these tests
+            softDelete: { enabled: false, retentionDays: 30 },
         },
         schedulerClient: {
             getUsageHistoryBackfillJob,
@@ -169,6 +171,8 @@ describe('AnalyticsProjectService', () => {
         coderService: { getOrCreateSpace, upsertChart, upsertDashboard },
         contentVerificationModel: { getByContentUuids: getVerifications },
         dashboardModel: { find: findDashboard, getByIdOrSlug: getDashboard },
+        getDashboardService: () => ({ softDelete: vi.fn() }),
+        getSavedChartService: () => ({ softDelete: vi.fn() }),
         projectHomepageModel: { createPublishedDefaultIfAbsent },
         savedChartModel: {
             get: getChart,
@@ -410,6 +414,7 @@ describe('AnalyticsProjectService', () => {
             new AnalyticsProjectService({
                 ...service['dependencies'],
                 lightdashConfig: {
+                    ...service['dependencies'].lightdashConfig,
                     usageEvents: {
                         ...service['dependencies'].lightdashConfig.usageEvents,
                         enabled: true,
@@ -703,6 +708,7 @@ describe('AnalyticsProjectService', () => {
             new AnalyticsProjectService({
                 ...service['dependencies'],
                 lightdashConfig: {
+                    ...service['dependencies'].lightdashConfig,
                     usageEvents: {
                         ...service['dependencies'].lightdashConfig.usageEvents,
                         enabled: true,
@@ -787,6 +793,7 @@ describe('AnalyticsProjectService', () => {
                 const configured = new AnalyticsProjectService({
                     ...service['dependencies'],
                     lightdashConfig: {
+                        ...service['dependencies'].lightdashConfig,
                         usageEvents: {
                             ...service['dependencies'].lightdashConfig
                                 .usageEvents,

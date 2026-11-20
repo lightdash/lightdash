@@ -6,6 +6,10 @@ import {
 import { createHash } from 'crypto';
 import { analyticsColorPalette } from '../../../analytics/systemExplores/analyticsColorPalette';
 import type { LibraryChartBinding } from '../../../analytics/systemExplores/libraryCharts';
+import {
+    retiredAnalyticsCharts,
+    retiredAnalyticsDashboards,
+} from '../../../analytics/systemExplores/retiredContent';
 import { analyticsDefaultSpace } from '../../../analytics/systemExplores/sampleContent';
 import { buildContentAsCodeSnapshot } from '../../../services/CoderService/contentAsCodeSnapshot';
 import { analyticsHomepage } from './analyticsHomepage';
@@ -22,6 +26,11 @@ export const getAnalyticsContentHash = (
                 space: analyticsDefaultSpace,
                 homepage: analyticsHomepage,
                 palette: analyticsColorPalette,
+                // A release that only retires content still has something to sync
+                retired: {
+                    dashboards: retiredAnalyticsDashboards,
+                    charts: retiredAnalyticsCharts,
+                },
                 bindings: [...bindings.entries()].sort(([a], [b]) =>
                     a.localeCompare(b),
                 ),
