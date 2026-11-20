@@ -8,7 +8,7 @@ import { type AnyType } from './any';
 import { type ApiSuccess } from './api/success';
 import { type ConditionalFormattingConfig } from './conditionalFormatting';
 import { type ContentReviewNotificationEvent } from './contentReviewRequests';
-import type { DownloadFileType, XlsxExportContent } from './downloadFile';
+import type { DownloadFileType } from './downloadFile';
 import { type Explore, type ExploreError } from './explore';
 import {
     type DashboardFilterRule,
@@ -31,9 +31,6 @@ export type SchedulerCsvOptions = {
     asAttachment?: boolean;
     exportPivotedData?: boolean;
     xlsxFileLayout?: 'zip' | 'workbook';
-    // XLSX dashboard exports: CHART_IMAGE renders non-table chart tiles as
-    // pictures; table tiles and SQL charts always export rows.
-    xlsxContent?: XlsxExportContent;
 };
 
 export type SchedulerImageOptions = {
@@ -1052,7 +1049,6 @@ export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {
     attachmentDownloadName?: string;
     conditionalFormattings?: ConditionalFormattingConfig[];
     showColumnTotals?: boolean;
-    xlsxContent?: XlsxExportContent;
     showSubtotals?: boolean;
     encodedJwt?: string;
     /**

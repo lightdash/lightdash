@@ -1,6 +1,5 @@
 import {
     SchedulerFormat,
-    XlsxExportContent,
     type Dashboard,
     type ExportContentFormat,
     type SchedulerCsvOptions,
@@ -99,12 +98,6 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
     const [exportPivotedData, setExportPivotedData] = useState(true);
     const [xlsxFileLayout, setXlsxFileLayout] =
         useState<NonNullable<SchedulerCsvOptions['xlsxFileLayout']>>('zip');
-    const [xlsxContent, setXlsxContent] = useState<XlsxExportContent>(
-        XlsxExportContent.DATA,
-    );
-    const exportChartsAsImages =
-        exportType === SchedulerFormat.XLSX &&
-        xlsxContent === XlsxExportContent.CHART_IMAGE;
     const isDashboardTabsAvailable =
         dashboard?.tabs !== undefined && dashboard.tabs.length > 0;
     const [allTabsSelected, setAllTabsSelected] = useState(true);
@@ -151,13 +144,9 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                 exportType === SchedulerFormat.XLSX
                     ? xlsxFileLayout
                     : undefined,
-            xlsxContent: exportChartsAsImages
-                ? XlsxExportContent.CHART_IMAGE
-                : undefined,
         }),
         [
             customLimit,
-            exportChartsAsImages,
             exportPivotedData,
             exportType,
             formatted,
@@ -325,9 +314,8 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                     />
                     {isDataExport && (
                         <Text fs="italic" fz="sm" c="dimmed">
-                            {exportChartsAsImages
-                                ? 'Charts from the selected tabs will be exported as images and tables as data'
-                                : 'Charts from the selected tabs will be exported as tables'}
+                            Charts from the selected tabs will be exported as
+                            tables
                             {exportType === SchedulerFormat.XLSX &&
                             xlsxFileLayout === 'workbook'
                                 ? ' in one workbook.'
@@ -359,8 +347,6 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                             onExportPivotedDataChange={setExportPivotedData}
                             xlsxFileLayout={xlsxFileLayout}
                             onXlsxFileLayoutChange={setXlsxFileLayout}
-                            xlsxContent={xlsxContent}
-                            onXlsxContentChange={setXlsxContent}
                         />
                     </Stack>
                 )}

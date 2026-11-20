@@ -626,7 +626,6 @@ const getMockedAsyncQueryService = (
     let querySourceService: QuerySourceService | undefined;
     const service: AsyncQueryService = new AsyncQueryService({
         dbtSourceRefCatalogModel: {} as never,
-        getUnfurlService: () => ({}) as never,
         refreshTokenRotation: overrides.refreshTokenRotation ?? {
             run: vi.fn(),
         },

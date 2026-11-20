@@ -984,7 +984,6 @@ export class QueryController extends BaseController {
             attachmentDownloadName: body.attachmentDownloadName,
             conditionalFormattings: body.conditionalFormattings,
             showColumnTotals: body.showColumnTotals,
-            xlsxContent: body.xlsxContent,
             showSubtotals: body.showSubtotals,
         });
 
@@ -1041,7 +1040,6 @@ export class QueryController extends BaseController {
                 attachmentDownloadName: body.attachmentDownloadName,
                 conditionalFormattings: body.conditionalFormattings,
                 showColumnTotals: body.showColumnTotals,
-                xlsxContent: body.xlsxContent,
                 showSubtotals: body.showSubtotals,
             });
 
