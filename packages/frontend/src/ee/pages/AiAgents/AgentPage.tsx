@@ -224,7 +224,7 @@ const AgentPage = () => {
         threadUuid,
     ]);
 
-    // Mounted in every branch so a save is reported while the agent loads.
+    // Embed hosts still hear about saves while the agent loads.
     const embedEventsEmitter = (
         <EmbedAgentContentEventsEmitter
             projectUuid={projectUuid}
