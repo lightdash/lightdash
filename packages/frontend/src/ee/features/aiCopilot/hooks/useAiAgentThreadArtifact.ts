@@ -29,7 +29,7 @@ export const useAiAgentThreadArtifact = ({
     const {
         registrations: deepResearchRegistrations,
         isReady: isDeepResearchRegistrationLookupReady,
-        isInitialLoading: isDeepResearchRegistrationLookupLoading,
+        isInitialLoading: isDeepResearchRegistrationLookupInitialLoading,
     } = useDeepResearchThreadRunRegistrationState({
         projectUuid: threadUuid ? projectUuid : undefined,
         threadUuid: threadUuid ?? '',
@@ -58,25 +58,26 @@ export const useAiAgentThreadArtifact = ({
         };
     }, [projectUuid, agentUuid, threadUuid, dispatch]);
 
-    const latestAssistantMessage = useMemo(() => {
+    const lastArtifactMessage = useMemo(() => {
         const msg = thread?.messages?.at(-1);
+        return msg?.role === 'assistant' && (msg.artifacts?.length ?? 0) > 0
+            ? msg
+            : null;
+    }, [thread]);
+
+    const latestAssistantMessage = useMemo(() => {
         if (
-            !msg ||
-            msg.role !== 'assistant' ||
-            !msg.artifacts ||
-            msg.artifacts.length === 0 ||
-            deepResearchPromptUuids.has(msg.uuid)
+            !lastArtifactMessage ||
+            !isDeepResearchRegistrationLookupReady ||
+            deepResearchPromptUuids.has(lastArtifactMessage.uuid)
         ) {
             return null;
         }
-        if (!isDeepResearchRegistrationLookupReady) {
-            return null;
-        }
-        return msg;
+        return lastArtifactMessage;
     }, [
         deepResearchPromptUuids,
         isDeepResearchRegistrationLookupReady,
-        thread,
+        lastArtifactMessage,
     ]);
 
     // Track when user manually closes an artifact
@@ -152,12 +153,10 @@ export const useAiAgentThreadArtifact = ({
         dispatch,
     ]);
 
-    const lastMessage = thread?.messages?.at(-1);
     // Until Deep Research is ruled out, the pane may still open and shift the transcript.
     const isAutoOpenPending =
-        isDeepResearchRegistrationLookupLoading &&
-        lastMessage?.role === 'assistant' &&
-        (lastMessage.artifacts?.length ?? 0) > 0;
+        isDeepResearchRegistrationLookupInitialLoading &&
+        lastArtifactMessage !== null;
 
     return { isAutoOpenPending };
 };

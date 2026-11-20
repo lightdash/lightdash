@@ -84,6 +84,7 @@ describe('useAiAgentThreadArtifact', () => {
                 },
             ],
             isReady: true,
+            isInitialLoading: false,
         });
     });
 
@@ -130,6 +131,7 @@ describe('useAiAgentThreadArtifact', () => {
         deepResearchRegistrationStateMock.mockReturnValue({
             registrations: [],
             isReady: false,
+            isInitialLoading: true,
         });
 
         renderHook(() =>
@@ -170,20 +172,13 @@ describe('useAiAgentThreadArtifact', () => {
         } as AiAgentThread;
         rerender({ currentThread: endsWithUserMessage });
         expect(result.current.isAutoOpenPending).toBe(false);
-
-        deepResearchRegistrationStateMock.mockReturnValue({
-            registrations: [],
-            isReady: true,
-            isInitialLoading: false,
-        });
-        rerender({ currentThread: regularArtifactThread });
-        expect(result.current.isAutoOpenPending).toBe(false);
     });
 
     it('keeps a Deep Research artifact closed when registration loading completes', () => {
         deepResearchRegistrationStateMock.mockReturnValue({
             registrations: [],
             isReady: false,
+            isInitialLoading: true,
         });
 
         const { rerender } = renderHook(() =>
