@@ -8813,17 +8813,11 @@ const models: TsoaRoute.Models = {
         enums: ['xlsx'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    XlsxExportContent: {
-        dataType: 'refEnum',
-        enums: ['data', 'chart_image'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SchedulerCsvOptions: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                xlsxContent: { ref: 'XlsxExportContent' },
                 xlsxFileLayout: {
                     dataType: 'union',
                     subSchemas: [
@@ -26913,7 +26907,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AiThreadFile: {
+    AiThreadFileMetadata: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -26939,6 +26933,61 @@ const models: TsoaRoute.Models = {
                 fileName: { dataType: 'string', required: true },
                 uuid: { dataType: 'string', required: true },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiThreadImageMediaType: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['image/png'] },
+                { dataType: 'enum', enums: ['image/jpeg'] },
+                { dataType: 'enum', enums: ['image/webp'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiThreadFile: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'AiThreadFileMetadata' },
+                {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                kind: {
+                                    dataType: 'enum',
+                                    enums: ['text'],
+                                    required: true,
+                                },
+                            },
+                        },
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                height: { dataType: 'double', required: true },
+                                width: { dataType: 'double', required: true },
+                                mediaType: {
+                                    ref: 'AiThreadImageMediaType',
+                                    required: true,
+                                },
+                                kind: {
+                                    dataType: 'enum',
+                                    enums: ['image'],
+                                    required: true,
+                                },
+                            },
+                        },
+                    ],
+                },
+            ],
             validators: {},
         },
     },
@@ -27540,6 +27589,17 @@ const models: TsoaRoute.Models = {
                         type: {
                             dataType: 'enum',
                             enums: ['thread_file'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        fileUuid: { ref: 'UUID', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['thread_image'],
                             required: true,
                         },
                     },
@@ -32371,13 +32431,6 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
-                    xlsxContent: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { ref: 'XlsxExportContent' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
                     showSubtotals: {
                         dataType: 'union',
                         subSchemas: [
@@ -34999,6 +35052,20 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiPromptThreadImageSnapshot: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                height: { dataType: 'double', required: true },
+                width: { dataType: 'double', required: true },
+                mediaType: { ref: 'AiThreadImageMediaType', required: true },
+                sizeBytes: { dataType: 'double', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     PullRequestProvider: {
         dataType: 'refEnum',
         enums: ['github', 'gitlab', 'bitbucket'],
@@ -35713,6 +35780,30 @@ const models: TsoaRoute.Models = {
                             required: true,
                         },
                     },
+                },
+                {
+                    dataType: 'intersection',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                fileName: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                fileUuid: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                type: {
+                                    dataType: 'enum',
+                                    enums: ['thread_image'],
+                                    required: true,
+                                },
+                            },
+                        },
+                        { ref: 'AiPromptThreadImageSnapshot' },
+                    ],
                 },
                 {
                     dataType: 'nestedObjectLiteral',
@@ -105165,6 +105256,67 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'upload',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 201,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiThreadFileController_uploadImage: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        filename: {
+            in: 'query',
+            name: 'filename',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.post(
+        '/api/v1/aiAgents/thread-files/images',
+        ...fetchMiddlewares<RequestHandler>(AiThreadFileController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiThreadFileController.prototype.uploadImage,
+        ),
+
+        async function AiThreadFileController_uploadImage(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiThreadFileController_uploadImage,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiThreadFileController>(
+                        AiThreadFileController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'uploadImage',
                     controller,
                     response,
                     next,

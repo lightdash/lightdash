@@ -1,3 +1,20 @@
+# [3.353.0](https://github.com/lightdash/lightdash/compare/3.352.0...3.353.0) (2026-11-20)
+
+
+### Bug Fixes
+
+* **query-sdk:** load large data app results in parallel pages ([#33041](https://github.com/lightdash/lightdash/issues/33041)) ([444eeb6](https://github.com/lightdash/lightdash/commit/444eeb6e624cfa6bea1a783a2f01c829d8873d62))
+
+
+### Features
+
+* **ai:** attach private images in chat ([#32203](https://github.com/lightdash/lightdash/issues/32203)) ([23dbc73](https://github.com/lightdash/lightdash/commit/23dbc73a5ea9174f73a7c7bda6de8991593cf448)), closes [#23686](https://github.com/lightdash/lightdash/issues/23686) [#23686](https://github.com/lightdash/lightdash/issues/23686) [#23686](https://github.com/lightdash/lightdash/issues/23686) [#23686](https://github.com/lightdash/lightdash/issues/23686)
+
+
+### Reverts
+
+* embed rendered chart image in XLSX exports ([#33044](https://github.com/lightdash/lightdash/issues/33044)) ([52b857b](https://github.com/lightdash/lightdash/commit/52b857b1ef92a4e91e5171085ad52dc437454eb1)), closes [#32317](https://github.com/lightdash/lightdash/issues/32317)
+
 # [3.352.0](https://github.com/lightdash/lightdash/compare/3.351.6...3.352.0) (2026-11-20)
 
 

@@ -9019,16 +9019,8 @@
                 "enum": ["xlsx"],
                 "type": "string"
             },
-            "XlsxExportContent": {
-                "description": "What an XLSX export of a saved chart contains: the query's data rows, or a\nrendered image of the visualization. Only non-table charts offer the image.",
-                "enum": ["data", "chart_image"],
-                "type": "string"
-            },
             "SchedulerCsvOptions": {
                 "properties": {
-                    "xlsxContent": {
-                        "$ref": "#/components/schemas/XlsxExportContent"
-                    },
                     "xlsxFileLayout": {
                         "type": "string",
                         "enum": ["zip", "workbook"]
@@ -28530,7 +28522,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "AiThreadFile": {
+            "AiThreadFileMetadata": {
                 "properties": {
                     "createdAt": {
                         "type": "string",
@@ -28565,7 +28557,60 @@
                     "uuid"
                 ],
                 "type": "object",
-                "description": "A text document uploaded by a user for an agent conversation."
+                "description": "A file uploaded by a user for an agent conversation."
+            },
+            "AiThreadImageMediaType": {
+                "type": "string",
+                "enum": ["image/png", "image/jpeg", "image/webp"]
+            },
+            "AiThreadFile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AiThreadFileMetadata"
+                    },
+                    {
+                        "anyOf": [
+                            {
+                                "properties": {
+                                    "kind": {
+                                        "type": "string",
+                                        "enum": ["text"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["kind"],
+                                "type": "object"
+                            },
+                            {
+                                "properties": {
+                                    "height": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "width": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "mediaType": {
+                                        "$ref": "#/components/schemas/AiThreadImageMediaType"
+                                    },
+                                    "kind": {
+                                        "type": "string",
+                                        "enum": ["image"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": [
+                                    "height",
+                                    "width",
+                                    "mediaType",
+                                    "kind"
+                                ],
+                                "type": "object"
+                            }
+                        ]
+                    }
+                ]
             },
             "ApiAiThreadFileResponse": {
                 "properties": {
@@ -29158,6 +29203,20 @@
                             "type": {
                                 "type": "string",
                                 "enum": ["thread_file"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["fileUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fileUuid": {
+                                "$ref": "#/components/schemas/UUID"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["thread_image"],
                                 "nullable": false
                             }
                         },
@@ -34200,9 +34259,6 @@
                     "showColumnTotals": {
                         "type": "boolean"
                     },
-                    "xlsxContent": {
-                        "$ref": "#/components/schemas/XlsxExportContent"
-                    },
                     "showSubtotals": {
                         "type": "boolean"
                     }
@@ -36702,6 +36758,27 @@
                 "required": ["displayName", "tableName", "tableUuid"],
                 "type": "object"
             },
+            "AiPromptThreadImageSnapshot": {
+                "properties": {
+                    "height": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "width": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "mediaType": {
+                        "$ref": "#/components/schemas/AiThreadImageMediaType"
+                    },
+                    "sizeBytes": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["height", "width", "mediaType", "sizeBytes"],
+                "type": "object"
+            },
             "PullRequestProvider": {
                 "enum": ["github", "gitlab", "bitbucket"],
                 "type": "string"
@@ -37421,6 +37498,30 @@
                             "type"
                         ],
                         "type": "object"
+                    },
+                    {
+                        "allOf": [
+                            {
+                                "properties": {
+                                    "fileName": {
+                                        "type": "string"
+                                    },
+                                    "fileUuid": {
+                                        "type": "string"
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "enum": ["thread_image"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["fileName", "fileUuid", "type"],
+                                "type": "object"
+                            },
+                            {
+                                "$ref": "#/components/schemas/AiPromptThreadImageSnapshot"
+                            }
+                        ]
                     },
                     {
                         "properties": {
@@ -81087,7 +81188,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.352.0",
+        "version": "3.353.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
