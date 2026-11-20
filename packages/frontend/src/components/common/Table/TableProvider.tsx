@@ -8,12 +8,14 @@ import {
 } from '@tanstack/react-table';
 import React, { useEffect, useMemo, useState, type FC } from 'react';
 import {
+    DEFAULT_FROZEN_COLUMN_WIDTH,
     DEFAULT_PAGE_SIZE,
     FROZEN_COLUMN_BACKGROUND,
     ROW_NUMBER_COLUMN_ID,
 } from './constants';
 import Context from './context';
 import { getGroupedRowModelLightdash } from './getGroupedRowModelLightdash';
+import { getRowNumberWidth } from './measureColumnWidth';
 import { type ProviderProps, type TableColumn } from './types';
 
 const rowColumn: TableColumn = {
@@ -32,15 +34,10 @@ const rowColumn: TableColumn = {
 };
 
 const calculateColumnVisibility = (columns: ProviderProps['columns']) =>
-    columns.reduce(
-        (acc, c) => ({
-            ...acc,
-            ...(c.id && {
-                [c.id]:
-                    c.meta && 'isVisible' in c.meta ? c.meta?.isVisible : true,
-            }),
-        }),
-        {},
+    Object.fromEntries(
+        columns.flatMap((column) =>
+            column.id ? [[column.id, column.meta?.isVisible ?? true]] : [],
+        ),
     );
 
 export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
@@ -91,19 +88,24 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
         setTempColumnOrder([ROW_NUMBER_COLUMN_ID, ...(columnOrder || [])]);
     }, [columnOrder]);
 
-    const withTotals = showColumnCalculation ? 60 : 0;
     const rowColumnWidth = hideRowNumbers
         ? 0
-        : Math.max(withTotals, `${data.length}`.length * 10 + 20);
+        : Math.max(
+              showColumnCalculation ? 60 : 0,
+              `${data.length}`.length * 10 + 20,
+              getRowNumberWidth(
+                  Math.max(totalRowsCount, data.length),
+                  !!rest.footer?.show,
+              ),
+          );
     const frozenColumns = useMemo(
         () => columns.filter((col) => col.meta?.frozen),
         [columns],
     );
-    const defaultFrozenColumnWidth = 100;
     const stickyColumns = useMemo(() => {
         let cumulativeLeft = rowColumnWidth;
         return frozenColumns.map((col, i) => {
-            const colWidth = col.meta?.width ?? defaultFrozenColumnWidth;
+            const colWidth = col.meta?.width ?? DEFAULT_FROZEN_COLUMN_WIDTH;
             const left = cumulativeLeft;
             cumulativeLeft += colWidth;
             return {

@@ -722,7 +722,13 @@ export const useColumns = (): TableColumn[] => {
                 isDimension(item);
             const showTablePrefix =
                 hasColumnsFromSeveralTables || !!mergeResults;
-            // Inline with the name, so it wraps with it and never drifts away
+            const label = isField(item)
+                ? item.label
+                : isCustomDimension(item)
+                  ? item.name
+                  : item && 'displayName' in item
+                    ? item.displayName
+                    : 'Undefined';
             const typeIcon = (
                 <FieldIcon
                     item={item}
@@ -772,20 +778,13 @@ export const useColumns = (): TableColumn[] => {
                                             />
                                         )}
                                         {typeIcon}
-                                        {item.label}
+                                        {label}
                                     </TableHeaderBoldLabel>
                                 </>
-                            ) : isCustomDimension(item) ? (
-                                <TableHeaderBoldLabel>
-                                    {typeIcon}
-                                    {item.name}
-                                </TableHeaderBoldLabel>
                             ) : (
                                 <TableHeaderBoldLabel>
                                     {typeIcon}
-                                    {item && 'displayName' in item
-                                        ? item.displayName
-                                        : 'Undefined'}
+                                    {label}
                                 </TableHeaderBoldLabel>
                             )}
                         </TableHeaderLabelContainer>
@@ -862,6 +861,11 @@ export const useColumns = (): TableColumn[] => {
                     },
                     meta: {
                         item,
+                        headerText:
+                            isField(item) && showTablePrefix && !isMergeJoinKey
+                                ? `${item.tableLabel}\n${label}`
+                                : label,
+                        headerIconWidth: isMergeJoinKey ? 32 : 16,
                         draggable: true,
                         frozen: false,
                         headerContext: mergeOrigin
@@ -914,6 +918,7 @@ export const useColumns = (): TableColumn[] => {
                         cell: getJsonFormattedValueCell,
                         meta: {
                             isInvalidItem: true,
+                            headerIconWidth: 20,
                         },
                     },
                 );

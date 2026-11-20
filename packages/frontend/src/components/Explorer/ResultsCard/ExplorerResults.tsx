@@ -624,6 +624,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
                 ) : (
                     // Regular results view - shows unpivoted data
                     <Table
+                        exploreResults
                         status={previous ? 'success' : status}
                         errorDetail={apiError?.error}
                         data={previous?.rows ?? rows ?? []}

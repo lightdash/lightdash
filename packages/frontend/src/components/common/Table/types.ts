@@ -42,6 +42,8 @@ export type TableColumn = ColumnDef<ResultRow, ResultRow[0]> & {
         draggable?: boolean;
         item?: Field | TableCalculation | CustomDimension;
         labelOverride?: string;
+        headerText?: string;
+        headerIconWidth?: number;
         headerContext?: string;
         pivotReference?: PivotReference;
         bgColor?: string;
@@ -73,6 +75,7 @@ export type ProviderProps = {
     showSubtotals?: boolean;
     showSubtotalsExpanded?: boolean;
     showRowGrouping?: boolean;
+    exploreResults?: boolean;
     hideRowNumbers?: boolean;
     showColumnCalculation?: boolean;
     conditionalFormattings?: ConditionalFormattingConfig[];

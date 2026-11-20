@@ -1,5 +1,5 @@
 import { type DataAppVizSchema } from '@lightdash/common';
-import { screen, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
@@ -42,6 +42,66 @@ const source = (
 });
 
 describe('PreviewRowsPeek', () => {
+    it('shows the same columns and values when scrolling the preview and its full data modal', async () => {
+        const width = vi
+            .spyOn(HTMLElement.prototype, 'offsetWidth', 'get')
+            .mockReturnValue(400);
+        const height = vi
+            .spyOn(HTMLElement.prototype, 'offsetHeight', 'get')
+            .mockReturnValue(200);
+        try {
+            const context = buildSampleVizContext(schema);
+            const ids = Array.from({ length: 100 }, (_, i) => `field_${i}`);
+            context.rows = [
+                Object.fromEntries(
+                    ids.map((id) => [
+                        id,
+                        { value: { raw: id, formatted: `value_${id}` } },
+                    ]),
+                ),
+            ];
+            renderWithProviders(
+                <PreviewRowsPeek
+                    source={source()}
+                    fields={schema.fields}
+                    context={context}
+                />,
+                undefined,
+                { columnWindowing: true },
+            );
+
+            for (const modal of [false, true]) {
+                if (modal)
+                    await userEvent.click(
+                        screen.getByRole('button', { name: 'View all' }),
+                    );
+                const region = await screen.findByRole('region', {
+                    name: modal
+                        ? 'Generated sample data rows'
+                        : 'Sample data preview',
+                });
+                expect(
+                    await within(region).findByText('value_field_0'),
+                ).toBeInTheDocument();
+                expect(within(region).queryByText('value_field_99')).toBeNull();
+                region.scrollLeft = (modal ? 180 : 150) * ids.length - 400;
+                fireEvent.scroll(region);
+                expect(
+                    await within(region).findByText('value_field_99'),
+                ).toBeInTheDocument();
+                expect(
+                    within(region).getByRole('columnheader', {
+                        name: 'field_99',
+                    }),
+                ).toBeInTheDocument();
+                expect(within(region).queryByText('field_0')).toBeNull();
+            }
+        } finally {
+            width.mockRestore();
+            height.mockRestore();
+        }
+    });
+
     it('uses a native table with mapped headers and three preview body rows', async () => {
         const context = buildSampleVizContext(schema);
         renderWithProviders(

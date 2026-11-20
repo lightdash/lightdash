@@ -34,6 +34,7 @@ import CellMenu from './CellMenu';
 import CellTooltip from './CellTooltip';
 
 interface CommonBodyCellProps {
+    columnIndex?: number;
     cell: Cell<ResultRow, unknown> | Cell<RawResultRow, unknown>;
     index: number;
     isNumericItem: boolean;
@@ -52,6 +53,7 @@ interface CommonBodyCellProps {
 }
 
 const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
+    columnIndex,
     cell,
     children,
     className,
@@ -163,6 +165,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
     return (
         <>
             <Td
+                aria-colindex={columnIndex}
                 ref={elementRef}
                 className={clsx(
                     className,

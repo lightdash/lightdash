@@ -3,6 +3,7 @@ import { Box } from '@mantine/core';
 import { IconUnlink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
+import { ColumnWindowingProvider } from '../../components/common/Table/ColumnWindowingProvider';
 import TileQueryQueueProvider from '../../features/dashboard/tileQueryQueue/TileQueryQueueProvider';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useApp from '../../providers/App/useApp';
@@ -58,25 +59,27 @@ const EmbedDashboardPage: FC<{
     }
 
     return (
-        <DashboardProvider
-            embedToken={embedToken}
-            projectUuid={projectUuid}
-            parameterLabelOverrides={languageMap?.parameters}
-            // EmbedDashboard holds the edit mode
-            isEditModeExternal
-        >
-            <TileQueryQueueProvider>
-                <EmbedDashboard
-                    containerStyles={containerStyles}
-                    initialDashboard={initialDashboard}
-                    isEditMode={isEditMode}
-                    onEditModeChange={onEditModeChange}
-                    chartSaveDestinations={chartSaveDestinations}
-                    sharesViewWithAiAgent={sharesViewWithAiAgent}
-                    refreshKey={refreshKey}
-                />
-            </TileQueryQueueProvider>
-        </DashboardProvider>
+        <ColumnWindowingProvider enabled>
+            <DashboardProvider
+                embedToken={embedToken}
+                projectUuid={projectUuid}
+                parameterLabelOverrides={languageMap?.parameters}
+                // EmbedDashboard holds the edit mode
+                isEditModeExternal
+            >
+                <TileQueryQueueProvider>
+                    <EmbedDashboard
+                        containerStyles={containerStyles}
+                        initialDashboard={initialDashboard}
+                        isEditMode={isEditMode}
+                        onEditModeChange={onEditModeChange}
+                        chartSaveDestinations={chartSaveDestinations}
+                        sharesViewWithAiAgent={sharesViewWithAiAgent}
+                        refreshKey={refreshKey}
+                    />
+                </TileQueryQueueProvider>
+            </DashboardProvider>
+        </ColumnWindowingProvider>
     );
 };
 export default EmbedDashboardPage;
