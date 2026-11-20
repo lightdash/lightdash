@@ -131,12 +131,6 @@ export const useTileTitleAim = ({
     useEffect(function clearDwellOnUnmount() {
         return clearDwell;
     }, []);
-    useEffect(
-        function resetWhenDisabled() {
-            if (!enabled) reset();
-        },
-        [enabled, reset],
-    );
     // A still pointer gets no moves while the page scrolls under it
     useEffect(
         function resetOnScroll() {
@@ -160,11 +154,11 @@ export const useTileTitleAim = ({
 
     const onPointerMove = useCallback(
         (e: PointerEvent<HTMLElement>) => {
-            if (!enabled || e.pointerType === 'touch') return;
+            if (e.pointerType === 'touch') return;
             // A pen pressed to the screen is dragging, not hovering
             if (e.pointerType === 'pen' && e.buttons !== 0) return;
             const title = titleRef.current;
-            if (!title) {
+            if (!enabled || !title) {
                 reset();
                 return;
             }
@@ -185,7 +179,7 @@ export const useTileTitleAim = ({
                 point,
                 from: trailRef.current[0],
                 restingTitle: restingTitleRef.current,
-                expandedTitleLines: textLines(title),
+                expandedTitleLines: hoveredRef.current ? textLines(title) : [],
                 actions:
                     e.currentTarget
                         .querySelector(actionsSelector)
