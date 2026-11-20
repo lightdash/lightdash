@@ -2143,3 +2143,33 @@ describe('columns of plain tables', () => {
         ).toMatchObject({ visible: false });
     });
 });
+
+describe("Lightdash's own analytics content", () => {
+    it('is filtered out of every tile about viewed content and out of Slow dashboards', () => {
+        const charts = analyticsContentAsCode.flatMap(
+            (bundle) => bundle.charts,
+        );
+        const reach = charts.filter(
+            ({ tableName }) => tableName === 'content_reach',
+        );
+        expect(reach.length).toBeGreaterThan(5);
+        [
+            ...reach,
+            charts.find(({ slug }) =>
+                slug.endsWith('-slow-dashboards-tail-latency-and-demand'),
+            )!,
+        ].forEach((chart) =>
+            expect(JSON.stringify(chart.metricQuery.filters)).toMatch(
+                /"fieldId":"(content_reach|query_events)_in_analytics_project"\},"operator":"equals","values":\[false\]/,
+            ),
+        );
+        // Counts of people and queries keep that activity: it is real use
+        charts
+            .filter(({ tableName }) => tableName === 'user_activity')
+            .forEach((chart) =>
+                expect(JSON.stringify(chart.metricQuery.filters)).not.toContain(
+                    'in_analytics_project',
+                ),
+            );
+    });
+});

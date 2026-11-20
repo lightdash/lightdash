@@ -1,6 +1,7 @@
 import { MetricType } from '@lightdash/common';
 import { contentInventoryColumns } from '../eventStream/contentInventory';
 import type { CompactedStreamColumn } from '../eventStream/types';
+import { customerContentSql } from './contentInventory';
 import { contentReachSql } from './contentReach';
 import type { SystemMetricDefinition } from './systemStreamMetrics';
 
@@ -89,7 +90,8 @@ export const contentHealthSql = `(WITH views AS (
         q.warehouse_execution_time_ms,
         COALESCE(q.queries_with_execution_time, 0)::BIGINT AS queries_with_execution_time,
         w.first_observed_event_at
-    FROM lightdash_content i
+    -- Lightdash's own analytics content is not the organization's to review
+    FROM ${customerContentSql} i
     LEFT JOIN views v ON i.org_id = v.org_id AND i.project_id = v.project_id AND i.content_id = v.content_id
         AND v.content_type = CASE WHEN i.content_type = 'saved_chart' THEN 'chart' ELSE i.content_type END
     LEFT JOIN content_queries q ON i.org_id = q.org_id AND i.project_id = q.project_id AND i.content_type = q.content_type AND i.content_id = q.content_id

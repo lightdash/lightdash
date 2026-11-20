@@ -392,6 +392,17 @@ export const wholeMillisecondOverrides = (metrics: string[]) =>
             ]),
     );
 
+// Every tile about viewed content is about content the organization made, so views of Lightdash's own
+// analytics dashboards are left out. They still count in tiles about people's activity.
+const filtersOf = (
+    spec: UsageChartSpec,
+): NonNullable<UsageChartSpec['filters']> => [
+    ...(spec.filters ?? []),
+    ...(spec.explore === 'content_reach'
+        ? [{ field: 'content_reach_in_analytics_project', values: [false] }]
+        : []),
+];
+
 const buildChart = (
     spec: UsageChartSpec,
     dashboardSlug: string,
@@ -456,11 +467,11 @@ const buildChart = (
                       },
                   }
                 : {}),
-            ...(spec.filters
+            ...(filtersOf(spec).length > 0
                 ? {
                       dimensions: {
                           id: `${spec.key}-filters`,
-                          and: spec.filters.map(
+                          and: filtersOf(spec).map(
                               ({ field, values, operator, settings }) => ({
                                   id: `${spec.key}-${field}`,
                                   target: { fieldId: field },

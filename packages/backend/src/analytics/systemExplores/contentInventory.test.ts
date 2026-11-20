@@ -17,6 +17,7 @@ import { createAnalyticsExplores } from '../../services/ProjectService/analytics
 import { MetricQueryBuilder } from '../../utils/QueryBuilder/MetricQueryBuilder';
 import { contentInventoryColumns } from '../eventStream/contentInventory';
 import { compactedStreamSchemas } from '../eventStream/registry';
+import { contentCreatedByDaySql, customerContentSql } from './contentInventory';
 import {
     analyticsContentAsCode,
     analyticsLibraryChartBindings,
@@ -293,6 +294,34 @@ describe('Content inventory charts', () => {
         }
     });
 
+    it("leaves Lightdash's own analytics content out of every count and list of content", async () => {
+        const count = async (table: string) =>
+            Number(
+                (
+                    await db.runAndReadAll(
+                        `SELECT COUNT(content_id) AS items FROM ${table}`,
+                    )
+                ).getRowObjectsJS()[0].items,
+            );
+        const { contentHealthSql } = await import('./contentHealth');
+        const before = {
+            inventory: await count(customerContentSql),
+            created: await count(contentCreatedByDaySql),
+            health: await count(contentHealthSql),
+        };
+        await db.run(
+            `INSERT INTO lightdash_content (org_id, project_id, project_type, content_type, content_id, content_name, created_at, is_deleted)
+             VALUES ('org', 'analytics-project', 'ANALYTICS', 'dashboard', 'managed', 'Queries', '2026-03-01', false),
+                    ('org', 'analytics-project', 'ANALYTICS', 'saved_chart', 'managed-chart', 'Active people', '2026-03-01', false)`,
+        );
+        expect({
+            inventory: await count(customerContentSql),
+            created: await count(contentCreatedByDaySql),
+            health: await count(contentHealthSql),
+        }).toEqual(before);
+        expect(before.inventory).toBeGreaterThan(0);
+    });
+
     it('runs the built-in query without any event or user tables', async () => {
         for (const table of [
             'content_views',
@@ -306,7 +335,9 @@ describe('Content inventory charts', () => {
                 ...chart.metricQuery,
                 filters: chart.metricQuery.filters as Filters,
             });
-            expect(query).toContain('"lightdash_content"');
+            expect(query).toContain(
+                "FROM lightdash_content WHERE project_type IS DISTINCT FROM 'ANALYTICS'",
+            );
             expect(query).not.toMatch(
                 /content_views|query_events|data_app_events|lightdash_users/,
             );

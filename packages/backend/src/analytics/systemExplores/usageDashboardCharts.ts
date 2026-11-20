@@ -947,6 +947,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 operator: FilterOperator.NOT_NULL,
                 values: [],
             },
+            // Lightdash's own analytics dashboards are not the organization's to speed up
+            { field: 'query_events_in_analytics_project', values: [false] },
         ],
         limit: 20,
         sorts: [
