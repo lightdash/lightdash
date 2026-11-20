@@ -212,6 +212,7 @@ export const stackedByDay = ({
     top = 5,
     splitDescription,
     xAxis = dayAxis,
+    colors,
     ...spec
 }: Base & {
     day: string;
@@ -219,6 +220,8 @@ export const stackedByDay = ({
     splitBy: string;
     yName: string;
     top?: number;
+    // A fixed colour for each named category. The legend then shows even with one category present.
+    colors?: Record<string, string>;
     // What the stacked version shows, for its own description
     splitDescription: string;
     xAxis?: LibraryChartBinding['optionValues'];
@@ -233,7 +236,7 @@ export const stackedByDay = ({
     yFields: [metric],
     libraryChart: {
         slug: 'customizable-cartesian-chart',
-        minVersion: '0.18.3',
+        minVersion: colors ? '0.18.4' : '0.18.3',
         fieldMapping: { x: day, m1: metric, splitBy },
         optionValues: {
             seriesType: 'bar',
@@ -243,6 +246,14 @@ export const stackedByDay = ({
             ...xAxis,
             yName,
             splitTopN: top,
+            ...(colors
+                ? {
+                      splitColorGroups: Object.entries(colors)
+                          .map(([name, color]) => `${name}=${name}=${color}`)
+                          .join(';'),
+                      showLegend: true,
+                  }
+                : {}),
         },
         query: {
             dimensions: [day, splitBy],

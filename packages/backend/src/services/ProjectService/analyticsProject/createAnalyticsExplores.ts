@@ -232,6 +232,7 @@ const contentTypeNames = {
     sql_chart: 'SQL chart',
     dashboard: 'Dashboard',
     data_app: 'Data app',
+    chart_type: 'Custom chart type',
 };
 
 const dimensionTypes: Record<CompactedColumnType, DimensionType> = {
@@ -1254,7 +1255,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                               primaryKey: ['org_id', 'project_id', 'app_id'],
                               sqlTable: `(SELECT org_id, project_id, content_id AS app_id,
                                   content_name AS name, project_name
-                                  FROM lightdash_content WHERE content_type = 'data_app')`,
+                                  FROM lightdash_content WHERE content_type IN ('data_app', 'chart_type'))`,
                               database: 'memory',
                               schema: 'main',
                               lineageGraph: { nodes: [], edges: [] },
