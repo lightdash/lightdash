@@ -308,14 +308,14 @@ describe('buildComposeMergeSql', () => {
     });
 
     test('quotes names containing the quote character', async () => {
-        const keyName = 'the "month"';
-        const calculationName = 'ratio "a/b"';
+        const keyName = 'the "month" -- net';
+        const calculationName = 'ratio "a/b" /* pct */ -- total';
         const rows = await runOnDuckdb(
             toSql(
                 build({
                     joinKey: [{ ...joinKey[0], name: keyName }],
                     outputAliasByColumn: {
-                        [keyName]: 'merge "month"',
+                        [keyName]: 'merge "month" -- net',
                         c0_0: 'a_orders_count',
                         c1_0: 'b_payments_sum',
                     },
@@ -333,7 +333,7 @@ describe('buildComposeMergeSql', () => {
         );
 
         expect(Object.keys(rows[0])).toEqual([
-            'merge "month"',
+            'merge "month" -- net',
             'a_orders_count',
             'b_payments_sum',
             calculationName,
