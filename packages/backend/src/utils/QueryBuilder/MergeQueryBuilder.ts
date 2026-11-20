@@ -5,6 +5,7 @@ import {
     MERGE_TABLE_NAME,
     mergeCalculationReferencePattern,
     MergeJoinType,
+    quoteFieldReference,
     type MergeFieldMeta,
     type MergeFieldTypes,
     type MergeJoinKeyPart,
@@ -17,7 +18,6 @@ import {
     compile as compileFormula,
     type CompileOptions,
 } from '@lightdash/formula';
-import { applyLimitToSqlQuery } from './utils';
 
 /**
  * A named CTE and its edges — the private, unpersisted IR the composable core
@@ -40,15 +40,13 @@ export const applyMergeTerminalWrapper = (
     sql: string,
     wrapper: Pick<MergeTerminalWrapper, 'orderBy' | 'limit'>,
 ): string =>
-    applyLimitToSqlQuery({
-        sqlQuery: [
-            sql,
-            ...(wrapper.orderBy.length > 0
-                ? [`ORDER BY ${wrapper.orderBy.join(', ')}`]
-                : []),
-        ].join('\n'),
-        limit: wrapper.limit ?? undefined,
-    });
+    [
+        sql,
+        ...(wrapper.orderBy.length > 0
+            ? [`ORDER BY ${wrapper.orderBy.join(', ')}`]
+            : []),
+        ...(wrapper.limit !== null ? [`LIMIT ${wrapper.limit}`] : []),
+    ].join('\n');
 
 /**
  * Join-key SQL options for a merge: which keys are modeled as strings and
@@ -161,8 +159,11 @@ export class MergeQueryBuilder {
     }
 
     private quote(identifier: string): string {
-        const quoteChar = this.warehouseSqlBuilder.getFieldQuoteChar();
-        return `${quoteChar}${identifier}${quoteChar}`;
+        return quoteFieldReference(
+            identifier,
+            this.warehouseSqlBuilder.getFieldQuoteChar(),
+            this.warehouseSqlBuilder.getAdapterType(),
+        );
     }
 
     private sourceColumn(sourceIndex: number, column: string): string {
