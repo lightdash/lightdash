@@ -4,6 +4,7 @@ import {
     getItemMap,
     isDimension,
     ParameterError,
+    UnitOfTime,
     type Explore,
     type FilterRule,
     type MetricQuery,
@@ -38,6 +39,47 @@ const COLUMN_TYPE: Partial<
 const toEpochMs = (isoDate: string) =>
     new Date(`${isoDate}T00:00:00Z`).getTime();
 
+const NEXT_MONTHS: Partial<Record<UnitOfTime, number>> = {
+    [UnitOfTime.months]: 1,
+    [UnitOfTime.quarters]: 3,
+    [UnitOfTime.years]: 12,
+};
+
+/**
+ * "In the next" as calendar days from today, both ends included. CRM dates
+ * such as a deal's close date are often in the future, unlike analytics APIs.
+ */
+const getNextDateRange = (rule: FilterRule, today: string) => {
+    const count = Number(rule.values?.[0]);
+    if (!Number.isInteger(count) || count < 1) {
+        throw new ParameterError(
+            '"in the next" needs a whole number of at least 1.',
+        );
+    }
+    const settings: { unitOfTime?: UnitOfTime; completed?: boolean } =
+        rule.settings ?? {};
+    if (settings.completed) {
+        throw new ParameterError(
+            '"in the next" can\'t use completed periods on HubSpot. Turn off "completed", or use "between".',
+        );
+    }
+    const unit = settings.unitOfTime ?? UnitOfTime.days;
+    const date = new Date(`${today}T00:00:00Z`);
+    const months = NEXT_MONTHS[unit];
+    if (unit === UnitOfTime.days || unit === UnitOfTime.weeks) {
+        date.setUTCDate(
+            date.getUTCDate() + count * (unit === UnitOfTime.weeks ? 7 : 1),
+        );
+    } else if (months !== undefined) {
+        date.setUTCMonth(date.getUTCMonth() + count * months);
+    } else {
+        throw new ParameterError(
+            `HubSpot filters dates by day, so "in the next" can't use ${unit}.`,
+        );
+    }
+    return { startDate: today, endDate: date.toISOString().slice(0, 10) };
+};
+
 /**
  * A date filter as epoch milliseconds over whole UTC days, `[start, end)`,
  * which is how HubSpot compares date and datetime properties. One-sided
@@ -48,15 +90,18 @@ const toDateFilters = (
     propertyName: string,
     today: string,
 ): HubspotFilter[] => {
-    const { startDate, endDate } = toAbsoluteDateRange(
-        getLiveDateRange({
-            rule,
-            defaultDays: 30,
-            today,
-            earliestDate: EARLIEST_DATE,
-        }),
-        today,
-    );
+    const { startDate, endDate } =
+        rule.operator === FilterOperator.IN_THE_NEXT
+            ? getNextDateRange(rule, today)
+            : toAbsoluteDateRange(
+                  getLiveDateRange({
+                      rule,
+                      defaultDays: 30,
+                      today,
+                      earliestDate: EARLIEST_DATE,
+                  }),
+                  today,
+              );
     const start = {
         propertyName,
         operator: 'GTE' as const,

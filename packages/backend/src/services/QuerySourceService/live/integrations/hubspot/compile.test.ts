@@ -258,6 +258,45 @@ describe('compileHubspotQuery', () => {
         ).toHaveLength(1);
     });
 
+    it('reaches into the future for "in the next", such as close dates', () => {
+        const next = (count: number, settings: Record<string, unknown>) =>
+            compile(
+                query(
+                    filtered(
+                        rule(
+                            'closedate',
+                            FilterOperator.IN_THE_NEXT,
+                            [count],
+                            settings,
+                        ),
+                    ),
+                ),
+            ).filters;
+        expect(next(90, { unitOfTime: UnitOfTime.days })).toEqual([
+            {
+                propertyName: 'closedate',
+                operator: 'GTE',
+                value: String(Date.parse('2026-11-19T00:00:00Z')),
+            },
+            {
+                propertyName: 'closedate',
+                operator: 'LT',
+                value: String(Date.parse('2027-02-18T00:00:00Z')),
+            },
+        ]);
+        expect(next(1, { unitOfTime: UnitOfTime.quarters })[1]).toEqual({
+            propertyName: 'closedate',
+            operator: 'LT',
+            value: String(Date.parse('2027-02-20T00:00:00Z')),
+        });
+        expect(() =>
+            next(2, { unitOfTime: UnitOfTime.weeks, completed: true }),
+        ).toThrow(ParameterError);
+        expect(() => next(3, { unitOfTime: UnitOfTime.hours })).toThrow(
+            ParameterError,
+        );
+    });
+
     it('counts from the search total, with the filters', () => {
         expect(
             compile(

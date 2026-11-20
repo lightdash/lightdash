@@ -39,6 +39,7 @@ export const HUBSPOT_NUMBER_FILTERS = [
 export const HUBSPOT_DATE_FILTERS = [
     FilterOperator.EQUALS,
     FilterOperator.IN_THE_PAST,
+    FilterOperator.IN_THE_NEXT,
     FilterOperator.IN_THE_CURRENT,
     FilterOperator.IN_BETWEEN,
     FilterOperator.GREATER_THAN,
