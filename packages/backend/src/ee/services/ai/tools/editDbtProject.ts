@@ -88,7 +88,7 @@ export const getEditDbtProject = ({
                         metadata: { status: 'error', errorCode: 'unknown' },
                     };
                 }
-                const { aiWritebackRunUuid, inSandbox } = started;
+                const { aiWritebackRunUuid, inSandbox, diffs } = started;
 
                 const studioResult = inSandbox
                     ? 'Started the change. It needs dbt to run, so it is saved in a sandbox and takes a few minutes; the pull request opens in the background. Tell the person it will take a few minutes, briefly. Until it opens, listWorkstreams shows it as a change still being opened.'
@@ -100,6 +100,7 @@ export const getEditDbtProject = ({
                     metadata: {
                         status: 'pending',
                         aiWritebackRunUuid,
+                        diffs,
                     },
                     structuredContent: { status: 'pending' },
                 };

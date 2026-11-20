@@ -97,12 +97,45 @@ export type DashboardSqlChartTileProperties = {
     };
 };
 
+export enum DashboardHeadingSize {
+    XS = 'xs',
+    SM = 'sm',
+    MD = 'md',
+    LG = 'lg',
+}
+
+export const DEFAULT_DASHBOARD_HEADING_SIZE = DashboardHeadingSize.MD;
+
+export enum DashboardHeadingTextAlign {
+    LEFT = 'left',
+    CENTER = 'center',
+    RIGHT = 'right',
+}
+
+export const DEFAULT_DASHBOARD_HEADING_TEXT_ALIGN =
+    DashboardHeadingTextAlign.LEFT;
+
+export enum DashboardHeadingVerticalAlign {
+    TOP = 'top',
+    CENTER = 'center',
+    BOTTOM = 'bottom',
+}
+
+export const DEFAULT_DASHBOARD_HEADING_VERTICAL_ALIGN =
+    DashboardHeadingVerticalAlign.CENTER;
+
 export type DashboardHeadingTileProperties = {
     type: DashboardTileTypes.HEADING;
     properties: {
         title?: undefined;
         text: string;
         showDivider?: boolean;
+        /** Omitted means the default size, `md` */
+        size?: DashboardHeadingSize;
+        /** Omitted means the default, `left` */
+        textAlign?: DashboardHeadingTextAlign;
+        /** Where the heading sits in the height of its tile. Omitted means the default, `center` */
+        verticalAlign?: DashboardHeadingVerticalAlign;
     };
 };
 

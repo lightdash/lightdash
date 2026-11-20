@@ -25,6 +25,7 @@ describe('formatClock', () => {
         expect(formatClock(14000)).toBe('0:14');
         expect(formatClock(75000)).toBe('1:15');
         expect(formatClock(500)).toBe('0:00');
+        expect(formatClock(-1200)).toBe('0:00');
     });
 });
 

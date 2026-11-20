@@ -79,14 +79,6 @@
     padding: 8px 10px;
 }
 
-/* Attribution stays (license) but sits quietly in the corner, clear of nodes. */
-.graph :global(.react-flow__attribution) {
-    padding: 0 4px;
-    background: transparent;
-    font-size: var(--mantine-font-size-xs);
-    opacity: 0.6;
-}
-
 .graphNodeIcon {
     display: flex;
     flex-shrink: 0;

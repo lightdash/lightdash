@@ -9,7 +9,7 @@ const LAST_LINE =
     'Speech is machine-transcribed and may mishear names. Trust the image where they disagree.';
 
 export const formatClock = (ms: number): string => {
-    const totalSeconds = Math.floor(ms / 1000);
+    const totalSeconds = Math.floor(Math.max(0, ms) / 1000);
     const seconds = totalSeconds % 60;
     return `${Math.floor(totalSeconds / 60)}:${seconds < 10 ? '0' : ''}${seconds}`;
 };
@@ -68,7 +68,7 @@ type Entry =
     | { kind: 'speech'; atMs: number; text: string };
 
 /** Attaches each phrase to the mark it was said with; the rest stay loose. */
-const assignSpeech = (
+export const assignSpeech = (
     marks: CaptureMark[],
     transcript: TranscriptPhrase[],
 ): { speechByMark: Map<number, string[]>; loose: TranscriptPhrase[] } => {

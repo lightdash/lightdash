@@ -3,6 +3,7 @@ import { Octokit } from '@octokit/rest';
 import {
     createFile,
     getFileContent,
+    getFilesChangedSince,
     getLastCommit,
     getRepoTree,
     getWholeFileContent,
@@ -19,6 +20,7 @@ const mockListCommits = vi.fn();
 const mockCreateOrUpdateFileContents = vi.fn();
 const mockGetContent = vi.fn();
 const mockMerge = vi.fn();
+const mockCompare = vi.fn();
 (Octokit as unknown as import('vitest').Mock).mockImplementation(
     // eslint-disable-next-line prefer-arrow-callback
     function MockOctokit() {
@@ -29,6 +31,7 @@ const mockMerge = vi.fn();
                     listCommits: mockListCommits,
                     createOrUpdateFileContents: mockCreateOrUpdateFileContents,
                     getContent: mockGetContent,
+                    compareCommitsWithBasehead: mockCompare,
                 },
                 search: { code: mockSearchCode },
                 pulls: { merge: mockMerge },
@@ -353,5 +356,49 @@ describe('mergePullRequest', () => {
             UnexpectedGitError,
         );
         expect(mockMerge).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('getFilesChangedSince', () => {
+    const changed = () =>
+        getFilesChangedSince({
+            owner: 'acme',
+            repo: 'shop',
+            base: 'compiled',
+            head: 'branch',
+            token: 't',
+        });
+    const compared = (status: string, filenames: string[]) => ({
+        data: { status, files: filenames.map((filename) => ({ filename })) },
+    });
+
+    beforeEach(() => mockCompare.mockReset());
+
+    it('lists what a later commit changed with one compare', async () => {
+        mockCompare.mockResolvedValueOnce(compared('ahead', ['a.yml']));
+        await expect(changed()).resolves.toEqual(['a.yml']);
+        expect(mockCompare).toHaveBeenCalledTimes(1);
+    });
+
+    it('lists what either side changed since the merge base when the two diverged', async () => {
+        mockCompare
+            .mockResolvedValueOnce(compared('diverged', ['a.yml', 'b.yml']))
+            .mockResolvedValueOnce(compared('diverged', ['b.yml', 'c.yml']));
+        await expect(changed()).resolves.toEqual(['a.yml', 'b.yml', 'c.yml']);
+        expect(mockCompare).toHaveBeenLastCalledWith(
+            expect.objectContaining({ basehead: 'branch...compiled' }),
+        );
+    });
+
+    it('gives up on a compare too long to list', async () => {
+        mockCompare
+            .mockResolvedValueOnce(compared('behind', []))
+            .mockResolvedValueOnce(
+                compared(
+                    'ahead',
+                    Array.from({ length: 300 }, (_, i) => `${i}.yml`),
+                ),
+            );
+        await expect(changed()).resolves.toBeNull();
     });
 });

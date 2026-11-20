@@ -502,3 +502,122 @@ export const diffLineCounts = (
     });
     return { additions, deletions };
 };
+
+const DIFF_CONTEXT = 3;
+// Bounds what a pending save carries: the line table, each file's diff, and all of them together.
+const MAX_DIFF_CELLS = 1_000_000;
+const MAX_FILE_DIFF_CHARS = 20_000;
+const MAX_DIFFS_CHARS = 60_000;
+
+const linesOf = (text: string | null) =>
+    text === null || text === ''
+        ? []
+        : (text.endsWith('\n') ? text.slice(0, -1) : text).split('\n');
+
+/** One file's change as a unified diff; null when nothing changed or the changed region is too large to compare. */
+export const unifiedDiff = ({
+    path,
+    before,
+    after,
+}: CodeModeFileEdit): string | null => {
+    const a = linesOf(before);
+    const b = linesOf(after);
+    let start = 0;
+    while (start < a.length && start < b.length && a[start] === b[start]) {
+        start += 1;
+    }
+    let endA = a.length;
+    let endB = b.length;
+    while (endA > start && endB > start && a[endA - 1] === b[endB - 1]) {
+        endA -= 1;
+        endB -= 1;
+    }
+    const n = endA - start;
+    const m = endB - start;
+    if (n * m > MAX_DIFF_CELLS) return null;
+    // Longest common subsequence of the changed region, read from its end.
+    const width = m + 1;
+    const lcs = new Uint32Array((n + 1) * width);
+    for (let i = n - 1; i >= 0; i -= 1) {
+        for (let j = m - 1; j >= 0; j -= 1) {
+            lcs[i * width + j] =
+                a[start + i] === b[start + j]
+                    ? lcs[(i + 1) * width + j + 1] + 1
+                    : Math.max(
+                          lcs[(i + 1) * width + j],
+                          lcs[i * width + j + 1],
+                      );
+        }
+    }
+    const ops: { sign: ' ' | '-' | '+'; text: string }[] = a
+        .slice(0, start)
+        .map((text) => ({ sign: ' ', text }));
+    let i = 0;
+    let j = 0;
+    while (i < n || j < m) {
+        if (i < n && j < m && a[start + i] === b[start + j]) {
+            ops.push({ sign: ' ', text: a[start + i] });
+            i += 1;
+            j += 1;
+        } else if (
+            i < n &&
+            (j === m || lcs[(i + 1) * width + j] >= lcs[i * width + j + 1])
+        ) {
+            ops.push({ sign: '-', text: a[start + i] });
+            i += 1;
+        } else {
+            ops.push({ sign: '+', text: b[start + j] });
+            j += 1;
+        }
+    }
+    a.slice(endA).forEach((text) => ops.push({ sign: ' ', text }));
+
+    const hunks: [number, number][] = [];
+    ops.forEach(({ sign }, index) => {
+        if (sign === ' ') return;
+        const last = hunks.at(-1);
+        if (last && index - last[1] <= 2 * DIFF_CONTEXT + 1) last[1] = index;
+        else hunks.push([index, index]);
+    });
+    if (hunks.length === 0) return null;
+    const count = (from: number, to: number, skip: '-' | '+') =>
+        ops.slice(from, to).filter(({ sign }) => sign !== skip).length;
+    const body = hunks.map(([first, last]) => {
+        const from = Math.max(0, first - DIFF_CONTEXT);
+        const to = Math.min(ops.length, last + DIFF_CONTEXT + 1);
+        const oldCount = count(from, to, '+');
+        const newCount = count(from, to, '-');
+        const oldStart = count(0, from, '+') + (oldCount > 0 ? 1 : 0);
+        const newStart = count(0, from, '-') + (newCount > 0 ? 1 : 0);
+        return [
+            `@@ -${oldStart},${oldCount} +${newStart},${newCount} @@`,
+            ...ops.slice(from, to).map(({ sign, text }) => `${sign}${text}`),
+        ].join('\n');
+    });
+    // A deleted file keeps its path on the +++ line, where the page reads it from.
+    return [
+        before === null ? '--- /dev/null' : `--- a/${path}`,
+        `+++ b/${path}`,
+        ...body,
+        '',
+    ].join('\n');
+};
+
+/** Each changed file as a unified diff, for the page to show while the save runs; a file too large to show is left out. */
+export const unifiedDiffs = (edits: CodeModeFileEdit[]): string[] => {
+    const diffs: string[] = [];
+    let total = 0;
+    edits.forEach((edit) => {
+        const diff = unifiedDiff(edit);
+        if (
+            diff === null ||
+            diff.length > MAX_FILE_DIFF_CHARS ||
+            total + diff.length > MAX_DIFFS_CHARS
+        ) {
+            return;
+        }
+        total += diff.length;
+        diffs.push(diff);
+    });
+    return diffs;
+};

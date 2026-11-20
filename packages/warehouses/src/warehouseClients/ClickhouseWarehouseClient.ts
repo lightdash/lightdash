@@ -562,6 +562,32 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
         );
     }
 
+    async getSchemaColumns(
+        schemas: { database: string; schema: string }[],
+    ): Promise<WarehouseCatalog> {
+        if (schemas.length === 0) return {};
+        // In clickhouse schema = database
+        const query = `
+            SELECT 
+                '' as "table_catalog",
+                database as "table_schema",
+                table as "table_name",
+                name as "column_name",
+                type as "data_type"
+            FROM system.columns
+            WHERE database IN {databaseNames: Array(String)}
+            ORDER BY database, table, position
+        `;
+        const { rows } = await this.runQuery(query, {}, undefined, undefined, {
+            databaseNames: [...new Set(schemas.map(({ schema }) => schema))],
+        });
+        return this.parseWarehouseCatalog(
+            rows,
+            convertDataTypeToDimensionType,
+            getClickhouseTimestampDomain,
+        );
+    }
+
     async getAllTables() {
         // In clickhouse schema = database; list every non-system database
         const query = `

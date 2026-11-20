@@ -8,6 +8,7 @@ const base = {
     availableExplores: 'None',
     projectContext: null,
     warehouse: { type: 'postgres', schema: null },
+    canQueryDraft: false,
 };
 
 describe('getSemanticStudioSystemPrompt', () => {
@@ -15,6 +16,16 @@ describe('getSemanticStudioSystemPrompt', () => {
         const prompt = getSemanticStudioSystemPrompt({ ...base, dbt: null });
         expect(prompt).toContain('proposeSemanticLayerChange');
         expect(prompt).not.toContain('editDbtProject');
+    });
+
+    it('explains running a metric on the draft only when the thread can', () => {
+        const draft = { ...base, dbt: null };
+        expect(getSemanticStudioSystemPrompt(draft)).not.toContain(
+            'runMetricQuery',
+        );
+        expect(
+            getSemanticStudioSystemPrompt({ ...draft, canQueryDraft: true }),
+        ).toContain('runMetricQuery reads the draft');
     });
 
     it('has a dbt project propose a diff when the person cannot save to the repository', () => {

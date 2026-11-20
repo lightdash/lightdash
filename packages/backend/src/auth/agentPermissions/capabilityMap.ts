@@ -63,6 +63,7 @@ export const AGENT_TOOL_CAPABILITIES = {
     ],
     delegateResearchTask: [AgentCapability.Query],
     describeWarehouseTable: [AgentCapability.RawSql],
+    grepWarehouseColumns: [AgentCapability.RawSql],
     discoverFields: [AgentCapability.ReadDiscover],
     discoverRepos: [AgentCapability.ReadDiscover],
     editContent: [AgentCapability.ContentWrite],
@@ -111,6 +112,7 @@ export const AGENT_TOOL_CAPABILITIES = {
     visualize: [AgentCapability.Query],
     runContentQuery: [AgentCapability.Query],
     runQuery: [AgentCapability.Query],
+    runMetricQuery: [AgentCapability.Query],
     runSavedChart: [AgentCapability.Query],
     runSql: [AgentCapability.RawSql],
     searchFieldValues: [AgentCapability.Query],
@@ -532,6 +534,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiRouterController.getInstruction': [AgentCapability.ReadDiscover],
     'AiRouterController.listDecisions': [AgentCapability.ReadDiscover],
     'AiRouterController.route': [AgentCapability.ReadDiscover],
+    'AiRouterController.routeCapture': [AgentCapability.ReadDiscover],
     'AiRouterController.upsertConfig': [AgentCapability.Administration],
     'AiRouterController.upsertInstruction': [AgentCapability.Administration],
     'AiServiceAccountController.delete': [
@@ -1085,6 +1088,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'SemanticStudioController.takeLiveDraftPart': [
         AgentCapability.DbtWriteback,
     ],
+    'SemanticStudioController.saveDraftModel': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getDraftImpact': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getDraftUsage': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getFieldUsage': [AgentCapability.DbtWriteback],

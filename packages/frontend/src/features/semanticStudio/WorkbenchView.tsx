@@ -13,9 +13,10 @@ import {
     Anchor,
     Avatar,
     Box,
-    Menu,
     Button,
     Group,
+    Loader,
+    Menu,
     Paper,
     Text,
     Title,
@@ -69,7 +70,11 @@ import {
 import { useSyncStudioWorkspace } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSyncStudioWorkspace';
 import { useProject } from '../../hooks/useProject';
 import { useDevelopmentView } from './developmentView';
-import { DraftMarksContext, type DraftMarks } from './draftMarks';
+import {
+    DraftMarksContext,
+    MarkPublishedContext,
+    type DraftMarks,
+} from './draftMarks';
 import { ExternalSourceManager } from './externalSources/ExternalSourceManager';
 import { LiveSourceManager } from './liveSources/LiveSourceManager';
 import {
@@ -86,6 +91,7 @@ import {
     DRAFT_REVIEW,
     FIELD_PARAM,
     getChangeKind,
+    listFieldChanges,
     VIEW_PARAM,
 } from './modelCode';
 import { ModelCodeView } from './ModelTabs';
@@ -302,6 +308,16 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const [askedPrompt, setAskedPrompt] = useState<string | null>(null);
     const agentAvailable = hasChat && !!studioAgent;
     const hasDraft = (draft?.changes.length ?? 0) > 0;
+    const { data: workspaces } = useStudioWorkspaces(view.project.id);
+    // Kept only while Studio is open: the marks are a receipt for a publish, not a record of it.
+    const [published, setPublished] = useState<DraftMarks['published']>(
+        () => new Map(),
+    );
+    const markPublished = useCallback(
+        (next: DraftMarks['published']) =>
+            setPublished((current) => new Map([...current, ...next])),
+        [],
+    );
     const draftMarks = useMemo<DraftMarks>(
         () => ({
             labels: new Map(
@@ -324,8 +340,22 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     ],
                 ),
             ),
+            inReview: new Map(
+                (draft?.inReview ?? []).map((entry) => [
+                    entry.model,
+                    {
+                        pullRequestUrl: entry.pullRequestUrl,
+                        fields: listFieldChanges(
+                            entry.model,
+                            entry.changes,
+                            entry,
+                        ),
+                    },
+                ]),
+            ),
+            published,
         }),
-        [checkedOutDraft, draft],
+        [checkedOutDraft, draft, published],
     );
     // With nothing live, what the draft adds is the page.
     const isBuildingFirstModel = isEmpty && hasDraft;
@@ -361,7 +391,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             ),
         [checkedOutDraft],
     );
-    const { data: workspaces } = useStudioWorkspaces(view.project.id);
     const [storedThread, setStoredThread] = useStoredStudioThread(
         view.project.id,
     );
@@ -460,7 +489,9 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             hasCodeView &&
             !keepsDraft &&
             searchParams.get(VIEW_PARAM) === 'sources');
-    const proposal = useStudioProposal(view.project.id);
+    const { diffs: proposal, isSaving: isSavingProposal } = useStudioProposal(
+        view.project.id,
+    );
     const hasProposal = !keepsDraft && proposal.length > 0;
     // A dbt project's changes are its conversation's: what it proposes, and what its pull request holds.
     const isChanges =
@@ -831,6 +862,27 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                   : null) ??
               openedPrUrl);
     const sourcesPrUrl = isOnLive ? null : changePrUrl;
+    // Whose change the page shows decides whether its code can be edited, and whether your chat's proposal belongs on it.
+    const sourcesOwnerReason = ((): string | null => {
+        if (!opensInSources) return null;
+        if (!changeOnPage?.isMine) {
+            return `Only ${shownWorkspace?.owner.name ?? 'its owner'} can edit this draft.`;
+        }
+        return changeOnPage.isOpen
+            ? null
+            : `This draft's pull request is ${changeOnPage.state}, so it can no longer be edited.`;
+    })();
+    // A save by the agent commits over a hand save to the same file, so they take turns.
+    const sourcesReadOnlyReason =
+        saving && !isOnLive
+            ? 'The agent is saving. You can edit when it finishes.'
+            : sourcesOwnerReason;
+    // Why a model's code on a project that keeps a draft is read and not edited, or null when it can be.
+    const codeReadOnlyReason = !canEditModels
+        ? "You don't have permission to change this project's models."
+        : routeWorkspace && !routeWorkspace.isMine
+          ? `Only ${routeWorkspace.owner.name} can edit this draft.`
+          : null;
     const sourcesTarget: SourcesTarget = {
         projectUuid: view.project.id,
         prUrl: sourcesPrUrl,
@@ -838,21 +890,22 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             sourcesPrUrl && sourcesPrUrl === pullRequest?.prUrl
                 ? pullRequest.revision
                 : null,
-        // On live a save starts a change of its own, not one for the last conversation.
-        threadUuid: isOnLive ? null : (storedThread?.threadUuid ?? null),
+        // On Published a save starts a draft of its own, not one for the last conversation.
+        threadUuid: isOnMyChange ? (storedThread?.threadUuid ?? null) : null,
         newChangeAgentUuid:
-            isOnLive || !storedThread ? (studioAgent?.uuid ?? null) : null,
+            !isOnMyChange || !storedThread ? (studioAgent?.uuid ?? null) : null,
         changeName: sourcesPrUrl
             ? (changeName ??
               `Draft #${pullRequestNumberOf(sourcesPrUrl) ?? ''}`)
             : null,
-        canEdit:
-            !opensInSources || (!!changeOnPage?.isMine && changeOnPage.isOpen),
+        canEdit: sourcesReadOnlyReason === null,
+        readOnlyReason: sourcesReadOnlyReason,
     };
     // Your chat's proposal belongs to its own change, not to whichever one is open.
     const shownProposal =
         hasProposal &&
-        sourcesTarget.canEdit &&
+        // While the agent saves the code is read only, and what it is saving is still shown.
+        sourcesOwnerReason === null &&
         (!shownWorkspace ||
             shownWorkspace.threadUuid === storedThread?.threadUuid)
             ? proposal
@@ -931,6 +984,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 name: target.name,
                 isCurrent:
                     !!sourcesPrUrl && sourcesPrUrl === target.pullRequest?.url,
+                updatedAt: target.updatedAt,
             }))}
             isBusy={false}
             status={null}
@@ -1064,6 +1118,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         projectUuid={view.project.id}
                         pullRequest={changeOnPage}
                         proposal={shownProposal}
+                        isSaving={isSavingProposal}
                     />
                 );
             case 'workspaces':
@@ -1121,6 +1176,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         projectUuid={view.project.id}
                         pullRequest={null}
                         proposal={[]}
+                        isSaving={false}
                     />
                 ) : null;
             case 'code':
@@ -1130,6 +1186,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         projectUuid={view.project.id}
                         modelName={file}
                         fieldName={searchParams.get(FIELD_PARAM)}
+                        readOnlyReason={codeReadOnlyReason}
                     />
                 ) : storedError ? (
                     <EmptyState
@@ -1163,18 +1220,58 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     />
                 );
             case 'sources':
-                return !sourceFile && sourcesPrUrl ? (
+                if (
+                    !sourceFile &&
+                    !sourcesPrUrl &&
+                    shownProposal.length === 0
+                ) {
+                    // No file is open and there is no pull request or change being saved to show: say where things stand.
+                    const empty = saving
+                        ? {
+                              icon: <Loader size="sm" color="gray" />,
+                              title: 'Saving your change',
+                              description:
+                                  'Its files show here when the save finishes.',
+                          }
+                        : !isOnLive && (workspace || isStartingChange)
+                          ? {
+                                icon: null,
+                                title: 'Nothing in this draft yet',
+                                description:
+                                    'Ask for a change in the chat, or open a file from the list and edit it.',
+                            }
+                          : {
+                                icon: null,
+                                title: 'Pick a file',
+                                description:
+                                    'Open one from the list to read it. Editing a file starts a draft.',
+                            };
+                    return (
+                        <EmptyState
+                            {...empty}
+                            maw={460}
+                            titleProps={{ order: 5 }}
+                            descriptionProps={{ fz: 'sm' }}
+                        />
+                    );
+                }
+                return !sourceFile ? (
                     <StudioChanges
                         header={null}
                         projectUuid={view.project.id}
                         pullRequest={changeOnPage}
                         proposal={shownProposal}
+                        isSaving={isSavingProposal}
                     />
                 ) : (
                     <Suspense fallback={null}>
                         <SourcePane
                             target={sourcesTarget}
-                            proposal={shownProposal}
+                            // Once the commit lands the file is read from the change, so its diffs are not applied again.
+                            proposal={
+                                isSavingProposal && !saving ? [] : shownProposal
+                            }
+                            isSaving={isSavingProposal}
                             onSaved={(prUrl, thread) => {
                                 if (prUrl === sourcesPrUrl) return;
                                 // A save from live started a change of its own, with a conversation to ask about it in.
@@ -1232,254 +1329,281 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
 
     return (
         <DraftMarksContext.Provider value={draftMarks}>
-            <LiveSourceManager
-                projectUuid={view.project.id}
-                enabled={view.permissions.live}
-                onRemoved={() =>
-                    view.select(
-                        { type: 'kind', kind: 'live' },
-                        { replace: true },
-                    )
-                }
-            >
-                <ExternalSourceManager
+            <MarkPublishedContext.Provider value={markPublished}>
+                <LiveSourceManager
                     projectUuid={view.project.id}
-                    enabled={view.permissions.files}
+                    enabled={view.permissions.live}
                     onRemoved={() =>
                         view.select(
-                            { type: 'kind', kind: 'files' },
+                            { type: 'kind', kind: 'live' },
                             { replace: true },
                         )
                     }
                 >
-                    <Box
-                        className={classes.shell}
-                        data-no-chat={
-                            !hasChat ||
-                            (!isLoadingAgents && (!studioAgent || !isChatOpen))
+                    <ExternalSourceManager
+                        projectUuid={view.project.id}
+                        enabled={view.permissions.files}
+                        onRemoved={() =>
+                            view.select(
+                                { type: 'kind', kind: 'files' },
+                                { replace: true },
+                            )
                         }
                     >
-                        {hasChat && (
-                            <SemanticStudioAgent
-                                projectUuid={view.project.id}
-                                {...openModel}
-                                attached={attached}
-                                onAttach={attachToChat}
-                                onDetach={(ref) =>
-                                    setAttached((current) =>
-                                        current.filter(
-                                            (item) =>
-                                                !sameStudioChatRef(item, ref),
-                                        ),
-                                    )
-                                }
-                                onAttachedSent={() => setAttached([])}
-                                prompt={askedPrompt}
-                                onPromptTaken={() => setAskedPrompt(null)}
-                                showStarters={canBuildFirstModel}
-                            />
-                        )}
-                        <Box className={classes.workspace}>
-                            {!hasChat ? (
-                                status?.blocker ? (
-                                    <BlockedNotice blocker={status.blocker} />
-                                ) : null
-                            ) : (
-                                <>
-                                    <Group
-                                        className={classes.toolbar}
-                                        justify="space-between"
-                                        wrap="nowrap"
-                                        gap="sm"
-                                    >
-                                        <div
-                                            className={classes.views}
-                                            role="tablist"
-                                            aria-label="Views"
+                        <Box
+                            className={classes.shell}
+                            data-no-chat={
+                                !hasChat ||
+                                (!isLoadingAgents &&
+                                    (!studioAgent || !isChatOpen))
+                            }
+                        >
+                            {hasChat && (
+                                <SemanticStudioAgent
+                                    projectUuid={view.project.id}
+                                    {...openModel}
+                                    attached={attached}
+                                    onAttach={attachToChat}
+                                    onDetach={(ref) =>
+                                        setAttached((current) =>
+                                            current.filter(
+                                                (item) =>
+                                                    !sameStudioChatRef(
+                                                        item,
+                                                        ref,
+                                                    ),
+                                            ),
+                                        )
+                                    }
+                                    onAttachedSent={() => setAttached([])}
+                                    prompt={askedPrompt}
+                                    onPromptTaken={() => setAskedPrompt(null)}
+                                    showStarters={canBuildFirstModel}
+                                />
+                            )}
+                            <Box className={classes.workspace}>
+                                {!hasChat ? (
+                                    status?.blocker ? (
+                                        <BlockedNotice
+                                            blocker={status.blocker}
+                                        />
+                                    ) : null
+                                ) : (
+                                    <>
+                                        <Group
+                                            className={classes.toolbar}
+                                            justify="space-between"
+                                            wrap="nowrap"
+                                            gap="sm"
                                         >
-                                            <UnstyledButton
-                                                role="tab"
-                                                className={classes.view}
-                                                aria-selected={
-                                                    !isCodeTab && !isChangesView
-                                                }
-                                                onClick={() =>
-                                                    switchView('models')
-                                                }
+                                            <div
+                                                className={classes.views}
+                                                role="tablist"
+                                                aria-label="Views"
                                             >
-                                                Models
-                                            </UnstyledButton>
-                                            {hasCodeView ? (
                                                 <UnstyledButton
                                                     role="tab"
                                                     className={classes.view}
-                                                    aria-selected={isCodeTab}
-                                                    onClick={showSources}
+                                                    aria-selected={
+                                                        !isCodeTab &&
+                                                        !isChangesView
+                                                    }
+                                                    onClick={() =>
+                                                        switchView('models')
+                                                    }
                                                 >
-                                                    Code
+                                                    Models
                                                 </UnstyledButton>
+                                                {hasCodeView ? (
+                                                    <UnstyledButton
+                                                        role="tab"
+                                                        className={classes.view}
+                                                        aria-selected={
+                                                            isCodeTab
+                                                        }
+                                                        onClick={showSources}
+                                                    >
+                                                        Code
+                                                    </UnstyledButton>
+                                                ) : null}
+                                            </div>
+                                            {changePicker ? (
+                                                <Group
+                                                    gap="xs"
+                                                    wrap="nowrap"
+                                                    miw={0}
+                                                    className={
+                                                        classes.toolbarChange
+                                                    }
+                                                >
+                                                    {changePicker}
+                                                    {/* The bar says how an open draft is doing, so the pill shows only once it ends. */}
+                                                    {stage &&
+                                                    (keepsDraft
+                                                        ? stage.step !==
+                                                          'proposed'
+                                                        : isChangeInSources &&
+                                                          stage.step !==
+                                                              'in_review' &&
+                                                          stage.step !==
+                                                              'saving') ? (
+                                                        <StudioStageLine
+                                                            stage={stage}
+                                                            href={changeUrl}
+                                                        />
+                                                    ) : null}
+                                                </Group>
                                             ) : null}
-                                        </div>
-                                        {changePicker ? (
                                             <Group
                                                 gap="xs"
                                                 wrap="nowrap"
                                                 miw={0}
-                                                className={
-                                                    classes.toolbarChange
-                                                }
+                                                ml="auto"
                                             >
-                                                {changePicker}
-                                                {/* The bar says how an open draft is doing, so the pill shows only once it ends. */}
-                                                {stage &&
-                                                (keepsDraft
-                                                    ? stage.step !== 'proposed'
-                                                    : isChangeInSources &&
-                                                      stage.step !==
-                                                          'in_review' &&
-                                                      stage.step !==
-                                                          'saving') ? (
-                                                    <StudioStageLine
-                                                        stage={stage}
-                                                        href={changeUrl}
-                                                    />
+                                                {showsDraftActions ? (
+                                                    <>
+                                                        {changeLinks}
+                                                        {changeActions}
+                                                    </>
+                                                ) : null}
+                                                {agentAvailable &&
+                                                !isChatOpen ? (
+                                                    <Button
+                                                        size="xs"
+                                                        variant="subtle"
+                                                        color="gray"
+                                                        flex="none"
+                                                        leftSection={
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconMessage
+                                                                }
+                                                                size={14}
+                                                            />
+                                                        }
+                                                        onClick={() =>
+                                                            setIsChatOpen(true)
+                                                        }
+                                                    >
+                                                        Chat
+                                                    </Button>
+                                                ) : null}
+                                                {!studioAgent &&
+                                                !isLoadingAgents ? (
+                                                    <Button
+                                                        size="xs"
+                                                        variant="subtle"
+                                                        color="gray"
+                                                        flex="none"
+                                                        component={Link}
+                                                        to={`/projects/${view.project.id}/ai-agents/new`}
+                                                    >
+                                                        Create an agent
+                                                    </Button>
                                                 ) : null}
                                             </Group>
-                                        ) : null}
-                                        <Group
-                                            gap="xs"
-                                            wrap="nowrap"
-                                            miw={0}
-                                            ml="auto"
-                                        >
-                                            {showsDraftActions ? (
-                                                <>
-                                                    {changeLinks}
-                                                    {changeActions}
-                                                </>
-                                            ) : null}
-                                            {agentAvailable && !isChatOpen ? (
-                                                <Button
-                                                    size="xs"
-                                                    variant="subtle"
-                                                    color="gray"
-                                                    flex="none"
-                                                    leftSection={
-                                                        <MantineIcon
-                                                            icon={IconMessage}
-                                                            size={14}
-                                                        />
-                                                    }
-                                                    onClick={() =>
-                                                        setIsChatOpen(true)
-                                                    }
-                                                >
-                                                    Chat
-                                                </Button>
-                                            ) : null}
-                                            {!studioAgent &&
-                                            !isLoadingAgents ? (
-                                                <Button
-                                                    size="xs"
-                                                    variant="subtle"
-                                                    color="gray"
-                                                    flex="none"
-                                                    component={Link}
-                                                    to={`/projects/${view.project.id}/ai-agents/new`}
-                                                >
-                                                    Create an agent
-                                                </Button>
-                                            ) : null}
                                         </Group>
-                                    </Group>
-                                </>
-                            )}
-                            <Box
-                                className={classes.workspaceBody}
-                                data-sources={pane === 'sources' || undefined}
-                                data-no-rail={
-                                    isReviewPane ||
-                                    ((pane === 'code' || pane === 'review') &&
-                                        !showsCodeRail) ||
-                                    (!isCodeTab && isEmpty)
-                                }
-                            >
-                                {(pane === 'code' || pane === 'review') &&
-                                !showsCodeRail ? null : showsCodeRail ? (
-                                    <CodeRail
-                                        files={files}
-                                        overview={
-                                            hasDraft
-                                                ? {
-                                                      isOpen: pane === 'review',
-                                                      onOpen: () =>
-                                                          switchView('changes'),
-                                                  }
-                                                : null
-                                        }
-                                        selected={
-                                            pane === 'review' ? null : file
-                                        }
-                                        selectedPart={searchParams.get(
-                                            FIELD_PARAM,
-                                        )}
-                                        drafted={drafted}
-                                        lineCounts={lineCounts}
-                                        preAggregates={preAggregatesByModel}
-                                        onOpen={(next, part) =>
-                                            setSearchParams({
-                                                [VIEW_PARAM]: 'code',
-                                                [FILE_PARAM]: next,
-                                                ...(part
-                                                    ? { [FIELD_PARAM]: part }
-                                                    : {}),
-                                            })
-                                        }
-                                    />
-                                ) : pane === 'sources' ? (
-                                    <Suspense fallback={null}>
-                                        <SourcesRail
-                                            target={sourcesTarget}
-                                            proposal={shownProposal}
-                                            hasOverview={!!sourcesPrUrl}
-                                        />
-                                    </Suspense>
-                                ) : isEmpty || isReviewPane ? null : (
-                                    <AddToStudioChatContext.Provider
-                                        value={
-                                            agentAvailable ? attachToChat : null
-                                        }
-                                    >
-                                        <Rail
-                                            view={view}
-                                            expanded={expanded}
+                                    </>
+                                )}
+                                <Box
+                                    className={classes.workspaceBody}
+                                    data-sources={
+                                        pane === 'sources' || undefined
+                                    }
+                                    data-no-rail={
+                                        isReviewPane ||
+                                        ((pane === 'code' ||
+                                            pane === 'review') &&
+                                            !showsCodeRail) ||
+                                        (!isCodeTab && isEmpty)
+                                    }
+                                >
+                                    {(pane === 'code' || pane === 'review') &&
+                                    !showsCodeRail ? null : showsCodeRail ? (
+                                        <CodeRail
+                                            files={files}
+                                            overview={
+                                                hasDraft
+                                                    ? {
+                                                          isOpen:
+                                                              pane === 'review',
+                                                          onOpen: () =>
+                                                              switchView(
+                                                                  'changes',
+                                                              ),
+                                                      }
+                                                    : null
+                                            }
+                                            selected={
+                                                pane === 'review' ? null : file
+                                            }
+                                            selectedPart={searchParams.get(
+                                                FIELD_PARAM,
+                                            )}
                                             drafted={drafted}
-                                            onToggle={toggle}
-                                            onOpen={open}
+                                            lineCounts={lineCounts}
+                                            preAggregates={preAggregatesByModel}
+                                            onOpen={(next, part) =>
+                                                setSearchParams({
+                                                    [VIEW_PARAM]: 'code',
+                                                    [FILE_PARAM]: next,
+                                                    ...(part
+                                                        ? {
+                                                              [FIELD_PARAM]:
+                                                                  part,
+                                                          }
+                                                        : {}),
+                                                })
+                                            }
                                         />
-                                    </AddToStudioChatContext.Provider>
-                                )}
-                                {pane === 'browse' ? (
-                                    renderPaneWithChat()
-                                ) : (
-                                    <Box
-                                        className={classes.main}
-                                        data-full={
-                                            pane === 'code' ||
-                                            pane === 'review' ||
-                                            pane === 'sources' ||
-                                            pane === 'changes' ||
-                                            pane === 'changeSummary'
-                                        }
-                                    >
-                                        {renderPaneWithChat()}
-                                    </Box>
-                                )}
+                                    ) : pane === 'sources' ? (
+                                        <Suspense fallback={null}>
+                                            <SourcesRail
+                                                target={sourcesTarget}
+                                                proposal={shownProposal}
+                                                isSaving={isSavingProposal}
+                                                hasOverview={!!sourcesPrUrl}
+                                            />
+                                        </Suspense>
+                                    ) : isEmpty || isReviewPane ? null : (
+                                        <AddToStudioChatContext.Provider
+                                            value={
+                                                agentAvailable
+                                                    ? attachToChat
+                                                    : null
+                                            }
+                                        >
+                                            <Rail
+                                                view={view}
+                                                expanded={expanded}
+                                                drafted={drafted}
+                                                onToggle={toggle}
+                                                onOpen={open}
+                                            />
+                                        </AddToStudioChatContext.Provider>
+                                    )}
+                                    {pane === 'browse' ? (
+                                        renderPaneWithChat()
+                                    ) : (
+                                        <Box
+                                            className={classes.main}
+                                            data-full={
+                                                pane === 'code' ||
+                                                pane === 'review' ||
+                                                pane === 'sources' ||
+                                                pane === 'changes' ||
+                                                pane === 'changeSummary'
+                                            }
+                                        >
+                                            {renderPaneWithChat()}
+                                        </Box>
+                                    )}
+                                </Box>
                             </Box>
                         </Box>
-                    </Box>
-                </ExternalSourceManager>
-            </LiveSourceManager>
+                    </ExternalSourceManager>
+                </LiveSourceManager>
+            </MarkPublishedContext.Provider>
         </DraftMarksContext.Provider>
     );
 };

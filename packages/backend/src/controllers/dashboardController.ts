@@ -73,11 +73,9 @@ export class DashboardController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getPromoteService()
-                .promoteDashboard(
-                    toSessionUser(req.account),
-                    dashboardUuidOrSlug,
-                    { projectUuid },
-                ),
+                .promoteDashboard(req.account, dashboardUuidOrSlug, {
+                    projectUuid,
+                }),
         };
     }
 
@@ -103,11 +101,9 @@ export class DashboardController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getPromoteService()
-                .getPromoteDashboardDiff(
-                    toSessionUser(req.account),
-                    dashboardUuidOrSlug,
-                    { projectUuid },
-                ),
+                .getPromoteDashboardDiff(req.account, dashboardUuidOrSlug, {
+                    projectUuid,
+                }),
         };
     }
 

@@ -115,6 +115,8 @@ import {
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import * as JsonPatch from 'fast-json-patch';
+import NodeCache from 'node-cache';
+import { fromSession } from '../../../auth/account';
 import { mcpAgentPermissionsApply } from '../../../auth/agentPermissions/caller';
 import { type AgentToolEffect } from '../../../auth/agentPermissions/capabilityMap';
 import { type DbApp } from '../../../database/entities/apps';
@@ -159,6 +161,7 @@ import {
     type DocumentChangeContext,
 } from '../../../services/DocumentService/DocumentService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
+import { developmentView } from '../../../services/ProjectService/developmentView';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { QuerySourceService } from '../../../services/QuerySourceService/QuerySourceService';
 import { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
@@ -225,6 +228,7 @@ import {
     ListExploresFn,
     ListKnowledgeDocumentsFn,
     ListProjectsFn,
+    ListWarehouseColumnsFn,
     ListWarehouseTablesFn,
     LoadAgentSkillFn,
     PrepareComposerChartEditFn,
@@ -245,6 +249,7 @@ import {
     SyncDbtProjectFn,
     UpdateUserNameFn,
     ValidateContentFn,
+    WarehouseColumn,
 } from '../ai/types/aiAgentDependencies';
 import {
     assertAgentKeepsChartMerge,
@@ -291,6 +296,8 @@ type SearchContentResult = Awaited<
 
 // A failed node's error, e.g. a Python traceback, as the model sees it.
 const COMPOSER_NODE_ERROR_MAX_CHARS = 4096;
+const WAREHOUSE_COLUMNS_TTL_SECONDS = 10 * 60;
+const MAX_KEPT_TABLE_COLUMNS = 20_000;
 
 const isDataAppSearchResult = (
     item: SearchContentResult,
@@ -404,6 +411,7 @@ export type AiAgentToolsRuntime = {
     runComposerQueriesUntilDeadline: RunComposerQueriesUntilDeadlineFn;
     listWarehouseTables: ListWarehouseTablesFn;
     describeWarehouseTable: DescribeWarehouseTableFn;
+    listWarehouseColumns: ListWarehouseColumnsFn;
     listContent: ListContentFn;
     getDashboardCharts: GetDashboardChartsFn;
     readContent: ReadContentFn;
@@ -457,6 +465,7 @@ const AGENT_RUNTIME_TOOL_NAMES = {
     runComposerQueriesUntilDeadline: 'query',
     listWarehouseTables: 'listWarehouseTables',
     describeWarehouseTable: 'describeWarehouseTable',
+    listWarehouseColumns: 'grepWarehouseColumns',
     listContent: 'listContent',
     getDashboardCharts: 'getDashboardCharts',
     readContent: 'readContent',
@@ -621,6 +630,12 @@ export class AiAgentToolsService extends BaseService {
         AiAgentToolsRuntimeContext,
         Map<string, Promise<unknown>>
     >();
+
+    // Kept in this process only: another instance reads the warehouse again.
+    private readonly warehouseColumns = new NodeCache({
+        stdTTL: WAREHOUSE_COLUMNS_TTL_SECONDS,
+        useClones: false,
+    });
 
     private readonly appModel: AppModel;
 
@@ -853,27 +868,46 @@ export class AiAgentToolsService extends BaseService {
                     throw new ForbiddenError('Organization not found');
                 }
 
-                const [dbAttributes, { tableSelection }, cachedExplores] =
-                    await Promise.all([
-                        this.userAttributesModel.getAttributeValuesForOrgMember(
-                            {
-                                organizationUuid,
-                                userUuid: user.userUuid,
-                            },
-                        ),
-                        this.projectModel.getTablesConfiguration(projectUuid),
-                        this.projectModel.findExploresFromCache(
-                            projectUuid,
-                            'name',
-                            exploreNames,
-                        ),
-                    ]);
+                const [
+                    dbAttributes,
+                    { tableSelection },
+                    liveExplores,
+                    inDevelopment,
+                ] = await Promise.all([
+                    this.userAttributesModel.getAttributeValuesForOrgMember({
+                        organizationUuid,
+                        userUuid: user.userUuid,
+                    }),
+                    this.projectModel.getTablesConfiguration(projectUuid),
+                    this.projectModel.findExploresFromCache(
+                        projectUuid,
+                        'name',
+                        exploreNames,
+                    ),
+                    developmentView
+                        .getStore()
+                        ?.findExplores(fromSession(user), projectUuid) ?? null,
+                ]);
                 const userAttributes = mergeUserAttributes(
                     dbAttributes,
                     userAttributeOverrides,
                 );
+                // In the development view the person's own unpublished models are read over the live ones.
+                const cachedExplores = inDevelopment
+                    ? [
+                          ...Object.values(liveExplores).filter(
+                              ({ name }) => !inDevelopment.has(name),
+                          ),
+                          ...[...inDevelopment].flatMap(([name, explore]) =>
+                              explore &&
+                              (!exploreNames || exploreNames.includes(name))
+                                  ? [explore]
+                                  : [],
+                          ),
+                      ]
+                    : Object.values(liveExplores);
 
-                return Object.values(cachedExplores)
+                return cachedExplores
                     .filter(
                         (explore): explore is Explore =>
                             !isExploreError(explore),
@@ -1111,6 +1145,8 @@ export class AiAgentToolsService extends BaseService {
                 this.listWarehouseTables(context, queryContext),
             describeWarehouseTable: (args) =>
                 this.describeWarehouseTable(context, args),
+            listWarehouseColumns: (args) =>
+                this.listWarehouseColumns(context, args),
             listContent: (args) => this.listContent(context, args),
             getDashboardCharts: (args) =>
                 this.getDashboardCharts(context, args),
@@ -6238,6 +6274,88 @@ export class AiAgentToolsService extends BaseService {
                     resolvedDatabase,
                     partitioning,
                     warehouseType,
+                };
+            },
+        );
+    }
+
+    /** The columns of the tables the agent may list, kept after the first read so a second search reads nothing. */
+    private listWarehouseColumns(
+        context: AiAgentToolsRuntimeContext,
+        { schema }: Parameters<ListWarehouseColumnsFn>[0],
+    ): ReturnType<ListWarehouseColumnsFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.listWarehouseColumns`,
+            { projectUuid: context.projectUuid, schema },
+            async () => {
+                // Listed fresh each time, so a table that left the agent's scope leaves the search too.
+                const listed = Object.entries(
+                    await this.listWarehouseTables(context),
+                ).flatMap(([database, schemas]) =>
+                    Object.entries(schemas)
+                        .filter(([name]) => !schema || name === schema)
+                        .flatMap(([schemaName, tables]) =>
+                            Object.keys(tables).map((table) => ({
+                                database,
+                                schema: schemaName,
+                                table,
+                            })),
+                        ),
+                );
+                type Table = (typeof listed)[number];
+                // Columns were read with this person's credentials, so they are kept for this person only.
+                const keyOf = (table: Table) =>
+                    [
+                        context.projectUuid,
+                        context.user.userUuid,
+                        table.database,
+                        table.schema,
+                        table.table,
+                    ].join('|');
+                const keptColumns = (table: Table) =>
+                    this.warehouseColumns.get<WarehouseColumn[]>(keyOf(table));
+                const unread = listed.filter(
+                    (table) => keptColumns(table) === undefined,
+                );
+                if (unread.length > 0) {
+                    const read = await this.projectService.getWarehouseColumns(
+                        context.user,
+                        context.projectUuid,
+                        context.defaultQueryExecutionContext,
+                        unread,
+                        context.querySurface,
+                    );
+                    if (
+                        this.warehouseColumns.getStats().keys +
+                            read.tables.length >
+                        MAX_KEPT_TABLE_COLUMNS
+                    ) {
+                        this.warehouseColumns.flushAll();
+                    }
+                    this.warehouseColumns.mset(
+                        read.tables.map((table) => ({
+                            key: keyOf(table),
+                            val: Object.entries(
+                                read.catalog[table.database]?.[table.schema]?.[
+                                    table.table
+                                ] ?? {},
+                            ).map(
+                                ([name, type]): WarehouseColumn => ({
+                                    name,
+                                    type: String(type),
+                                }),
+                            ),
+                        })),
+                    );
+                }
+                // Only a warehouse read table by table leaves any unread.
+                const tables = listed.flatMap((table) => {
+                    const columns = keptColumns(table);
+                    return columns ? [{ ...table, columns }] : [];
+                });
+                return {
+                    tables,
+                    unreadTableCount: listed.length - tables.length,
                 };
             },
         );

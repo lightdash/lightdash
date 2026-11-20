@@ -40,6 +40,9 @@ vi.mock('../../../hooks/useProjectAiAgents', () => ({
     useCreateAgentThreadMessageMutation: () => ({ mutate: vi.fn() }),
 }));
 vi.mock('./WritebackDiffModal', () => ({ WritebackDiffModal: () => null }));
+vi.mock('../../../../../../features/semanticStudio/ModelFieldChanges', () => ({
+    ModelFieldChanges: () => null,
+}));
 vi.mock('../../SemanticStudioAgent/TryItButton', () => ({
     TryIt: () => null,
 }));
@@ -176,6 +179,11 @@ describe('the quiet pull request card of a side panel', () => {
                 </QuietCardsContext.Provider>
             </MemoryRouter>,
         );
+        // The card is one line until it is opened; its link is inside.
+        expect(
+            screen.queryByRole('link', { name: 'View changes' }),
+        ).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: /Draft/ }));
         expect(
             screen.getByRole('link', { name: 'View changes' }),
         ).toBeVisible();
@@ -226,7 +234,7 @@ describe('the quiet pull request card of a side panel', () => {
             ).not.toBeInTheDocument();
         },
     );
-    it('lists the files the turn changed by model, and asks the agent to fix a failed compile', () => {
+    it('opens on a failed compile with the files the turn changed, and asks the agent to fix it', () => {
         const prUrl = 'https://github.com/acme/analytics/pull/7';
         held.diff = [
             'diff --git a/models/orders.yml b/models/orders.yml',
@@ -279,12 +287,13 @@ describe('the quiet pull request card of a side panel', () => {
             </MemoryRouter>,
         );
         expect(screen.getByText("Draft doesn't compile")).toBeVisible();
+        // A draft that does not compile is open without being asked.
         expect(
             screen.getByRole('link', { name: /orders\.yml/ }),
-        ).toHaveTextContent('Changed YAML orders.yml+1 −0');
+        ).toHaveTextContent('models/orders.yml+1 −0');
         expect(
             screen.getByRole('link', { name: /refunds\.sql/ }),
-        ).toHaveTextContent('Added SQL refunds.sql+1 −0');
+        ).toHaveTextContent('models/refunds.sql+1 −0');
         fireEvent.click(screen.getByRole('button', { name: 'Fix with agent' }));
         expect(ask).toHaveBeenCalledWith(
             "The draft doesn't compile: refunds is not defined. Fix it.",

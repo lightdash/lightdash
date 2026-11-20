@@ -1,0 +1,100 @@
+.root {
+    max-width: 100%;
+    height: auto;
+    overflow: visible;
+    stroke: var(--mantine-color-ldGray-4);
+    stroke-width: 1;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.shadow {
+    fill: var(--mantine-color-ldGray-2);
+    stroke: none;
+    opacity: 0.6;
+}
+
+.grid {
+    fill: none;
+    stroke: var(--mantine-color-ldGray-2);
+}
+
+.guide {
+    fill: none;
+    stroke: var(--mantine-color-ldGray-5);
+    stroke-dasharray: 2 3;
+}
+
+.top {
+    fill: var(--mantine-color-body);
+}
+
+.left {
+    fill: var(--mantine-color-ldGray-1);
+}
+
+.right {
+    fill: var(--mantine-color-ldGray-2);
+}
+
+.plate .top {
+    fill: var(--mantine-color-ldGray-0);
+}
+
+.piece[data-tone='dimension'] {
+    --tone: var(--ld-field-dimension-color);
+}
+
+.piece[data-tone='metric'] {
+    --tone: var(--ld-field-metric-color);
+}
+
+.piece[data-tone='dimension'],
+.piece[data-tone='metric'] {
+    stroke: var(--tone);
+}
+
+.piece[data-tone='dimension'] .top,
+.piece[data-tone='metric'] .top {
+    fill: color-mix(in srgb, var(--tone) 14%, var(--mantine-color-body));
+}
+
+.piece[data-tone='dimension'] .left,
+.piece[data-tone='metric'] .left {
+    fill: color-mix(in srgb, var(--tone) 28%, var(--mantine-color-body));
+}
+
+.piece[data-tone='dimension'] .right,
+.piece[data-tone='metric'] .right {
+    fill: color-mix(in srgb, var(--tone) 44%, var(--mantine-color-body));
+}
+
+/* Dashed means drafted, not published */
+.piece[data-tone='ghost'] {
+    stroke-dasharray: 3 3;
+}
+
+.piece[data-tone='ghost'] polygon {
+    fill: var(--mantine-color-body);
+    fill-opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .piece {
+        animation: piece-rise 520ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+        animation-delay: calc(var(--i) * 45ms);
+        transition: transform 360ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Hover lowers the drafted floor onto the published ones */
+    .root:hover .piece[data-rises] {
+        transform: translateY(6px);
+    }
+}
+
+@keyframes piece-rise {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+}

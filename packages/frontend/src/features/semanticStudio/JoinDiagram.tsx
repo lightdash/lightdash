@@ -505,6 +505,7 @@ export const JoinDiagram: FC<{ projectUuid: string; exploreName: string }> = ({
             <Paper withBorder className={classes.canvas}>
                 <ReactFlowProvider>
                     <ReactFlow<FlowNode, Edge>
+                        proOptions={{ hideAttribution: true }}
                         className={clsx(
                             reactFlowStyles.reactFlow,
                             classes.flow,

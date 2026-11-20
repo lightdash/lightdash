@@ -1,4 +1,7 @@
-import { toolEditDbtProjectOutputSchema } from '@lightdash/common';
+import {
+    toolEditDbtProjectMetadataSchema,
+    toolEditDbtProjectOutputSchema,
+} from '@lightdash/common';
 import { getEditDbtProject } from './editDbtProject';
 
 type EditDbtProjectTool = ReturnType<typeof getEditDbtProject>;
@@ -130,6 +133,7 @@ describe('getEditDbtProject', () => {
             status: 'started',
             inSandbox: true,
             aiWritebackRunUuid: 'run-1',
+            diffs: null,
         });
 
         const output = await executeEditDbtProject(
@@ -139,6 +143,7 @@ describe('getEditDbtProject', () => {
         expect(output.metadata).toEqual({
             status: 'pending',
             aiWritebackRunUuid: 'run-1',
+            diffs: null,
         });
         expect(output.result).toBe(
             'Started the change; the pull request opens in the background. Acknowledge it briefly. Until it opens, listWorkstreams shows it as a change still being opened.',
@@ -232,6 +237,40 @@ describe('getEditDbtProject', () => {
         expect(toolEditDbtProjectOutputSchema.safeParse(output).success).toBe(
             true,
         );
+    });
+
+    it('carries what a script save writes on the pending result, and reads rows from before it did', async () => {
+        const diffs = [
+            '--- a/models/a.yml\n+++ b/models/a.yml\n@@ -1,1 +1,1 @@\n-a\n+b\n',
+        ];
+        const output = await executeEditDbtProject(
+            getEditDbtProject({
+                editDbtProject: vi.fn().mockResolvedValue({
+                    status: 'started',
+                    inSandbox: false,
+                    aiWritebackRunUuid: 'run-1',
+                    diffs,
+                }),
+                acceptsScript: true,
+            }),
+            { script: 'yaml.set()' },
+        );
+
+        expect(output.metadata).toEqual({
+            status: 'pending',
+            aiWritebackRunUuid: 'run-1',
+            diffs,
+        });
+        expect(output.result).not.toContain('+b');
+        expect(toolEditDbtProjectOutputSchema.safeParse(output).success).toBe(
+            true,
+        );
+        expect(
+            toolEditDbtProjectMetadataSchema.safeParse({
+                status: 'pending',
+                aiWritebackRunUuid: 'run-1',
+            }).success,
+        ).toBe(true);
     });
 
     it('says a save that falls back to the sandbox takes minutes', async () => {

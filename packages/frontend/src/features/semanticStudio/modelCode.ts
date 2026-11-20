@@ -395,6 +395,37 @@ const parseModel = (content: string): ModelSummary => {
 export const count = (amount: number, noun: string) =>
     `${amount} ${noun}${amount === 1 ? '' : 's'}`;
 
+const CHANGE_KIND_PAST: Record<ChangeKind, string> = {
+    new: 'Added',
+    changed: 'Changed',
+    removed: 'Removed',
+};
+
+/** A change's fields in a sentence each: "Added 2 metrics: Revenue, Orders. Changed 1 dimension: Status". */
+export const describeFieldChanges = (fields: FieldChange[]): string =>
+    (['new', 'changed', 'removed'] as const)
+        .flatMap((change) =>
+            (['metric', 'dimension', 'join', 'model'] as const).flatMap(
+                (kind) => {
+                    const hits = fields.filter(
+                        (field) =>
+                            field.change === change && field.kind === kind,
+                    );
+                    if (hits.length === 0) return [];
+                    // A model's own keys have no name of their own to list.
+                    if (kind === 'model') {
+                        return [
+                            `${CHANGE_KIND_PAST[change]} its ${hits[0].detail ?? 'settings'}`,
+                        ];
+                    }
+                    return [
+                        `${CHANGE_KIND_PAST[change]} ${count(hits.length, kind)}: ${hits.map(({ label }) => label).join(', ')}`,
+                    ];
+                },
+            ),
+        )
+        .join('. ');
+
 /** A model's title and, when it is new or removed, what happened to it, in words. */
 export const describeModelChange = (
     model: string,

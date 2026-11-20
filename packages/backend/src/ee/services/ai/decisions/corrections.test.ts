@@ -103,6 +103,7 @@ describe('correction detection', () => {
                 prompt: 'territory means region from now on',
                 instructions: null,
                 conversation: [],
+                previousAnswer: null,
                 context: null,
             }).then((result) => ({
                 result,

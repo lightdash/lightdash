@@ -6,7 +6,10 @@ import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlag
 const PERMISSIONS_POLICY_HEADER = 'Permissions-Policy';
 
 /** Flags whose surfaces record the user's voice on the page itself. */
-const VOICE_DESIGN_FLAGS: string[] = [FeatureFlags.DataAppCapture];
+const VOICE_DESIGN_FLAGS: string[] = [
+    FeatureFlags.DataAppCapture,
+    FeatureFlags.DashboardCapture,
+];
 
 /**
  * Value of the Permissions-Policy header. The camera is always off. The

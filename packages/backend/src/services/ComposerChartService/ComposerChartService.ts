@@ -262,6 +262,41 @@ export class ComposerChartService extends BaseService {
         return enabled;
     }
 
+    private assertCanUpdateDashboard(
+        account: RegisteredAccount,
+        dashboardAccess: Awaited<
+            ReturnType<ComposerChartService['getDashboardAccess']>
+        >,
+        dashboardUuid: string,
+    ) {
+        if (
+            this.createAuditedAbility(account).cannot(
+                'update',
+                subject('Dashboard', {
+                    ...dashboardAccess,
+                    metadata: { dashboardUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have permission to update this dashboard",
+            );
+        }
+    }
+
+    /** The dashboard check a write runs, for a caller that must refuse before reading the dashboard's charts. */
+    async preflightDashboard(
+        account: RegisteredAccount,
+        projectUuid: string,
+        dashboardUuid: string,
+    ): Promise<void> {
+        this.assertCanUpdateDashboard(
+            account,
+            await this.getDashboardAccess(account, projectUuid, dashboardUuid),
+            dashboardUuid,
+        );
+    }
+
     /** The checks every submitted write runs; returns the documents to store. */
     private async authorizeWrite(
         account: RegisteredAccount,
@@ -287,19 +322,11 @@ export class ComposerChartService extends BaseService {
         ) {
             throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
         }
-        if (
-            this.createAuditedAbility(account).cannot(
-                'update',
-                subject('Dashboard', {
-                    ...dashboardAccess,
-                    metadata: { dashboardUuid: data.dashboardUuid },
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                "You don't have permission to update this dashboard",
-            );
-        }
+        this.assertCanUpdateDashboard(
+            account,
+            dashboardAccess,
+            data.dashboardUuid,
+        );
         await this.assertCanWritePipeline(account, dashboardAccess, pipeline);
         const chart = await this.pinCustomChartType(projectUuid, input);
         return { pipeline, chart };

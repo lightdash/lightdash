@@ -1,3 +1,177 @@
+## [3.350.1](https://github.com/lightdash/lightdash/compare/3.350.0...3.350.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **semantic-studio:** go straight to the published Models list when a draft is discarded ([#33027](https://github.com/lightdash/lightdash/issues/33027)) ([60e7395](https://github.com/lightdash/lightdash/commit/60e7395e1375833ff86f766ebe0bf46478a772ee))
+
+# [3.350.0](https://github.com/lightdash/lightdash/compare/3.349.0...3.350.0) (2026-11-19)
+
+
+### Features
+
+* **semantic-studio:** follow a publish through to the model it changed ([#33026](https://github.com/lightdash/lightdash/issues/33026)) ([f865cb7](https://github.com/lightdash/lightdash/commit/f865cb753fbccf177e019fa6a07c9c2c0001ea8b))
+
+# [3.349.0](https://github.com/lightdash/lightdash/compare/3.348.1...3.349.0) (2026-11-19)
+
+
+### Features
+
+* **semantic-studio:** tidy the Studio chat's empty state, discard and publish follow-through ([#33025](https://github.com/lightdash/lightdash/issues/33025)) ([e2be9f2](https://github.com/lightdash/lightdash/commit/e2be9f283b73873bfc057db6b865d3af75bf8edd))
+
+## [3.348.1](https://github.com/lightdash/lightdash/compare/3.348.0...3.348.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **ai-agent:** offer only agents that can open pinned content, and show the message awaiting a pick ([#33023](https://github.com/lightdash/lightdash/issues/33023)) ([0f42808](https://github.com/lightdash/lightdash/commit/0f4280816cc638ff3481e0098380c791f4bcdc76))
+
+# [3.348.0](https://github.com/lightdash/lightdash/compare/3.347.0...3.348.0) (2026-11-19)
+
+
+### Features
+
+* **semantic-studio:** show a scripted save's change while it is being saved ([#33018](https://github.com/lightdash/lightdash/issues/33018)) ([36f2b0f](https://github.com/lightdash/lightdash/commit/36f2b0f1515f7184e470275fd0fe61abea1a9ed3))
+
+# [3.347.0](https://github.com/lightdash/lightdash/compare/3.346.0...3.347.0) (2026-11-19)
+
+
+### Features
+
+* **semantic-studio:** show a reply's copy action on hover in the Studio chat ([#33020](https://github.com/lightdash/lightdash/issues/33020)) ([b1af4da](https://github.com/lightdash/lightdash/commit/b1af4dac67b6fe35df2840e6baf2ef26f9909916))
+
+# [3.346.0](https://github.com/lightdash/lightdash/compare/3.345.0...3.346.0) (2026-11-19)
+
+
+### Features
+
+* **semantic-studio:** edit by hand on every project type, with an Edit button and reasons when it is read only ([#33015](https://github.com/lightdash/lightdash/issues/33015)) ([f3f54e5](https://github.com/lightdash/lightdash/commit/f3f54e5a8d5cd1fee794481fca0882355263562d))
+* **semantic-studio:** smaller chat cards that say what a turn changed ([#33017](https://github.com/lightdash/lightdash/issues/33017)) ([b556e46](https://github.com/lightdash/lightdash/commit/b556e46409cfb49a7b9c5f99a6589f05174dcada))
+
+# [3.345.0](https://github.com/lightdash/lightdash/compare/3.344.0...3.345.0) (2026-11-19)
+
+
+### Features
+
+* **semantic-studio:** a quieter draft picker, a page frame while loading, and a Code tab that says where a draft stands ([#33014](https://github.com/lightdash/lightdash/issues/33014)) ([dbbf5f5](https://github.com/lightdash/lightdash/commit/dbbf5f5b7c58e32330cdb64cda66019698c589dd))
+
+# [3.344.0](https://github.com/lightdash/lightdash/compare/3.343.1...3.344.0) (2026-11-19)
+
+
+### Bug Fixes
+
+* **ai-agent:** send Voice Design to the agent the user picked, and name attachments outside its spaces ([#33013](https://github.com/lightdash/lightdash/issues/33013)) ([43c7567](https://github.com/lightdash/lightdash/commit/43c7567081046f36d036337de57260185de2cd10))
+
+
+### Features
+
+* **semantic-studio:** show a checked-out draft in the project switcher instead of a banner ([#33012](https://github.com/lightdash/lightdash/issues/33012)) ([c122388](https://github.com/lightdash/lightdash/commit/c1223880949af9b3a08c3de51019d885e2b82583))
+
+
+### Performance Improvements
+
+* **semantic-studio:** keep the compiled project current without a full compile ([#33009](https://github.com/lightdash/lightdash/issues/33009)) ([e2d59bb](https://github.com/lightdash/lightdash/commit/e2d59bb8fe6aeefb3856e902deb5c335c9673937))
+
+## [3.343.1](https://github.com/lightdash/lightdash/compare/3.343.0...3.343.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **semantic-studio:** fail a save at once when its worker shuts down, and offer a retry ([#33005](https://github.com/lightdash/lightdash/issues/33005)) ([d4a29bf](https://github.com/lightdash/lightdash/commit/d4a29bf470e732d58d6b98b0c6d0c6a51067e838))
+* **semantic-studio:** keep a save on the quick path when only exposures changed ([#33004](https://github.com/lightdash/lightdash/issues/33004)) ([3fdc543](https://github.com/lightdash/lightdash/commit/3fdc543b98c0b61efa607f4a34cf72e512dbb6fd))
+* **semantic-studio:** keep Try it open when the view is switched off elsewhere ([#33007](https://github.com/lightdash/lightdash/issues/33007)) ([8d54ae5](https://github.com/lightdash/lightdash/commit/8d54ae5c584e94081a420a9a3bdd9aa81801f408))
+* **semantic-studio:** offer changes as a choice, keep replies short, and start the first turn sooner ([#33006](https://github.com/lightdash/lightdash/issues/33006)) ([b9a192d](https://github.com/lightdash/lightdash/commit/b9a192df88addd8edd7a1edc74a632ed0d9e6155))
+
+# [3.343.0](https://github.com/lightdash/lightdash/compare/3.342.0...3.343.0) (2026-11-19)
+
+
+### Features
+
+* **dashboards:** choose a size and alignment for heading tiles ([#33001](https://github.com/lightdash/lightdash/issues/33001)) ([89c765e](https://github.com/lightdash/lightdash/commit/89c765e25a9e70596e5e2c8fb849767e56966407))
+
+# [3.342.0](https://github.com/lightdash/lightdash/compare/3.341.0...3.342.0) (2026-11-19)
+
+
+### Features
+
+* **semantic-studio:** run the Studio agent on Claude where it is offered ([#33003](https://github.com/lightdash/lightdash/issues/33003)) ([9f06f2f](https://github.com/lightdash/lightdash/commit/9f06f2f06c141c636a4d4e8bce6f0eff64bbe2c4))
+
+# [3.341.0](https://github.com/lightdash/lightdash/compare/3.340.1...3.341.0) (2026-11-19)
+
+
+### Features
+
+* **dashboards:** edit heading tiles inline ([#32976](https://github.com/lightdash/lightdash/issues/32976)) ([0dcd124](https://github.com/lightdash/lightdash/commit/0dcd1245aee1ff831f0a25e4af2516b17061fc73))
+
+## [3.340.1](https://github.com/lightdash/lightdash/compare/3.340.0...3.340.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **apps:** Voice Design clock and unreadable audio ([#32971](https://github.com/lightdash/lightdash/issues/32971)) ([8110d35](https://github.com/lightdash/lightdash/commit/8110d3554f765e670de11114d0a6970007f5f6d6))
+
+# [3.340.0](https://github.com/lightdash/lightdash/compare/3.339.0...3.340.0) (2026-11-19)
+
+
+### Features
+
+* **apps:** start Voice Design with the hotkey from inside the app preview ([#32926](https://github.com/lightdash/lightdash/issues/32926)) ([3c3c274](https://github.com/lightdash/lightdash/commit/3c3c27411881aa5cd80655207089559f42cdd989))
+* **apps:** Voice Design on the published data app page ([#32928](https://github.com/lightdash/lightdash/issues/32928)) ([7411caa](https://github.com/lightdash/lightdash/commit/7411caa19c1508d7b4c9288b0856358977180bac))
+* **dashboards:** Voice Design on dashboards ([#32927](https://github.com/lightdash/lightdash/issues/32927)) ([8d77989](https://github.com/lightdash/lightdash/commit/8d779899ebb24c02658606b55aaae24facc1e387))
+
+# [3.339.0](https://github.com/lightdash/lightdash/compare/3.338.1...3.339.0) (2026-11-19)
+
+
+### Features
+
+* **sdk:** start an embedded AI agent thread with an initial prompt ([#33000](https://github.com/lightdash/lightdash/issues/33000)) ([01c32a9](https://github.com/lightdash/lightdash/commit/01c32a9f829ed9be3f473efaf58272bb99db178e))
+
+## [3.338.1](https://github.com/lightdash/lightdash/compare/3.338.0...3.338.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* let SQL table calculations hit pre-aggregates ([#32713](https://github.com/lightdash/lightdash/issues/32713)) ([5de52c0](https://github.com/lightdash/lightdash/commit/5de52c062278cbfc08ad0781486eaf2353b04360))
+
+# [3.338.0](https://github.com/lightdash/lightdash/compare/3.337.1...3.338.0) (2026-11-19)
+
+
+### Features
+
+* **ai:** let the Studio agent run metrics on the draft ([#32993](https://github.com/lightdash/lightdash/issues/32993)) ([6252b69](https://github.com/lightdash/lightdash/commit/6252b69cfb3f680e19638de15424d13ff627ac36))
+* **ai:** search warehouse columns from the Studio agent ([#32994](https://github.com/lightdash/lightdash/issues/32994)) ([6d9a600](https://github.com/lightdash/lightdash/commit/6d9a60028b06a190d0f68872fa69189b67270aa9))
+* **semantic-studio:** a clearer Studio chat and review ([#32979](https://github.com/lightdash/lightdash/issues/32979)) ([d4f3664](https://github.com/lightdash/lightdash/commit/d4f36642cfd99d2fa0971942e3455e1d6b38c23a))
+
+## [3.337.1](https://github.com/lightdash/lightdash/compare/3.337.0...3.337.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **queries:** align pivot calculation references ([#32488](https://github.com/lightdash/lightdash/issues/32488)) ([b5c99a5](https://github.com/lightdash/lightdash/commit/b5c99a534e744de94603f727d0fdb79ff157911d))
+* **scheduler:** resume workers after a failed drain on db disconnect ([#32974](https://github.com/lightdash/lightdash/issues/32974)) ([46d14e7](https://github.com/lightdash/lightdash/commit/46d14e79993d86191ee725ce7ce3ab83dadfae37)), closes [#32145](https://github.com/lightdash/lightdash/issues/32145) [#32145](https://github.com/lightdash/lightdash/issues/32145)
+
+# [3.337.0](https://github.com/lightdash/lightdash/compare/3.336.2...3.337.0) (2026-11-19)
+
+
+### Features
+
+* promote dashboards with composer charts ([#32973](https://github.com/lightdash/lightdash/issues/32973)) ([abe3f5d](https://github.com/lightdash/lightdash/commit/abe3f5d30e0f693a3d6543e5146bfb5e9a91eb59))
+
+## [3.336.2](https://github.com/lightdash/lightdash/compare/3.336.1...3.336.2) (2026-11-19)
+
+
+### Bug Fixes
+
+* **ai-agent:** send replies to agent offers to the agent, not an instant acknowledgement ([#32977](https://github.com/lightdash/lightdash/issues/32977)) ([047f4ea](https://github.com/lightdash/lightdash/commit/047f4eaa4f3ea97bf4df866cc469fc071a3e04ad))
+* **embed:** recover AI agent save events after a stream drop ([#32956](https://github.com/lightdash/lightdash/issues/32956)) ([063e282](https://github.com/lightdash/lightdash/commit/063e282dc9de441a73e17fba40cd8230ba10c9b0))
+
+## [3.336.1](https://github.com/lightdash/lightdash/compare/3.336.0...3.336.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **ai-agent:** re-plan follow-up pipelines instead of chaining nodes ([#32967](https://github.com/lightdash/lightdash/issues/32967)) ([6598382](https://github.com/lightdash/lightdash/commit/65983825dea8033fb9c3d8364a8c441555c8c918))
+
 # [3.336.0](https://github.com/lightdash/lightdash/compare/3.335.0...3.336.0) (2026-11-19)
 
 
