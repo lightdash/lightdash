@@ -18,6 +18,10 @@ export const TOOL_PROPOSE_SEMANTIC_LAYER_CHANGE_DESCRIPTION = [
     'A `ready` model passed its checks and joined the draft, and a `note` on it says what was only estimated and needs the person to confirm; `unchanged` means the entry changes nothing; `failed` carries the error or the `refusals` to fix before proposing again. A model joins the draft whole or not at all, so every entry for a failed model stays out of the draft: propose the whole change to that model again.',
 ].join(' ');
 
+// The parts a path can name; anything else would only come back as not found.
+const REMOVE_PATH =
+    /^(dimensions\.[^.\s]+(\.(metrics|additional_dimensions)\.[^.\s]+)?|metrics\.[^.\s]+|joins\.[^.\s]+)$/;
+
 export const toolProposeSemanticLayerChangeArgsSchema = z.object({
     models: z
         .array(
@@ -34,7 +38,14 @@ export const toolProposeSemanticLayerChangeArgsSchema = z.object({
                         'YAML mapping of what to add or change on this model, without `name` or `type`; null when the entry only removes.',
                     ),
                 remove: z
-                    .array(z.string())
+                    .array(
+                        z
+                            .string()
+                            .regex(
+                                REMOVE_PATH,
+                                'Write a path to delete as dimensions.<name>, dimensions.<name>.metrics.<name>, dimensions.<name>.additional_dimensions.<name>, metrics.<name> or joins.<name>.',
+                            ),
+                    )
                     .describe('Paths on this model to delete; empty for none.'),
                 removeModel: z
                     .boolean()

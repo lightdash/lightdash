@@ -1,5 +1,6 @@
 import {
     describeSemanticLayerProposals,
+    toolProposeSemanticLayerChangeArgsSchema,
     toolProposeSemanticLayerChangeOutputSchema,
     toolReadSemanticModelOutputSchema,
 } from '@lightdash/common';
@@ -60,6 +61,42 @@ it('lists changes with their checkout and touched models', async () => {
     const list = getListChanges(async () => changes);
     expect(await list.execute?.({}, callOptions)).toMatchObject({
         structuredContent: { changes },
+    });
+});
+
+it('takes only a path that names a part of a model to remove', () => {
+    const parse = (path: string) =>
+        toolProposeSemanticLayerChangeArgsSchema.safeParse({
+            models: [
+                {
+                    name: 'orders',
+                    yaml: null,
+                    remove: [path],
+                    removeModel: false,
+                },
+            ],
+            changeName: null,
+            note: null,
+            options: [],
+        });
+    [
+        'dimensions.amount',
+        'dimensions.amount.metrics.revenue',
+        'dimensions.amount.additional_dimensions.amount_usd',
+        'metrics.average_amount',
+        'joins.buyer',
+    ].forEach((path) => expect(parse(path).success).toBe(true));
+    [
+        'revenue',
+        'orders.amount',
+        'dimensions.amount.revenue',
+        'metrics',
+    ].forEach((path) => {
+        const parsed = parse(path);
+        expect(parsed.success).toBe(false);
+        expect(parsed.error?.issues[0].message).toContain(
+            'dimensions.<name>.metrics.<name>',
+        );
     });
 });
 
