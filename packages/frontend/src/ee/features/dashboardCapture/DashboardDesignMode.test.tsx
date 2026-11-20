@@ -472,7 +472,9 @@ describe('DashboardDesignMode', () => {
         expect(
             screen.queryByRole('button', { name: /on Overview/ }),
         ).toBeNull();
-        fireEvent.click(screen.getByRole('button', { name: '② on Marketing' }));
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Mark 2 on Marketing' }),
+        );
         expect(mocks.navigate).toHaveBeenCalledWith(
             expect.objectContaining({
                 pathname: `/projects/project-1/dashboards/dash-1/view/tabs/${marketing.uuid}`,

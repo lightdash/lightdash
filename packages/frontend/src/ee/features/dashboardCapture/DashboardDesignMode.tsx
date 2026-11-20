@@ -3,7 +3,7 @@ import {
     type Dashboard,
     type DashboardTile,
 } from '@lightdash/common';
-import { Button, Group, Tooltip, UnstyledButton } from '@mantine/core';
+import { Badge, Button, Group, Tooltip, UnstyledButton } from '@mantine/core';
 import { IconPencil } from '@tabler/icons-react';
 import { useCallback, useMemo, useRef, type FC, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
@@ -30,7 +30,6 @@ import launcherClasses from '../aiCopilot/components/Launcher/AiAgentsLauncher.m
 import { useLauncherDockExtras } from '../aiCopilot/components/Launcher/launcherDockExtras';
 import { useDefaultAiAgent } from '../aiCopilot/components/Launcher/useDefaultAiAgent';
 import { useProjectAiAgentButtonVisibility } from '../aiCopilot/hooks/useAiAgentsButtonVisibility';
-import { chipLabel } from '../capture/chipLabel';
 import { type Bubble } from '../capture/designSession';
 import {
     type DesignPayload,
@@ -164,11 +163,21 @@ const DashboardDesignSurface: FC<Props> = ({
                     <Button
                         key={mark.number}
                         size="compact-xs"
-                        variant="light"
-                        color="red"
+                        variant="default"
+                        aria-label={`Mark ${mark.number} on ${tab.name}`}
+                        leftSection={
+                            <Badge
+                                circle
+                                size="sm"
+                                color="red"
+                                variant="filled"
+                            >
+                                {mark.number}
+                            </Badge>
+                        }
                         onClick={() => void goToTab(tab)}
                     >
-                        {`${chipLabel(mark.number)} on ${tab.name}`}
+                        {`on ${tab.name}`}
                     </Button>
                 ))}
             </Group>
