@@ -8,7 +8,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import ScrollableTable from '.';
 import { renderWithProviders } from '../../../../testing/testUtils';
-import { StaticTableRenderContext } from '../StaticTableRenderContext';
+import { ColumnWindowingContext } from '../ColumnWindowingContext';
 import { TableProvider } from '../TableProvider';
 import { type TableColumn } from '../types';
 
@@ -111,10 +111,10 @@ it.each(['dashboard', 'explore', 'row grouping', 'grouped headers'] as const)(
     },
 );
 
-it('renders every column for static capture', async () => {
+it('renders every column when column windowing is off', async () => {
     const { row, columns } = makeWideTable();
     renderWithProviders(
-        <StaticTableRenderContext.Provider value>
+        <ColumnWindowingContext.Provider value={false}>
             <TableProvider
                 data={[row]}
                 columns={columns}
@@ -126,7 +126,7 @@ it('renders every column for static capture', async () => {
             >
                 <ScrollableTable />
             </TableProvider>
-        </StaticTableRenderContext.Provider>,
+        </ColumnWindowingContext.Provider>,
     );
     expect(await screen.findByText('value 99')).toBeInTheDocument();
     expect(screen.getByText('Field 99')).toBeInTheDocument();

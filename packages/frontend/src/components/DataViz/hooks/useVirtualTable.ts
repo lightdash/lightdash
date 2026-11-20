@@ -15,6 +15,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { useContext, useMemo, useRef } from 'react';
 import { getJsonValueCell, getValueCell } from '../../../hooks/useColumns';
 import { getJsonCellValue } from '../../common/JsonViewer/utils';
+import { ColumnWindowingContext } from '../../common/Table/ColumnWindowingContext';
 import {
     COLUMN_VIRTUALIZATION_THRESHOLD,
     ROW_HEIGHT_PX,
@@ -25,7 +26,6 @@ import {
     getRowNumberWidth,
     measureColumnWidth,
 } from '../../common/Table/measureColumnWidth';
-import { StaticTableRenderContext } from '../../common/Table/StaticTableRenderContext';
 import { useColumnWindow } from '../../common/Table/useColumnWindow';
 import { formatRowValueFromWarehouse } from '../formatters/formatRowValueFromWarehouse';
 
@@ -51,7 +51,7 @@ export const useVirtualTable = ({
     meta?: TableOptions<RawResultRow>['meta'];
 }) => {
     const viewport = useRef<HTMLDivElement>(null);
-    const staticRender = useContext(StaticTableRenderContext);
+    const windowingEnabled = useContext(ColumnWindowingContext);
     const columns: ColumnDef<RawResultRow, any>[] = useMemo(
         () =>
             columnNames.map((name) => ({
@@ -71,7 +71,10 @@ export const useVirtualTable = ({
     });
     const headers = table.getFlatHeaders();
     const layout = useMemo(() => {
-        if (staticRender || headers.length <= COLUMN_VIRTUALIZATION_THRESHOLD)
+        if (
+            !windowingEnabled ||
+            headers.length <= COLUMN_VIRTUALIZATION_THRESHOLD
+        )
             return [];
         const sample = rows.slice(0, COLUMN_WIDTH_SAMPLE_ROWS);
         const padding = isCompact ? compactPadding : undefined;
@@ -116,7 +119,7 @@ export const useVirtualTable = ({
     }, [
         headers,
         isCompact,
-        staticRender,
+        windowingEnabled,
         rows,
         columnsConfig,
         columnTypes,

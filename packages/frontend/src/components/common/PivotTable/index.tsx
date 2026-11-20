@@ -86,13 +86,13 @@ import Table from '../LightTable';
 import { CELL_HEIGHT } from '../LightTable/constants';
 import MantineIcon from '../MantineIcon';
 import { ColumnWindowColGroup } from '../Table/ColumnWindowColGroup';
+import { ColumnWindowingContext } from '../Table/ColumnWindowingContext';
 import {
     COLUMN_VIRTUALIZATION_THRESHOLD,
     ROW_NUMBER_COLUMN_ID,
 } from '../Table/constants';
 import { getGroupedRowModelLightdash } from '../Table/getGroupedRowModelLightdash';
 import { getRowNumberWidth } from '../Table/measureColumnWidth';
-import { StaticTableRenderContext } from '../Table/StaticTableRenderContext';
 import TotalCalculationErrorCell from '../Table/TotalCalculationErrorCell';
 import { columnHelper, type TableColumn } from '../Table/types';
 import { useColumnResize } from '../Table/useColumnResize';
@@ -833,7 +833,7 @@ const PivotTable: FC<PivotTableProps> = ({
         ],
     );
 
-    const staticRender = React.useContext(StaticTableRenderContext);
+    const windowingEnabled = React.useContext(ColumnWindowingContext);
     const titleSortIcons = useMemo(() => {
         const icons = new Map<string, ReturnType<typeof getSortIcon>>();
         for (const sort of sortBy ?? []) {
@@ -854,7 +854,7 @@ const PivotTable: FC<PivotTableProps> = ({
     }, [sortMatchByDataColIndex, getField]);
     const autoColumnWidths = useMemo(
         () =>
-            !staticRender &&
+            windowingEnabled &&
             contentColumns.length > COLUMN_VIRTUALIZATION_THRESHOLD
                 ? getPivotColumnWidths(
                       data,
@@ -876,7 +876,7 @@ const PivotTable: FC<PivotTableProps> = ({
                   )
                 : [],
         [
-            staticRender,
+            windowingEnabled,
             contentColumns.length,
             data,
             getFieldLabel,

@@ -8,6 +8,7 @@ import { IconUnlink } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useLocation, useSearchParams } from 'react-router';
 import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
+import { ColumnWindowingProvider } from '../../components/common/Table/ColumnWindowingProvider';
 import { parseChartFromExplorerSearchParams } from '../../hooks/useExplorerRoute';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
@@ -97,15 +98,17 @@ const EmbedExplorePage: FC<{
     const exploreId = exploreIdProps || savedChart?.tableName;
 
     return (
-        <EmbedExplore
-            containerStyles={containerStyles}
-            exploreId={exploreId}
-            savedChart={savedChart}
-            allowChartUpdate={allowChartUpdate}
-            isEditMode={isEditMode}
-            chartView={chartView}
-            runQueryOnLoad={runQueryOnLoad}
-        />
+        <ColumnWindowingProvider enabled>
+            <EmbedExplore
+                containerStyles={containerStyles}
+                exploreId={exploreId}
+                savedChart={savedChart}
+                allowChartUpdate={allowChartUpdate}
+                isEditMode={isEditMode}
+                chartView={chartView}
+                runQueryOnLoad={runQueryOnLoad}
+            />
+        </ColumnWindowingProvider>
     );
 };
 

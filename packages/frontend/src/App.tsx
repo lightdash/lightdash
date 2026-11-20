@@ -1,9 +1,11 @@
 import { ModalsProvider } from '@mantine/modals';
 import { wrapCreateBrowserRouterV7 } from '@sentry/react';
+import { type FC, type PropsWithChildren } from 'react';
 import { flushSync } from 'react-dom';
 import { createBrowserRouter, Outlet, RouterProvider } from 'react-router';
 import { APP_ROUTES } from './AppRoutes';
 import { DocumentTitle } from './components/common/DocumentTitle';
+import { ColumnWindowingProvider } from './components/common/Table/ColumnWindowingProvider';
 import VersionAutoUpdater from './components/VersionAutoUpdater/VersionAutoUpdater';
 import { AiAgentsGlobalProvider } from './ee/features/aiCopilot/components/Launcher/AiAgentsGlobalProvider';
 import { parseEmbedThemeParams } from './ee/providers/Embed/parseEmbedThemeParams';
@@ -16,6 +18,7 @@ import ChartColorMappingContextProvider from './hooks/useChartColorConfig/ChartC
 import AbilityProvider from './providers/Ability/AbilityProvider';
 import ActiveJobProvider from './providers/ActiveJob/ActiveJobProvider';
 import AppProvider from './providers/App/AppProvider';
+import useApp from './providers/App/useApp';
 import FullscreenProvider from './providers/Fullscreen/FullscreenProvider';
 import MantineProvider from './providers/MantineProvider';
 import ReactQueryProvider from './providers/ReactQuery/ReactQueryProvider';
@@ -34,6 +37,16 @@ const isMinimalPage = window.location.pathname.startsWith('/minimal');
 const embedForcedColorScheme = window.location.pathname.startsWith('/embed')
     ? parseEmbedThemeParams().theme
     : undefined;
+
+// Static capture pages render every column, so they never ask for the flag.
+const AppColumnWindowing: FC<PropsWithChildren> = ({ children }) => {
+    const { user } = useApp();
+    return (
+        <ColumnWindowingProvider enabled={!isMinimalPage && !!user.data}>
+            {children}
+        </ColumnWindowingProvider>
+    );
+};
 
 // Sentry wrapper for createBrowserRouter
 const sentryCreateBrowserRouter =
@@ -56,7 +69,9 @@ const router = sentryCreateBrowserRouter([
                                         <SchedulerJobsProvider>
                                             <ChartColorMappingContextProvider>
                                                 <AiAgentsGlobalProvider>
-                                                    <Outlet />
+                                                    <AppColumnWindowing>
+                                                        <Outlet />
+                                                    </AppColumnWindowing>
                                                 </AiAgentsGlobalProvider>
                                             </ChartColorMappingContextProvider>
                                         </SchedulerJobsProvider>

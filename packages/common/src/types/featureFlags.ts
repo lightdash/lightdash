@@ -64,6 +64,12 @@ export enum FeatureFlags {
     DashboardEditErgonomics = 'dashboard-edit-ergonomics',
 
     /**
+     * Wide result tables mount only the columns in view. Frontend only; off
+     * by default; organization scope. Temporary: remove once it is the default.
+     */
+    TableColumnVirtualization = 'table-column-virtualization',
+
+    /**
      * Data apps availability, computed rather than rolled out: on for any org
      * with AI (the AI copilot flag or an AI trial) on an instance with a
      * configured sandbox runtime. Overrides and the flag default are ignored
