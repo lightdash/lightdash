@@ -1348,14 +1348,13 @@ export const useCreateAgentThreadMutation = (
                 requestSqlApprovalNotificationPermission();
             }
         },
-        onSuccess: async (thread, variables) => {
+        onSuccess: (thread, variables) => {
             const { agentUuid } = variables;
-            // Invalidate both user-specific and all-users thread queries
-            await queryClient.invalidateQueries({
+            // Refresh thread lists (incl. sidebar) without delaying the stream start
+            void queryClient.invalidateQueries({
                 queryKey: [AI_AGENTS_KEY, projectUuid, agentUuid, 'threads'],
             });
-            // Invalidate the project-scoped paginated thread list (sidebar)
-            await queryClient.invalidateQueries({
+            void queryClient.invalidateQueries({
                 queryKey: [AI_AGENTS_KEY, projectUuid, PROJECT_THREADS_KEY],
             });
 
