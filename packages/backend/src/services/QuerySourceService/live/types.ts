@@ -40,7 +40,7 @@ export type LiveIntegration<
     };
     limits: LiveLimits;
     capabilities: LiveCapabilities;
-    /** The first is the wide model: scans and field edits apply to it. */
+    /** The first is the wide model; scans and field edits apply to it and to `scan.models`. */
     explores: readonly [LiveExploreDefinition, ...LiveExploreDefinition[]];
     /** Explore names reserved for models not built yet. */
     plannedModelNames: readonly string[];
