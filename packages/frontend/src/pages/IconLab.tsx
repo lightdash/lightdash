@@ -15,244 +15,193 @@ import {
     IconFileText,
     IconFolder,
     IconLayoutDashboard,
-    IconTable,
-    type Icon as TablerIconType,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../components/common/MantineIcon';
 import { IconBox } from '../components/common/ResourceIcon';
 import { getChartIcon } from '../components/common/ResourceIcon/utils';
 import {
-    DashboardAccent,
-    DashboardBento,
-    DashboardOutline,
-    DashboardPinwheel,
-    TableAccent,
-    TableBento,
-    TableOutline,
-    TableSheet,
+    ACCENT_ICONS,
+    OUTLINE_ICONS,
+    SOLID_ICONS,
+    type ContentIconName,
+    type ContentIconSet,
 } from '../features/iconLab/contentIcons';
 import classes from '../features/iconLab/IconLab.module.css';
 
 type Treatment = 'tint' | 'tile';
 
-const DASHBOARD_COLOR = 'green.6';
-const CHART_COLOR = 'blue.6';
-
-type InventoryItem = { label: string; icon: TablerIconType; color: string };
-
-const RESOURCE_ICONS: InventoryItem[] = [
-    { label: 'Dashboard', icon: IconLayoutDashboard, color: DASHBOARD_COLOR },
-    { label: 'Space', icon: IconFolder, color: 'violet.6' },
-    { label: 'Data app', icon: IconAppWindow, color: 'orange.6' },
-    { label: 'Document', icon: IconFileText, color: 'ldGray.6' },
-];
-
-const CHART_KIND_LABELS: Record<ChartKind, string> = {
-    [ChartKind.TABLE]: 'Table',
-    [ChartKind.VERTICAL_BAR]: 'Bar',
-    [ChartKind.HORIZONTAL_BAR]: 'Horizontal bar',
-    [ChartKind.LINE]: 'Line',
-    [ChartKind.AREA]: 'Area',
-    [ChartKind.MIXED]: 'Mixed',
-    [ChartKind.SCATTER]: 'Scatter',
-    [ChartKind.PIE]: 'Pie',
-    [ChartKind.BIG_NUMBER]: 'Big number',
-    [ChartKind.FUNNEL]: 'Funnel',
-    [ChartKind.TREEMAP]: 'Treemap',
-    [ChartKind.GAUGE]: 'Gauge',
-    [ChartKind.MAP]: 'Map',
-    [ChartKind.SANKEY]: 'Sankey',
-    [ChartKind.CUSTOM]: 'Custom',
-    [ChartKind.DATA_APP_VIZ]: 'Data app viz',
+const CURRENT_ICONS: ContentIconSet = {
+    dashboard: IconLayoutDashboard,
+    space: IconFolder,
+    dataApp: IconAppWindow,
+    document: IconFileText,
+    table: getChartIcon(ChartKind.TABLE),
+    bar: getChartIcon(ChartKind.VERTICAL_BAR),
+    horizontalBar: getChartIcon(ChartKind.HORIZONTAL_BAR),
+    line: getChartIcon(ChartKind.LINE),
+    area: getChartIcon(ChartKind.AREA),
+    mixed: getChartIcon(ChartKind.MIXED),
+    scatter: getChartIcon(ChartKind.SCATTER),
+    pie: getChartIcon(ChartKind.PIE),
+    bigNumber: getChartIcon(ChartKind.BIG_NUMBER),
+    funnel: getChartIcon(ChartKind.FUNNEL),
+    treemap: getChartIcon(ChartKind.TREEMAP),
+    gauge: getChartIcon(ChartKind.GAUGE),
+    map: getChartIcon(ChartKind.MAP),
+    sankey: getChartIcon(ChartKind.SANKEY),
+    custom: getChartIcon(ChartKind.CUSTOM),
+    dataAppViz: getChartIcon(ChartKind.DATA_APP_VIZ),
 };
 
-const CHART_ICONS: InventoryItem[] = Object.values(ChartKind).map((kind) => ({
-    label: CHART_KIND_LABELS[kind],
-    icon: getChartIcon(kind),
-    color: CHART_COLOR,
-}));
-
 type Direction = {
-    key: string;
+    key: 'current' | 'a' | 'b' | 'c';
     name: string;
     note: string;
-    dashboard: TablerIconType;
-    table: TablerIconType;
+    icons: ContentIconSet;
 };
 
 const DIRECTIONS: Direction[] = [
     {
         key: 'current',
         name: 'Current',
-        note: 'Tabler layout-dashboard and table.',
-        dashboard: IconLayoutDashboard,
-        table: IconTable,
+        note: 'Tabler',
+        icons: CURRENT_ICONS,
     },
     {
         key: 'a',
-        name: 'A · Outline, rebalanced',
-        note: 'Same stroke language as the rest of the set. Dashboard is a wide tile over two; table gets a header row and a first column.',
-        dashboard: DashboardOutline,
-        table: TableOutline,
+        name: 'A · Outline',
+        note: 'Strokes only',
+        icons: OUTLINE_ICONS,
     },
     {
         key: 'b',
-        name: 'B · Outline with a solid accent',
-        note: 'Outline plus one filled part: a tile on the dashboard, the header on the table.',
-        dashboard: DashboardAccent,
-        table: TableAccent,
+        name: 'B · Accent',
+        note: 'Outline, one solid part',
+        icons: ACCENT_ICONS,
     },
     {
         key: 'c',
-        name: 'C · Solid bento',
-        note: 'No strokes. Two tones of the same colour, separate rounded blocks.',
-        dashboard: DashboardBento,
-        table: TableBento,
-    },
-    {
-        key: 'd',
-        name: 'D · Solid, closer to today',
-        note: 'Keeps the pinwheel dashboard and the framed table, redrawn as two-tone solids.',
-        dashboard: DashboardPinwheel,
-        table: TableSheet,
+        name: 'C · Solid',
+        note: 'Two tones, no strokes',
+        icons: SOLID_ICONS,
     },
 ];
 
+type IconRow = { name: ContentIconName; label: string; color: string };
+
+const CHART_COLOR = 'blue.6';
+
+const RESOURCE_ROWS: IconRow[] = [
+    { name: 'dashboard', label: 'Dashboard', color: 'green.6' },
+    { name: 'space', label: 'Space', color: 'violet.6' },
+    { name: 'dataApp', label: 'Data app', color: 'orange.6' },
+    { name: 'document', label: 'Document', color: 'ldGray.6' },
+];
+
+const CHART_ROWS: IconRow[] = [
+    { name: 'table', label: 'Table', color: CHART_COLOR },
+    { name: 'bar', label: 'Bar', color: CHART_COLOR },
+    { name: 'horizontalBar', label: 'Horizontal bar', color: CHART_COLOR },
+    { name: 'line', label: 'Line', color: CHART_COLOR },
+    { name: 'area', label: 'Area', color: CHART_COLOR },
+    { name: 'mixed', label: 'Mixed', color: CHART_COLOR },
+    { name: 'scatter', label: 'Scatter', color: CHART_COLOR },
+    { name: 'pie', label: 'Pie', color: CHART_COLOR },
+    { name: 'bigNumber', label: 'Big number', color: CHART_COLOR },
+    { name: 'funnel', label: 'Funnel', color: CHART_COLOR },
+    { name: 'treemap', label: 'Treemap', color: CHART_COLOR },
+    { name: 'gauge', label: 'Gauge', color: CHART_COLOR },
+    { name: 'map', label: 'Map', color: CHART_COLOR },
+    { name: 'sankey', label: 'Sankey', color: CHART_COLOR },
+    { name: 'custom', label: 'Custom', color: CHART_COLOR },
+    { name: 'dataAppViz', label: 'Data app viz', color: CHART_COLOR },
+];
+
+const LIST_ROWS: IconRow[] = [
+    { name: 'dashboard', label: 'Revenue overview', color: 'green.6' },
+    { name: 'table', label: 'Orders by status', color: CHART_COLOR },
+    { name: 'bar', label: 'Weekly signups', color: CHART_COLOR },
+    { name: 'space', label: 'Finance', color: 'violet.6' },
+    { name: 'line', label: 'Churn over time', color: CHART_COLOR },
+    { name: 'dataApp', label: 'Pricing calculator', color: 'orange.6' },
+    { name: 'bigNumber', label: 'Net revenue', color: CHART_COLOR },
+    { name: 'document', label: 'Q3 board notes', color: 'ldGray.6' },
+    { name: 'pie', label: 'Plan mix', color: CHART_COLOR },
+];
+
+// The app draws the horizontal bar by rotating the vertical one; only the Tabler set needs that.
+const rotatedClass = (direction: Direction, name: ContentIconName) =>
+    direction.key === 'current' && name === 'horizontalBar'
+        ? classes.rotated
+        : undefined;
+
 const Boxed: FC<{
-    icon: TablerIconType;
-    color: string;
+    direction: Direction;
+    row: IconRow;
     treatment: Treatment;
-}> = ({ icon, color, treatment }) =>
-    treatment === 'tile' ? (
-        <IconBox icon={icon} color="white" bg={color} />
+}> = ({ direction, row, treatment }) => {
+    const icon = direction.icons[row.name];
+    const className = rotatedClass(direction, row.name);
+    return treatment === 'tile' ? (
+        <IconBox
+            icon={icon}
+            color="white"
+            bg={row.color}
+            className={className}
+        />
     ) : (
-        <IconBox icon={icon} color={color} />
-    );
-
-const Inventory: FC<{ items: InventoryItem[]; treatment: Treatment }> = ({
-    items,
-    treatment,
-}) => (
-    <Box className={classes.inventory}>
-        {items.map((item) => (
-            <Stack key={item.label} gap={6} align="center">
-                <Boxed
-                    icon={item.icon}
-                    color={item.color}
-                    treatment={treatment}
-                />
-                <Text fz="xs" c="dimmed" ta="center">
-                    {item.label}
-                </Text>
-            </Stack>
-        ))}
-    </Box>
-);
-
-const SizeRow: FC<{
-    label: string;
-    icon: TablerIconType;
-    color: string;
-    treatment: Treatment;
-}> = ({ label, icon, color, treatment }) => (
-    <>
-        <Text fz="xs" c="dimmed">
-            {label}
-        </Text>
-        <MantineIcon icon={icon} size={16} color={color} />
-        <Boxed icon={icon} color={color} treatment={treatment} />
-        <MantineIcon icon={icon} size={48} stroke={1.6} color={color} />
-        <MantineIcon icon={icon} size={96} stroke={1.6} color="ldGray.9" />
-    </>
-);
-
-const DirectionCard: FC<{ direction: Direction; treatment: Treatment }> = ({
-    direction,
-    treatment,
-}) => {
-    const rows: InventoryItem[] = [
-        {
-            label: 'Revenue overview',
-            icon: direction.dashboard,
-            color: DASHBOARD_COLOR,
-        },
-        {
-            label: 'Orders by status',
-            icon: direction.table,
-            color: CHART_COLOR,
-        },
-        {
-            label: 'Weekly signups',
-            icon: getChartIcon(ChartKind.VERTICAL_BAR),
-            color: CHART_COLOR,
-        },
-        { label: 'Finance', icon: IconFolder, color: 'violet.6' },
-        {
-            label: 'Churn over time',
-            icon: getChartIcon(ChartKind.LINE),
-            color: CHART_COLOR,
-        },
-    ];
-
-    return (
-        <Paper
-            p="lg"
-            className={
-                direction.key === 'current' ? classes.current : undefined
-            }
-        >
-            <Stack gap="md">
-                <Stack gap={2}>
-                    <Group gap="xs">
-                        <Title order={5}>{direction.name}</Title>
-                        {direction.key === 'current' ? (
-                            <Badge>in the app today</Badge>
-                        ) : null}
-                    </Group>
-                    <Text fz="sm" c="dimmed">
-                        {direction.note}
-                    </Text>
-                </Stack>
-                <Box className={classes.directionBody}>
-                    <Box className={classes.sizes}>
-                        <SizeRow
-                            label="Dashboard"
-                            icon={direction.dashboard}
-                            color={DASHBOARD_COLOR}
-                            treatment={treatment}
-                        />
-                        <SizeRow
-                            label="Table"
-                            icon={direction.table}
-                            color={CHART_COLOR}
-                            treatment={treatment}
-                        />
-                    </Box>
-                    <Box className={classes.list}>
-                        {rows.map((row) => (
-                            <Group
-                                key={row.label}
-                                gap="sm"
-                                wrap="nowrap"
-                                className={classes.listRow}
-                            >
-                                <Boxed
-                                    icon={row.icon}
-                                    color={row.color}
-                                    treatment={treatment}
-                                />
-                                <Text fz="sm" fw={500}>
-                                    {row.label}
-                                </Text>
-                            </Group>
-                        ))}
-                    </Box>
-                </Box>
-            </Stack>
-        </Paper>
+        <IconBox icon={icon} color={row.color} className={className} />
     );
 };
+
+const DirectionHeading: FC<{ direction: Direction }> = ({ direction }) => (
+    <Stack gap={0}>
+        <Group gap={6} wrap="nowrap">
+            <Text fz="sm" fw={600}>
+                {direction.name}
+            </Text>
+            {direction.key === 'current' ? <Badge size="xs">live</Badge> : null}
+        </Group>
+        <Text fz="xs" c="dimmed">
+            {direction.note}
+        </Text>
+    </Stack>
+);
+
+const MatrixRows: FC<{ rows: IconRow[]; treatment: Treatment }> = ({
+    rows,
+    treatment,
+}) => (
+    <>
+        {rows.map((row) => (
+            <Box key={row.name} className={classes.matrixRow}>
+                <Text fz="sm">{row.label}</Text>
+                {DIRECTIONS.map((direction) => (
+                    <Group key={direction.key} gap="md" wrap="nowrap">
+                        <MantineIcon
+                            icon={direction.icons[row.name]}
+                            size={16}
+                            color={row.color}
+                            className={rotatedClass(direction, row.name)}
+                        />
+                        <Boxed
+                            direction={direction}
+                            row={row}
+                            treatment={treatment}
+                        />
+                        <MantineIcon
+                            icon={direction.icons[row.name]}
+                            size={40}
+                            color={row.color}
+                            className={rotatedClass(direction, row.name)}
+                        />
+                    </Group>
+                ))}
+            </Box>
+        ))}
+    </>
+);
 
 const IconLab: FC = () => {
     const [treatment, setTreatment] = useState<Treatment>('tint');
@@ -265,8 +214,7 @@ const IconLab: FC = () => {
                     <Stack gap={2}>
                         <Title order={2}>Content icon lab</Title>
                         <Text c="dimmed">
-                            Every content icon in one place, then four
-                            directions for the dashboard and table icons.
+                            The live content icons next to three redrawn sets.
                         </Text>
                     </Stack>
                     <Group gap="sm">
@@ -299,44 +247,64 @@ const IconLab: FC = () => {
                     </Group>
                 </Group>
 
-                <Paper p="lg">
-                    <Stack gap="lg">
-                        <Title order={5}>Current set</Title>
-                        <Stack gap="xs">
-                            <Text fz="xs" fw={600} c="dimmed" tt="uppercase">
-                                Resources
-                            </Text>
-                            <Inventory
-                                items={RESOURCE_ICONS}
-                                treatment={treatment}
-                            />
-                        </Stack>
-                        <Stack gap="xs">
-                            <Text fz="xs" fw={600} c="dimmed" tt="uppercase">
-                                Charts by kind
-                            </Text>
-                            <Inventory
-                                items={CHART_ICONS}
-                                treatment={treatment}
-                            />
-                        </Stack>
-                    </Stack>
-                </Paper>
+                <Stack gap="sm">
+                    <Title order={4}>In a list</Title>
+                    <Box className={classes.lists}>
+                        {DIRECTIONS.map((direction) => (
+                            <Stack key={direction.key} gap="xs">
+                                <DirectionHeading direction={direction} />
+                                <Paper className={classes.list}>
+                                    {LIST_ROWS.map((row) => (
+                                        <Group
+                                            key={row.name}
+                                            gap="sm"
+                                            wrap="nowrap"
+                                            className={classes.listRow}
+                                        >
+                                            <Boxed
+                                                direction={direction}
+                                                row={row}
+                                                treatment={treatment}
+                                            />
+                                            <Text fz="sm" fw={500} truncate>
+                                                {row.label}
+                                            </Text>
+                                        </Group>
+                                    ))}
+                                </Paper>
+                            </Stack>
+                        ))}
+                    </Box>
+                </Stack>
 
-                <Stack gap="md">
-                    <Title order={4}>Directions</Title>
-                    <Text fz="sm" c="dimmed">
-                        Each card shows the pair at 16px (menus, explore tree),
-                        in the 32px list box, and enlarged, then in a content
-                        list next to icons that stay as they are.
-                    </Text>
-                    {DIRECTIONS.map((direction) => (
-                        <DirectionCard
-                            key={direction.key}
-                            direction={direction}
+                <Stack gap="sm">
+                    <Stack gap={2}>
+                        <Title order={4}>Every icon</Title>
+                        <Text fz="sm" c="dimmed">
+                            Each one at 16px (menus, explore tree), in the 32px
+                            list box, and at 40px.
+                        </Text>
+                    </Stack>
+                    <Paper className={classes.matrix}>
+                        <Box className={classes.matrixHead}>
+                            <span />
+                            {DIRECTIONS.map((direction) => (
+                                <DirectionHeading
+                                    key={direction.key}
+                                    direction={direction}
+                                />
+                            ))}
+                        </Box>
+                        <Text className={classes.matrixGroup}>Resources</Text>
+                        <MatrixRows
+                            rows={RESOURCE_ROWS}
                             treatment={treatment}
                         />
-                    ))}
+                        <Text className={classes.matrixGroup}>
+                            Charts by kind
+                        </Text>
+                        <MatrixRows rows={CHART_ROWS} treatment={treatment} />
+                    </Paper>
                 </Stack>
             </Stack>
         </Box>

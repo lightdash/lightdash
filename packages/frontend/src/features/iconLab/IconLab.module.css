@@ -1,43 +1,16 @@
 .page {
-    max-width: 1180px;
+    max-width: 1240px;
     margin: 0 auto;
     padding: var(--mantine-spacing-xl) var(--mantine-spacing-lg) 96px;
 }
 
-.inventory {
+.lists {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-    gap: var(--mantine-spacing-md) var(--mantine-spacing-xs);
-}
-
-.directionBody {
-    display: grid;
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-    gap: var(--mantine-spacing-xl);
-    align-items: center;
-}
-
-@media (max-width: 860px) {
-    .directionBody {
-        grid-template-columns: minmax(0, 1fr);
-    }
-}
-
-.sizes {
-    display: grid;
-    grid-template-columns: 72px 24px 40px 56px 96px;
-    gap: var(--mantine-spacing-sm) var(--mantine-spacing-lg);
-    align-items: center;
-    justify-items: center;
-}
-
-.sizes > :nth-child(5n + 1) {
-    justify-self: start;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--mantine-spacing-md);
 }
 
 .list {
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-md);
     overflow: hidden;
 }
 
@@ -50,6 +23,51 @@
     border-bottom: none;
 }
 
-.current {
-    background-color: var(--mantine-color-ldGray-0);
+.matrix {
+    overflow-x: auto;
+}
+
+.matrixHead,
+.matrixRow {
+    display: grid;
+    grid-template-columns: 140px repeat(4, minmax(170px, 1fr));
+    align-items: center;
+    gap: var(--mantine-spacing-md);
+    min-width: 880px;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-lg);
+}
+
+.matrixHead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding-block: var(--mantine-spacing-sm);
+    background-color: var(--mantine-color-body);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.matrixRow {
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.matrixRow:last-child {
+    border-bottom: none;
+}
+
+.matrixGroup {
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-lg) 4px;
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--mantine-color-dimmed);
+}
+
+.rotated {
+    rotate: 90deg;
+}
+
+@media (max-width: 900px) {
+    .lists {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
