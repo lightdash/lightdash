@@ -191,5 +191,10 @@ describe('streaming text after a tool call', () => {
 
         await waitFor(() => expect(document.body).toHaveTextContent(answer));
         expect(firstWord?.isConnected).toBe(false);
+        expect(
+            Array.from(document.querySelectorAll('[data-sd-animate]')).map(
+                (span) => span.textContent,
+            ),
+        ).toStrictEqual(answer.split(' '));
     });
 });
