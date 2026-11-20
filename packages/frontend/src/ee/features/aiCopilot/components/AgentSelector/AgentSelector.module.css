@@ -90,9 +90,4 @@
     .mobileSettingsOption {
         display: flex;
     }
-
-    /* Phones: the avatar alone stands for the agent */
-    .compact:not([data-auto]) .label {
-        display: none;
-    }
 }

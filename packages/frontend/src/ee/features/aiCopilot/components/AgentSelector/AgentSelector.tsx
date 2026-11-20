@@ -5,9 +5,11 @@ import {
     Group,
     Stack,
     Text,
+    Tooltip,
     UnstyledButton,
     useCombobox,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import {
     IconCheck,
     IconChevronDown,
@@ -81,6 +83,11 @@ export const AgentSelector = ({
 
     const agentOptions = getAgentOptions(agents);
     const isAuto = selectedAgent === 'auto';
+    const isPhone = useMediaQuery('(max-width: 48em)', false, {
+        getInitialValueInEffect: false,
+    });
+    // Phones show the avatar alone so the composer's send button keeps its room
+    const avatarOnly = compact && !isAuto && isPhone;
     // Auto is only meaningful when there's more than one agent AND the router
     // is enabled. Treat any non-`enabled: true` state (loading, error, disabled)
     // as "no Auto" to avoid flashing the option in and out.
@@ -130,41 +137,50 @@ export const AgentSelector = ({
             position="bottom-start"
         >
             <Combobox.Target>
-                <UnstyledButton
-                    {...viewAgentTourProps}
-                    type="button"
-                    onClick={() => combobox.toggleDropdown()}
-                    // Anchor for scope walkthroughs (data-tour-via)
-                    data-tour-anchor="agent-selector"
-                    data-tour-hint="Open the agent dropdown"
-                    className={`${styles.target} ${
-                        compact ? styles.compact : ''
-                    } ${variant === 'header' ? styles.headerTarget : ''}`}
-                    data-variant={variant}
-                    data-open={opened ? 'true' : undefined}
-                    data-auto={isAuto ? 'true' : undefined}
-                    aria-label={
-                        compact && !isAuto ? selectedAgent.name : undefined
-                    }
+                <Tooltip
+                    label={isAuto ? 'Auto' : selectedAgent.name}
+                    disabled={!avatarOnly}
                 >
-                    <Group gap={6} wrap="nowrap" align="center" w="100%">
-                        {!isAuto && (
-                            <LightdashUserAvatar
-                                size={22}
-                                name={selectedAgent.name}
-                                src={selectedAgent.imageUrl}
+                    <UnstyledButton
+                        {...viewAgentTourProps}
+                        type="button"
+                        onClick={() => combobox.toggleDropdown()}
+                        // Anchor for scope walkthroughs (data-tour-via)
+                        data-tour-anchor="agent-selector"
+                        data-tour-hint="Open the agent dropdown"
+                        className={`${styles.target} ${
+                            compact ? styles.compact : ''
+                        } ${variant === 'header' ? styles.headerTarget : ''}`}
+                        data-variant={variant}
+                        data-open={opened ? 'true' : undefined}
+                        data-auto={isAuto ? 'true' : undefined}
+                        aria-label={avatarOnly ? selectedAgent.name : undefined}
+                    >
+                        <Group gap={6} wrap="nowrap" align="center" w="100%">
+                            {!isAuto && (
+                                <LightdashUserAvatar
+                                    size={22}
+                                    name={selectedAgent.name}
+                                    src={selectedAgent.imageUrl}
+                                />
+                            )}
+                            {!avatarOnly && (
+                                <Text
+                                    size="xs"
+                                    truncate="end"
+                                    className={styles.label}
+                                >
+                                    {isAuto ? 'Auto' : selectedAgent.name}
+                                </Text>
+                            )}
+                            <MantineIcon
+                                icon={IconChevronDown}
+                                size="sm"
+                                color="dimmed"
                             />
-                        )}
-                        <Text size="xs" truncate="end" className={styles.label}>
-                            {isAuto ? 'Auto' : selectedAgent.name}
-                        </Text>
-                        <MantineIcon
-                            icon={IconChevronDown}
-                            size="sm"
-                            color="dimmed"
-                        />
-                    </Group>
-                </UnstyledButton>
+                        </Group>
+                    </UnstyledButton>
+                </Tooltip>
             </Combobox.Target>
 
             <Combobox.Dropdown miw={DROPDOWN_MIN_WIDTH}>
