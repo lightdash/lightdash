@@ -1,4 +1,5 @@
 import { Ability, AbilityBuilder, subject } from '@casl/ability';
+import { DuckDBInstance } from '@duckdb/node-api';
 import {
     AgentActorSurface,
     applyEmbedScopeAbilities,
@@ -283,10 +284,12 @@ describe('EmbedService', () => {
                 prepareSqlChartAsyncQueryArgs: prepareQuery,
             });
             vi.spyOn(queryService, 'combineParameters').mockResolvedValue({});
-            vi.spyOn(queryService, 'executeAsyncQuery').mockResolvedValue({
-                queryUuid: 'query',
-                cacheMetadata: { cacheHit: false },
-            });
+            queryService['executeAsyncQuery'] = vi
+                .fn<AsyncQueryService['executeAsyncQuery']>()
+                .mockResolvedValue({
+                    queryUuid: 'query',
+                    cacheMetadata: { cacheHit: false },
+                });
             const queryArgs = {
                 account,
                 projectUuid: mockProjectUuid,
@@ -326,7 +329,7 @@ describe('EmbedService', () => {
                 dimensions: [sqlFilter('category', 'Supplies')],
             },
         ])(
-            'applies the mapped saved filters when interactivity is disabled',
+            'applies the mapped saved filters when interactivity is disabled (case %$)',
             async (requestFilters) => {
                 const dashboardFilters = await getQueryFilters(
                     FilterInteractivityValues.none,
@@ -337,7 +340,7 @@ describe('EmbedService', () => {
                     getDashboardFiltersForTile(tileUuid, savedFilters),
                 );
                 const composer = new SqlQueryComposer({
-                    userSql: 'SELECT region, category FROM sales',
+                    userSql: `SELECT * FROM (VALUES ('North', 'Hardware'), ('South', 'Hardware'), ('North', 'Supplies')) AS sales(region, category)`,
                     columns: [
                         { name: 'region', type: DimensionType.STRING },
                         { name: 'category', type: DimensionType.STRING },
@@ -353,6 +356,19 @@ describe('EmbedService', () => {
                 const { query } = composer.compile();
                 expect(query).toContain('("region") IN (\'North\')');
                 expect(query).toContain('("category") IN (\'Hardware\')');
+                const instance = await DuckDBInstance.create(':memory:', {
+                    threads: '1',
+                });
+                const db = await instance.connect();
+                try {
+                    const rows = await db.runAndReadAll(query);
+                    expect(rows.getRowObjectsJson()).toEqual([
+                        { region: 'North', category: 'Hardware' },
+                    ]);
+                } finally {
+                    db.closeSync();
+                    instance.closeSync();
+                }
             },
         );
 
