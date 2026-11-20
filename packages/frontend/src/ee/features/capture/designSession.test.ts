@@ -1,0 +1,199 @@
+import { describe, expect, it } from 'vitest';
+import {
+    activeCollection,
+    canStartHold,
+    designSessionReducer,
+    nextMarkNumber,
+    visibleBubbles,
+    type DesignAction,
+    type DesignSession,
+} from './designSession';
+
+const empty: DesignSession = { bubbles: [], active: { kind: 'page' } };
+
+const stroke = {
+    points: [
+        { x: 0.1, y: 0.1 },
+        { x: 0.5, y: 0.5 },
+    ],
+};
+const mark = {
+    target: null,
+    arrowTo: null,
+    trail: [],
+    covers: [],
+    tabName: null,
+    box: null,
+};
+
+const run = (s: DesignSession, ...actions: DesignAction[]) =>
+    actions.reduce(designSessionReducer, s);
+
+const hold = (
+    id: string,
+    at: number,
+    tabUuid: string | null = null,
+    isNewScreen = false,
+): DesignAction[] => [
+    {
+        type: 'holdStarted',
+        tool: 'stylus',
+        atMs: at,
+        tabUuid,
+        isNewScreen,
+        newBubble: { id, input: 'text' },
+    },
+    { type: 'strokeAdded', stroke },
+    {
+        type: 'holdEnded',
+        atMs: at + 100,
+        mark,
+        anchor: { x: 10, y: 20 },
+    },
+];
+
+const sendAndFinish = (s: DesignSession, id: string) =>
+    run(
+        s,
+        { type: 'sendStarted', bubbleId: id, needsPicker: false },
+        { type: 'threadReady', bubbleId: id, threadId: 't', agentUuid: 'a' },
+    );
+
+describe('designSessionReducer', () => {
+    it('the first hold on the page opens a collecting bubble and makes it active', () => {
+        const s = run(empty, ...hold('a', 0, 'tab1'));
+        expect(s.bubbles).toHaveLength(1);
+        expect(s.bubbles[0]).toMatchObject({
+            id: 'a',
+            status: 'collecting',
+            homeTabUuid: 'tab1',
+            anchor: { x: 10, y: 20 },
+        });
+        expect(s.active).toEqual({ kind: 'bubble', bubbleId: 'a' });
+    });
+
+    it('later holds add numbered marks to the open bubble', () => {
+        const s = run(
+            empty,
+            ...hold('a', 0),
+            ...hold('b', 1000),
+            ...hold('c', 2000),
+        );
+        expect(s.bubbles).toHaveLength(1);
+        const marks = s.bubbles[0].collection?.capture;
+        expect(
+            marks?.status === 'recording' && marks.marks.map((m) => m.number),
+        ).toEqual([1, 2, 3]);
+        expect(nextMarkNumber(s.bubbles[0])).toBe(4);
+    });
+
+    it('a sent bubble that is armed numbers its reply marks after the sent ones', () => {
+        let s = run(
+            empty,
+            ...hold('a', 0),
+            ...hold('a', 1000),
+            ...hold('a', 2000),
+        );
+        s = sendAndFinish(s, 'a');
+        expect(s.bubbles[0].sentMarks).toHaveLength(3);
+        expect(s.active).toEqual({ kind: 'page' });
+        s = run(s, { type: 'arm', bubbleId: 'a', input: 'mic' });
+        expect(s.active).toEqual({ kind: 'bubble', bubbleId: 'a' });
+        expect(s.bubbles[0].input).toBe('mic');
+        s = run(s, ...hold('x', 5000));
+        const c = activeCollection(s);
+        expect(
+            c?.collection.capture.status === 'recording' &&
+                c.collection.capture.marks[0].number,
+        ).toBe(4);
+        s = sendAndFinish(s, 'a');
+        expect(s.bubbles[0].sentMarks.map((m) => m.number)).toEqual([
+            1, 2, 3, 4,
+        ]);
+        expect(s.bubbles[0].status).toBe('thread');
+    });
+
+    it('only one target is active', () => {
+        let s = run(empty, ...hold('a', 0));
+        s = sendAndFinish(s, 'a');
+        s = run(s, ...hold('b', 1000));
+        expect(s.bubbles).toHaveLength(2);
+        const before = s;
+        expect(
+            designSessionReducer(s, {
+                type: 'arm',
+                bubbleId: 'a',
+                input: 'text',
+            }),
+        ).toEqual(before);
+        s = sendAndFinish(s, 'b');
+        expect(s.active).toEqual({ kind: 'page' });
+        s = run(s, { type: 'arm', bubbleId: 'b', input: 'text' });
+        expect(s.active).toEqual({ kind: 'bubble', bubbleId: 'b' });
+    });
+
+    it('marks on a second tab open a new image slot', () => {
+        const s = run(
+            empty,
+            ...hold('a', 0, 'a'),
+            ...hold('a', 1000, 'b', true),
+        );
+        expect(s.bubbles[0].collection?.tabUuids).toEqual(['a', 'b']);
+        const same = run(s, ...hold('a', 2000, 'b', false));
+        expect(same.bubbles[0].collection?.tabUuids).toEqual(['a', 'b']);
+    });
+
+    it('visibleBubbles shows sent bubbles on their home tab only, and the collecting bubble on every tab', () => {
+        let s = run(empty, ...hold('a', 0, 'tab1'));
+        s = sendAndFinish(s, 'a');
+        s = run(s, ...hold('b', 1000, 'tab2'));
+        expect(visibleBubbles(s, 'tab1').map((b) => b.id)).toEqual(['a', 'b']);
+        expect(visibleBubbles(s, 'tab2').map((b) => b.id)).toEqual(['b']);
+    });
+
+    it('discard removes an unsent bubble; close removes a sent bubble', () => {
+        let s = run(empty, ...hold('a', 0));
+        expect(run(s, { type: 'discard', bubbleId: 'a' })).toEqual(empty);
+        s = sendAndFinish(s, 'a');
+        expect(run(s, { type: 'close', bubbleId: 'a' })).toEqual(empty);
+    });
+
+    it('sendFailed returns the bubble to collecting with its marks', () => {
+        let s = run(empty, ...hold('a', 0));
+        s = run(s, { type: 'sendStarted', bubbleId: 'a', needsPicker: true });
+        expect(s.bubbles[0].status).toBe('picking-agent');
+        s = run(s, { type: 'sendFailed', bubbleId: 'a' });
+        expect(s.bubbles[0].status).toBe('collecting');
+        expect(s.bubbles[0].collection).not.toBeNull();
+        s = run(s, { type: 'sendStarted', bubbleId: 'a', needsPicker: false });
+        expect(s.bubbles[0].status).toBe('sending');
+    });
+
+    it('a queued bubble can be removed and is skipped by the active-target rule', () => {
+        let s = run(empty, ...hold('a', 0));
+        s = run(s, { type: 'queue', bubbleId: 'a' });
+        expect(s.bubbles[0].status).toBe('queued');
+        expect(s.active).toEqual({ kind: 'page' });
+        expect(canStartHold(s)).toBe(true);
+        expect(activeCollection(s)).toBeNull();
+        expect(
+            designSessionReducer(s, {
+                type: 'arm',
+                bubbleId: 'a',
+                input: 'text',
+            }),
+        ).toEqual(s);
+        s = run(s, ...hold('b', 1000));
+        expect(s.bubbles).toHaveLength(2);
+        expect(
+            run(s, { type: 'discard', bubbleId: 'a' }).bubbles.map((b) => b.id),
+        ).toEqual(['b']);
+    });
+
+    it('canStartHold is false while a bubble is sending', () => {
+        let s = run(empty, ...hold('a', 0));
+        expect(canStartHold(s)).toBe(true);
+        s = run(s, { type: 'sendStarted', bubbleId: 'a', needsPicker: false });
+        expect(canStartHold(s)).toBe(false);
+    });
+});
