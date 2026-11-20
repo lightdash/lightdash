@@ -1,5 +1,6 @@
 import * as mcpSdk from '@ai-sdk/mcp';
 import type { MCPClient } from '@ai-sdk/mcp';
+import type { AiMcpServerTool } from '@lightdash/common';
 /* eslint-disable import/extensions */
 import {
     auth,
@@ -1009,7 +1010,10 @@ describe('MCP OAuth resource indicator', () => {
     });
 });
 
-const getStoredMcpTool = (toolName: string, description: string) => ({
+const getStoredMcpTool = (
+    toolName: string,
+    description: string,
+): AiMcpServerTool => ({
     uuid: crypto.randomUUID(),
     mcpServerUuid: 'server-uuid',
     toolName,
@@ -1356,12 +1360,11 @@ describe('resolveMcpTools', () => {
         const liveExecute = vi.fn().mockResolvedValue({
             content: [{ type: 'text', text: 'found it' }],
         });
-        const toolsFromDefinitions = vi.fn(() => ({
-            search_lightdash: { execute: liveExecute },
-        }));
         vi.mocked(mcpSdk.createMCPClient).mockResolvedValue({
             serverInfo: { name: 'Lightdash Docs', version: '1.0.0' },
-            toolsFromDefinitions,
+            toolsFromDefinitions: () => ({
+                search_lightdash: { execute: liveExecute },
+            }),
             close,
         } as unknown as MCPClient);
 
@@ -1372,18 +1375,17 @@ describe('resolveMcpTools', () => {
         });
         const searchTool = result.tools.mcp_lightdash_docs__search_lightdash;
         const options = { toolCallId: 'call-1', messages: [] };
+        expect(mcpSdk.createMCPClient).not.toHaveBeenCalled();
         await searchTool.execute!({ query: 'a' }, options);
-        await searchTool.execute!({ query: 'b' }, options);
+        const output = await searchTool.execute!({ query: 'b' }, options);
 
-        expect(mcpSdk.createMCPClient).toHaveBeenCalledOnce();
-        expect(toolsFromDefinitions).toHaveBeenCalledWith({
-            tools: [
-                expect.objectContaining({
-                    name: 'search_lightdash',
-                    description: 'search tool',
-                }),
+        expect(output).toEqual({
+            content: [
+                { type: 'text', text: MCP_UNTRUSTED_OUTPUT_NOTICE },
+                { type: 'text', text: 'found it' },
             ],
         });
+        expect(mcpSdk.createMCPClient).toHaveBeenCalledOnce();
         expect(liveExecute).toHaveBeenCalledTimes(2);
         expect(liveExecute).toHaveBeenCalledWith({ query: 'b' }, options);
         expect(aiAgentModel.updateMcpServerRuntimeState).toHaveBeenCalledWith(
@@ -1392,6 +1394,40 @@ describe('resolveMcpTools', () => {
 
         await result.closeMcpClients();
         expect(close).toHaveBeenCalledOnce();
+    });
+
+    it('fails the tool call and records the error when an on-demand connection fails', async () => {
+        const server = getMcpServer({
+            name: 'Lightdash Docs',
+            enabledToolNames: ['search_lightdash'],
+        });
+        vi.mocked(aiAgentModel.listMcpServerTools).mockResolvedValue([
+            getStoredMcpTool('search_lightdash', 'search tool'),
+        ]);
+        vi.mocked(mcpSdk.createMCPClient).mockRejectedValue(
+            new Error('Connection refused'),
+        );
+
+        const result = await runtimeClient.resolveTools({
+            mcpServers: [server],
+            userUuid: 'user-uuid',
+            debugLoggingEnabled: false,
+        });
+
+        await expect(
+            result.tools.mcp_lightdash_docs__search_lightdash.execute!(
+                { query: 'a' },
+                { toolCallId: 'call-1', messages: [] },
+            ),
+        ).rejects.toThrow(MCP_CONNECTION_MESSAGE);
+        expect(result.unavailableMcpServers).toEqual([]);
+        expect(aiAgentModel.updateMcpServerRuntimeState).toHaveBeenCalledWith(
+            expect.objectContaining({
+                connectionStatus: 'error',
+                error: MCP_CONNECTION_MESSAGE,
+            }),
+        );
+        await result.closeMcpClients();
     });
 
     it('preserves not_connected for authorization-required OAuth servers', async () => {
