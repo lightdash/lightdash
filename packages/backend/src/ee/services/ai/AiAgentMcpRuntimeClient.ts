@@ -1226,7 +1226,7 @@ const toOnDemandMcpTool = (
             liveTool = (await getLiveTools())[definition.name];
             if (!liveTool?.execute) {
                 throw new Error(
-                    `MCP tool "${definition.name}" is no longer available on this server.`,
+                    `MCP tool "${definition.name}" could not be loaded.`,
                 );
             }
             return liveTool.execute(input, options);
