@@ -16,8 +16,8 @@ Pass `type: "composer_chart"` to `createContent`, `readContent` and `editContent
 A new chart is a chart from explore fields unless one of these holds:
 
 - The user asked for a composer chart: create it.
-- The node to chart reads other nodes (a merge, a duckdb or python node): create a composer chart. Judge the node and the nodes it reads, not every node of the `query` call. A lone semanticLayer node is saved as a chart that keeps its fields, filters, sorts, custom metrics, period comparisons (`period-over-period-reference`) and parameters; a lone `sql` node follows `sql-chart-reference`.
-- One explore cannot produce the chart but a `query` pipeline over explores can (a merge across explores, a duckdb or python step): build it with `query` and save it as a composer chart.
+- The node to chart is a merge, duckdb or python node, which reads other nodes: create a composer chart. Judge that node and the nodes it reads, not every node of the `query` call. A lone semanticLayer node is saved as a chart that keeps its fields, filters, sorts, custom metrics, period comparisons (`period-over-period-reference`) and parameters; a lone `sql` node follows `sql-chart-reference`.
+- Where the `query` tool is available, one explore cannot produce the chart but a `query` pipeline over explores can (a merge across explores, a duckdb or python step): build it with `query` and save it as a composer chart.
 
 A pipeline with an `external` node cannot be saved. Composer charts already on a dashboard were chosen for those tiles; a new tile there follows these rules too.
 
