@@ -29,6 +29,7 @@ import { useGroupDevSchemas } from '../hooks/useSidebarPreferences';
 import { useTables } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql, toggleActiveTable } from '../store/sqlRunnerSlice';
+import { quoteTable, quoteTableForQuery } from '../utils/quoteTable';
 import {
     buildRecentRows,
     buildTableRows,
@@ -389,26 +390,6 @@ const VirtualRow: FC<{
     }
 };
 
-const quoteParts = (parts: string[], quoteChar: string): string =>
-    parts
-        .filter((part) => part !== '')
-        .map((part) => `${quoteChar}${part}${quoteChar}`)
-        .join('.');
-
-const quoteTable = ({ database, schema, table }: TableRef, quoteChar: string) =>
-    quoteParts([database, schema, table], quoteChar);
-
-// schema.table is enough unless the catalog spans several databases
-const quoteTableForQuery = (
-    { database, schema, table }: TableRef,
-    quoteChar: string,
-    hasSeveralDatabases: boolean,
-): string =>
-    quoteParts(
-        hasSeveralDatabases ? [database, schema, table] : [schema, table],
-        quoteChar,
-    );
-
 export const Tables: FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
@@ -421,6 +402,9 @@ export const Tables: FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
     );
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const quoteChar = useAppSelector((state) => state.sqlRunner.quoteChar);
+    const warehouseType = useAppSelector(
+        (state) => state.sqlRunner.warehouseConnectionType,
+    );
     const [search, setSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(search, 500);
     const effectiveSearch =
@@ -469,6 +453,7 @@ export const Tables: FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
                             ref,
                             quoteChar,
                             hasSeveralDatabases,
+                            warehouseType,
                         )} ${partitionFilter(partitionColumn)}`,
                     ),
                 );
@@ -476,7 +461,7 @@ export const Tables: FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
             dispatch(toggleActiveTable(ref));
             addRecentTable(ref);
         },
-        [dispatch, sql, quoteChar, addRecentTable, data],
+        [dispatch, sql, quoteChar, warehouseType, addRecentTable, data],
     );
 
     const catalog = useMemo<
