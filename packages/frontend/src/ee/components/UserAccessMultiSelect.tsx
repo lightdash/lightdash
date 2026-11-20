@@ -16,6 +16,7 @@ import { IconInfoCircle } from '@tabler/icons-react';
 import { isEmpty } from 'es-toolkit/compat';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { LightdashUserAvatar } from '../../components/Avatar';
+import { USER_AVATAR_RADIUS } from '../../components/Avatar.constants';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useProjectUsersWithRoles } from '../../hooks/useProjectUsersWithRoles';
 import {
@@ -129,7 +130,11 @@ export const UserAccessMultiSelect: FC<UserAccessMultiSelectProps> = ({
             if (!user) {
                 return (
                     <Group gap="sm">
-                        <LightdashUserAvatar name="?" size="sm" radius="xl" />
+                        <LightdashUserAvatar
+                            name="?"
+                            size="sm"
+                            radius={USER_AVATAR_RADIUS}
+                        />
                         <Text size="sm" fw={500}>
                             {option.label}
                         </Text>
@@ -142,7 +147,6 @@ export const UserAccessMultiSelect: FC<UserAccessMultiSelectProps> = ({
                     <LightdashUserAvatar
                         name={user.label}
                         size="sm"
-                        radius="xl"
                         userUuid={user.userUuid}
                     />
                     <Stack gap="two">

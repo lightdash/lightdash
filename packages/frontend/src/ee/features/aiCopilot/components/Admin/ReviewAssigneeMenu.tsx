@@ -11,6 +11,7 @@ import {
 import { IconSearch, IconUserMinus, IconUserPlus } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
+import { USER_AVATAR_RADIUS } from '../../../../../components/Avatar.constants';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useProjectUsersWithRoles } from '../../../../../hooks/useProjectUsersWithRolesV2';
 import { useUpdateAiAgentReviewItemAssignee } from '../../hooks/useAiAgentAdmin';
@@ -91,7 +92,6 @@ export const ReviewAssigneeMenu: FC<Props> = ({
                                     <LightdashUserAvatar
                                         name={assigneeName ?? undefined}
                                         size={withName ? 18 : avatarSize}
-                                        radius="xl"
                                         userUuid={assignee.userUuid}
                                         avatarUrl={assignee.avatarUrl}
                                         avatarGradient={assignee.avatarGradient}
@@ -99,7 +99,7 @@ export const ReviewAssigneeMenu: FC<Props> = ({
                                 ) : (
                                     <LightdashUserAvatar
                                         size={withName ? 18 : avatarSize}
-                                        radius="xl"
+                                        radius={USER_AVATAR_RADIUS}
                                         variant="light"
                                         color="gray"
                                     >
@@ -159,7 +159,6 @@ export const ReviewAssigneeMenu: FC<Props> = ({
                                             <LightdashUserAvatar
                                                 name={name}
                                                 size="xs"
-                                                radius="xl"
                                                 userUuid={member.userUuid}
                                                 avatarUrl={member.avatarUrl}
                                                 avatarGradient={

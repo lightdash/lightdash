@@ -392,7 +392,6 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                         <LightdashUserAvatar
                             name={serviceAccount.description}
                             size="sm"
-                            radius="xl"
                             userUuid={serviceAccount.userUuid}
                         />
                         <Text size="sm" fw={500}>
@@ -438,7 +437,6 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                                 false,
                             )}
                             size="sm"
-                            radius="xl"
                             color="blue"
                             userUuid={user.userUuid}
                             avatarUrl={user.avatarUrl}
