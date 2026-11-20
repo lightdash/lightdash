@@ -1009,9 +1009,23 @@ describe('MCP OAuth resource indicator', () => {
     });
 });
 
+const getStoredMcpTool = (toolName: string, description: string) => ({
+    uuid: crypto.randomUUID(),
+    mcpServerUuid: 'server-uuid',
+    toolName,
+    title: null,
+    description,
+    inputSchema: { type: 'object', properties: {} },
+    annotations: null,
+    meta: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+});
+
 describe('resolveMcpTools', () => {
     const aiAgentModel = {
         updateMcpServerRuntimeState: vi.fn(),
+        listMcpServerTools: vi.fn(),
     } as unknown as AiAgentModel;
     const runtimeClient = new AiAgentMcpRuntimeClient({
         aiAgentModel,
@@ -1026,6 +1040,8 @@ describe('resolveMcpTools', () => {
     beforeEach(() => {
         vi.mocked(mcpSdk.createMCPClient).mockReset();
         vi.mocked(aiAgentModel.updateMcpServerRuntimeState).mockReset();
+        vi.mocked(aiAgentModel.listMcpServerTools).mockReset();
+        vi.mocked(aiAgentModel.listMcpServerTools).mockResolvedValue([]);
     });
 
     it('keeps healthy MCP tools when another MCP fails', async () => {
@@ -1177,6 +1193,10 @@ describe('resolveMcpTools', () => {
                 enabledToolNames: undefined,
             }),
         ];
+        vi.mocked(aiAgentModel.listMcpServerTools).mockResolvedValue([
+            getStoredMcpTool('search', 'search tool'),
+            getStoredMcpTool('new_tool', 'new tool'),
+        ]);
         vi.mocked(mcpSdk.createMCPClient).mockResolvedValue({
             serverInfo: { name: 'Docs MCP', version: '1' },
             tools: async () => ({
@@ -1301,26 +1321,15 @@ describe('resolveMcpTools', () => {
         expect(close).toHaveBeenCalledTimes(1);
     });
 
-    it('filters out disabled MCP tools', async () => {
-        const close = vi.fn().mockResolvedValue(undefined);
+    it('filters out disabled MCP tools without connecting', async () => {
         const server = getMcpServer({
             name: 'Lightdash Docs',
             enabledToolNames: ['search_lightdash'],
         });
-
-        vi.mocked(mcpSdk.createMCPClient).mockResolvedValue({
-            serverInfo: {
-                name: 'Lightdash Docs',
-                version: '1.0.0',
-            },
-            tools: async () => ({
-                search_lightdash: { description: 'search tool' },
-                query_docs_filesystem_lightdash: {
-                    description: 'query tool',
-                },
-            }),
-            close,
-        } as unknown as MCPClient);
+        vi.mocked(aiAgentModel.listMcpServerTools).mockResolvedValue([
+            getStoredMcpTool('search_lightdash', 'search tool'),
+            getStoredMcpTool('query_docs_filesystem_lightdash', 'query tool'),
+        ]);
 
         const result = await runtimeClient.resolveTools({
             mcpServers: [server],
@@ -1331,9 +1340,58 @@ describe('resolveMcpTools', () => {
         expect(Object.keys(result.tools)).toEqual([
             'mcp_lightdash_docs__search_lightdash',
         ]);
+        expect(mcpSdk.createMCPClient).not.toHaveBeenCalled();
+        await result.closeMcpClients();
+    });
+
+    it('connects an approved MCP server on its first tool call, once', async () => {
+        const server = getMcpServer({
+            name: 'Lightdash Docs',
+            enabledToolNames: ['search_lightdash'],
+        });
+        vi.mocked(aiAgentModel.listMcpServerTools).mockResolvedValue([
+            getStoredMcpTool('search_lightdash', 'search tool'),
+        ]);
+        const close = vi.fn().mockResolvedValue(undefined);
+        const liveExecute = vi.fn().mockResolvedValue({
+            content: [{ type: 'text', text: 'found it' }],
+        });
+        const toolsFromDefinitions = vi.fn(() => ({
+            search_lightdash: { execute: liveExecute },
+        }));
+        vi.mocked(mcpSdk.createMCPClient).mockResolvedValue({
+            serverInfo: { name: 'Lightdash Docs', version: '1.0.0' },
+            toolsFromDefinitions,
+            close,
+        } as unknown as MCPClient);
+
+        const result = await runtimeClient.resolveTools({
+            mcpServers: [server],
+            userUuid: 'user-uuid',
+            debugLoggingEnabled: false,
+        });
+        const searchTool = result.tools.mcp_lightdash_docs__search_lightdash;
+        const options = { toolCallId: 'call-1', messages: [] };
+        await searchTool.execute!({ query: 'a' }, options);
+        await searchTool.execute!({ query: 'b' }, options);
+
+        expect(mcpSdk.createMCPClient).toHaveBeenCalledOnce();
+        expect(toolsFromDefinitions).toHaveBeenCalledWith({
+            tools: [
+                expect.objectContaining({
+                    name: 'search_lightdash',
+                    description: 'search tool',
+                }),
+            ],
+        });
+        expect(liveExecute).toHaveBeenCalledTimes(2);
+        expect(liveExecute).toHaveBeenCalledWith({ query: 'b' }, options);
+        expect(aiAgentModel.updateMcpServerRuntimeState).toHaveBeenCalledWith(
+            expect.objectContaining({ connectionStatus: 'connected' }),
+        );
 
         await result.closeMcpClients();
-        expect(close).toHaveBeenCalledTimes(1);
+        expect(close).toHaveBeenCalledOnce();
     });
 
     it('preserves not_connected for authorization-required OAuth servers', async () => {
