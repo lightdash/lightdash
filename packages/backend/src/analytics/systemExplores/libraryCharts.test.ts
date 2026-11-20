@@ -378,7 +378,12 @@ describe('analyticsLibraryChartBindings', () => {
             const known = [
                 ...(b.query ?? metricQuery).dimensions,
                 ...(b.query ?? metricQuery).metrics,
-                ...(metricQuery.tableCalculations ?? []).map((c) => c.name),
+                // A binding query replaces the plain chart's calculations with its own
+                ...(
+                    (b.query ? b.query.tableCalculations : undefined) ??
+                    metricQuery.tableCalculations ??
+                    []
+                ).map((c) => c.name),
             ];
             Object.values(b.fieldMapping)
                 .flat()
@@ -388,10 +393,14 @@ describe('analyticsLibraryChartBindings', () => {
         });
     });
 
-    it('maps only dimensions and metrics of a binding query', () => {
+    it('maps only dimensions, metrics and calculations of a binding query', () => {
         entries.forEach(([, b]) => {
             if (!b.query) return;
-            const known = [...b.query.dimensions, ...b.query.metrics];
+            const known = [
+                ...b.query.dimensions,
+                ...b.query.metrics,
+                ...(b.query.tableCalculations ?? []).map((c) => c.name),
+            ];
             Object.values(b.fieldMapping)
                 .flat()
                 .forEach((id) => {
@@ -814,7 +823,7 @@ describe('legacyLibraryChartBindings', () => {
                 agentChart('agent-retries-latency-and-consumption'),
             ),
         ).toBe(
-            'Requests and average request latency by recorded retry count. An agent step is not a retry.',
+            'Requests and average request latency by retry count. Each retry runs the request again with new AI calls, so more retries mean a longer wait and more tokens. An agent step is not a retry.',
         );
     });
 });

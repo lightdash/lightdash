@@ -1863,7 +1863,9 @@ describe('display fixes', () => {
         }
     });
 
-    it('totals the tokens of failed or cancelled requests on a card', () => {
+    it('totals the tokens of failed or cancelled requests on a card, with their share of all tokens', () => {
+        const failedTokens =
+            'agent_requests_failed_or_cancelled_request_tokens';
         const failed = byKey('request-consumption-by-outcome-and-feedback');
         expect(failed.name).toBe(
             'Tokens spent on failed or cancelled requests',
@@ -1871,44 +1873,41 @@ describe('display fixes', () => {
         expect(failed.chartConfig).toMatchObject({
             type: ChartType.BIG_NUMBER,
             config: {
-                selectedField: 'agent_requests_total_request_tokens',
+                selectedField: failedTokens,
             },
         });
         expect(failed.metricQuery.dimensions).toEqual([]);
-        expect(failed.metricQuery.metrics).toEqual([
-            'agent_requests_total_request_tokens',
-        ]);
-        // Clarification and pending are not failures
-        expect(failed.metricQuery.filters.dimensions).toMatchObject({
-            and: [
-                {
-                    target: { fieldId: 'agent_requests_status' },
-                    operator: FilterOperator.EQUALS,
-                    values: ['error', 'cancelled'],
-                },
-            ],
-        });
+        expect(failed.metricQuery.metrics).toEqual([failedTokens]);
+        // The measure keeps only failed and cancelled requests itself (clarification and pending are not
+        // failures), so the query has no outcome filter and can also total every request's tokens
+        expect(failed.metricQuery.filters.dimensions).toBeUndefined();
         expect(compile(failed).query).toContain("IN ('error','cancelled')");
         const binding = analyticsLibraryChartBindings.get(failed.slug)!;
         expect(binding).toMatchObject({
             slug: 'big-number-with-sparkline-trend',
             fieldMapping: {
-                value: 'agent_requests_total_request_tokens',
-                sparklineMetric: 'agent_requests_total_request_tokens',
+                value: failedTokens,
+                sparklineMetric: failedTokens,
                 time: 'agent_requests_requested_at_day',
+                secondary: 'failed_token_share',
             },
             optionValues: {
                 valueAggregation: 'sum',
                 label: 'Selected period',
                 showSparklineArea: true,
+                secondaryLabel: 'of all tokens used by agent requests',
             },
             query: {
                 dimensions: ['agent_requests_requested_at_day'],
-                metrics: ['agent_requests_total_request_tokens'],
+                metrics: [failedTokens, 'agent_requests_total_request_tokens'],
             },
         });
-        // A share of all linked tokens cannot come from a query that keeps only the failed requests
-        expect(binding.fieldMapping).not.toHaveProperty('secondary');
-        expect(binding.optionValues).not.toHaveProperty('secondaryLabel');
+        // The share is the same on every row, so the card can read it from any day
+        expect(binding.query?.tableCalculations).toMatchObject([
+            {
+                name: 'failed_token_share',
+                sql: expect.stringMatching(/OVER \(\).*OVER \(\)/),
+            },
+        ]);
     });
 });

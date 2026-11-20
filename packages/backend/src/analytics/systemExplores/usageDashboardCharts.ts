@@ -3,9 +3,13 @@ import {
     FilterOperator,
     TableCalculationType,
 } from '@lightdash/common';
-import { card } from './chartBuilders';
 import { monthlyQueryComparisonCharts } from './monthlyQueryComparisonCharts';
 import type { UsageChartSpec } from './usageDashboardTypes';
+
+const failedTokens = 'agent_requests_failed_or_cancelled_request_tokens';
+const failedTokenShare = 'failed_token_share';
+const failedTokensDescription =
+    'Tokens from AI calls linked to agent requests that ended in an error or were cancelled. Requests still pending or waiting for a clarification are not counted. Unlinked AI calls and unknown token counts are not zero tokens.';
 
 export const usageChartSpecs: UsageChartSpec[] = [
     ...monthlyQueryComparisonCharts,
@@ -544,7 +548,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'agent-retries-latency-and-consumption',
         name: 'Requests and latency by retry count',
         description:
-            'Requests, time spent on failed attempts, average latency and tokens for each retry count. Waiting time between attempts is not included. Token totals can be incomplete. An agent step is not a retry.',
+            'Requests, time spent on failed attempts, average latency and tokens for each retry count. Each retry runs the request again with new AI calls, so more retries mean a longer wait and more tokens. The exact tokens added by each attempt are not recorded, and waiting time between attempts is not included. Token totals can be incomplete. An agent step is not a retry.',
         explore: 'agent_requests',
         dimensions: ['agent_requests_retry_count'],
         metrics: [
@@ -595,7 +599,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 ],
                 limit: 30,
                 description:
-                    'Requests and average request latency by recorded retry count. An agent step is not a retry.',
+                    'Requests and average request latency by retry count. Each retry runs the request again with new AI calls, so more retries mean a longer wait and more tokens. An agent step is not a retry.',
             },
         },
     },
@@ -728,21 +732,63 @@ export const usageChartSpecs: UsageChartSpec[] = [
             },
         ],
     },
-    card({
+    {
         key: 'request-consumption-by-outcome-and-feedback',
         name: 'Tokens spent on failed or cancelled requests',
-        description:
-            'Tokens from AI calls linked to agent requests that ended in an error or were cancelled. Requests still pending or waiting for a clarification are not counted. Unlinked AI calls and unknown token counts are not zero tokens.',
+        description: failedTokensDescription,
         explore: 'agent_requests',
-        day: 'agent_requests_requested_at_day',
-        metric: 'agent_requests_total_request_tokens',
-        filters: [
-            {
-                field: 'agent_requests_status',
-                values: ['error', 'cancelled'],
+        dimensions: [],
+        metrics: [failedTokens],
+        limit: 1,
+        sorts: [{ fieldId: failedTokens, descending: true }],
+        visualization: 'number',
+        libraryChart: {
+            slug: 'big-number-with-sparkline-trend',
+            minVersion: '0.8.0',
+            fieldMapping: {
+                value: failedTokens,
+                sparklineMetric: failedTokens,
+                time: 'agent_requests_requested_at_day',
+                secondary: failedTokenShare,
             },
-        ],
-    }),
+            optionValues: {
+                valueAggregation: 'sum',
+                style: 'compact',
+                showComparison: true,
+                comparisonSource: 'previousPeriod',
+                comparisonLabel: 'vs the day before',
+                secondaryLabel: 'of all tokens used by agent requests',
+                colorSparklineByTrend: false,
+                showSparklineArea: true,
+                showLabel: true,
+                label: 'Selected period',
+                showCardBorder: false,
+                showCardShadow: false,
+            },
+            query: {
+                dimensions: ['agent_requests_requested_at_day'],
+                metrics: [failedTokens, 'agent_requests_total_request_tokens'],
+                sorts: [
+                    {
+                        fieldId: 'agent_requests_requested_at_day',
+                        descending: false,
+                    },
+                ],
+                limit: 500,
+                // The same share on every row: the card reads it from the latest day
+                tableCalculations: [
+                    {
+                        name: failedTokenShare,
+                        displayName: 'Share of all tokens',
+                        type: TableCalculationType.NUMBER,
+                        sql: 'SUM(${agent_requests.failed_or_cancelled_request_tokens}) OVER () * 1.0 / NULLIF(SUM(${agent_requests.total_request_tokens}) OVER (), 0)',
+                        format: { type: CustomFormatType.PERCENT, round: 1 },
+                    },
+                ],
+                description: `${failedTokensDescription} The percentage is their share of all tokens used by agent requests in the selected period.`,
+            },
+        },
+    },
     {
         key: 'review-candidates-activity-and-known-dependencies',
         name: 'Review candidates: activity and known dependencies',

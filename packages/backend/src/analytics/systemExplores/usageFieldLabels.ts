@@ -15,6 +15,7 @@ export const usageFieldLabels: Record<string, string> = {
     agent_requests_total_retry_overhead_ms: 'Time on failed attempts (ms)',
     agent_requests_average_request_latency_ms: 'Average latency (ms)',
     agent_requests_total_request_tokens: 'Tokens',
+    agent_requests_failed_or_cancelled_request_tokens: 'Tokens',
     agent_requests_total_ai_calls: 'AI calls',
     user_activity_activity_date_day: 'Day',
     user_activity_unique_users: 'People',

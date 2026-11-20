@@ -1324,11 +1324,17 @@ describe('Agents & AI failed-request card', () => {
         expect(failed.metricQuery.dimensions).toEqual([
             'agent_requests_requested_at_day',
         ]);
-        // The card keeps the outcome filter of the plain number, so both show the same total
-        expect(failed.metricQuery.filters).toEqual(
-            all.find((chart) => chart.slug === failedSlug)!.metricQuery.filters,
+        // The card measures the same failed and cancelled requests as the plain number
+        expect(failed.metricQuery.metrics).toContain(
+            all.find((chart) => chart.slug === failedSlug)!.metricQuery
+                .metrics[0],
         );
         expect(sqlOf(failed)).toContain("IN ('error','cancelled')");
+        // Their share of all tokens is worked out over the whole period, not one day
+        expect(failed.metricQuery.tableCalculations).toMatchObject([
+            { name: 'failed_token_share' },
+        ]);
+        expect(sqlOf(failed)).toContain('failed_token_share');
     });
 
     it('falls back to the plain big number on an older library type', () => {
@@ -1337,6 +1343,64 @@ describe('Agents & AI failed-request card', () => {
             failedSlug,
         );
         expect(failed.chartConfig.type).toBe(ChartType.BIG_NUMBER);
+    });
+
+    it('gives every day the share of the whole period, from real rows', async () => {
+        const { failed } = draw(installedTypes());
+        const instance = await DuckDBInstance.create(':memory:', {
+            threads: '1',
+            memory_limit: '128MB',
+        });
+        const db = await instance.connect();
+        try {
+            for (const stream of [
+                'agent_request_events',
+                'ai_usage',
+            ] as const) {
+                await db.run(
+                    `CREATE TABLE ${stream} (${compactedStreamSchemas[stream].map(({ name, type }) => `"${name}" ${type}`).join(',')})`,
+                );
+            }
+            await db.run(
+                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR)',
+            );
+            await db.run(
+                'CREATE TABLE lightdash_agents (org_id VARCHAR, agent_id VARCHAR, name VARCHAR)',
+            );
+            // Day one: a failed request (30 tokens) and a cancelled one (10). Day two: a success (60).
+            await db.run(`INSERT INTO agent_request_events
+                (org_id, project_id, user_id, agent_id, thread_id, prompt_id, event_id, event_ts, stage, outcome) VALUES
+                ('org','project','u','a','t','p1','c1','2026-01-05 10:00:00','created',NULL),
+                ('org','project','u','a','t','p1','o1','2026-01-05 10:00:01','outcome','error'),
+                ('org','project','u','a','t','p2','c2','2026-01-05 11:00:00','created',NULL),
+                ('org','project','u','a','t','p2','o2','2026-01-05 11:00:01','interrupted',NULL),
+                ('org','project','u','a','t','p3','c3','2026-01-06 10:00:00','created',NULL),
+                ('org','project','u','a','t','p3','o3','2026-01-06 10:00:01','outcome','success')`);
+            await db.run(`INSERT INTO ai_usage
+                (org_id, project_id, agent_id, prompt_id, event_id, event_ts, total_tokens) VALUES
+                ('org','project','a','p1','k1','2026-01-05 10:00:01',30),
+                ('org','project','a','p2','k2','2026-01-05 11:00:01',10),
+                ('org','project','a','p3','k3','2026-01-06 10:00:01',60)`);
+            const rows = (
+                await db.runAndReadAll(sqlOf(failed))
+            ).getRowObjectsJS();
+            expect(
+                rows.map((row) => [
+                    Number(
+                        row.agent_requests_failed_or_cancelled_request_tokens ??
+                            0,
+                    ),
+                    Number(row.agent_requests_total_request_tokens),
+                    Number(row.failed_token_share),
+                ]),
+            ).toEqual([
+                [40, 40, 0.4],
+                [0, 60, 0.4],
+            ]);
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
     });
 });
 

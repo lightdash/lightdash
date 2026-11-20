@@ -19,6 +19,8 @@ export type LibraryChartBinding = {
         metrics: string[];
         sorts: ChartAsCode['metricQuery']['sorts'];
         limit: number;
+        // Calculations over the library chart's own rows. They may only use the fields listed above.
+        tableCalculations?: ChartAsCode['metricQuery']['tableCalculations'];
         // Chart description for the library rendering's own query.
         description: string;
     } | null;
@@ -173,7 +175,9 @@ export const withLibraryCharts = (
                 ? {
                       dimensions: query.dimensions,
                       metrics: query.metrics,
-                      tableCalculations: [],
+                      tableCalculations: (query.tableCalculations ?? []).map(
+                          ({ name }) => name,
+                      ),
                   }
                 : {
                       dimensions: chart.metricQuery.dimensions,
@@ -202,11 +206,17 @@ export const withLibraryCharts = (
                     metrics: query.metrics,
                     sorts: query.sorts,
                     limit: query.limit,
-                    // Calculations may reference fields the override drops.
-                    tableCalculations: [],
+                    // The plain chart's calculations may reference fields the override drops.
+                    tableCalculations: query.tableCalculations ?? [],
                 },
                 tableConfig: {
-                    columnOrder: [...query.dimensions, ...query.metrics],
+                    columnOrder: [
+                        ...query.dimensions,
+                        ...query.metrics,
+                        ...(query.tableCalculations ?? []).map(
+                            ({ name }) => name,
+                        ),
+                    ],
                 },
             }),
             chartConfig: {

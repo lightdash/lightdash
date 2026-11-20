@@ -94,7 +94,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         title: 'Failed requests and retries',
                         caption: true,
                         description:
-                            'Tokens spent on agent requests that failed or were cancelled, next to requests and average request latency by retry count. The exact tokens added by each attempt are not recorded.',
+                            'Tokens spent on agent requests that failed or were cancelled, next to requests and average latency by retry count. Each retry runs the request again with new AI calls, so a request with more retries takes longer and uses more tokens.',
                         charts: [
                             'request-consumption-by-outcome-and-feedback',
                             'agent-retries-latency-and-consumption',
