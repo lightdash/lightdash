@@ -203,6 +203,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 valueAggregation: 'sum',
                 showComparison: true,
                 comparisonSource: 'previousPeriod',
+                comparisonLabel: 'latest day vs the day before',
                 style: 'compact',
                 colorSparklineByTrend: false,
                 showLabel: true,

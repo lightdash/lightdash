@@ -50,6 +50,7 @@ const card = ({
                       style: 'compact',
                       showComparison: true,
                       comparisonSource: 'previousPeriod',
+                      comparisonLabel: 'latest day vs the day before',
                   }),
             colorSparklineByTrend: false,
             showSparklineArea: true,

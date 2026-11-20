@@ -666,6 +666,12 @@ describe('legacyLibraryChartBindings', () => {
                     default: 'mapped',
                 },
                 {
+                    type: 'text',
+                    name: 'comparisonLabel',
+                    label: 'comparisonLabel',
+                    default: '',
+                },
+                {
                     type: 'boolean',
                     name: 'showLabel',
                     label: 'showLabel',

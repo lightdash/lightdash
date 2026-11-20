@@ -51,6 +51,7 @@ export const card = ({
                       style: 'compact',
                       showComparison: true,
                       comparisonSource: 'previousPeriod',
+                      comparisonLabel: 'latest day vs the day before',
                   }),
             ...(hero ? { showHighLow: true } : {}),
             colorSparklineByTrend: false,
