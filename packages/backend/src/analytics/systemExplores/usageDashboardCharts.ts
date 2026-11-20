@@ -168,16 +168,29 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'field-capture-coverage',
-        name: 'Queries with field details',
+        name: 'Share of queries with a full field list',
         description:
-            'Distinct queries by how much field detail was recorded, including older history and SQL queries. Missing detail does not mean a query used no fields. Captured means the fields were recorded, partial that some could not be, unavailable includes SQL queries, and not captured includes older history.',
+            'Queries in the selected period where Lightdash has the full list of metrics and dimensions the query used, as a share of all queries. SQL queries and queries from before the list was switched on have no list, and very large queries can have only part of one.',
         explore: 'semantic_usage',
-        dimensions: ['semantic_usage_lineage_status'],
-        metrics: ['semantic_usage_total_queries'],
-        limit: 10,
+        dimensions: [],
+        metrics: [
+            'semantic_usage_queries_with_field_details',
+            'semantic_usage_total_queries',
+        ],
+        tableCalculations: [
+            {
+                name: 'field_list_share',
+                displayName: 'Share of queries with a full field list',
+                type: TableCalculationType.NUMBER,
+                sql: '${semantic_usage.queries_with_field_details} * 1.0 / NULLIF(${semantic_usage.total_queries}, 0)',
+                format: { type: CustomFormatType.PERCENT, round: 0 },
+            },
+        ],
+        limit: 1,
         sorts: [{ fieldId: 'semantic_usage_total_queries', descending: true }],
-        visualization: 'bar',
-        flipAxes: true,
+        visualization: 'number',
+        // The number shown is the share, not the first measure
+        yFields: ['field_list_share'],
     },
     {
         key: 'agent-requests-trend',

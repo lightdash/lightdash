@@ -184,9 +184,9 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         charts: ['people-using-fields', 'content-using-fields'],
                     },
                     {
-                        title: 'Queries with field details',
+                        title: 'How complete these numbers are',
                         description:
-                            'How much field detail was recorded for each query. Recording starts once the feature is switched on.',
+                            'For each query, Lightdash keeps a list of the metrics and dimensions it used, and the tiles above count only what is on those lists. A low share here means the tiles above undercount how much each field is used, because SQL queries and older queries have no list.',
                         charts: ['field-capture-coverage'],
                     },
                 ],

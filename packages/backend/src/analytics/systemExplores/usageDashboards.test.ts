@@ -1535,12 +1535,15 @@ describe('built-in usage dashboards', () => {
             );
             expect(
                 semanticRows.get(`${prefix}field-capture-coverage`),
-            ).toHaveLength(4);
+            ).toHaveLength(1);
+            // Four queries, one of them with a full field list
             expect(
-                semanticRows
-                    .get(`${prefix}field-capture-coverage`)
-                    ?.every((row) => row.semantic_usage_total_queries === 1n),
-            ).toBe(true);
+                semanticRows.get(`${prefix}field-capture-coverage`)?.[0],
+            ).toMatchObject({
+                semantic_usage_queries_with_field_details: 1n,
+                semantic_usage_total_queries: 4n,
+                field_list_share: 0.25,
+            });
             await db.run(`INSERT INTO data_app_events (org_id, project_id, app_id, user_id, event_name, event_ts) VALUES
                 ('org-a','project-a','app-a','person-a','data_app.view',CURRENT_TIMESTAMP),
                 ('org-a','project-a','app-a',NULL,'data_app.view',CURRENT_TIMESTAMP),

@@ -231,7 +231,11 @@ const chartConfig = (spec: UsageChartSpec): ChartAsCode['chartConfig'] => {
     if (spec.visualization === 'number') {
         return {
             type: ChartType.BIG_NUMBER,
-            config: { selectedField: metric, showBigNumberLabel: false },
+            // A number can show a table calculation, named as its one y field
+            config: {
+                selectedField: spec.yFields?.[0] ?? metric,
+                showBigNumberLabel: false,
+            },
         };
     }
     if (spec.visualization === 'donut') {
