@@ -18,6 +18,11 @@ export const getOrganizationSystemRoleScopes = (
         : permissions;
 };
 
+export const getOrganizationPatScopes = (user: SessionUser): string[] =>
+    user.ability.can('manage', 'PersonalAccessToken')
+        ? ['manage:PersonalAccessToken']
+        : [];
+
 const getCallerOrganizationScopes = async (
     user: SessionUser,
     organizationUuid: string,
@@ -31,10 +36,7 @@ const getCallerOrganizationScopes = async (
 
     // Read off the built ability rather than the stored scope list: it
     // already covers both a role that lists this scope and a config fallback.
-    const canManagePersonalAccessToken = user.ability.can(
-        'manage',
-        'PersonalAccessToken',
-    );
+    const patScopes = getOrganizationPatScopes(user);
 
     // The caller's runtime ability is the union of the slot (system role or
     // custom role from the session) and any extra custom roles they hold.
@@ -63,9 +65,7 @@ const getCallerOrganizationScopes = async (
         ...(user.roleUuid ? [] : getOrganizationSystemRoleScopes(user.role)),
         ...customRoles.flatMap((role) => role.scopes),
     ];
-    return canManagePersonalAccessToken
-        ? [...scopes, 'manage:PersonalAccessToken']
-        : scopes;
+    return [...scopes, ...patScopes];
 };
 
 export const validateOrganizationScopesCanBeGranted = async ({

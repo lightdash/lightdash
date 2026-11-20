@@ -596,6 +596,7 @@ describe('QuerySourceService', () => {
                 invalidateCache: false,
                 pivotConfiguration: null,
                 plan: null,
+                dateZoom: null,
                 authority: { kind: 'request' },
             };
             const { userAttributeOverrides, ...withoutOverrides } = args;
@@ -1779,6 +1780,7 @@ describe('composer bound run', () => {
                 metrics: [],
                 tableCalculations: [],
             },
+            dateZoomByNodeId: {},
         });
     const createBoundSources = () => {
         const queryUuid = (nodeId: string) => ({

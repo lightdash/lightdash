@@ -78,6 +78,7 @@ import {
     CreateWebAppThread,
     EE_SCHEDULER_TASKS,
     elementReferenceToWireString,
+    ForbiddenError,
     generateSlug,
     getAppDisplayName,
     getComposerNodeConflictMessage,
@@ -2428,6 +2429,29 @@ export class AiAgentModel {
             });
     }
 
+    private static async assertAgentProjectScope(
+        trx: Knex,
+        projectUuid: string,
+        organizationUuid: string,
+    ): Promise<void> {
+        const project = await trx(ProjectTableName)
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .first(`${ProjectTableName}.project_uuid`);
+        if (!project)
+            throw new ForbiddenError(
+                'Agent project must belong to the organization',
+            );
+    }
+
     async createAgent(
         args: Pick<
             ApiCreateAiAgent,
@@ -2460,6 +2484,11 @@ export class AiAgentModel {
         },
     ): Promise<AiAgent> {
         return this.database.transaction(async (trx) => {
+            await AiAgentModel.assertAgentProjectScope(
+                trx,
+                args.projectUuid,
+                args.organizationUuid,
+            );
             const slug =
                 args.slug ??
                 (await AiAgentModel.generateUniqueSlug(
@@ -2710,6 +2739,17 @@ export class AiAgentModel {
                         : {}),
                 })
                 .returning('*');
+
+            if (
+                args.projectUuid !== undefined ||
+                (args.mcpServerUuids?.length ?? 0) > 0
+            ) {
+                await AiAgentModel.assertAgentProjectScope(
+                    trx,
+                    agent.project_uuid,
+                    agent.organization_uuid,
+                );
+            }
 
             // `integrations` is optional on the update payload (PATCH
             // semantics). Only rebuild integrations when the caller explicitly
@@ -3259,19 +3299,49 @@ export class AiAgentModel {
         return this.getSpaceAccess(agentUuid, { trx });
     }
 
-    private async getAgentMcpServers(
+    private async getAgentMcpServerRows(
         agentUuid: AiAgent['uuid'],
-        { trx = this.database }: { trx?: Knex } = {},
-    ): Promise<AiMcpServer[]> {
-        const rows = await trx(AiAgentMcpServerTableName)
+        trx: Knex,
+    ): Promise<DbAiMcpServer[]> {
+        return trx(AiAgentMcpServerTableName)
             .innerJoin(
                 AiMcpServerTableName,
                 `${AiAgentMcpServerTableName}.ai_mcp_server_uuid`,
                 `${AiMcpServerTableName}.ai_mcp_server_uuid`,
             )
+            .innerJoin(
+                AiAgentTableName,
+                `${AiAgentTableName}.ai_agent_uuid`,
+                `${AiAgentMcpServerTableName}.ai_agent_uuid`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${AiAgentTableName}.project_uuid`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
             .select<DbAiMcpServer[]>(AiAgentModel.getMcpServerSelect(trx))
             .where(`${AiAgentMcpServerTableName}.ai_agent_uuid`, agentUuid)
+            .where(
+                `${AiAgentTableName}.organization_uuid`,
+                trx.ref(`${OrganizationTableName}.organization_uuid`),
+            )
+            .where(
+                `${AiMcpServerTableName}.project_uuid`,
+                trx.ref(`${AiAgentTableName}.project_uuid`),
+            )
             .orderBy(`${AiMcpServerTableName}.created_at`, 'asc');
+    }
+
+    private async getAgentMcpServers(
+        agentUuid: AiAgent['uuid'],
+        { trx = this.database }: { trx?: Knex } = {},
+    ): Promise<AiMcpServer[]> {
+        const rows = await this.getAgentMcpServerRows(agentUuid, trx);
 
         const credentials = await Promise.all(
             rows.map(
@@ -3298,15 +3368,7 @@ export class AiAgentModel {
         userUuid: string,
         { trx = this.database }: { trx?: Knex } = {},
     ): Promise<AiMcpServerWithSensitiveData[]> {
-        const rows = await trx(AiAgentMcpServerTableName)
-            .innerJoin(
-                AiMcpServerTableName,
-                `${AiAgentMcpServerTableName}.ai_mcp_server_uuid`,
-                `${AiMcpServerTableName}.ai_mcp_server_uuid`,
-            )
-            .select<DbAiMcpServer[]>(AiAgentModel.getMcpServerSelect(trx))
-            .where(`${AiAgentMcpServerTableName}.ai_agent_uuid`, agentUuid)
-            .orderBy(`${AiMcpServerTableName}.created_at`, 'asc');
+        const rows = await this.getAgentMcpServerRows(agentUuid, trx);
 
         const resolvedCredentials = await Promise.all(
             rows.map((row) =>

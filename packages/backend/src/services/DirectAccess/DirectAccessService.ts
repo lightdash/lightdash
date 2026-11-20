@@ -98,7 +98,7 @@ export class DirectAccessService extends BaseService {
         getUserAccess: (
             resourceUuids: string[],
             userUuid: string,
-            opts: { organizationUuid: string },
+            opts: { organizationUuid: string; includePendingUser?: boolean },
         ) => Promise<
             Record<
                 string,
@@ -343,7 +343,21 @@ export class DirectAccessService extends BaseService {
         if (location === undefined || location.projectUuid !== projectUuid) {
             throw new NotFoundError('Direct access target not found');
         }
+        await this.assertCanManageLocation(
+            account,
+            resourceType,
+            resourceUuid,
+            location,
+        );
+        return { organizationUuid };
+    }
 
+    private async assertCanManageLocation(
+        account: RegisteredAccount,
+        resourceType: DirectAccessResourceType,
+        resourceUuid: UUID,
+        location: DirectAccessResourceLocation,
+    ): Promise<void> {
         const context = await this.spacePermissionService.resolveAccess(
             account.user.userUuid,
             DirectAccessService.toAccessTarget(
@@ -373,7 +387,54 @@ export class DirectAccessService extends BaseService {
                 'You do not have permission to manage direct access for this resource',
             );
         }
-        return { organizationUuid };
+    }
+
+    async assertCanRenewSharedAccess(
+        account: RegisteredAccount,
+        recipientUuid: UUID,
+    ): Promise<void> {
+        const { organizationUuid } = account.organization;
+        if (
+            !organizationUuid ||
+            !(await this.directAccessFeatureGate.isEnabled(account))
+        )
+            return;
+
+        await Promise.all(
+            Object.values(DirectAccessResourceType).map(
+                async (resourceType) => {
+                    const resourceUuids =
+                        await this.directAccessModel.findCandidateResourceUuidsForUser(
+                            resourceType,
+                            recipientUuid,
+                        );
+                    if (resourceUuids.length === 0) return;
+                    const grants = await this.getGrantReadModel(
+                        resourceType,
+                    ).getUserAccess(resourceUuids, recipientUuid, {
+                        organizationUuid,
+                        includePendingUser: true,
+                    });
+                    await Promise.all(
+                        Object.keys(grants).map(async (resourceUuid) => {
+                            const location =
+                                await this.directAccessModel.findResourceLocation(
+                                    resourceType,
+                                    resourceUuid,
+                                    organizationUuid,
+                                );
+                            if (!location) return;
+                            await this.assertCanManageLocation(
+                                account,
+                                resourceType,
+                                resourceUuid,
+                                location,
+                            );
+                        }),
+                    );
+                },
+            ),
+        );
     }
 
     private static toAuditPrincipal(principal: DirectAccessPrincipalRef): {

@@ -142,6 +142,11 @@ export class MergeQuerySource implements QuerySourceClient {
                 ...args.parameters,
                 ...getMergeNodeParameters(query, args.submission),
             };
+            // A bound run's legs ran zoomed, so the merge compiles against the same grain
+            const legZooms =
+                args.authority.kind === 'composer'
+                    ? args.authority.binding.dateZoomByNodeId
+                    : {};
             const compiled = await this.asyncQueryService.compileComposerMerge({
                 authority: withoutDocumentAuthority(args.authority),
                 account: args.account,
@@ -150,6 +155,11 @@ export class MergeQuerySource implements QuerySourceClient {
                 mergeQuery,
                 parameters,
                 userAttributeOverrides: args.userAttributeOverrides,
+                dateZoomBySourceId: Object.fromEntries(
+                    mergeQuery.sources.flatMap(({ id }) =>
+                        legZooms[id] ? [[id, legZooms[id]]] : [],
+                    ),
+                ),
                 sourceTitleById: Object.fromEntries(
                     mergeQuery.sources.map(({ id }) => [
                         id,

@@ -1,3 +1,47 @@
+## [3.351.4](https://github.com/lightdash/lightdash/compare/3.351.3...3.351.4) (2026-11-20)
+
+
+### Bug Fixes
+
+* **ai-agents:** keep the Send button on screen on phones ([#33031](https://github.com/lightdash/lightdash/issues/33031)) ([8742803](https://github.com/lightdash/lightdash/commit/874280395346d7d800ab747ca3e3708aa661b9af))
+
+## [3.351.3](https://github.com/lightdash/lightdash/compare/3.351.2...3.351.3) (2026-11-20)
+
+
+### Performance Improvements
+
+* **ai-agents:** start answering a new thread without waiting for sidebar refetches ([#33033](https://github.com/lightdash/lightdash/issues/33033)) ([4bf8c90](https://github.com/lightdash/lightdash/commit/4bf8c909642ac01011abec631f007e90629f8b0e))
+
+## [3.351.2](https://github.com/lightdash/lightdash/compare/3.351.1...3.351.2) (2026-11-20)
+
+
+### Bug Fixes
+
+* **ai-agents:** open a reloaded thread's chart before the transcript paints ([#33030](https://github.com/lightdash/lightdash/issues/33030)) ([43c982d](https://github.com/lightdash/lightdash/commit/43c982dca11bc34c6d777fc7130d1f9b20a001ff))
+
+## [3.351.1](https://github.com/lightdash/lightdash/compare/3.351.0...3.351.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **agents:** align project and server context ([#32498](https://github.com/lightdash/lightdash/issues/32498)) ([de954b9](https://github.com/lightdash/lightdash/commit/de954b94fc94d7fe019d9e6135197e6e5787c872))
+* align pending invitation renewals ([#32493](https://github.com/lightdash/lightdash/issues/32493)) ([ba7661a](https://github.com/lightdash/lightdash/commit/ba7661a9a38cb60f8797383f45e1cecbb96da645))
+* **embed:** align dashboard SQL chart filters ([#32501](https://github.com/lightdash/lightdash/issues/32501)) ([c2ad003](https://github.com/lightdash/lightdash/commit/c2ad003065cf0c6f5f0ebadfcd4c8ed836744513))
+* **git:** use the project context for integration operations ([#32496](https://github.com/lightdash/lightdash/issues/32496)) ([729bc78](https://github.com/lightdash/lightdash/commit/729bc78b6d2931eb18989b452f222a98fb9d21fa))
+
+# [3.351.0](https://github.com/lightdash/lightdash/compare/3.350.1...3.351.0) (2026-11-20)
+
+
+### Bug Fixes
+
+* **composer:** head zoomed DuckDB and Python columns with the zoomed label ([#32989](https://github.com/lightdash/lightdash/issues/32989)) ([74aede0](https://github.com/lightdash/lightdash/commit/74aede066212ec9316f0c17ec53545763d527775))
+
+
+### Features
+
+* **composer:** dashboard date zoom reaches composer chart tiles ([#32978](https://github.com/lightdash/lightdash/issues/32978)) ([c771356](https://github.com/lightdash/lightdash/commit/c771356e820aea71eb8c97eb27d17a643f71a052))
+* **composer:** dashboard date zoom reaches composer merge nodes ([#32988](https://github.com/lightdash/lightdash/issues/32988)) ([2a342d5](https://github.com/lightdash/lightdash/commit/2a342d55346155f5e25bb177f706ea2c517c1f00))
+
 ## [3.350.1](https://github.com/lightdash/lightdash/compare/3.350.0...3.350.1) (2026-11-19)
 
 

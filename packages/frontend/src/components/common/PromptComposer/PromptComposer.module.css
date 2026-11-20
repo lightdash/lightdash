@@ -385,4 +385,12 @@
     .toolbarSection {
         min-width: var(--composer-toolbar-section-min-width, auto);
     }
+
+    /* Call sites set this to 0 to let only the submit side shrink. */
+    .toolbarSection:last-child {
+        min-width: var(
+            --composer-toolbar-right-min-width,
+            var(--composer-toolbar-section-min-width, auto)
+        );
+    }
 }

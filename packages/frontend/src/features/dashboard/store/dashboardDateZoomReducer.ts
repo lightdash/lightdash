@@ -43,6 +43,10 @@ export const dashboardDateZoomActions = {
     setTilesWithDateZoomApplied: createAction<Set<string> | undefined>(
         'dashboardDateZoom/setTilesWithDateZoomApplied',
     ),
+    setTileDateZoomApplied: createAction<{
+        tileUuid: string;
+        isApplied: boolean;
+    }>('dashboardDateZoom/setTileDateZoomApplied'),
     setChartZoomableFields: createAction<{
         tileUuid: string;
         fields: ChartZoomableField[];
@@ -97,6 +101,17 @@ export const dashboardDateZoomReducer = (
         return haveSameMembers(state.tilesWithDateZoomApplied, action.payload)
             ? state
             : { ...state, tilesWithDateZoomApplied: action.payload };
+    }
+    if (dashboardDateZoomActions.setTileDateZoomApplied.match(action)) {
+        const { tileUuid, isApplied } = action.payload;
+        const current = state.tilesWithDateZoomApplied;
+        if (current !== undefined && current.has(tileUuid) === isApplied) {
+            return state;
+        }
+        const next = new Set(current ?? []);
+        if (isApplied) next.add(tileUuid);
+        else next.delete(tileUuid);
+        return { ...state, tilesWithDateZoomApplied: next };
     }
     if (dashboardDateZoomActions.setChartZoomableFields.match(action)) {
         const { tileUuid, fields } = action.payload;
