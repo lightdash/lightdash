@@ -32,35 +32,35 @@ export type ContentIcon = ForwardRefExoticComponent<
 
 export type ContentIconSet = Record<ContentIconName, ContentIcon>;
 
-/* A: outline, rebalanced */
+/* A: outline, rebalanced, tight corner radius */
 export const OUTLINE_ICONS: ContentIconSet = {
     dashboard: createContentIcon(
         'OutlineDashboard',
         <>
-            <rect x="3.5" y="3.5" width="17" height="6.5" rx="2" />
-            <rect x="3.5" y="13.5" width="7" height="7" rx="2" />
-            <rect x="13.5" y="13.5" width="7" height="7" rx="2" />
+            <rect x="3.5" y="3.5" width="17" height="6.5" rx="1.25" />
+            <rect x="3.5" y="13.5" width="7" height="7" rx="1.25" />
+            <rect x="13.5" y="13.5" width="7" height="7" rx="1.25" />
         </>,
     ),
     space: createContentIcon(
         'OutlineSpace',
         <>
-            <path d="M3.5 6.5a2 2 0 0 1 2 -2h3.6a2 2 0 0 1 1.5 .7l1.3 1.6h6.6a2 2 0 0 1 2 2v8.7a2 2 0 0 1 -2 2h-13a2 2 0 0 1 -2 -2z" />
+            <path d="M3.5 5.75a1.25 1.25 0 0 1 1.25 -1.25h4.6a1.25 1.25 0 0 1 1 .5l1.4 1.8h7.5a1.25 1.25 0 0 1 1.25 1.25v10.2a1.25 1.25 0 0 1 -1.25 1.25h-14.5a1.25 1.25 0 0 1 -1.25 -1.25z" />
         </>,
     ),
     dataApp: createContentIcon(
         'OutlineDataApp',
         <>
-            <rect x="3.5" y="3.5" width="17" height="17" rx="3" />
+            <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
             <path d="M3.5 8.5h17M6.5 6h.01M9 6h.01" fill="none" />
         </>,
     ),
     document: createContentIcon(
         'OutlineDocument',
         <>
-            <path d="M7 3.5h7l5 5v10a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-13a2 2 0 0 1 2 -2z" />
+            <path d="M6.25 3.5h7.75l5 5v10.75a1.25 1.25 0 0 1 -1.25 1.25h-11.5a1.25 1.25 0 0 1 -1.25 -1.25v-14.5a1.25 1.25 0 0 1 1.25 -1.25z" />
             <path
-                d="M14 3.5v3a2 2 0 0 0 2 2h3M8.5 13h7M8.5 16.5h4"
+                d="M14 3.5v3.75a1.25 1.25 0 0 0 1.25 1.25h3.75M8.5 13h7M8.5 16.5h4"
                 fill="none"
             />
         </>,
@@ -68,24 +68,24 @@ export const OUTLINE_ICONS: ContentIconSet = {
     table: createContentIcon(
         'OutlineTable',
         <>
-            <rect x="3.5" y="3.5" width="17" height="17" rx="3" />
+            <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
             <path d="M3.5 9.5h17M3.5 15h17M9.5 9.5v11" fill="none" />
         </>,
     ),
     bar: createContentIcon(
         'OutlineBar',
         <>
-            <rect x="3.5" y="12" width="4.5" height="8.5" rx="1.5" />
-            <rect x="9.75" y="3.5" width="4.5" height="17" rx="1.5" />
-            <rect x="16" y="8" width="4.5" height="12.5" rx="1.5" />
+            <rect x="3.5" y="12" width="4.5" height="8.5" rx="1" />
+            <rect x="9.75" y="3.5" width="4.5" height="17" rx="1" />
+            <rect x="16" y="8" width="4.5" height="12.5" rx="1" />
         </>,
     ),
     horizontalBar: createContentIcon(
         'OutlineHorizontalBar',
         <>
-            <rect x="3.5" y="3.5" width="9" height="4.5" rx="1.5" />
-            <rect x="3.5" y="9.75" width="17" height="4.5" rx="1.5" />
-            <rect x="3.5" y="16" width="12.5" height="4.5" rx="1.5" />
+            <rect x="3.5" y="3.5" width="9" height="4.5" rx="1" />
+            <rect x="3.5" y="9.75" width="17" height="4.5" rx="1" />
+            <rect x="3.5" y="16" width="12.5" height="4.5" rx="1" />
         </>,
     ),
     line: createContentIcon(
@@ -105,9 +105,9 @@ export const OUTLINE_ICONS: ContentIconSet = {
         'OutlineMixed',
         <>
             <path d="M3.5 8l5 -3.5l4.5 3l7.5 -3.5" fill="none" />
-            <rect x="3.5" y="14.5" width="4.5" height="6" rx="1.5" />
-            <rect x="9.75" y="11.5" width="4.5" height="9" rx="1.5" />
-            <rect x="16" y="13" width="4.5" height="7.5" rx="1.5" />
+            <rect x="3.5" y="14.5" width="4.5" height="6" rx="1" />
+            <rect x="9.75" y="11.5" width="4.5" height="9" rx="1" />
+            <rect x="16" y="13" width="4.5" height="7.5" rx="1" />
         </>,
     ),
     scatter: createContentIcon(
@@ -129,22 +129,22 @@ export const OUTLINE_ICONS: ContentIconSet = {
     bigNumber: createContentIcon(
         'OutlineBigNumber',
         <>
-            <rect x="3.5" y="3.5" width="17" height="17" rx="3" />
+            <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
             <path d="M10.5 9.5l2.5 -2v9" fill="none" />
         </>,
     ),
     funnel: createContentIcon(
         'OutlineFunnel',
         <>
-            <rect x="3.5" y="3.5" width="17" height="4.5" rx="1.5" />
-            <rect x="6.25" y="9.75" width="11.5" height="4.5" rx="1.5" />
-            <rect x="9" y="16" width="6" height="4.5" rx="1.5" />
+            <rect x="3.5" y="3.5" width="17" height="4.5" rx="1" />
+            <rect x="6.25" y="9.75" width="11.5" height="4.5" rx="1" />
+            <rect x="9" y="16" width="6" height="4.5" rx="1" />
         </>,
     ),
     treemap: createContentIcon(
         'OutlineTreemap',
         <>
-            <rect x="3.5" y="3.5" width="17" height="17" rx="3" />
+            <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
             <path d="M11 3.5v17M11 12.5h9.5M15.75 12.5v8" fill="none" />
         </>,
     ),
@@ -169,9 +169,9 @@ export const OUTLINE_ICONS: ContentIconSet = {
                 d="M6.5 6.75c5.5 0 5.5 3.25 11 3.25M6.5 17.25c5.5 0 5.5 -3.25 11 -3.25"
                 fill="none"
             />
-            <rect x="3.5" y="3.5" width="3" height="6.5" rx="1.25" />
-            <rect x="3.5" y="14" width="3" height="6.5" rx="1.25" />
-            <rect x="17.5" y="7.5" width="3" height="9" rx="1.25" />
+            <rect x="3.5" y="3.5" width="3" height="6.5" rx="0.75" />
+            <rect x="3.5" y="14" width="3" height="6.5" rx="0.75" />
+            <rect x="17.5" y="7.5" width="3" height="9" rx="0.75" />
         </>,
     ),
     custom: createContentIcon(
@@ -186,7 +186,7 @@ export const OUTLINE_ICONS: ContentIconSet = {
     dataAppViz: createContentIcon(
         'OutlineDataAppViz',
         <>
-            <path d="M3.5 8.5a2 2 0 0 1 2 -2h2.5a2.5 2.5 0 1 1 5 0h2.5a2 2 0 0 1 2 2v2.5a2.5 2.5 0 1 1 0 5v2.5a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2z" />
+            <path d="M3.5 7.75a1.25 1.25 0 0 1 1.25 -1.25h3.25a2.5 2.5 0 1 1 5 0h3.25a1.25 1.25 0 0 1 1.25 1.25v3.25a2.5 2.5 0 1 1 0 5v3.25a1.25 1.25 0 0 1 -1.25 1.25h-11.5a1.25 1.25 0 0 1 -1.25 -1.25z" />
         </>,
     ),
 };
