@@ -749,6 +749,20 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             properties: { projectId, pane },
         });
     }, [projectId, pane]);
+    useEffect(() => {
+        if (openExplore === null) return;
+        trackRef.current({
+            name: EventName.SEMANTIC_STUDIO_ITEM_OPENED,
+            properties: { projectId, kind: 'model' },
+        });
+    }, [projectId, openExplore]);
+    useEffect(() => {
+        if (requestedFile === null) return;
+        trackRef.current({
+            name: EventName.SEMANTIC_STUDIO_ITEM_OPENED,
+            properties: { projectId, kind: 'file' },
+        });
+    }, [projectId, requestedFile]);
     // Reviewing changes takes the full width: the tree is for browsing models.
     const isReviewPane =
         pane === 'changes' || pane === 'workspaces' || pane === 'changeSummary';
