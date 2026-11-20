@@ -1,4 +1,5 @@
 import {
+    describeSemanticLayerProposals,
     toolProposeSemanticLayerChangeOutputSchema,
     toolReadSemanticModelOutputSchema,
 } from '@lightdash/common';
@@ -157,6 +158,37 @@ describe('getProposeSemanticLayerChange', () => {
         expect(output.metadata).toMatchObject({
             startedChange: { workspaceUuid: 'w-1', name: 'Order totals' },
         });
+    });
+
+    it('keeps the turn open when a part of a ready model was refused', async () => {
+        const output = await propose(
+            async () => ({
+                results: [
+                    {
+                        model: 'orders',
+                        status: 'ready',
+                        changes: [{ path: 'metrics.total', action: 'removed' }],
+                        refusals: [
+                            { path: 'dimensions.status', reason: 'name_taken' },
+                        ],
+                        error: null,
+                        notes: [],
+                    },
+                ],
+                diffs: [],
+                draftChangeUuid: 'draft-1',
+                startedChange: null,
+            }),
+            'label: Orders',
+        );
+        expect(output.result).toContain('without the refused parts');
+        expect(output.result).not.toContain('write nothing more');
+        expect(output.metadata).toMatchObject({ needsFollowUp: true });
+        expect(
+            output.metadata.status === 'success'
+                ? describeSemanticLayerProposals([output.metadata])
+                : null,
+        ).toBe('Changed orders in the draft. Some parts were left out.');
     });
 
     it('says nothing joined the draft when no model passed', async () => {

@@ -124,7 +124,7 @@ const proposalMetadataSchema = z.object({
     // Absent on results stored before a change carried a note and offers.
     note: z.string().nullable().default(null),
     options: z.array(z.string()).default([]),
-    // True when the result came back with advice to act on, or a metric to run, before the turn ends.
+    // True when the result came back with advice to act on, a metric to run, or parts refused, before the turn ends.
     needsFollowUp: z.boolean().default(false),
 });
 
@@ -151,18 +151,15 @@ export type SemanticLayerProposal = z.infer<typeof proposalMetadataSchema>;
 export const describeSemanticLayerProposals = (
     proposals: Pick<SemanticLayerProposal, 'models'>[],
 ): string => {
-    const names = [
-        ...new Set(
-            proposals.flatMap(({ models }) =>
-                models
-                    .filter(({ status }) => status === 'ready')
-                    .map(({ model }) => model),
-            ),
-        ),
-    ];
-    return names.length > 0
-        ? `Changed ${names.join(', ')} in the draft.`
-        : 'Nothing changed in the draft.';
+    const ready = proposals.flatMap(({ models }) =>
+        models.filter(({ status }) => status === 'ready'),
+    );
+    if (ready.length === 0) return 'Nothing changed in the draft.';
+    const names = [...new Set(ready.map(({ model }) => model))];
+    const leftOut = ready.some(({ refusals }) => refusals.length > 0)
+        ? ' Some parts were left out.'
+        : '';
+    return `Changed ${names.join(', ')} in the draft.${leftOut}`;
 };
 
 export const isToolProposeSemanticLayerChangeResult =
