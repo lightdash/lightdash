@@ -1,3 +1,11 @@
+## [3.358.2](https://github.com/lightdash/lightdash/compare/3.358.1...3.358.2) (2026-11-20)
+
+
+### Bug Fixes
+
+* **cli:** warn when a dbt v2 manifest deploy drops fields ([#33062](https://github.com/lightdash/lightdash/issues/33062)) ([12c05d5](https://github.com/lightdash/lightdash/commit/12c05d5fa254530412447b0832d19e163e0f3e87))
+* validate and quote custom bin dimension SQL ([#33080](https://github.com/lightdash/lightdash/issues/33080)) ([909b002](https://github.com/lightdash/lightdash/commit/909b0026f7b26d7d7804d207ec680eeb39a66033))
+
 ## [3.358.1](https://github.com/lightdash/lightdash/compare/3.358.0...3.358.1) (2026-11-20)
 
 
