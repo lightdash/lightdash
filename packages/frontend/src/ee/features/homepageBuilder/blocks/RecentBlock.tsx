@@ -49,9 +49,7 @@ const RecentRow: FC<{
                 }
             }}
         >
-            <div className={classes.iconSquare}>
-                <ResourceIcon item={contentToResourceViewItem(content)} />
-            </div>
+            <ResourceIcon item={contentToResourceViewItem(content)} />
             <div className={classes.flexFill}>
                 <Group gap={4} wrap="nowrap">
                     <div className={classes.rowName}>
