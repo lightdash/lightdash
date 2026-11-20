@@ -63,6 +63,10 @@ import {
 // SDK behaves like a normal Lightdash chart: 500-row pages, exponential
 // backoff starting at 250ms, capped at 1000ms.
 const PAGE_SIZE = 500;
+// Results past the first page: the default `LIGHTDASH_QUERY_MAX_PAGE_SIZE`,
+// with a few pages in flight at once.
+const DRAIN_PAGE_SIZE = 2500;
+const DRAIN_CONCURRENCY = 4;
 const INITIAL_BACKOFF_MS = 250;
 const MAX_BACKOFF_MS = 1000;
 const MAX_POLL_DURATION_MS = 5 * 60 * 1000; // 5 minutes
@@ -954,37 +958,78 @@ async function pollQueryRows(
     firstReadyPage: Extract<PollResponse, { status: 'ready' }>;
     apiRows: ResultRow[];
 }> {
-    const pollUrl = (page: number) =>
-        `/api/v2/projects/${projectUuid}/query/${queryUuid}?page=${page}&pageSize=${PAGE_SIZE}`;
+    const fetchPage = async (page: number, pageSize: number) => {
+        const pageResult = await fetchFn<PollResponse>(
+            'GET',
+            `/api/v2/projects/${projectUuid}/query/${queryUuid}?page=${page}&pageSize=${pageSize}`,
+        );
+        if (pageResult.status !== 'ready') {
+            throw new Error(
+                `Unexpected status while paginating results: ${pageResult.status}`,
+            );
+        }
+        return pageResult.rows;
+    };
 
     const firstReadyPage = await pollQueryReady(
         fetchFn,
         projectUuid,
         queryUuid,
     );
-    const apiRows: ResultRow[] = [...firstReadyPage.rows];
-
-    // Drain remaining pages. The backend already streamed results to S3 by
-    // the time the first page is ready, so subsequent pages resolve quickly.
-    let { nextPage } = firstReadyPage;
-    const { totalResults } = firstReadyPage;
-    while (nextPage !== undefined && apiRows.length < totalResults) {
-        const pageResult = await fetchFn<PollResponse>(
-            'GET',
-            pollUrl(nextPage),
-        );
-
-        if (pageResult.status !== 'ready') {
-            throw new Error(
-                `Unexpected status while paginating results: ${pageResult.status}`,
-            );
-        }
-
-        apiRows.push(...pageResult.rows);
-        nextPage = pageResult.nextPage;
+    const { totalResults, nextPage } = firstReadyPage;
+    if (nextPage === undefined || firstReadyPage.rows.length >= totalResults) {
+        return { firstReadyPage, apiRows: [...firstReadyPage.rows] };
     }
 
-    return { firstReadyPage, apiRows };
+    // Results are already stored when the first page is ready, so the rest
+    // is fetched in large pages, a few at a time. The first large page goes
+    // alone: it fails on a host whose page size cap is lower.
+    let pageSize = DRAIN_PAGE_SIZE;
+    let firstRows: ResultRow[];
+    try {
+        firstRows = await fetchPage(1, pageSize);
+    } catch {
+        pageSize = PAGE_SIZE;
+        firstRows = firstReadyPage.rows;
+    }
+
+    const pageCount = Math.ceil(totalResults / pageSize);
+    const rest = await fetchPagesInOrder(range(2, pageCount), (page) =>
+        fetchPage(page, pageSize),
+    );
+    return { firstReadyPage, apiRows: [firstRows, ...rest].flat() };
+}
+
+const range = (from: number, to: number): number[] =>
+    Array.from({ length: Math.max(0, to - from + 1) }, (_, i) => from + i);
+
+/** Fetches pages with bounded concurrency; results keep the order of `pages`. */
+async function fetchPagesInOrder(
+    pages: number[],
+    fetchPage: (page: number) => Promise<ResultRow[]>,
+): Promise<ResultRow[][]> {
+    const results: ResultRow[][] = new Array(pages.length);
+    let next = 0;
+    let failed = false;
+    const worker = async () => {
+        while (!failed && next < pages.length) {
+            const index = next;
+            next += 1;
+            try {
+                results[index] = await fetchPage(pages[index]);
+            } catch (error) {
+                failed = true;
+                throw error;
+            }
+        }
+    };
+    await Promise.all(
+        Array.from(
+            { length: Math.min(DRAIN_CONCURRENCY, pages.length) },
+            worker,
+        ),
+    );
+    return results;
 }
 
 async function pollDownloadJob(
