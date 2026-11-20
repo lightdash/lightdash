@@ -746,13 +746,6 @@ export const useColumns = (): TableColumn[] => {
                         >
                             {isField(item) ? (
                                 <>
-                                    {isMergeJoinKey && (
-                                        <MantineIcon
-                                            icon={IconKey}
-                                            size="sm"
-                                            color="gray.6"
-                                        />
-                                    )}
                                     {showTablePrefix && !isMergeJoinKey && (
                                         <TableHeaderRegularLabel>
                                             {mergeOrigin?.kind === 'source' ? (
@@ -769,7 +762,15 @@ export const useColumns = (): TableColumn[] => {
                                         </TableHeaderRegularLabel>
                                     )}
 
+                                    {/* Inside the name, so the results grid keeps it on the name's line */}
                                     <TableHeaderBoldLabel>
+                                        {isMergeJoinKey && (
+                                            <MantineIcon
+                                                icon={IconKey}
+                                                size="sm"
+                                                color="gray.6"
+                                            />
+                                        )}
                                         {typeIcon}
                                         {item.label}
                                     </TableHeaderBoldLabel>
