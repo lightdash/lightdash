@@ -604,7 +604,7 @@ export const buildUsageDashboards = (
                     const summary = hasSummaryTrend && index < 2;
                     let h = 7;
                     if (isRow) h = section.rowHeight ?? 7;
-                    else if (isKpiRow) h = 3;
+                    else if (isKpiRow) h = 4;
                     // Compact breakdowns keep a short viewport; longer results
                     // remain available through the table's existing scroll.
                     else if (

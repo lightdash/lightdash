@@ -162,10 +162,10 @@ const chart = (
                     False: 'Cache miss',
                 },
                 groupColorOverrides: {
-                    true: '#12B886',
-                    false: analyticsColorPalette.colors[0],
-                    True: '#12B886',
-                    False: analyticsColorPalette.colors[0],
+                    true: '#34D399',
+                    false: '#FB923C',
+                    True: '#34D399',
+                    False: '#FB923C',
                 },
             },
         };
@@ -194,9 +194,7 @@ const aiUsageContent = {
                 },
                 optionValues: {
                     valueAggregation: 'sum',
-                    showComparison: true,
-                    comparisonSource: 'previousPeriod',
-                    comparisonLabel: 'latest day vs the day before',
+                    showComparison: false,
                     style: 'compact',
                     colorSparklineByTrend: false,
                     showLabel: true,
@@ -234,9 +232,7 @@ const aiUsageContent = {
                     },
                     optionValues: {
                         valueAggregation: 'sum',
-                        showComparison: true,
-                        comparisonSource: 'previousPeriod',
-                        comparisonLabel: 'latest day vs the day before',
+                        showComparison: false,
                         style: 'compact',
                         colorSparklineByTrend: false,
                         showLabel: true,
@@ -320,9 +316,7 @@ const aiUsageContent = {
                     },
                     optionValues: {
                         valueAggregation: 'sum',
-                        showComparison: true,
-                        comparisonSource: 'previousPeriod',
-                        comparisonLabel: 'latest day vs the day before',
+                        showComparison: false,
                         style: 'compact',
                         colorSparklineByTrend: false,
                         showLabel: true,
@@ -513,15 +507,15 @@ const aiUsageTilePositions: Record<
     string,
     { x: number; y: number; w: number; h: number }
 > = {
-    'ai-calls': { x: 0, y: 1, w: 9, h: 3 },
-    tokens: { x: 9, y: 1, w: 9, h: 3 },
-    'ai-users': { x: 18, y: 1, w: 9, h: 3 },
-    'output-tokens': { x: 27, y: 1, w: 9, h: 3 },
-    'tokens-by-feature': { x: 0, y: 4, w: 36, h: 7 },
-    'ai-calls-by-day': { x: 0, y: 11, w: 18, h: 7 },
-    'tokens-by-day': { x: 18, y: 11, w: 18, h: 7 },
-    'tokens-by-model': { x: 0, y: 18, w: 18, h: 8 },
-    'calls-by-model': { x: 18, y: 18, w: 18, h: 8 },
+    'ai-calls': { x: 0, y: 1, w: 9, h: 4 },
+    tokens: { x: 9, y: 1, w: 9, h: 4 },
+    'ai-users': { x: 18, y: 1, w: 9, h: 4 },
+    'output-tokens': { x: 27, y: 1, w: 9, h: 4 },
+    'tokens-by-feature': { x: 0, y: 5, w: 36, h: 7 },
+    'ai-calls-by-day': { x: 0, y: 12, w: 18, h: 7 },
+    'tokens-by-day': { x: 18, y: 12, w: 18, h: 7 },
+    'tokens-by-model': { x: 0, y: 19, w: 18, h: 8 },
+    'calls-by-model': { x: 18, y: 19, w: 18, h: 8 },
 };
 // One caption row above the Overview tiles, which start at y = 1.
 const aiUsageOverviewCaption = 'Tokens measure usage, not cost.';
@@ -553,9 +547,7 @@ export const analyticsSampleDashboards = [
                         },
                         optionValues: {
                             valueAggregation: 'sum',
-                            showComparison: true,
-                            comparisonSource: 'previousPeriod',
-                            comparisonLabel: 'latest day vs the day before',
+                            showComparison: false,
                             style: 'compact',
                             colorSparklineByTrend: false,
                             showLabel: true,

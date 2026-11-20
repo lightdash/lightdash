@@ -48,9 +48,7 @@ const card = ({
                 : {
                       valueAggregation: 'sum',
                       style: 'compact',
-                      showComparison: true,
-                      comparisonSource: 'previousPeriod',
-                      comparisonLabel: 'latest day vs the day before',
+                      showComparison: false,
                   }),
             colorSparklineByTrend: false,
             showSparklineArea: true,
