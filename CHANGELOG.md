@@ -1,3 +1,10 @@
+## [3.351.3](https://github.com/lightdash/lightdash/compare/3.351.2...3.351.3) (2026-11-20)
+
+
+### Performance Improvements
+
+* **ai-agents:** start answering a new thread without waiting for sidebar refetches ([#33033](https://github.com/lightdash/lightdash/issues/33033)) ([4bf8c90](https://github.com/lightdash/lightdash/commit/4bf8c909642ac01011abec631f007e90629f8b0e))
+
 ## [3.351.2](https://github.com/lightdash/lightdash/compare/3.351.1...3.351.2) (2026-11-20)
 
 
