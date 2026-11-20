@@ -791,7 +791,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         visualization: 'number',
         libraryChart: {
             slug: 'big-number-with-sparkline-trend',
-            minVersion: '0.8.0',
+            minVersion: '0.7.1',
             fieldMapping: {
                 value: failedTokens,
                 sparklineMetric: failedTokens,
@@ -801,9 +801,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             optionValues: {
                 valueAggregation: 'sum',
                 style: 'compact',
-                showComparison: true,
-                comparisonSource: 'previousPeriod',
-                comparisonLabel: 'vs the day before',
+                showComparison: false,
                 secondaryLabel: 'of all tokens used by agent requests',
                 colorSparklineByTrend: false,
                 showSparklineArea: true,

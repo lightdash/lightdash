@@ -15,10 +15,18 @@ import { monthLabel } from './monthlyQueryComparisonCharts';
 // Series take the Analytics palette, so built-in charts match library charts.
 const colors = analyticsColorPalette.colors.slice(0, 5);
 // Meaning-bearing colours stay fixed whatever the palette.
-// Good and not-good share one pair everywhere: a cache hit and a success are green, a cache miss and
-// anything short of a success are orange. Red is for errors only.
+// Good and not-good share one pair everywhere: a cache hit, a pass and a success are green, a cache
+// miss, a fail and an error are orange. Waiting is amber and unknown is grey. Red marks error counts in
+// table cells only.
 export const positive = '#34D399';
 export const caution = '#FB923C';
+export const waiting = '#FBBF24';
+// A measure that is itself an outcome keeps the outcome's colour, whatever its place in the chart
+const outcomeColor = (field: string): string | undefined => {
+    if (/_passed_/.test(field)) return positive;
+    if (/_failed_/.test(field)) return caution;
+    return undefined;
+};
 const warning = '#C92A2A';
 const positiveTint = '#D1FAE5';
 const cautionTint = '#FFEDD5';
@@ -279,16 +287,18 @@ export const withAnalyticsChartPresentation = (
                         ...chart.chartConfig.config?.groupColorOverrides,
                         // Plain names of the same outcomes
                         Success: positive,
-                        Error: warning,
+                        Error: caution,
+                        Cancelled: '#868E96',
+                        Pending: waiting,
                         'Cache hit': positive,
                         'Cache miss': caution,
                         'Not recorded': '#868E96',
                         completed: positive,
                         complete: positive,
                         success: positive,
-                        failed: warning,
-                        error: warning,
-                        pending: caution,
+                        failed: caution,
+                        error: caution,
+                        pending: waiting,
                         unknown: '#868E96',
                     },
                 },
@@ -333,7 +343,9 @@ export const withAnalyticsChartPresentation = (
                     },
                     series: series.map((item, index) => ({
                         ...item,
-                        color: colors[index % colors.length],
+                        color:
+                            outcomeColor(item.encode.yRef.field) ??
+                            colors[index % colors.length],
                         // A single observed period must remain visible even
                         // when there is no second point to draw a line to.
                         showSymbol:
