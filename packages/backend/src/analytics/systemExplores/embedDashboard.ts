@@ -211,7 +211,7 @@ export const embedChartSpecs: UsageChartSpec[] = [
         description: 'Embedded queries by success or error.',
         explore: 'query_events',
         day: queryDay,
-        dimension: 'query_events_status',
+        dimension: 'query_events_status_name',
         metric: 'query_events_total_queries',
         yName: 'Queries',
         filters: embedQueries,
@@ -221,15 +221,15 @@ export const embedChartSpecs: UsageChartSpec[] = [
         key: 'embed-query-cache',
         name: 'Queries by cache hit',
         description:
-            'Cache hits (true), misses (false) and unknown (∅) for embedded queries. This does not estimate cost saved.',
+            'Cache hits, cache misses and queries with no cache information, for embedded queries. This does not estimate cost saved.',
         explore: 'query_events',
         day: queryDay,
-        dimension: 'query_events_cache_hit',
+        dimension: 'query_events_cache_hit_name',
         metric: 'query_events_total_queries',
         yName: 'Queries',
         filters: embedQueries,
         splitDescription:
-            'Embedded queries per day by cache hit (true), miss (false) and unknown (∅). This does not estimate cost saved.',
+            'Embedded queries per day by cache hit, cache miss and no cache information. This does not estimate cost saved.',
     }),
 ];
 

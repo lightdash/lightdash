@@ -537,6 +537,35 @@ export const createAnalyticsExplores = (): Explore[] => {
                 },
             });
         }
+        if (name === 'data_app_events')
+            addPlainName('event_name', {
+                names: {
+                    'data_app.created': 'Created',
+                    'data_app.iterated': 'Iterated',
+                    'data_app.view': 'Loaded',
+                    'data_app.view_outcome': 'Load result signal',
+                    'data_app.deleted': 'Deleted',
+                    'data_app.downloaded': 'Downloaded',
+                    'data_app.duplicated': 'Duplicated',
+                    'data_app.file_uploaded': 'File uploaded',
+                    'data_app.promoted': 'Promoted',
+                    'data_app.registry_installed': 'Installed from the library',
+                    'data_app.upgrade_requested': 'Upgrade requested',
+                    'data_app.upload_rejected': 'Upload rejected',
+                    'data_app.uploaded': 'Uploaded',
+                },
+            });
+        if (name === 'export_events')
+            addPlainName('format', {
+                names: {
+                    csv: 'CSV',
+                    xlsx: 'Excel',
+                    pdf: 'PDF',
+                    gsheets: 'Google Sheets',
+                },
+                missing: notRecorded,
+            });
+        if (name === 'agent_evaluation_runs') addPlainName('run_status');
         if (name === 'people_adoption') {
             addPlainName('organization_role');
             addPlainName('activity_status', {

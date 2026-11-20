@@ -23,7 +23,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'agent_evaluation_runs_event_ts_raw',
             'agent_evaluation_runs_agent_name',
             'agent_evaluation_runs_evaluation_name',
-            'agent_evaluation_runs_run_status',
+            'agent_evaluation_runs_run_status_name',
             'agent_evaluation_runs_run_id',
         ],
         metrics: [

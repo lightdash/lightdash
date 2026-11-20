@@ -1656,7 +1656,7 @@ describe('built-in usage dashboards', () => {
                 ({ slug, metricQuery }) =>
                     slug.startsWith('lightdash-analytics-apps-') &&
                     JSON.stringify(metricQuery.filters).includes(
-                        'data_app.view',
+                        '"data_app.view"',
                     ),
             );
             expect(loadCharts.length).toBeGreaterThanOrEqual(6);

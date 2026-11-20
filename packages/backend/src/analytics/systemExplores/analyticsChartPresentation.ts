@@ -283,6 +283,12 @@ export const withAnalyticsChartPresentation = (
                     },
                     groupColorOverrides: {
                         ...chart.chartConfig.config?.groupColorOverrides,
+                        // Plain names of the same outcomes
+                        Success: positive,
+                        Error: warning,
+                        'Cache hit': positive,
+                        'Cache miss': caution,
+                        'Not recorded': '#868E96',
                         completed: positive,
                         complete: positive,
                         success: positive,

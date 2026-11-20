@@ -141,7 +141,7 @@ export const dataAppsChartSpecs: UsageChartSpec[] = [
         explore: 'data_app_events',
         day,
         metric: 'data_app_events_total_events',
-        splitBy: 'data_app_events_event_name',
+        splitBy: 'data_app_events_event_name_name',
         yName: 'Builds',
         filters: builds,
         fieldLabels: { data_app_events_total_events: 'Builds' },
@@ -170,15 +170,23 @@ export const dataAppsChartSpecs: UsageChartSpec[] = [
             'Number of recorded events for each data app and project, split by event type, such as created, iterated and loaded. Unknown or deleted apps are included.',
         explore: 'data_app_events',
         by: 'data_app_events_app_name',
-        series: 'data_app_events_event_name',
+        series: 'data_app_events_event_name_name',
         dimensions: [
             'data_app_events_app_name',
             'data_app_events_project_name',
             'data_app_events_app_id',
-            'data_app_events_event_name',
+            'data_app_events_event_name_name',
             'data_app_events_project_id',
         ],
         metrics: ['data_app_events_total_events'],
+        // Load result signals are technical and are not counted as events, so they get no column
+        filters: [
+            {
+                field: 'data_app_events_event_name',
+                values: ['data_app.view_outcome'],
+                operator: FilterOperator.NOT_EQUALS,
+            },
+        ],
         fieldLabels: { data_app_events_total_events: 'Events' },
         libraryDescription:
             'Number of recorded events for each data app, with one column for each event type, such as created, iterated and loaded. Unknown or deleted apps are included.',
