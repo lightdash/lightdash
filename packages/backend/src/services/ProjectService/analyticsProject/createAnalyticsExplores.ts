@@ -531,7 +531,20 @@ export const createAnalyticsExplores = (): Explore[] => {
                 names: { true: 'Cache hit', false: 'Cache miss' },
                 missing: notRecorded,
             });
-            addPlainName('execution_source', { missing: notRecorded });
+            addPlainName('execution_source', {
+                names: {
+                    warehouse: 'Warehouse',
+                    pre_aggregate_duckdb: 'Pre-aggregate (DuckDB)',
+                    pre_aggregate_warehouse: 'Pre-aggregate (warehouse)',
+                    external_source_duckdb: 'External source (DuckDB)',
+                    composer_duckdb: 'Composer (DuckDB)',
+                    live_source: 'Live source',
+                },
+                missing: notRecorded,
+            });
+            // A cache hit never reaches an executor, so it is recorded with no source: the results
+            // cache served it
+            table.dimensions.execution_source_name.sql = `CASE WHEN ${table.dimensions.execution_source.sql} IS NULL AND ${table.dimensions.cache_hit.sql} THEN 'Results cache' ELSE ${table.dimensions.execution_source_name.sql} END`;
             addPlainName('status', { missing: notRecorded });
         }
         if (

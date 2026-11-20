@@ -38,6 +38,28 @@ describe('plain names for recorded values', () => {
         ]);
     });
 
+    it('names what ran a query, and reads an empty source on a cache hit as the results cache', async () => {
+        const { dimensions } = createAnalyticsExplores().find(
+            ({ name }) => name === 'query_events',
+        )!.tables.query_events;
+        const sql = dimensions.execution_source_name.compiledSql.replaceAll(
+            '"query_events".',
+            '',
+        );
+        const rows = await run(
+            `SELECT ${sql} AS name FROM (VALUES (1, 'warehouse', false), (2, 'pre_aggregate_duckdb', false), (3, 'external_source_duckdb', NULL), (4, NULL, true), (5, NULL, false), (6, NULL, NULL), (7, 'live_source', true)) t(i, execution_source, cache_hit) ORDER BY i`,
+        );
+        expect(rows.map(({ name }) => name)).toEqual([
+            'Warehouse',
+            'Pre-aggregate (DuckDB)',
+            'External source (DuckDB)',
+            'Results cache',
+            'Not recorded',
+            'Not recorded',
+            'Live source',
+        ]);
+    });
+
     it('adds the feature name to the AI usage explore beside the recorded value', () => {
         const { dimensions } = createAnalyticsExplores().find(
             ({ name }) => name === 'ai_usage',
