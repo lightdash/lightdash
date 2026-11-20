@@ -55,6 +55,8 @@ import {
 import { splitPatchIntoFiles } from '../../ee/features/aiCopilot/components/ChatElements/ToolCalls/splitPatch';
 import { type StoredThread } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import { useWholePullRequestDiff } from '../../ee/features/aiCopilot/hooks/usePullRequestDiff';
+import useTracking from '../../providers/Tracking/useTracking';
+import { EventName } from '../../types/Events';
 import tabClasses from './ModelTabs.module.css';
 import { createEditor } from './pierreEditor';
 import { applyProposal, fileBefore, proposedPathOf } from './proposedFile';
@@ -527,6 +529,7 @@ export const SourcePane: FC<{
     const isDirty = text !== null && text !== loaded;
     // Code is read until the person asks to edit it; unsaved text keeps it in editing.
     const [editingKey, setEditingKey] = useState<string | null>(null);
+    const { track } = useTracking();
     const isEditing = target.canEdit && (isDirty || editingKey === editKey);
     // A proposal shown in the editor is the agent's until the person types over it.
     const hasOwnEdits = isDirty && text !== offered;
@@ -841,7 +844,16 @@ export const SourcePane: FC<{
                                 leftSection={
                                     <MantineIcon icon={IconPencil} size={12} />
                                 }
-                                onClick={() => setEditingKey(editKey)}
+                                onClick={() => {
+                                    track({
+                                        name: EventName.SEMANTIC_STUDIO_EDIT_STARTED,
+                                        properties: {
+                                            projectId: target.projectUuid,
+                                            kind: 'file',
+                                        },
+                                    });
+                                    setEditingKey(editKey);
+                                }}
                             >
                                 Edit
                             </Button>

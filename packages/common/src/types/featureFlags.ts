@@ -64,6 +64,12 @@ export enum FeatureFlags {
     DashboardEditErgonomics = 'dashboard-edit-ergonomics',
 
     /**
+     * Wide result tables mount only the columns in view. Frontend only; off
+     * by default; organization scope. Temporary: remove once it is the default.
+     */
+    TableColumnVirtualization = 'table-column-virtualization',
+
+    /**
      * Data apps availability, computed rather than rolled out: on for any org
      * with AI (the AI copilot flag or an AI trial) on an instance with a
      * configured sandbox runtime. Overrides and the flag default are ignored
@@ -269,21 +275,11 @@ export enum FeatureFlags {
      */
     AthenaWebIdentityAuth = 'athena-web-identity-auth',
     /**
-     * Organization-scoped: the Mobile page under Your settings, with links to
-     * install and sign in to the mobile apps. Off by default.
-     */
-    MobileSettings = 'mobile-settings',
-    /**
      * Organization-scoped: the Billing page under Organization settings, which
      * opens the customer billing portal. Cloud and development modes only.
      * Off by default.
      */
     BillingPortal = 'billing-portal',
-    /**
-     * Organization-scoped: the sign-in step on the Mobile page and its
-     * endpoints. Off by default until an app release supports QR sign-in.
-     */
-    MobileQrSignIn = 'mobile-qr-sign-in',
     /**
      * Organization-scoped, on by default: the organization can use the mobile
      * apps. An organization override set to off denies every mobile sign-in

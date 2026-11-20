@@ -1,6 +1,7 @@
 import {
     derivePivotConfigurationFromChart,
     getFieldsFromMetricQuery,
+    type DashboardTileRenderRequest,
     type DateGranularity,
     type Explore,
     type FieldId,
@@ -31,6 +32,7 @@ export function buildQueryArgs(options: {
               chartUuid: string;
               context?: QueryExecutionContext;
               includeUnpublishedDraft?: boolean;
+              dashboardTileRenderRequest?: DashboardTileRenderRequest;
           }
         | { chartUuid: string; chartVersionUuid: string };
     dateZoomGranularity?: DateGranularity | string;

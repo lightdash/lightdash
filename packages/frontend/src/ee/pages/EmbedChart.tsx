@@ -3,6 +3,7 @@ import { IconUnlink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useParams } from 'react-router';
 import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
+import { ColumnWindowingProvider } from '../../components/common/Table/ColumnWindowingProvider';
 import EmbedChart from '../features/embed/EmbedChart/components/EmbedChart';
 import useEmbed from '../providers/Embed/useEmbed';
 
@@ -38,10 +39,12 @@ const EmbedChartPage: FC<{
     }
 
     return (
-        <EmbedChart
-            containerStyles={containerStyles}
-            savedQueryUuid={chartUuid}
-        />
+        <ColumnWindowingProvider enabled>
+            <EmbedChart
+                containerStyles={containerStyles}
+                savedQueryUuid={chartUuid}
+            />
+        </ColumnWindowingProvider>
     );
 };
 

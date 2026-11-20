@@ -4,6 +4,7 @@ import { flushSync } from 'react-dom';
 import { createBrowserRouter, Outlet, RouterProvider } from 'react-router';
 import { APP_ROUTES } from './AppRoutes';
 import { DocumentTitle } from './components/common/DocumentTitle';
+import { AppColumnWindowingProvider } from './components/common/Table/ColumnWindowingProvider';
 import VersionAutoUpdater from './components/VersionAutoUpdater/VersionAutoUpdater';
 import { AiAgentsGlobalProvider } from './ee/features/aiCopilot/components/Launcher/AiAgentsGlobalProvider';
 import { parseEmbedThemeParams } from './ee/providers/Embed/parseEmbedThemeParams';
@@ -56,7 +57,9 @@ const router = sentryCreateBrowserRouter([
                                         <SchedulerJobsProvider>
                                             <ChartColorMappingContextProvider>
                                                 <AiAgentsGlobalProvider>
-                                                    <Outlet />
+                                                    <AppColumnWindowingProvider>
+                                                        <Outlet />
+                                                    </AppColumnWindowingProvider>
                                                 </AiAgentsGlobalProvider>
                                             </ChartColorMappingContextProvider>
                                         </SchedulerJobsProvider>

@@ -109,9 +109,8 @@ export const getAiUsageChannel = ({
         case 'scheduler':
         case 'data_app':
         case 'dashboard_analysis':
-            return createdFrom;
         case 'semantic_studio':
-            return 'web';
+            return createdFrom;
         default:
             return assertUnreachable(createdFrom, 'Unknown AI thread origin');
     }

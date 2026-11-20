@@ -139,13 +139,13 @@ describe('POST /api/v1/oauth/mobile-sign-in/claim', () => {
         ],
         [
             new MobileSignInOAuthError('access_denied', {
-                description: 'qr_sign_in_disabled',
+                description: 'feature_disabled',
                 statusCode: 403,
             }),
             403,
             {
                 error: 'access_denied',
-                error_description: 'qr_sign_in_disabled',
+                error_description: 'feature_disabled',
             },
         ],
     ])('maps %s', async (error, status, json) => {
@@ -375,13 +375,13 @@ describe('POST /api/v1/oauth/token with a mobile sign-in code', () => {
         ],
         [
             new MobileSignInOAuthError('access_denied', {
-                description: 'qr_sign_in_disabled',
+                description: 'feature_disabled',
                 statusCode: 403,
             }),
             403,
             {
                 error: 'access_denied',
-                error_description: 'qr_sign_in_disabled',
+                error_description: 'feature_disabled',
             },
             null,
         ],

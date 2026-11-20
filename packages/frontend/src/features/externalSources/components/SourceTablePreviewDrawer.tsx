@@ -1,21 +1,22 @@
-import { type ExternalSourceRef } from '@lightdash/common';
 import {
-    Badge,
-    Drawer,
-    Group,
-    Loader,
-    ScrollArea,
-    Stack,
-    Tabs,
-    Text,
-} from '@mantine/core';
+    type ExternalSourceRef,
+    type ExternalSourceTablePreview,
+    type ResultColumn,
+} from '@lightdash/common';
+import { Badge, Drawer, Group, Loader, Stack, Tabs, Text } from '@mantine/core';
 import { IconColumns3, IconEye } from '@tabler/icons-react';
-import { useRef, type FC } from 'react';
+import { useMemo, useRef, type FC } from 'react';
 import { TableIcon } from '../../../components/common/ContentIcons';
 import LightTable from '../../../components/common/LightTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import { ColumnWindowColGroup } from '../../../components/common/Table/ColumnWindowColGroup';
+import {
+    renderColumns,
+    useColumnWindow,
+} from '../../../components/common/Table/useColumnWindow';
 import { useExternalSourceTablePreview } from '../hooks/useExternalSources';
+import classes from './SourceTablePreviewDrawer.module.css';
 
 const formatCell = (value: unknown): string => {
     if (value === null || value === undefined) return '';
@@ -30,13 +31,73 @@ type Props = {
     onClose: () => void;
 };
 
+const SourcePreviewTable: FC<{
+    columns: ResultColumn[];
+    rows: ExternalSourceTablePreview['sampleRows'];
+}> = ({ columns, rows }) => {
+    const viewport = useRef<HTMLDivElement>(null);
+    const layout = useMemo(
+        () => columns.map(({ reference }) => ({ id: reference, width: 150 })),
+        [columns],
+    );
+    const columnWindow = useColumnWindow(viewport, layout);
+    return (
+        <LightTable
+            containerRef={viewport}
+            w={columnWindow ? `${columnWindow.width}px` : '100%'}
+            miw="100%"
+            aria-colcount={columns.length}
+            className={`sentry-block ph-no-capture ${columnWindow ? classes.windowed : ''}`}
+        >
+            <ColumnWindowColGroup columnWindow={columnWindow} />
+            <LightTable.Head withSticky>
+                <LightTable.Row index={0}>
+                    {renderColumns(columnWindow, columns.length, (i) => {
+                        const { reference } = columns[i];
+                        return (
+                            <LightTable.CellHead
+                                key={reference}
+                                aria-colindex={i + 1}
+                                withBoldFont
+                                withValue={reference}
+                            >
+                                {reference}
+                            </LightTable.CellHead>
+                        );
+                    })}
+                </LightTable.Row>
+            </LightTable.Head>
+            <LightTable.Body>
+                {rows.map((row, rowIndex) => (
+                    <LightTable.Row key={rowIndex} index={rowIndex}>
+                        {renderColumns(columnWindow, columns.length, (i) => {
+                            const { reference } = columns[i];
+                            const value = formatCell(row[reference]);
+                            return (
+                                <LightTable.Cell
+                                    key={reference}
+                                    aria-colindex={i + 1}
+                                    withInteractions
+                                    withValue={value}
+                                    withTooltip={value}
+                                >
+                                    {value}
+                                </LightTable.Cell>
+                            );
+                        })}
+                    </LightTable.Row>
+                ))}
+            </LightTable.Body>
+        </LightTable>
+    );
+};
+
 export const SourceTablePreviewDrawer: FC<Props> = ({
     projectUuid,
     sourceRef,
     tableLabel,
     onClose,
 }) => {
-    const previewTableRef = useRef<HTMLDivElement>(null);
     const columnsTableRef = useRef<HTMLDivElement>(null);
     const previewResult = useExternalSourceTablePreview({
         projectUuid,
@@ -44,7 +105,10 @@ export const SourceTablePreviewDrawer: FC<Props> = ({
         tableUuid: sourceRef?.tableUuid,
     });
     const preview = previewResult.data;
-    const columns = preview ? Object.values(preview.columns) : [];
+    const columns = useMemo(
+        () => Object.values(preview?.columns ?? {}),
+        [preview?.columns],
+    );
 
     return (
         <Drawer
@@ -74,7 +138,7 @@ export const SourceTablePreviewDrawer: FC<Props> = ({
                 />
             )}
             {preview && (
-                <Tabs defaultValue="preview">
+                <Tabs defaultValue="preview" keepMounted={false}>
                     <Tabs.List>
                         <Tabs.Tab
                             value="preview"
@@ -93,7 +157,7 @@ export const SourceTablePreviewDrawer: FC<Props> = ({
                             Columns · {columns.length}
                         </Tabs.Tab>
                     </Tabs.List>
-                    <Tabs.Panel value="preview" pt="md">
+                    <Tabs.Panel value="preview" pt="md" keepMounted>
                         <Stack gap="sm">
                             <Group justify="space-between">
                                 <Text fz="xs" c="dimmed">
@@ -101,64 +165,10 @@ export const SourceTablePreviewDrawer: FC<Props> = ({
                                 </Text>
                                 <Badge size="xs">Read only</Badge>
                             </Group>
-                            <ScrollArea type="auto">
-                                <LightTable
-                                    containerRef={previewTableRef}
-                                    w="100%"
-                                    miw="100%"
-                                    className="sentry-block ph-no-capture"
-                                >
-                                    <LightTable.Head withSticky>
-                                        <LightTable.Row index={0}>
-                                            {columns.map((column) => (
-                                                <LightTable.CellHead
-                                                    key={column.reference}
-                                                    withBoldFont
-                                                    withValue={column.reference}
-                                                >
-                                                    {column.reference}
-                                                </LightTable.CellHead>
-                                            ))}
-                                        </LightTable.Row>
-                                    </LightTable.Head>
-                                    <LightTable.Body>
-                                        {preview.sampleRows.map(
-                                            (row, rowIndex) => (
-                                                <LightTable.Row
-                                                    key={rowIndex}
-                                                    index={rowIndex}
-                                                >
-                                                    {columns.map((column) => {
-                                                        const value =
-                                                            formatCell(
-                                                                row[
-                                                                    column
-                                                                        .reference
-                                                                ],
-                                                            );
-                                                        return (
-                                                            <LightTable.Cell
-                                                                key={
-                                                                    column.reference
-                                                                }
-                                                                withInteractions
-                                                                withValue={
-                                                                    value
-                                                                }
-                                                                withTooltip={
-                                                                    value
-                                                                }
-                                                            >
-                                                                {value}
-                                                            </LightTable.Cell>
-                                                        );
-                                                    })}
-                                                </LightTable.Row>
-                                            ),
-                                        )}
-                                    </LightTable.Body>
-                                </LightTable>
-                            </ScrollArea>
+                            <SourcePreviewTable
+                                columns={columns}
+                                rows={preview.sampleRows}
+                            />
                         </Stack>
                     </Tabs.Panel>
                     <Tabs.Panel value="columns" pt="md">

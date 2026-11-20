@@ -1403,6 +1403,7 @@ export class ServiceRepository
                     refreshTokenRotation: this.models.getRefreshTokenRotation(),
                     aiAccessService: this.getAiAccessService(),
                     getDocumentService: () => this.getDocumentService(),
+                    getUnfurlService: () => this.getUnfurlService(),
                     getComposerChartService: () =>
                         this.getComposerChartService(),
                     lightdashConfig: this.context.lightdashConfig,
@@ -1850,7 +1851,6 @@ export class ServiceRepository
             () =>
                 new MobileAppService({
                     mobileAppLinkModel: this.models.getMobileAppLinkModel(),
-                    featureFlagModel: this.models.getFeatureFlagModel(),
                     analytics: this.context.lightdashAnalytics,
                     lightdashConfig: this.context.lightdashConfig,
                 }),

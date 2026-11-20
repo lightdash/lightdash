@@ -1441,6 +1441,35 @@ describe('convert tables from dbt models', () => {
             ).toBeTruthy();
         });
 
+        it('allows join field names when joins are under config.meta', () => {
+            expect(
+                convertTable(
+                    SupportedDbtAdapter.BIGQUERY,
+                    {
+                        ...MODEL_WITH_NO_METRICS,
+                        config: {
+                            ...MODEL_WITH_NO_METRICS.config,
+                            meta: {
+                                joins: [
+                                    {
+                                        join: 'a_table',
+                                        alias: 'user',
+                                        sql_on: '${myTable.id} = ${a_table.id}',
+                                    },
+                                ],
+                                sets: {
+                                    my_set: {
+                                        fields: ['user.id'],
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    DEFAULT_SPOTLIGHT_CONFIG,
+                ),
+            ).toBeTruthy();
+        });
+
         it('throws when set references non-existent field', () => {
             expect(() =>
                 convertTable(

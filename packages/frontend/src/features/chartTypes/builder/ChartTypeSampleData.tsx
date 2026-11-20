@@ -65,6 +65,7 @@ export const ChartTypeRowsModal: FC<ModalProps> = ({
         data: data?.rows ?? [],
         enableBottomToolbar: false,
         enableColumnResizing: false,
+        enableColumnVirtualization: true,
         enableEditing: false,
         enablePagination: false,
         enableRowActions: false,

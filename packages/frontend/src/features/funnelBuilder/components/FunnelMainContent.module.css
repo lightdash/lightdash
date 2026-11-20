@@ -13,9 +13,3 @@
     flex: 1;
     min-height: 300px;
 }
-
-.tableContainer {
-    flex-shrink: 0;
-    max-height: 400px;
-    overflow: auto;
-}

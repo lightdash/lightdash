@@ -31,6 +31,7 @@ import {
     useExplorerSelector,
 } from '../features/explorer/store';
 import { MergeProvider } from '../features/mergeQuery/context/MergeContext';
+import { getSavedMergeChartRun } from '../features/mergeQuery/utils/getSavedMergeChartRun';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import { tryParseCreateSavedChartVersionParam } from '../hooks/useExplorerRoute';
@@ -83,12 +84,17 @@ const SavedExplorerSession = () => {
     const versionKey = isEditMode
         ? 'editing'
         : JSON.stringify(pickSavedChartVersion(savedChart));
+    const savedChartRun = useMemo(
+        () => getSavedMergeChartRun(savedChart ?? null, isEditMode),
+        [savedChart, isEditMode],
+    );
 
     return (
         <MergeProvider
             key={versionKey}
             savedMerge={savedChart?.merge ?? null}
             readOnly={!isEditMode}
+            savedChartRun={savedChartRun}
         >
             <SavedExplorerContent />
         </MergeProvider>

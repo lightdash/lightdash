@@ -41,8 +41,6 @@ const settingsContext = (
     isDataAppsFlagLoading: false,
     isApiQuerySourcesEnabled: false,
     isChartStudioAvailable: false,
-    isMobileSettingsEnabled: false,
-    isMobileSettingsFlagLoading: false,
     isResultsCacheAvailable: false,
     embeddingEnabled: undefined,
     allowPasswordAuthentication: false,
@@ -164,7 +162,7 @@ describe('Agents settings navigation', () => {
 });
 
 describe('Mobile settings navigation', () => {
-    const yourSettingsLabels = (isMobileSettingsEnabled: boolean) => {
+    const yourSettingsLabels = () => {
         const { result } = renderHook(() =>
             useSettingsNavigation(
                 settingsContext({
@@ -176,7 +174,6 @@ describe('Mobile settings navigation', () => {
                             },
                         ]),
                     } as unknown as SettingsContext['user'],
-                    isMobileSettingsEnabled,
                 }),
             ),
         );
@@ -185,15 +182,11 @@ describe('Mobile settings navigation', () => {
             ?.items.map(({ label }) => label);
     };
 
-    it('shows Mobile after Personal access tokens when the flag is on', () => {
-        expect(yourSettingsLabels(true)?.slice(-2)).toEqual([
+    it('shows Mobile after Personal access tokens', () => {
+        expect(yourSettingsLabels()?.slice(-2)).toEqual([
             'Personal access tokens',
             'Mobile',
         ]);
-    });
-
-    it('hides Mobile when the flag is off', () => {
-        expect(yourSettingsLabels(false)).not.toContain('Mobile');
     });
 });
 

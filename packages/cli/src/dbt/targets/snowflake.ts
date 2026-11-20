@@ -14,9 +14,12 @@ import { Target } from '../types';
 type SnowflakeTarget = {
     type: 'snowflake';
     account: string;
-    user: string;
+    user?: string;
     password?: string;
     authenticator?: string;
+    token?: string;
+    oauth_client_id?: string;
+    oauth_client_secret?: string;
     private_key_path?: string;
     private_key?: string;
     private_key_passphrase?: string;
@@ -45,12 +48,25 @@ const snowflakeSchema: JSONSchemaType<SnowflakeTarget> = {
         },
         user: {
             type: 'string',
+            nullable: true,
         },
         password: {
             type: 'string',
             nullable: true,
         },
         authenticator: {
+            type: 'string',
+            nullable: true,
+        },
+        token: {
+            type: 'string',
+            nullable: true,
+        },
+        oauth_client_id: {
+            type: 'string',
+            nullable: true,
+        },
+        oauth_client_secret: {
             type: 'string',
             nullable: true,
         },
@@ -108,8 +124,16 @@ const snowflakeSchema: JSONSchemaType<SnowflakeTarget> = {
             nullable: true,
         },
     },
-    required: ['type', 'account', 'user', 'database', 'warehouse', 'schema'],
+    required: ['type', 'account', 'database', 'warehouse', 'schema'],
 };
+
+const SKIP_FLAGS_HINT =
+    'To continue without a warehouse connection, use --skip-warehouse-catalog (deploy also needs --no-warehouse-credentials when creating a project).';
+
+const unsupportedAuthError = (reason: string) =>
+    new ParseError(
+        `Lightdash CLI can't connect to Snowflake with this profile: ${reason}\n${SKIP_FLAGS_HINT}`,
+    );
 
 export const convertSnowflakeSchema = async (
     target: Target,
@@ -132,33 +156,67 @@ export const convertSnowflakeSchema = async (
             privateKey = target.private_key;
         }
 
-        // Determine authentication type based on authenticator field or credentials present
-        let authenticationType: SnowflakeAuthenticationType;
-        if (
-            target.authenticator &&
-            target.authenticator.toLowerCase() === 'externalbrowser'
-        ) {
-            authenticationType = SnowflakeAuthenticationType.EXTERNAL_BROWSER;
-        } else if (privateKey) {
-            authenticationType = SnowflakeAuthenticationType.PRIVATE_KEY;
-        } else {
-            authenticationType = SnowflakeAuthenticationType.PASSWORD;
-        }
-
-        return {
-            type: WarehouseTypes.SNOWFLAKE,
+        const authenticator = target.authenticator?.toLowerCase();
+        const common = {
+            type: WarehouseTypes.SNOWFLAKE as const,
             account: target.account,
-            user: target.user,
-            password: target.password,
-            privateKey,
-            privateKeyPass: target.private_key_passphrase,
-            authenticationType,
             role: target.role,
             warehouse: target.warehouse,
             database: target.database,
             schema: target.schema,
             clientSessionKeepAlive: target.client_session_keep_alive,
             queryTag: target.query_tag,
+        };
+
+        if (authenticator === 'oauth') {
+            if (target.oauth_client_id || target.oauth_client_secret) {
+                // dbt treats `token` as a refresh token here; we don't exchange it
+                throw unsupportedAuthError(
+                    '"authenticator: oauth" with oauth_client_id / oauth_client_secret (refresh token) is not supported. Set "token" to an OAuth access token and remove the client id and secret.',
+                );
+            }
+            if (!target.token) {
+                throw unsupportedAuthError(
+                    '"authenticator: oauth" needs "token" set to an OAuth access token.',
+                );
+            }
+            return {
+                ...common,
+                user: target.user ?? '',
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                token: target.token,
+            };
+        }
+
+        if (!target.user) {
+            throw new ParseError(
+                `Couldn't read profiles.yml file for ${target.type}:\n"user" is required`,
+            );
+        }
+
+        // Determine authentication type based on authenticator field or credentials present
+        let authenticationType: SnowflakeAuthenticationType;
+        if (authenticator === 'externalbrowser') {
+            authenticationType = SnowflakeAuthenticationType.EXTERNAL_BROWSER;
+        } else if (privateKey) {
+            authenticationType = SnowflakeAuthenticationType.PRIVATE_KEY;
+        } else if (target.password) {
+            authenticationType = SnowflakeAuthenticationType.PASSWORD;
+        } else {
+            throw unsupportedAuthError(
+                target.authenticator
+                    ? `"authenticator: ${target.authenticator}" is not supported without a password or private key.`
+                    : 'no password, private key or supported authenticator found.',
+            );
+        }
+
+        return {
+            ...common,
+            user: target.user,
+            password: target.password,
+            privateKey,
+            privateKeyPass: target.private_key_passphrase,
+            authenticationType,
         };
     }
 

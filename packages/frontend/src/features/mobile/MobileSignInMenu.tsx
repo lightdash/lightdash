@@ -252,14 +252,10 @@ export const MobileSignInMenu: FC<{
         focusAfterDismiss.current = focusNext;
         dismiss();
     };
-    const { data: qrSignInFlag } = useServerFeatureFlag(
-        FeatureFlags.MobileQrSignIn,
-    );
     const { data: mobileAppAccessFlag } = useServerFeatureFlag(
         FeatureFlags.MobileAppAccess,
     );
-    if (!qrSignInFlag?.enabled || !mobileAppAccessFlag?.enabled || dismissed)
-        return null;
+    if (!mobileAppAccessFlag?.enabled || dismissed) return null;
     return (
         <MobileSignInPopover
             withLabel={withLabel}

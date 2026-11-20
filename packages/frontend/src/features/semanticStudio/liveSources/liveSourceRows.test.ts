@@ -80,14 +80,12 @@ describe('toLiveSourceRows', () => {
         expect(used.usage).toEqual({
             dataRead: expect.stringMatching(/KB|kB/),
             apiCalls: (1234).toLocaleString(),
-            cacheHits: '56',
             cacheHitsLabel: '56 hits',
             medianLatency: '600ms',
         });
         expect(unused.usage).toEqual({
             dataRead: expect.any(String),
             apiCalls: '0',
-            cacheHits: '0',
             cacheHitsLabel: '0 hits',
             medianLatency: null,
         });
@@ -98,7 +96,6 @@ describe('toLiveSourceRows', () => {
         expect(row.usage).toEqual({
             dataRead: '—',
             apiCalls: '—',
-            cacheHits: '—',
             cacheHitsLabel: null,
             medianLatency: null,
         });

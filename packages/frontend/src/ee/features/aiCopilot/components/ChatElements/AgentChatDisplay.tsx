@@ -209,6 +209,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                     agentId: agentUuid,
                     threadId: thread.uuid,
                     messageId: lastMessage.uuid,
+                    threadCreatedFrom: thread.createdFrom,
                     questionCount: askUser?.questions.length ?? 0,
                     typedAnswerCount: submission.typedAnswerCount,
                 },

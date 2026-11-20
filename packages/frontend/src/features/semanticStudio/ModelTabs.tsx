@@ -34,6 +34,8 @@ import {
 } from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
 import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
+import useTracking from '../../providers/Tracking/useTracking';
+import { EventName } from '../../types/Events';
 import { ChangeDiff } from './ChangeDiff';
 import {
     CHANGE_KIND_VERBS,
@@ -91,6 +93,7 @@ export const ModelCodeView: FC<{
     const isDraft = drafted !== null;
     const content = drafted ? drafted.contentAfter : (model?.content ?? null);
     const save = useSaveDraftModel(projectUuid);
+    const { track } = useTracking();
     // What was just saved shows until the draft is read again.
     const [justSaved, setJustSaved] = useState<{
         over: string | null;
@@ -224,6 +227,13 @@ export const ModelCodeView: FC<{
                                 <MantineIcon icon={IconPencil} size={12} />
                             }
                             onClick={() => {
+                                track({
+                                    name: EventName.SEMANTIC_STUDIO_EDIT_STARTED,
+                                    properties: {
+                                        projectId: projectUuid,
+                                        kind: 'model',
+                                    },
+                                });
                                 setStartedFrom(shownContent);
                                 setIsEditing(true);
                                 setRevision((current) => current + 1);

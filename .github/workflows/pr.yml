@@ -6,7 +6,8 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # pr-cancel-on-close.yml joins this group by name to cancel a run when its PR closes.
+  group: PR Checks-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:

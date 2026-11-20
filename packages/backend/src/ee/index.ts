@@ -439,8 +439,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     spacePermissionService:
                         repository.getSpacePermissionService(),
                 }),
-            semanticStudioService: ({ models, repository, clients }) =>
+            semanticStudioService: ({ models, repository, clients, context }) =>
                 new SemanticStudioService({
+                    analytics: context.lightdashAnalytics,
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     featureFlagModel: models.getFeatureFlagModel(),
@@ -1574,6 +1575,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     refreshTokenRotation: models.getRefreshTokenRotation(),
                     aiAccessService: repository.getAiAccessService(),
                     getDocumentService: () => repository.getDocumentService(),
+                    getUnfurlService: () => repository.getUnfurlService(),
                     getComposerChartService: () =>
                         repository.getComposerChartService(),
                     contentDraftModel: models.getContentDraftModel(),

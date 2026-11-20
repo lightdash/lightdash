@@ -39,10 +39,12 @@ import {
 } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import {
+    createCell,
     flexRender,
     getCoreRowModel,
     getExpandedRowModel,
     useReactTable,
+    type Cell,
     type ExpandedState,
     type GroupingState,
     type Row,
@@ -83,11 +85,22 @@ import { getConditionalRuleLabelFromItem } from '../Filters/FilterInputs/utils';
 import Table from '../LightTable';
 import { CELL_HEIGHT } from '../LightTable/constants';
 import MantineIcon from '../MantineIcon';
-import { ROW_NUMBER_COLUMN_ID } from '../Table/constants';
+import { ColumnWindowColGroup } from '../Table/ColumnWindowColGroup';
+import { ColumnWindowingContext } from '../Table/ColumnWindowingContext';
+import {
+    COLUMN_VIRTUALIZATION_THRESHOLD,
+    ROW_NUMBER_COLUMN_ID,
+} from '../Table/constants';
 import { getGroupedRowModelLightdash } from '../Table/getGroupedRowModelLightdash';
+import { getRowNumberWidth } from '../Table/measureColumnWidth';
 import TotalCalculationErrorCell from '../Table/TotalCalculationErrorCell';
 import { columnHelper, type TableColumn } from '../Table/types';
 import { useColumnResize } from '../Table/useColumnResize';
+import {
+    renderColumnGroups,
+    renderColumns,
+    useColumnWindow,
+} from '../Table/useColumnWindow';
 import { countSubRows } from '../Table/utils';
 import {
     getFrozenColumnLayout,
@@ -98,6 +111,11 @@ import {
     projectMetricsAsRowsSubtotalRenderRows,
 } from './getMetricsAsRowsSubtotalRenderRows';
 import { getPivotCellInteractionProps } from './getPivotCellInteractionProps';
+import {
+    getPivotColumnWidths,
+    PIVOT_CELL_PADDING,
+} from './getPivotColumnWidths';
+import { getPivotColumnWindows } from './getPivotColumnWindow';
 import { getGroupedDimColumnIds, getRowSpanMerges } from './getRowSpanMerges';
 import {
     collectPivotBodyRowValues,
@@ -109,6 +127,8 @@ import TotalCellMenu from './TotalCellMenu';
 import ValueCellMenu from './ValueCellMenu';
 
 const MIN_AUTO_COL_WIDTH = 50;
+const DEFAULT_COLUMN_WIDTH = 100;
+const EMPTY_COLUMN_PROPERTIES: Record<string, ColumnProperties> = {};
 
 const getStickyCellProps = (frozen: FrozenColumnEntry | undefined) => {
     if (!frozen) return {};
@@ -156,9 +176,13 @@ const VirtualizedArea: FC<{
 }> = ({ cellCount, height }) => {
     return (
         <Table.Row index={-1}>
-            {[...Array(cellCount)].map((_, index) => (
-                <Table.Cell key={index} h={height} />
-            ))}
+            <Box
+                component="td"
+                aria-hidden
+                colSpan={cellCount}
+                h={height}
+                p={0}
+            />
         </Table.Row>
     );
 };
@@ -253,7 +277,7 @@ const PivotTable: FC<PivotTableProps> = ({
     isRowSubtotalsLoading = false,
     isGrandTotalsLoading = false,
     isSubtotalsLoading = false,
-    columnProperties = {},
+    columnProperties = EMPTY_COLUMN_PROPERTIES,
     isMinimal = false,
     isDashboard = false,
     onColumnWidthChange,
@@ -441,13 +465,10 @@ const PivotTable: FC<PivotTableProps> = ({
         [columnProperties],
     );
 
-    // Width of the leftmost row-number column. Mirrors the formula used by
-    // the non-pivoted Table (see Table/TableProvider.tsx) so freeze offsets
-    // line up with the actual rendered column width.
     const rowNumberWidth = useMemo(() => {
         if (hideRowNumbers) return 0;
         const rowCount = data.retrofitData.allCombinedData.length;
-        return `${rowCount}`.length * 10 + 20;
+        return getRowNumberWidth(rowCount, false, PIVOT_CELL_PADDING);
     }, [hideRowNumbers, data.retrofitData.allCombinedData.length]);
 
     // In metricsAsRows mode the leftmost label column shows metric names
@@ -475,7 +496,7 @@ const PivotTable: FC<PivotTableProps> = ({
                 pivotColumnInfo: data.retrofitData.pivotColumnInfo,
                 columnProperties,
                 rowNumberWidth,
-                defaultColumnWidth: 100,
+                defaultColumnWidth: DEFAULT_COLUMN_WIDTH,
                 measuredWidths: measuredColumnWidths,
                 labelColumnFrozen: isLabelColumnFrozen,
             }),
@@ -728,67 +749,12 @@ const PivotTable: FC<PivotTableProps> = ({
     });
 
     const { rows: tableRows } = table.getRowModel();
-    const metricsAsRowsMetricIds = useMemo(
-        () => getMetricsAsRowsMetricIds(data.indexValues),
-        [data.indexValues],
+    const rowNumberColumns = table.getLeftVisibleLeafColumns();
+    const contentColumns = table.getCenterVisibleLeafColumns();
+    const visibleColumns = useMemo(
+        () => [...rowNumberColumns, ...contentColumns],
+        [rowNumberColumns, contentColumns],
     );
-    const projectedRows = useMemo(
-        () =>
-            projectMetricsAsRowsSubtotalRenderRows({
-                rows: tableRows,
-                metricFieldIds: metricsAsRowsMetricIds,
-                enabled: data.pivotConfig.metricsAsRows && showSubtotals,
-            }),
-        [
-            tableRows,
-            metricsAsRowsMetricIds,
-            data.pivotConfig.metricsAsRows,
-            showSubtotals,
-        ],
-    );
-
-    const rowVirtualizer = useVirtualizer({
-        getScrollElement: () => containerRef.current,
-        count: projectedRows.length,
-        estimateSize: () => CELL_HEIGHT,
-        overscan: 25,
-    });
-    const virtualRows = rowVirtualizer.getVirtualItems();
-
-    // Grouping-only mode renders a flat row model and visually merges repeated
-    // row-index dimension values with rowSpan instead of TanStack group rows.
-    const rowSpanMergesByColumnId = useMemo(() => {
-        if (!groupingOnlyMode) return null;
-        const groupedColumnIds = getGroupedDimColumnIds(
-            data.indexValueTypes,
-            columnOrder,
-        );
-        if (groupedColumnIds.length === 0) return null;
-        return getRowSpanMerges(
-            tableRows.length,
-            groupedColumnIds,
-            (rowIndex, columnId) => {
-                const cell = tableRows[rowIndex]?.getValue(columnId) as
-                    | { value?: ResultValue }
-                    | undefined;
-                return cell?.value?.raw;
-            },
-        );
-    }, [groupingOnlyMode, data.indexValueTypes, columnOrder, tableRows]);
-
-    // In merge mode, render every row (no virtualization) so rowSpans stay
-    // contiguous — a block's first row must never be unmounted while its
-    // absorbed siblings are visible.
-    const renderedBodyRows = groupingOnlyMode
-        ? projectedRows.map((renderRow, renderIndex) => ({
-              renderRow,
-              renderIndex,
-          }))
-        : virtualRows.map((virtualRow) => ({
-              renderRow: projectedRows[virtualRow.index],
-              renderIndex: virtualRow.index,
-          }));
-
     const getColumnTotalValueFromAxis = useCallback(
         (total: unknown, colIndex: number): ResultValue | null => {
             const value = last(data.headerValues)?.[colIndex];
@@ -866,6 +832,172 @@ const PivotTable: FC<PivotTableProps> = ({
             parameters,
         ],
     );
+
+    const windowingEnabled = React.useContext(ColumnWindowingContext);
+    const titleSortIcons = useMemo(() => {
+        const icons = new Map<string, ReturnType<typeof getSortIcon>>();
+        for (const sort of sortBy ?? []) {
+            if (sort.pivotValues?.length || icons.has(sort.fieldId)) continue;
+            const item = getField(sort.fieldId);
+            if (item)
+                icons.set(sort.fieldId, getSortIcon(item, sort.descending));
+        }
+        return icons;
+    }, [sortBy, getField]);
+    const metricSortIcons = useMemo(() => {
+        const icons = new Map<number, ReturnType<typeof getSortIcon>>();
+        for (const [col, sort] of sortMatchByDataColIndex) {
+            const item = getField(sort.fieldId);
+            if (item) icons.set(col, getSortIcon(item, sort.descending));
+        }
+        return icons;
+    }, [sortMatchByDataColIndex, getField]);
+    const autoColumnWidths = useMemo(
+        () =>
+            windowingEnabled &&
+            contentColumns.length > COLUMN_VIRTUALIZATION_THRESHOLD
+                ? getPivotColumnWidths(
+                      data,
+                      getFieldLabel,
+                      (id) => titleSortIcons.has(id),
+                      (row, col) =>
+                          row === metricLabelHeaderRowIndex &&
+                          metricSortIcons.has(col),
+                      (total, row, col) =>
+                          (data.pivotConfig.metricsAsRows
+                              ? getMetricAsRowColumnTotalValueFromAxis(
+                                    total,
+                                    row,
+                                )
+                              : getColumnTotalValueFromAxis(total, col)
+                          )?.formatted,
+                      (total, metric) =>
+                          getGrandTotalValueFromAxis(total, metric)?.formatted,
+                  )
+                : [],
+        [
+            windowingEnabled,
+            contentColumns.length,
+            data,
+            getFieldLabel,
+            titleSortIcons,
+            metricLabelHeaderRowIndex,
+            metricSortIcons,
+            getColumnTotalValueFromAxis,
+            getMetricAsRowColumnTotalValueFromAxis,
+            getGrandTotalValueFromAxis,
+        ],
+    );
+    const windowColumns = useMemo(
+        () =>
+            visibleColumns.map((column, i) => ({
+                id: column.id,
+                width:
+                    column.id === ROW_NUMBER_COLUMN_ID
+                        ? rowNumberWidth
+                        : (column.columnDef.meta?.width ??
+                          autoColumnWidths[i - rowNumberColumns.length] ??
+                          DEFAULT_COLUMN_WIDTH),
+                pinned:
+                    column.id === ROW_NUMBER_COLUMN_ID ||
+                    frozenLayout.has(column.id),
+            })),
+        [
+            visibleColumns,
+            rowNumberWidth,
+            frozenLayout,
+            autoColumnWidths,
+            rowNumberColumns.length,
+        ],
+    );
+    const columnWindow = useColumnWindow(
+        containerRef,
+        windowColumns,
+        contentColumns.length,
+    );
+    const titleStart = hideRowNumbers ? 0 : 1;
+    const dataStart = titleStart + (data.titleFields[0]?.length ?? 0);
+    const totalsStart = dataStart + data.dataColumnCount;
+    const ariaColumnIndex = (index: number) =>
+        columnWindow ? index + 1 : undefined;
+    const sectionWindows = useMemo(
+        () =>
+            getPivotColumnWindows(columnWindow, {
+                titleStart,
+                dataStart,
+                totalsStart,
+            }),
+        [columnWindow, titleStart, dataStart, totalsStart],
+    );
+    const headerGroups = useMemo(
+        () =>
+            data.headerValues.map((headers) =>
+                headers.map((header) => ({
+                    colSpan: header.type === 'label' ? 1 : header.colSpan,
+                })),
+            ),
+        [data.headerValues],
+    );
+    const metricsAsRowsMetricIds = useMemo(
+        () => getMetricsAsRowsMetricIds(data.indexValues),
+        [data.indexValues],
+    );
+    const projectedRows = useMemo(
+        () =>
+            projectMetricsAsRowsSubtotalRenderRows({
+                rows: tableRows,
+                metricFieldIds: metricsAsRowsMetricIds,
+                enabled: data.pivotConfig.metricsAsRows && showSubtotals,
+            }),
+        [
+            tableRows,
+            metricsAsRowsMetricIds,
+            data.pivotConfig.metricsAsRows,
+            showSubtotals,
+        ],
+    );
+
+    const rowVirtualizer = useVirtualizer({
+        getScrollElement: () => containerRef.current,
+        count: projectedRows.length,
+        estimateSize: () => CELL_HEIGHT,
+        overscan: 25,
+    });
+    const virtualRows = rowVirtualizer.getVirtualItems();
+
+    // Grouping-only mode renders a flat row model and visually merges repeated
+    // row-index dimension values with rowSpan instead of TanStack group rows.
+    const rowSpanMergesByColumnId = useMemo(() => {
+        if (!groupingOnlyMode) return null;
+        const groupedColumnIds = getGroupedDimColumnIds(
+            data.indexValueTypes,
+            columnOrder,
+        );
+        if (groupedColumnIds.length === 0) return null;
+        return getRowSpanMerges(
+            tableRows.length,
+            groupedColumnIds,
+            (rowIndex, columnId) => {
+                const cell = tableRows[rowIndex]?.getValue(columnId) as
+                    | { value?: ResultValue }
+                    | undefined;
+                return cell?.value?.raw;
+            },
+        );
+    }, [groupingOnlyMode, data.indexValueTypes, columnOrder, tableRows]);
+
+    // In merge mode, render every row (no virtualization) so rowSpans stay
+    // contiguous — a block's first row must never be unmounted while its
+    // absorbed siblings are visible.
+    const renderedBodyRows = groupingOnlyMode
+        ? projectedRows.map((renderRow, renderIndex) => ({
+              renderRow,
+              renderIndex,
+          }))
+        : virtualRows.map((virtualRow) => ({
+              renderRow: projectedRows[virtualRow.index],
+              renderIndex: virtualRow.index,
+          }));
 
     const getUnderlyingFieldValues = useCallback(
         (row: Row<ResultRow>, dataRowIndex: number, colIndex: number) => {
@@ -1216,9 +1348,9 @@ const PivotTable: FC<PivotTableProps> = ({
             : 0;
     }, [virtualRows, rowVirtualizer]);
 
-    const cellsCountWithRowNumber = useMemo(() => {
-        return (hideRowNumbers ? 0 : 1) + data.cellsCount;
-    }, [hideRowNumbers, data.cellsCount]);
+    const renderedColumnCount =
+        columnWindow?.slots.length ?? visibleColumns.length;
+    const windowWidth = columnWindow && `${columnWindow.width}px`;
 
     useEffect(() => {
         // Grouping is driven by subtotals only. Row-grouping without subtotals
@@ -1250,10 +1382,14 @@ const PivotTable: FC<PivotTableProps> = ({
 
     return (
         <Table
-            miw={minTableWidth ? `max(100%, ${minTableWidth}px)` : '100%'}
-            w={hasCustomWidths ? '100%' : undefined}
+            aria-colcount={columnWindow ? visibleColumns.length : undefined}
+            miw={
+                windowWidth ??
+                (minTableWidth ? `max(100%, ${minTableWidth}px)` : '100%')
+            }
+            w={windowWidth ?? (hasCustomWidths ? '100%' : undefined)}
             className={
-                hasCustomWidths
+                hasCustomWidths || columnWindow
                     ? `${pivotStyles.fixedLayout}${className ? ` ${className}` : ''}`
                     : className
             }
@@ -1261,7 +1397,8 @@ const PivotTable: FC<PivotTableProps> = ({
             containerRef={containerRef}
             isDashboard={isDashboard}
         >
-            {hasCustomWidths && (
+            <ColumnWindowColGroup columnWindow={columnWindow} />
+            {!columnWindow && hasCustomWidths && (
                 <colgroup>
                     {colWidths.map((cw, i) => (
                         <Box component="col" key={i} w={cw} />
@@ -1275,42 +1412,54 @@ const PivotTable: FC<PivotTableProps> = ({
                         index={headerRowIndex}
                     >
                         {/* shows empty cell if row numbers are visible */}
-                        {hideRowNumbers
-                            ? null
-                            : (() => {
-                                  const rowNumberSticky =
-                                      frozenLayout.size > 0
-                                          ? {
-                                                className: `${pivotStyles.stickyColumn} ${pivotStyles.stickyHeaderColumn}`,
-                                            }
-                                          : ({} as {
-                                                className?: string;
-                                            });
-                                  return headerRowIndex <
-                                      data.headerValues.length - 1 ? (
-                                      <Table.Cell
-                                          className={rowNumberSticky.className}
-                                          isMinimal={isMinimal}
-                                          w={rowNumberWidth}
-                                          miw={rowNumberWidth}
-                                          maw={rowNumberWidth}
-                                      />
-                                  ) : (
-                                      <Table.CellHead
-                                          className={rowNumberSticky.className}
-                                          isMinimal={isMinimal}
-                                          w={rowNumberWidth}
-                                          miw={rowNumberWidth}
-                                          maw={rowNumberWidth}
-                                          withBoldFont
-                                      >
-                                          #
-                                      </Table.CellHead>
-                                  );
-                              })()}
+                        {renderColumns(
+                            sectionWindows.rowNumbers,
+                            hideRowNumbers ? 0 : 1,
+                            () => {
+                                const rowNumberSticky =
+                                    frozenLayout.size > 0
+                                        ? {
+                                              className: `${pivotStyles.stickyColumn} ${pivotStyles.stickyHeaderColumn}`,
+                                          }
+                                        : ({} as {
+                                              className?: string;
+                                          });
+                                return headerRowIndex <
+                                    data.headerValues.length - 1 ? (
+                                    <Table.Cell
+                                        key={ROW_NUMBER_COLUMN_ID}
+                                        aria-colindex={ariaColumnIndex(0)}
+                                        className={rowNumberSticky.className}
+                                        isMinimal={isMinimal}
+                                        w={rowNumberWidth}
+                                        miw={rowNumberWidth}
+                                        maw={rowNumberWidth}
+                                    />
+                                ) : (
+                                    <Table.CellHead
+                                        key={ROW_NUMBER_COLUMN_ID}
+                                        aria-colindex={ariaColumnIndex(0)}
+                                        className={rowNumberSticky.className}
+                                        isMinimal={isMinimal}
+                                        w={rowNumberWidth}
+                                        miw={rowNumberWidth}
+                                        maw={rowNumberWidth}
+                                        withBoldFont
+                                    >
+                                        #
+                                    </Table.CellHead>
+                                );
+                            },
+                        )}
                         {/* renders the title labels */}
-                        {data.titleFields[headerRowIndex].map(
-                            (titleField, titleFieldIndex) => {
+                        {renderColumns(
+                            sectionWindows.titles,
+                            data.titleFields[headerRowIndex].length,
+                            (titleFieldIndex) => {
+                                const titleField =
+                                    data.titleFields[headerRowIndex][
+                                        titleFieldIndex
+                                    ];
                                 const field = titleField?.fieldId
                                     ? getField(titleField?.fieldId)
                                     : undefined;
@@ -1346,26 +1495,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                           : undefined;
                                 const titleIsClickable =
                                     !!titleMenuTarget && !!renderSortMenu;
-                                const titleSortMatch =
-                                    (isIndexTitle || isGroupByTitle) &&
-                                    titleField?.fieldId
-                                        ? sortBy?.find(
-                                              (s) =>
-                                                  s.fieldId ===
-                                                      titleField.fieldId &&
-                                                  !s.pivotValues?.length,
-                                          )
-                                        : undefined;
-                                const titleSortField = titleSortMatch
-                                    ? getField(titleSortMatch.fieldId)
-                                    : undefined;
                                 const titleSortIcon =
-                                    titleSortMatch && titleSortField
-                                        ? getSortIcon(
-                                              titleSortField,
-                                              titleSortMatch.descending,
-                                          )
-                                        : undefined;
+                                    titleField &&
+                                    titleSortIcons.get(titleField.fieldId);
 
                                 const titleInnerContent =
                                     titleField?.fieldId ? (
@@ -1414,6 +1546,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                 return isEmpty ? (
                                     <Table.Cell
                                         key={`title-${headerRowIndex}-${titleFieldIndex}`}
+                                        aria-colindex={ariaColumnIndex(
+                                            titleStart + titleFieldIndex,
+                                        )}
                                         className={titleStickyProps.className}
                                         style={{
                                             '--sticky-left':
@@ -1427,6 +1562,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                 ) : (
                                     <Table.CellHead
                                         key={`title-${headerRowIndex}-${titleFieldIndex}`}
+                                        aria-colindex={ariaColumnIndex(
+                                            titleStart + titleFieldIndex,
+                                        )}
                                         className={
                                             [
                                                 titleStickyProps.className,
@@ -1512,235 +1650,255 @@ const PivotTable: FC<PivotTableProps> = ({
                             },
                         )}
                         {/* renders the header values or labels */}
-                        {headerValues.map((headerValue, headerColIndex) => {
-                            const isLabel = headerValue.type === 'label';
-                            const field = getField(headerValue.fieldId);
+                        {renderColumnGroups(
+                            sectionWindows.data,
+                            headerGroups[headerRowIndex],
+                            (headerColIndex, colSpan) => {
+                                const headerValue =
+                                    headerValues[headerColIndex];
+                                const isLabel = headerValue.type === 'label';
+                                const field = getField(headerValue.fieldId);
 
-                            const description =
-                                isLabel && isField(field)
-                                    ? field.description
+                                const description =
+                                    isLabel && isField(field)
+                                        ? field.description
+                                        : undefined;
+
+                                const isLastHeaderRow =
+                                    headerRowIndex ===
+                                    data.headerValues.length - 1;
+
+                                // Look up saved width for this data column
+                                const colInfo =
+                                    data.retrofitData.pivotColumnInfo[
+                                        numLabelCols + headerColIndex
+                                    ];
+                                const widthKey =
+                                    colInfo?.underlyingId || colInfo?.baseId;
+                                const colWidth = widthKey
+                                    ? columnProperties[widthKey]?.width
                                     : undefined;
 
-                            const isLastHeaderRow =
-                                headerRowIndex === data.headerValues.length - 1;
+                                const canResize =
+                                    isLastHeaderRow &&
+                                    onColumnWidthChange &&
+                                    !isMinimal &&
+                                    widthKey;
 
-                            // Look up saved width for this data column
-                            const colInfo =
-                                data.retrofitData.pivotColumnInfo[
-                                    numLabelCols + headerColIndex
-                                ];
-                            const widthKey =
-                                colInfo?.underlyingId || colInfo?.baseId;
-                            const colWidth = widthKey
-                                ? columnProperties[widthKey]?.width
-                                : undefined;
+                                // Apply width on the last header row, or on parent rows
+                                // when the cell spans exactly 1 column (single metric)
+                                const effectiveWidth =
+                                    isLastHeaderRow ||
+                                    (!isLabel && headerValue.colSpan === 1)
+                                        ? colWidth
+                                        : undefined;
 
-                            const canResize =
-                                isLastHeaderRow &&
-                                onColumnWidthChange &&
-                                !isMinimal &&
-                                widthKey;
-
-                            // Apply width on the last header row, or on parent rows
-                            // when the cell spans exactly 1 column (single metric)
-                            const effectiveWidth =
-                                isLastHeaderRow ||
-                                (!isLabel && headerValue.colSpan === 1)
-                                    ? colWidth
-                                    : undefined;
-
-                            const headerValueStickyProps = colInfo
-                                ? getStickyHeaderProps(
-                                      frozenLayout.get(colInfo.fieldId),
-                                  )
-                                : {};
-
-                            const isMetricLabelRow =
-                                metricLabelHeaderRowIndex >= 0 &&
-                                headerRowIndex === metricLabelHeaderRowIndex;
-                            const columnIdentity =
-                                pivotColumnIdentities[headerColIndex];
-                            const columnMetricRef =
-                                columnIdentity?.metricFieldId;
-                            const isClickableHeader =
-                                isMetricLabelRow &&
-                                isLabel &&
-                                !!renderSortMenu &&
-                                !!columnMetricRef;
-                            const sortMatch =
-                                isMetricLabelRow && isLabel
-                                    ? sortMatchByDataColIndex.get(
-                                          headerColIndex,
+                                const headerValueStickyProps = colInfo
+                                    ? getStickyHeaderProps(
+                                          frozenLayout.get(colInfo.fieldId),
                                       )
-                                    : undefined;
-                            const sortMatchItem = sortMatch
-                                ? getField(sortMatch.fieldId)
-                                : undefined;
-                            const sortIcon =
-                                sortMatch && sortMatchItem
-                                    ? getSortIcon(
-                                          sortMatchItem,
-                                          sortMatch.descending,
-                                      )
-                                    : undefined;
-
-                            const cellClassName = [
-                                headerValueStickyProps.className,
-                                isClickableHeader
-                                    ? pivotStyles.clickableHeader
-                                    : undefined,
-                            ]
-                                .filter(Boolean)
-                                .join(' ');
-
-                            const headerInnerContent = sortIcon ? (
-                                <Group
-                                    display="inline-flex"
-                                    gap={4}
-                                    wrap="nowrap"
-                                    align="center"
-                                >
-                                    {isLabel
-                                        ? getFieldLabel(headerValue.fieldId)
-                                        : formatCellContent(headerValue)}
-                                    <MantineIcon icon={sortIcon} size={14} />
-                                </Group>
-                            ) : isLabel ? (
-                                getFieldLabel(headerValue.fieldId)
-                            ) : (
-                                formatCellContent(headerValue)
-                            );
-
-                            const pivotMenuTarget: PivotSortMenuTarget | null =
-                                columnMetricRef && columnIdentity
-                                    ? {
-                                          kind: 'pivotColumn',
-                                          dataColIndex: headerColIndex,
-                                          metricReference: columnMetricRef,
-                                          pivotValues:
-                                              columnIdentity.pivotValues.map(
-                                                  (p) => ({
-                                                      reference: p.reference,
-                                                      value: p.rawValue,
-                                                  }),
-                                              ),
-                                      }
-                                    : null;
-
-                            // Pivoted dimension values get the same value menu
-                            // as body cells; their row context is the column's
-                            // ancestor header values.
-                            const headerValueMenuProps =
-                                headerValue.type === 'value'
-                                    ? getPivotCellInteractionProps({
-                                          enabled: enableContextMenu,
-                                          withInteractions:
-                                              !!headerValue.value.formatted,
-                                          withMenu: (
-                                              {
-                                                  isOpen,
-                                                  onClose,
-                                                  onCopy,
-                                              }: MenuCallbackProps,
-                                              render: RenderCallback,
-                                          ) => (
-                                              <ValueCellMenu
-                                                  opened={isOpen}
-                                                  item={field}
-                                                  value={headerValue.value}
-                                                  urlActions={{
-                                                      field: isField(field)
-                                                          ? field
-                                                          : undefined,
-                                                      getItem: getField,
-                                                      getRowContext: () =>
-                                                          getHeaderCellTemplatedUrlRowContext(
-                                                              headerRowIndex,
-                                                              headerColIndex,
-                                                          ),
-                                                  }}
-                                                  onClose={onClose}
-                                                  onCopy={onCopy}
-                                                  isMinimal={isMinimal}
-                                              >
-                                                  {render()}
-                                              </ValueCellMenu>
-                                          ),
-                                      })
                                     : {};
 
-                            return isLabel || headerValue.colSpan > 0 ? (
-                                <Table.CellHead
-                                    key={`header-${headerRowIndex}-${headerColIndex}`}
-                                    className={cellClassName || undefined}
-                                    style={{
-                                        '--sticky-left':
-                                            headerValueStickyProps.stickyLeft,
-                                    }}
-                                    isMinimal={isMinimal}
-                                    withBoldFont={isLabel}
-                                    withTooltip={description}
-                                    withValue={
-                                        headerValue.type === 'value'
-                                            ? headerValue.value.formatted
-                                            : undefined
-                                    }
-                                    withUrls={
-                                        enableContextMenu &&
-                                        headerValue.type === 'value' &&
-                                        isField(field) &&
-                                        !!field.urls?.length
-                                    }
-                                    {...headerValueMenuProps}
-                                    colSpan={
-                                        isLabel
-                                            ? undefined
-                                            : headerValue.colSpan
-                                    }
-                                    w={effectiveWidth}
-                                    miw={effectiveWidth}
-                                    maw={effectiveWidth}
-                                >
-                                    {isClickableHeader && pivotMenuTarget ? (
-                                        <Menu position="bottom-start">
-                                            <Menu.Target>
-                                                <Box
-                                                    component="span"
-                                                    role="button"
-                                                    tabIndex={0}
-                                                >
-                                                    {headerInnerContent}
-                                                </Box>
-                                            </Menu.Target>
-                                            <Menu.Dropdown>
-                                                {renderSortMenu?.(
-                                                    pivotMenuTarget,
-                                                )}
-                                            </Menu.Dropdown>
-                                        </Menu>
-                                    ) : (
-                                        headerInnerContent
-                                    )}
-                                    {canResize && (
-                                        <div
-                                            className={resizeHandleClassName}
-                                            role="separator"
-                                            aria-orientation="vertical"
-                                            onMouseDown={(e) =>
-                                                handleResizeStart(e, widthKey)
-                                            }
+                                const isMetricLabelRow =
+                                    metricLabelHeaderRowIndex >= 0 &&
+                                    headerRowIndex ===
+                                        metricLabelHeaderRowIndex;
+                                const columnIdentity =
+                                    pivotColumnIdentities[headerColIndex];
+                                const columnMetricRef =
+                                    columnIdentity?.metricFieldId;
+                                const isClickableHeader =
+                                    isMetricLabelRow &&
+                                    isLabel &&
+                                    !!renderSortMenu &&
+                                    !!columnMetricRef;
+                                const sortIcon =
+                                    isMetricLabelRow && isLabel
+                                        ? metricSortIcons.get(headerColIndex)
+                                        : undefined;
+
+                                const cellClassName = [
+                                    headerValueStickyProps.className,
+                                    isClickableHeader
+                                        ? pivotStyles.clickableHeader
+                                        : undefined,
+                                ]
+                                    .filter(Boolean)
+                                    .join(' ');
+
+                                const headerInnerContent = sortIcon ? (
+                                    <Group
+                                        display="inline-flex"
+                                        gap={4}
+                                        wrap="nowrap"
+                                        align="center"
+                                    >
+                                        {isLabel
+                                            ? getFieldLabel(headerValue.fieldId)
+                                            : formatCellContent(headerValue)}
+                                        <MantineIcon
+                                            icon={sortIcon}
+                                            size={14}
                                         />
-                                    )}
-                                </Table.CellHead>
-                            ) : null;
-                        })}
+                                    </Group>
+                                ) : isLabel ? (
+                                    getFieldLabel(headerValue.fieldId)
+                                ) : (
+                                    formatCellContent(headerValue)
+                                );
+
+                                const pivotMenuTarget: PivotSortMenuTarget | null =
+                                    columnMetricRef && columnIdentity
+                                        ? {
+                                              kind: 'pivotColumn',
+                                              dataColIndex: headerColIndex,
+                                              metricReference: columnMetricRef,
+                                              pivotValues:
+                                                  columnIdentity.pivotValues.map(
+                                                      (p) => ({
+                                                          reference:
+                                                              p.reference,
+                                                          value: p.rawValue,
+                                                      }),
+                                                  ),
+                                          }
+                                        : null;
+
+                                // Pivoted dimension values get the same value menu
+                                // as body cells; their row context is the column's
+                                // ancestor header values.
+                                const headerValueMenuProps =
+                                    headerValue.type === 'value'
+                                        ? getPivotCellInteractionProps({
+                                              enabled: enableContextMenu,
+                                              withInteractions:
+                                                  !!headerValue.value.formatted,
+                                              withMenu: (
+                                                  {
+                                                      isOpen,
+                                                      onClose,
+                                                      onCopy,
+                                                  }: MenuCallbackProps,
+                                                  render: RenderCallback,
+                                              ) => (
+                                                  <ValueCellMenu
+                                                      opened={isOpen}
+                                                      item={field}
+                                                      value={headerValue.value}
+                                                      urlActions={{
+                                                          field: isField(field)
+                                                              ? field
+                                                              : undefined,
+                                                          getItem: getField,
+                                                          getRowContext: () =>
+                                                              getHeaderCellTemplatedUrlRowContext(
+                                                                  headerRowIndex,
+                                                                  headerColIndex,
+                                                              ),
+                                                      }}
+                                                      onClose={onClose}
+                                                      onCopy={onCopy}
+                                                      isMinimal={isMinimal}
+                                                  >
+                                                      {render()}
+                                                  </ValueCellMenu>
+                                              ),
+                                          })
+                                        : {};
+
+                                return (
+                                    <Table.CellHead
+                                        key={`header-${headerRowIndex}-${headerColIndex}`}
+                                        aria-colindex={ariaColumnIndex(
+                                            dataStart + headerColIndex,
+                                        )}
+                                        aria-colspan={
+                                            columnWindow && !isLabel
+                                                ? headerValue.colSpan
+                                                : undefined
+                                        }
+                                        className={cellClassName || undefined}
+                                        style={{
+                                            '--sticky-left':
+                                                headerValueStickyProps.stickyLeft,
+                                        }}
+                                        isMinimal={isMinimal}
+                                        withBoldFont={isLabel}
+                                        withTooltip={description}
+                                        withValue={
+                                            headerValue.type === 'value'
+                                                ? headerValue.value.formatted
+                                                : undefined
+                                        }
+                                        withUrls={
+                                            enableContextMenu &&
+                                            headerValue.type === 'value' &&
+                                            isField(field) &&
+                                            !!field.urls?.length
+                                        }
+                                        {...headerValueMenuProps}
+                                        colSpan={isLabel ? undefined : colSpan}
+                                        w={effectiveWidth}
+                                        miw={effectiveWidth}
+                                        maw={effectiveWidth}
+                                    >
+                                        {isClickableHeader &&
+                                        pivotMenuTarget ? (
+                                            <Menu position="bottom-start">
+                                                <Menu.Target>
+                                                    <Box
+                                                        component="span"
+                                                        role="button"
+                                                        tabIndex={0}
+                                                    >
+                                                        {headerInnerContent}
+                                                    </Box>
+                                                </Menu.Target>
+                                                <Menu.Dropdown>
+                                                    {renderSortMenu?.(
+                                                        pivotMenuTarget,
+                                                    )}
+                                                </Menu.Dropdown>
+                                            </Menu>
+                                        ) : (
+                                            headerInnerContent
+                                        )}
+                                        {canResize && (
+                                            <div
+                                                className={
+                                                    resizeHandleClassName
+                                                }
+                                                role="separator"
+                                                aria-orientation="vertical"
+                                                onMouseDown={(e) =>
+                                                    handleResizeStart(
+                                                        e,
+                                                        widthKey,
+                                                    )
+                                                }
+                                            />
+                                        )}
+                                    </Table.CellHead>
+                                );
+                            },
+                        )}
                         {/* render the total label */}
                         {hasRowTotals
-                            ? data.rowTotalFields?.[headerRowIndex].map(
-                                  (totalLabel, headerColIndex) =>
-                                      totalLabel ? (
+                            ? renderColumns(
+                                  sectionWindows.totals,
+                                  data.rowTotalFields?.[headerRowIndex]
+                                      ?.length ?? 0,
+                                  (headerColIndex) => {
+                                      const totalLabel =
+                                          data.rowTotalFields?.[
+                                              headerRowIndex
+                                          ]?.[headerColIndex];
+                                      return totalLabel ? (
                                           <Table.CellHead
                                               key={`header-total-${headerRowIndex}-${headerColIndex}`}
+                                              aria-colindex={ariaColumnIndex(
+                                                  totalsStart + headerColIndex,
+                                              )}
                                               isMinimal={isMinimal}
                                               withBoldFont
                                               withMinimalWidth={
@@ -1754,12 +1912,16 @@ const PivotTable: FC<PivotTableProps> = ({
                                       ) : (
                                           <Table.Cell
                                               key={`header-total-${headerRowIndex}-${headerColIndex}`}
+                                              aria-colindex={ariaColumnIndex(
+                                                  totalsStart + headerColIndex,
+                                              )}
                                               isMinimal={isMinimal}
                                               withMinimalWidth={
                                                   !hasCustomWidths
                                               }
                                           />
-                                      ),
+                                      );
+                                  },
                               )
                             : null}
                     </Table.Row>
@@ -1769,7 +1931,7 @@ const PivotTable: FC<PivotTableProps> = ({
             <Table.Body>
                 {!groupingOnlyMode && paddingTop > 0 && (
                     <VirtualizedArea
-                        cellCount={cellsCountWithRowNumber}
+                        cellCount={renderedColumnCount}
                         height={paddingTop}
                     />
                 )}
@@ -1790,32 +1952,34 @@ const PivotTable: FC<PivotTableProps> = ({
                     // Row-level conditional formatting (PROD-8058): evaluate
                     // once per row using a representative data column's pivot
                     // context, then paint every cell in the row.
-                    const representativeHeaderInfo = row
-                        .getVisibleCells()
-                        .find((c) => {
-                            const m = c.column.columnDef.meta;
-                            return (
-                                c.column.id !== ROW_NUMBER_COLUMN_ID &&
-                                m?.type !== 'indexValue' &&
-                                m?.type !== 'label' &&
-                                m?.type !== 'rowTotal'
-                            );
-                        })?.column.columnDef.meta?.headerInfo;
+                    const representativeHeaderInfo =
+                        conditionalFormattings.length > 0
+                            ? visibleColumns.find((column) => {
+                                  const m = column.columnDef.meta;
+                                  return (
+                                      column.id !== ROW_NUMBER_COLUMN_ID &&
+                                      m?.type !== 'indexValue' &&
+                                      m?.type !== 'label' &&
+                                      m?.type !== 'rowTotal'
+                                  );
+                              })?.columnDef.meta?.headerInfo
+                            : undefined;
 
-                    const rowLevelFields = isMetricSubtotal
-                        ? {}
-                        : representativeHeaderInfo
-                          ? data.pivotConfig.metricsAsRows &&
-                            dataRowIndex !== null
-                              ? buildRowFieldsForMetricsAsRows(
-                                    dataRowIndex,
-                                    representativeHeaderInfo,
-                                )
-                              : buildRowFieldsFromVisibleCells(
-                                    row,
-                                    representativeHeaderInfo,
-                                )
-                          : buildRowFieldsFromVisibleCells(row, undefined);
+                    const rowLevelFields =
+                        isMetricSubtotal || conditionalFormattings.length === 0
+                            ? {}
+                            : representativeHeaderInfo
+                              ? data.pivotConfig.metricsAsRows &&
+                                dataRowIndex !== null
+                                  ? buildRowFieldsForMetricsAsRows(
+                                        dataRowIndex,
+                                        representativeHeaderInfo,
+                                    )
+                                  : buildRowFieldsFromVisibleCells(
+                                        row,
+                                        representativeHeaderInfo,
+                                    )
+                              : buildRowFieldsFromVisibleCells(row, undefined);
 
                     const rowBackgroundColor = getRowConditionalFormattingColor(
                         {
@@ -1832,6 +1996,30 @@ const PivotTable: FC<PivotTableProps> = ({
                             minMaxMap,
                         });
 
+                    const renderCells = (
+                        render: (
+                            cell: Cell<ResultRow, unknown>,
+                            index: number,
+                        ) => React.ReactNode,
+                    ) => {
+                        if (!columnWindow)
+                            return row.getVisibleCells().map(render);
+                        return renderColumns(
+                            columnWindow,
+                            visibleColumns.length,
+                            (index) => {
+                                const column = visibleColumns[index];
+                                const cell = createCell(
+                                    table,
+                                    row,
+                                    column,
+                                    column.id,
+                                );
+                                return render(cell, index);
+                            },
+                        );
+                    };
+
                     return (
                         <Table.Row
                             key={
@@ -1841,12 +2029,13 @@ const PivotTable: FC<PivotTableProps> = ({
                             }
                             index={renderIndex}
                         >
-                            {row.getVisibleCells().map((cell, colIndex) => {
+                            {renderCells((cell, colIndex) => {
                                 // Measure body cell widths in the first row only.
                                 // Column widths are uniform across rows (CSS table
                                 // layout), so one measurement per column is enough.
                                 const measureRef =
-                                    renderIndex === 0
+                                    renderIndex === 0 &&
+                                    frozenLayout.has(cell.column.id)
                                         ? measureCellRef(cell.column.id)
                                         : undefined;
                                 if (cell.column.id === ROW_NUMBER_COLUMN_ID) {
@@ -1862,6 +2051,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                     return (
                                         <Table.Cell
                                             key={cell.id}
+                                            aria-colindex={ariaColumnIndex(
+                                                colIndex,
+                                            )}
                                             ref={measureRef}
                                             className={
                                                 rowNumberStickyBody.className
@@ -2032,18 +2224,20 @@ const PivotTable: FC<PivotTableProps> = ({
                                 const currentHeaderInfo =
                                     cell.column.columnDef.meta?.headerInfo;
 
-                                const rowFieldsForCell = isMetricSubtotal
-                                    ? {}
-                                    : data.pivotConfig.metricsAsRows &&
-                                        dataRowIndex !== null
-                                      ? buildRowFieldsForMetricsAsRows(
-                                            dataRowIndex,
-                                            currentHeaderInfo,
-                                        )
-                                      : buildRowFieldsFromVisibleCells(
-                                            row,
-                                            currentHeaderInfo,
-                                        );
+                                const rowFieldsForCell =
+                                    isMetricSubtotal ||
+                                    conditionalFormattings.length === 0
+                                        ? {}
+                                        : data.pivotConfig.metricsAsRows &&
+                                            dataRowIndex !== null
+                                          ? buildRowFieldsForMetricsAsRows(
+                                                dataRowIndex,
+                                                currentHeaderInfo,
+                                            )
+                                          : buildRowFieldsFromVisibleCells(
+                                                row,
+                                                currentHeaderInfo,
+                                            );
 
                                 const cellConditionalFormattingConfig =
                                     isMetricSubtotal
@@ -2234,6 +2428,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                 return (
                                     <TableCellComponent
                                         key={cell.id}
+                                        aria-colindex={ariaColumnIndex(
+                                            colIndex,
+                                        )}
                                         ref={measureRef}
                                         rowSpan={
                                             rowSpanMerge &&
@@ -2470,7 +2667,7 @@ const PivotTable: FC<PivotTableProps> = ({
 
                 {!groupingOnlyMode && paddingBottom > 0 && (
                     <VirtualizedArea
-                        cellCount={cellsCountWithRowNumber}
+                        cellCount={renderedColumnCount}
                         height={paddingBottom}
                     />
                 )}
@@ -2487,33 +2684,46 @@ const PivotTable: FC<PivotTableProps> = ({
                                 index={stickyIndex}
                             >
                                 {/* shows empty cell if row numbers are visible */}
-                                {hideRowNumbers
-                                    ? null
-                                    : (() => {
-                                          const footerRowNumberSticky =
-                                              frozenLayout.size > 0
-                                                  ? {
-                                                        className:
-                                                            pivotStyles.stickyColumn,
-                                                    }
-                                                  : ({} as {
-                                                        className?: string;
-                                                    });
-                                          return (
-                                              <Table.Cell
-                                                  className={
-                                                      footerRowNumberSticky.className
+                                {renderColumns(
+                                    sectionWindows.rowNumbers,
+                                    hideRowNumbers ? 0 : 1,
+                                    () => {
+                                        const footerRowNumberSticky =
+                                            frozenLayout.size > 0
+                                                ? {
+                                                      className:
+                                                          pivotStyles.stickyColumn,
                                                   }
-                                                  w={rowNumberWidth}
-                                                  miw={rowNumberWidth}
-                                                  maw={rowNumberWidth}
-                                              />
-                                          );
-                                      })()}
+                                                : ({} as {
+                                                      className?: string;
+                                                  });
+                                        return (
+                                            <Table.Cell
+                                                key={ROW_NUMBER_COLUMN_ID}
+                                                aria-colindex={ariaColumnIndex(
+                                                    0,
+                                                )}
+                                                className={
+                                                    footerRowNumberSticky.className
+                                                }
+                                                w={rowNumberWidth}
+                                                miw={rowNumberWidth}
+                                                maw={rowNumberWidth}
+                                            />
+                                        );
+                                    },
+                                )}
 
                                 {/* render the total label */}
-                                {data.columnTotalFields?.[totalRowIndex].map(
-                                    (totalLabel, totalColIndex) => {
+                                {renderColumns(
+                                    sectionWindows.titles,
+                                    data.columnTotalFields?.[totalRowIndex]
+                                        ?.length ?? 0,
+                                    (totalColIndex) => {
+                                        const totalLabel =
+                                            data.columnTotalFields?.[
+                                                totalRowIndex
+                                            ]?.[totalColIndex];
                                         const footerPivotCol =
                                             data.retrofitData.pivotColumnInfo[
                                                 totalColIndex
@@ -2528,6 +2738,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                         return totalLabel ? (
                                             <Table.CellHead
                                                 key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                                aria-colindex={ariaColumnIndex(
+                                                    titleStart + totalColIndex,
+                                                )}
                                                 className={
                                                     footerStickyProps.className
                                                 }
@@ -2546,6 +2759,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                         ) : (
                                             <Table.Cell
                                                 key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                                aria-colindex={ariaColumnIndex(
+                                                    titleStart + totalColIndex,
+                                                )}
                                                 className={
                                                     footerStickyProps.className
                                                 }
@@ -2559,79 +2775,104 @@ const PivotTable: FC<PivotTableProps> = ({
                                     },
                                 )}
 
-                                {row.map((total, totalColIndex) => {
-                                    const value = data.pivotConfig.metricsAsRows
-                                        ? getMetricAsRowColumnTotalValueFromAxis(
-                                              total,
-                                              totalRowIndex,
-                                          )
-                                        : getColumnTotalValueFromAxis(
-                                              total,
-                                              totalColIndex,
-                                          );
-                                    return value ? (
-                                        <Table.CellHead
-                                            key={`column-total-${totalRowIndex}-${totalColIndex}`}
-                                            withAlignRight
-                                            isMinimal={isMinimal}
-                                            withBoldFont
-                                            withValue={value.formatted}
-                                            {...getPivotCellInteractionProps({
-                                                enabled: enableContextMenu,
-                                                withInteractions: true,
-                                                withMenu: (
+                                {renderColumns(
+                                    sectionWindows.data,
+                                    row.length,
+                                    (totalColIndex) => {
+                                        const total = row[totalColIndex];
+                                        const value = data.pivotConfig
+                                            .metricsAsRows
+                                            ? getMetricAsRowColumnTotalValueFromAxis(
+                                                  total,
+                                                  totalRowIndex,
+                                              )
+                                            : getColumnTotalValueFromAxis(
+                                                  total,
+                                                  totalColIndex,
+                                              );
+                                        return value ? (
+                                            <Table.CellHead
+                                                key={`column-total-${totalRowIndex}-${totalColIndex}`}
+                                                aria-colindex={ariaColumnIndex(
+                                                    dataStart + totalColIndex,
+                                                )}
+                                                withAlignRight
+                                                isMinimal={isMinimal}
+                                                withBoldFont
+                                                withValue={value.formatted}
+                                                {...getPivotCellInteractionProps(
                                                     {
-                                                        isOpen,
-                                                        onClose,
-                                                        onCopy,
-                                                    }: MenuCallbackProps,
-                                                    render: RenderCallback,
-                                                ) => (
-                                                    <TotalCellMenu
-                                                        opened={isOpen}
-                                                        onClose={onClose}
-                                                        onCopy={onCopy}
-                                                    >
-                                                        {render()}
-                                                    </TotalCellMenu>
-                                                ),
-                                            })}
-                                        >
-                                            {value.formatted}
-                                        </Table.CellHead>
-                                    ) : columnTotalsError ? (
-                                        <Table.CellHead
-                                            key={`column-total-${totalRowIndex}-${totalColIndex}`}
-                                            withAlignRight
-                                            isMinimal={isMinimal}
-                                        >
-                                            <TotalCalculationErrorCell
-                                                error={columnTotalsError}
+                                                        enabled:
+                                                            enableContextMenu,
+                                                        withInteractions: true,
+                                                        withMenu: (
+                                                            {
+                                                                isOpen,
+                                                                onClose,
+                                                                onCopy,
+                                                            }: MenuCallbackProps,
+                                                            render: RenderCallback,
+                                                        ) => (
+                                                            <TotalCellMenu
+                                                                opened={isOpen}
+                                                                onClose={
+                                                                    onClose
+                                                                }
+                                                                onCopy={onCopy}
+                                                            >
+                                                                {render()}
+                                                            </TotalCellMenu>
+                                                        ),
+                                                    },
+                                                )}
+                                            >
+                                                {value.formatted}
+                                            </Table.CellHead>
+                                        ) : columnTotalsError ? (
+                                            <Table.CellHead
+                                                key={`column-total-${totalRowIndex}-${totalColIndex}`}
+                                                aria-colindex={ariaColumnIndex(
+                                                    dataStart + totalColIndex,
+                                                )}
+                                                withAlignRight
+                                                isMinimal={isMinimal}
+                                            >
+                                                <TotalCalculationErrorCell
+                                                    error={columnTotalsError}
+                                                />
+                                            </Table.CellHead>
+                                        ) : isColumnTotalsLoading ? (
+                                            <Table.CellHead
+                                                key={`column-total-${totalRowIndex}-${totalColIndex}`}
+                                                aria-colindex={ariaColumnIndex(
+                                                    dataStart + totalColIndex,
+                                                )}
+                                                withAlignRight
+                                                isMinimal={isMinimal}
+                                            >
+                                                <Skeleton
+                                                    height={16}
+                                                    width="min(60%, 50px)"
+                                                    ml="auto"
+                                                />
+                                            </Table.CellHead>
+                                        ) : (
+                                            <Table.Cell
+                                                key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                                aria-colindex={ariaColumnIndex(
+                                                    dataStart + totalColIndex,
+                                                )}
+                                                isMinimal={isMinimal}
                                             />
-                                        </Table.CellHead>
-                                    ) : isColumnTotalsLoading ? (
-                                        <Table.CellHead
-                                            key={`column-total-${totalRowIndex}-${totalColIndex}`}
-                                            withAlignRight
-                                            isMinimal={isMinimal}
-                                        >
-                                            <Skeleton
-                                                height={16}
-                                                width="min(60%, 50px)"
-                                                ml="auto"
-                                            />
-                                        </Table.CellHead>
-                                    ) : (
-                                        <Table.Cell
-                                            key={`footer-total-${totalRowIndex}-${totalColIndex}`}
-                                            isMinimal={isMinimal}
-                                        />
-                                    );
-                                })}
+                                        );
+                                    },
+                                )}
 
                                 {hasRowTotals
-                                    ? data.rowTotalFields?.[0].map(
-                                          (_, index) => {
+                                    ? renderColumns(
+                                          sectionWindows.totals,
+                                          data.rowTotalFields?.[0]?.length ?? 0,
+                                          (index) => {
                                               const metricIndex = data
                                                   .pivotConfig.metricsAsRows
                                                   ? totalRowIndex
@@ -2646,6 +2887,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                               return value ? (
                                                   <Table.CellHead
                                                       key={`grand-total-${totalRowIndex}-${index}`}
+                                                      aria-colindex={ariaColumnIndex(
+                                                          totalsStart + index,
+                                                      )}
                                                       withAlignRight
                                                       isMinimal={isMinimal}
                                                       withBoldFont
@@ -2687,6 +2931,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                               ) : grandTotalsError ? (
                                                   <Table.CellHead
                                                       key={`grand-total-${totalRowIndex}-${index}`}
+                                                      aria-colindex={ariaColumnIndex(
+                                                          totalsStart + index,
+                                                      )}
                                                       withAlignRight
                                                       isMinimal={isMinimal}
                                                   >
@@ -2699,6 +2946,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                               ) : isGrandTotalsLoading ? (
                                                   <Table.CellHead
                                                       key={`grand-total-${totalRowIndex}-${index}`}
+                                                      aria-colindex={ariaColumnIndex(
+                                                          totalsStart + index,
+                                                      )}
                                                       withAlignRight
                                                       isMinimal={isMinimal}
                                                   >
@@ -2711,6 +2961,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                               ) : (
                                                   <Table.Cell
                                                       key={`footer-empty-${totalRowIndex}-${index}`}
+                                                      aria-colindex={ariaColumnIndex(
+                                                          totalsStart + index,
+                                                      )}
                                                       isMinimal={isMinimal}
                                                   />
                                               );

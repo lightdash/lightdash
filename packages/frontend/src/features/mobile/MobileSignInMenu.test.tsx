@@ -23,10 +23,9 @@ vi.mock('../../hooks/health/useHealth', () => ({
         data: { siteUrl: 'https://app.example.com', mode: health.mode },
     }),
 }));
-const qrSignIn = vi.hoisted(() => ({ enabled: true }));
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({
-        data: { id: 'mobile-qr-sign-in', enabled: qrSignIn.enabled },
+        data: { id: 'mobile-app-access', enabled: true },
     }),
 }));
 
@@ -134,7 +133,6 @@ const openButton = () =>
 beforeEach(() => {
     window.history.replaceState({}, '', '/');
     api.mockReset();
-    qrSignIn.enabled = true;
     health.mode = LightdashMode.DEFAULT;
 });
 
@@ -421,26 +419,6 @@ describe('MobileSignInMenu', () => {
             'data-paused',
             'false',
         );
-    });
-
-    it('renders nothing and mints nothing with mobile-qr-sign-in off', () => {
-        qrSignIn.enabled = false;
-        const server = mockServer();
-        const { container } = renderMenu(
-            <div data-testid="header-group">
-                <MobileSignInMenu />
-            </div>,
-        );
-
-        expect(screen.getByTestId('header-group')).toBeEmptyDOMElement();
-        expect(container.querySelector('button')).toBeNull();
-        expect(screen.getByTestId('header-group').outerHTML).toBe(
-            '<div data-testid="header-group"></div>',
-        );
-        expect(
-            screen.queryByRole('button', { name: 'Sign in on your phone' }),
-        ).not.toBeInTheDocument();
-        expect(server.mints()).toEqual([]);
     });
 
     it('mints no code until the popover opens, then shows the sign-in step', async () => {

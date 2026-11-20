@@ -33,6 +33,7 @@ export const emptyMergeSource = (id: string): MergeEditorSource => ({
 export const EMPTY_MERGE = {
     isMerging: false,
     readOnly: false,
+    runsSavedChart: false,
     wasRestored: false,
     replacesQuery: false,
     focus: { kind: 'source' as const, sourceId: PRIMARY_SOURCE_ID },

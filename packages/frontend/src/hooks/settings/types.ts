@@ -97,8 +97,6 @@ export type SettingsContext = {
     isApiQuerySourcesEnabled: boolean;
     // Chart Studio uses org themes, so it opens Themes without data apps.
     isChartStudioAvailable: boolean;
-    isMobileSettingsEnabled: boolean;
-    isMobileSettingsFlagLoading: boolean;
     isResultsCacheAvailable: boolean;
     embeddingEnabled: FeatureFlag | undefined;
     allowPasswordAuthentication: boolean;

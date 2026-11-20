@@ -169,6 +169,7 @@ it.each([
     ['QueryController.executeAsyncMetricQuery', 'view', 'Explore'],
     ['QueryController.executeAsyncFieldValueSearch', 'view', 'Explore'],
     ['QueryController.executeAsyncSavedChartQuery', 'view', 'SavedChart'],
+    ['QueryController.executeAsyncSavedMergeQuery', 'view', 'SavedChart'],
     ['QueryController.executeAsyncUnderlyingDataQuery', 'view', 'Explore'],
     ['QueryController.executeAsyncDashboardChartQuery', 'view', 'Dashboard'],
     ['QueryController.executeAsyncDashboardSqlChartQuery', 'view', 'Dashboard'],

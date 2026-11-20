@@ -15,6 +15,8 @@ declare module '@tanstack/react-table' {
         draggable?: boolean;
         item?: ItemsMap[string];
         labelOverride?: string;
+        headerText?: string;
+        headerIconWidth?: number;
         headerContext?: string;
         pivotReference?: PivotReference;
         bgColor?: string;

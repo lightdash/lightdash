@@ -32,6 +32,7 @@ import {
     type Project,
     type SaveSemanticLayerDraftModelRequest,
     type SaveSemanticStudioSourceRequest,
+    type SemanticLayerApplyMode,
     type SemanticLayerBlocker,
     type SemanticLayerDraft,
     type SemanticLayerDraftApplyResult,
@@ -64,6 +65,11 @@ import {
 import { groupBy } from 'es-toolkit/compat';
 import { createHash } from 'node:crypto';
 import { text } from 'node:stream/consumers';
+import {
+    type LightdashAnalytics,
+    type SemanticStudioActivity,
+    type SemanticStudioChangeFailureReason,
+} from '../../../analytics/LightdashAnalytics';
 import { type FileStorageClient } from '../../../clients/FileStorage/FileStorageClient';
 import { type DraftImpactBreaks } from '../../../database/entities/projectModelDraftImpacts';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
@@ -135,7 +141,18 @@ type ModelProject = Pick<
     | 'createdByUserUuid'
 > & { dbtConnection: Project['dbtConnection'] };
 
+const applyModeOf = (
+    dbtConnection: ModelProject['dbtConnection'],
+): SemanticLayerApplyMode => {
+    if (keepsModelsInGithub(dbtConnection)) return 'pull_request';
+    // A dbt project keeps no draft: the agent edits the repository in a pull request.
+    return dbtConnection.type === DbtProjectType.NONE
+        ? 'live'
+        : 'dbt_pull_request';
+};
+
 export type SemanticStudioServiceArguments = {
+    analytics: Pick<LightdashAnalytics, 'track'>;
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     projectModel: {
         get: (projectUuid: string) => Promise<ModelProject>;
@@ -363,6 +380,8 @@ const RECENT_WORKSPACE_MS = 14 * 24 * 60 * 60 * 1000;
 type Blocker = { reason: SemanticLayerBlocker; error: LightdashError };
 
 export class SemanticStudioService extends BaseService {
+    private readonly analytics: SemanticStudioServiceArguments['analytics'];
+
     private readonly featureFlagModel: SemanticStudioServiceArguments['featureFlagModel'];
 
     private readonly projectModel: SemanticStudioServiceArguments['projectModel'];
@@ -404,6 +423,7 @@ export class SemanticStudioService extends BaseService {
 
     constructor(args: SemanticStudioServiceArguments) {
         super();
+        this.analytics = args.analytics;
         this.featureFlagModel = args.featureFlagModel;
         this.projectModel = args.projectModel;
         this.projectModelDocumentModel = args.projectModelDocumentModel;
@@ -419,6 +439,33 @@ export class SemanticStudioService extends BaseService {
         this.projectCompileLogModel = args.projectCompileLogModel;
         this.writebackPreviewService = args.writebackPreviewService;
         this.checker = new DraftChecker(args.projectService);
+    }
+
+    /** Never awaited, so a failed lookup cannot hold up or fail the action it describes. */
+    private track(
+        user: SessionUser,
+        projectUuid: string,
+        { event, properties }: SemanticStudioActivity,
+    ): void {
+        this.projectModel
+            .get(projectUuid)
+            .then(({ organizationUuid, dbtConnection }) =>
+                this.analytics.track({
+                    event,
+                    userId: user.userUuid,
+                    properties: {
+                        organizationId: organizationUuid,
+                        projectId: projectUuid,
+                        appliesAs: applyModeOf(dbtConnection),
+                        ...properties,
+                    },
+                }),
+            )
+            .catch((error: unknown) => {
+                this.logger.warn(
+                    `SemanticStudio: failed to track ${event}: ${getErrorMessage(error)}`,
+                );
+            });
     }
 
     /** Why this person cannot change this project's models here, or null when they can. */
@@ -576,12 +623,8 @@ export class SemanticStudioService extends BaseService {
         projectUuid: string,
     ): Promise<SemanticLayerStatus> {
         const project = await this.projectModel.get(projectUuid);
-        const { dbtConnection } = project;
-        if (
-            dbtConnection.type !== DbtProjectType.NONE &&
-            !keepsModelsInGithub(dbtConnection)
-        ) {
-            // A dbt project keeps no draft: the agent edits the repository in a pull request.
+        const appliesAs = applyModeOf(project.dbtConnection);
+        if (appliesAs === 'dbt_pull_request') {
             const reason = await this.findDbtProjectBlocker(user, project);
             return {
                 enabled: reason === null,
@@ -593,9 +636,7 @@ export class SemanticStudioService extends BaseService {
         return {
             enabled: blocker === null,
             blocker: blocker?.reason ?? null,
-            appliesAs: keepsModelsInGithub(dbtConnection)
-                ? 'pull_request'
-                : 'live',
+            appliesAs,
         };
     }
 
@@ -902,6 +943,12 @@ export class SemanticStudioService extends BaseService {
             ...owner,
             workspaceUuid: stored.workspaceUuid,
         });
+        if (stored.startedChange) {
+            this.track(user, owner.projectUuid, {
+                event: 'semantic_studio.draft_started',
+                properties: { trigger: 'first_change' },
+            });
+        }
         return stored;
     }
 
@@ -929,6 +976,14 @@ export class SemanticStudioService extends BaseService {
             (_model, index) => results[index].status === 'ready',
         );
         if (passing.length === 0) {
+            this.track(user, projectUuid, {
+                event: 'semantic_studio.change_failed',
+                properties: {
+                    source: 'chat',
+                    reason: 'check_failed',
+                    modelCount: models.length,
+                },
+            });
             return {
                 results,
                 diffs: [],
@@ -945,6 +1000,15 @@ export class SemanticStudioService extends BaseService {
             prompt?.promptUuid ?? null,
             changeName,
         );
+        this.track(user, projectUuid, {
+            event: 'semantic_studio.change_saved',
+            properties: {
+                source: 'chat',
+                modelCount: passing.length,
+                failedModelCount: models.length - passing.length,
+                startedDraft: startedChange !== null,
+            },
+        });
         return {
             results,
             diffs: [...new Set(passing.map(({ name }) => name))].map(
@@ -970,13 +1034,20 @@ export class SemanticStudioService extends BaseService {
         const owner = await this.findDraftOwner(projectUuid, user.userUuid);
         const draft = await this.loadDraft(owner, null);
         await this.assertNoModelsFromElsewhere(projectUuid, draft);
-        const fail = (error: string): SemanticLayerDraftModelSave => ({
-            status: 'failed',
-            error,
-        });
+        const fail = (
+            reason: SemanticStudioChangeFailureReason,
+            error: string,
+        ): SemanticLayerDraftModelSave => {
+            this.track(user, projectUuid, {
+                event: 'semantic_studio.change_failed',
+                properties: { source: 'hand', reason, modelCount: 1 },
+            });
+            return { status: 'failed', error };
+        };
         const current = withWrites(draft.live, draft.writes).get(model);
         if (current === undefined || current !== base) {
             return fail(
+                'stale',
                 'This model changed since you started editing it. Copy your edit, then make it again on the latest version.',
             );
         }
@@ -984,16 +1055,20 @@ export class SemanticStudioService extends BaseService {
         try {
             edited = parseModelDocument(content, toModelPath(model));
         } catch (error) {
-            return fail(getErrorMessage(error));
+            return fail('invalid', getErrorMessage(error));
         }
         if (edited.name !== model) {
             return fail(
+                'renamed',
                 `The model's name stays ${model}. To rename it, ask the agent.`,
             );
         }
         const models = toDraftEdit(model, current, content);
         if (models.length === 0) {
-            return fail('This edit changes nothing the model means.');
+            return fail(
+                'no_change',
+                'This edit changes nothing the model means.',
+            );
         }
         const { results, writes } = await this.checkOnDraft(
             user,
@@ -1005,7 +1080,9 @@ export class SemanticStudioService extends BaseService {
             ...(error === null ? [] : [error]),
             ...refusals.map(describeRefusal),
         ]);
-        if (problems.length > 0) return fail(problems.join(' '));
+        if (problems.length > 0) {
+            return fail('check_failed', problems.join(' '));
+        }
         const saved = writes.get(model);
         if (
             saved === undefined ||
@@ -1013,7 +1090,10 @@ export class SemanticStudioService extends BaseService {
             results.every(({ status }) => status !== 'ready')
         ) {
             // Every part folded to what the draft already holds.
-            return fail('This edit changes nothing the model means.');
+            return fail(
+                'no_change',
+                'This edit changes nothing the model means.',
+            );
         }
         // A part the edit names but the draft would not hold is never saved quietly; sql_from is only wrapped.
         const missed = diffModelDocuments(saved, content).filter(
@@ -1021,6 +1101,7 @@ export class SemanticStudioService extends BaseService {
         );
         if (missed.length > 0) {
             return fail(
+                'unsupported_part',
                 `${missed.map(({ path }) => path).join(', ')} cannot be saved as written here. Ask the agent to make that change.`,
             );
         }
@@ -1033,6 +1114,15 @@ export class SemanticStudioService extends BaseService {
             // Named for the model as it was, since the edit may be to its label.
             `Edit ${parseModelDocument(current, toModelPath(model)).label ?? edited.label ?? model}`,
         );
+        this.track(user, projectUuid, {
+            event: 'semantic_studio.change_saved',
+            properties: {
+                source: 'hand',
+                modelCount: 1,
+                failedModelCount: 0,
+                startedDraft: startedChange !== null,
+            },
+        });
         return {
             status: 'saved',
             draftChangeUuid,
@@ -1699,6 +1789,19 @@ export class SemanticStudioService extends BaseService {
         if (result.merged) {
             await this.recordPullRequestState(projectUuid, prUrl, 'merged');
         }
+        this.track(
+            user,
+            projectUuid,
+            result.merged
+                ? {
+                      event: 'semantic_studio.draft_published',
+                      properties: { outcome: 'merged', scope: 'draft' },
+                  }
+                : {
+                      event: 'semantic_studio.publish_failed',
+                      properties: { reason: 'merge_refused', scope: 'draft' },
+                  },
+        );
         return result;
     }
 
@@ -2561,6 +2664,12 @@ export class SemanticStudioService extends BaseService {
         }
         if (target.kind === 'all') await this.finishDraftWorkspace(owner);
         await this.queueDraftImpactCheckAfterChange(user, owner);
+        this.track(user, projectUuid, {
+            event: 'semantic_studio.draft_discarded',
+            properties: {
+                scope: target.kind === 'all' ? 'draft' : target.kind,
+            },
+        });
     }
 
     /** Moves one change one place earlier or later in this person's draft; each change builds on the ones before it, so the order decides what a later one sees. */
@@ -2612,19 +2721,49 @@ export class SemanticStudioService extends BaseService {
             }
             // What is left of the draft now sits on different live models.
             await this.queueDraftImpactCheckAfterChange(user, owner);
-            return merge && result.pullRequestUrl
-                ? {
-                      ...result,
-                      merge: await this.mergeDraftPullRequest(
-                          user,
-                          projectUuid,
-                          result.pullRequestUrl,
-                      ),
-                  }
-                : result;
+            const published =
+                merge && result.pullRequestUrl
+                    ? {
+                          ...result,
+                          merge: await this.mergeDraftPullRequest(
+                              user,
+                              projectUuid,
+                              result.pullRequestUrl,
+                          ),
+                      }
+                    : result;
+            this.trackPublish(user, projectUuid, model, published);
+            return published;
         })().finally(() => this.publishing.delete(key));
         this.publishing.set(key, publish);
         return publish;
+    }
+
+    private trackPublish(
+        user: SessionUser,
+        projectUuid: string,
+        model: string | null,
+        { failures, pullRequestUrl, merge }: SemanticLayerDraftApplyResult,
+    ): void {
+        const scope = model === null ? 'draft' : 'model';
+        if (failures.length > 0 || merge?.merged === false) {
+            this.track(user, projectUuid, {
+                event: 'semantic_studio.publish_failed',
+                properties: {
+                    reason:
+                        failures.length > 0 ? 'check_failed' : 'merge_refused',
+                    scope,
+                },
+            });
+            return;
+        }
+        let outcome: 'live' | 'pull_request' | 'merged' = 'live';
+        if (merge?.merged) outcome = 'merged';
+        else if (pullRequestUrl) outcome = 'pull_request';
+        this.track(user, projectUuid, {
+            event: 'semantic_studio.draft_published',
+            properties: { outcome, scope },
+        });
     }
 
     /** Merges the pull request a draft was just sent as; a refusal leaves it open for review and says why. */
@@ -3168,7 +3307,17 @@ export class SemanticStudioService extends BaseService {
         };
         // Null means only dbt can check the change, so it is committed unchecked.
         const dryRun = await save(true, true).catch(forPerson);
+        const trackFailed = () =>
+            this.track(user, projectUuid, {
+                event: 'semantic_studio.change_failed',
+                properties: {
+                    source: 'hand',
+                    reason: 'check_failed',
+                    modelCount: null,
+                },
+            });
         if (dryRun?.status === 'script_failed') {
+            trackFailed();
             return { status: 'failed', error: dryRun.error };
         }
         const checked = dryRun !== null;
@@ -3179,6 +3328,7 @@ export class SemanticStudioService extends BaseService {
             );
         }
         if (saved.status === 'script_failed') {
+            trackFailed();
             return { status: 'failed', error: saved.error };
         }
         if (saved.status !== 'saved') {
@@ -3255,6 +3405,22 @@ export class SemanticStudioService extends BaseService {
                     `SemanticStudio: failed to refresh the preview after a hand edit: ${getErrorMessage(error)}`,
                 );
             });
+        const opened = saved.result.prAction === 'opened';
+        this.track(user, projectUuid, {
+            event: 'semantic_studio.change_saved',
+            properties: {
+                source: 'hand',
+                modelCount: null,
+                failedModelCount: 0,
+                startedDraft: opened,
+            },
+        });
+        if (opened) {
+            this.track(user, projectUuid, {
+                event: 'semantic_studio.draft_started',
+                properties: { trigger: 'file_edit' },
+            });
+        }
         return {
             status: 'saved',
             prUrl: savedPrUrl,
@@ -3408,6 +3574,10 @@ export class SemanticStudioService extends BaseService {
                 project.organizationUuid,
                 name.trim().slice(0, 120) || UNTITLED_WORKSPACE_NAME,
             );
+            this.track(user, projectUuid, {
+                event: 'semantic_studio.draft_started',
+                properties: { trigger: 'explicit' },
+            });
             return this.loadWorkspace(user, projectUuid, uuid);
         }
         const thread = await this.workspaceModel.findStudioThread(
@@ -3452,6 +3622,10 @@ export class SemanticStudioService extends BaseService {
             { projectUuid, userUuid: user.userUuid },
             workspaceUuid,
         );
+        this.track(user, projectUuid, {
+            event: 'semantic_studio.draft_switched',
+            properties: { to: 'draft' },
+        });
         return this.loadWorkspace(user, projectUuid, workspaceUuid);
     }
 
@@ -3464,6 +3638,10 @@ export class SemanticStudioService extends BaseService {
         await this.workspaceModel.leave({
             projectUuid,
             userUuid: user.userUuid,
+        });
+        this.track(user, projectUuid, {
+            event: 'semantic_studio.draft_switched',
+            properties: { to: 'live' },
         });
     }
 
@@ -3496,6 +3674,10 @@ export class SemanticStudioService extends BaseService {
             workspaceUuid,
         );
         await this.workspaceModel.deleteFinishedBranchCompiles(projectUuid);
+        this.track(user, projectUuid, {
+            event: 'semantic_studio.draft_discarded',
+            properties: { scope: 'draft' },
+        });
     }
 
     /**

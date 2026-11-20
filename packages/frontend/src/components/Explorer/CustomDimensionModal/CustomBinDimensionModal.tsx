@@ -8,6 +8,7 @@ import {
     isCustomBinDimension,
     isCustomDimension,
     isDimension,
+    MAX_FIXED_NUMBER_BINS,
     snakeCaseName,
     type BinGroup,
     type BinRange,
@@ -382,7 +383,11 @@ export const CustomBinDimensionModal: FC<{
                     binType: z.enum(BinType),
                     binConfig: z.object({
                         fixedNumber: z.object({
-                            binNumber: z.number().positive(),
+                            binNumber: z
+                                .number()
+                                .int()
+                                .min(MIN_OF_FIXED_NUMBER_BINS)
+                                .max(MAX_FIXED_NUMBER_BINS),
                         }),
                         fixedWidth: z.object({
                             binWidth: z.number().positive(),
@@ -720,6 +725,7 @@ export const CustomBinDimensionModal: FC<{
                             label="Bin number"
                             required
                             min={MIN_OF_FIXED_NUMBER_BINS}
+                            max={MAX_FIXED_NUMBER_BINS}
                             {...form.getInputProps(
                                 'binConfig.fixedNumber.binNumber',
                             )}

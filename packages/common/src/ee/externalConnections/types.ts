@@ -78,6 +78,15 @@ export type AttioApiSource = {
     object: string;
 };
 
+/** The HubSpot CRM objects a source reads, one explore each. */
+export const HUBSPOT_OBJECTS = ['deals', 'contacts', 'companies'] as const;
+export type HubspotObject = (typeof HUBSPOT_OBJECTS)[number];
+
+/** The private app's token picks the HubSpot account, so nothing else is set. */
+export type HubspotApiSource = {
+    connector: ApiConnectorType.HUBSPOT;
+};
+
 /** Connector settings of a live source; the server fixes its access rules. */
 export type ExternalConnectionApiSource =
     | PostHogApiSource
@@ -89,7 +98,8 @@ export type ExternalConnectionApiSource =
     | LinkedInAdsApiSource
     | GithubApiSource
     | PylonApiSource
-    | AttioApiSource;
+    | AttioApiSource
+    | HubspotApiSource;
 
 /** The settings of one integration's sources. */
 export type ApiSourceOf<C extends ApiConnectorType> = Extract<
@@ -146,6 +156,14 @@ export const getAttioAttributesPath = (object: string) =>
 
 export const getAttioRecordsQueryPath = (object: string) =>
     `/v2/objects/${object}/records/query`;
+
+export const HUBSPOT_ORIGIN = 'https://api.hubapi.com';
+
+export const getHubspotPropertiesPath = (object: string) =>
+    `/crm/v3/properties/${object}`;
+
+export const getHubspotSearchPath = (object: string) =>
+    `/crm/v3/objects/${object}/search`;
 
 /** HTTP methods an admin can opt a connection into. Single source of truth for
  *  the backend validation allowlist and the frontend method pickers. */

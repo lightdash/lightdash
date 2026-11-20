@@ -109,8 +109,8 @@ export async function resolveColorPalette(args: {
 
     // chart_origin: chart-level palette + seed space (chart's space, falling
     //   back to the owning-dashboard's space for dashboard-owned charts).
-    // dashboard_origin: seed space derived from the explicit container
-    //   dashboard.
+    // dashboard_context: the explicit container dashboard and its space.
+    // Every context lookup is limited to the requested project.
     // Seed precedence (caller intent first): explicit spaceUuid →
     //   explicit dashboardUuid → chart-derived. Both spaceUuid and
     //   dashboardUuid are caller-passed render context, so they outrank
@@ -120,7 +120,10 @@ export async function resolveColorPalette(args: {
     const result: ResolverRow | undefined = await args.database
         .raw<{ rows: ResolverRow[] }>(
             `
-            WITH RECURSIVE chart_origin AS (
+            WITH RECURSIVE target_project AS (
+                SELECT project_id FROM ${ProjectTableName} WHERE project_uuid = :projectUuid
+            ),
+            chart_origin AS (
                 SELECT
                     sq.saved_query_uuid AS chart_uuid,
                     sq.name AS chart_name,
@@ -134,18 +137,24 @@ export async function resolveColorPalette(args: {
                 LEFT JOIN ${SpaceTableName} ds
                     ON ds.space_id = owning_d.space_id AND ds.deleted_at IS NULL
                 WHERE sq.saved_query_uuid = :chartUuid AND sq.deleted_at IS NULL
+                    AND COALESCE(s.project_id, ds.project_id) = (SELECT project_id FROM target_project)
             ),
-            dashboard_origin AS (
-                SELECT s.space_uuid AS seed_space_uuid
+            dashboard_context AS (
+                SELECT
+                    d.dashboard_uuid,
+                    d.name,
+                    d.color_palette_uuid,
+                    s.space_uuid AS seed_space_uuid
                 FROM ${DashboardsTableName} d
-                LEFT JOIN ${SpaceTableName} s
+                INNER JOIN ${SpaceTableName} s
                     ON s.space_id = d.space_id AND s.deleted_at IS NULL
                 WHERE d.dashboard_uuid = :dashboardUuid AND d.deleted_at IS NULL
+                    AND s.project_id = (SELECT project_id FROM target_project)
             ),
             seed AS (
                 SELECT COALESCE(
                     :spaceUuid::uuid,
-                    (SELECT seed_space_uuid FROM dashboard_origin),
+                    (SELECT seed_space_uuid FROM dashboard_context),
                     (SELECT seed_space_uuid FROM chart_origin)
                 ) AS space_uuid
             ),
@@ -153,6 +162,7 @@ export async function resolveColorPalette(args: {
                 SELECT space_uuid, name, parent_space_uuid, color_palette_uuid, 0 AS depth
                 FROM ${SpaceTableName}
                 WHERE space_uuid = (SELECT space_uuid FROM seed) AND deleted_at IS NULL
+                    AND project_id = (SELECT project_id FROM target_project)
 
                 UNION ALL
 
@@ -160,6 +170,7 @@ export async function resolveColorPalette(args: {
                 FROM ${SpaceTableName} s
                 JOIN space_chain sc ON s.space_uuid = sc.parent_space_uuid
                 WHERE s.deleted_at IS NULL
+                    AND s.project_id = (SELECT project_id FROM target_project)
             ),
             chosen_space AS (
                 SELECT space_uuid, name, color_palette_uuid
@@ -185,8 +196,8 @@ export async function resolveColorPalette(args: {
                 sp.name AS space_palette_name,
                 sp.colors AS space_palette_colors,
                 sp.dark_colors AS space_palette_dark_colors,
-                d.dashboard_uuid AS dashboard_uuid,
-                d.name AS dashboard_name,
+                dc.dashboard_uuid AS dashboard_uuid,
+                dc.name AS dashboard_name,
                 dp.color_palette_uuid AS dashboard_palette_uuid,
                 dp.name AS dashboard_palette_name,
                 dp.colors AS dashboard_palette_colors,
@@ -208,10 +219,9 @@ export async function resolveColorPalette(args: {
             LEFT JOIN chosen_space cs ON true
             LEFT JOIN ${OrganizationColorPaletteTableName} sp
                 ON sp.color_palette_uuid = cs.color_palette_uuid
-            LEFT JOIN ${DashboardsTableName} d
-                ON d.dashboard_uuid = :dashboardUuid AND d.deleted_at IS NULL
+            LEFT JOIN dashboard_context dc ON true
             LEFT JOIN ${OrganizationColorPaletteTableName} dp
-                ON dp.color_palette_uuid = d.color_palette_uuid
+                ON dp.color_palette_uuid = dc.color_palette_uuid
             LEFT JOIN ${OrganizationColorPaletteTableName} pp
                 ON pp.color_palette_uuid = p.color_palette_uuid
             LEFT JOIN ${OrganizationColorPaletteTableName} op

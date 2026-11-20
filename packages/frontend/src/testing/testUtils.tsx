@@ -10,6 +10,7 @@ import {
 } from '@testing-library/react';
 import { type FC, type PropsWithChildren, type ReactElement } from 'react';
 import { vi } from 'vitest';
+import { ColumnWindowingContext } from '../components/common/Table/ColumnWindowingContext';
 import ReactQueryProvider from '../providers/__mocks__/ReactQueryProvider';
 import MantineBaseProvider from '../providers/MantineBaseProvider';
 import MantineProvider from '../providers/MantineProvider';
@@ -20,7 +21,12 @@ import AppProviderMock, {
 
 vi.mock('src/providers/TrackingProvider');
 
-const getMockedProviders = (appMocks?: AppProviderMockProps['mocks']) => {
+type ProviderOptions = { columnWindowing?: boolean };
+
+const getMockedProviders = (
+    appMocks?: AppProviderMockProps['mocks'],
+    { columnWindowing = false }: ProviderOptions = {},
+) => {
     // eslint-disable-next-line react/only-export-components -- test utility, not a real module for fast refresh
     const ProviderWrapper: FC<PropsWithChildren> = ({ children }) => {
         return (
@@ -28,7 +34,11 @@ const getMockedProviders = (appMocks?: AppProviderMockProps['mocks']) => {
                 <MantineProvider env="test">
                     <MantineBaseProvider env="test">
                         <AppProviderMock mocks={appMocks}>
-                            <TrackingProvider>{children}</TrackingProvider>
+                            <ColumnWindowingContext.Provider
+                                value={columnWindowing}
+                            >
+                                <TrackingProvider>{children}</TrackingProvider>
+                            </ColumnWindowingContext.Provider>
                         </AppProviderMock>
                     </MantineBaseProvider>
                 </MantineProvider>
@@ -46,10 +56,13 @@ export function renderWithProviders<
 >(
     ui: ReactElement<any>,
     appMocks?: AppProviderMockProps['mocks'],
-    options?: RenderOptions<Q, Container, BaseElement>,
+    {
+        columnWindowing,
+        ...options
+    }: RenderOptions<Q, Container, BaseElement> & ProviderOptions = {},
 ): RenderResult<Q, Container, BaseElement> {
     return render(ui, {
-        wrapper: getMockedProviders(appMocks),
+        wrapper: getMockedProviders(appMocks, { columnWindowing }),
         ...options,
     });
 }
@@ -63,10 +76,14 @@ export function renderHookWithProviders<
 >(
     hook: (initialProps: Props) => Result,
     appMocks?: AppProviderMockProps['mocks'],
-    options?: RenderHookOptions<Props, Q, Container, BaseElement>,
+    {
+        columnWindowing,
+        ...options
+    }: RenderHookOptions<Props, Q, Container, BaseElement> &
+        ProviderOptions = {},
 ): RenderHookResult<Result, Props> {
     return renderHook(hook, {
-        wrapper: getMockedProviders(appMocks),
+        wrapper: getMockedProviders(appMocks, { columnWindowing }),
         container: document.body,
         ...options,
     });

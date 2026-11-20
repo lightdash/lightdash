@@ -1,3 +1,110 @@
+## [3.359.1](https://github.com/lightdash/lightdash/compare/3.359.0...3.359.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **common:** accept set joins declared under config meta ([#33078](https://github.com/lightdash/lightdash/issues/33078)) ([7b75142](https://github.com/lightdash/lightdash/commit/7b75142f83514f2843f90d47f809ffd6aae89c69))
+
+# [3.359.0](https://github.com/lightdash/lightdash/compare/3.358.2...3.359.0) (2026-11-20)
+
+
+### Features
+
+* **pre-aggregates:** configurable materialization polling timeout ([#33081](https://github.com/lightdash/lightdash/issues/33081)) ([02be0e0](https://github.com/lightdash/lightdash/commit/02be0e0743751039e191f346849c18905600baed))
+
+## [3.358.2](https://github.com/lightdash/lightdash/compare/3.358.1...3.358.2) (2026-11-20)
+
+
+### Bug Fixes
+
+* **cli:** warn when a dbt v2 manifest deploy drops fields ([#33062](https://github.com/lightdash/lightdash/issues/33062)) ([12c05d5](https://github.com/lightdash/lightdash/commit/12c05d5fa254530412447b0832d19e163e0f3e87))
+* validate and quote custom bin dimension SQL ([#33080](https://github.com/lightdash/lightdash/issues/33080)) ([909b002](https://github.com/lightdash/lightdash/commit/909b0026f7b26d7d7804d207ec680eeb39a66033))
+
+## [3.358.1](https://github.com/lightdash/lightdash/compare/3.358.0...3.358.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **data-apps:** mark upload version error when unverify fails ([#32953](https://github.com/lightdash/lightdash/issues/32953)) ([2870b7f](https://github.com/lightdash/lightdash/commit/2870b7f69c57f53bcd14158a2f6c111607886d27))
+
+# [3.358.0](https://github.com/lightdash/lightdash/compare/3.357.2...3.358.0) (2026-11-20)
+
+
+### Features
+
+* **semantic-studio:** track Studio usage, activity and tokens ([#33072](https://github.com/lightdash/lightdash/issues/33072)) ([53d2a88](https://github.com/lightdash/lightdash/commit/53d2a88894ed9ea366c2b142eaaee1941829280e))
+
+## [3.357.2](https://github.com/lightdash/lightdash/compare/3.357.1...3.357.2) (2026-11-20)
+
+
+### Bug Fixes
+
+* **cli:** support Snowflake OAuth access tokens in dbt profiles ([#33074](https://github.com/lightdash/lightdash/issues/33074)) ([2d6ebee](https://github.com/lightdash/lightdash/commit/2d6ebee5dac8c0a8f7e4be50e30c9710ae703015))
+
+## [3.357.1](https://github.com/lightdash/lightdash/compare/3.357.0...3.357.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **dashboards:** keep the tile toolbar reachable from the title ([#33063](https://github.com/lightdash/lightdash/issues/33063)) ([ae8a724](https://github.com/lightdash/lightdash/commit/ae8a7241b49597d4cf193bdf34732f37a3798b29))
+
+# [3.357.0](https://github.com/lightdash/lightdash/compare/3.356.2...3.357.0) (2026-11-20)
+
+
+### Bug Fixes
+
+* **merge-query:** escape identifiers ([#33064](https://github.com/lightdash/lightdash/issues/33064)) ([880d246](https://github.com/lightdash/lightdash/commit/880d24688cbab66d8a18662fb0f1e58f03dab0a9))
+* **palette:** improve context handling when resolving colour palettes ([#32887](https://github.com/lightdash/lightdash/issues/32887)) ([bb6b426](https://github.com/lightdash/lightdash/commit/bb6b426c71e633dfd23880749c4c4129a5105e17))
+
+
+### Features
+
+* **export:** embed rendered chart image in XLSX exports of non-table charts ([#33045](https://github.com/lightdash/lightdash/issues/33045)) ([5bb788f](https://github.com/lightdash/lightdash/commit/5bb788f3faf5fdcada4f168dbf25b85fcc3296ba))
+* **live-sources:** add HubSpot integration ([#32983](https://github.com/lightdash/lightdash/issues/32983)) ([011f0b9](https://github.com/lightdash/lightdash/commit/011f0b9c3b8db3b5d8d4df35a98de594fa70b6d3)), closes [#32981](https://github.com/lightdash/lightdash/issues/32981)
+* **live-sources:** scan and curate fields on more than one explore ([#33051](https://github.com/lightdash/lightdash/issues/33051)) ([98c1cb3](https://github.com/lightdash/lightdash/commit/98c1cb3ec0d3690aa45e6a2e1fd6bbffc8c79ab9))
+* **semantic-studio:** drop Cache hits from the live data sources table ([#32999](https://github.com/lightdash/lightdash/issues/32999)) ([0826a87](https://github.com/lightdash/lightdash/commit/0826a8738166a55a142fc817167404cb8b346759))
+
+
+### Performance Improvements
+
+* **tables:** virtualize columns in wide result tables ([#33021](https://github.com/lightdash/lightdash/issues/33021)) ([d90c92f](https://github.com/lightdash/lightdash/commit/d90c92fb9cfe674f298cec033ab6cab7f65c3d7f)), closes [#33065](https://github.com/lightdash/lightdash/issues/33065)
+
+## [3.356.2](https://github.com/lightdash/lightdash/compare/3.356.1...3.356.2) (2026-11-20)
+
+
+### Bug Fixes
+
+* **merge-query:** keep the join key icon on the results header's name line ([#33067](https://github.com/lightdash/lightdash/issues/33067)) ([8a93609](https://github.com/lightdash/lightdash/commit/8a936093495a8cd6a799d213f69da1be1cbdf421))
+
+## [3.356.1](https://github.com/lightdash/lightdash/compare/3.356.0...3.356.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **merge-queries:** the saved chart page runs a merged chart by uuid in view mode ([#33054](https://github.com/lightdash/lightdash/issues/33054)) ([4f05e4d](https://github.com/lightdash/lightdash/commit/4f05e4de22bb528f9cb56c033df030a4dc75c4d2))
+* **merge-queries:** viewers can run merged charts whose added queries use custom SQL ([#33048](https://github.com/lightdash/lightdash/issues/33048)) ([8dc4ab9](https://github.com/lightdash/lightdash/commit/8dc4ab927d2fef946df11ef0f699522da95768f1))
+
+# [3.356.0](https://github.com/lightdash/lightdash/compare/3.355.0...3.356.0) (2026-11-20)
+
+
+### Features
+
+* **ai-agents:** fade streamed answer words in as they arrive ([#33057](https://github.com/lightdash/lightdash/issues/33057)) ([07d3cf3](https://github.com/lightdash/lightdash/commit/07d3cf3e1eb0aebe6b0f66dcda87654e14ad7cc4))
+
+# [3.355.0](https://github.com/lightdash/lightdash/compare/3.354.1...3.355.0) (2026-11-20)
+
+
+### Features
+
+* **dashboards:** slimmer filter sections on the controls bar ([#33053](https://github.com/lightdash/lightdash/issues/33053)) ([5c664dd](https://github.com/lightdash/lightdash/commit/5c664dd5afea82a5dc6d6489eda1c7ef1b49724e))
+
+## [3.354.1](https://github.com/lightdash/lightdash/compare/3.354.0...3.354.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **composer:** custom chart on composer tile fetches no explore ([#33056](https://github.com/lightdash/lightdash/issues/33056)) ([612fb43](https://github.com/lightdash/lightdash/commit/612fb4355c9895564e8172cc712bc534f5544a11))
+
 # [3.354.0](https://github.com/lightdash/lightdash/compare/3.353.1...3.354.0) (2026-11-20)
 
 

@@ -172,6 +172,18 @@ export const LIVE_INTEGRATION_CATALOG: {
         }),
         getTarget: ({ object }) => `Object ${object}`,
     },
+    [ApiConnectorType.HUBSPOT]: {
+        id: 'hubspot',
+        label: 'HubSpot',
+        messageLabel: 'HubSpot',
+        agentLabel: 'HubSpot',
+        description: 'Deals, contacts and companies from your CRM',
+        setup: 'token',
+        settings: z.object({
+            connector: z.literal(ApiConnectorType.HUBSPOT),
+        }),
+        getTarget: () => 'HubSpot account',
+    },
 };
 
 /** One integration's catalog entry, for a source of any connector. */

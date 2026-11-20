@@ -256,6 +256,7 @@ import {
     aiServiceAccountPlanMock,
     markedPersonPlanMock,
 } from '../AiAccessService/AiAccessService.mock';
+import { MergedChartRun } from '../AsyncQueryService/MergedChartRun';
 import { CatalogService } from '../CatalogService/CatalogService';
 import { DeployService } from '../DeployService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
@@ -657,9 +658,12 @@ const savedChartModel = {
     findInfoForDbtExposures: vi.fn<SavedChartModel['findInfoForDbtExposures']>(
         async () => [],
     ),
+    getSummary: vi.fn<SavedChartModel['getSummary']>(),
+    resolveColorPalette: vi.fn<SavedChartModel['resolveColorPalette']>(),
 };
 const dashboardModel = {
     savedChartExistsInDashboard: vi.fn(async () => false),
+    getSummaryByUuid: vi.fn<DashboardModel['getSummaryByUuid']>(),
     findInfoForDbtExposures: vi.fn<DashboardModel['findInfoForDbtExposures']>(
         async () => [],
     ),
@@ -16371,6 +16375,83 @@ describe('ProjectService', () => {
                 expect(gatedCalculations).not.toContainEqual(['leak', 'ratio']);
                 gate.mockRestore();
             });
+
+            describe('merged chart authority', () => {
+                const sourceWithCustomSql: MergeQueryMetricSource = {
+                    id: 'b',
+                    metricQuery: {
+                        ...source('b').metricQuery,
+                        customDimensions: [
+                            {
+                                id: 'status_sql',
+                                name: 'status_sql',
+                                table: 'a',
+                                type: CustomDimensionType.SQL,
+                                sql: '${TABLE}.dim1',
+                                dimensionType: DimensionType.STRING,
+                            },
+                        ],
+                    },
+                };
+                const savedMerge = mergeQuery({
+                    sources: [source('a'), sourceWithCustomSql],
+                    tableCalculations: [subqueryCalculation],
+                });
+
+                test('refuses custom SQL in an extra source sent by a viewer', async () => {
+                    await expect(
+                        service.compileMergeQuery({
+                            account: viewer,
+                            projectUuid,
+                            mergeQuery: mergeQuery({
+                                sources: [source('a'), sourceWithCustomSql],
+                            }),
+                        }),
+                    ).rejects.toThrow(
+                        'User cannot run queries with custom SQL fields',
+                    );
+                });
+
+                test("compiles a viewer's saved merge with custom SQL in an extra source", async () => {
+                    const result = await service.compileMergeQuery({
+                        authority: {
+                            kind: 'mergedChart',
+                            run: MergedChartRun.fromLoadedChart({
+                                account: viewer,
+                                savedChart: { uuid: 'chart-uuid', projectUuid },
+                            }),
+                        },
+                        account: viewer,
+                        projectUuid,
+                        mergeQuery: savedMerge,
+                    });
+
+                    expect(result.errors).toEqual([]);
+                    expect(result.sql).toContain('information_schema.tables');
+                });
+
+                test('refuses a run carried into another project', async () => {
+                    await expect(
+                        service.compileMergeQuery({
+                            authority: {
+                                kind: 'mergedChart',
+                                run: MergedChartRun.fromLoadedChart({
+                                    account: viewer,
+                                    savedChart: {
+                                        uuid: 'chart-uuid',
+                                        projectUuid: 'other-project',
+                                    },
+                                }),
+                            },
+                            account: viewer,
+                            projectUuid,
+                            mergeQuery: savedMerge,
+                        }),
+                    ).rejects.toThrow(
+                        'Merged chart run does not match this execution',
+                    );
+                });
+            });
         });
     });
 });
@@ -25760,5 +25841,154 @@ describe('getAgentTableListScopeFingerprint', () => {
         expect(
             fingerprint(snowflake, '0f000000-0000-4000-8000-000000000001'),
         ).not.toBe(fingerprint(snowflake));
+    });
+});
+
+describe('ProjectService.getResolvedColorPalette', () => {
+    const { projectUuid, organizationUuid } = projectSummary;
+    const paletteUser: SessionUser = {
+        ...user,
+        ability: new Ability<PossibleAbilities>([
+            { subject: 'Project', action: 'view' },
+            {
+                subject: 'Dashboard',
+                action: 'view',
+                conditions: { inheritsFromOrgOrProject: true },
+            },
+            {
+                subject: 'SavedChart',
+                action: 'view',
+                conditions: { inheritsFromOrgOrProject: true },
+            },
+        ]),
+    };
+    const resolvedPalette = {
+        paletteUuid: null,
+        paletteName: null,
+        colors: ['#000000'],
+        darkColors: null,
+        source: { type: 'default' as const },
+    };
+
+    const buildService = ({
+        contentProjectUuid = projectUuid,
+        canViewContent = true,
+    }: {
+        contentProjectUuid?: string;
+        canViewContent?: boolean;
+    } = {}) => {
+        savedChartModel.resolveColorPalette.mockResolvedValue(resolvedPalette);
+        savedChartModel.getSummary.mockResolvedValue({
+            uuid: 'chart-uuid',
+            projectUuid: contentProjectUuid,
+            organizationUuid,
+            spaceUuid: 'chart-space-uuid',
+            dashboardUuid: null,
+        } as ChartSummary);
+        dashboardModel.getSummaryByUuid.mockResolvedValue({
+            projectUuid: contentProjectUuid,
+            organizationUuid,
+            spaceUuid: 'dashboard-space-uuid',
+        });
+        const getSpaceSummary = vi.fn(async () => {
+            if (contentProjectUuid !== projectUuid) {
+                throw new NotFoundError('Space not found');
+            }
+            return {};
+        });
+        return getMockedProjectService(lightdashConfigWithGoogleOAuthMock, {
+            spaceModel: {
+                ...spaceModel,
+                getSpaceSummary,
+            } as unknown as SpaceModel,
+            spacePermissionService: {
+                can: vi.fn(async () => canViewContent),
+                resolveAccess: vi.fn(async () => ({
+                    organizationUuid,
+                    projectUuid,
+                    inheritsFromOrgOrProject: canViewContent,
+                    access: [],
+                    directOnly: false,
+                })),
+            } as unknown as SpacePermissionService,
+        });
+    };
+
+    const context = {
+        spaceUuid: 'space-uuid',
+        dashboardUuid: 'dashboard-uuid',
+        chartUuid: 'chart-uuid',
+    };
+
+    beforeEach(() => {
+        savedChartModel.resolveColorPalette.mockReset();
+        savedChartModel.getSummary.mockReset();
+        dashboardModel.getSummaryByUuid.mockReset();
+    });
+
+    test('passes through context the user can view in the project', async () => {
+        const service = buildService();
+
+        await expect(
+            service.getResolvedColorPalette(paletteUser, projectUuid, context),
+        ).resolves.toEqual(resolvedPalette);
+        expect(savedChartModel.resolveColorPalette).toHaveBeenCalledWith({
+            projectUuid,
+            ...context,
+        });
+    });
+
+    test('drops context that belongs to another project', async () => {
+        const service = buildService({
+            contentProjectUuid: 'other-project-uuid',
+        });
+
+        await service.getResolvedColorPalette(
+            paletteUser,
+            projectUuid,
+            context,
+        );
+
+        expect(savedChartModel.resolveColorPalette).toHaveBeenCalledWith({
+            projectUuid,
+            spaceUuid: undefined,
+            dashboardUuid: undefined,
+            chartUuid: undefined,
+        });
+    });
+
+    test('drops context the user cannot view', async () => {
+        const service = buildService({ canViewContent: false });
+
+        await service.getResolvedColorPalette(
+            paletteUser,
+            projectUuid,
+            context,
+        );
+
+        expect(savedChartModel.resolveColorPalette).toHaveBeenCalledWith({
+            projectUuid,
+            spaceUuid: undefined,
+            dashboardUuid: undefined,
+            chartUuid: undefined,
+        });
+    });
+
+    test('drops context that does not exist', async () => {
+        const service = buildService();
+        dashboardModel.getSummaryByUuid.mockRejectedValue(
+            new NotFoundError('Dashboard not found'),
+        );
+
+        await service.getResolvedColorPalette(paletteUser, projectUuid, {
+            dashboardUuid: 'missing-dashboard-uuid',
+        });
+
+        expect(savedChartModel.resolveColorPalette).toHaveBeenCalledWith({
+            projectUuid,
+            spaceUuid: undefined,
+            dashboardUuid: undefined,
+            chartUuid: undefined,
+        });
     });
 });

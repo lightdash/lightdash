@@ -1,5 +1,7 @@
 import {
     getMissingRequiredParameters,
+    SessionStorageKeys,
+    type DashboardTileRenderRequest,
     type FieldId,
     type QueryExecutionContext,
 } from '@lightdash/common';
@@ -43,6 +45,19 @@ import useSearchParams from './useSearchParams';
 type ExplorerQueryManagerArgs = {
     projectUuid?: string;
     savedQueryUuid?: string;
+};
+
+const readDashboardTileRenderRequest = ():
+    | DashboardTileRenderRequest
+    | undefined => {
+    try {
+        const stored = window.sessionStorage.getItem(
+            SessionStorageKeys.DASHBOARD_TILE_RENDER_REQUEST,
+        );
+        return stored ? JSON.parse(stored) : undefined;
+    } catch {
+        return undefined;
+    }
 };
 
 /**
@@ -107,15 +122,27 @@ export const useExplorerQueryManager = ({
     // Set only when the chart was read with the viewer's own draft applied
     const includeUnpublishedDraft =
         useExplorerSelector(selectSavedChart)?.hasUnpublishedChanges;
+    // Seeded by the headless browser when a dashboard tile is rendered on
+    // the chart page
+    const dashboardTileRenderRequest = useMemo(
+        () => (minimal ? readDashboardTileRenderRequest() : undefined),
+        [minimal],
+    );
     const viewModeQueryArgs = useMemo(() => {
         return savedQueryUuid
             ? {
                   chartUuid: savedQueryUuid,
                   context: contextParam,
                   includeUnpublishedDraft,
+                  dashboardTileRenderRequest,
               }
             : undefined;
-    }, [savedQueryUuid, contextParam, includeUnpublishedDraft]);
+    }, [
+        savedQueryUuid,
+        contextParam,
+        includeUnpublishedDraft,
+        dashboardTileRenderRequest,
+    ]);
 
     const dateZoomGranularity = useDateZoomGranularitySearch();
 

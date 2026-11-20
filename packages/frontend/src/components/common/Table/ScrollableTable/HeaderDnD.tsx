@@ -7,10 +7,10 @@ import {
     type DragOverEvent,
     type DragStartEvent,
 } from '@dnd-kit/core';
-import { SortableContext } from '@dnd-kit/sortable';
+import { arrayMove, SortableContext } from '@dnd-kit/sortable';
 import { type ResultRow } from '@lightdash/common';
 import { flexRender, type HeaderGroup } from '@tanstack/react-table';
-import { useRef, useState, type FC, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type FC, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { usePortalTarget } from '../../../../providers/PortalTarget/usePortalTarget';
 import {
@@ -29,13 +29,20 @@ type HeaderDragState = {
 };
 
 type HeaderDndProps = {
+    windowed: boolean;
+    onDragColumnChange: (id?: string) => void;
     headerGroup: HeaderGroup<ResultRow>;
     children: ReactNode;
 };
 
 const DRAG_OUT_MIN_DISTANCE = 48;
 
-export const HeaderDnD: FC<HeaderDndProps> = ({ headerGroup, children }) => {
+export const HeaderDnD: FC<HeaderDndProps> = ({
+    windowed,
+    headerGroup,
+    children,
+    onDragColumnChange,
+}) => {
     const { table, onColumnOrderChange, onColumnRemove } = useTableContext();
     const rowRef = useRef<HTMLTableRowElement>(null);
     const [isRemoving, setIsRemoving] = useState(false);
@@ -43,13 +50,17 @@ export const HeaderDnD: FC<HeaderDndProps> = ({ headerGroup, children }) => {
     const portalTarget = usePortalTarget();
     // Ids stay frozen while dragging so drop targets keep their start-of-drag rects as columns reorder live
     const [drag, setDrag] = useState<HeaderDragState | null>(null);
-    const headerIds =
-        drag?.headerIds ?? headerGroup.headers.map(({ id }) => id);
+    const orderedHeaderIds = useMemo(
+        () => headerGroup.headers.map(({ id }) => id),
+        [headerGroup.headers],
+    );
+    const headerIds = drag?.headerIds ?? orderedHeaderIds;
     const activeHeader = drag
         ? headerGroup.headers.find(({ id }) => id === drag.activeId)
         : undefined;
 
     const handleDragStart = ({ active }: DragStartEvent) => {
+        onDragColumnChange(String(active.id));
         setDrag({
             activeId: String(active.id),
             headerIds,
@@ -58,7 +69,7 @@ export const HeaderDnD: FC<HeaderDndProps> = ({ headerGroup, children }) => {
     };
 
     const handleDragOver = ({ active, over }: DragOverEvent) => {
-        if (!drag || !over) return;
+        if (windowed || !drag || !over) return;
         const colOrder = [...drag.colOrder];
         colOrder.splice(drag.headerIds.indexOf(drag.activeId), 1);
         colOrder.splice(
@@ -83,11 +94,26 @@ export const HeaderDnD: FC<HeaderDndProps> = ({ headerGroup, children }) => {
     };
 
     const handleDragEnd = (event?: DragEndEvent) => {
+        onDragColumnChange();
         setDrag(null);
         setIsRemoving(false);
         if (drag && event && isDraggedOut(event)) {
             table.setColumnOrder([ROW_NUMBER_COLUMN_ID, ...drag.colOrder]);
             onColumnRemove?.(drag.activeId);
+            return;
+        }
+        if (windowed) {
+            if (!event?.over || event.active.id === event.over.id) return;
+            const order = table.getAllLeafColumns().map((column) => column.id);
+            const from = order.indexOf(String(event.active.id));
+            const to = order.indexOf(String(event.over.id));
+            if (from < 0 || to < 0 || event.over.id === ROW_NUMBER_COLUMN_ID)
+                return;
+            const next = arrayMove(order, from, to);
+            table.setColumnOrder(next);
+            onColumnOrderChange?.(
+                next.filter((id) => id !== ROW_NUMBER_COLUMN_ID),
+            );
             return;
         }
         onColumnOrderChange?.(

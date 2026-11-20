@@ -781,21 +781,25 @@ describe('SectionedFilters', () => {
         expect(screen.queryByText('2 filters')).not.toBeInTheDocument();
     });
 
-    it('sets the title and its fold summary in xs, like the pills, with a small chevron', async () => {
+    it('sets the title in xs, like the pills, with a small chevron', () => {
         const xs = { fontSize: 'var(--mantine-font-size-xs)' };
         mockEditor.current = { isViewer: true, isEditorOpen: false };
         const { unmount } = renderSectioned([rule('one', 'a')], 'tab-1');
         expect(screen.getByText('Dates')).toHaveStyle(xs);
-        await userEvent.click(screen.getByRole('button', { name: 'Dates' }));
-        expect(screen.getByText('1 filter')).toHaveStyle(xs);
         unmount();
 
         mockEditor.current = { isViewer: false, isEditorOpen: false };
         renderSectioned([rule('one', 'a')], 'tab-1');
         expect(screen.getByRole('button', { name: 'Dates' })).toHaveStyle(xs);
         expect(foldOf('Dates')).toHaveAttribute('data-size', 'sm');
+    });
+
+    it("shows a folded section's count as a number and reads it out in full", async () => {
+        renderSectioned([rule('one', 'a'), rule('two', 'a')], 'tab-1');
         await userEvent.click(foldOf('Dates'));
-        expect(screen.getByText('1 filter')).toHaveStyle(xs);
+        const shown = within(capsuleOf('Dates')).getByText('2');
+        expect(shown).toHaveAttribute('aria-hidden', 'true');
+        expect(foldOf('Dates')).toHaveAccessibleDescription('2 filters');
     });
 
     it('folds to its member count while nothing differs from its default', async () => {

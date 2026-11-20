@@ -603,7 +603,7 @@ function validateSets(
                     : [null, field];
 
                 if (joinName) {
-                    const joins = model.meta?.joins || [];
+                    const joins = meta.joins || [];
                     const allJoinNames = joins.map((j) => j.alias || j.join);
 
                     if (!allJoinNames.includes(joinName)) {
