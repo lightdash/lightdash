@@ -420,6 +420,8 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     };
 
     if (!thread && isThreadError) {
+        // Iframe embeds read targetOrigin from the URL to post thread changes
+        const targetOrigin = searchParams.get('targetOrigin');
         return (
             <SuboptimalState
                 icon={IconAlertCircle}
@@ -427,7 +429,12 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                 action={
                     <Button
                         component={Link}
-                        to={`${getAiAgentPageBase(projectUuid!, isEmbed)}/${agent.uuid}/threads`}
+                        to={{
+                            pathname: `${getAiAgentPageBase(projectUuid!, isEmbed)}/${agent.uuid}/threads`,
+                            search: targetOrigin
+                                ? `?${new URLSearchParams({ targetOrigin })}`
+                                : '',
+                        }}
                         variant="default"
                         size="xs"
                     >
