@@ -1,5 +1,6 @@
 import {
     Avatar,
+    Box,
     Center,
     Combobox,
     Group,
@@ -128,6 +129,52 @@ export const AgentSelector = ({
         combobox.closeDropdown();
     };
 
+    const target = (
+        <Combobox.Target>
+            <UnstyledButton
+                {...viewAgentTourProps}
+                type="button"
+                onClick={() => combobox.toggleDropdown()}
+                // Anchor for scope walkthroughs (data-tour-via)
+                data-tour-anchor="agent-selector"
+                data-tour-hint="Open the agent dropdown"
+                className={`${styles.target} ${
+                    compact ? styles.compact : ''
+                } ${variant === 'header' ? styles.headerTarget : ''}`}
+                data-variant={variant}
+                data-open={opened ? 'true' : undefined}
+                data-auto={isAuto ? 'true' : undefined}
+                aria-label={avatarOnly ? selectedAgent.name : undefined}
+            >
+                <Group gap={6} wrap="nowrap" align="center" w="100%">
+                    {!isAuto && (
+                        <LightdashUserAvatar
+                            size={22}
+                            name={selectedAgent.name}
+                            src={selectedAgent.imageUrl}
+                        />
+                    )}
+                    {!avatarOnly && (
+                        <>
+                            <Text
+                                size="xs"
+                                truncate="end"
+                                className={styles.label}
+                            >
+                                {isAuto ? 'Auto' : selectedAgent.name}
+                            </Text>
+                            <MantineIcon
+                                icon={IconChevronDown}
+                                size="sm"
+                                color="dimmed"
+                            />
+                        </>
+                    )}
+                </Group>
+            </UnstyledButton>
+        </Combobox.Target>
+    );
+
     return (
         <Combobox
             store={combobox}
@@ -136,54 +183,19 @@ export const AgentSelector = ({
             width={compact ? 260 : 'target'}
             position="bottom-start"
         >
-            <Tooltip
-                label={isAuto ? 'Auto' : selectedAgent.name}
-                disabled={!avatarOnly}
-            >
-                <Combobox.Target>
-                    <UnstyledButton
-                        {...viewAgentTourProps}
-                        type="button"
-                        onClick={() => combobox.toggleDropdown()}
-                        // Anchor for scope walkthroughs (data-tour-via)
-                        data-tour-anchor="agent-selector"
-                        data-tour-hint="Open the agent dropdown"
-                        className={`${styles.target} ${
-                            compact ? styles.compact : ''
-                        } ${variant === 'header' ? styles.headerTarget : ''}`}
-                        data-variant={variant}
-                        data-open={opened ? 'true' : undefined}
-                        data-auto={isAuto ? 'true' : undefined}
-                        aria-label={avatarOnly ? selectedAgent.name : undefined}
-                    >
-                        <Group gap={6} wrap="nowrap" align="center" w="100%">
-                            {!isAuto && (
-                                <LightdashUserAvatar
-                                    size={22}
-                                    name={selectedAgent.name}
-                                    src={selectedAgent.imageUrl}
-                                />
-                            )}
-                            {!avatarOnly && (
-                                <Text
-                                    size="xs"
-                                    truncate="end"
-                                    className={styles.label}
-                                >
-                                    {isAuto ? 'Auto' : selectedAgent.name}
-                                </Text>
-                            )}
-                            {!avatarOnly && (
-                                <MantineIcon
-                                    icon={IconChevronDown}
-                                    size="sm"
-                                    color="dimmed"
-                                />
-                            )}
-                        </Group>
-                    </UnstyledButton>
-                </Combobox.Target>
-            </Tooltip>
+            {compact ? (
+                // Tooltip needs its own wrapper: on the target it would override Combobox's key handlers
+                <Tooltip
+                    label={isAuto ? 'Auto' : selectedAgent.name}
+                    disabled={!avatarOnly}
+                >
+                    <Box component="span" display="inline-flex" miw={0}>
+                        {target}
+                    </Box>
+                </Tooltip>
+            ) : (
+                target
+            )}
 
             <Combobox.Dropdown miw={DROPDOWN_MIN_WIDTH}>
                 {showAutoOption && (
