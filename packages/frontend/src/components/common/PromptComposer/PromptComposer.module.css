@@ -385,4 +385,11 @@
     .toolbarSection {
         min-width: var(--composer-toolbar-section-min-width, auto);
     }
+
+    .toolbarSection:last-child {
+        min-width: var(
+            --composer-toolbar-right-min-width,
+            var(--composer-toolbar-section-min-width, auto)
+        );
+    }
 }

@@ -2,9 +2,9 @@
     position: relative;
 }
 
-/* Phones: let the selectors give up width so send stays in the card */
+/* Phones: the selectors give up width so send stays in the card */
 .container[data-layout='card'] {
-    --composer-toolbar-section-min-width: 0;
+    --composer-toolbar-right-min-width: 0;
 }
 
 .modelGroup {
