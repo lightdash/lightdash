@@ -14,8 +14,10 @@ import { analyticsColorPalette } from './analyticsColorPalette';
 // Series take the Analytics palette, so built-in charts match library charts.
 const colors = analyticsColorPalette.colors.slice(0, 5);
 // Meaning-bearing colours stay fixed whatever the palette.
-const positive = '#0CA678';
-const caution = '#E67700';
+// Good and not-good share one pair everywhere: a cache hit and a success are green, a cache miss and
+// anything short of a success are orange. Red is for errors only.
+export const positive = '#34D399';
+export const caution = '#FB923C';
 const warning = '#C92A2A';
 
 const numberRule = (
@@ -153,9 +155,10 @@ const monthlyComparison = (chart: ChartAsCode): ChartAsCode => {
                 },
                 eChartsConfig: {
                     xAxis: [{ name: 'Month (UTC)' }],
+                    // The change axis stops at 200%, so one very large change does not flatten the rest
                     yAxis: [
                         { name: 'Queries', min: '0' },
-                        { name: 'Change (%)' },
+                        { name: 'Change (%)', max: '2' },
                     ],
                     series: [
                         {

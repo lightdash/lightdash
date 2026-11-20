@@ -25,7 +25,7 @@ export const monthlyQueryComparisonCharts: UsageChartSpec[] = [
         metric: 'total_queries',
         label: 'Queries run',
         description:
-            'Completed query attempts, including cache hits and queries that failed during execution. Preview projects and queries that failed before execution are left out. ∅ means there is no data for the month before, or it was zero. Months with no data are left out.',
+            'Completed query attempts, including cache hits and queries that failed during execution. Preview projects and queries that failed before execution are left out. The change axis stops at 200%, so a larger change runs off the top of the chart. ∅ means there is no data for the month before, or it was zero. Months with no data are left out.',
     },
 ].map(({ metric, label, ...spec }) => {
     const value = `\${query_events.${metric}}`;

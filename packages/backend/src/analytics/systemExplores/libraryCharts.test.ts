@@ -603,17 +603,27 @@ describe('legacyLibraryChartBindings', () => {
         );
         expect(queryBinding('queries-by-day')).toMatchObject({
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.17.1',
+            minVersion: '0.18.1',
             fieldMapping: {
                 x: 'query_events_event_ts_day',
                 m1: 'query_events_total_queries',
                 splitBy: 'query_events_context',
             },
-            optionValues: { splitTopN: 6 },
+            optionValues: { splitTopN: 6, splitSort: 'total' },
+        });
+        // The same smooth filled line as People by day on the Overview dashboard
+        expect(queryBinding('active-users-by-day')).toMatchObject({
+            slug: 'vega-trellis',
+            minVersion: '0.6.2',
+            fieldMapping: {
+                x: 'query_events_event_ts_day',
+                value: 'query_events_unique_users',
+            },
+            optionValues: { markType: 'area', curve: 'smooth' },
+            query: null,
         });
         [
             'warehouse-versus-cached-demand',
-            'active-users-by-day',
             'query-cache',
             'queries-by-context',
             'query-latency-by-day',

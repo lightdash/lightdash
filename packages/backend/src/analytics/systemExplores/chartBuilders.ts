@@ -51,7 +51,7 @@ export const card = ({
                       style: 'compact',
                       showComparison: true,
                       comparisonSource: 'previousPeriod',
-                      comparisonLabel: 'latest day vs the day before',
+                      comparisonLabel: 'vs the day before',
                   }),
             ...(hero ? { showHighLow: true } : {}),
             colorSparklineByTrend: false,
@@ -235,11 +235,13 @@ export const stackedByDay = ({
     yFields: [metric],
     libraryChart: {
         slug: 'customizable-cartesian-chart',
-        minVersion: '0.17.1',
+        minVersion: '0.18.1',
         fieldMapping: { x: day, m1: metric, splitBy },
         optionValues: {
             seriesType: 'bar',
             stack: 'normal',
+            // Largest category at the bottom of every stack
+            splitSort: 'total',
             ...xAxis,
             yName,
             splitTopN: top,

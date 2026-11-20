@@ -620,7 +620,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.17.1',
+            minVersion: '0.18.1',
             fieldMapping: {
                 x: 'ai_usage_user_name',
                 m1: 'ai_usage_total_tokens_used',
@@ -631,6 +631,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 yName: 'Tokens',
                 seriesType: 'bar',
                 stack: 'normal',
+                splitSort: 'total',
                 xAxisType: 'category',
                 xLabelAutoRotate: false,
                 xLabelRotate: 45,

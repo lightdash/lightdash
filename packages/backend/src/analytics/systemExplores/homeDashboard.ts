@@ -71,7 +71,7 @@ const card = ({
 
 // One full-width smooth filled line. Each measure has its own tile and scale: people is a distinct count
 // and the others count events, so they cannot share an axis.
-const trendRows: LibraryChartBinding['optionValues'] = {
+export const trendRows: LibraryChartBinding['optionValues'] = {
     arrangement: 'rows',
     minPanelHeight: 70,
     sharedY: false,

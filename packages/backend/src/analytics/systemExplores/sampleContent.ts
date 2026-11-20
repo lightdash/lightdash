@@ -10,9 +10,14 @@ import {
     aiTokenLibraryChartBindings,
     buildAiTokenDashboard,
 } from './aiTokenDashboard';
-import { withAnalyticsChartPresentation } from './analyticsChartPresentation';
+import {
+    caution,
+    positive,
+    withAnalyticsChartPresentation,
+} from './analyticsChartPresentation';
 import { analyticsColorPalette } from './analyticsColorPalette';
 import { withEmbedRankingPresentation } from './embedDashboard';
+import { trendRows } from './homeDashboard';
 import type { LibraryChartBinding } from './libraryCharts';
 import { noteRows } from './noteLayout';
 import { buildQueryCalendarChart } from './queryCalendarChart';
@@ -162,10 +167,10 @@ const chart = (
                     False: 'Cache miss',
                 },
                 groupColorOverrides: {
-                    true: '#34D399',
-                    false: '#FB923C',
-                    True: '#34D399',
-                    False: '#FB923C',
+                    true: positive,
+                    false: caution,
+                    True: positive,
+                    False: caution,
                 },
             },
         };
@@ -351,7 +356,7 @@ const aiUsageContent = {
                 description: '',
                 libraryChart: {
                     slug: 'customizable-cartesian-chart',
-                    minVersion: '0.17.1',
+                    minVersion: '0.18.1',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
                         m1: 'ai_usage_total_ai_calls',
@@ -360,6 +365,7 @@ const aiUsageContent = {
                     optionValues: {
                         seriesType: 'bar',
                         stack: 'normal',
+                        splitSort: 'total',
                         xAxisType: 'time',
                         xTimeFormat: '{MMM} {d}',
                         xName: 'Day',
@@ -393,7 +399,7 @@ const aiUsageContent = {
                 description: '',
                 libraryChart: {
                     slug: 'customizable-cartesian-chart',
-                    minVersion: '0.17.1',
+                    minVersion: '0.18.1',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
                         m1: 'ai_usage_total_tokens_used',
@@ -402,6 +408,7 @@ const aiUsageContent = {
                     optionValues: {
                         seriesType: 'bar',
                         stack: 'normal',
+                        splitSort: 'total',
                         xAxisType: 'time',
                         xTimeFormat: '{MMM} {d}',
                         xName: 'Day',
@@ -717,7 +724,7 @@ export const analyticsSampleDashboards = [
                     description: '',
                     libraryChart: {
                         slug: 'customizable-cartesian-chart',
-                        minVersion: '0.17.1',
+                        minVersion: '0.18.1',
                         fieldMapping: {
                             x: 'query_events_event_ts_day',
                             m1: 'query_events_total_queries',
@@ -726,6 +733,7 @@ export const analyticsSampleDashboards = [
                         optionValues: {
                             seriesType: 'bar',
                             stack: 'normal',
+                            splitSort: 'total',
                             xAxisType: 'time',
                             xTimeFormat: '{MMM} {d}',
                             xName: 'Day',
@@ -757,15 +765,26 @@ export const analyticsSampleDashboards = [
             ),
             chart(
                 'active-users-by-day',
-                'Users running queries by day',
+                'People running queries by day',
                 'query_events',
                 'unique_users',
                 'event_ts_day',
                 {
                     colors: ['#339AF0'],
-                    axisLabel: 'Users',
+                    axisLabel: 'People',
                     description:
-                        'Distinct users who ran queries each day. Daily counts cannot be added up to get users for the whole period.',
+                        'People who ran queries each day, including service accounts. Daily counts cannot be added up to get people for the whole period.',
+                    // The same smooth filled line as People by day on the Overview dashboard
+                    libraryChart: {
+                        slug: 'vega-trellis',
+                        minVersion: '0.6.2',
+                        fieldMapping: {
+                            x: 'query_events_event_ts_day',
+                            value: 'query_events_unique_users',
+                        },
+                        optionValues: trendRows,
+                        query: null,
+                    },
                 },
             ),
             chart(

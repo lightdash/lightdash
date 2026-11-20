@@ -45,11 +45,12 @@ const shareByDay = ({
     timezone,
     libraryChart: {
         slug: 'customizable-cartesian-chart',
-        minVersion: '0.17.1',
+        minVersion: '0.18.1',
         fieldMapping: { x: day, m1: metric, splitBy: dimension },
         optionValues: {
             seriesType: 'bar',
             stack: 'normal',
+            splitSort: 'total',
             xAxisType: 'time',
             xTimeFormat: '{MMM} {d}',
             xName: 'Day',

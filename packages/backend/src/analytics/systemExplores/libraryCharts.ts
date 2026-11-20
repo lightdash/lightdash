@@ -125,6 +125,8 @@ export const libraryChartOptions: Record<
         m2Name: '0.18.0',
         m3Name: '0.18.0',
         m4Name: '0.18.0',
+        // Orders the split series: 'total' puts the largest at the bottom of the stack
+        splitSort: '0.18.1',
     },
     'big-number-with-sparkline-trend': {
         ...sinceFirstBinding(
