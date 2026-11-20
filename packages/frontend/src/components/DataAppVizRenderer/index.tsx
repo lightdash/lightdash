@@ -345,8 +345,7 @@ const DataAppVizRenderer: FC<Props> = ({
 
     // Explore-independent gating, mirroring regular chart context menus: no
     // query (builder canvas/sample previews), no permission, custom bin
-    // dimensions, embeds (GLITCH-592), screenshot renders and hosts without a
-    // context menu all disable underlying data.
+    // dimensions, embeds and screenshot renders all disable underlying data.
     const underlyingDataPreconditions =
         enableContextMenu &&
         !!sourceQueryUuid &&

@@ -1888,30 +1888,37 @@ describe('DataAppVizRenderer underlying-data gating', () => {
         );
     });
 
-    it('a surface without a context menu fetches no explore and offers no data actions', () => {
-        mocks.canDrillInto.current = true;
-        mocks.metricQueryData.current = {
-            openUnderlyingDataModal: mocks.openUnderlyingDataModal,
-            openDrillDownModal: vi.fn(),
-        };
-        try {
-            renderRenderer({ enableContextMenu: false });
-        } finally {
-            mocks.canDrillInto.current = false;
-        }
-
-        expect(mocks.exploreHook).toHaveBeenCalledWith(
-            'orders',
-            expect.objectContaining({ enabled: false }),
-        );
-        const props = lastIframeProps();
-        expect(props.dataAppVizContext).toMatchObject({
-            underlyingData: { enabled: false, openEnabled: false },
-            drillDown: { enabled: false },
-            pointMenu: { enabled: false },
+    describe('on a host without a context menu', () => {
+        beforeEach(() => {
+            mocks.canDrillInto.current = true;
+            mocks.metricQueryData.current = {
+                openUnderlyingDataModal: mocks.openUnderlyingDataModal,
+                openDrillDownModal: vi.fn(),
+            };
         });
-        expect(props.rewriteVizUnderlyingDataRequest).toBeUndefined();
-        expect(props.onVizPointMenuIntent).toBeUndefined();
+        afterEach(() => {
+            mocks.canDrillInto.current = false;
+        });
+
+        it('fetches no explore', () => {
+            renderRenderer({ enableContextMenu: false });
+            expect(mocks.exploreHook).toHaveBeenCalledWith(
+                'orders',
+                expect.objectContaining({ enabled: false }),
+            );
+        });
+
+        it('offers no underlying data, drill-down or point menu', () => {
+            renderRenderer({ enableContextMenu: false });
+            const props = lastIframeProps();
+            expect(props.dataAppVizContext).toMatchObject({
+                underlyingData: { enabled: false, openEnabled: false },
+                drillDown: { enabled: false },
+                pointMenu: { enabled: false },
+            });
+            expect(props.rewriteVizUnderlyingDataRequest).toBeUndefined();
+            expect(props.onVizPointMenuIntent).toBeUndefined();
+        });
     });
 });
 
