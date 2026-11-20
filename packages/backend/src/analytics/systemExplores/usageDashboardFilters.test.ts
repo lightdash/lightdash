@@ -85,9 +85,11 @@ describe('usage dashboard filters', () => {
         )!.tileTargets!;
         for (const chart of bundleOf('lightdash-analytics-content').charts) {
             expect(content[chart.slug] === false).toBe(
-                ['content_health', 'content_inventory'].includes(
-                    chart.metricQuery.exploreName,
-                ),
+                [
+                    'content_health',
+                    'content_inventory',
+                    'content_created',
+                ].includes(chart.metricQuery.exploreName),
             );
         }
     });

@@ -24,11 +24,7 @@ import {
 
 const charts = analyticsContentAsCode
     .flatMap((bundle) => bundle.charts)
-    .filter(({ slug }) =>
-        /-(content-creation-by-month|content-ownership-current-snapshot)$/.test(
-            slug,
-        ),
-    );
+    .filter(({ slug }) => /-content-ownership-current-snapshot$/.test(slug));
 
 const compile = (metricQuery: MetricQuery) => {
     const explore = createAnalyticsExplores().find(
@@ -173,10 +169,10 @@ describe('Content inventory charts', () => {
 
     it('preserves legacy field IDs and existing chart filters', async () => {
         const chart = charts.find(({ slug }) =>
-            slug.endsWith('-content-creation-by-month'),
+            slug.endsWith('-content-ownership-current-snapshot'),
         )!;
         expect(chart.metricQuery.dimensions).toEqual([
-            'content_health_created_at_month',
+            'content_health_owner_status',
         ]);
         expect(chart.metricQuery.metrics).toEqual([
             'content_health_total_content',
@@ -295,14 +291,14 @@ describe('Content inventory charts', () => {
         }
     });
 
-    it('runs both built-in queries without any event or user tables', async () => {
+    it('runs the built-in query without any event or user tables', async () => {
         for (const table of [
             'content_views',
             'query_events',
             'data_app_events',
         ])
             await db.run(`DROP TABLE ${table}`);
-        expect(charts).toHaveLength(2);
+        expect(charts).toHaveLength(1);
         for (const chart of charts) {
             const { query } = compile({
                 ...chart.metricQuery,
@@ -384,6 +380,67 @@ describe('Content inventory charts', () => {
                 .flatMap((bundle) => bundle.charts)
                 .filter(({ tableName }) => tableName === 'content_created')
                 .map(({ slug }) => slug),
-        ).toEqual([card.slug]);
+        ).toEqual([
+            // Both need a row for every day: the running total by week, and this card
+            'lightdash-analytics-content-content-creation-by-month',
+            card.slug,
+        ]);
+    });
+
+    it('adds content up week by week into a running total, in total and by type', async () => {
+        const chart = analyticsContentAsCode
+            .flatMap((bundle) => bundle.charts)
+            .find(({ slug }) => slug.endsWith('-content-creation-by-month'))!;
+        const binding = analyticsLibraryChartBindings.get(chart.slug)!;
+        const run = async (metricQuery: MetricQuery) =>
+            (
+                await db.runAndReadAll(compile(metricQuery).query)
+            ).getRowObjectsJS();
+        const plainQuery = {
+            ...chart.metricQuery,
+            filters: chart.metricQuery.filters as Filters,
+        } as MetricQuery;
+        const [{ dated }] = (
+            await db.runAndReadAll(
+                'SELECT COUNT(content_id) AS dated FROM lightdash_content WHERE created_at IS NOT NULL',
+            )
+        ).getRowObjectsJS();
+        const total = await run(plainQuery);
+        // A point for every week since the first item, never falling, ending on everything dated
+        const totals = total.map((row) => Number(row.content_running_total));
+        expect(totals.length).toBeGreaterThan(8);
+        expect(
+            totals.every(
+                (value, index) => index === 0 || value >= totals[index - 1],
+            ),
+        ).toBe(true);
+        expect(totals.at(-1)).toBe(Number(dated));
+        const weeks = total.map((row) =>
+            new Date(row.content_health_created_at_week as Date).getTime(),
+        );
+        expect(
+            weeks
+                .slice(1)
+                .every((week, index) => week - weeks[index] === 7 * 86400000),
+        ).toBe(true);
+        // By type, each type has every week and the types add up to the same total
+        const byType = await run({
+            ...plainQuery,
+            dimensions: binding.query!.dimensions,
+            sorts: binding.query!.sorts,
+            limit: binding.query!.limit,
+            tableCalculations: binding.query!.tableCalculations!,
+        });
+        const latest = new Map<unknown, number>();
+        byType.forEach((row) =>
+            latest.set(
+                row.content_health_content_type_name,
+                Number(row.content_running_total),
+            ),
+        );
+        expect(
+            [...latest.values()].reduce((sum, value) => sum + value, 0),
+        ).toBe(Number(dated));
+        expect(byType.length).toBe(weeks.length * latest.size);
     });
 });

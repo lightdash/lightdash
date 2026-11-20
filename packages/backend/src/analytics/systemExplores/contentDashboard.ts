@@ -1,10 +1,16 @@
-import { CustomFormatType, TableCalculationType } from '@lightdash/common';
+import {
+    CustomFormatType,
+    FilterOperator,
+    TableCalculationType,
+} from '@lightdash/common';
 import { card, ranking, stackedByDay } from './chartBuilders';
 import type { UsageChartSpec, UsageDashboardSpec } from './usageDashboardTypes';
 
 const day = 'content_reach_event_ts_day';
 const allHistory = 'Uses all recorded history; the date filter does not apply.';
 
+const week = 'content_health_created_at_week';
+const runningTotal = 'content_running_total';
 const cameBack = 'came_back_later';
 const cameBackShare = 'came_back_share';
 
@@ -179,24 +185,80 @@ export const contentChartSpecs: UsageChartSpec[] = [
             },
         },
     },
-    stackedByDay({
+    {
+        // A running total reads well however little content there is: it only ever rises, where bars
+        // for each month are a few uneven columns on a small instance
         key: 'content-creation-by-month',
-        name: 'Content created by month',
+        name: 'Content over time',
         description:
-            'Items in the latest inventory by the month they were created, including deleted items. The date filter does not apply.',
-        explore: 'content_inventory',
-        day: 'content_health_created_at_month',
-        metric: 'content_health_total_content',
-        splitBy: 'content_health_content_type_name',
-        yName: 'Content created',
-        xAxis: {
-            xAxisType: 'time',
-            xTimeFormat: '{MMM} {yyyy}',
-            xName: 'Month',
+            'Charts, dashboards and data apps in the latest inventory, added up week by week from the day each was created. Includes deleted items; the date filter does not apply.',
+        explore: 'content_created',
+        dimensions: [week],
+        metrics: ['content_health_total_content'],
+        filters: [
+            {
+                field: week,
+                operator: FilterOperator.NOT_NULL,
+                values: [],
+            },
+        ],
+        tableCalculations: [
+            {
+                name: runningTotal,
+                displayName: 'Content',
+                type: TableCalculationType.NUMBER,
+                sql: `SUM(\${content_health.total_content}) OVER (ORDER BY \${content_health.created_at_week})`,
+                format: { type: CustomFormatType.NUMBER, round: 0 },
+            },
+        ],
+        limit: 5000,
+        sorts: [{ fieldId: week, descending: false }],
+        visualization: 'line',
+        xField: week,
+        yFields: [runningTotal],
+        fieldLabels: { [week]: 'Week', [runningTotal]: 'Content' },
+        libraryChart: {
+            slug: 'customizable-cartesian-chart',
+            minVersion: '0.18.3',
+            fieldMapping: {
+                x: week,
+                m1: runningTotal,
+                splitBy: 'content_health_content_type_name',
+            },
+            optionValues: {
+                seriesType: 'area',
+                stack: 'normal',
+                splitSort: 'total',
+                xAxisType: 'time',
+                xTimeFormat: '{MMM} {yyyy}',
+                xName: 'Week',
+                yName: 'Content',
+            },
+            query: {
+                dimensions: [week, 'content_health_content_type_name'],
+                metrics: ['content_health_total_content'],
+                sorts: [
+                    {
+                        fieldId: 'content_health_content_type_name',
+                        descending: false,
+                    },
+                    { fieldId: week, descending: false },
+                ],
+                limit: 5000,
+                tableCalculations: [
+                    {
+                        name: runningTotal,
+                        displayName: 'Content',
+                        type: TableCalculationType.NUMBER,
+                        sql: `SUM(\${content_health.total_content}) OVER (PARTITION BY \${content_health.content_type_name} ORDER BY \${content_health.created_at_week})`,
+                        format: { type: CustomFormatType.NUMBER, round: 0 },
+                    },
+                ],
+                description:
+                    'Charts, dashboards and data apps in the latest inventory by type, added up week by week from the day each was created. Includes deleted items; the date filter does not apply.',
+            },
         },
-        splitDescription:
-            'Items in the latest inventory by the month they were created and their type, including deleted items. The date filter does not apply.',
-    }),
+    },
     ranking({
         key: 'content-by-activity-status',
         name: 'Content by activity status',
@@ -306,7 +368,7 @@ export const contentDashboardSpec: UsageDashboardSpec = {
                     rowHeight: 8,
                 },
                 {
-                    title: 'Content created',
+                    title: 'Content over time',
                     description: '',
                     note: false,
                     charts: ['content-creation-by-month'],
