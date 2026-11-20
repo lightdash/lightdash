@@ -224,7 +224,6 @@ export const withAnalyticsChartPresentation = (
                         'No owner': colors[0],
                         'Not a member': colors[2],
                         'Unknown owner': '#868E96',
-                        'Has no owner (chart or data app)': '#ADB5BD',
                     },
                 },
             },

@@ -336,19 +336,23 @@ export const contentChartSpecs: UsageChartSpec[] = [
     }),
     ranking({
         key: 'content-ownership-current-snapshot',
-        name: 'Content ownership (current)',
+        name: 'Dashboard ownership',
         description:
-            'Owner status reflects current Lightdash membership, not whether the person is still employed. Schedule ownership is not fully recorded.',
+            'Dashboards by the status of their owner. Owner status reflects current Lightdash membership, not whether the person is still employed.',
         explore: 'content_inventory',
         by: 'content_health_owner_status_name',
-        then: 'content_health_content_type_name',
         dimensions: ['content_health_owner_status_name'],
         metrics: ['content_health_total_content'],
+        // Only dashboards have an owner
+        filters: [
+            { field: 'content_health_content_type', values: ['dashboard'] },
+        ],
         limit: 30,
         // Drawn as a donut: see withAnalyticsChartPresentation
         visualization: 'bar',
+        fieldLabels: { content_health_total_content: 'Dashboards' },
         libraryDescription:
-            'Content by the status of its owner; open a status to see each type of content. Owner status reflects current Lightdash membership, not whether the person is still employed.',
+            'Dashboards by the status of their owner. Owner status reflects current Lightdash membership, not whether the person is still employed.',
     }),
     ranking({
         key: 'content-owners-needing-review',
