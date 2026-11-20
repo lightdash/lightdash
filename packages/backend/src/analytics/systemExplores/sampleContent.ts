@@ -23,6 +23,7 @@ import { noteRows } from './noteLayout';
 import { buildQueryCalendarChart } from './queryCalendarChart';
 import {
     buildUsageDashboards,
+    compactAxisOverrides,
     note,
     usageLibraryChartBindings,
     wholeMillisecondOverrides,
@@ -71,7 +72,12 @@ const chart = (
             exploreName: tableName,
             dimensions: dimensionId ? [dimensionId] : [],
             metrics,
-            metricOverrides: wholeMillisecondOverrides(metrics),
+            metricOverrides: {
+                ...(dimensionId && options.visualization !== 'donut'
+                    ? compactAxisOverrides(metrics)
+                    : {}),
+                ...wholeMillisecondOverrides(metrics),
+            },
             filters: {},
             sorts: [
                 {
@@ -356,7 +362,7 @@ const aiUsageContent = {
                 description: '',
                 libraryChart: {
                     slug: 'customizable-cartesian-chart',
-                    minVersion: '0.18.1',
+                    minVersion: '0.18.3',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
                         m1: 'ai_usage_total_ai_calls',
@@ -399,7 +405,7 @@ const aiUsageContent = {
                 description: '',
                 libraryChart: {
                     slug: 'customizable-cartesian-chart',
-                    minVersion: '0.18.1',
+                    minVersion: '0.18.3',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
                         m1: 'ai_usage_total_tokens_used',
@@ -463,7 +469,7 @@ const aiUsageContent = {
             'Tokens by feature',
             'ai_usage',
             'total_tokens_used',
-            'feature',
+            'feature_name',
             {
                 visualization: 'bar',
                 colors: ['#7950F2'],
@@ -474,7 +480,7 @@ const aiUsageContent = {
                     minVersion: '0.5.0',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
-                        y: 'ai_usage_feature',
+                        y: 'ai_usage_feature_name',
                         value: 'ai_usage_total_tokens_used',
                     },
                     optionValues: {
@@ -485,13 +491,13 @@ const aiUsageContent = {
                     },
                     query: {
                         dimensions: [
-                            'ai_usage_feature',
+                            'ai_usage_feature_name',
                             'ai_usage_event_ts_day',
                         ],
                         metrics: ['ai_usage_total_tokens_used'],
                         sorts: [
                             {
-                                fieldId: 'ai_usage_feature',
+                                fieldId: 'ai_usage_feature_name',
                                 descending: false,
                             },
                             {
@@ -724,7 +730,7 @@ export const analyticsSampleDashboards = [
                     description: '',
                     libraryChart: {
                         slug: 'customizable-cartesian-chart',
-                        minVersion: '0.18.1',
+                        minVersion: '0.18.3',
                         fieldMapping: {
                             x: 'query_events_event_ts_day',
                             m1: 'query_events_total_queries',

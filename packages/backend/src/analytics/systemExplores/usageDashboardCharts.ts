@@ -624,7 +624,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         dimensions: [
             'ai_usage_user_name',
             'ai_usage_model',
-            'ai_usage_feature',
+            'ai_usage_feature_name',
             'ai_usage_user_id',
         ],
         metrics: ['ai_usage_total_tokens_used', 'ai_usage_total_ai_calls'],
@@ -637,7 +637,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.18.1',
+            minVersion: '0.18.3',
             fieldMapping: {
                 x: 'ai_usage_user_name',
                 m1: 'ai_usage_total_tokens_used',
@@ -673,7 +673,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         name: 'Tokens by feature and model',
         description: '',
         explore: 'ai_usage',
-        dimensions: ['ai_usage_feature', 'ai_usage_model'],
+        dimensions: ['ai_usage_feature_name', 'ai_usage_model'],
         metrics: ['ai_usage_total_tokens_used'],
         limit: 100,
         sorts: [
@@ -687,7 +687,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             minVersion: '0.5.0',
             fieldMapping: {
                 x: 'ai_usage_model',
-                y: 'ai_usage_feature',
+                y: 'ai_usage_feature_name',
                 value: 'ai_usage_total_tokens_used',
             },
             optionValues: {

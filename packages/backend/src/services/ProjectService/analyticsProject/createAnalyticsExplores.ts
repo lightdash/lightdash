@@ -77,6 +77,11 @@ import {
     peopleAdoptionSql,
     totalMembersMetric,
 } from '../../../analytics/systemExplores/peopleAdoption';
+import {
+    aiFeatureNames,
+    plainNameSql,
+    type PlainNames,
+} from '../../../analytics/systemExplores/plainNames';
 import { queryContextNameSql } from '../../../analytics/systemExplores/queryContextNames';
 import {
     semanticUsageColumns,
@@ -468,6 +473,24 @@ export const createAnalyticsExplores = (): Explore[] => {
             }),
             metrics,
         };
+        // A second field beside one whose values are code names, showing them in plain words
+        const addPlainName = (
+            column: string,
+            plainLabel: string,
+            names: PlainNames = {},
+        ) => {
+            const recorded = table.dimensions[column];
+            table.dimensions[`${column}_name`] = {
+                ...recorded,
+                name: `${column}_name`,
+                label: plainLabel,
+                type: DimensionType.STRING,
+                description: `${recorded.label} in plain words. Filter on ${recorded.label}, which holds the recorded value.`,
+                sql: plainNameSql(recorded.sql, names),
+            };
+        };
+        if (name === 'ai_usage')
+            addPlainName('feature', 'Feature name', aiFeatureNames);
         if (table.dimensions.user_id)
             table.dimensions.user_id.label = 'User UUID';
         if (table.dimensions.project_id)

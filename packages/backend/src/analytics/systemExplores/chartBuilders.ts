@@ -235,7 +235,7 @@ export const stackedByDay = ({
     yFields: [metric],
     libraryChart: {
         slug: 'customizable-cartesian-chart',
-        minVersion: '0.18.1',
+        minVersion: '0.18.3',
         fieldMapping: { x: day, m1: metric, splitBy },
         optionValues: {
             seriesType: 'bar',

@@ -264,8 +264,9 @@ describe('analytics sample content', () => {
                 .flatMap(({ charts }) => charts)
                 .find((item) => item.slug === slug)!;
             expect(tokensByFeature.chartConfig.type).toBe(ChartType.CARTESIAN);
+            // The feature under its plain name, as on AI token usage
             expect(tokensByFeature.metricQuery.dimensions).toEqual([
-                'ai_usage_feature',
+                'ai_usage_feature_name',
             ]);
             expect(analyticsLibraryChartBindings.get(slug)).toMatchObject({
                 slug: 'heatmap',

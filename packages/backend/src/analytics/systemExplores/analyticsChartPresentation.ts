@@ -271,6 +271,16 @@ export const withAnalyticsChartPresentation = (
                     valueLabel: 'hidden',
                     legendPosition: 'horizontal',
                     legendMaxItemLength: 28,
+                    // Outcomes are recorded in lower case
+                    groupLabelOverrides: {
+                        success: 'Success',
+                        error: 'Error',
+                        cancelled: 'Cancelled',
+                        clarification: 'Needs clarification',
+                        pending: 'Pending',
+                        unknown: 'Unknown',
+                        ...chart.chartConfig.config?.groupLabelOverrides,
+                    },
                     groupColorOverrides: {
                         ...chart.chartConfig.config?.groupColorOverrides,
                         completed: positive,

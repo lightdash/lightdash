@@ -1,6 +1,7 @@
 import {
     CartesianSeriesType,
     ChartType,
+    Compact,
     CustomFormatType,
     DashboardTileTypes,
     FilterOperator,
@@ -356,6 +357,28 @@ const topCategoryCalculations = (
     ];
 };
 
+// Counts on a chart axis read 10K and 10M, not 10,000 and 10,000,000. Rates and durations keep their
+// own formats.
+export const compactAxisOverrides = (metrics: string[]) =>
+    Object.fromEntries(
+        metrics
+            .filter(
+                (field) =>
+                    !['_ms', '_rate', '_coverage', '_share'].some((suffix) =>
+                        field.endsWith(suffix),
+                    ),
+            )
+            .map((field) => [
+                field,
+                {
+                    formatOptions: {
+                        type: CustomFormatType.NUMBER,
+                        compact: Compact.AUTO,
+                    },
+                },
+            ]),
+    );
+
 /** Millisecond metrics show as whole numbers: decimals add noise, not signal. */
 export const wholeMillisecondOverrides = (metrics: string[]) =>
     Object.fromEntries(
@@ -389,6 +412,10 @@ const buildChart = (
         dimensions: spec.dimensions,
         metrics: spec.metrics,
         metricOverrides: {
+            ...(spec.visualization &&
+            ['line', 'bar', 'scatter'].includes(spec.visualization)
+                ? compactAxisOverrides(spec.metrics)
+                : {}),
             ...Object.fromEntries(
                 spec.metrics
                     .filter((field) =>

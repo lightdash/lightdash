@@ -612,7 +612,7 @@ describe('legacyLibraryChartBindings', () => {
         );
         expect(queryBinding('queries-by-day')).toMatchObject({
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.18.1',
+            minVersion: '0.18.3',
             fieldMapping: {
                 x: 'query_events_event_ts_day',
                 m1: 'query_events_total_queries',
