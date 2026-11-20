@@ -14,7 +14,7 @@ import {
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import * as YAML from 'yaml';
-import { getAgentConnectionSelection } from '../../credentials';
+import { resolveContainedPath } from './pathContainment';
 
 const MANIFEST_FILENAME = 'lightdash-app.yml';
 
@@ -43,32 +43,28 @@ export const appFolderName = (
     return suffixed;
 };
 
+const writeFileToDir = async (
+    dir: string,
+    relativePath: string,
+    contents: Buffer,
+): Promise<void> => {
+    const filePath = await resolveContainedPath(dir, relativePath);
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.writeFile(filePath, contents);
+};
+
 export const writeFilesToDir = async (
     dir: string,
     files: DataAppCodeFile[],
 ): Promise<void> => {
-    const resolvedRoot = path.resolve(dir);
     await Promise.all(
-        files.map(async (file) => {
-            const filePath = path.resolve(dir, file.path);
-            // Defense-in-depth: never write outside the target directory, even
-            // if the server returns a traversal path.
-            if (
-                filePath !== resolvedRoot &&
-                !filePath.startsWith(resolvedRoot + path.sep)
-            ) {
-                throw new Error(
-                    getAgentConnectionSelection() !== null
-                        ? 'Refusing to write a file outside the target directory.'
-                        : `Refusing to write file outside the target directory: ${file.path}`,
-                );
-            }
-            await fs.mkdir(path.dirname(filePath), { recursive: true });
-            await fs.writeFile(
-                filePath,
+        files.map((file) =>
+            writeFileToDir(
+                dir,
+                file.path,
                 Buffer.from(file.contentBase64, 'base64'),
-            );
-        }),
+            ),
+        ),
     );
 };
 
@@ -78,7 +74,8 @@ export const writeContextToDir = async (
 ): Promise<void> => {
     // Server-owned snapshot: clear it so files from a previous download
     // (removed models, parameters, theme assets) don't linger.
-    await fs.rm(path.join(dir, '.lightdash', 'context'), {
+    const metadataDir = await resolveContainedPath(dir, '.lightdash');
+    await fs.rm(path.join(metadataDir, 'context'), {
         recursive: true,
         force: true,
     });
@@ -98,14 +95,8 @@ export const writeBundleToDir = async (
     dir: string,
     code: DataAppCode,
 ): Promise<void> => {
-    await fs.mkdir(dir, { recursive: true });
-
     const manifestYaml = YAML.stringify(code.manifest);
-    await fs.writeFile(
-        path.join(dir, MANIFEST_FILENAME),
-        manifestYaml,
-        'utf-8',
-    );
+    await writeFileToDir(dir, MANIFEST_FILENAME, Buffer.from(manifestYaml));
 
     await writeFilesToDir(dir, code.files);
 };
@@ -114,7 +105,9 @@ const collectFiles = async (
     dir: string,
     baseDir: string,
 ): Promise<{ path: string; contentBase64: string }[]> => {
-    const entries = await fs.readdir(dir, { withFileTypes: true });
+    const entries = await fs.readdir(await resolveContainedPath(baseDir, dir), {
+        withFileTypes: true,
+    });
 
     const nestedResults = await Promise.all(
         entries.map(async (entry) => {
@@ -128,7 +121,9 @@ const collectFiles = async (
                 return collectFiles(entryPath, baseDir);
             }
             if (entry.name !== MANIFEST_FILENAME) {
-                const content = await fs.readFile(entryPath);
+                const content = await fs.readFile(
+                    await resolveContainedPath(baseDir, entryPath),
+                );
                 return [
                     {
                         path: relativePath,
@@ -209,8 +204,8 @@ export const writeDependenciesToDir = async (
     dir: string,
     deps: DataAppDependencies,
 ): Promise<void> => {
-    await fs.writeFile(path.join(dir, 'package.json'), deps.packageJson);
-    await fs.writeFile(path.join(dir, 'pnpm-lock.yaml'), deps.lockfile);
+    await writeFileToDir(dir, 'package.json', Buffer.from(deps.packageJson));
+    await writeFileToDir(dir, 'pnpm-lock.yaml', Buffer.from(deps.lockfile));
 };
 
 export type LocalAppDependencies = {
@@ -235,8 +230,10 @@ export type LocalAppDependencies = {
 export const readDependenciesFromDir = async (
     dir: string,
 ): Promise<LocalAppDependencies | null> => {
-    const pkgJsonPath = path.join(dir, 'package.json');
-    const lockfilePath = path.join(dir, 'pnpm-lock.yaml');
+    const [pkgJsonPath, lockfilePath] = await Promise.all([
+        resolveContainedPath(dir, 'package.json'),
+        resolveContainedPath(dir, 'pnpm-lock.yaml'),
+    ]);
     const npmLockfilePath = path.join(dir, 'package-lock.json');
 
     const [pkgJsonExists, lockfileExists, npmLockfileExists] =
@@ -330,7 +327,7 @@ export const readManifestFromDir = async (
     dir: string,
 ): Promise<DataAppManifest> => {
     const manifestRaw = await fs.readFile(
-        path.join(dir, MANIFEST_FILENAME),
+        await resolveContainedPath(dir, MANIFEST_FILENAME),
         'utf-8',
     );
     try {
@@ -345,12 +342,14 @@ export const readManifestFromDir = async (
 export const readBundleFromDir = async (dir: string): Promise<DataAppCode> => {
     const manifest = await readManifestFromDir(dir);
 
-    const srcDir = path.join(dir, 'src');
+    const appDir = path.resolve(dir);
+    const srcDir = path.join(appDir, 'src');
+    const canonicalSrcDir = await resolveContainedPath(appDir, srcDir);
     const srcExists = await fs
-        .stat(srcDir)
+        .stat(canonicalSrcDir)
         .then((s) => s.isDirectory())
         .catch(() => false);
-    const files = srcExists ? await collectFiles(srcDir, dir) : [];
+    const files = srcExists ? await collectFiles(srcDir, appDir) : [];
     files.sort((a, b) => a.path.localeCompare(b.path));
 
     return validateDataAppCode({ manifest, files });
