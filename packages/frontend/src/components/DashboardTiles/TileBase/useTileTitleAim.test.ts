@@ -3,9 +3,13 @@ import { resolveTitleAim } from './useTileTitleAim';
 
 // A ⅓-width tile at 1440px: the actions straddle the corner over the title's end
 const restingTitle = { left: 35, top: 168, right: 317, bottom: 192 };
-const expandedTitle = { left: 35, top: 168, right: 465, bottom: 216 };
+// Expanded and wrapped: a full first line and a short second one
+const expandedTitleLines = [
+    { left: 35, top: 168, right: 465, bottom: 192 },
+    { left: 35, top: 192, right: 180, bottom: 216 },
+];
 const actions = { left: 300, top: 140, right: 478, bottom: 174 };
-const layout = { restingTitle, expandedTitle, actions };
+const layout = { restingTitle, expandedTitleLines, actions };
 
 describe('resolveTitleAim', () => {
     it('gives the actions their box, even over the title text', () => {
@@ -39,6 +43,17 @@ describe('resolveTitleAim', () => {
                 titleHovered: true,
             }),
         ).toBe('title');
+    });
+
+    it('lets go of an expanded title beside its short wrapped line', () => {
+        expect(
+            resolveTitleAim({
+                ...layout,
+                point: { x: 300, y: 205 },
+                from: null,
+                titleHovered: true,
+            }),
+        ).toBe('elsewhere');
     });
 
     it('lets go of the title while the pointer heads for the actions', () => {

@@ -37,6 +37,12 @@ const isMovingToward = (from: Point, to: Point, box: Box) => {
     return enter <= exit;
 };
 
+const textLines = (el: HTMLElement): Box[] => {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    return [...range.getClientRects()];
+};
+
 type TitleAim = 'title' | 'headingForActions' | 'elsewhere';
 
 // The actions own their box, shown or not; the title owns its resting text and,
@@ -45,14 +51,14 @@ export const resolveTitleAim = ({
     point,
     from,
     restingTitle,
-    expandedTitle,
+    expandedTitleLines,
     actions,
     titleHovered,
 }: {
     point: Point;
     from: Point | null;
     restingTitle: Box | null;
-    expandedTitle: Box | null;
+    expandedTitleLines: Box[];
     actions: Box | null;
     titleHovered: boolean;
 }): TitleAim => {
@@ -60,9 +66,8 @@ export const resolveTitleAim = ({
         return 'elsewhere';
     const onWrappedLines =
         titleHovered &&
-        !!expandedTitle &&
         point.y > restingTitle.bottom &&
-        contains(expandedTitle, point);
+        expandedTitleLines.some((line) => contains(line, point));
     if (!contains(restingTitle, point) && !onWrappedLines) return 'elsewhere';
     const headingForActions =
         !!actions &&
@@ -134,7 +139,7 @@ export const useTileTitleAim = ({
                 point,
                 from: trailRef.current[0],
                 restingTitle: restingTitleRef.current,
-                expandedTitle: title?.getBoundingClientRect() ?? null,
+                expandedTitleLines: title ? textLines(title) : [],
                 actions:
                     e.currentTarget
                         .querySelector(actionsSelector)
