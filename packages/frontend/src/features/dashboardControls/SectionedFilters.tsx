@@ -166,7 +166,8 @@ const pillSelector = (id: string) => `[data-controls-pill="${id}"]`;
 const sectionNameSelector = (id: string) => `[data-section-name="${id}"]`;
 const sectionAddSelector = (id: string) => `[data-section-add="${id}"]`;
 
-type LineEdges = { isLineStart: boolean; isLineEnd: boolean };
+// The rules an open section draws against its neighbours on a bar line
+type SectionRules = { before: boolean; after: boolean };
 const NO_NEIGHBOURS = { hasBefore: false, hasAfter: false };
 
 /** An editor's capsule controls; a viewer's capsule has none. */
@@ -208,7 +209,7 @@ type CapsuleProps = {
     /** With a stored order: its members in that order (default its filters, then its parameter controls) */
     renderMembers: (() => ReactNode) | null;
     /** Open, it draws a rule on each side that has a neighbour on its bar line */
-    lineEdges: LineEdges;
+    sectionRules: SectionRules;
 };
 
 const SectionCapsule: FC<CapsuleProps> = ({
@@ -230,7 +231,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
     hasDateZoomMembers,
     withDateZooms,
     renderMembers,
-    lineEdges,
+    sectionRules,
 }) => {
     const getUiString = useUiStrings();
     // What a viewer reads; an editor's name button keeps the name as saved
@@ -408,8 +409,8 @@ const SectionCapsule: FC<CapsuleProps> = ({
             }
             data-dragging={head.isDragging || undefined}
             data-can-drag={isDraggable || undefined}
-            data-line-start={lineEdges.isLineStart || undefined}
-            data-line-end={lineEdges.isLineEnd || undefined}
+            data-rule-before={sectionRules.before || undefined}
+            data-rule-after={sectionRules.after || undefined}
             // A pointer anywhere on the capsule drags it, except on a pill (its
             // own drag), the trailing actions or a portalled menu
             onPointerDown={
@@ -1073,12 +1074,12 @@ export const SectionedFilters: FC<Props> = ({
     const capsuleFor = (
         { section, rules, visibleRules }: (typeof groups)[number],
         renderMembers: (() => ReactNode) | null,
-        lineEdges: LineEdges,
+        sectionRules: SectionRules,
     ) => (
         <SectionCapsule
             key={section.id}
             renderMembers={renderMembers}
-            lineEdges={lineEdges}
+            sectionRules={sectionRules}
             drop={capsuleDropOf(section.id)}
             dropTop={dropTop}
             section={section}
@@ -1205,10 +1206,10 @@ export const SectionedFilters: FC<Props> = ({
                     const group = groupById.get(id);
                     return group
                         ? capsuleFor(group, null, {
-                              isLineStart: position === 0,
-                              isLineEnd:
-                                  position === line.length - 1 &&
-                                  (isViewer || index < lines.length - 1),
+                              before: false,
+                              after:
+                                  position < line.length - 1 ||
+                                  (!isViewer && index === lines.length - 1),
                           })
                         : null;
                 })}
@@ -1258,9 +1259,19 @@ export const SectionedFilters: FC<Props> = ({
                 else runs.push([control]);
                 return runs;
             }, [])
+            // A kind the bar hides is no neighbour to a section
+            .filter(
+                ([{ kind }]) =>
+                    (kind !== DashboardControlRefKind.PARAMETER ||
+                        withParameters) &&
+                    (kind !== DashboardControlRefKind.DATE_ZOOM ||
+                        withDateZooms),
+            )
             .map((run, position, runs) => {
                 const [first] = run;
                 const ids = run.map(({ id }) => id);
+                const previous =
+                    position === 0 ? undefined : runs[position - 1];
                 switch (first.kind) {
                     case DashboardControlRefKind.FILTER:
                         return (
@@ -1321,12 +1332,16 @@ export const SectionedFilters: FC<Props> = ({
                                             </>
                                         ),
                                         {
-                                            isLineStart:
-                                                position === 0 &&
-                                                !neighbours.hasBefore,
-                                            isLineEnd:
-                                                position === runs.length - 1 &&
-                                                !neighbours.hasAfter,
+                                            // The section before it
+                                            // already ends in a rule
+                                            before:
+                                                previous === undefined
+                                                    ? neighbours.hasBefore
+                                                    : previous[0].kind !==
+                                                      DashboardControlRefKind.SECTION,
+                                            after:
+                                                position < runs.length - 1 ||
+                                                neighbours.hasAfter,
                                         },
                                     )}
                                 </Box>

@@ -148,7 +148,7 @@
 }
 
 /* An open section is set off from a neighbour on its bar line by a rule on
-   that side; alone on its line it has none */
+   that side: one between two sections, none alone on its line */
 .capsule:not([data-collapsed], [data-naming])::before,
 .capsule:not([data-collapsed], [data-naming])::after {
     content: '';
@@ -159,8 +159,8 @@
     background-color: var(--mantine-color-ldGray-3);
 }
 
-.capsule[data-line-start]::before,
-.capsule[data-line-end]::after {
+.capsule:not([data-rule-before])::before,
+.capsule:not([data-rule-after])::after {
     display: none;
 }
 
