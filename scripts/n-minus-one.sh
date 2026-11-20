@@ -49,7 +49,9 @@ PREVIEW_FEATURE_ENV=(
     # defaults, which this harness does not enable. SCIM provisioning is
     # gated on the commercial scim-token-management flag (#31474), and the
     # previous release's SCIM tests expect it on, so force that flag here.
-    LIGHTDASH_ENABLE_FEATURE_FLAGS=scim-token-management
+    # The composer charts tests turn their flag on through the preview-only
+    # flag API when it is off, so force composer-charts on as well.
+    LIGHTDASH_ENABLE_FEATURE_FLAGS=scim-token-management,composer-charts
     MCP_ENABLED=true
     CUSTOM_ROLES_ENABLED=true
     EMBEDDING_ENABLED=true
