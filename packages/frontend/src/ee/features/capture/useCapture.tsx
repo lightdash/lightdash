@@ -53,6 +53,11 @@ type Hold = {
     current: Stroke | null;
     /** Null when the surface does not want pictures. */
     frame: Promise<TabFrame | null>;
+    /**
+     * Draws the page from the DOM once Shift is let go. The ink is never in
+     * that picture, and drawing the page blocks the pen while it runs.
+     */
+    grabOnRelease: (() => Promise<TabFrame>) | null;
 };
 
 const nextPaint = (): Promise<void> =>
@@ -201,11 +206,16 @@ export const useCapture = (
         if (hold.current) hold.strokes.push(hold.current);
         const endMs = now();
         setHolding(false);
+        const framePromise =
+            hold.grabOnRelease && hold.strokes.length > 0
+                ? hold.grabOnRelease()
+                : hold.frame;
+        framePromise.catch(() => {});
 
         queueRef.current = queueRef.current.then(async () => {
             let frame: TabFrame | null;
             try {
-                frame = await hold.frame;
+                frame = await framePromise;
             } catch {
                 setInk([]);
                 showToastError('Could not capture the screen');
@@ -341,8 +351,6 @@ export const useCapture = (
             })();
         } else if (method === 'app' && grabAppImage) {
             frame = grabAppFrame(grabAppImage, region);
-        } else if (method === 'dom') {
-            frame = grabDomFrame(region);
         }
         if (!fromTab) setInkVisible(true);
         // Failures are reported when the hold ends.
@@ -353,6 +361,7 @@ export const useCapture = (
             strokes: [],
             current: null,
             frame,
+            grabOnRelease: method === 'dom' ? () => grabDomFrame(region) : null,
         };
     }, [grab, now]);
 

@@ -29,6 +29,11 @@ vi.mock('./useTabFrame', () => ({
     }),
 }));
 
+const grabDomFrame = vi.fn();
+vi.mock('./domFrame', () => ({
+    grabDomFrame: (...args: unknown[]) => grabDomFrame(...args),
+}));
+
 const surface: CaptureSurface = {
     getRegion: () => new DOMRect(0, 0, 100, 100),
     captureImages: false,
@@ -88,5 +93,36 @@ describe('useCapture toggle', () => {
         });
         expect(startVoice).not.toHaveBeenCalled();
         expect(result.current.isRecording).toBe(false);
+    });
+});
+
+describe('useCapture on a page drawn from the DOM', () => {
+    const domSurface: CaptureSurface = {
+        ...surface,
+        captureImages: true,
+        frameSource: 'dom',
+    };
+
+    // Drawing the page blocks the pen, so it waits until Shift is let go.
+    it('does not draw the page when Shift is pressed', async () => {
+        grabDomFrame.mockClear();
+        const { result } = renderHook(() => useCapture(domSurface));
+        await act(async () => {
+            result.current.toggle();
+        });
+        expect(result.current.isRecording).toBe(true);
+
+        await act(async () => {
+            window.dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'Shift' }),
+            );
+        });
+        expect(grabDomFrame).not.toHaveBeenCalled();
+
+        // Nothing was drawn, so there is nothing to take a picture for.
+        await act(async () => {
+            window.dispatchEvent(new KeyboardEvent('keyup', { key: 'Shift' }));
+        });
+        expect(grabDomFrame).not.toHaveBeenCalled();
     });
 });
