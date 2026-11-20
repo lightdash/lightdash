@@ -9019,8 +9019,16 @@
                 "enum": ["xlsx"],
                 "type": "string"
             },
+            "XlsxExportContent": {
+                "description": "What an XLSX export of a saved chart contains: the query's data rows, or a\nrendered image of the visualization. Only non-table charts offer the image.",
+                "enum": ["data", "chart_image"],
+                "type": "string"
+            },
             "SchedulerCsvOptions": {
                 "properties": {
+                    "xlsxContent": {
+                        "$ref": "#/components/schemas/XlsxExportContent"
+                    },
                     "xlsxFileLayout": {
                         "type": "string",
                         "enum": ["zip", "workbook"]
@@ -34191,6 +34199,9 @@
                     },
                     "showColumnTotals": {
                         "type": "boolean"
+                    },
+                    "xlsxContent": {
+                        "$ref": "#/components/schemas/XlsxExportContent"
                     },
                     "showSubtotals": {
                         "type": "boolean"
@@ -81076,7 +81087,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.351.6",
+        "version": "3.352.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

@@ -1,3 +1,15 @@
+# [3.352.0](https://github.com/lightdash/lightdash/compare/3.351.6...3.352.0) (2026-11-20)
+
+
+### Features
+
+* **export:** embed rendered chart image in XLSX exports of non-table charts ([#32317](https://github.com/lightdash/lightdash/issues/32317)) ([cdc408f](https://github.com/lightdash/lightdash/commit/cdc408f1d3c3c7b8ee4da01e2f815ddc23c1d46a))
+
+
+### Performance Improvements
+
+* **ai-agents:** stop re-parsing finished markdown blocks while an answer streams ([#33035](https://github.com/lightdash/lightdash/issues/33035)) ([ed43a6c](https://github.com/lightdash/lightdash/commit/ed43a6cce5572eecc22fde99746c4aeb3cb4a1ba))
+
 ## [3.351.6](https://github.com/lightdash/lightdash/compare/3.351.5...3.351.6) (2026-11-20)
 
 
