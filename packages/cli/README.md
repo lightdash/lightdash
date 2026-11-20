@@ -311,6 +311,11 @@ lightdash deploy \
   --profiles-dir ./profiles
 ```
 
+### CLI command telemetry
+
+Set `LIGHTDASH_CLI_ANALYTICS_DISABLED=true` to skip usage telemetry sent by CLI commands.
+When enabled, each telemetry request times out after two seconds.
+
 ### Behavior in Non-Interactive Mode
 
 When `--non-interactive` is set (or `CI=true`):

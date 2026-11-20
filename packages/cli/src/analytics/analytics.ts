@@ -11,6 +11,8 @@ import { lightdashApi } from '../handlers/dbt/apiClient';
 
 const { version: VERSION } = require('../../package.json');
 
+const ANALYTICS_REQUEST_TIMEOUT_MS = 2000;
+
 type CIInfo = {
     isCI: boolean;
     ciProvider: string | null;
@@ -603,6 +605,8 @@ export class LightdashAnalytics {
     }
 
     static async track(payload: Track): Promise<void> {
+        if (process.env.LIGHTDASH_CLI_ANALYTICS_DISABLED === 'true') return;
+
         try {
             const user = await identifyUser();
             requireInvocationContext();
@@ -628,6 +632,7 @@ export class LightdashAnalytics {
 
             await fetch('https://analytics.lightdash.com/v1/track', {
                 method: 'POST',
+                signal: AbortSignal.timeout(ANALYTICS_REQUEST_TIMEOUT_MS),
                 headers: {
                     Authorization: `Basic ${LightdashAnalytics.getWriteKey()}`,
                 },
@@ -639,6 +644,8 @@ export class LightdashAnalytics {
     }
 
     static async identify(traits: Record<string, unknown>): Promise<void> {
+        if (process.env.LIGHTDASH_CLI_ANALYTICS_DISABLED === 'true') return;
+
         try {
             const user = await identifyUser();
             requireInvocationContext();
@@ -654,6 +661,7 @@ export class LightdashAnalytics {
 
             await fetch('https://analytics.lightdash.com/v1/identify', {
                 method: 'POST',
+                signal: AbortSignal.timeout(ANALYTICS_REQUEST_TIMEOUT_MS),
                 headers: {
                     Authorization: `Basic ${LightdashAnalytics.getWriteKey()}`,
                 },
