@@ -65,7 +65,14 @@
     border-color: var(--mantine-color-dark-5);
 }
 
-.miniChartLight,
-.miniChartDark {
-    width: 100%;
+.miniChart {
+    height: 60px;
+    padding: 4px;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.miniChartBar {
+    width: 10px;
+    border-radius: 2px 2px 0 0;
 }

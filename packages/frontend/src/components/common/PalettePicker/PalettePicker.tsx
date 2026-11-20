@@ -1,5 +1,6 @@
 import { type OrganizationColorPalette } from '@lightdash/common';
 import {
+    Box,
     ColorSwatch,
     Group,
     Select,
@@ -8,8 +9,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconMoon, IconSun } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
-import EChartsReact, { type EChartsOption } from '../../EChartsReactWrapper';
+import { type FC } from 'react';
 import MantineIcon from '../MantineIcon';
 import classes from './PalettePicker.module.css';
 
@@ -92,45 +92,18 @@ const PaletteOptionRow: FC<{ name: string; swatches: SwatchSet | null }> = ({
     </Group>
 );
 
-const MiniBarChart: FC<{ colors: string[]; theme: 'light' | 'dark' }> = ({
-    colors,
-    theme,
-}) => {
-    const option = useMemo<EChartsOption>(() => {
-        const visible = colors.slice(0, SWATCH_LIMIT);
-        return {
-            animation: false,
-            grid: { left: 4, right: 4, top: 4, bottom: 4, containLabel: false },
-            xAxis: { type: 'category', data: [''], show: false },
-            yAxis: { type: 'value', show: false, max: 10 },
-            series: visible.map((color, i) => ({
-                type: 'bar',
-                data: [PREVIEW_BAR_HEIGHTS[i] ?? 5],
-                itemStyle: { color, borderRadius: [2, 2, 0, 0] },
-                barWidth: 10,
-                cursor: 'default',
-                silent: true,
-            })),
-        };
-    }, [colors]);
-
-    return (
-        <div
-            className={
-                theme === 'dark'
-                    ? classes.miniChartDark
-                    : classes.miniChartLight
-            }
-        >
-            <EChartsReact
-                option={option}
-                // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
-                style={{ height: 60, width: '100%' }}
-                opts={{ renderer: 'svg' }}
+const MiniBarChart: FC<{ colors: string[] }> = ({ colors }) => (
+    <Group gap={3} wrap="nowrap" className={classes.miniChart}>
+        {colors.slice(0, SWATCH_LIMIT).map((color, i) => (
+            <Box
+                key={`${color}-${i}`}
+                bg={color}
+                h={`${(PREVIEW_BAR_HEIGHTS[i] ?? 5) * 10}%`}
+                className={classes.miniChartBar}
             />
-        </div>
-    );
-};
+        ))}
+    </Group>
+);
 
 const SelectedPalettePreview: FC<{ swatches: SwatchSet }> = ({ swatches }) => (
     <Group gap="xs" grow align="stretch" wrap="nowrap">
@@ -139,7 +112,7 @@ const SelectedPalettePreview: FC<{ swatches: SwatchSet }> = ({ swatches }) => (
                 <Group gap={4} justify="center">
                     <MantineIcon icon={IconSun} size={12} color="gray" />
                 </Group>
-                <MiniBarChart colors={swatches.colors} theme="light" />
+                <MiniBarChart colors={swatches.colors} />
             </Stack>
         </Tooltip>
         {swatches.darkColors && swatches.darkColors.length > 0 && (
@@ -148,7 +121,7 @@ const SelectedPalettePreview: FC<{ swatches: SwatchSet }> = ({ swatches }) => (
                     <Group gap={4} justify="center">
                         <MantineIcon icon={IconMoon} size={12} color="dimmed" />
                     </Group>
-                    <MiniBarChart colors={swatches.darkColors} theme="dark" />
+                    <MiniBarChart colors={swatches.darkColors} />
                 </Stack>
             </Tooltip>
         )}
