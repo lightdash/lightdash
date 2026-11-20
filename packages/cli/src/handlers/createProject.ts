@@ -122,9 +122,12 @@ const applySnowflakeSsoHandling = async (
 We will ask for user credentials again on the Lightdash UI.\n`,
                 ),
             );
+            // Same shape as externalbrowser: the server accepts it without a stored token
             return {
                 ...credentials,
                 token: undefined,
+                authenticationType:
+                    SnowflakeAuthenticationType.EXTERNAL_BROWSER,
                 requireUserCredentials: true,
             };
         }
