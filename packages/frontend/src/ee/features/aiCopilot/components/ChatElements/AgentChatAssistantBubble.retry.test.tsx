@@ -10,7 +10,7 @@ vi.mock('../../store/hooks', () => ({
     useAiAgentStoreSelector: () => null,
 }));
 vi.mock('../../streaming/useAiAgentThreadStreamQuery', () => ({
-    useAiAgentThreadStreamQuery: () => undefined,
+    useAiAgentMessageStream: () => null,
     useAiAgentThreadMessageStreaming: () => false,
 }));
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({

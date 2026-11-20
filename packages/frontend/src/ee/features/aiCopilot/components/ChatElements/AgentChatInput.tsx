@@ -114,7 +114,6 @@ import {
     selectThreadElementReferences,
     type ThreadElementReference,
 } from '../../store/aiAgentThreadElementRefsSlice';
-import { isAiAgentThreadStreamActive } from '../../store/aiAgentThreadStreamSlice';
 import {
     selectPreviewForThreads,
     setElementPickerEnabled,
@@ -123,7 +122,7 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
-import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
+import { useAiAgentThreadActiveMessageUuid } from '../../streaming/useAiAgentThreadStreamQuery';
 import { AgentSelector } from '../AgentSelector';
 import { type Agent } from '../AgentSelector/AgentSelectorUtils';
 import styles from './AgentChatInput.module.css';
@@ -637,7 +636,9 @@ export const AgentChatInput = ({
     // are noise when reading history.
     const [chipsNearBottom, setChipsNearBottom] = useState(true);
     const [hasRequestedInterrupt, setHasRequestedInterrupt] = useState(false);
-    const threadStream = useAiAgentThreadStreamQuery(threadUuid ?? '');
+    const activeMessageUuid = useAiAgentThreadActiveMessageUuid(
+        threadUuid ?? '',
+    );
     const interruptMutation = useInterruptAiAgentThreadMessageMutation();
     const steerMutation = useCreateAiAgentThreadMessageSteerMutation();
     useEffect(() => {
@@ -812,9 +813,7 @@ export const AgentChatInput = ({
         prevComposerNodeCount.current = composerNodeCount;
     }, [editor, composerNodeCount]);
 
-    const isAgentActive = threadStream
-        ? isAiAgentThreadStreamActive(threadStream.connection)
-        : false;
+    const isAgentActive = activeMessageUuid !== null;
 
     useEffect(() => {
         if (hasRequestedInterrupt && !isAgentActive) {
@@ -1065,9 +1064,6 @@ export const AgentChatInput = ({
     // Inside a thread the composer is a card with its controls on a bottom row.
     const isThreadComposer = threadModelName !== undefined;
     const showThreadToolbar = isThreadComposer && !disabled;
-    const activeMessageUuid = isAgentActive
-        ? threadStream?.messageUuid
-        : undefined;
     const canInterrupt = Boolean(
         projectUuid &&
         agentUuid &&

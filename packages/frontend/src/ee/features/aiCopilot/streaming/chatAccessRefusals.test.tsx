@@ -34,7 +34,10 @@ vi.mock('./AiAgentThreadStreamAbortControllerContext', () => ({
     }),
 }));
 vi.mock('./useAiAgentThreadStreamQuery', () => ({
-    useAiAgentThreadStreamQuery: () => mocks.streamState(),
+    useAiAgentMessageStream: (_threadUuid: string, messageUuid: string) => {
+        const stream = mocks.streamState();
+        return stream?.messageUuid === messageUuid ? stream : null;
+    },
     useAiAgentThreadMessageStreaming: () => false,
 }));
 vi.mock('../../../../hooks/useServerOrClientFeatureFlag', () => ({
