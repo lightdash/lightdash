@@ -300,6 +300,52 @@ describe('compileHubspotQuery', () => {
         );
     });
 
+    it('reads "in the current" to the end of the period, future days included', () => {
+        const current = (unitOfTime: UnitOfTime) =>
+            compile(
+                query(
+                    filtered(
+                        rule('closedate', FilterOperator.IN_THE_CURRENT, [1], {
+                            unitOfTime,
+                        }),
+                    ),
+                ),
+            ).filters;
+        const bound = (date: string) => String(Date.parse(`${date}T00:00:00Z`));
+        expect(current(UnitOfTime.months)).toEqual([
+            {
+                propertyName: 'closedate',
+                operator: 'GTE',
+                value: bound('2026-11-01'),
+            },
+            {
+                propertyName: 'closedate',
+                operator: 'LT',
+                value: bound('2026-12-01'),
+            },
+        ]);
+        expect(current(UnitOfTime.quarters)[1].value).toBe(bound('2027-01-01'));
+        expect(current(UnitOfTime.weeks)[1].value).toBe(bound('2026-11-23'));
+        expect(current(UnitOfTime.days)[1].value).toBe(bound('2026-11-20'));
+    });
+
+    it('says a date range counts as two of HubSpot’s six conditions', () => {
+        const between = (name: string) =>
+            rule(name, FilterOperator.IN_BETWEEN, ['2026-01-01', '2026-02-01']);
+        expect(() =>
+            compile(
+                query(
+                    filtered(
+                        between('closedate'),
+                        between('created_at'),
+                        between('updated_at'),
+                        rule('dealstage', FilterOperator.EQUALS, ['closedwon']),
+                    ),
+                ),
+            ),
+        ).toThrow('a date range counts as two');
+    });
+
     it('counts from the search total, with the filters', () => {
         expect(
             compile(

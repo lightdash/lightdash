@@ -17,7 +17,11 @@ import {
     type LiveCompiledRequest,
 } from '../../explores/definition';
 import { getLiveDateRange, toAbsoluteDateRange } from '../../query/dateRange';
-import { HUBSPOT_COUNT_REASON, toHubspotObject } from './explores';
+import {
+    HUBSPOT_COUNT_REASON,
+    HUBSPOT_MAX_FILTERS,
+    toHubspotObject,
+} from './explores';
 import { type HubspotFilter, type HubspotRequest } from './run';
 
 // Placeholder for the open side of a one-sided date filter; never sent
@@ -82,6 +86,47 @@ const getNextDateRange = (rule: FilterRule, today: string) => {
 };
 
 /**
+ * "In the current" as the whole period, its days still to come included:
+ * this month's close dates run to its last day.
+ */
+const getCurrentDateRange = (rule: FilterRule, today: string) => {
+    const { startDate } = toAbsoluteDateRange(
+        getLiveDateRange({ rule, defaultDays: 30, today }),
+        today,
+    );
+    const settings: { unitOfTime?: UnitOfTime } = rule.settings ?? {};
+    const unit = settings.unitOfTime ?? UnitOfTime.days;
+    const end = new Date(`${startDate}T00:00:00Z`);
+    const months = NEXT_MONTHS[unit];
+    if (unit === UnitOfTime.weeks) {
+        end.setUTCDate(end.getUTCDate() + 6);
+    } else if (months !== undefined) {
+        end.setUTCMonth(end.getUTCMonth() + months, 0);
+    }
+    return { startDate, endDate: end.toISOString().slice(0, 10) };
+};
+
+/** The whole UTC days a date filter covers, both ends included. */
+const getDateRange = (rule: FilterRule, today: string) => {
+    switch (rule.operator) {
+        case FilterOperator.IN_THE_NEXT:
+            return getNextDateRange(rule, today);
+        case FilterOperator.IN_THE_CURRENT:
+            return getCurrentDateRange(rule, today);
+        default:
+            return toAbsoluteDateRange(
+                getLiveDateRange({
+                    rule,
+                    defaultDays: 30,
+                    today,
+                    earliestDate: EARLIEST_DATE,
+                }),
+                today,
+            );
+    }
+};
+
+/**
  * A date filter as epoch milliseconds over whole UTC days, `[start, end)`,
  * which is how HubSpot compares date and datetime properties. One-sided
  * operators leave the other side open.
@@ -91,18 +136,7 @@ const toDateFilters = (
     propertyName: string,
     today: string,
 ): HubspotFilter[] => {
-    const { startDate, endDate } =
-        rule.operator === FilterOperator.IN_THE_NEXT
-            ? getNextDateRange(rule, today)
-            : toAbsoluteDateRange(
-                  getLiveDateRange({
-                      rule,
-                      defaultDays: 30,
-                      today,
-                      earliestDate: EARLIEST_DATE,
-                  }),
-                  today,
-              );
+    const { startDate, endDate } = getDateRange(rule, today);
     const start = {
         propertyName,
         operator: 'GTE' as const,
@@ -272,6 +306,12 @@ export const compileHubspotQuery = ({
             today,
         }),
     );
+
+    if (filters.length > HUBSPOT_MAX_FILTERS) {
+        throw new ParameterError(
+            `HubSpot takes at most ${HUBSPOT_MAX_FILTERS} conditions in one search, and a date range counts as two. These filters make ${filters.length}; remove some.`,
+        );
+    }
 
     if (metricQuery.metrics.length > 0) {
         // The shared check only knows the built-in fields, not scanned ones
