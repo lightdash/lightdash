@@ -704,39 +704,56 @@ describe('MergeProvider', () => {
         ]);
     });
 
-    it.each([
-        [QueryHistoryStatus.READY, 'export-query'],
-        [QueryHistoryStatus.ERROR, 'Warehouse failed'],
-    ])(
-        'hands over a download only once its query finishes (%s)',
-        async (status, expected) => {
-            executeMergeQuery
-                .mockResolvedValueOnce(startedResult('shown-query'))
-                .mockResolvedValueOnce(startedResult('export-query'));
-            pollForResults.mockResolvedValueOnce({
-                status,
-                error: 'Warehouse failed',
-            });
-            const { result } = renderHook(() => useMerge(), { wrapper });
+    it('hands over a download only once its query is ready', async () => {
+        executeMergeQuery
+            .mockResolvedValueOnce(startedResult('shown-query'))
+            .mockResolvedValueOnce(startedResult('export-query'));
+        let finish: (value: { status: QueryHistoryStatus }) => void = () => {};
+        pollForResults.mockReturnValueOnce(
+            new Promise((resolve) => {
+                finish = resolve;
+            }),
+        );
+        const { result } = renderHook(() => useMerge(), { wrapper });
+        act(() => result.current.run(mergeQuery));
+        await waitFor(() =>
+            expect(result.current.mergeResults?.queryUuid).toBe('shown-query'),
+        );
+        const handedOver = vi.fn();
 
-            act(() => result.current.run(mergeQuery));
-            await waitFor(() =>
-                expect(result.current.mergeResults?.queryUuid).toBe(
-                    'shown-query',
-                ),
-            );
-            const download = result.current.getDownloadQueryUuid(100);
-
-            if (status === QueryHistoryStatus.READY) {
-                await expect(download).resolves.toBe(expected);
-            } else {
-                await expect(download).rejects.toThrow(expected);
-            }
+        const download = result.current
+            .getDownloadQueryUuid(100)
+            .then(handedOver);
+        await waitFor(() =>
             expect(pollForResults).toHaveBeenCalledWith(
                 expect.anything(),
                 'project-uuid',
                 'export-query',
-            );
-        },
-    );
+            ),
+        );
+        expect(handedOver).not.toHaveBeenCalled();
+        finish({ status: QueryHistoryStatus.READY });
+        await download;
+
+        expect(handedOver).toHaveBeenCalledWith('export-query');
+    });
+
+    it('refuses a download whose query failed, with its error', async () => {
+        executeMergeQuery
+            .mockResolvedValueOnce(startedResult('shown-query'))
+            .mockResolvedValueOnce(startedResult('export-query'));
+        pollForResults.mockResolvedValueOnce({
+            status: QueryHistoryStatus.ERROR,
+            error: 'Warehouse failed',
+        });
+        const { result } = renderHook(() => useMerge(), { wrapper });
+        act(() => result.current.run(mergeQuery));
+        await waitFor(() =>
+            expect(result.current.mergeResults?.queryUuid).toBe('shown-query'),
+        );
+
+        await expect(result.current.getDownloadQueryUuid(100)).rejects.toThrow(
+            'Warehouse failed',
+        );
+    });
 });
