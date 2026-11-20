@@ -308,6 +308,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
                     <ActionIcon
                         size="sm"
                         radius="xl"
+                        className={classes.fold}
                         aria-label={chevronLabel}
                         aria-expanded={isOpen}
                         aria-describedby={isFolded ? summaryId : undefined}

@@ -248,6 +248,12 @@
     touch-action: none;
 }
 
+/* Two buttons, each with its own air: the name's box starts under the
+   chevron's, so the two read as one label */
+.fold {
+    margin-inline-end: -6px;
+}
+
 /* A folded capsule's count: an editor's handle too, never a text selection */
 .summary {
     user-select: none;
