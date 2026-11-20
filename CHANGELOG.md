@@ -1,3 +1,13 @@
+## [3.351.5](https://github.com/lightdash/lightdash/compare/3.351.4...3.351.5) (2026-11-20)
+
+
+### Bug Fixes
+
+* **ai-agent:** name the prompt, chart controls and share link; add main landmark and focus return ([#33037](https://github.com/lightdash/lightdash/issues/33037)) ([640219e](https://github.com/lightdash/lightdash/commit/640219e7ef4f0525909a0563d21b82173dc9f8f0))
+* **ai-agent:** tell the agent when to create a composer chart ([#33029](https://github.com/lightdash/lightdash/issues/33029)) ([dd4227f](https://github.com/lightdash/lightdash/commit/dd4227f697154297f2c2c7aa2cea466d7eff9c41))
+* **cli:** resolve data app sync paths consistently ([#32497](https://github.com/lightdash/lightdash/issues/32497)) ([ac0bb03](https://github.com/lightdash/lightdash/commit/ac0bb03c43432e69f608e68c9482f4667a5af793))
+* **semantic-studio:** let one agent change move a metric to a new dimension ([#33039](https://github.com/lightdash/lightdash/issues/33039)) ([cbfa9a3](https://github.com/lightdash/lightdash/commit/cbfa9a3e6115f939fe965028a9d40a7d131f0748))
+
 ## [3.351.4](https://github.com/lightdash/lightdash/compare/3.351.3...3.351.4) (2026-11-20)
 
 
