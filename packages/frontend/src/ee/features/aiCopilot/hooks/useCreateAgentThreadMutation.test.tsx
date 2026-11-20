@@ -28,6 +28,7 @@ vi.mock('../../../../providers/App/useApp', () => ({
 vi.mock('../../../../hooks/toaster/useToaster', () => ({
     default: () => ({ showToastApiError: vi.fn() }),
 }));
+// Embed mode skips title generation and the notification permission prompt
 vi.mock('../../../providers/Embed/useIsEmbedded', () => ({
     default: () => true,
 }));
