@@ -105,9 +105,7 @@ export const MergeProvider: FC<
     const lightdashApi = useLightdashApi();
     const projectUuid = useProjectUuid();
     const [searchParams, setSearchParams] = useSearchParams();
-    // Restored once, on mount. A link wins over the chart's stored merge, so
-    // that sharing a modified merge shows what was shared rather than what was
-    // saved; a saved-chart run shows only what it runs.
+    // A merge link wins over the saved merge, except on a saved-chart run
     const [restored] = useState(
         () =>
             (canAuthorMerge && !savedChartRun
