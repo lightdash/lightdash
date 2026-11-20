@@ -219,7 +219,8 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
             optionValues: {
                 seriesType: 'step',
                 xAxisType: 'time',
-                xTimeFormat: '{MMM} {yyyy}',
+                // The day as well as the month: a tick for each week would repeat the month's name
+                xTimeFormat: '{MMM} {d}',
                 xName: 'Week',
                 yName: 'Data apps',
                 m1Name: 'Data apps',
@@ -450,7 +451,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         tableCalculations: [
             {
                 name: 'questions_per_person',
-                displayName: 'Agent requests per person asking',
+                displayName: 'Requests per person',
                 type: TableCalculationType.NUMBER,
                 sql: '1.0 * ${agent_requests.total_requests} / NULLIF(${agent_requests.distinct_requesters}, 0)',
                 format: { type: CustomFormatType.NUMBER, round: 1 },
@@ -458,7 +459,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         ],
         limit: allHistory,
         fieldLabels: {
-            questions_per_person: 'Agent requests per person asking',
+            questions_per_person: 'Requests per person',
         },
     }),
     ranking({
@@ -504,7 +505,8 @@ export const adoptionDashboardSpec: UsageDashboardSpec = {
                 },
                 operator: FilterOperator.IN_THE_PAST,
                 values: [30],
-                settings: { unitOfTime: UnitOfTime.days },
+                // Complete days, like the Date filter of every other dashboard
+                settings: { unitOfTime: UnitOfTime.days, completed: true },
             },
             {
                 label: 'Data app',

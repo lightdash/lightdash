@@ -304,7 +304,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 'vega-trellis',
                 'table',
             ],
-            ['top-apps', 0, 21, 36, 6, 'sortable-pivot-table', 'table'],
+            ['top-apps', 0, 20, 36, 6, 'sortable-pivot-table', 'table'],
         ],
         people: [
             ['top-people', 0, 1, 18, 9, 'sortable-pivot-table', 'table'],

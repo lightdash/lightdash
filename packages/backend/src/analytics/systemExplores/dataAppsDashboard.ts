@@ -69,7 +69,7 @@ export const dataAppsChartSpecs: UsageChartSpec[] = [
         key: 'apps-loads-by-app-and-day',
         name: 'Loads by day, one row per data app',
         description:
-            'The eight most-loaded data apps in the selected period. Each data app has its own scale, so row heights cannot be compared.',
+            'Up to eight of the most-loaded data apps in the selected period. Each data app has its own scale, so row heights cannot be compared.',
         explore: 'data_app_events',
         day,
         metric: 'data_app_events_total_views',
@@ -256,7 +256,7 @@ export const dataAppsDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'Daily activity',
                     description:
-                        'Loads by day for the eight most-loaded data apps, each on its own scale.',
+                        'Loads by day for up to eight of the most-loaded data apps, each on its own scale.',
                     caption: true,
                     charts: ['apps-loads-by-app-and-day'],
                     layout: 'row',
@@ -264,9 +264,10 @@ export const dataAppsDashboardSpec: UsageDashboardSpec = {
                     rowHeight: 14,
                 },
                 {
+                    // The tile's title says it all
                     title: 'Popular data apps',
-                    description:
-                        'Most-used data apps and their projects. Unknown or deleted apps remain in totals.',
+                    description: '',
+                    note: false,
                     charts: ['top-apps'],
                     layout: 'row',
                     rowHeight: 6,
