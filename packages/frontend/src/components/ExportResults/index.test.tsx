@@ -202,6 +202,76 @@ describe('ExportResults', () => {
             expect(HTMLAnchorElement.prototype.click).toHaveBeenCalled(),
         );
     });
+
+    it('offers no content choice unless the chart can export an image', async () => {
+        const user = userEvent.setup();
+        renderExportResults();
+
+        await user.click(screen.getByRole('radio', { name: 'XLSX' }));
+
+        expect(screen.queryByText('Chart image')).not.toBeInTheDocument();
+        await user.click(screen.getByTestId('chart-export-results-button'));
+        const body = await getScheduledDownloadBody();
+        expect(body).toMatchObject({ type: 'xlsx' });
+        expect(body).not.toHaveProperty('xlsxContent');
+    });
+
+    it('requests a chart image XLSX when that content is chosen', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(
+            <ExportResults
+                projectUuid={PROJECT_UUID}
+                totalResults={1}
+                getDownloadQueryUuid={vi.fn().mockResolvedValue(QUERY_UUID)}
+                conditionalFormattings={conditionalFormattings}
+                hideLimitSelection
+                canExportChartImage
+            />,
+        );
+
+        // Only XLSX can carry an image
+        expect(screen.queryByText('Chart image')).not.toBeInTheDocument();
+        await user.click(screen.getByRole('radio', { name: 'XLSX' }));
+        await user.click(screen.getByRole('radio', { name: 'Chart image' }));
+
+        // Row-level options no longer apply
+        expect(screen.queryByText('Values')).not.toBeInTheDocument();
+
+        await user.click(screen.getByTestId('chart-export-results-button'));
+        const body = await getScheduledDownloadBody();
+        expect(body).toMatchObject({
+            type: 'xlsx',
+            xlsxContent: 'chart_image',
+        });
+        await waitFor(() =>
+            expect(HTMLAnchorElement.prototype.click).toHaveBeenCalled(),
+        );
+    });
+    it('reuses the query on screen for a chart image, whatever row limit was picked', async () => {
+        const user = userEvent.setup();
+        const getDownloadQueryUuid = vi.fn().mockResolvedValue(QUERY_UUID);
+        renderWithProviders(
+            <ExportResults
+                projectUuid={PROJECT_UUID}
+                totalResults={7}
+                getDownloadQueryUuid={getDownloadQueryUuid}
+                forceShowLimitSelection
+                canExportChartImage
+            />,
+        );
+
+        await user.click(screen.getByRole('radio', { name: 'XLSX' }));
+        await user.click(screen.getByRole('radio', { name: 'All results' }));
+        await user.click(screen.getByRole('radio', { name: 'Chart image' }));
+        await user.click(screen.getByTestId('chart-export-results-button'));
+        await getScheduledDownloadBody();
+
+        expect(getDownloadQueryUuid).toHaveBeenCalledWith(
+            7,
+            Limit.TABLE,
+            expect.anything(),
+        );
+    });
 });
 
 describe('getExportCellEstimate', () => {

@@ -62,4 +62,36 @@ describe('executeAsyncQuery', () => {
         expect(body.versionUuid).toBe('version-uuid');
         expect(body).not.toHaveProperty('includeUnpublishedDraft');
     });
+    it('runs a dashboard tile render through the dashboard, as the tile ran it', async () => {
+        const lightdashApi = vi.fn().mockResolvedValue({ queryUuid: 'q' });
+        const dashboardTileRenderRequest = {
+            dashboardUuid: 'dashboard-uuid',
+            tileUuid: 'tile-uuid',
+            dashboardFilters: {
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            },
+            dashboardSorts: [{ fieldId: 'orders_count', descending: true }],
+            dateZoom: { granularity: 'week' },
+            parameters: { region: 'emea' },
+        };
+        await executeAsyncQuery(lightdashApi as unknown as LightdashApi, {
+            projectUuid: 'project-uuid',
+            tableId: 'orders',
+            chartUuid: 'chart-uuid',
+            // The saved chart's own parameters must not replace the tile's
+            parameters: { region: 'apac' },
+            dashboardTileRenderRequest,
+        });
+
+        const [request] = lightdashApi.mock.calls[0];
+        expect(request.url).toBe(
+            '/projects/project-uuid/query/dashboard-chart',
+        );
+        expect(JSON.parse(request.body)).toMatchObject({
+            ...dashboardTileRenderRequest,
+            chartUuid: 'chart-uuid',
+        });
+    });
 });
