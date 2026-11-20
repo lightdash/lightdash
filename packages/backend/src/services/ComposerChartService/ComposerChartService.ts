@@ -843,12 +843,8 @@ export class ComposerChartService extends BaseService {
         const dateZoomByNodeId = getComposerNodeDateZooms({
             nodes: resolved.nodes,
             exploreByNodeId,
-            dateZoom: request.dateZoom && {
-                ...request.dateZoom,
-                xAxisFieldId:
-                    request.dateZoom.xAxisFieldId ??
-                    getStoredChartXField(chart.chart),
-            },
+            dateZoom: request.dateZoom ?? null,
+            chartXFieldId: getStoredChartXField(chart.chart) ?? null,
         });
         const binding = ComposerRunBinding.forAuthorizedViewer({
             account,

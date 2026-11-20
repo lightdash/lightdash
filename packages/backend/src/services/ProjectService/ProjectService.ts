@@ -194,6 +194,7 @@ import {
     MergeQueryErrorKind,
     MergeQueryField,
     MergeQueryMetricSource,
+    mergeReservedDefinitions,
     mergeWarehouseCredentials,
     MetricQuery,
     MetricType,
@@ -497,6 +498,7 @@ import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { ExploreCompilationSummary } from '../../utils/ExploreCompilationSummary';
 import { inheritUpstreamSshTunnelPrivateKey } from '../../utils/inheritUpstreamSshTunnelPrivateKey';
 import { createComposeMergeQueryBuilder } from '../../utils/QueryBuilder/composeMergeSql';
+import { updateExploreWithDateZoom } from '../../utils/QueryBuilder/dateZoom';
 import { applyMergeTerminalWrapper } from '../../utils/QueryBuilder/MergeQueryBuilder';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
@@ -10149,6 +10151,7 @@ export class ProjectService
             userAttributeOverrides?: UserAttributeValueMap;
             /** Saved chart whose custom SQL an embed viewer may compile */
             customSqlProvenanceChartUuid?: UUID;
+            dateZoom?: DateZoom;
         } & ({ exploreName: string } | { explore: Explore }),
     ) {
         const {
@@ -10300,7 +10303,7 @@ export class ProjectService
                 timezone,
                 availableParameterDefinitions,
                 parameters: combinedParameters,
-                dateZoom: undefined,
+                dateZoom: args.dateZoom,
                 pivotDimensions,
                 pivotItemsMap: undefined,
                 continueOnError: true, // Return SQL even with compilation errors for debugging
@@ -10483,6 +10486,32 @@ export class ProjectService
             .map((calculation) => calculation.name);
     }
 
+    /** The explore with one dimension re-grained under its own name, as a dashboard tile's metric query is zoomed. */
+    private async getDateZoomedExplore(
+        projectUuid: string,
+        explore: Explore,
+        metricQuery: MetricQuery,
+        dateZoom: DateZoom,
+    ): Promise<Explore> {
+        const settings = await this.getWarehouseSqlBuilderSettings(
+            projectUuid,
+            { kind: 'explore', exploreName: explore.name },
+        );
+        // As QueryComposer: the reserved parameters, such as date_zoom, are available too
+        const availableParameters = Object.keys(
+            mergeReservedDefinitions(
+                await this.getAvailableParameters(projectUuid, explore),
+            ),
+        );
+        return updateExploreWithDateZoom(
+            explore,
+            metricQuery,
+            warehouseSqlBuilderFromType(settings.type, settings.startOfWeek),
+            availableParameters,
+            dateZoom,
+        ).explore;
+    }
+
     /**
      * Compiles a merge of several metric queries into one warehouse statement.
      *
@@ -10501,6 +10530,8 @@ export class ProjectService
         userAttributeOverrides?: UserAttributeValueMap;
         /** Composer only: names a source of a shared explore by its node title, not its slot. */
         sourceTitleById?: Record<string, string>;
+        /** Composer only: the date zoom each metric source's leg runs with. */
+        dateZoomBySourceId?: Record<string, DateZoom>;
     }): Promise<ApiCompiledMergeQueryResults> {
         const {
             account,
@@ -10565,11 +10596,20 @@ export class ProjectService
                         return null;
                     }
                 }
-                const explore = await this.getExplore(
+                const savedExplore = await this.getExplore(
                     account,
                     projectUuid,
                     source.metricQuery.exploreName,
                 );
+                const dateZoom = args.dateZoomBySourceId?.[source.id];
+                const explore = dateZoom
+                    ? await this.getDateZoomedExplore(
+                          projectUuid,
+                          savedExplore,
+                          source.metricQuery,
+                          dateZoom,
+                      )
+                    : savedExplore;
                 const itemMap = getItemMap(
                     explore,
                     source.metricQuery.additionalMetrics,
@@ -10765,6 +10805,7 @@ export class ProjectService
                     account,
                     projectUuid,
                     exploreName: resolvedMetricQuery.exploreName,
+                    dateZoom: args.dateZoomBySourceId?.[source.id],
                     body: {
                         ...resolvedMetricQuery,
                         sorts: [],
