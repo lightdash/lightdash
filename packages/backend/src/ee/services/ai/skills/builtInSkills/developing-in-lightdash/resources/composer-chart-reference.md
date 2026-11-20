@@ -11,6 +11,16 @@ A composer chart is a dashboard chart whose definition is a pipeline of queries 
 
 Pass `type: "composer_chart"` to `createContent`, `readContent` and `editContent`. A composer chart can share its slug with a chart or SQL chart, so the type picks which one you mean.
 
+## When to create one
+
+A new chart is a chart from explore fields unless one of these holds:
+
+- The user asked for a composer chart: create it.
+- The result to save comes from a query with more than one node (a merge, a duckdb or python node, several sources): create a composer chart. A query with one semanticLayer node is saved as a chart from the same explore fields, filters and sorts; a query with one `sql` node follows `sql-chart-reference`.
+- The task needs a composer query that neither a chart nor a SQL chart can hold, such as a live source node: create a composer chart.
+
+Composer charts already on a dashboard were chosen for those tiles; a new tile there follows these rules too.
+
 ## Create
 
 Create one only when the user asks to save a result to a dashboard. It needs an existing dashboard (`dashboardSlug`) and gets a tile at the bottom of the dashboard's first tab. Pass the content in one of two shapes:
@@ -28,6 +38,10 @@ Done when the result links the dashboard and `runContentQuery` on the new chart 
 4. Check the saved chart with `runContentQuery` (`source.type: "dashboardChart"`, `chartType: "composer_chart"`, the dashboard's slug). Done when the terminal node's rows show the change you made.
 
 The edit is saved in place as a new version of the chart, so the dashboard shows it straight away; restoring an earlier dashboard version restores the chart with it. `slug`, `contentType` and `dashboardSlug` cannot change. In a conversation bound to a dashboard, only that dashboard's composer charts can be edited.
+
+## Rename
+
+The dashboard tile has its own `title`, which it shows over the chart's `name`, and a chart created with `createContent` gets a tile titled with its name. When you change `name`, also set the tile's `title` to the new name with `editContent` on the dashboard (the `composer_chart` tile whose `chartSlug` is this chart), unless the user chose a different tile title.
 
 ## Columns
 
