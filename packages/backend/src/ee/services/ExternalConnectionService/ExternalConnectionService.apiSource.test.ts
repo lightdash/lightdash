@@ -1339,6 +1339,51 @@ describe('ExternalConnectionService live source explores', () => {
             ).rejects.toThrow(ForbiddenError);
         });
 
+        it('lists the first explore under `explores` too, for integrations scanning one explore', async () => {
+            const { service } = await createScanned();
+            const { fields, explores } = await service.getLiveSourceFields(
+                account,
+                'proj-1',
+                'conn-1',
+            );
+
+            expect(explores).toEqual([
+                {
+                    exploreName: 'product_analytics_events',
+                    label: expect.any(String),
+                    fields,
+                },
+            ]);
+        });
+
+        it('edits the named explore, and refuses one without fields to edit', async () => {
+            const { service } = await createScanned();
+            const { fields } = await service.updateLiveSourceFields(
+                account,
+                'proj-1',
+                'conn-1',
+                [
+                    {
+                        name: 'property_plan',
+                        exploreName: 'product_analytics_events',
+                        inUse: true,
+                    },
+                ],
+            );
+            expect(
+                fields.find((field) => field.name === 'property_plan')?.inUse,
+            ).toBe(true);
+            await expect(
+                service.updateLiveSourceFields(account, 'proj-1', 'conn-1', [
+                    {
+                        name: 'property_plan',
+                        exploreName: 'product_analytics_persons',
+                        inUse: true,
+                    },
+                ]),
+            ).rejects.toThrow(ParameterError);
+        });
+
         it('counts the charts using each field', async () => {
             const { service, savedChartModel } = await createScanned();
             savedChartModel.getChartCountPerField.mockResolvedValue([

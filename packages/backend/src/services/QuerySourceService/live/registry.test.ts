@@ -88,6 +88,16 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
             expect(integration.settings.parse(settings)).toEqual(settings);
         });
 
+        test('scans only explores it has, besides its first', () => {
+            const [first, ...others] = integration.explores.map(
+                ({ name }) => name,
+            );
+            (integration.scan?.models ?? []).forEach((model) => {
+                expect(others).toContain(model);
+                expect(model).not.toBe(first);
+            });
+        });
+
         test('refuses a limit that is not a positive number before calling', async () => {
             const { send, source } = connect(settings);
             await expect(

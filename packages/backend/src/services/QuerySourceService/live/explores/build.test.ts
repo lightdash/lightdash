@@ -640,6 +640,7 @@ describe('getLostLiveFieldIds', () => {
                 ],
                 rebuilt,
                 edits: {},
+                sourceName: 'site',
             }),
         ).toEqual(['site_performance_custom']);
     });
@@ -650,7 +651,19 @@ describe('getLostLiveFieldIds', () => {
                 storedFieldIds: ['site_performance_custom'],
                 rebuilt,
                 edits: { custom: { inUse: false, lastEdit: null } },
+                sourceName: 'site',
             }),
         ).toEqual([]);
+    });
+
+    it('allows dropping a field taken out of use on another scanned explore', () => {
+        expect(
+            getLostLiveFieldIds({
+                storedFieldIds: ['site_contacts_email', 'site_contacts_phone'],
+                rebuilt,
+                edits: { 'contacts.email': { inUse: false, lastEdit: null } },
+                sourceName: 'site',
+            }),
+        ).toEqual(['site_contacts_phone']);
     });
 });
