@@ -1249,8 +1249,19 @@ const hasRuntimeCredential = (mcpServer: AiAgentMcpServer): boolean => {
                 mcpServer.resolvedCredential?.type === 'bearer' &&
                 !!mcpServer.resolvedCredential.bearerToken
             );
-        case 'oauth':
-            return hasCompletedOAuthCredential(mcpServer);
+        case 'oauth': {
+            const tokens =
+                mcpServer.resolvedCredential?.type === 'oauth'
+                    ? mcpServer.resolvedCredential.tokens
+                    : undefined;
+            if (!tokens?.accessToken) return false;
+            // An expired token without a refresh token needs the user to sign in again
+            return (
+                !!tokens.refreshToken ||
+                !tokens.expiresAt ||
+                Date.parse(tokens.expiresAt) > Date.now()
+            );
+        }
         default:
             return assertUnreachable(
                 mcpServer.authType,
@@ -1842,14 +1853,21 @@ export class AiAgentMcpRuntimeClient {
                     mcpServer.enabledToolNames &&
                     hasRuntimeCredential(mcpServer)
                 ) {
-                    return {
-                        mcpServer,
-                        tools: await getOnDemandTools(
+                    try {
+                        return {
                             mcpServer,
-                            mcpServer.enabledToolNames,
-                        ),
-                        unavailableMcpServer: null,
-                    };
+                            tools: await getOnDemandTools(
+                                mcpServer,
+                                mcpServer.enabledToolNames,
+                            ),
+                            unavailableMcpServer: null,
+                        };
+                    } catch (error) {
+                        Logger.error(
+                            `[AiAgent][MCP][${mcpServer.name}] Failed to load stored tools; connecting now`,
+                            error,
+                        );
+                    }
                 }
 
                 return {
