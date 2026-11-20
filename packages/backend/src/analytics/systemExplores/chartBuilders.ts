@@ -41,7 +41,7 @@ export const card = ({
     visualization: 'number',
     libraryChart: {
         slug: 'big-number-with-sparkline-trend',
-        minVersion: latestDay && !hero ? '0.7.1' : '0.8.0',
+        minVersion: hero ? '0.8.0' : '0.7.1',
         fieldMapping: { value: metric, sparklineMetric: metric, time: day },
         optionValues: {
             ...(latestDay
@@ -49,9 +49,9 @@ export const card = ({
                 : {
                       valueAggregation: 'sum',
                       style: 'compact',
-                      showComparison: true,
-                      comparisonSource: 'previousPeriod',
-                      comparisonLabel: 'vs the day before',
+                      // No change badge: the chart can only compare one day with the day before,
+                      // which says nothing about a total for the whole period.
+                      showComparison: false,
                   }),
             ...(hero ? { showHighLow: true } : {}),
             colorSparklineByTrend: false,

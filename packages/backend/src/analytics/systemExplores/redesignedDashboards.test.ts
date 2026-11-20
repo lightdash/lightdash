@@ -966,8 +966,10 @@ describe.each(Object.entries(redesigned))('%s', (slug, tabs) => {
                 expect(optionValues).toMatchObject({
                     valueAggregation: 'sum',
                     style: 'compact',
-                    comparisonSource: 'previousPeriod',
+                    // A badge could only compare one day with the day before, not the period
+                    showComparison: false,
                 });
+                expect(optionValues).not.toHaveProperty('comparisonSource');
                 expect(optionValues.label).not.toBe('Latest day');
             } else {
                 // One row, newest day first: the big number shows the first row
