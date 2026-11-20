@@ -22,13 +22,15 @@ import {
 } from '@mantine/core';
 import {
     IconAlertTriangleFilled,
-    IconChartBar,
     IconChevronLeft,
-    IconLayoutDashboard,
     IconX,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useMemo, type FC } from 'react';
+import {
+    IconChartBar,
+    IconLayoutDashboard,
+} from '../../features/iconLab/switchableIcons';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import classes from './RunDetailsModal.module.css';

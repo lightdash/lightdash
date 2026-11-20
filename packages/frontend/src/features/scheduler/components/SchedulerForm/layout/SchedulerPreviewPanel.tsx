@@ -23,16 +23,15 @@ import {
 } from '@mantine/core';
 import {
     IconBell,
-    IconChartBar,
     IconFileTypePdf,
     IconPaperclip,
     IconRefresh,
     IconSparkles,
-    IconTable,
 } from '@tabler/icons-react';
 import { useCallback, useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useExportDashboardContentPreview } from '../../../../../hooks/dashboard/useDashboard';
+import { IconChartBar, IconTable } from '../../../../iconLab/switchableIcons';
 import { CUSTOM_WIDTH_OPTIONS } from '../../../constants';
 import { useSchedulerFormContext } from '../schedulerFormContext';
 import classes from './SchedulerDeliveryModal.module.css';

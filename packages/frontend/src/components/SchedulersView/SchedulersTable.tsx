@@ -11,10 +11,8 @@ import {
 import { Anchor, Badge, Box, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
-    IconChartBar,
     IconClock,
     IconCodeDots,
-    IconLayoutDashboard,
     IconMail,
     IconRadar,
     IconRun,
@@ -30,6 +28,10 @@ import {
     type FC,
 } from 'react';
 import { Link, useSearchParams } from 'react-router';
+import {
+    IconChartBar,
+    IconLayoutDashboard,
+} from '../../features/iconLab/switchableIcons';
 import { usePaginatedSchedulers } from '../../features/scheduler/hooks/useScheduler';
 import { useSchedulerFilters } from '../../features/scheduler/hooks/useSchedulerFilters';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
