@@ -1,4 +1,11 @@
-import { forwardRef, useCallback, useMemo, useRef } from 'react';
+import {
+    forwardRef,
+    useCallback,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { buildAppCapturePrompt } from '../../../features/apps/utils/appViewCapture';
 import { captureTranscriber } from '../../../features/apps/utils/transcribeCapture';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -10,6 +17,7 @@ import {
     type CaptureResult,
     type CaptureSurface,
 } from '../capture';
+import FollowUpMicButton from '../dashboardCapture/FollowUpMicButton';
 import { useSendCaptureToAgent } from '../dashboardCapture/useSendCaptureToAgent';
 
 type Props = {
@@ -30,12 +38,34 @@ const AppViewCapture = forwardRef<CaptureHostHandle, Props>(
     ) => {
         const { showToastInfo, showToastError } = useToaster();
         const { send: sendToAgent } = useSendCaptureToAgent(projectUuid);
+        const hostRef = useRef<CaptureHostHandle>(null);
+        // Whether the recording was started from the open conversation's mic.
+        const followUpRef = useRef(false);
+        const [isRecording, setIsRecording] = useState(false);
+        // The page's own mic and hotkey always start a new conversation.
+        useImperativeHandle(
+            ref,
+            () => ({
+                start: () => {
+                    followUpRef.current = false;
+                    hostRef.current?.start();
+                },
+                toggle: () => {
+                    followUpRef.current = false;
+                    hostRef.current?.toggle();
+                },
+            }),
+            [],
+        );
 
         const handleCapture = useCallback(
             async (result: CaptureResult) => {
+                const followUp = followUpRef.current;
+                followUpRef.current = false;
                 showToastInfo({ title: 'Sending your questions to the agent' });
                 try {
                     await sendToAgent({
+                        followUp,
                         prompt: buildAppCapturePrompt({
                             appName,
                             summary: result.summary,
@@ -85,12 +115,29 @@ const AppViewCapture = forwardRef<CaptureHostHandle, Props>(
             [lightdashApi, projectUuid, voiceTranscriptionAvailable],
         );
 
+        const handleRecordingChange = useCallback(
+            (recording: boolean) => {
+                setIsRecording(recording);
+                onRecordingChange(recording);
+            },
+            [onRecordingChange],
+        );
+
         return (
-            <CaptureHost
-                ref={ref}
-                surface={surface}
-                onRecordingChange={onRecordingChange}
-            />
+            <>
+                <CaptureHost
+                    ref={hostRef}
+                    surface={surface}
+                    onRecordingChange={handleRecordingChange}
+                />
+                <FollowUpMicButton
+                    hidden={isRecording}
+                    onClick={() => {
+                        followUpRef.current = true;
+                        hostRef.current?.start();
+                    }}
+                />
+            </>
         );
     },
 );

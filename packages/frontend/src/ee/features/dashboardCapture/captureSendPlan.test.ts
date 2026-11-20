@@ -6,10 +6,13 @@ import { captureSendPlan, toPendingContext } from './captureSendPlan';
 const agent = { uuid: 'default-agent' } as AiAgentSummary;
 
 describe('captureSendPlan', () => {
-    it('continues the conversation open in the panel', () => {
+    const openThread = { threadId: 't1', agentUuid: 'open-agent' };
+
+    it('adds a follow-up to the conversation open in the panel', () => {
         expect(
             captureSendPlan({
-                openThread: { threadId: 't1', agentUuid: 'open-agent' },
+                followUp: true,
+                openThread,
                 selectedAgent: agent,
             }),
         ).toEqual({
@@ -19,15 +22,30 @@ describe('captureSendPlan', () => {
         });
     });
 
-    it("starts a new conversation with the user's default agent", () => {
+    it("starts a new conversation from the page's mic, even with one open", () => {
         expect(
-            captureSendPlan({ openThread: null, selectedAgent: agent }),
+            captureSendPlan({
+                followUp: false,
+                openThread,
+                selectedAgent: agent,
+            }),
+        ).toEqual({ type: 'create', agentUuid: 'default-agent' });
+    });
+
+    it('starts a new conversation when the follow-up has nothing to join', () => {
+        expect(
+            captureSendPlan({
+                followUp: true,
+                openThread: null,
+                selectedAgent: agent,
+            }),
         ).toEqual({ type: 'create', agentUuid: 'default-agent' });
     });
 
     it('lets the panel pick the agent when the automatic picker is on', () => {
         expect(
             captureSendPlan({
+                followUp: false,
                 openThread: null,
                 selectedAgent: LAUNCHER_AUTO_AGENT,
             }),
@@ -36,7 +54,11 @@ describe('captureSendPlan', () => {
 
     it('lets the panel pick the agent while the default is unknown', () => {
         expect(
-            captureSendPlan({ openThread: null, selectedAgent: null }),
+            captureSendPlan({
+                followUp: false,
+                openThread: null,
+                selectedAgent: null,
+            }),
         ).toEqual({ type: 'panel' });
     });
 });

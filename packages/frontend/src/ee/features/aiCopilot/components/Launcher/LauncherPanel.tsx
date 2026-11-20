@@ -78,6 +78,7 @@ import {
     type LauncherSelectedAgent,
 } from './launcherAgentSelection';
 import { LauncherAnalysisTeaser } from './LauncherAnalysisTeaser';
+import { LAUNCHER_THREAD_EXTRAS_ID } from './launcherDockExtras';
 import { LauncherPanelFrame } from './LauncherPanelFrame';
 import { PanelHeader } from './PanelHeader';
 import {
@@ -760,6 +761,13 @@ const ExistingThreadPanel: FC<{
                                 : undefined
                         }
                         placeholder={`Ask ${agent.name} anything...`}
+                        // Other features add buttons here, e.g. a follow-up mic.
+                        toolbarStart={
+                            <Box
+                                id={LAUNCHER_THREAD_EXTRAS_ID}
+                                className={styles.threadExtras}
+                            />
+                        }
                         messageCount={thread.messages?.length || 0}
                         projectUuid={projectUuid}
                         agentUuid={agent.uuid}

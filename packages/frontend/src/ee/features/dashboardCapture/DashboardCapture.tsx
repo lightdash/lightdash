@@ -51,6 +51,7 @@ import {
 import { applyLayoutOps } from './applyLayoutOps';
 import classes from './DashboardCapture.module.css';
 import { describeLayoutOps } from './describeLayoutOps';
+import FollowUpMicButton from './FollowUpMicButton';
 import { hasSameLayout, reapplyLayoutPreview } from './layoutPreview';
 import { buildLayoutSaveBody } from './layoutSaveBody';
 import { routeCapture } from './routeCapture';
@@ -124,6 +125,8 @@ const DashboardCapture: FC = () => {
     const tilesRef = useRef<DashboardTile[]>([]);
     tilesRef.current = dashboardTiles ?? [];
     const captureRef = useRef<CaptureHostHandle>(null);
+    // Whether the recording was started from the open conversation's mic.
+    const followUpRef = useRef(false);
     const [isRecording, setIsRecording] = useState(false);
     const [isSorting, setIsSorting] = useState(false);
     // Unsaved layout changes on screen, in the order they were made.
@@ -173,6 +176,7 @@ const DashboardCapture: FC = () => {
             dashboardUuid,
             dashboardName,
             layoutDone,
+            followUp,
         }: {
             summary: string;
             tiles: DashboardTile[];
@@ -182,6 +186,7 @@ const DashboardCapture: FC = () => {
             dashboardName: string;
             /** Layout changes the page made from this recording, in words. */
             layoutDone: string;
+            followUp: boolean;
         }) => {
             const chartUuids = [
                 ...new Set(
@@ -204,6 +209,7 @@ const DashboardCapture: FC = () => {
             });
             void sendToAgent({
                 prompt,
+                followUp,
                 context: [
                     { type: 'dashboard', dashboardUuid },
                     ...chartUuids.map((chartUuid) => ({
@@ -223,6 +229,9 @@ const DashboardCapture: FC = () => {
     const handleCapture = useCallback(
         async (result: CaptureResult) => {
             if (!projectUuid || !dashboard) return;
+            const followUp = followUpRef.current;
+            // The next recording is new unless started from the conversation.
+            followUpRef.current = false;
             const tiles = tilesRef.current;
             const onThisTab = tiles.filter(
                 (tile) => !activeTabUuid || tile.tabUuid === activeTabUuid,
@@ -272,6 +281,7 @@ const DashboardCapture: FC = () => {
                         tileUuids: forAgent.flatMap((item) => item.tileUuids),
                         dashboardUuid: dashboard.uuid,
                         dashboardName: dashboard.name,
+                        followUp,
                         layoutDone:
                             layout.applied > 0
                                 ? describeLayoutOps(
@@ -363,13 +373,16 @@ const DashboardCapture: FC = () => {
     if (!surface || !dashboard) return null;
 
     const micButton = (
-        <Tooltip label="Voice Design" position="top">
+        <Tooltip label="New voice recording" position="top">
             <button
                 type="button"
                 aria-label="Voice Design"
                 data-tour={VOICE_DESIGN_BUTTON_TOUR_ID}
                 className={`${launcherClasses.dockTab} ${launcherClasses.dockIconTab} ${classes.mic}`}
-                onClick={() => captureRef.current?.start()}
+                onClick={() => {
+                    followUpRef.current = false;
+                    captureRef.current?.start();
+                }}
             >
                 <MantineIcon icon={IconMicrophone} size={16} />
             </button>
@@ -455,6 +468,13 @@ const DashboardCapture: FC = () => {
                     </div>
                 )}
             </div>
+            <FollowUpMicButton
+                hidden={isRecording || isSorting}
+                onClick={() => {
+                    followUpRef.current = true;
+                    captureRef.current?.start();
+                }}
+            />
             {!isRecording &&
                 !isSorting &&
                 (dockExtras ? (

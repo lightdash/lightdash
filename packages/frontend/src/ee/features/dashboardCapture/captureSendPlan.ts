@@ -9,7 +9,8 @@ import { type LauncherPendingContext } from '../aiCopilot/store/aiAgentLauncherS
  * Where a Voice Design recording goes. It picks the agent the same way the
  * agent button does, so a recording never lands on an agent the user did not
  * choose:
- * - `continue`: the conversation open in the agent panel.
+ * - `continue`: the conversation open in the agent panel, when the recording
+ *   was started from that conversation's mic.
  * - `create`: a new conversation with the user's default agent (or the only
  *   one the project has).
  * - `panel`: hand the message to the agent panel, which picks the agent
@@ -21,13 +22,16 @@ export type CaptureSendPlan =
     | { type: 'panel' };
 
 export const captureSendPlan = ({
+    followUp,
     openThread,
     selectedAgent,
 }: {
+    /** Started from the open conversation's mic rather than the page's. */
+    followUp: boolean;
     openThread: { threadId: string; agentUuid: string } | null;
     selectedAgent: LauncherSelectedAgent;
 }): CaptureSendPlan => {
-    if (openThread) return { type: 'continue', ...openThread };
+    if (followUp && openThread) return { type: 'continue', ...openThread };
     if (selectedAgent && !isLauncherAutoAgent(selectedAgent)) {
         return { type: 'create', agentUuid: selectedAgent.uuid };
     }
