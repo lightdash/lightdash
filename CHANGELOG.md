@@ -1,3 +1,10 @@
+## [3.359.1](https://github.com/lightdash/lightdash/compare/3.359.0...3.359.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **common:** accept set joins declared under config meta ([#33078](https://github.com/lightdash/lightdash/issues/33078)) ([7b75142](https://github.com/lightdash/lightdash/commit/7b75142f83514f2843f90d47f809ffd6aae89c69))
+
 # [3.359.0](https://github.com/lightdash/lightdash/compare/3.358.2...3.359.0) (2026-11-20)
 
 
