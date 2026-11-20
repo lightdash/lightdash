@@ -33,8 +33,14 @@ const scopeDescription =
 
 type Query = ChartAsCode['metricQuery'];
 type Breakdown = {
+    // Names the charts' slugs, so it stays as it is when the title changes
     key: string;
     title: string;
+    // The title for more than one, when adding an s is wrong
+    plural?: string;
+    // The tab's slug, when it is not the key. A tab keeps its place on sync by having the slug its name
+    // gives, so a renamed tab needs the new name's slug.
+    tabSlug?: string;
     dimensions: string[];
     identity: string;
     label: string;
@@ -44,13 +50,13 @@ type Breakdown = {
 };
 
 const breakdownDescription = (
-    { title, billingScope, descriptions }: Breakdown,
+    { title, plural, billingScope, descriptions }: Breakdown,
     daily: boolean,
 ): string => {
     if (!billingScope && descriptions) {
         return daily ? descriptions.daily : (descriptions.rank ?? '');
     }
-    const groups = `the five largest ${title.toLowerCase()}s plus Other`;
+    const groups = `the five largest ${plural ?? `${title.toLowerCase()}s`} plus Other`;
     return daily
         ? `Tokens in billing scope per day, for ${groups}.`
         : `Each group's share of tokens in billing scope, for ${groups}.`;
@@ -75,8 +81,9 @@ const breakdowns: Breakdown[] = [
     },
     {
         key: 'user',
-        // The tab's name is also its identity on sync, so it stays as it is
-        title: 'User',
+        title: 'Person',
+        plural: 'people',
+        tabSlug: 'person',
         dimensions: [
             'ai_usage_user_name',
             'ai_usage_user_id',
@@ -1001,8 +1008,8 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
     const tabs = [
         ...breakdowns
             .filter(({ billingScope }) => billingScope)
-            .map(({ key, title }) => ({
-                key,
+            .map(({ key, title, tabSlug }) => ({
+                key: tabSlug ?? key,
                 name: title,
                 rows: [
                     note(
