@@ -3,6 +3,7 @@ import {
     FilterOperator,
     TableCalculationType,
 } from '@lightdash/common';
+import { modelProviderColors } from './analyticsColorPalette';
 import { monthlyQueryComparisonCharts } from './monthlyQueryComparisonCharts';
 import type { UsageChartSpec } from './usageDashboardTypes';
 
@@ -637,13 +638,14 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.18.3',
+            minVersion: '0.18.4',
             fieldMapping: {
                 x: 'ai_usage_user_name',
                 m1: 'ai_usage_total_tokens_used',
                 splitBy: 'ai_usage_model',
             },
             optionValues: {
+                splitColorGroups: modelProviderColors,
                 xName: 'Person',
                 yName: 'Tokens',
                 seriesType: 'bar',
@@ -696,7 +698,39 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 legendTitle: 'Tokens',
                 legendFormat: 'compact',
             },
-            query: null,
+            // Columns keep the order the rows arrive in: providers by their tokens, then each
+            // provider's models by theirs
+            query: {
+                dimensions: [
+                    'ai_usage_feature_name',
+                    'ai_usage_model',
+                    'ai_usage_provider',
+                ],
+                metrics: ['ai_usage_total_tokens_used'],
+                tableCalculations: [
+                    {
+                        name: 'provider_tokens',
+                        displayName: 'Provider tokens',
+                        type: TableCalculationType.NUMBER,
+                        sql: 'SUM(${ai_usage.total_tokens_used}) OVER (PARTITION BY ${ai_usage.provider})',
+                    },
+                    {
+                        name: 'model_tokens',
+                        displayName: 'Model tokens',
+                        type: TableCalculationType.NUMBER,
+                        sql: 'SUM(${ai_usage.total_tokens_used}) OVER (PARTITION BY ${ai_usage.model})',
+                    },
+                ],
+                sorts: [
+                    { fieldId: 'provider_tokens', descending: true },
+                    { fieldId: 'ai_usage_provider', descending: false },
+                    { fieldId: 'model_tokens', descending: true },
+                    { fieldId: 'ai_usage_total_tokens_used', descending: true },
+                ],
+                limit: 500,
+                description:
+                    'Tokens for each feature and model in the selected period. Models are grouped by provider.',
+            },
         },
     },
     {

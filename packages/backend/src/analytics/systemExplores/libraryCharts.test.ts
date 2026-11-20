@@ -4,6 +4,7 @@ import {
     type DataAppVizSchema,
 } from '@lightdash/common';
 import { createAnalyticsExplores } from '../../services/ProjectService/analyticsProject/createAnalyticsExplores';
+import { modelProviderColors } from './analyticsColorPalette';
 import {
     libraryChartFields,
     withLibraryCharts,
@@ -455,7 +456,12 @@ describe('analyticsLibraryChartBindings', () => {
     it('keeps sorts within the query a library chart runs', () => {
         entries.forEach(([slug, b]) => {
             if (!b.query) return;
-            const queryFields = [...b.query.dimensions, ...b.query.metrics];
+            const queryFields = [
+                ...b.query.dimensions,
+                ...b.query.metrics,
+                // A query can also sort by its own calculations
+                ...(b.query.tableCalculations ?? []).map(({ name }) => name),
+            ];
             b.query.sorts.forEach(({ fieldId }) => {
                 expect(queryFields).toContain(fieldId);
             });
@@ -489,6 +495,41 @@ describe('analyticsLibraryChartBindings', () => {
         entries.forEach(([slug]) => {
             expect(chartFor(slug)).toBeDefined();
         });
+    });
+});
+
+describe('model colours', () => {
+    it('colours every chart that splits or ranks by model by provider', () => {
+        const byModel = [...analyticsLibraryChartBindings.entries()].filter(
+            ([, modelBinding]) =>
+                modelBinding.slug === 'customizable-cartesian-chart' &&
+                [
+                    modelBinding.fieldMapping.splitBy,
+                    modelBinding.fieldMapping.x,
+                ].includes('ai_usage_model'),
+        );
+        expect(byModel.map(([slug]) => slug).sort()).toEqual([
+            'lightdash-analytics-overview-ai-calls-by-day',
+            'lightdash-analytics-overview-ai-consumption-by-person-feature-and-model',
+            'lightdash-analytics-overview-calls-by-model',
+            'lightdash-analytics-overview-tokens-by-day',
+            'lightdash-analytics-overview-tokens-by-model',
+        ]);
+        byModel.forEach(([, modelBinding]) =>
+            expect(modelBinding).toMatchObject({
+                minVersion: '0.18.4',
+                optionValues: { splitColorGroups: modelProviderColors },
+            }),
+        );
+        // Label=prefixes=#hex rules, with the name forms each provider route records
+        expect(
+            modelProviderColors.split(';').map((rule) => rule.split('=')[0]),
+        ).toEqual(['Anthropic', 'OpenAI', 'Google']);
+        modelProviderColors
+            .split(';')
+            .forEach((rule) =>
+                expect(rule).toMatch(/^[A-Za-z]+=[a-z0-9./|-]+=#[0-9A-F]{6}$/),
+            );
     });
 });
 
@@ -528,10 +569,30 @@ describe('legacyLibraryChartBindings', () => {
                 true,
             );
         });
+        // Ranked horizontal bars in the colour of each model's provider, on the plain chart's query
         ['tokens-by-model', 'calls-by-model'].forEach((key) => {
-            expect(analyticsLibraryChartBindings.has(`${prefix}${key}`)).toBe(
-                false,
-            );
+            expect(
+                analyticsLibraryChartBindings.get(`${prefix}${key}`),
+            ).toMatchObject({
+                slug: 'customizable-cartesian-chart',
+                minVersion: '0.18.4',
+                fieldMapping: { x: 'ai_usage_model' },
+                optionValues: {
+                    seriesType: 'bar',
+                    orientation: 'horizontal',
+                    splitColorGroups: modelProviderColors,
+                    showDataLabels: true,
+                    lightdashLabels: false,
+                    showAxisTitles: false,
+                    showLegend: true,
+                    legendPosition: 'bottom',
+                },
+                query: null,
+            });
+            expect(
+                analyticsLibraryChartBindings.get(`${prefix}${key}`)
+                    ?.fieldMapping,
+            ).not.toHaveProperty('splitBy');
         });
     });
 

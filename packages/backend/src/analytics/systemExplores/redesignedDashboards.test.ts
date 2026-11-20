@@ -1349,6 +1349,46 @@ describe('library chart options', () => {
     });
 });
 
+describe('Tokens by feature and model', () => {
+    it('lists models provider by provider, the provider and the model with the most tokens first', async () => {
+        const all = analyticsContentAsCode.flatMap((bundle) => bundle.charts);
+        const { charts: drawn } = withLibraryCharts(
+            all,
+            analyticsLibraryChartBindings,
+            installedTypes(),
+        );
+        const heatmap = drawn.find(({ slug }) =>
+            slug.endsWith('-ai-tokens-by-feature-and-model'),
+        )!;
+        const instance = await DuckDBInstance.create(':memory:', {
+            threads: '1',
+            memory_limit: '128MB',
+        });
+        const db = await instance.connect();
+        try {
+            await db.run(
+                `CREATE TABLE ai_usage (${compactedStreamSchemas.ai_usage.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
+            );
+            await db.run(`INSERT INTO ai_usage (org_id, event_id, event_ts, feature, model, provider, total_tokens) VALUES
+                ('org','1',CURRENT_TIMESTAMP,'agent','gpt-small','openai',10),
+                ('org','2',CURRENT_TIMESTAMP,'agent','gpt-big','openai',50),
+                ('org','3',CURRENT_TIMESTAMP,'agent','claude-a','anthropic',40),
+                ('org','4',CURRENT_TIMESTAMP,'data-app','claude-b','anthropic',70),
+                ('org','5',CURRENT_TIMESTAMP,'agent','gemini-x','google',5)`);
+            const rows = (
+                await db.runAndReadAll(sqlOf(heatmap))
+            ).getRowObjectsJS();
+            // The heatmap keeps its columns in the order the rows arrive
+            expect([...new Set(rows.map((row) => row.ai_usage_model))]).toEqual(
+                ['claude-b', 'claude-a', 'gpt-big', 'gpt-small', 'gemini-x'],
+            );
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
+    });
+});
+
 describe('new content adoption', () => {
     it('counts first-week viewers and who came back, and leaves it blank for content under a week old', async () => {
         const chart = analyticsContentAsCode

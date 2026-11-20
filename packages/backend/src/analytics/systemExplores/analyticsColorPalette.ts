@@ -1,5 +1,13 @@
 import { type CreateColorPalette } from '@lightdash/common';
 
+// Every chart whose series or bars are AI models colours them by provider. The rule is read by the
+// customizable cartesian chart's splitColorGroups option: Label=prefix|prefix=#hex, matched on the
+// start of the model name, ignoring case. The prefixes cover the names each provider route records:
+// plain ("claude-...", "gpt-...", "gemini-..."), Bedrock ("us.anthropic.claude-...") and OpenRouter
+// ("anthropic/claude-..."). An Azure deployment has a name its owner chose, so it matches no group.
+export const modelProviderColors =
+    'Anthropic=claude|anthropic|us.anthropic|eu.anthropic|apac.anthropic|global.anthropic=#6366F1;OpenAI=gpt|o1|o3|o4|openai|text-embedding=#34D399;Google=gemini|google=#FBBF24';
+
 // Managed palette for the Analytics project. Library charts take their series
 // colours from the palette the host resolves, so every analytics dashboard
 // shares one theme. Vivid and pastel colours alternate so neighbouring stacked

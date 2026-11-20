@@ -130,6 +130,9 @@ export const libraryChartOptions: Record<
         // Orders the split series: 'total' puts the largest at the bottom of the stack. Added in 0.18.1;
         // from 0.18.3 the colours follow the sorted order too, which is the version a binding asks for
         splitSort: '0.18.3',
+        // Colours series or bars by a named group, such as the provider of a model
+        splitColorGroups: '0.18.4',
+        orientation: '0.18.4',
     },
     'big-number-with-sparkline-trend': {
         ...sinceFirstBinding(
