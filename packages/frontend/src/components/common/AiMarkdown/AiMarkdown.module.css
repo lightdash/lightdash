@@ -122,7 +122,8 @@
  * and we don't ship Tailwind, so all of them are inert: the card is unstyled
  * and the per-line `block` class is dropped, collapsing the whole snippet onto
  * one very long line. Restyle the structure here. */
-.aiMarkdown [data-streamdown='code-block'] {
+.aiMarkdown [data-streamdown='code-block'],
+.aiMarkdown [data-markdown='code-block'] {
     min-width: 0;
     overflow: hidden;
     border: 1px solid var(--mantine-color-ldGray-2);
@@ -130,7 +131,8 @@
     background-color: var(--mantine-color-ldGray-0);
 }
 
-.aiMarkdown [data-streamdown='code-block-header'] {
+.aiMarkdown [data-streamdown='code-block-header'],
+.aiMarkdown [data-markdown='code-header'] {
     padding: 5px 12px;
     border-bottom: 1px solid var(--mantine-color-ldGray-2);
     font-family: var(--mantine-font-family-monospace);
@@ -140,7 +142,8 @@
 }
 
 /* Fenced blocks with no language would otherwise get an empty header strip. */
-.aiMarkdown [data-streamdown='code-block-header'][data-language=''] {
+.aiMarkdown [data-streamdown='code-block-header'][data-language=''],
+.aiMarkdown [data-language='text'] > [data-markdown='code-header'] {
     display: none;
 }
 
@@ -148,7 +151,8 @@
     min-width: 0;
 }
 
-.aiMarkdown [data-streamdown='code-block'] pre {
+.aiMarkdown [data-streamdown='code-block'] pre,
+.aiMarkdown [data-markdown='code-block'] pre {
     border-radius: 0;
     background-color: transparent;
     /* Wrap rather than scroll: these blocks live in narrow panels. */
@@ -204,12 +208,14 @@
 /* Streamdown wraps tables as table-wrapper > div > table and styles them with
  * inert Tailwind utilities. `contain: inline-size` stops a wide table from
  * widening the chat; the inner div scrolls instead. */
-.aiMarkdown [data-streamdown='table-wrapper'] {
+.aiMarkdown [data-streamdown='table-wrapper'],
+.aiMarkdown [data-markdown='table-wrapper'] {
     contain: inline-size;
     margin: var(--mantine-spacing-sm) 0;
 }
 
-.aiMarkdown [data-streamdown='table-wrapper'] > div {
+.aiMarkdown [data-streamdown='table-wrapper'] > div,
+.aiMarkdown [data-markdown='table-wrapper'] > div {
     overflow-x: auto;
     border: 1px solid var(--mantine-color-ldGray-2);
     border-radius: 8px;
@@ -256,4 +262,38 @@
 
 .aiMarkdown tbody tr:hover {
     background-color: var(--mantine-color-ldGray-0);
+}
+
+/* Header labels for `@pierre/words` code blocks; its empty controls slot is unused. */
+.aiMarkdown [data-markdown='code-header'] > span:empty {
+    display: none;
+}
+
+.aiMarkdown [data-markdown='code-lines'] {
+    display: block;
+}
+
+/* Zero width, so the moving caret never reflows the line it sits on. */
+.aiMarkdown [data-markdown='caret'] {
+    display: inline-block;
+    width: 0;
+    user-select: none;
+    animation: caret-blink 1s steps(2, start) infinite;
+}
+
+.aiMarkdown [data-markdown='caret']::after {
+    content: '\258d';
+    color: var(--mantine-color-ldGray-5);
+}
+
+@keyframes caret-blink {
+    to {
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .aiMarkdown [data-markdown='caret'] {
+        animation: none;
+    }
 }
