@@ -26,7 +26,7 @@ const stream = vi.hoisted(() => {
 });
 
 vi.mock('../../streaming/useAiAgentThreadStreamQuery', () => ({
-    useAiAgentThreadStreamQuery: () =>
+    useAiAgentMessageStream: () =>
         useSyncExternalStore(stream.subscribe, stream.get),
     useAiAgentThreadMessageStreaming: () => true,
 }));
