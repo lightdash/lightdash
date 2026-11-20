@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { type VoiceOffReason } from '../useVoiceRecorder';
 import CapturePill from './CapturePill';
 
@@ -44,5 +44,34 @@ describe('CapturePill', () => {
                 'Voice is off: microphone is blocked for this site or browser',
             ),
         ).toBeInTheDocument();
+    });
+});
+
+describe('CapturePill clock', () => {
+    it('stops when the recording is stopped', () => {
+        vi.useFakeTimers();
+        const pill = (finishing: boolean) => (
+            <CapturePill
+                startedAt={performance.now()}
+                voice="on"
+                voiceOffReason={null}
+                finishing={finishing}
+                atImageLimit={false}
+                hidden={false}
+                onStop={() => {}}
+                onCancel={() => {}}
+            />
+        );
+        const { rerender } = render(pill(false));
+        act(() => {
+            vi.advanceTimersByTime(3_000);
+        });
+        rerender(pill(true));
+        const stoppedAt = screen.getByRole('status').textContent;
+        act(() => {
+            vi.advanceTimersByTime(5_000);
+        });
+        expect(screen.getByRole('status').textContent).toBe(stoppedAt);
+        vi.useRealTimers();
     });
 });

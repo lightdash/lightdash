@@ -41,13 +41,15 @@ const CapturePill = forwardRef<HTMLDivElement, Props>(
         ref,
     ) => {
         const [elapsedMs, setElapsedMs] = useState(0);
+        // The clock stops with the recording, not when transcription ends.
         useEffect(() => {
+            if (finishing) return undefined;
             const timer = window.setInterval(
                 () => setElapsedMs(performance.now() - startedAt),
                 250,
             );
             return () => window.clearInterval(timer);
-        }, [startedAt]);
+        }, [finishing, startedAt]);
 
         let caption = 'Hold Shift to draw, and talk';
         if (voice === 'off') {
