@@ -383,10 +383,45 @@ describe('Content inventory charts', () => {
                 .filter(({ tableName }) => tableName === 'content_created')
                 .map(({ slug }) => slug),
         ).toEqual([
-            // Both need a row for every day: the running total by week, and this card
+            // Each needs a row for every day: the two running totals by week, and this card
             'lightdash-analytics-content-content-creation-by-month',
+            'lightdash-analytics-adoption-adoption-apps-created-by-day',
             card.slug,
         ]);
+    });
+
+    it('adds data apps up week by week from the first content to today, leaving out chart types', async () => {
+        await db.run(
+            `INSERT INTO lightdash_content (org_id, project_id, project_type, content_type, content_id, created_at, is_deleted)
+             VALUES ('org', 'project', '${ProjectType.DEFAULT}', 'chart_type', 'heatmap', '2026-03-01', false)`,
+        );
+        const chart = analyticsContentAsCode
+            .flatMap((bundle) => bundle.charts)
+            .find(({ slug }) =>
+                slug.endsWith('-adoption-apps-created-by-day'),
+            )!;
+        const rows = (
+            await db.runAndReadAll(
+                compile({
+                    ...chart.metricQuery,
+                    filters: chart.metricQuery.filters as Filters,
+                } as MetricQuery).query,
+            )
+        ).getRowObjectsJS();
+        const totals = rows.map((row) => Number(row.data_apps_running_total));
+        // Nothing before the one data app of 1 February, one from then to this week
+        expect(totals[0]).toBe(0);
+        expect(totals.at(-1)).toBe(1);
+        expect(new Set(totals)).toEqual(new Set([0, 1]));
+        const weeks = rows.map((row) =>
+            new Date(row.content_health_created_at_week as Date).getTime(),
+        );
+        expect(Date.now() - weeks.at(-1)!).toBeLessThan(8 * 86400000);
+        expect(
+            weeks
+                .slice(1)
+                .every((week, index) => week - weeks[index] === 7 * 86400000),
+        ).toBe(true);
     });
 
     it('adds content up week by week into a running total, in total and by type', async () => {

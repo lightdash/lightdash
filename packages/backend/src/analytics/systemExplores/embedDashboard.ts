@@ -308,7 +308,7 @@ export const embedDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'Embedded query demand',
                     description:
-                        'Queries are separate from dashboard loads: tiles, refreshes and interactions can each run queries. Query history can cover a different period from dashboard-load history.',
+                        'Queries are separate from dashboard loads: tiles, refreshes and interactions can each run queries. Query history can cover a different period from load history.',
                     charts: ['embed-query-count', 'embed-query-errors'],
                 },
                 {

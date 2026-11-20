@@ -37,6 +37,14 @@ const activityDay = 'user_activity_activity_date_day';
 const requestDay = 'agent_requests_requested_at_day';
 const reachDay = 'data_app_reach_event_ts_day';
 const latestDayNote = 'The Date filter does not apply.';
+const appWeek = 'content_health_created_at_week';
+const appRunningTotal = {
+    name: 'data_apps_running_total',
+    displayName: 'Data apps',
+    type: TableCalculationType.NUMBER,
+    sql: `SUM(\${content_health.total_content}) OVER (ORDER BY \${content_health.created_at_week})`,
+    format: { type: CustomFormatType.NUMBER, round: 0 },
+};
 
 export const adoptionChartSpecs: UsageChartSpec[] = [
     card({
@@ -178,23 +186,42 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
             data_app_reach_last_loaded_at: 'Last app load',
         },
     }),
-    trend({
+    {
+        // Data apps are created a few times a quarter. A count for each day is a row of lone spikes,
+        // so the chart adds them up: it climbs a step each time a data app is created.
         key: 'adoption-apps-created-by-day',
-        name: 'Data apps created by day',
+        name: 'Data apps over time',
         description:
-            'Distinct data apps created each day. Older creation history may be missing.',
-        explore: 'data_app_events',
-        day: 'data_app_events_event_ts_day',
-        metric: 'data_app_events_unique_apps',
+            'Data apps in the latest inventory, added up week by week from the day each was created. Includes deleted data apps, not custom chart types.',
+        explore: 'content_created',
+        dimensions: [appWeek],
+        metrics: ['content_health_total_content'],
         filters: [
-            {
-                field: 'data_app_events_event_name',
-                values: ['data_app.created'],
-            },
+            { field: appWeek, operator: FilterOperator.NOT_NULL, values: [] },
+            { field: 'content_health_content_type', values: ['data_app'] },
         ],
+        tableCalculations: [appRunningTotal],
         limit: allHistory,
-        fieldLabels: { data_app_events_unique_apps: 'Data apps created' },
-    }),
+        sorts: [{ fieldId: appWeek, descending: false }],
+        visualization: 'line',
+        xField: appWeek,
+        yFields: [appRunningTotal.name],
+        fieldLabels: { [appWeek]: 'Week', [appRunningTotal.name]: 'Data apps' },
+        libraryChart: {
+            slug: 'customizable-cartesian-chart',
+            minVersion: '0.18.0',
+            fieldMapping: { x: appWeek, m1: appRunningTotal.name },
+            optionValues: {
+                seriesType: 'step',
+                xAxisType: 'time',
+                xTimeFormat: '{MMM} {yyyy}',
+                xName: 'Week',
+                yName: 'Data apps',
+                m1Name: 'Data apps',
+            },
+            query: null,
+        },
+    },
     ranking({
         key: 'adoption-app-creators',
         name: 'Who is creating data apps?',
@@ -572,22 +599,18 @@ export const adoptionDashboardSpec: UsageDashboardSpec = {
                     title: 'Who is creating data apps?',
                     description:
                         'Recorded data app creation and the people behind it. Creation does not mean an app is ready or shared.',
-                    charts: ['adoption-apps-created-by-day'],
+                    charts: [
+                        'adoption-apps-created-by-day',
+                        'adoption-app-creators',
+                    ],
                     layout: 'row',
-                    rowHeight: 5,
-                },
-                {
-                    title: 'Creators',
-                    description: '',
-                    note: false,
-                    charts: ['adoption-app-creators'],
-                    layout: 'row',
-                    rowHeight: 8,
+                    // Room for eight creators beside the chart, with no blank block under a short list
+                    rowHeight: 6,
                 },
                 {
                     title: 'Who is loading data apps, and where?',
                     description:
-                        'Trends and named viewers cover standalone pages and dashboards. The surface breakdown adds chart tiles drawn by a custom chart type, builder previews, embeds, deliveries and unknown context.',
+                        'Trends and named viewers cover standalone pages and dashboards. The surface breakdown adds custom chart tiles, builder previews, embeds, deliveries and unknown context.',
                     charts: ['adoption-app-reader-trend'],
                     layout: 'row',
                     rowHeight: 8,

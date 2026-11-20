@@ -42,7 +42,10 @@ const sources = {
     data_app: {
         idColumn: 'a.app_id',
         scheduleColumn: 'app_uuid',
-        sql: `SELECT 'data_app', a.app_id, a.name, a.project_uuid,
+        // A custom chart type is stored as an app. It is listed under its own type, so it is not counted
+        // as a data app.
+        sql: `SELECT CASE WHEN a.template = 'data_app_viz' THEN 'chart_type' ELSE 'data_app' END,
+            a.app_id, a.name, a.project_uuid,
             s.space_id, a.created_at, a.deleted_at, NULL::timestamptz,
             NULL::uuid, false, NULL::integer
         FROM apps a
@@ -142,7 +145,7 @@ export const usageContentInventoryQuery = (
             'project_type', p.project_type,
             'content_type', i.content_type, 'content_id', i.content_id,
             'content_name', i.content_name, 'space_id', s.space_uuid, 'space_name', s.name,
-            'content_url', CASE WHEN i.content_type = 'data_app' THEN NULL ELSE
+            'content_url', CASE WHEN i.content_type IN ('data_app', 'chart_type') THEN NULL ELSE
                 ?::text || i.project_id::text || CASE i.content_type
                     WHEN 'saved_chart' THEN '/saved/'
                     WHEN 'sql_chart' THEN '/sql-runner/'

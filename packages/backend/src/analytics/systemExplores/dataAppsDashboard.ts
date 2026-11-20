@@ -1,4 +1,5 @@
 import { FilterOperator } from '@lightdash/common';
+import { analyticsColorPalette } from './analyticsColorPalette';
 import {
     card,
     ranking,
@@ -145,6 +146,11 @@ export const dataAppsChartSpecs: UsageChartSpec[] = [
         yName: 'Builds',
         filters: builds,
         fieldLabels: { data_app_events_total_events: 'Builds' },
+        // The same colour for each kind of build whichever kinds the period holds
+        colors: {
+            Created: analyticsColorPalette.colors[0],
+            Iterated: analyticsColorPalette.colors[1],
+        },
         splitDescription:
             'Builds per day, split into data apps created and iterations on existing data apps.',
     }),
@@ -167,7 +173,7 @@ export const dataAppsChartSpecs: UsageChartSpec[] = [
         key: 'app-lifecycle-build-activity-versus-loads',
         name: 'Build activity versus loads by data app',
         description:
-            'Number of recorded events for each data app and project, split by event type, such as created, iterated and loaded. Unknown or deleted apps are included.',
+            'Number of recorded events for each data app and project, split by event type, such as created, iterated and loaded. Chart tiles drawn by a custom chart type are not counted.',
         explore: 'data_app_events',
         by: 'data_app_events_app_name',
         series: 'data_app_events_event_name_name',
@@ -179,17 +185,23 @@ export const dataAppsChartSpecs: UsageChartSpec[] = [
             'data_app_events_project_id',
         ],
         metrics: ['data_app_events_total_events'],
-        // Load result signals are technical and are not counted as events, so they get no column
+        // Load result signals are technical and are not counted as events, so they get no column.
+        // A chart tile drawn by a custom chart type is not a data app being used, so it is left out.
         filters: [
             {
                 field: 'data_app_events_event_name',
                 values: ['data_app.view_outcome'],
                 operator: FilterOperator.NOT_EQUALS,
             },
+            {
+                field: 'data_app_events_view_context',
+                values: ['chart'],
+                operator: FilterOperator.NOT_EQUALS,
+            },
         ],
         fieldLabels: { data_app_events_total_events: 'Events' },
         libraryDescription:
-            'Number of recorded events for each data app, with one column for each event type, such as created, iterated and loaded. Unknown or deleted apps are included.',
+            'Number of recorded events for each data app, with one column for each event type, such as created, iterated and loaded. Chart tiles drawn by a custom chart type are not counted.',
     }),
     trend({
         key: 'apps-generation-tokens-by-day',

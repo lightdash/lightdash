@@ -261,16 +261,16 @@ describe('built-in usage dashboards', () => {
             expect(rows).toEqual(
                 expect.arrayContaining(
                     [
-                        ['named', 'web', 'Alex'],
-                        ['unnamed', 'web', 'primary@example.com'],
-                        ['no-email', 'web', 'User no-email'],
-                        ['unmatched', 'web', 'User unmatched'],
-                        ['named', 'embed', 'Embedded viewers'],
-                        [null, 'web', 'No user recorded'],
+                        ['named', 'Web app', 'Alex'],
+                        ['unnamed', 'Web app', 'primary@example.com'],
+                        ['no-email', 'Web app', 'User no-email'],
+                        ['unmatched', 'Web app', 'User unmatched'],
+                        ['named', 'Embed', 'Embedded viewers'],
+                        [null, 'Web app', 'No user recorded'],
                     ].map(([id, channel, label]) =>
                         expect.objectContaining({
                             ai_usage_user_id: id,
-                            ai_usage_channel: channel,
+                            ai_usage_channel_name: channel,
                             user_display_name: label,
                         }),
                     ),
@@ -836,10 +836,11 @@ describe('built-in usage dashboards', () => {
                 tile.type === DashboardTileTypes.SAVED_CHART,
         )!;
         expect([firstNote.y, firstChart.y]).toEqual([0, 1]);
-        const adoption = dashboardBySlug('lightdash-analytics-adoption');
-        const [heading] = adoption.tiles.filter(
+        // A description too long for one line keeps a heading above it, on two rows
+        const content = dashboardBySlug('lightdash-analytics-content');
+        const [heading] = content.tiles.filter(
             (tile) =>
-                tile.tabSlug === 'app-outcomes' &&
+                tile.tabSlug === 'ownership' &&
                 tile.type === DashboardTileTypes.MARKDOWN,
         );
         expect(heading.h).toBe(2);
@@ -1053,9 +1054,9 @@ describe('built-in usage dashboards', () => {
             .filter((tile) => tile.tabSlug === 'app-outcomes')
             .map((tile) => [tile.x, tile.y, tile.w, tile.h]);
         expect(geometry).toEqual([
-            [0, 0, 36, 2],
-            [0, 2, 36, 7],
-            [0, 9, 36, 7],
+            [0, 0, 36, 1],
+            [0, 1, 36, 7],
+            [0, 8, 36, 7],
         ]);
     });
 
