@@ -4,6 +4,7 @@ import {
     DbtProjectType,
     getLatestSupportDbtVersion,
     HealthState,
+    ParseError,
     ProjectType,
     SnowflakeAuthenticationType,
     WarehouseTypes,
@@ -108,10 +109,34 @@ const isSnowflakeSsoEnabled = async (): Promise<boolean> => {
 const applySnowflakeSsoHandling = async (
     credentials: CreateWarehouseCredentials,
 ): Promise<CreateWarehouseCredentials> => {
+    if (credentials.type !== WarehouseTypes.SNOWFLAKE) {
+        return credentials;
+    }
+
+    if (credentials.authenticationType === SnowflakeAuthenticationType.SSO) {
+        // The profile's OAuth access token is short-lived, never store it on the project
+        if (await isSnowflakeSsoEnabled()) {
+            console.error(
+                styles.info(
+                    `\nLightdash server has Snowflake OAuth authentication enabled.
+We will ask for user credentials again on the Lightdash UI.\n`,
+                ),
+            );
+            return {
+                ...credentials,
+                token: undefined,
+                requireUserCredentials: true,
+            };
+        }
+        throw new ParseError(
+            `Your dbt profile uses a Snowflake OAuth access token, which can't be saved as project credentials because it expires.
+Enable Snowflake OAuth authentication on the Lightdash server, or rerun with --no-warehouse-credentials.`,
+        );
+    }
+
     if (
-        credentials.type !== WarehouseTypes.SNOWFLAKE ||
         credentials.authenticationType !==
-            SnowflakeAuthenticationType.EXTERNAL_BROWSER
+        SnowflakeAuthenticationType.EXTERNAL_BROWSER
     ) {
         return credentials;
     }
