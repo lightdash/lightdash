@@ -1864,9 +1864,27 @@ export class AiAgentMcpRuntimeClient {
                         };
                     } catch (error) {
                         Logger.error(
-                            `[AiAgent][MCP][${mcpServer.name}] Failed to load stored tools; connecting now`,
+                            `[AiAgent][MCP][${mcpServer.name}] Failed to load stored tools`,
                             error,
                         );
+                        const normalizedError =
+                            error instanceof Error
+                                ? error
+                                : new Error(String(error));
+                        return {
+                            mcpServer,
+                            tools: null,
+                            unavailableMcpServer: {
+                                serverUuid: mcpServer.uuid,
+                                serverName: mcpServer.name,
+                                message:
+                                    await resolveErrorMessage(normalizedError),
+                                status: getUnavailableMcpStatus(
+                                    mcpServer,
+                                    normalizedError,
+                                ),
+                            },
+                        };
                     }
                 }
 

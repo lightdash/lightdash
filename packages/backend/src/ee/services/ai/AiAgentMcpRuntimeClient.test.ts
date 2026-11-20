@@ -1438,6 +1438,31 @@ describe('resolveMcpTools', () => {
         expect(aiAgentModel.listMcpServerTools).not.toHaveBeenCalled();
     });
 
+    it('marks a server unavailable without connecting when its stored tools fail to load', async () => {
+        const server = getMcpServer({
+            name: 'Lightdash Docs',
+            enabledToolNames: ['search_lightdash'],
+        });
+        vi.mocked(aiAgentModel.listMcpServerTools).mockRejectedValue(
+            new Error('MCP server not found for this project'),
+        );
+
+        const result = await runtimeClient.resolveTools({
+            mcpServers: [server],
+            userUuid: 'user-uuid',
+            debugLoggingEnabled: false,
+        });
+
+        expect(result.tools).toEqual({});
+        expect(result.unavailableMcpServers).toEqual([
+            expect.objectContaining({
+                serverUuid: server.uuid,
+                status: 'error',
+            }),
+        ]);
+        expect(mcpSdk.createMCPClient).not.toHaveBeenCalled();
+    });
+
     it('fails the tool call and records the error when an on-demand connection fails', async () => {
         const server = getMcpServer({
             name: 'Lightdash Docs',
