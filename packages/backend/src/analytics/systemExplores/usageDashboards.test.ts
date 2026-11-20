@@ -25,6 +25,7 @@ import {
 } from '../eventStream/usageDimensions';
 import { userActivityColumns } from '../eventStream/userActivity';
 import { analyticsColorPalette } from './analyticsColorPalette';
+import { noteLines } from './noteLayout';
 import {
     analyticsContentAsCode,
     analyticsLibraryChartBindings,
@@ -1014,9 +1015,13 @@ describe('built-in usage dashboards', () => {
                     expect(h).toBe(1);
                     expect(properties.content).toBe(section.description);
                 } else {
-                    expect(h).toBe(2);
+                    // One row when the description is a single line under a bold title, else two
+                    const oneLine = noteLines(section.description) === 1;
+                    expect(h).toBe(oneLine ? 1 : 2);
                     expect(properties.content).toBe(
-                        `### ${section.title}\n\n${section.description}`,
+                        oneLine
+                            ? `**${section.title}**  \n${section.description}`
+                            : `### ${section.title}\n\n${section.description}`,
                     );
                 }
             });

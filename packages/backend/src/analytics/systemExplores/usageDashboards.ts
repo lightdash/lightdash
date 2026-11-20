@@ -20,7 +20,7 @@ import { dataAppsChartSpecs, dataAppsDashboardSpec } from './dataAppsDashboard';
 import { embedChartSpecs, embedDashboardSpec } from './embedDashboard';
 import { homeChartSpecs, homeDashboardSpec } from './homeDashboard';
 import type { LibraryChartBinding } from './libraryCharts';
-import { noteRows } from './noteLayout';
+import { noteRows, titledNote } from './noteLayout';
 import { peopleChartSpecs, peopleDashboardSpec } from './peopleDashboard';
 import { peopleNoActivityChartSpecs } from './peopleNoActivityCharts';
 import { toolsChartSpecs, toolsDashboardSpec } from './toolsDashboard';
@@ -564,7 +564,7 @@ export const buildUsageDashboards = (
                 if (section.note !== false) {
                     const content = section.caption
                         ? section.description
-                        : `### ${section.title}\n\n${section.description}`;
+                        : titledNote(section.title, section.description);
                     // As tall as its text and no taller
                     const noteHeight = noteRows(content);
                     dashboard.tiles.push(note(tab.key, y, noteHeight, content));
