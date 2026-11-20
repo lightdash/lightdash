@@ -2252,6 +2252,12 @@ export type AppRuntimeConfig = {
         | 'gcp-cloud-run'
         | 'gke-agent-sandbox';
     /**
+     * Sandbox backend for python query nodes only. Null runs them on
+     * `sandboxProvider`. Set it to run python on a different backend from data
+     * apps and AI writeback (for example `gke-agent-sandbox` next to `e2b`).
+     */
+    sandboxPythonProvider: AppRuntimeConfig['sandboxProvider'] | null;
+    /**
      * OCI image the `docker` sandbox provider launches data-app containers
      * from. Built locally from sandboxes/data-apps (e.g. `lightdash-sandbox:local`).
      */
@@ -2802,6 +2808,7 @@ const DEFAULT_CHART_REGISTRY_URL: string | null =
 
 const parseSandboxProvider = (
     value: string | undefined,
+    variable: string = 'SANDBOX_PROVIDER',
 ): AppRuntimeConfig['sandboxProvider'] => {
     // Normalized so deploy-tooling artifacts (case, stray whitespace) don't
     // crash boot; real typos still throw rather than silently running on e2b.
@@ -2814,7 +2821,7 @@ const parseSandboxProvider = (
     if (normalized === 'gcp-cloud-run') return 'gcp-cloud-run';
     if (normalized === 'gke-agent-sandbox') return 'gke-agent-sandbox';
     throw new ParseError(
-        `Cannot parse environment variable "SANDBOX_PROVIDER". Value must be one of e2b, docker, lambda-microvm, azure-sandboxes, gcp-cloud-run, gke-agent-sandbox but SANDBOX_PROVIDER=${value}`,
+        `Cannot parse environment variable "${variable}". Value must be one of e2b, docker, lambda-microvm, azure-sandboxes, gcp-cloud-run, gke-agent-sandbox but ${variable}=${value}`,
     );
 };
 
@@ -2957,6 +2964,12 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         e2bAiWritebackTemplateTag:
             process.env.E2B_AI_WRITEBACK_TEMPLATE_TAG ?? (VERSION as string),
         sandboxProvider: parseSandboxProvider(process.env.SANDBOX_PROVIDER),
+        sandboxPythonProvider: process.env.SANDBOX_PYTHON_PROVIDER?.trim()
+            ? parseSandboxProvider(
+                  process.env.SANDBOX_PYTHON_PROVIDER,
+                  'SANDBOX_PYTHON_PROVIDER',
+              )
+            : null,
         sandboxDockerImage:
             process.env.SANDBOX_DOCKER_IMAGE || 'lightdash-sandbox:local',
         sandboxAiWritebackDockerImage:

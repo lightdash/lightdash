@@ -19,7 +19,8 @@ egress and no credentials.
   `scripts/aks-dev/build-sandbox-image.sh python`, which runs `az acr build`), register
   it as a disk image in a dedicated python sandbox group, and set
   `AZURE_SANDBOXES_PYTHON_GROUP` / `AZURE_SANDBOXES_PYTHON_DISK_IMAGE` (the disk image id).
-- GKE Agent Sandbox: `SANDBOX_PROVIDER=gke-agent-sandbox`. Build the plain image
+- GKE Agent Sandbox: `SANDBOX_PROVIDER=gke-agent-sandbox`, or `SANDBOX_PYTHON_PROVIDER=gke-agent-sandbox`
+  to keep data apps and writeback on another provider. Build the plain image
   (`./build-local-image.sh`, amd64), push it to a registry the cluster can pull from, and
   apply `gke/sandbox-template.yaml` (a gVisor `SandboxTemplate` plus `SandboxWarmPool`).
   Point the backend at the pool with `GKE_AGENT_SANDBOX_PYTHON_NAMESPACE` /

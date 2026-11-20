@@ -111,11 +111,18 @@ export class PythonSandboxRunner {
         );
     }
 
+    /** `SANDBOX_PYTHON_PROVIDER` when set, otherwise `SANDBOX_PROVIDER`. */
+    private get configuredProvider(): LightdashConfig['appRuntime']['sandboxProvider'] {
+        const { sandboxPythonProvider, sandboxProvider } =
+            this.lightdashConfig.appRuntime;
+        return sandboxPythonProvider ?? sandboxProvider;
+    }
+
     private getProvider(): SandboxProvider {
         if (!this.provider) {
             const { appRuntime } = this.lightdashConfig;
             const provider = PythonSandboxRunner.getSupportedProvider(
-                appRuntime.sandboxProvider,
+                this.configuredProvider,
             );
             this.provider = createSandboxProvider({
                 provider,
@@ -229,7 +236,7 @@ export class PythonSandboxRunner {
     private getTemplateRef(): string {
         const { appRuntime } = this.lightdashConfig;
         const provider = PythonSandboxRunner.getSupportedProvider(
-            appRuntime.sandboxProvider,
+            this.configuredProvider,
         );
         switch (provider) {
             case 'e2b':
@@ -265,7 +272,7 @@ export class PythonSandboxRunner {
             .update(PYTHON_RUNNER_SOURCE)
             .digest('hex')
             .slice(0, 16);
-        return `${this.lightdashConfig.appRuntime.sandboxProvider}:${this.getTemplateRef()}:${harness}`;
+        return `${this.configuredProvider}:${this.getTemplateRef()}:${harness}`;
     }
 
     private buildSpec(timeoutMs: number): SandboxSpec {
@@ -280,7 +287,7 @@ export class PythonSandboxRunner {
         const { queryUuid, code, inputs, inputMeta, timeoutMs } = args;
         const provider = this.getProvider();
         // Providers with a native multi-file upload write everything in one call.
-        const { sandboxProvider } = this.lightdashConfig.appRuntime;
+        const sandboxProvider = this.configuredProvider;
         const batch =
             sandboxProvider === 'e2b' ||
             sandboxProvider === 'gke-agent-sandbox';
@@ -290,8 +297,7 @@ export class PythonSandboxRunner {
         };
         const attributes = {
             'lightdash.queryUuid': queryUuid,
-            'lightdash.sandboxProvider':
-                this.lightdashConfig.appRuntime.sandboxProvider,
+            'lightdash.sandboxProvider': sandboxProvider,
             'lightdash.templateRef': spec.templateRef,
         };
 

@@ -543,6 +543,7 @@ export const lightdashConfigMock: LightdashConfig = {
         e2bAiWritebackTemplateName: 'lightdash-ai-writeback',
         e2bAiWritebackTemplateTag: '',
         sandboxProvider: 'e2b',
+        sandboxPythonProvider: null,
         sandboxDockerImage: 'lightdash-sandbox:local',
         sandboxAiWritebackDockerImage: 'lightdash-ai-writeback:local',
         sandboxPythonDockerImage: 'lightdash-python-runner:local',
@@ -637,5 +638,6 @@ export const lightdashConfigWithAppRuntimeMock: LightdashConfig = {
             bucket: 'apps',
         },
         sandboxProvider: 'docker',
+        sandboxPythonProvider: null,
     },
 };

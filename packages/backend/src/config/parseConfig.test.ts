@@ -3197,6 +3197,15 @@ describe('SANDBOX_PROVIDER', () => {
         delete process.env.GKE_AGENT_SANDBOX_PYTHON_WARM_POOL;
     });
 
+    test('parses SANDBOX_PYTHON_PROVIDER separately and defaults it to null', () => {
+        expect(parseConfig().appRuntime.sandboxPythonProvider).toBeNull();
+        process.env.SANDBOX_PYTHON_PROVIDER = 'gke-agent-sandbox';
+        const { appRuntime } = parseConfig();
+        expect(appRuntime.sandboxProvider).toBe('e2b');
+        expect(appRuntime.sandboxPythonProvider).toBe('gke-agent-sandbox');
+        delete process.env.SANDBOX_PYTHON_PROVIDER;
+    });
+
     test('throws on an unknown provider instead of falling back to e2b', () => {
         process.env.SANDBOX_PROVIDER = 'gcp-cloudrun';
         expect(() => parseConfig()).toThrowError(ParseError);
