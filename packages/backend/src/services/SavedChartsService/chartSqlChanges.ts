@@ -16,7 +16,11 @@ export const getChangedCustomSqlDimensionIds = (
     );
     return (next ?? [])
         .filter(isCustomSqlDimension)
-        .filter((dim) => savedById.get(dim.id)?.sql !== dim.sql)
+        .filter((dim) => {
+            const savedDim = savedById.get(dim.id);
+            // ${TABLE} in the SQL resolves against the dimension's table
+            return savedDim?.sql !== dim.sql || savedDim.table !== dim.table;
+        })
         .map(({ id }) => id);
 };
 

@@ -19,6 +19,7 @@ import {
     SchedulerFormat,
     WeekDay,
     type AnonymousAccount,
+    type AnyType,
     type CreateEmbedJwt,
     type DashboardDAO,
     type DashboardFilterRule,
@@ -171,6 +172,86 @@ describe('EmbedService', () => {
                 }),
             ).resolves.toEqual({
                 dimensions: [overrideRule],
+                metrics: [],
+                tableCalculations: [],
+            });
+        });
+    });
+
+    describe('embedded merged tile filters', () => {
+        test("keeps a filter on an added source's field for the merge to push down", async () => {
+            const otherSourceRule: DashboardFilterRule = {
+                id: 'payments-filter',
+                target: { fieldId: 'payments_status', tableName: 'payments' },
+                operator: FilterOperator.EQUALS,
+                values: ['paid'],
+                label: undefined,
+            };
+            const dashboard = {
+                uuid: 'dashboard-uuid',
+                filters: {
+                    dimensions: [otherSourceRule],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                tiles: [{ uuid: 'tile-uuid' }],
+                tabs: [],
+            } as unknown as DashboardDAO;
+            const account = {
+                ...mockAccountWithPermission,
+                embed: {
+                    dashboardUuids: ['dashboard-uuid'],
+                    allowAllDashboards: false,
+                },
+                access: { content: { dashboardUuid: 'dashboard-uuid' } },
+            } as unknown as AnonymousAccount;
+            const internals = service as AnyType;
+            vi.spyOn(
+                internals,
+                '_getChartFromDashboardTiles',
+            ).mockResolvedValue({
+                uuid: 'chart-uuid',
+                organizationUuid: 'org-uuid',
+                tableName: validExplore.name,
+                merge: { queries: {} },
+            });
+            vi.spyOn(internals, 'isFeatureEnabled').mockResolvedValue(
+                undefined,
+            );
+            vi.spyOn(
+                internals,
+                '_permissionsGetChartAndResults',
+            ).mockResolvedValue(undefined);
+            internals.dashboardModel.getByIdOrSlug = vi
+                .fn()
+                .mockResolvedValue(dashboard);
+            internals.projectModel.getExploreFromCache = vi
+                .fn()
+                .mockResolvedValue(validExplore);
+            internals.projectService.isTimezoneSupportEnabled = vi
+                .fn()
+                .mockResolvedValue(false);
+            internals.projectService.projectParametersModel = {
+                find: vi.fn().mockResolvedValue([]),
+            };
+            internals.analytics = { trackAccount: vi.fn() };
+            const execute = vi.fn().mockResolvedValue({});
+            internals.asyncQueryService.executeAsyncDashboardChartQuery =
+                execute;
+            internals.asyncQueryService.redactFieldsSqlForResponse = vi.fn(
+                (_account, _projectUuid, results) => results,
+            );
+
+            await service.executeAsyncDashboardTileQuery({
+                account,
+                projectUuid: 'project-uuid',
+                tileUuid: 'tile-uuid',
+                dashboardFilters: dashboard.filters,
+                dashboardSorts: [],
+            });
+
+            expect(execute.mock.calls[0][0].dashboardFilters).toEqual({
+                dimensions: [otherSourceRule],
                 metrics: [],
                 tableCalculations: [],
             });
