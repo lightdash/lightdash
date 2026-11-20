@@ -63,7 +63,7 @@ export const getFusionEmptyMeta = ({
     };
 };
 
-type DroppedField = { id: string; column: string | null };
+type DroppedField = { id: string; column: string | null; untraced: boolean };
 
 const getDroppedFields = (
     previous: Explore,
@@ -96,6 +96,8 @@ const getDroppedFields = (
                         dimension.name,
                 }),
             ) ?? null,
+        // additional dimensions don't record their source column or model
+        untraced: dimension.isAdditionalDimension === true,
         modelLevel: false,
     }));
     const metrics = Object.values(table.metrics).map((metric) => ({
@@ -104,15 +106,20 @@ const getDroppedFields = (
             metric.dimensionReference === undefined
                 ? null
                 : (columnsById.get(metric.dimensionReference) ?? null),
+        untraced: false,
         modelLevel: metric.dimensionReference === undefined,
     }));
     return [...dimensions, ...metrics]
         .filter(
-            ({ id, column, modelLevel }) =>
+            ({ id, column, untraced, modelLevel }) =>
                 !nextIds.has(id) &&
-                (column !== null || (modelLevel && model.modelMetaEmpty)),
+                (column !== null ||
+                    (untraced &&
+                        (model.modelMetaEmpty ||
+                            model.emptyMetaColumns.length > 0)) ||
+                    (modelLevel && model.modelMetaEmpty)),
         )
-        .map(({ id, column }) => ({ id, column }));
+        .map(({ id, column, untraced }) => ({ id, column, untraced }));
 };
 
 export const getDroppedFieldIds = (
@@ -137,13 +144,17 @@ export const getFusionMetaWarning = (
         ),
     ];
     const subjects = [
-        columns.length > 0 ? `the columns ${columns.join(', ')}` : null,
-        dropped.some(({ column }) => column === null)
+        columns.length > 0
+            ? `the ${columns.length === 1 ? 'column' : 'columns'} ${columns.join(', ')}`
+            : null,
+        dropped.some(({ column, untraced }) => column === null && !untraced)
             ? `the model ${model.name}`
             : null,
     ].filter((subject) => subject !== null);
-    const verb = columns.length === 0 ? 'has' : 'have';
-    return `Warning: explore ${next.name} lost ${dropped.length} fields that the previous deploy had (${dropped.map(({ id }) => id).join(', ')}). This manifest was built by dbt ${dbtVersion}, which ignores top-level meta; ${subjects.join(' and ')} ${verb} none. Move their meta under config: meta: and recompile.`;
+    const subject =
+        subjects.length > 0 ? subjects.join(' and ') : 'their columns or model';
+    const verb = subjects.length === 1 && columns.length <= 1 ? 'has' : 'have';
+    return `Warning: explore ${next.name} lost ${dropped.length} ${dropped.length === 1 ? 'field' : 'fields'} that the previous deploy had (${dropped.map(({ id }) => id).join(', ')}). This manifest was built by dbt ${dbtVersion}, which ignores top-level meta; ${subject} ${verb} none. Move their meta under config: meta: and recompile.`;
 };
 
 export const getFusionMetaWarnings = async (

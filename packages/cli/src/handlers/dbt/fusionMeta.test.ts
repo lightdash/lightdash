@@ -1,11 +1,15 @@
 import { type Explore } from '@lightdash/common';
+import { lightdashApi } from './apiClient';
 import {
     getDroppedFieldIds,
     getFusionEmptyMeta,
     getFusionMetaWarning,
+    getFusionMetaWarnings,
     isDbt1060MetaError,
     type FusionEmptyMetaModel,
 } from './fusionMeta';
+
+vi.mock('./apiClient', () => ({ lightdashApi: vi.fn() }));
 
 const FUSION_LOG_LINE =
     '[error] [UnusedConfigKey (dbt1060)]: While parsing config: Ignored unexpected key `"meta"`. YAML path: `columns[1].meta`.';
@@ -30,10 +34,15 @@ describe('isDbt1060MetaError', () => {
 });
 
 // Shapes from a real deploy: dbt core keeps column meta, Fusion drops it.
-const dimension = (name: string, base?: string) => ({
+const dimension = (
+    name: string,
+    base?: string,
+    isAdditionalDimension?: boolean,
+) => ({
     name,
     table: 'm',
     ...(base ? { timeIntervalBaseDimensionName: base } : {}),
+    ...(isAdditionalDimension ? { isAdditionalDimension } : {}),
 });
 const metric = (name: string, dimensionReference?: string) => ({
     name,
@@ -132,6 +141,62 @@ describe('getFusionMetaWarning', () => {
                 emptyMetaColumns: ['amount'],
             }),
         ).toBeNull();
+    });
+});
+
+describe('additional dimensions', () => {
+    const withBucket = explore(
+        [dimension('amount'), dimension('amount_bucket', undefined, true)],
+        [],
+    );
+    const withoutBucket = explore([dimension('amount')], []);
+
+    it('warns when an additional dimension is lost and its model has empty meta', () => {
+        expect(
+            getFusionMetaWarning(withBucket, withoutBucket, '2.0.12', {
+                name: 'm',
+                modelMetaEmpty: false,
+                emptyMetaColumns: ['amount'],
+            }),
+        ).toBe(
+            'Warning: explore m lost 1 field that the previous deploy had (m_amount_bucket). This manifest was built by dbt 2.0.12, which ignores top-level meta; their columns or model have none. Move their meta under config: meta: and recompile.',
+        );
+    });
+
+    it('ignores a lost additional dimension when all meta is present', () => {
+        expect(
+            getDroppedFieldIds(withBucket, withoutBucket, {
+                name: 'm',
+                modelMetaEmpty: false,
+                emptyMetaColumns: [],
+            }),
+        ).toEqual([]);
+    });
+});
+
+describe('getFusionMetaWarnings', () => {
+    it('warns per fetched explore and skips explores whose fetch fails', async () => {
+        const otherExplore = { ...fusionExplore, name: 'n', baseTable: 'n' };
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+            if (url.endsWith('/explores/n')) throw new Error('Not found');
+            return coreExplore as never;
+        });
+        await expect(
+            getFusionMetaWarnings('project', [fusionExplore, otherExplore], {
+                dbtVersion: '2.0.12',
+                models: [
+                    {
+                        name: 'm',
+                        modelMetaEmpty: false,
+                        emptyMetaColumns: ['amount'],
+                    },
+                    { name: 'n', modelMetaEmpty: true, emptyMetaColumns: [] },
+                ],
+            }),
+        ).resolves.toEqual([
+            expect.stringContaining('explore m lost 1 field that'),
+        ]);
+        expect(lightdashApi).toHaveBeenCalledTimes(2);
     });
 });
 
