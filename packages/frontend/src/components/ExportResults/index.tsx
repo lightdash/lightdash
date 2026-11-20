@@ -226,12 +226,15 @@ const ExportResults: FC<ExportResultsProps> = memo(
                                 });
                             });
                     },
-                    onError: (error: { error: Error }) => {
+                    onError: (error: Error | { error: Error }) => {
                         notifications.hide(TOAST_KEY);
 
                         showToastError({
                             title: 'Unable to download results',
-                            subtitle: error?.error?.message,
+                            subtitle:
+                                error instanceof Error
+                                    ? error.message
+                                    : error?.error?.message,
                         });
                     },
                 },

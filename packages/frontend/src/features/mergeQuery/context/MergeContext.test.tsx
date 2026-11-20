@@ -5,6 +5,7 @@ import {
     MergeJoinType,
     MetricType,
     MergeQueryErrorKind,
+    QueryHistoryStatus,
     type ApiError,
     type ApiExecuteAsyncMergeQueryResults,
     type ItemsMap,
@@ -20,8 +21,15 @@ import { MERGE_URL_PARAM, serializeMergeState } from './mergeUrlState';
 import { useMerge } from './useMerge';
 
 const setSearchParams = vi.fn();
-const { executeMergeQuery, searchParams } = vi.hoisted(() => ({
+const {
+    executeMergeQuery,
+    executeSavedMergeQuery,
+    pollForResults,
+    searchParams,
+} = vi.hoisted(() => ({
     executeMergeQuery: vi.fn(),
+    executeSavedMergeQuery: vi.fn(),
+    pollForResults: vi.fn(),
     searchParams: new URLSearchParams(),
 }));
 
@@ -45,7 +53,12 @@ vi.mock('../../../hooks/useQueryResults', () => ({
     }),
 }));
 
-vi.mock('../hooks/useMergeQuery', () => ({ executeMergeQuery }));
+vi.mock('../../queryRunner/executeQuery', () => ({ pollForResults }));
+
+vi.mock('../hooks/useMergeQuery', () => ({
+    executeMergeQuery,
+    executeSavedMergeQuery,
+}));
 
 const mergeQuery: MergeQuery = {
     sources: [],
@@ -543,6 +556,7 @@ describe('MergeProvider', () => {
             mergeQuery,
             { 'customers.customer_name': 'Ken' },
             undefined,
+            undefined,
         );
     });
 
@@ -570,12 +584,15 @@ describe('MergeProvider', () => {
             mergeQuery,
             undefined,
             savedChart,
+            undefined,
         );
         expect(executeMergeQuery).toHaveBeenNthCalledWith(
             2,
             expect.anything(),
             'project-uuid',
             mergeQuery,
+            undefined,
+            undefined,
             undefined,
         );
     });
@@ -642,5 +659,101 @@ describe('MergeProvider', () => {
         );
         expect(result.current.runError).toBeNull();
         expect(result.current.unpivotedRunError).toBe(rawResultsError);
+    });
+
+    it('names the saved chart instead of sending its merge in view mode', async () => {
+        executeSavedMergeQuery
+            .mockResolvedValueOnce(startedResult('pivoted-query'))
+            .mockResolvedValueOnce(startedResult('raw-query'))
+            .mockResolvedValueOnce(startedResult('export-query'));
+        pollForResults.mockResolvedValueOnce({
+            status: QueryHistoryStatus.READY,
+        });
+        const savedChartRun = {
+            savedChartUuid: 'chart-uuid',
+            includeUnpublishedDraft: false,
+        };
+        const { result } = renderHook(() => useMerge(), {
+            wrapper: ({ children }: PropsWithChildren) => (
+                <MergeProvider readOnly savedChartRun={savedChartRun}>
+                    {children}
+                </MergeProvider>
+            ),
+        });
+        const savedChart = {
+            chartConfig: { type: ChartType.TABLE },
+            pivotConfig: { columns: ['merge_status'] },
+        } satisfies Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>;
+
+        act(() => result.current.run(mergeQuery, { region: 'EU' }, savedChart));
+        await waitFor(() =>
+            expect(
+                result.current.mergeResults?.unpivotedResults,
+            ).not.toBeNull(),
+        );
+        await act(() => result.current.getDownloadQueryUuid(100));
+
+        expect(executeMergeQuery).not.toHaveBeenCalled();
+        // [run, parameters, pivotResults, csvLimit] per request
+        expect(
+            executeSavedMergeQuery.mock.calls.map((call) => call.slice(2)),
+        ).toEqual([
+            [savedChartRun, { region: 'EU' }, true, undefined],
+            [savedChartRun, { region: 'EU' }, false, undefined],
+            [savedChartRun, { region: 'EU' }, false, 100],
+        ]);
+    });
+
+    it('hands over a download only once its query is ready', async () => {
+        executeMergeQuery
+            .mockResolvedValueOnce(startedResult('shown-query'))
+            .mockResolvedValueOnce(startedResult('export-query'));
+        let finish: (value: { status: QueryHistoryStatus }) => void = () => {};
+        pollForResults.mockReturnValueOnce(
+            new Promise((resolve) => {
+                finish = resolve;
+            }),
+        );
+        const { result } = renderHook(() => useMerge(), { wrapper });
+        act(() => result.current.run(mergeQuery));
+        await waitFor(() =>
+            expect(result.current.mergeResults?.queryUuid).toBe('shown-query'),
+        );
+        const handedOver = vi.fn();
+
+        const download = result.current
+            .getDownloadQueryUuid(100)
+            .then(handedOver);
+        await waitFor(() =>
+            expect(pollForResults).toHaveBeenCalledWith(
+                expect.anything(),
+                'project-uuid',
+                'export-query',
+            ),
+        );
+        expect(handedOver).not.toHaveBeenCalled();
+        finish({ status: QueryHistoryStatus.READY });
+        await download;
+
+        expect(handedOver).toHaveBeenCalledWith('export-query');
+    });
+
+    it('refuses a download whose query failed, with its error', async () => {
+        executeMergeQuery
+            .mockResolvedValueOnce(startedResult('shown-query'))
+            .mockResolvedValueOnce(startedResult('export-query'));
+        pollForResults.mockResolvedValueOnce({
+            status: QueryHistoryStatus.ERROR,
+            error: 'Warehouse failed',
+        });
+        const { result } = renderHook(() => useMerge(), { wrapper });
+        act(() => result.current.run(mergeQuery));
+        await waitFor(() =>
+            expect(result.current.mergeResults?.queryUuid).toBe('shown-query'),
+        );
+
+        await expect(result.current.getDownloadQueryUuid(100)).rejects.toThrow(
+            'Warehouse failed',
+        );
     });
 });

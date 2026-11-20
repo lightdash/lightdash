@@ -1,3 +1,11 @@
+## [3.356.1](https://github.com/lightdash/lightdash/compare/3.356.0...3.356.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **merge-queries:** the saved chart page runs a merged chart by uuid in view mode ([#33054](https://github.com/lightdash/lightdash/issues/33054)) ([4f05e4d](https://github.com/lightdash/lightdash/commit/4f05e4de22bb528f9cb56c033df030a4dc75c4d2))
+* **merge-queries:** viewers can run merged charts whose added queries use custom SQL ([#33048](https://github.com/lightdash/lightdash/issues/33048)) ([8dc4ab9](https://github.com/lightdash/lightdash/commit/8dc4ab927d2fef946df11ef0f699522da95768f1))
+
 # [3.356.0](https://github.com/lightdash/lightdash/compare/3.355.0...3.356.0) (2026-11-20)
 
 

@@ -484,6 +484,7 @@ import {
     formatRefusedMergeDashboardFilters,
     type MergeSourceExplores,
 } from './mergeDashboardFilters';
+import { MergedChartRun } from './MergedChartRun';
 import {
     applyMergeExportLimit,
     buildComposeMergeOriginalColumns,
@@ -573,10 +574,12 @@ import {
     type ExecuteAsyncMetricQueryArgs,
     type ExecuteAsyncPythonQueryArgs,
     type ExecuteAsyncQueryReturn,
+    type ExecuteAsyncSavedChartMergeQueryArgs,
     type ExecuteAsyncSavedChartQueryArgs,
     type ExecuteAsyncSqlChartArgs,
     type ExecuteAsyncUnderlyingDataQueryArgs,
     type GetAsyncQueryResultsArgs,
+    type MergeRunAuthority,
     type PollingOptions,
     type PreAggregateExecutionEngine,
     type PreAggregationRoute,
@@ -8151,6 +8154,20 @@ export class AsyncQueryService extends ProjectService {
                     args,
                     organizationUuid,
                 );
+            case 'mergedChart':
+                // Checked at save as a plain tile is; like a plain tile, no view-Explore check
+                authority.run.assertExecution(account, projectUuid);
+                // Materialization skips model-required filters; a plain tile never runs in it
+                if (
+                    context ===
+                    QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
+                ) {
+                    throw new ForbiddenError();
+                }
+                return this.runAsyncMetricQueryWithoutPermissionCheck(
+                    args,
+                    organizationUuid,
+                );
             case 'request':
                 break;
             default:
@@ -9491,27 +9508,22 @@ export class AsyncQueryService extends ProjectService {
         return { projectUuid, invalidatedAt };
     }
 
-    async executeAsyncSavedChartQuery({
+    /** Loads a saved chart (or the caller's open draft of it) and refuses a caller who cannot view it. */
+    private async getViewableSavedChart({
         account,
         projectUuid,
         chartUuid,
         versionUuid,
-        context,
-        querySurface,
-        invalidateCache,
-        limit,
-        parameters,
-        pivotResults,
-        pivotConfiguration: requestedPivotConfiguration,
-        filterOverrides,
-        schedulerFilters,
-        dashboardFilters,
         includeUnpublishedDraft,
-        userAttributeOverrides,
-    }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncSavedChartQueryResults> {
-        // Check user is in organization
+    }: Pick<
+        ExecuteAsyncSavedChartQueryArgs,
+        | 'account'
+        | 'projectUuid'
+        | 'chartUuid'
+        | 'versionUuid'
+        | 'includeUnpublishedDraft'
+    >): Promise<SavedChartDAO> {
         assertIsAccountWithOrg(account);
-
         const publishedChart = await this.savedChartModel.get(
             chartUuid,
             versionUuid,
@@ -9520,42 +9532,13 @@ export class AsyncQueryService extends ProjectService {
             },
         );
         // A chart version is a fixed point in history, never the draft
-        const storedChart =
+        const savedChart =
             includeUnpublishedDraft && !versionUuid
                 ? await this.applyOpenChartDraft(account, publishedChart)
                 : publishedChart;
-        // Applied to the stored chart so merge queries built from it see the
-        // delivery's filters too. The delivery runs as its creator, so this is
-        // where a creator who lost explore access stops widening the chart.
-        assertCanReplaceChartFilters({
-            ability: this.createAuditedAbility(account),
-            chart: storedChart,
-            schedulerFilters,
-        });
-        const savedChart = schedulerFilters
-            ? {
-                  ...storedChart,
-                  metricQuery: applyChartFilterOverridesToMetricQuery(
-                      storedChart.metricQuery,
-                      schedulerFilters,
-                  ),
-              }
-            : storedChart;
-        const {
-            uuid: savedChartUuid,
-            organizationUuid: savedChartOrganizationUuid,
-            projectUuid: savedChartProjectUuid,
-            spaceUuid: savedChartSpaceUuid,
-            tableName: savedChartTableName,
-            parameters: savedChartParameters,
-        } = savedChart;
-
-        const metricQuery = filterOverrides
-            ? addFiltersToMetricQuery(savedChart.metricQuery, filterOverrides)
-            : savedChart.metricQuery;
 
         // Check chart belongs to project
-        if (savedChartProjectUuid !== projectUuid) {
+        if (savedChart.projectUuid !== projectUuid) {
             throw new ForbiddenError('Chart does not belong to project');
         }
 
@@ -9567,7 +9550,7 @@ export class AsyncQueryService extends ProjectService {
             isJwtUser(account) &&
             isAiAgentContent(account.authentication.data.content) &&
             account.embedWriteContext?.canUseAiAgent === true &&
-            getEmbedActorChartSpaceUuids(account).includes(savedChartSpaceUuid)
+            getEmbedActorChartSpaceUuids(account).includes(savedChart.spaceUuid)
                 ? account.embedWriteUser
                 : undefined;
 
@@ -9590,7 +9573,7 @@ export class AsyncQueryService extends ProjectService {
             access = [{ chartUuid: savedChart.uuid }];
             const spaceCtx =
                 await this.spacePermissionService.getAllSpaceAccessContext(
-                    savedChartSpaceUuid,
+                    savedChart.spaceUuid,
                 );
             inheritsFromOrgOrProject = spaceCtx.inheritsFromOrgOrProject;
         } else {
@@ -9600,7 +9583,7 @@ export class AsyncQueryService extends ProjectService {
                     type: 'chart',
                     chartUuid: savedChart.uuid,
                     dashboardUuid: savedChart.dashboardUuid,
-                    spaceUuid: savedChartSpaceUuid,
+                    spaceUuid: savedChart.spaceUuid,
                 },
             );
             access = ctx.access;
@@ -9614,12 +9597,12 @@ export class AsyncQueryService extends ProjectService {
             auditedAbility.cannot(
                 'view',
                 subject('SavedChart', {
-                    organizationUuid: savedChartOrganizationUuid,
+                    organizationUuid: savedChart.organizationUuid,
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
                     metadata: {
-                        savedChartUuid,
+                        savedChartUuid: savedChart.uuid,
                         savedChartName: savedChart.name,
                     },
                 }),
@@ -9627,19 +9610,75 @@ export class AsyncQueryService extends ProjectService {
             auditedAbility.cannot(
                 'view',
                 subject('Project', {
-                    organizationUuid: savedChartOrganizationUuid,
+                    organizationUuid: savedChart.organizationUuid,
                     projectUuid,
-                    exploreNames: [savedChartTableName],
+                    exploreNames: [savedChart.tableName],
                     metadata: {
-                        savedChartUuid,
+                        savedChartUuid: savedChart.uuid,
                         savedChartName: savedChart.name,
-                        exploreName: savedChartTableName,
+                        exploreName: savedChart.tableName,
                     },
                 }),
             )
         ) {
             throw new ForbiddenError();
         }
+        return savedChart;
+    }
+
+    async executeAsyncSavedChartQuery({
+        account,
+        projectUuid,
+        chartUuid,
+        versionUuid,
+        context,
+        querySurface,
+        invalidateCache,
+        limit,
+        parameters,
+        pivotResults,
+        pivotConfiguration: requestedPivotConfiguration,
+        filterOverrides,
+        schedulerFilters,
+        dashboardFilters,
+        includeUnpublishedDraft,
+        userAttributeOverrides,
+    }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncSavedChartQueryResults> {
+        assertIsAccountWithOrg(account);
+        const storedChart = await this.getViewableSavedChart({
+            account,
+            projectUuid,
+            chartUuid,
+            versionUuid,
+            includeUnpublishedDraft,
+        });
+        // Applied to the stored chart so merge queries built from it see the
+        // delivery's filters too. The delivery runs as its creator, so this is
+        // where a creator who lost explore access stops widening the chart.
+        assertCanReplaceChartFilters({
+            ability: this.createAuditedAbility(account),
+            chart: storedChart,
+            schedulerFilters,
+        });
+        const savedChart = schedulerFilters
+            ? {
+                  ...storedChart,
+                  metricQuery: applyChartFilterOverridesToMetricQuery(
+                      storedChart.metricQuery,
+                      schedulerFilters,
+                  ),
+              }
+            : storedChart;
+        const {
+            uuid: savedChartUuid,
+            organizationUuid: savedChartOrganizationUuid,
+            tableName: savedChartTableName,
+            parameters: savedChartParameters,
+        } = savedChart;
+
+        const metricQuery = filterOverrides
+            ? addFiltersToMetricQuery(savedChart.metricQuery, filterOverrides)
+            : savedChart.metricQuery;
 
         // Fire-and-forget: analytics tracking is non-critical and shouldn't block query execution
         void this.analyticsModel
@@ -9672,7 +9711,7 @@ export class AsyncQueryService extends ProjectService {
         };
 
         if (savedChart.merge) {
-            const mergeResults = await this.executeAsyncSavedMergeQuery({
+            const outcome = await this.executeAsyncSavedMergeQuery({
                 account,
                 projectUuid,
                 savedChart,
@@ -9680,7 +9719,7 @@ export class AsyncQueryService extends ProjectService {
                 context,
                 querySurface,
                 invalidateCache,
-                limit,
+                mode: AsyncQueryService.getSavedMergeExecutionMode(limit),
                 parameters,
                 pivotResults,
                 pivotConfiguration: requestedPivotConfiguration,
@@ -9688,7 +9727,10 @@ export class AsyncQueryService extends ProjectService {
                 dashboardFilters,
                 userAttributeOverrides,
             });
-            return { ...mergeResults, chartVisualization };
+            return {
+                ...AsyncQueryService.assertSavedMergeStarted(outcome),
+                chartVisualization,
+            };
         }
 
         const { maxLimit, csvCellsLimit } =
@@ -10139,7 +10181,7 @@ export class AsyncQueryService extends ProjectService {
         context,
         querySurface,
         invalidateCache,
-        limit,
+        mode,
         parameters,
         pivotResults,
         pivotConfiguration,
@@ -10153,7 +10195,6 @@ export class AsyncQueryService extends ProjectService {
         | 'context'
         | 'querySurface'
         | 'invalidateCache'
-        | 'limit'
         | 'parameters'
         | 'pivotResults'
         | 'pivotConfiguration'
@@ -10163,7 +10204,8 @@ export class AsyncQueryService extends ProjectService {
     > & {
         savedChart: SavedChartDAO;
         merge: SavedMergeDefinition;
-    }): Promise<ApiExecuteAsyncMetricQueryResults> {
+        mode: MergeQueryExecutionMode;
+    }): Promise<ApiExecuteAsyncMergeQueryResults> {
         const baseMergeQuery = buildMergeQueryFromMergeDefinition(
             savedChart.metricQuery,
             merge,
@@ -10195,7 +10237,11 @@ export class AsyncQueryService extends ProjectService {
                 formatRefusedMergeDashboardFilters(refusedDashboardFilters),
             );
         }
-        const outcome = await this.executeAsyncMergeQuery({
+        return this.executeAsyncMergeQuery({
+            authority: {
+                kind: 'mergedChart',
+                run: MergedChartRun.fromLoadedChart({ account, savedChart }),
+            },
             account,
             projectUuid,
             mergeQuery,
@@ -10204,14 +10250,50 @@ export class AsyncQueryService extends ProjectService {
             invalidateCache,
             parameters: { ...savedChart.parameters, ...parameters },
             userAttributeOverrides,
-            mode: AsyncQueryService.getSavedMergeExecutionMode(limit),
+            mode,
             chart: AsyncQueryService.getSavedMergeChart(
                 savedChart,
                 pivotResults,
             ),
             pivotConfiguration,
         });
-        return AsyncQueryService.assertSavedMergeStarted(outcome);
+    }
+
+    /** The chart page in view mode: names the saved chart, so its merge runs as saved, never as sent. */
+    async executeAsyncSavedChartMergeQuery({
+        account,
+        projectUuid,
+        savedChartUuid,
+        includeUnpublishedDraft,
+        context,
+        querySurface,
+        invalidateCache,
+        parameters,
+        mode,
+        pivotResults,
+    }: ExecuteAsyncSavedChartMergeQueryArgs): Promise<ApiExecuteAsyncMergeQueryResults> {
+        const savedChart = await this.getViewableSavedChart({
+            account,
+            projectUuid,
+            chartUuid: savedChartUuid,
+            versionUuid: undefined,
+            includeUnpublishedDraft,
+        });
+        if (!savedChart.merge) {
+            throw new ParameterError('This chart has no merge');
+        }
+        return this.executeAsyncSavedMergeQuery({
+            account,
+            projectUuid,
+            savedChart,
+            merge: savedChart.merge,
+            context,
+            querySurface,
+            invalidateCache,
+            mode,
+            parameters,
+            pivotResults,
+        });
     }
 
     private async getDashboardTileParameterLayer({
@@ -10463,6 +10545,10 @@ export class AsyncQueryService extends ProjectService {
             chartSavedValues,
         });
         const outcome = await this.executeAsyncMergeQuery({
+            authority: {
+                kind: 'mergedChart',
+                run: MergedChartRun.fromLoadedChart({ account, savedChart }),
+            },
             account,
             projectUuid,
             mergeQuery,
@@ -15829,7 +15915,7 @@ export class AsyncQueryService extends ProjectService {
         compiledMerge,
         authority,
     }: {
-        authority: RequestAuthority | DocumentAuthority;
+        authority: MergeRunAuthority;
         account: Account;
         projectUuid: string;
         organizationUuid: string;

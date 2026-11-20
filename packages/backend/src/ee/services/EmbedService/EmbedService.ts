@@ -1455,13 +1455,12 @@ export class EmbedService extends BaseService {
         return chart;
     }
 
-    private async _getAppliedDashboardFilters(
+    private _getEffectiveDashboardFilters(
         account: AnonymousAccount,
-        explore: Explore,
         dashboard: DashboardDAO,
         tileUuid: string,
         dashboardFilters?: DashboardFilters,
-    ) {
+    ): DashboardFilters {
         const { filters, droppedCount, tileTabUuid } =
             getEffectiveEmbedDashboardFilters(
                 dashboard,
@@ -1474,11 +1473,25 @@ export class EmbedService extends BaseService {
                 `Stripped ${droppedCount} embed filter override(s) targeting filters locked on tab ${tileTabUuid} (dashboard ${dashboard.uuid})`,
             );
         }
+        return filters;
+    }
 
+    private async _getAppliedDashboardFilters(
+        account: AnonymousAccount,
+        explore: Explore,
+        dashboard: DashboardDAO,
+        tileUuid: string,
+        dashboardFilters?: DashboardFilters,
+    ) {
         return getDashboardFiltersForTileAndTables(
             tileUuid,
             getExecutableFilterFieldIds(explore),
-            filters,
+            this._getEffectiveDashboardFilters(
+                account,
+                dashboard,
+                tileUuid,
+                dashboardFilters,
+            ),
         );
     }
 
@@ -1561,13 +1574,21 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const appliedDashboardFilters = await this._getAppliedDashboardFilters(
-            account,
-            explore,
-            dashboard,
-            tileUuid,
-            dashboardFilters,
-        );
+        // A merged tile resolves each filter against every source's explore, not only the chart's
+        const appliedDashboardFilters = chart.merge
+            ? this._getEffectiveDashboardFilters(
+                  account,
+                  dashboard,
+                  tileUuid,
+                  dashboardFilters,
+              )
+            : await this._getAppliedDashboardFilters(
+                  account,
+                  explore,
+                  dashboard,
+                  tileUuid,
+                  dashboardFilters,
+              );
 
         // Record analytics event
         this.analytics.trackAccount<EmbedQueryViewed>(account, {

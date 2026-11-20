@@ -314,6 +314,7 @@ import {
     COMPOSE_ENGINE_INSTANCE_CACHE_KEY,
     ComposeEngineClient,
 } from './ComposeEngineClient';
+import { MergedChartRun } from './MergedChartRun';
 import { buildComposeMergeOriginalColumns } from './mergeQueryExecution';
 import {
     NoOpPreAggregateStrategy,
@@ -7547,6 +7548,91 @@ describe('AsyncQueryService', () => {
                     customSqlProvenanceChartUuid: 'chart-uuid',
                 }),
             );
+        });
+
+        test.each(['viewer', 'other account'] as const)(
+            "runs a merged chart's leg for its %s only",
+            async (runner) => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                vi.spyOn(
+                    service as AnyType,
+                    'createAuditedAbility',
+                ).mockReturnValue({ can: () => false, cannot: () => true });
+                vi.spyOn(
+                    service as AnyType,
+                    'runAsyncMetricQueryWithoutPermissionCheck',
+                ).mockResolvedValue({ queryUuid: 'query-uuid' });
+                const metricQuery: MetricQuery = {
+                    ...metricQueryMock,
+                    customDimensions: [
+                        {
+                            type: CustomDimensionType.SQL,
+                            id: 'source_sql',
+                            name: 'Source SQL',
+                            table: 'a',
+                            dimensionType: DimensionType.STRING,
+                            sql: "'hand-written'",
+                        },
+                    ],
+                };
+                const run = MergedChartRun.fromLoadedChart({
+                    account:
+                        runner === 'viewer'
+                            ? sessionAccount
+                            : ({
+                                  ...sessionAccount,
+                                  user: { ...sessionAccount.user, id: 'other' },
+                              } as AnyType),
+                    savedChart: { uuid: 'chart-uuid', projectUuid },
+                });
+                const args = {
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery,
+                    context: QueryExecutionContext.DASHBOARD,
+                };
+
+                await expect(
+                    service.executeAsyncMetricQuery(args),
+                ).rejects.toThrow(ForbiddenError);
+                const merged = service.executeAsyncMetricQuery({
+                    ...args,
+                    authority: { kind: 'mergedChart', run },
+                });
+                if (runner === 'viewer') {
+                    await expect(merged).resolves.toEqual({
+                        queryUuid: 'query-uuid',
+                    });
+                } else {
+                    await expect(merged).rejects.toThrow(ForbiddenError);
+                }
+            },
+        );
+
+        test("refuses a merged chart's leg in the materialization context", async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const execute = vi
+                .spyOn(
+                    service as AnyType,
+                    'runAsyncMetricQueryWithoutPermissionCheck',
+                )
+                .mockResolvedValue({ queryUuid: 'query-uuid' });
+            const run = MergedChartRun.fromLoadedChart({
+                account: sessionAccount,
+                savedChart: { uuid: 'chart-uuid', projectUuid },
+            });
+
+            await expect(
+                service.executeAsyncMetricQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context:
+                        QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+                    authority: { kind: 'mergedChart', run },
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(execute).not.toHaveBeenCalled();
         });
 
         test.each([true, false])(
@@ -17392,6 +17478,35 @@ describe('AsyncQueryService', () => {
             ).toEqual(['a', 'b']);
         });
 
+        test("runs a merged tile under the merged chart's authority", async () => {
+            const { service, mergeSpy } = buildService();
+
+            await service.executeAsyncDashboardChartQuery({
+                account: authorizedAccount,
+                projectUuid,
+                tileUuid: 'tile-1',
+                chartUuid: mergedChart.uuid,
+                dashboardUuid: 'dashboard-uuid',
+                dashboardFilters: {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                dashboardSorts: [],
+                context: QueryExecutionContext.DASHBOARD,
+                invalidateCache: false,
+                limit: undefined,
+                parameters: undefined,
+                pivotResults: false,
+            });
+
+            const { authority } = mergeSpy.mock.calls[0][0];
+            expect(authority.kind).toBe('mergedChart');
+            expect(() =>
+                authority.run.assertExecution(authorizedAccount, projectUuid),
+            ).not.toThrow();
+        });
+
         test('sends the tile parameters above the fallback chain to the merge', async () => {
             const { service, mergeSpy } = buildService();
             const internals = service as AnyType;
@@ -17480,6 +17595,72 @@ describe('AsyncQueryService', () => {
             expect(mergeSpy).toHaveBeenCalledWith(
                 expect.objectContaining({ pivotConfiguration }),
             );
+        });
+
+        describe('run by saved chart uuid', () => {
+            const runArgs = {
+                projectUuid,
+                savedChartUuid: mergedChart.uuid,
+                context: QueryExecutionContext.CHART,
+                parameters: {},
+                mode: { type: 'export', limit: 10 } as const,
+                pivotResults: true,
+                includeUnpublishedDraft: false,
+            };
+
+            test("runs the chart's saved merge for a viewer under the merged chart's authority", async () => {
+                const { service, mergeSpy } = buildService();
+                (service as AnyType).getMergeSourceExplores = vi
+                    .fn()
+                    .mockResolvedValue({});
+
+                await expect(
+                    service.executeAsyncSavedChartMergeQuery({
+                        ...runArgs,
+                        account: authorizedAccount as RegisteredAccount,
+                    }),
+                ).resolves.toBe(startedOutcome);
+
+                const args = mergeSpy.mock.calls[0][0];
+                expect(args.authority.kind).toBe('mergedChart');
+                expect(() =>
+                    args.authority.run.assertExecution(
+                        authorizedAccount,
+                        projectUuid,
+                    ),
+                ).not.toThrow();
+                expect(args).toMatchObject({
+                    mode: runArgs.mode,
+                    chart: { chartConfig: mergedChart.chartConfig },
+                });
+                expect(
+                    args.mergeQuery.sources.map(({ id }: { id: string }) => id),
+                ).toHaveLength(2);
+            });
+
+            test('refuses a chart the viewer cannot view', async () => {
+                const { service, mergeSpy } = buildService();
+                (service as AnyType).getMergeSourceExplores = vi
+                    .fn()
+                    .mockResolvedValue({});
+                const account = {
+                    ...authorizedAccount,
+                    user: {
+                        ...authorizedAccount.user,
+                        ability: new Ability<PossibleAbilities>([
+                            { subject: 'Project', action: ['view'] },
+                        ]),
+                    },
+                } as unknown as RegisteredAccount;
+
+                await expect(
+                    service.executeAsyncSavedChartMergeQuery({
+                        ...runArgs,
+                        account,
+                    }),
+                ).rejects.toThrow(ForbiddenError);
+                expect(mergeSpy).not.toHaveBeenCalled();
+            });
         });
 
         test('refuses a tile filter that names a merged column instead of dropping it', async () => {
@@ -20377,6 +20558,49 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
             await drainMergeEvents(trackAccount, 1);
         },
     );
+
+    it("runs a merged chart's legs for a view-only reader with RLS, and refuses the same merge sent by the client", async () => {
+        const { service, executeAsyncQuery, compiledLegs, trackAccount } =
+            buildServiceWithCompiledLegs();
+        const account = buildAccount() as RegisteredAccount;
+        account.user.ability = new Ability<PossibleAbilities>([
+            { subject: 'Project', action: 'view' },
+            { subject: 'SavedChart', action: 'view' },
+        ]);
+        const args = {
+            account,
+            projectUuid,
+            mergeQuery: attributeScopedMergeQuery,
+            context: QueryExecutionContext.DASHBOARD,
+            mode: { type: 'interactive' } as const,
+        };
+
+        await expect(service.executeAsyncMergeQuery(args)).rejects.toThrow(
+            ForbiddenError,
+        );
+        expect(executeAsyncQuery).not.toHaveBeenCalled();
+
+        const result = await service.executeAsyncMergeQuery({
+            ...args,
+            authority: {
+                kind: 'mergedChart',
+                run: MergedChartRun.fromLoadedChart({
+                    account,
+                    savedChart: { uuid: 'merged-chart', projectUuid },
+                }),
+            },
+        });
+        expect(result).toMatchObject({
+            outcome: 'started',
+            query: { queryUuid: 'merge-query-uuid' },
+        });
+        expect(compiledLegs()).toHaveLength(2);
+        const viewerRegion = 'base';
+        compiledLegs().forEach(({ sql }) =>
+            expect(sql).toContain(viewerRegion),
+        );
+        await drainMergeEvents(trackAccount, 1);
+    });
 
     it('runs a saved Document merge for a view-only reader with RLS and provenance on every leg and root', async () => {
         const {

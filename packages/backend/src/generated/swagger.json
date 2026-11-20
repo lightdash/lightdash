@@ -33729,6 +33729,39 @@
                 ],
                 "description": "One-call merge execution request. Derived pivot SQL remains server-owned."
             },
+            "ApiExecuteAsyncSavedMergeQueryRequest": {
+                "properties": {
+                    "includeUnpublishedDraft": {
+                        "type": "boolean",
+                        "description": "Run the caller's own open draft of the chart, as the chart page shows it"
+                    },
+                    "pivotResults": {
+                        "type": "boolean",
+                        "description": "Pivot the result with the chart's saved pivot config"
+                    },
+                    "mode": {
+                        "$ref": "#/components/schemas/MergeQueryExecutionMode"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "invalidateCache": {
+                        "type": "boolean"
+                    },
+                    "savedChartUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    }
+                },
+                "required": [
+                    "includeUnpublishedDraft",
+                    "pivotResults",
+                    "mode",
+                    "parameters",
+                    "savedChartUuid"
+                ],
+                "type": "object",
+                "description": "Runs a saved chart's own merge, named by the chart rather than sent."
+            },
             "ApiExecuteAsyncComposeMergeQueryRequest": {
                 "properties": {
                     "chart": {
@@ -81188,7 +81221,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.356.0",
+        "version": "3.356.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -90000,6 +90033,57 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ApiExecuteAsyncMergeQueryRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/saved-merge-query": {
+            "post": {
+                "operationId": "executeAsyncSavedMergeQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncMergeQueryResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Runs a saved chart's merge as saved. The chart is named rather than its merge sent, so the merge runs with the chart's saved sources under the chart's view access.",
+                "summary": "Execute saved chart merge query",
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiExecuteAsyncSavedMergeQueryRequest"
                             }
                         }
                     }
