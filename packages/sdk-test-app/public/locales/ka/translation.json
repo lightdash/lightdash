@@ -398,6 +398,8 @@
         "aiAgent.modelSelector.agentDefault": "აგენტის ნაგულისხმევი",
         "aiAgent.composer.loadingResult": "შედეგები იტვირთება...",
         "aiAgent.composer.resultError": "ამ შედეგის ჩატვირთვა ვერ მოხერხდა",
+        "aiAgent.thread.loadError": "ამ საუბრის ჩატვირთვა ვერ მოხერხდა",
+        "aiAgent.thread.startNew": "ახალი საუბრის დაწყება",
         "aiAgent.nodeCitation.open": "მოთხოვნის შედეგის გახსნა: {figure}",
         "aiAgent.nodeCitation.loading": "მოთხოვნა იტვირთება…",
         "aiAgent.toolCall.sqlNotApproved": "SQL არ დამტკიცდა",

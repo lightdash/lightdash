@@ -398,6 +398,8 @@
         "aiAgent.modelSelector.agentDefault": "Predeterminado del agente",
         "aiAgent.composer.loadingResult": "Cargando resultados...",
         "aiAgent.composer.resultError": "No se pudo cargar este resultado",
+        "aiAgent.thread.loadError": "No se pudo cargar este hilo",
+        "aiAgent.thread.startNew": "Iniciar un hilo nuevo",
         "aiAgent.nodeCitation.open": "Abrir el resultado de la consulta: {figure}",
         "aiAgent.nodeCitation.loading": "Cargando la consulta…",
         "aiAgent.toolCall.sqlNotApproved": "SQL no aprobado",
