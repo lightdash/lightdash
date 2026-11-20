@@ -18,8 +18,9 @@ const windowDays = queryCalendarWeeks * 7;
 // 26 weeks of days touch at most 27 calendar weeks, one column each
 const columns = queryCalendarWeeks + 1;
 const dayMs = 86400000;
-// Pixels: a column is at most 64 wide, and a row at most 1.4 times as tall as a column is wide
-const step = `min(width / ${columns}, 64)`;
+// Pixels: the columns share the full width, and a row is at most 1.4 times as tall as a column is wide,
+// so on a very wide tile the cells become wide rectangles instead of leaving the right side empty
+const step = `(width / ${columns})`;
 const unit = `min(1.4 * ${step}, (height - 72) / 7)`;
 const gridTop = 46;
 
@@ -73,6 +74,26 @@ export const queryCalendarSpec: Record<string, unknown> = {
         {
             calculate: `toNumber(datum.last_day) - ((utcday(datum.last_day) + 6) % 7) * ${dayMs} - ${queryCalendarWeeks * 7} * ${dayMs}`,
             as: 'start_monday',
+        },
+        // The colours stop at about the 95th percentile of the daily values, so one very busy day takes
+        // the darkest colour without turning every other day pale
+        {
+            window: [{ op: 'cume_dist', as: 'share_at_or_below' }],
+            sort: [{ field: queries, order: 'ascending' }],
+        },
+        {
+            calculate: `datum.share_at_or_below <= 0.95 ? datum.${queries} : null`,
+            as: 'typical_value',
+        },
+        {
+            joinaggregate: [
+                { op: 'max', field: 'typical_value', as: 'typical_max' },
+                { op: 'max', field: queries, as: 'overall_max' },
+            ],
+        },
+        {
+            calculate: `min(datum.${queries}, isValid(datum.typical_max) && datum.typical_max > 0 ? datum.typical_max : datum.overall_max)`,
+            as: 'colour_value',
         },
         { calculate: '(utcday(datum.day) + 6) % 7', as: 'weekday' },
         {
@@ -170,23 +191,27 @@ queryCalendarSpec.layer = [
         encoding: {
             ...calendarPosition,
             color: {
-                field: queries,
+                field: 'colour_value',
                 type: 'quantitative',
-                // Light to full strength of the first colour of the Analytics palette
+                // Up to full strength of the first colour of the Analytics palette. The light end is
+                // dark enough to tell a quiet day from a day with no data
                 scale: {
                     domainMin: 0,
                     range: [
-                        '#E0E7FF',
-                        analyticsColorPalette.colors[1],
+                        '#C7D2FE',
+                        analyticsColorPalette.colors[16],
                         analyticsColorPalette.colors[0],
                     ],
                 },
                 legend: {
                     title: 'Queries per day',
-                    tickCount: 3,
-                    // 9.3K, not 9.313k
+                    // Zero, half way and the top of the colours
+                    values: {
+                        expr: "[0, domain('color')[1] / 2, domain('color')[1]]",
+                    },
+                    // 9.3K, not 9.313k. The top label ends in + because busier days share its colour
                     labelExpr:
-                        "isFinite(datum.value) ? upper(format(datum.value, '.2~s')) : ''",
+                        "isFinite(datum.value) ? upper(format(datum.value, '.2~s')) + (datum.value >= domain('color')[1] ? '+' : '') : ''",
                 },
             },
             tooltip,

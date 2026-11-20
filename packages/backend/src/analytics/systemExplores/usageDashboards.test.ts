@@ -957,18 +957,24 @@ describe('built-in usage dashboards', () => {
                 ? calendar.chartConfig.config?.spec
                 : null,
         );
-        // Columns span the width (27 calendar weeks, at most 64px each), from the left edge
-        expect(spec).toContain('min(width / 27, 64)');
+        // Columns share the whole width (27 calendar weeks), from the left edge, with no cap
+        expect(spec).toContain('(width / 27)');
+        expect(spec).not.toContain('64)');
+        // One very busy day does not turn the rest pale: colours stop at the 95th percentile
+        expect(spec).toContain('cume_dist');
+        expect(spec).toContain('"field":"colour_value"');
         expect(spec).not.toContain('column_offset');
         // The ramp ends on the first palette colour, and the legend reads 9.3K, top right
         expect(spec).toContain(
             JSON.stringify([
-                '#E0E7FF',
-                analyticsColorPalette.colors[1],
+                '#C7D2FE',
+                analyticsColorPalette.colors[16],
                 analyticsColorPalette.colors[0],
             ]),
         );
-        expect(spec).toContain("upper(format(datum.value, '.2~s'))");
+        expect(spec).toContain(
+            "upper(format(datum.value, '.2~s')) + (datum.value >= domain('color')[1] ? '+' : '')",
+        );
         expect(spec).toContain('"orient":"top-right"');
         // A label for every month that starts in the window
         expect(spec).toContain('utcdate(datum.grid_day) === 1');
