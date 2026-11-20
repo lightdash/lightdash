@@ -15,7 +15,10 @@ import {
     positive,
     withAnalyticsChartPresentation,
 } from './analyticsChartPresentation';
-import { analyticsColorPalette } from './analyticsColorPalette';
+import {
+    analyticsColorPalette,
+    modelProviderColors,
+} from './analyticsColorPalette';
 import { withEmbedRankingPresentation } from './embedDashboard';
 import { trendRows } from './homeDashboard';
 import type { LibraryChartBinding } from './libraryCharts';
@@ -183,6 +186,25 @@ const chart = (
     }
     return result;
 };
+
+// The models as horizontal bars in the order of the query, each in the colour of its provider.
+const modelRanking = (metric: string): LibraryChartBinding => ({
+    slug: 'customizable-cartesian-chart',
+    minVersion: '0.18.4',
+    fieldMapping: { x: 'ai_usage_model', m1: metric },
+    optionValues: {
+        seriesType: 'bar',
+        orientation: 'horizontal',
+        splitColorGroups: modelProviderColors,
+        showDataLabels: true,
+        lightdashLabels: false,
+        showAxisTitles: false,
+        showLegend: true,
+        legendPosition: 'bottom',
+    },
+    // Shares the plain chart's query: the ten largest, largest first
+    query: null,
+});
 
 /** Stable keys define project-scoped sync slugs; names are presentation only. */
 const aiUsageContent = {
@@ -362,7 +384,7 @@ const aiUsageContent = {
                 description: '',
                 libraryChart: {
                     slug: 'customizable-cartesian-chart',
-                    minVersion: '0.18.3',
+                    minVersion: '0.18.4',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
                         m1: 'ai_usage_total_ai_calls',
@@ -372,6 +394,7 @@ const aiUsageContent = {
                         seriesType: 'bar',
                         stack: 'normal',
                         splitSort: 'total',
+                        splitColorGroups: modelProviderColors,
                         xAxisType: 'time',
                         xTimeFormat: '{MMM} {d}',
                         xName: 'Day',
@@ -405,7 +428,7 @@ const aiUsageContent = {
                 description: '',
                 libraryChart: {
                     slug: 'customizable-cartesian-chart',
-                    minVersion: '0.18.3',
+                    minVersion: '0.18.4',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
                         m1: 'ai_usage_total_tokens_used',
@@ -415,6 +438,7 @@ const aiUsageContent = {
                         seriesType: 'bar',
                         stack: 'normal',
                         splitSort: 'total',
+                        splitColorGroups: modelProviderColors,
                         xAxisType: 'time',
                         xTimeFormat: '{MMM} {d}',
                         xName: 'Day',
@@ -446,6 +470,8 @@ const aiUsageContent = {
                 visualization: 'bar',
                 colors: ['#7950F2'],
                 axisLabel: 'Tokens',
+                // Ranked bars, largest at the top, coloured by provider
+                libraryChart: modelRanking('ai_usage_total_tokens_used'),
                 description:
                     'Top 10 models by total tokens in the selected period.',
             },
@@ -460,6 +486,8 @@ const aiUsageContent = {
                 visualization: 'bar',
                 colors: ['#339AF0'],
                 axisLabel: 'AI calls',
+                // Ranked bars, largest at the top, coloured by provider
+                libraryChart: modelRanking('ai_usage_total_ai_calls'),
                 description:
                     'Top 10 models by AI calls in the selected period. Compare with tokens by model to tell frequent calls from token-heavy calls.',
             },
@@ -832,6 +860,27 @@ export const analyticsSampleDashboards = [
                     axisLabel: 'Warehouse time (s)',
                     description:
                         'Average and P90 warehouse execution time per day, in seconds. This is warehouse time only, not end-to-end response time.',
+                    // The same date axis ("Oct 21") as the charts above it
+                    libraryChart: {
+                        slug: 'customizable-cartesian-chart',
+                        minVersion: '0.18.0',
+                        fieldMapping: {
+                            x: 'query_events_event_ts_day',
+                            m1: 'query_events_avg_warehouse_execution_time_s',
+                            m2: 'query_events_p90_warehouse_execution_time_s',
+                        },
+                        optionValues: {
+                            seriesType: 'line',
+                            showSymbols: true,
+                            xAxisType: 'time',
+                            xTimeFormat: '{MMM} {d}',
+                            xName: 'Day',
+                            yName: 'Warehouse time (s)',
+                            m1Name: 'Average',
+                            m2Name: 'P90',
+                        },
+                        query: null,
+                    },
                 },
             ),
         ],

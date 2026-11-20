@@ -114,7 +114,7 @@ const mostActivePeopleMetrics = [
     'user_activity_total_queries',
     'user_activity_total_ai_calls',
 ];
-const mostActivePeopleDescription = `The 10 people with the most recorded activity in the selected period, with their queries and AI calls. ${anyActivity}`;
+const mostActivePeopleDescription = `The 10 people with the most recorded activity in the selected period, with their queries and AI calls, leaving out activity with no person recorded. ${anyActivity}`;
 
 export const homeChartSpecs: UsageChartSpec[] = [
     card({
@@ -149,7 +149,8 @@ export const homeChartSpecs: UsageChartSpec[] = [
         name: 'Content created',
         description:
             'Charts and dashboards created in the selected period, including deleted ones. Content in preview projects is left out.',
-        explore: 'content_inventory',
+        // The model with a row for every day, so the trend has a point on days with nothing created
+        explore: 'content_created',
         day: 'content_health_created_at_day',
         metric: 'content_health_total_content',
         filters: [
@@ -205,6 +206,14 @@ export const homeChartSpecs: UsageChartSpec[] = [
         explore: 'user_activity',
         dimensions: ['user_activity_user_name', 'user_activity_user_id'],
         metrics: mostActivePeopleMetrics,
+        // A ranking of people lists people: activity with no person recorded is not one of them
+        filters: [
+            {
+                field: 'user_activity_user_id',
+                operator: FilterOperator.NOT_NULL,
+                values: [],
+            },
+        ],
         limit: 10,
         sorts: [{ fieldId: 'user_activity_total_events', descending: true }],
         fieldLabels: userActivityLabels,
@@ -288,7 +297,8 @@ export const homeDashboardSpec: UsageDashboardSpec = {
                     note: false,
                     charts: ['most-active-people'],
                     layout: 'row',
-                    rowHeight: 8,
+                    // Ten rows, with no blank band under them
+                    rowHeight: 7,
                 },
             ],
         },

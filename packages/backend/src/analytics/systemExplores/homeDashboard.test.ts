@@ -152,7 +152,7 @@ describe('Overview dashboard', () => {
             ['people-by-day', 0, 4, 36, 5],
             ['activity-by-type-and-day', 0, 9, 36, 6],
             ['agent-requests-by-day', 0, 15, 36, 5],
-            ['most-active-people', 0, 20, 36, 8],
+            ['most-active-people', 0, 20, 36, 7],
         ]);
     });
 

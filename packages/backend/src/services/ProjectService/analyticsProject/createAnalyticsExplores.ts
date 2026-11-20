@@ -36,12 +36,18 @@ import {
     agentRequestStartsMetrics,
     agentRequestStartsSql,
 } from '../../../analytics/systemExplores/agentRequests';
+import { modelProviders } from '../../../analytics/systemExplores/analyticsColorPalette';
 import {
     contentHealthColumns,
     contentHealthMetrics,
     contentHealthSql,
 } from '../../../analytics/systemExplores/contentHealth';
-import { contentInventoryMetrics } from '../../../analytics/systemExplores/contentInventory';
+import {
+    analyticsProjectType,
+    contentCreatedByDaySql,
+    contentInventoryMetrics,
+    customerContentSql,
+} from '../../../analytics/systemExplores/contentInventory';
 import {
     contentReachColumns,
     contentReachMetrics,
@@ -79,7 +85,11 @@ import {
     totalMembersMetric,
 } from '../../../analytics/systemExplores/peopleAdoption';
 import {
+    aiChannelNames,
     aiFeatureNames,
+    aiKeyNames,
+    aiOutcomeNames,
+    dataAppSurfaceNames,
     plainNameSql,
     type PlainNames,
 } from '../../../analytics/systemExplores/plainNames';
@@ -109,6 +119,28 @@ const dimensionFields = {
 
 // Shown in a plain-name field when nothing was recorded
 const notRecorded = 'Not recorded';
+// The field that says what kind of actor ran a query, where the activity records it
+const actorTypeColumn: Record<string, string> = {
+    query_events: 'initiating_actor_type',
+    semantic_usage: 'initiating_actor_type',
+};
+// What marks activity as coming from an embedded viewer, where the activity records it
+const embedEvidence: Record<
+    string,
+    (ref: (column: string) => string) => string
+> = {
+    query_events: (ref) =>
+        `(${ref('external_user_id')} IS NOT NULL OR ${ref('embed_token_fingerprint')} IS NOT NULL OR ${ref('context')} = 'embed')`,
+    semantic_usage: (ref) => `${ref('context')} = 'embed'`,
+    export_events: (ref) =>
+        `(${ref('external_user_id')} IS NOT NULL OR ${ref('embed_token_fingerprint')} IS NOT NULL)`,
+    ai_usage: (ref) =>
+        `(${ref('external_user_id')} IS NOT NULL OR ${ref('channel')} = 'embed')`,
+    content_reach: (ref) => `${ref('view_context')} = 'embed'`,
+    data_app_events: (ref) => `${ref('view_context')} = 'embed'`,
+    data_app_reach: (ref) => `${ref('view_context')} = 'embed'`,
+    data_app_outcomes: (ref) => `${ref('view_context')} = 'embed'`,
+};
 // Plain labels, by field name, for every explore
 const intervalLabels: Partial<Record<TimeFrames, string>> = {
     [TimeFrames.DAY]: 'Day',
@@ -168,17 +200,29 @@ const metricLabels: Record<string, Record<string, string>> = {
         runtime_error: 'Runtime errors',
     },
     embed_reach: { total_loads: 'Loads' },
-    content_health: { total_content: 'Content' },
+    content_health: {
+        total_content: 'Content',
+        total_observed_views: 'Views',
+        total_enabled_schedules: 'Schedules switched on',
+        total_dashboard_references: 'Dashboards using it',
+    },
     content_reach: { qualifying_views: 'Views' },
     agent_requests: { distinct_requesters: 'People asking' },
     agent_evaluation_runs: { total_runs: 'Runs' },
     tool_activity: { total_calls: 'Tool calls' },
     export_events: { total_downloads: 'Downloads' },
     semantic_usage: { total_queries: 'Queries' },
+    people_adoption: {
+        people_without_observed_activity: 'People who have not used Lightdash',
+    },
 };
 // What a plain-name field is called, by the column it is made from
 const plainNameLabels: Record<string, string> = {
     feature: 'Feature',
+    channel: 'Channel',
+    view_context: 'Surface',
+    key_management: 'AI key',
+    outcome: 'Outcome',
     content_type: 'Content type',
     format: 'Format',
     run_status: 'Status',
@@ -193,6 +237,7 @@ const plainNameLabels: Record<string, string> = {
     field_kind: 'Kind',
     field_origin: 'Defined in',
     is_deleted: 'Deleted',
+    owner_status: 'Owner status',
 };
 const contentTypeNames = {
     saved_chart: 'Chart',
@@ -200,6 +245,7 @@ const contentTypeNames = {
     sql_chart: 'SQL chart',
     dashboard: 'Dashboard',
     data_app: 'Data app',
+    chart_type: 'Custom chart type',
 };
 
 const dimensionTypes: Record<CompactedColumnType, DimensionType> = {
@@ -220,6 +266,7 @@ export const analyticsExploreNames = [
     'content_reach',
     'content_health',
     'content_inventory',
+    'content_created',
     'agent_requests',
     'agent_request_starts',
     'agent_request_events',
@@ -235,7 +282,9 @@ export const analyticsExploreNames = [
 
 // Keep managed chart field IDs and existing filter targets stable.
 const getBaseTableName = (name: (typeof analyticsExploreNames)[number]) =>
-    name === 'content_inventory' ? 'content_health' : name;
+    name === 'content_inventory' || name === 'content_created'
+        ? 'content_health'
+        : name;
 
 /** Compile backend-owned system models without querying remote storage. */
 export const createAnalyticsExplores = (): Explore[] => {
@@ -317,6 +366,10 @@ export const createAnalyticsExplores = (): Explore[] => {
                 metrics: contentHealthMetrics,
             },
             content_inventory: {
+                columns: contentInventoryColumns,
+                metrics: contentInventoryMetrics,
+            },
+            content_created: {
                 columns: contentInventoryColumns,
                 metrics: contentInventoryMetrics,
             },
@@ -402,6 +455,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             name === 'content_reach' ||
             name === 'content_health' ||
             name === 'content_inventory' ||
+            name === 'content_created' ||
             name === 'agent_requests' ||
             name === 'agent_request_events' ||
             name === 'agent_evaluation_runs' ||
@@ -478,6 +532,28 @@ export const createAnalyticsExplores = (): Explore[] => {
             };
         }
         if (name === 'content_reach') {
+            // New content is dated from the inventory, like every other content tile. The date a view
+            // event carries can differ from it. Using these measures joins the inventory.
+            const firstWeekEnds =
+                "date_trunc('day', ${created_at}) + INTERVAL 7 DAY";
+            metrics.new_content_first_week_viewers = {
+                ...base,
+                name: 'new_content_first_week_viewers',
+                label: 'Viewers in first week',
+                description:
+                    'Distinct people with a qualifying view in the first seven UTC calendar days from the creation date in the content inventory. Zero when the content was created before views were recorded.',
+                type: MetricType.COUNT_DISTINCT,
+                sql: `CASE WHEN \${qualifying_view_at} < ${firstWeekEnds} THEN \${user_id} END`,
+            };
+            metrics.new_content_returning_viewers = {
+                ...base,
+                name: 'new_content_returning_viewers',
+                label: 'Came back later',
+                description:
+                    'Distinct people first seen in the first seven UTC calendar days from the creation date in the content inventory who viewed the content again on the eighth day or later.',
+                type: MetricType.COUNT_DISTINCT,
+                sql: `CASE WHEN \${qualifying_view_at} >= ${firstWeekEnds} AND \${first_view_day} < ${firstWeekEnds} THEN \${user_id} END`,
+            };
             metrics.verified_audience_share = {
                 ...base,
                 name: 'verified_audience_share',
@@ -558,7 +634,8 @@ export const createAnalyticsExplores = (): Explore[] => {
                           tool_activity: toolActivitySql,
                           content_reach: contentReachSql,
                           content_health: contentHealthSql,
-                          content_inventory: '"lightdash_content"',
+                          content_inventory: customerContentSql,
+                          content_created: contentCreatedByDaySql,
                           agent_requests: agentRequestsSql,
                           agent_evaluation_runs: `"${usageDimensionTable('agent_evaluation_runs')}"`,
                           semantic_usage: semanticUsageSql,
@@ -602,7 +679,34 @@ export const createAnalyticsExplores = (): Explore[] => {
             // Two fields cannot share a name in the field list
             recorded.label = `${recorded.label} (recorded value)`;
         };
-        if (name === 'ai_usage') addPlainName('feature', aiFeatureNames);
+        if (name === 'ai_usage') {
+            addPlainName('feature', aiFeatureNames);
+            addPlainName('channel', aiChannelNames);
+            addPlainName('key_management', aiKeyNames);
+            addPlainName('outcome', aiOutcomeNames);
+            // The provider read from the model's name, with the same prefixes that colour the model
+            // charts, so a Claude model reached through Bedrock still counts as Anthropic
+            table.dimensions.model_provider = {
+                ...table.dimensions.model,
+                name: 'model_provider',
+                label: 'Model provider',
+                description:
+                    'Provider worked out from the start of the model name: Anthropic, OpenAI, Google, or Other when the name matches none. Provider holds the recorded route, such as bedrock.',
+                sql: `CASE ${modelProviders
+                    .map(
+                        ({ label: provider, prefixes }) =>
+                            `WHEN ${prefixes
+                                .map(
+                                    (prefix) =>
+                                        `starts_with(lower(${table.dimensions.model.sql}), '${prefix}')`,
+                                )
+                                .join(' OR ')} THEN '${provider}'`,
+                    )
+                    .join(
+                        ' ',
+                    )} WHEN ${table.dimensions.model.sql} IS NULL THEN NULL ELSE 'Other' END`,
+            };
+        }
         if (name === 'query_events') {
             addPlainName('workload_origin', {
                 names: { app: 'Data app', mcp: 'MCP' },
@@ -635,9 +739,22 @@ export const createAnalyticsExplores = (): Explore[] => {
         if (
             name === 'content_health' ||
             name === 'content_inventory' ||
+            name === 'content_created' ||
             name === 'content_reach'
         ) {
             addPlainName('content_type', { names: contentTypeNames });
+            // Only dashboards have an owner. "Not recorded" is every other type of content, which has no
+            // owner to record, not an owner that went missing.
+            addPlainName('owner_status', {
+                names: {
+                    'Active organization member': 'Active member',
+                    Deactivated: 'Deactivated',
+                    'Not an organization member': 'Not a member',
+                    Unassigned: 'No owner',
+                    'Unknown user': 'Unknown owner',
+                    'Not recorded': 'Has no owner (chart or data app)',
+                },
+            });
             addPlainName('is_deleted', {
                 names: { true: 'Deleted', false: 'Not deleted' },
             });
@@ -645,12 +762,13 @@ export const createAnalyticsExplores = (): Explore[] => {
                 names: {
                     'Activity observed': 'Has recorded activity',
                     'No activity observed; known dependency':
-                        'No recorded activity, used by a dashboard or schedule',
+                        'No recorded activity, still in use',
                     'No activity observed; coverage incomplete':
                         'No recorded activity',
                 },
             });
         }
+        addPlainName('view_context', dataAppSurfaceNames);
         if (name === 'data_app_events')
             addPlainName('event_name', {
                 names: {
@@ -698,10 +816,39 @@ export const createAnalyticsExplores = (): Explore[] => {
             addPlainName('field_kind');
             addPlainName('field_origin');
         }
+        // Views and queries of Lightdash's own analytics dashboards are real activity, so they stay in
+        // counts of people and queries. A tile that lists the customer's content filters them out.
+        if (
+            (name === 'content_reach' || name === 'query_events') &&
+            table.dimensions.project_id
+        )
+            table.dimensions.in_analytics_project = {
+                ...table.dimensions.project_id,
+                name: 'in_analytics_project',
+                label: 'In the Analytics project',
+                type: DimensionType.BOOLEAN,
+                description:
+                    "Whether the activity was on Lightdash's own analytics dashboards and charts. Filter to No to list only content your organization made.",
+                sql: `EXISTS (SELECT 1 FROM lightdash_content analytics_content WHERE analytics_content.project_type = '${analyticsProjectType}' AND analytics_content.org_id = ${table.dimensions.org_id.sql} AND analytics_content.project_id = ${table.dimensions.project_id.sql})`,
+            };
+        // A data app the organization made: in the inventory as a data app, not a custom chart type,
+        // and not in the Analytics project
+        if (name === 'data_app_events')
+            table.dimensions.is_organization_data_app = {
+                ...table.dimensions.app_id,
+                name: 'is_organization_data_app',
+                label: "One of the organization's data apps",
+                type: DimensionType.BOOLEAN,
+                description:
+                    "Whether the event is for a data app your organization made. No for a custom chart type and for Lightdash's own analytics apps.",
+                sql: `EXISTS (SELECT 1 FROM lightdash_content own_app WHERE own_app.content_type = 'data_app' AND (own_app.project_type IS NULL OR own_app.project_type <> '${analyticsProjectType}') AND own_app.org_id = ${table.dimensions.org_id.sql} AND own_app.content_id = ${table.dimensions.app_id.sql})`,
+            };
         if (table.dimensions.user_id)
-            table.dimensions.user_id.label = 'User UUID';
+            table.dimensions.user_id.label = 'Person ID';
         if (table.dimensions.project_id)
-            table.dimensions.project_id.label = 'Project UUID';
+            table.dimensions.project_id.label = 'Project ID';
+        if (table.dimensions.agent_id)
+            table.dimensions.agent_id.label = 'Agent ID';
         if (name === 'people_membership')
             table.dimensions.user_id.hidden = true;
         if (startsOnly) table.dimensions.org_id.hidden = true;
@@ -714,6 +861,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             ]) {
                 table.dimensions[field].hidden = true;
             }
+            table.dimensions.dashboard_label.label = 'Dashboard';
             table.dimensions.external_user_id.description =
                 'Explicit external ID supplied by the embed issuer; not a registered user or a tenant ID. Missing IDs remain null.';
             table.dimensions.event_ts.description =
@@ -731,7 +879,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             const { dimensions } = table;
             dimensions.external_user_id.label = 'External viewer ID';
             dimensions.external_user_id.description =
-                'Viewer ID supplied by the embed issuer. Separate from the registered User UUID.';
+                'Viewer ID supplied by the embed issuer. Separate from the Person ID of a signed-in person.';
             dimensions.embed_token_fingerprint.label =
                 'Embed token fingerprint';
             dimensions.embed_token_fingerprint.description =
@@ -786,6 +934,15 @@ export const createAnalyticsExplores = (): Explore[] => {
                     'Plain name for Context, such as Dashboard view, Explore or Scheduled delivery. A value with no plain name is shown as recorded. Filter on Context, which holds the recorded value.',
                 sql: queryContextNameSql(table.dimensions.context.sql),
             };
+            table.dimensions.has_content = {
+                ...table.dimensions.chart_id,
+                name: 'has_content',
+                label: 'Linked to saved content',
+                type: DimensionType.BOOLEAN,
+                description:
+                    'Whether the query came from a chart, a dashboard or a data app. A query from exploring directly, and some others, is linked to none.',
+                sql: `(${table.dimensions.chart_id.sql} IS NOT NULL OR ${table.dimensions.dashboard_id.sql} IS NOT NULL OR ${table.dimensions.app_id.sql} IS NOT NULL)`,
+            };
             table.dimensions.org_id.hidden = true;
             table.dimensions.field_identity.hidden = true;
             table.dimensions.definition_hash.description =
@@ -833,7 +990,11 @@ export const createAnalyticsExplores = (): Explore[] => {
             table.dimensions.last_seen_day.description =
                 'UTC date of the most recent observed or inferred activity, in YYYY-MM-DD form.';
         }
-        if (name === 'content_health' || name === 'content_inventory') {
+        if (
+            name === 'content_health' ||
+            name === 'content_inventory' ||
+            name === 'content_created'
+        ) {
             table.dimensions.org_id.hidden = true;
             table.dimensions.owner_status.description =
                 'Current ownership evidence. Not an organization member does not imply employment ended. Creators and editors are not inferred to be owners.';
@@ -907,6 +1068,7 @@ export const createAnalyticsExplores = (): Explore[] => {
         } else if (
             name !== 'content_health' &&
             name !== 'content_inventory' &&
+            name !== 'content_created' &&
             name !== 'people_adoption' &&
             name !== 'people_membership' &&
             name !== 'embed_reach' &&
@@ -943,18 +1105,42 @@ export const createAnalyticsExplores = (): Explore[] => {
                 });
                 fields.org_id.hidden = true;
                 fields.name.label = dimensionFields[dimension].label;
+                // Names say who or what it was, as far as the activity records it. "Unknown" is kept for
+                // an ID that matches nothing in the snapshot; having no ID at all is said plainly.
+                // Downloads take their agent and project through the query they exported
+                const source =
+                    name === 'export_events' && dimension !== 'users'
+                        ? 'query_events'
+                        : name;
+                const ref = (column: string) => `\${${name}.${column}}`;
                 if (dimension === 'users') {
-                    fields.name.sql = "COALESCE(${TABLE}.name, 'Unknown user')";
+                    const noId = `NULLIF(TRIM(${ref('user_id')}), '') IS NULL`;
+                    const embedded = embedEvidence[name]?.(ref);
+                    const actor = actorTypeColumn[name]
+                        ? ref(actorTypeColumn[name])
+                        : null;
+                    const nobody = embedded
+                        ? `CASE WHEN ${embedded} THEN 'Embedded viewer' ELSE 'No user recorded' END`
+                        : "'No user recorded'";
+                    fields.name.sql = `CASE ${
+                        actor
+                            ? `WHEN ${actor} = 'service_account' THEN 'Service account ' || COALESCE(\${TABLE}.name, left(${ref('user_id')}, 8), '') WHEN ${actor} = 'anonymous' THEN ${
+                                  embedded
+                                      ? `CASE WHEN ${embedded} THEN 'Embedded viewer' ELSE 'Anonymous' END`
+                                      : "'Anonymous'"
+                              } `
+                            : ''
+                    }WHEN ${noId} THEN ${nobody} ELSE COALESCE(\${TABLE}.name, 'Unknown user') || CASE WHEN \${TABLE}.is_active = false AND \${TABLE}.name IS NOT NULL THEN ' (deactivated)' ELSE '' END END`;
+                    // Read through the name; not a field of its own
+                    fields.is_active.hidden = true;
                     fields.email.label = 'User email';
                     fields.email.description =
                         'Current primary email at the latest user metadata refresh, not the email at event time. Unavailable emails are NULL.';
                 }
                 if (dimension === 'agents')
-                    fields.name.sql =
-                        "COALESCE(${TABLE}.name, 'Unknown agent')";
+                    fields.name.sql = `CASE WHEN \${${source}.agent_id} IS NULL THEN 'No agent' ELSE COALESCE(\${TABLE}.name, 'Unknown agent') END`;
                 if (dimension === 'projects')
-                    fields.name.sql =
-                        "COALESCE(${TABLE}.name, 'Unknown project')";
+                    fields.name.sql = `CASE WHEN \${${source}.project_id} IS NULL THEN 'No project' ELSE COALESCE(\${TABLE}.name, 'Unknown project') END`;
                 return [
                     tableName,
                     {
@@ -986,7 +1172,22 @@ export const createAnalyticsExplores = (): Explore[] => {
                 'content_type',
                 'content_url',
                 ...(name === 'historical_activity' ? ['content_name'] : []),
-            ].map((reference) => ({ reference, type: DimensionType.STRING })),
+            ]
+                .map((reference) => ({
+                    reference,
+                    type: DimensionType.STRING,
+                }))
+                // When the item was created, as the inventory records it
+                .concat(
+                    name === 'content_reach'
+                        ? [
+                              {
+                                  reference: 'created_at',
+                                  type: DimensionType.TIMESTAMP,
+                              },
+                          ]
+                        : [],
+                ),
             warehouseSqlBuilder: sqlBuilder,
         });
         const includeQueryMetadata = name === 'export_events';
@@ -1013,7 +1214,8 @@ export const createAnalyticsExplores = (): Explore[] => {
         appFields.org_id.hidden = true;
         appFields.name.label = 'App name';
         appFields.name.sql = `COALESCE(\${TABLE}.name, \${${name}.app_id}, 'Unknown app')`;
-        if (name === 'historical_activity')
+        // A row with no data app has no data app name, not an unknown one
+        if (name === 'historical_activity' || name === 'semantic_usage')
             appFields.name.sql = `CASE WHEN \${${name}.app_id} IS NULL THEN NULL ELSE ${appFields.name.sql} END`;
         const explore: UncompiledExplore = {
             name: exploreName,
@@ -1030,7 +1232,11 @@ export const createAnalyticsExplores = (): Explore[] => {
                               fields:
                                   name === 'historical_activity'
                                       ? ['content_name', 'content_url']
-                                      : ['content_url'],
+                                      : [
+                                            'content_url',
+                                            'created_at',
+                                            'created_at_day',
+                                        ],
                               sqlOn: `\${${name}.org_id} = \${lightdash_content.org_id} AND \${${name}.project_id} = \${lightdash_content.project_id} AND \${${name}.content_id} = \${lightdash_content.content_id} AND CASE WHEN \${${name}.content_type} = 'chart' THEN 'saved_chart' ELSE \${${name}.content_type} END = \${lightdash_content.content_type}`,
                           },
                       ]
@@ -1106,7 +1312,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                               primaryKey: ['org_id', 'project_id', 'app_id'],
                               sqlTable: `(SELECT org_id, project_id, content_id AS app_id,
                                   content_name AS name, project_name
-                                  FROM lightdash_content WHERE content_type = 'data_app')`,
+                                  FROM lightdash_content WHERE content_type IN ('data_app', 'chart_type'))`,
                               database: 'memory',
                               schema: 'main',
                               lineageGraph: { nodes: [], edges: [] },
@@ -1182,6 +1388,21 @@ export const createAnalyticsExplores = (): Explore[] => {
                     },
                 ];
             }
+        }
+        // A tool call by a service account has no user, so by person it would sit with every other
+        // service account under Unknown user. This names each one. The service account's own name is
+        // not in the usage data, so the first part of its ID tells them apart.
+        if (name === 'tool_activity' && baseTable.dimensions.user_name) {
+            const { actor_type: actorType, actor_id: actorId } =
+                baseTable.dimensions;
+            baseTable.dimensions.actor_name = {
+                ...baseTable.dimensions.user_name,
+                name: 'actor_name',
+                label: 'Person or service account',
+                description:
+                    "The person's name, or Service account with the start of its ID for a call made by a service account.",
+                sql: `CASE WHEN ${actorType.sql} = 'service_account' THEN 'Service account ' || COALESCE(left(${actorId.sql}, 8), '') ELSE ${baseTable.dimensions.user_name.sql} END`,
+            };
         }
         // Library charts title their axes, legends and columns with these labels, so the fields a
         // dashboard tile can show are named the way a tile would name them.

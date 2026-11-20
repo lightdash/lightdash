@@ -1,4 +1,5 @@
 import { FilterOperator } from '@lightdash/common';
+import { caution, positive } from './analyticsChartPresentation';
 import { card, ranking, seriesByDay } from './chartBuilders';
 import type { UsageChartSpec, UsageDashboardSpec } from './usageDashboardTypes';
 
@@ -53,7 +54,7 @@ export const agentEvaluationsChartSpecs: UsageChartSpec[] = [
         sorts: [{ fieldId: day, descending: false }],
         libraryChart: {
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.18.0',
+            minVersion: '0.18.6',
             fieldMapping: {
                 x: day,
                 m1: 'agent_evaluation_runs_total_runs',
@@ -72,6 +73,8 @@ export const agentEvaluationsChartSpecs: UsageChartSpec[] = [
                 yRightName: 'Pass rate',
                 m1Name: 'Runs',
                 m2Name: 'Pass rate',
+                // A few runs a day: 1, 2, 3, not 0.5, 1.5, 2.5
+                yIntegerTicks: true,
             },
             query: {
                 dimensions: [day],
@@ -97,14 +100,17 @@ export const agentEvaluationsChartSpecs: UsageChartSpec[] = [
             {
                 metric: 'agent_evaluation_runs_passed_assessments',
                 name: 'Passed',
+                color: positive,
             },
             {
                 metric: 'agent_evaluation_runs_failed_assessments',
                 name: 'Failed',
+                color: caution,
             },
         ],
         yName: 'Assessments',
         stacked: true,
+        wholeNumbers: true,
         timezone,
     }),
     ranking({
@@ -188,7 +194,8 @@ export const agentEvaluationsDashboardSpec: UsageDashboardSpec = {
                         'Compare evaluations and inspect individual runs. Results reflect the latest nightly refresh and may change if evaluation history is removed.',
                     charts: ['quality-by-evaluation'],
                     layout: 'row',
-                    rowHeight: 8,
+                    // A handful of evaluations is usual: room for six rows, more by scrolling
+                    rowHeight: 5,
                 },
                 {
                     title: 'Recent runs',

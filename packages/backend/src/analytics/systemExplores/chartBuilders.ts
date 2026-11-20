@@ -1,3 +1,4 @@
+import { TableCalculationType } from '@lightdash/common';
 import type { LibraryChartBinding } from './libraryCharts';
 import type { UsageChartSpec } from './usageDashboardTypes';
 import { usageFieldLabels } from './usageFieldLabels';
@@ -41,19 +42,24 @@ export const card = ({
     visualization: 'number',
     libraryChart: {
         slug: 'big-number-with-sparkline-trend',
-        minVersion: latestDay && !hero ? '0.7.1' : '0.8.0',
+        minVersion: '0.8.2',
         fieldMapping: { value: metric, sparklineMetric: metric, time: day },
         optionValues: {
             ...(latestDay
                 ? { valueAggregation: 'latest', showComparison: false }
                 : {
                       valueAggregation: 'sum',
-                      style: 'compact',
-                      showComparison: true,
-                      comparisonSource: 'previousPeriod',
-                      comparisonLabel: 'vs the day before',
+                      // No change badge: the chart can only compare one day with the day before,
+                      // which says nothing about a total for the whole period.
+                      showComparison: false,
                   }),
             ...(hero ? { showHighLow: true } : {}),
+            // Every card of a row draws its number at one size and in one format, whichever way
+            // its value is added up. No card has a change badge, so no line is kept for one.
+            style: 'compact',
+            sizeMode: 'preset',
+            bigNumberSize: 6,
+            reserveComparisonSpace: false,
             colorSparklineByTrend: false,
             showSparklineArea: true,
             showLabel: true,
@@ -69,6 +75,33 @@ export const card = ({
             description,
         },
     },
+});
+
+// One number as a card, with a line of plain words saying what it counts. For a number with no daily
+// series behind it, so no sparkline.
+export const numberCard = (
+    value: string,
+    label: string,
+    percent = false,
+): LibraryChartBinding => ({
+    slug: 'big-number-with-sparkline-trend',
+    minVersion: '0.8.2',
+    fieldMapping: { value },
+    optionValues: {
+        valueAggregation: 'latest',
+        showComparison: false,
+        // A share keeps its own format: 92.8%, not 0.93
+        style: percent ? 'default' : 'compact',
+        sizeMode: 'preset',
+        bigNumberSize: 6,
+        reserveComparisonSpace: false,
+        showLabel: true,
+        label,
+        labelTransform: 'none',
+        showCardBorder: false,
+        showCardShadow: false,
+    },
+    query: null,
 });
 
 // Smooth filled lines in full-width rows over a shared date axis, each row on its own scale.
@@ -212,6 +245,7 @@ export const stackedByDay = ({
     top = 5,
     splitDescription,
     xAxis = dayAxis,
+    colors,
     ...spec
 }: Base & {
     day: string;
@@ -219,6 +253,8 @@ export const stackedByDay = ({
     splitBy: string;
     yName: string;
     top?: number;
+    // A fixed colour for each named category. The legend then shows even with one category present.
+    colors?: Record<string, string>;
     // What the stacked version shows, for its own description
     splitDescription: string;
     xAxis?: LibraryChartBinding['optionValues'];
@@ -233,7 +269,7 @@ export const stackedByDay = ({
     yFields: [metric],
     libraryChart: {
         slug: 'customizable-cartesian-chart',
-        minVersion: '0.18.3',
+        minVersion: colors ? '0.18.4' : '0.18.3',
         fieldMapping: { x: day, m1: metric, splitBy },
         optionValues: {
             seriesType: 'bar',
@@ -243,6 +279,14 @@ export const stackedByDay = ({
             ...xAxis,
             yName,
             splitTopN: top,
+            ...(colors
+                ? {
+                      splitColorGroups: Object.entries(colors)
+                          .map(([name, color]) => `${name}=${name}=${color}`)
+                          .join(';'),
+                      showLegend: true,
+                  }
+                : {}),
         },
         query: {
             dimensions: [day, splitBy],
@@ -265,12 +309,16 @@ export const seriesByDay = ({
     stacked = false,
     seriesType = 'bar',
     rightAxis,
+    wholeNumbers = false,
     ...spec
 }: Base & {
     day: string;
-    series: { metric: string; name: string }[];
+    // A colour is for a measure that means good or not good; others take the palette in turn
+    series: { metric: string; name: string; color?: string }[];
     yName: string;
     stacked?: boolean;
+    // The axis counts a few things, so its ticks are whole numbers
+    wholeNumbers?: boolean;
     seriesType?: 'bar' | 'line';
     // Draws the last measure as a line on its own axis on the right
     rightAxis?: string;
@@ -296,7 +344,10 @@ export const seriesByDay = ({
         },
         libraryChart: {
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.18.0',
+            minVersion:
+                wholeNumbers || series.some(({ color }) => color)
+                    ? '0.18.6'
+                    : '0.18.0',
             fieldMapping: {
                 x: day,
                 ...Object.fromEntries(
@@ -315,6 +366,14 @@ export const seriesByDay = ({
                         series[index].name,
                     ]),
                 ),
+                ...Object.fromEntries(
+                    slots.flatMap((slot, index) =>
+                        series[index].color
+                            ? [[`${slot}Color`, series[index].color]]
+                            : [],
+                    ),
+                ),
+                ...(wholeNumbers ? { yIntegerTicks: true } : {}),
                 ...(rightAxis
                     ? {
                           [`${last}Type`]: 'line',
@@ -338,10 +397,11 @@ export const ranking = ({
     metrics,
     dimensions,
     limit = 50,
-    libraryLimit = 500,
+    libraryLimit,
     libraryDescription,
     visualization,
     extraMetrics = [],
+    expanded = false,
     ...spec
 }: Base &
     Partial<Pick<UsageChartSpec, 'visualization' | 'xField' | 'yFields'>> & {
@@ -357,8 +417,27 @@ export const ranking = ({
         libraryDescription?: string;
         // Measures only the plain table shows, such as a date
         extraMetrics?: string[];
+        // Groups start open, for a list that is short and is the point of the tile
+        expanded?: boolean;
     }): UsageChartSpec => {
     const grouped = [by, ...(then ? [then] : []), ...(series ? [series] : [])];
+    // A table grouped by two names adds up the rows under each first name. Rows are asked for a
+    // whole group at a time, largest group first, so when the row limit cuts the list it drops small
+    // groups and every group shown has all of its rows: its total is the true total.
+    const tableOf = (field: string) =>
+        [spec.explore, 'content_health', 'agent_requests'].find((table) =>
+            field.startsWith(`${table}_`),
+        );
+    const table = tableOf(metrics[0]);
+    const groupTotal =
+        then && !series && table && tableOf(by) === table
+            ? {
+                  name: 'group_total',
+                  displayName: 'Group total',
+                  type: TableCalculationType.NUMBER,
+                  sql: `SUM(\${${table}.${metrics[0].slice(table.length + 1)}}) OVER (PARTITION BY \${${table}.${by.slice(table.length + 1)}})`,
+              }
+            : undefined;
     // The table takes its headers from these names, not from the field labels of the explore
     const labelOf = (field: string) => {
         const label = spec.fieldLabels?.[field] ?? usageFieldLabels[field];
@@ -393,13 +472,26 @@ export const ranking = ({
                     .map(labelOf)
                     .join(' / '),
                 valueNames: metrics.map(labelOf).join(','),
-                ...(then ? { defaultCollapsed: 'collapsed' } : {}),
+                ...(then
+                    ? { defaultCollapsed: expanded ? 'expanded' : 'collapsed' }
+                    : {}),
             },
             query: {
                 dimensions: grouped,
                 metrics,
-                sorts: [{ fieldId: metrics[0], descending: true }],
-                limit: libraryLimit,
+                ...(groupTotal ? { tableCalculations: [groupTotal] } : {}),
+                sorts: [
+                    ...(groupTotal
+                        ? [
+                              { fieldId: groupTotal.name, descending: true },
+                              { fieldId: by, descending: false },
+                          ]
+                        : []),
+                    { fieldId: metrics[0], descending: true },
+                ],
+                // A group's total adds up the rows under it, so a table grouped by two names asks for
+                // every row it can: a short list would leave the totals short of the same count elsewhere
+                limit: libraryLimit ?? (then ? 5000 : 500),
                 description: libraryDescription ?? spec.description,
             },
         },
@@ -422,9 +514,15 @@ export const cloud = ({
     flipAxes: true,
     libraryChart: {
         slug: 'word-cloud',
-        minVersion: '0.4.0',
+        minVersion: '0.4.1',
         fieldMapping: { word, size: metric },
-        optionValues: { showLegend: false },
+        // One colour, strongest for the biggest word, every word level, no word count under it
+        optionValues: {
+            showLegend: false,
+            colorMode: 'shade',
+            rotationMode: 'none',
+            showCaption: false,
+        },
         query: {
             dimensions: [word],
             metrics: [metric],

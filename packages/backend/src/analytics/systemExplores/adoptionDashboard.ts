@@ -37,6 +37,14 @@ const activityDay = 'user_activity_activity_date_day';
 const requestDay = 'agent_requests_requested_at_day';
 const reachDay = 'data_app_reach_event_ts_day';
 const latestDayNote = 'The Date filter does not apply.';
+const appWeek = 'content_health_created_at_week';
+const appRunningTotal = {
+    name: 'data_apps_running_total',
+    displayName: 'Data apps',
+    type: TableCalculationType.NUMBER,
+    sql: `SUM(\${content_health.total_content}) OVER (ORDER BY \${content_health.created_at_week})`,
+    format: { type: CustomFormatType.NUMBER, round: 0 },
+};
 
 export const adoptionChartSpecs: UsageChartSpec[] = [
     card({
@@ -102,7 +110,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-activity-by-person-and-day',
         name: 'Recorded activity by person and day, last 30 days',
         description:
-            'The 15 people with the most recorded activity in the last 30 complete days. Recent activity does not mean a recent login.',
+            'The 15 people with the most recorded activity in the last 30 complete days, leaving out activity with no person recorded. Recent activity does not mean a recent login.',
         explore: 'user_activity',
         day: activityDay,
         metric: 'user_activity_total_events',
@@ -111,13 +119,18 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         top: 15,
         filters: [
             {
+                field: 'user_activity_user_id',
+                operator: FilterOperator.NOT_NULL,
+                values: [],
+            },
+            {
                 field: activityDay,
                 operator: FilterOperator.IN_THE_PAST,
                 values: [30],
                 settings: { unitOfTime: UnitOfTime.days, completed: true },
             },
         ],
-        titles: { category: 'Person', metric: 'Recorded activities' },
+        titles: { category: 'Person', metric: 'Activities' },
     }),
     ranking({
         key: 'adoption-dashboard-audience',
@@ -154,7 +167,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-app-audience',
         name: 'Which data apps are people loading?',
         description:
-            'Recorded data app loads from standalone pages and dashboards, including reloads. Chart tiles drawn by a custom chart type, builder previews, embeds and deliveries are left out.',
+            'Data app loads from standalone pages and dashboards in all recorded history, including reloads. Chart tiles drawn by a custom chart type, builder previews, embeds and deliveries are left out.',
         explore: 'data_app_reach',
         by: 'data_app_reach_app_name',
         dimensions: [
@@ -173,28 +186,50 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         libraryLimit: 30,
         fieldLabels: {
             data_app_reach_app_name: 'Data app',
-            data_app_reach_distinct_viewers: 'Identified viewers',
-            data_app_reach_total_loads: 'App loads',
+            data_app_reach_distinct_viewers: 'Viewers',
+            data_app_reach_total_loads: 'Loads',
             data_app_reach_last_loaded_at: 'Last app load',
         },
     }),
-    trend({
+    {
+        // Data apps are created a few times a quarter. A count for each day is a row of lone spikes,
+        // so the chart adds them up: it climbs a step each time a data app is created.
         key: 'adoption-apps-created-by-day',
-        name: 'Data apps created by day',
+        name: 'Data apps, running total by week',
         description:
-            'Distinct data apps created each day. Older creation history may be missing.',
-        explore: 'data_app_events',
-        day: 'data_app_events_event_ts_day',
-        metric: 'data_app_events_unique_apps',
+            'Data apps in the latest inventory, added up week by week from the day each was created. Includes deleted data apps, not custom chart types.',
+        explore: 'content_created',
+        dimensions: [appWeek],
+        metrics: ['content_health_total_content'],
         filters: [
-            {
-                field: 'data_app_events_event_name',
-                values: ['data_app.created'],
-            },
+            { field: appWeek, operator: FilterOperator.NOT_NULL, values: [] },
+            { field: 'content_health_content_type', values: ['data_app'] },
         ],
+        tableCalculations: [appRunningTotal],
         limit: allHistory,
-        fieldLabels: { data_app_events_unique_apps: 'Data apps created' },
-    }),
+        sorts: [{ fieldId: appWeek, descending: false }],
+        visualization: 'line',
+        xField: appWeek,
+        yFields: [appRunningTotal.name],
+        fieldLabels: { [appWeek]: 'Week', [appRunningTotal.name]: 'Data apps' },
+        libraryChart: {
+            slug: 'customizable-cartesian-chart',
+            minVersion: '0.18.6',
+            fieldMapping: { x: appWeek, m1: appRunningTotal.name },
+            optionValues: {
+                // Filled, like the other trend tiles
+                seriesType: 'area',
+                xAxisType: 'time',
+                // The day as well as the month: a tick for each week would repeat the month's name
+                xTimeFormat: '{MMM} {d}',
+                xName: 'Week',
+                yName: 'Data apps',
+                m1Name: 'Data apps',
+                yIntegerTicks: true,
+            },
+            query: null,
+        },
+    },
     ranking({
         key: 'adoption-app-creators',
         name: 'Who is creating data apps?',
@@ -216,6 +251,12 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
             {
                 field: 'data_app_events_event_name',
                 values: ['data_app.created'],
+            },
+            // The same data apps as the running total beside it: no custom chart types, and none of
+            // Lightdash's own analytics apps
+            {
+                field: 'data_app_events_is_organization_data_app',
+                values: [true],
             },
         ],
         limit: 100,
@@ -252,15 +293,15 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
             fieldMapping: {
                 x: reachDay,
                 value: 'data_app_reach_total_loads',
-                panel: 'data_app_reach_view_context',
+                panel: 'data_app_reach_view_context_name',
             },
             optionValues: trendRows(true),
             query: {
-                dimensions: [reachDay, 'data_app_reach_view_context'],
+                dimensions: [reachDay, 'data_app_reach_view_context_name'],
                 metrics: ['data_app_reach_total_loads'],
                 sorts: [
                     {
-                        fieldId: 'data_app_reach_view_context',
+                        fieldId: 'data_app_reach_view_context_name',
                         descending: false,
                     },
                     { fieldId: reachDay, descending: false },
@@ -303,14 +344,14 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         description:
             'All recorded data app loads by surface, including chart tiles drawn by a custom chart type, builder previews, embeds, deliveries and loads with unknown context. Viewers of embeds are not identified.',
         explore: 'data_app_reach',
-        by: 'data_app_reach_view_context',
+        by: 'data_app_reach_view_context_name',
         metrics: [
             'data_app_reach_total_loads',
             'data_app_reach_distinct_viewers',
         ],
         limit: 100,
         fieldLabels: {
-            data_app_reach_view_context: 'Surface',
+            data_app_reach_view_context_name: 'Surface',
             data_app_reach_total_loads: 'App loads',
             data_app_reach_distinct_viewers: 'Identified viewers',
         },
@@ -325,35 +366,36 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         series: [
             {
                 metric: 'data_app_outcomes_html_error',
-                name: 'HTML delivery failures',
+                name: 'Failed to deliver',
             },
             {
                 metric: 'data_app_outcomes_runtime_error',
-                name: 'Runtime errors',
+                name: 'Errors while running',
             },
         ],
         yName: 'Page loads with an error',
         seriesType: 'line',
+        wholeNumbers: true,
     }),
     {
         key: 'adoption-app-outcome-detail',
         name: 'Data app outcomes by app and surface',
         description:
-            'Page delivery, startup and runtime errors for each data app and surface, counted once for each load of a page. Includes builder previews, embeds and deliveries.',
+            'Pages delivered, pages that failed to deliver and pages that hit an error while running, for each data app and surface. Each load of a page counts once, including builder previews, embeds and deliveries.',
         explore: 'data_app_outcomes',
         dimensions: [
             'data_app_outcomes_app_name',
             'data_app_outcomes_project_name',
-            'data_app_outcomes_view_context',
+            'data_app_outcomes_view_context_name',
             'data_app_outcomes_app_id',
             'data_app_outcomes_project_id',
         ],
         metrics: [
+            // Start-up is reported only by data apps built on a recent SDK, so a count of it beside
+            // pages delivered reads as most loads never starting. It is left out.
             'data_app_outcomes_html_loaded',
-            'data_app_outcomes_sdk_started',
             'data_app_outcomes_html_error',
             'data_app_outcomes_runtime_error',
-            'data_app_outcomes_total_signals',
         ],
         limit: 100,
         sorts: [
@@ -364,12 +406,10 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         fieldLabels: {
             data_app_outcomes_app_name: 'Data app',
             data_app_outcomes_project_name: 'Project',
-            data_app_outcomes_view_context: 'Surface',
-            data_app_outcomes_html_loaded: 'HTML delivered',
-            data_app_outcomes_sdk_started: 'SDK started',
-            data_app_outcomes_html_error: 'HTML delivery failures',
-            data_app_outcomes_runtime_error: 'Runtime errors',
-            data_app_outcomes_total_signals: 'Signals recorded',
+            data_app_outcomes_view_context_name: 'Surface',
+            data_app_outcomes_html_loaded: 'Pages delivered',
+            data_app_outcomes_html_error: 'Failed to deliver',
+            data_app_outcomes_runtime_error: 'Errors while running',
         },
     },
     trend({
@@ -420,7 +460,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         tableCalculations: [
             {
                 name: 'questions_per_person',
-                displayName: 'Agent requests per person asking',
+                displayName: 'Requests per person',
                 type: TableCalculationType.NUMBER,
                 sql: '1.0 * ${agent_requests.total_requests} / NULLIF(${agent_requests.distinct_requesters}, 0)',
                 format: { type: CustomFormatType.NUMBER, round: 1 },
@@ -428,7 +468,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         ],
         limit: allHistory,
         fieldLabels: {
-            questions_per_person: 'Agent requests per person asking',
+            questions_per_person: 'Requests per person',
         },
     }),
     ranking({
@@ -474,7 +514,8 @@ export const adoptionDashboardSpec: UsageDashboardSpec = {
                 },
                 operator: FilterOperator.IN_THE_PAST,
                 values: [30],
-                settings: { unitOfTime: UnitOfTime.days },
+                // Complete days, like the Date filter of every other dashboard
+                settings: { unitOfTime: UnitOfTime.days, completed: true },
             },
             {
                 label: 'Data app',
@@ -489,7 +530,7 @@ export const adoptionDashboardSpec: UsageDashboardSpec = {
             {
                 label: 'Surface',
                 target: {
-                    fieldId: 'data_app_outcomes_view_context',
+                    fieldId: 'data_app_outcomes_view_context_name',
                     tableName: 'data_app_outcomes',
                 },
                 operator: FilterOperator.EQUALS,
@@ -572,22 +613,18 @@ export const adoptionDashboardSpec: UsageDashboardSpec = {
                     title: 'Who is creating data apps?',
                     description:
                         'Recorded data app creation and the people behind it. Creation does not mean an app is ready or shared.',
-                    charts: ['adoption-apps-created-by-day'],
+                    charts: [
+                        'adoption-apps-created-by-day',
+                        'adoption-app-creators',
+                    ],
                     layout: 'row',
-                    rowHeight: 5,
-                },
-                {
-                    title: 'Creators',
-                    description: '',
-                    note: false,
-                    charts: ['adoption-app-creators'],
-                    layout: 'row',
-                    rowHeight: 8,
+                    // Room for eight creators beside the chart, with no blank block under a short list
+                    rowHeight: 6,
                 },
                 {
                     title: 'Who is loading data apps, and where?',
                     description:
-                        'Trends and named viewers cover standalone pages and dashboards. The surface breakdown adds chart tiles drawn by a custom chart type, builder previews, embeds, deliveries and unknown context.',
+                        'Trends and named viewers cover standalone pages and dashboards. The surface breakdown adds custom chart tiles, builder previews, embeds, deliveries and unknown context.',
                     charts: ['adoption-app-reader-trend'],
                     layout: 'row',
                     rowHeight: 8,

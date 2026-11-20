@@ -290,20 +290,24 @@ const chartConfig = (spec: UsageChartSpec): ChartAsCode['chartConfig'] => {
             hideRowNumbers: true,
             columns: {
                 ...Object.fromEntries(
-                    spec.dimensions
-                        .filter((field) => field.endsWith('_id'))
-                        .map((field) => [field, { visible: false }]),
-                ),
-                ...Object.fromEntries(
-                    (spec.hiddenColumns ?? []).map((field) => [
-                        field,
-                        { visible: false },
-                    ]),
-                ),
-                ...Object.fromEntries(
                     Object.entries(labels).map(([field, name]) => [
                         field,
                         { name },
+                    ]),
+                ),
+                // After the names, so a hidden column that also has a name stays hidden
+                ...Object.fromEntries(
+                    [
+                        ...spec.dimensions.filter((field) =>
+                            field.endsWith('_id'),
+                        ),
+                        ...(spec.hiddenColumns ?? []),
+                    ].map((field) => [
+                        field,
+                        {
+                            ...(labels[field] ? { name: labels[field] } : {}),
+                            visible: false,
+                        },
                     ]),
                 ),
                 // The ranking behind a top-categories filter is not something to read
@@ -321,6 +325,7 @@ const chartConfig = (spec: UsageChartSpec): ChartAsCode['chartConfig'] => {
 // Models named differently from the table their fields belong to
 const tableOfExplore: Record<string, string> = {
     content_inventory: 'content_health',
+    content_created: 'content_health',
     agent_request_starts: 'agent_requests',
 };
 
@@ -387,6 +392,17 @@ export const wholeMillisecondOverrides = (metrics: string[]) =>
             ]),
     );
 
+// Every tile about viewed content is about content the organization made, so views of Lightdash's own
+// analytics dashboards are left out. They still count in tiles about people's activity.
+const filtersOf = (
+    spec: UsageChartSpec,
+): NonNullable<UsageChartSpec['filters']> => [
+    ...(spec.filters ?? []),
+    ...(spec.explore === 'content_reach'
+        ? [{ field: 'content_reach_in_analytics_project', values: [false] }]
+        : []),
+];
+
 const buildChart = (
     spec: UsageChartSpec,
     dashboardSlug: string,
@@ -404,8 +420,9 @@ const buildChart = (
         dimensions: spec.dimensions,
         metrics: spec.metrics,
         metricOverrides: {
-            ...(spec.visualization &&
-            ['line', 'bar', 'scatter'].includes(spec.visualization)
+            ...(spec.compactCounts ||
+            (spec.visualization &&
+                ['line', 'bar', 'scatter'].includes(spec.visualization))
                 ? compactAxisOverrides(spec.metrics)
                 : {}),
             ...Object.fromEntries(
@@ -420,7 +437,14 @@ const buildChart = (
                         {
                             formatOptions: {
                                 type: CustomFormatType.PERCENT,
-                                round: 1,
+                                // An axis reads 80%, not 80.0%. A table keeps the decimal.
+                                round:
+                                    spec.visualization &&
+                                    ['line', 'bar', 'scatter'].includes(
+                                        spec.visualization,
+                                    )
+                                        ? 0
+                                        : 1,
                             },
                         },
                     ]),
@@ -443,11 +467,11 @@ const buildChart = (
                       },
                   }
                 : {}),
-            ...(spec.filters
+            ...(filtersOf(spec).length > 0
                 ? {
                       dimensions: {
                           id: `${spec.key}-filters`,
-                          and: spec.filters.map(
+                          and: filtersOf(spec).map(
                               ({ field, values, operator, settings }) => ({
                                   id: `${spec.key}-${field}`,
                                   target: { fieldId: field },

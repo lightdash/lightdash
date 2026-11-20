@@ -4,6 +4,8 @@ import {
     type DataAppVizSchema,
 } from '@lightdash/common';
 import { createAnalyticsExplores } from '../../services/ProjectService/analyticsProject/createAnalyticsExplores';
+import { buildAiTokenDashboard } from './aiTokenDashboard';
+import { modelProviderColors } from './analyticsColorPalette';
 import {
     libraryChartFields,
     withLibraryCharts,
@@ -455,7 +457,12 @@ describe('analyticsLibraryChartBindings', () => {
     it('keeps sorts within the query a library chart runs', () => {
         entries.forEach(([slug, b]) => {
             if (!b.query) return;
-            const queryFields = [...b.query.dimensions, ...b.query.metrics];
+            const queryFields = [
+                ...b.query.dimensions,
+                ...b.query.metrics,
+                // A query can also sort by its own calculations
+                ...(b.query.tableCalculations ?? []).map(({ name }) => name),
+            ];
             b.query.sorts.forEach(({ fieldId }) => {
                 expect(queryFields).toContain(fieldId);
             });
@@ -488,6 +495,89 @@ describe('analyticsLibraryChartBindings', () => {
     it('has a chart for every binding', () => {
         entries.forEach(([slug]) => {
             expect(chartFor(slug)).toBeDefined();
+        });
+    });
+});
+
+describe('model colours', () => {
+    it('colours every chart that splits or ranks by model by provider', () => {
+        const byModel = [...analyticsLibraryChartBindings.entries()].filter(
+            ([, modelBinding]) =>
+                modelBinding.slug === 'customizable-cartesian-chart' &&
+                [
+                    modelBinding.fieldMapping.splitBy,
+                    modelBinding.fieldMapping.x,
+                ].includes('ai_usage_model'),
+        );
+        expect(byModel.map(([slug]) => slug).sort()).toEqual([
+            'lightdash-analytics-overview-ai-calls-by-day',
+            'lightdash-analytics-overview-ai-consumption-by-person-feature-and-model',
+            'lightdash-analytics-overview-calls-by-model',
+            'lightdash-analytics-overview-tokens-by-day',
+            'lightdash-analytics-overview-tokens-by-model',
+        ]);
+        byModel.forEach(([, modelBinding]) =>
+            expect(modelBinding).toMatchObject({
+                minVersion: '0.18.4',
+                optionValues: { splitColorGroups: modelProviderColors },
+            }),
+        );
+        // Label=prefixes=#hex rules, with the name forms each provider route records
+        expect(
+            modelProviderColors.split(';').map((rule) => rule.split('=')[0]),
+        ).toEqual(['Anthropic', 'OpenAI', 'Google']);
+        modelProviderColors
+            .split(';')
+            .forEach((rule) =>
+                expect(rule).toMatch(/^[A-Za-z]+=[a-z0-9./|-]+=#[0-9A-F]{6}$/),
+            );
+    });
+});
+
+describe('model colours on AI token usage', () => {
+    it('fills tokens by outcome with the shared good and not-good colours', () => {
+        const outcome = buildAiTokenDashboard().charts.find(({ slug }) =>
+            slug.endsWith('-outcome-daily'),
+        )!;
+        if (outcome.chartConfig.type !== ChartType.CUSTOM) throw new Error();
+        const spec = JSON.stringify(outcome.chartConfig.config?.spec);
+        expect(spec).toContain(
+            '{\\"Success\\":\\"#34D399\\",\\"Error\\":\\"#FB923C\\"}[datum.group_name]',
+        );
+        expect(spec).toContain('"field":"group_color"');
+    });
+
+    it('fills the two model charts by provider from the same prefixes, and no other breakdown', () => {
+        const specs = buildAiTokenDashboard().charts.flatMap((tokenChart) =>
+            tokenChart.chartConfig.type === ChartType.CUSTOM
+                ? [
+                      [
+                          tokenChart.slug,
+                          JSON.stringify(tokenChart.chartConfig.config?.spec),
+                      ] as const,
+                  ]
+                : [],
+        );
+        const byProvider = specs.filter(([, spec]) =>
+            spec.includes('"as":"provider_rank"'),
+        );
+        expect(byProvider.map(([slug]) => slug).sort()).toEqual([
+            'lightdash-analytics-ai-tokens-model-daily',
+            'lightdash-analytics-ai-tokens-model-rank',
+        ]);
+        byProvider.forEach(([, spec]) => {
+            // Every prefix of the shared rule, and each provider's own colour for its largest model
+            modelProviderColors.split(';').forEach((rule) => {
+                const [label, prefixes, color] = rule.split('=');
+                prefixes
+                    .split('|')
+                    .forEach((prefix) =>
+                        expect(spec).toContain(
+                            `indexof(lower(datum.group), '${prefix}') === 0`,
+                        ),
+                    );
+                expect(spec).toContain(`\\"${label}\\":[\\"${color}\\"`);
+            });
         });
     });
 });
@@ -528,10 +618,30 @@ describe('legacyLibraryChartBindings', () => {
                 true,
             );
         });
+        // Ranked horizontal bars in the colour of each model's provider, on the plain chart's query
         ['tokens-by-model', 'calls-by-model'].forEach((key) => {
-            expect(analyticsLibraryChartBindings.has(`${prefix}${key}`)).toBe(
-                false,
-            );
+            expect(
+                analyticsLibraryChartBindings.get(`${prefix}${key}`),
+            ).toMatchObject({
+                slug: 'customizable-cartesian-chart',
+                minVersion: '0.18.4',
+                fieldMapping: { x: 'ai_usage_model' },
+                optionValues: {
+                    seriesType: 'bar',
+                    orientation: 'horizontal',
+                    splitColorGroups: modelProviderColors,
+                    showDataLabels: true,
+                    lightdashLabels: false,
+                    showAxisTitles: false,
+                    showLegend: true,
+                    legendPosition: 'bottom',
+                },
+                query: null,
+            });
+            expect(
+                analyticsLibraryChartBindings.get(`${prefix}${key}`)
+                    ?.fieldMapping,
+            ).not.toHaveProperty('splitBy');
         });
     });
 
@@ -636,10 +746,19 @@ describe('legacyLibraryChartBindings', () => {
             'warehouse-versus-cached-demand',
             'query-cache',
             'queries-by-context',
-            'query-latency-by-day',
             'query-calendar',
         ].forEach((key) => {
             expect(queryBinding(key)).toBeUndefined();
+        });
+        // Lines on the same date axis as the charts above it
+        expect(queryBinding('query-latency-by-day')).toMatchObject({
+            slug: 'customizable-cartesian-chart',
+            optionValues: {
+                xTimeFormat: '{MMM} {d}',
+                m1Name: 'Average',
+                m2Name: 'P90',
+            },
+            query: null,
         });
     });
 
@@ -794,7 +913,7 @@ describe('legacyLibraryChartBindings', () => {
                     (tile) => (tile.properties as { content: string }).content,
                 );
         expect(queryDescription(agentChart('agent-adoption-by-week'))).toBe(
-            'Requests per person and agent in the selected period. People without a display name are grouped as Unknown user.',
+            'Requests per person and agent in the selected period. Requests with no person recorded are grouped as No user recorded.',
         );
         expect(
             captions('lightdash-analytics-overview', 'adoption').filter(
@@ -809,7 +928,7 @@ describe('legacyLibraryChartBindings', () => {
                 agentChart('ai-consumption-by-person-feature-and-model'),
             ),
         ).toBe(
-            'Top 24 person and model pairs by tokens in the selected period, so a person near the cut-off can be missing their smaller models. People without a display name are grouped as Unknown user.',
+            'Top 24 person and model pairs by tokens in the selected period, so a person near the cut-off can be missing their smaller models. Usage with no person recorded is left out.',
         );
         expect(
             captions('lightdash-analytics-overview', 'consumption').filter(

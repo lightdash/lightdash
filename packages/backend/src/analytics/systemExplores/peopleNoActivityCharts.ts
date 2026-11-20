@@ -1,3 +1,5 @@
+import { TableCalculationType } from '@lightdash/common';
+import { numberCard } from './chartBuilders';
 import type { UsageChartSpec } from './usageDashboardTypes';
 
 const eligiblePeople: NonNullable<UsageChartSpec['filters']> = [
@@ -27,6 +29,10 @@ export const peopleNoActivityChartSpecs: UsageChartSpec[] = [
         limit: 1,
         sorts: [],
         visualization: 'number',
+        libraryChart: numberCard(
+            'people_adoption_people_without_observed_activity',
+            'Members with no activity of their own',
+        ),
     },
     {
         key: 'people-without-observed-activity-detail',
@@ -38,6 +44,8 @@ export const peopleNoActivityChartSpecs: UsageChartSpec[] = [
             ...personDimensions,
             'people_adoption_activity_through_day',
         ],
+        // The day activity is counted up to is the same on every row, so it is not a column
+        hiddenColumns: ['people_adoption_activity_through_day'],
         metrics: [],
         filters: [
             ...eligiblePeople,
@@ -64,6 +72,26 @@ export const peopleNoActivityChartSpecs: UsageChartSpec[] = [
             'people_adoption_activity_through_day',
         ],
         metrics: [],
+        // "Sep 22, 2026", and "Never" where a blank would read as missing data
+        tableCalculations: [
+            {
+                name: 'last_used',
+                displayName: 'Last used Lightdash (UTC)',
+                type: TableCalculationType.STRING,
+                sql: `COALESCE(strftime(\${people_adoption.last_observed_activity_at_day}, '%b %-d, %Y'), 'Never')`,
+            },
+        ],
+        hiddenColumns: [
+            'people_adoption_last_observed_activity_at_day',
+            'people_adoption_activity_through_day',
+        ],
+        columnOrder: [
+            ...personDimensions,
+            'last_used',
+            'people_adoption_days_since_last_activity',
+            'people_adoption_last_observed_activity_at_day',
+            'people_adoption_activity_through_day',
+        ],
         filters: [
             ...eligiblePeople,
             { field: 'people_adoption_active_30d', values: [false] },

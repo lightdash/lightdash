@@ -183,7 +183,7 @@ const AnalyticsOverview = ({
     status?: ReactNode;
     actions: ReactNode;
 }) => {
-    const [days, setDays] = useState('7');
+    const [days, setDays] = useState('30');
     const [selectedProject, setSelectedProject] = useState<string | null>(null);
     const [searchParams] = useSearchParams();
     const [activeTab, setActiveTab] = useState(() =>

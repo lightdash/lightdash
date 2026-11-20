@@ -84,3 +84,49 @@ describe('chart snapshot timeout recovery', () => {
         await expect(collect()).rejects.toThrow('database unavailable');
     });
 });
+
+describe('users snapshot', () => {
+    it('includes deactivated members with whether they are active, and leaves out internal users', async () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        tracker.on.any(/^SET /i).response([]);
+        tracker.on.any(/^SELECT set_config/i).response([]);
+        tracker.on
+            .select('organization_memberships')
+            .responseOnce([
+                {
+                    cursor: 1,
+                    json: '{"user_id":"left","name":"Dana Whitcombe","is_active":false}',
+                },
+            ])
+            .on.select('organization_memberships')
+            .response([]);
+        try {
+            const lines = [];
+            for await (const line of new UsageDimensionsModel(
+                database,
+                'https://lightdash.example.com',
+            ).getJsonLines(
+                {
+                    organization_id: 1,
+                    organization_uuid: '10000000-0000-0000-0000-000000000001',
+                },
+                'users',
+            ))
+                lines.push(line);
+            expect(lines.join('')).toContain('Dana Whitcombe');
+            const [{ sql, bindings }] = tracker.history.select.filter((query) =>
+                query.sql.includes('organization_memberships'),
+            );
+            // A member who has been deactivated is still a member whose past activity needs a name
+            expect(sql).not.toMatch(/"u"\."is_active" = /);
+            expect(sql).toContain("'is_active', u.is_active");
+            expect(sql).toContain('"u"."is_internal" = ');
+            expect(bindings).toContain(false);
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    });
+});

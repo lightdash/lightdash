@@ -9,7 +9,10 @@ import {
     type DataAppVizSchema,
     type Filters,
 } from '@lightdash/common';
-import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+import {
+    DuckdbWarehouseClient,
+    warehouseSqlBuilderFromType,
+} from '@lightdash/warehouses';
 import { compileMetricQuery } from '../../queryCompiler';
 import { createAnalyticsExplores } from '../../services/ProjectService/analyticsProject/createAnalyticsExplores';
 import { MetricQueryBuilder } from '../../utils/QueryBuilder/MetricQueryBuilder';
@@ -163,7 +166,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 1,
                 12,
                 4,
-                null,
+                'big-number-with-sparkline-trend',
                 'big_number',
             ],
             [
@@ -216,21 +219,39 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
         ],
         health: [
             [
-                'content-by-activity-status',
+                'content-with-activity',
                 0,
                 1,
-                36,
-                6,
-                'sortable-pivot-table',
-                'table',
+                12,
+                4,
+                'big-number-with-sparkline-trend',
+                'big_number',
+            ],
+            [
+                'content-without-activity-in-use',
+                12,
+                1,
+                12,
+                4,
+                'big-number-with-sparkline-trend',
+                'big_number',
+            ],
+            [
+                'content-without-activity',
+                24,
+                1,
+                12,
+                4,
+                'big-number-with-sparkline-trend',
+                'big_number',
             ],
             [
                 'review-candidates-activity-and-known-dependencies',
                 0,
-                7,
+                5,
                 36,
-                8,
-                null,
+                7,
+                'sortable-pivot-table',
                 'table',
             ],
         ],
@@ -240,14 +261,23 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 0,
                 1,
                 36,
-                7,
-                'sortable-pivot-table',
+                4,
+                'customizable-cartesian-chart',
                 'pie',
+            ],
+            [
+                'content-owners-needing-review',
+                0,
+                5,
+                36,
+                6,
+                'sortable-pivot-table',
+                'table',
             ],
             [
                 'high-compute-dashboards-audience-versus-warehouse-time',
                 0,
-                9,
+                12,
                 36,
                 8,
                 'sortable-pivot-table',
@@ -293,7 +323,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 'vega-trellis',
                 'table',
             ],
-            ['top-apps', 0, 21, 36, 8, 'sortable-pivot-table', 'table'],
+            ['top-apps', 0, 20, 36, 6, 'sortable-pivot-table', 'table'],
         ],
         people: [
             ['top-people', 0, 1, 18, 9, 'sortable-pivot-table', 'table'],
@@ -392,7 +422,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'tools-downloads',
                 0,
-                2,
+                1,
                 12,
                 4,
                 'big-number-with-sparkline-trend',
@@ -401,7 +431,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'tools-people-downloading-latest-day',
                 12,
-                2,
+                1,
                 12,
                 4,
                 'big-number-with-sparkline-trend',
@@ -410,7 +440,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'tools-csv-downloads',
                 24,
-                2,
+                1,
                 12,
                 4,
                 'big-number-with-sparkline-trend',
@@ -419,7 +449,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'tools-downloads-by-format-and-day',
                 0,
-                6,
+                5,
                 36,
                 7,
                 'customizable-cartesian-chart',
@@ -428,7 +458,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'export-audit-actor-content-and-outcome',
                 0,
-                13,
+                12,
                 36,
                 8,
                 'sortable-pivot-table',
@@ -437,7 +467,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'tools-google-sheets-queries-by-day',
                 0,
-                22,
+                21,
                 36,
                 5,
                 'vega-trellis',
@@ -446,7 +476,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'tools-google-sheets-queries-by-person',
                 0,
-                27,
+                26,
                 36,
                 8,
                 'sortable-pivot-table',
@@ -506,11 +536,11 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 0,
                 14,
                 36,
-                8,
+                5,
                 'sortable-pivot-table',
                 'table',
             ],
-            ['recent-evaluation-runs', 0, 22, 36, 7, null, 'table'],
+            ['recent-evaluation-runs', 0, 19, 36, 7, null, 'table'],
         ],
     },
     'lightdash-analytics-adoption': {
@@ -595,7 +625,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 1,
                 36,
                 4,
-                null,
+                'big-number-with-sparkline-trend',
                 'big_number',
             ],
             [
@@ -614,24 +644,24 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 'adoption-apps-created-by-day',
                 0,
                 1,
-                36,
-                5,
-                'vega-trellis',
+                18,
+                6,
+                'customizable-cartesian-chart',
                 'cartesian',
             ],
             [
                 'adoption-app-creators',
-                0,
+                18,
+                1,
+                18,
                 6,
-                36,
-                8,
                 'sortable-pivot-table',
                 'table',
             ],
             [
                 'adoption-app-reader-trend',
                 0,
-                16,
+                8,
                 36,
                 8,
                 'vega-trellis',
@@ -640,7 +670,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'adoption-app-reader-detail',
                 0,
-                24,
+                16,
                 18,
                 8,
                 'sortable-pivot-table',
@@ -649,7 +679,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'adoption-app-first-audience',
                 18,
-                24,
+                16,
                 18,
                 8,
                 'sortable-pivot-table',
@@ -660,13 +690,13 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'adoption-app-outcome-trend',
                 0,
-                2,
+                1,
                 36,
                 7,
                 'customizable-cartesian-chart',
                 'cartesian',
             ],
-            ['adoption-app-outcome-detail', 0, 9, 36, 7, null, 'table'],
+            ['adoption-app-outcome-detail', 0, 8, 36, 7, null, 'table'],
         ],
         'ask-ai': [
             [
@@ -746,7 +776,15 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 'big_number',
             ],
             ['embed-load-trend', 0, 6, 36, 5, 'vega-trellis', 'cartesian'],
-            ['embed-popular-dashboards', 0, 12, 18, 8, null, 'custom'],
+            [
+                'embed-popular-dashboards',
+                0,
+                12,
+                18,
+                8,
+                'customizable-cartesian-chart',
+                'custom',
+            ],
             [
                 'embed-identity-coverage',
                 18,
@@ -761,7 +799,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'embed-query-count',
                 0,
-                2,
+                1,
                 18,
                 4,
                 'big-number-with-sparkline-trend',
@@ -770,17 +808,17 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'embed-query-errors',
                 18,
-                2,
+                1,
                 18,
                 4,
                 'big-number-with-sparkline-trend',
                 'big_number',
             ],
-            ['embed-query-trend', 0, 7, 18, 7, 'vega-trellis', 'cartesian'],
+            ['embed-query-trend', 0, 6, 18, 7, 'vega-trellis', 'cartesian'],
             [
                 'embed-query-latency',
                 18,
-                7,
+                6,
                 18,
                 7,
                 'customizable-cartesian-chart',
@@ -789,7 +827,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'embed-query-outcomes',
                 0,
-                15,
+                14,
                 18,
                 7,
                 'customizable-cartesian-chart',
@@ -798,7 +836,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'embed-query-cache',
                 18,
-                15,
+                14,
                 18,
                 7,
                 'customizable-cartesian-chart',
@@ -927,11 +965,14 @@ describe.each(Object.entries(redesigned))('%s', (slug, tabs) => {
     });
 
     it('shows the latest day for a count of distinct things and the period total for a sum, in both versions', () => {
-        const cards = bound.filter(
-            (chart) =>
-                analyticsLibraryChartBindings.get(chart.slug)!.slug ===
-                'big-number-with-sparkline-trend',
-        );
+        // A card with a trend behind it. A lone number with no daily series has no day to map.
+        const cards = bound.filter((chart) => {
+            const binding = analyticsLibraryChartBindings.get(chart.slug)!;
+            return (
+                binding.slug === 'big-number-with-sparkline-trend' &&
+                binding.fieldMapping.time !== undefined
+            );
+        });
         cards.forEach((fallback) => {
             const { fieldMapping, optionValues, query } =
                 analyticsLibraryChartBindings.get(fallback.slug)!;
@@ -955,8 +996,10 @@ describe.each(Object.entries(redesigned))('%s', (slug, tabs) => {
                 expect(optionValues).toMatchObject({
                     valueAggregation: 'sum',
                     style: 'compact',
-                    comparisonSource: 'previousPeriod',
+                    // A badge could only compare one day with the day before, not the period
+                    showComparison: false,
                 });
+                expect(optionValues).not.toHaveProperty('comparisonSource');
                 expect(optionValues.label).not.toBe('Latest day');
             } else {
                 // One row, newest day first: the big number shows the first row
@@ -1017,11 +1060,29 @@ describe.each(Object.entries(redesigned))('%s', (slug, tabs) => {
                     density: 'compact',
                     showMiniBars: true,
                 });
-                expect(query?.sorts).toEqual([
-                    { fieldId: first, descending: true },
-                ]);
+                // A table grouped by two names takes whole groups first, largest group first
+                expect(query?.sorts.at(-1)).toEqual({
+                    fieldId: first,
+                    descending: true,
+                });
+                expect(query?.sorts.slice(0, -1)).toEqual(
+                    query?.tableCalculations?.some(
+                        ({ name }) => name === 'group_total',
+                    )
+                        ? [
+                              { fieldId: 'group_total', descending: true },
+                              {
+                                  fieldId: fieldMapping.rowDimension,
+                                  descending: false,
+                              },
+                          ]
+                        : [],
+                );
+                // Collapsed, except a short list that is the point of its tile
                 if (fieldMapping.rowDimension2)
-                    expect(optionValues.defaultCollapsed).toBe('collapsed');
+                    expect(['collapsed', 'expanded']).toContain(
+                        optionValues.defaultCollapsed,
+                    );
                 // Plain headers: one name for the row header and one for each measure
                 expect(String(optionValues.rowHeaderName)).toMatch(
                     fieldMapping.rowDimension2
@@ -1272,7 +1333,7 @@ describe('Agents & AI failed-request card', () => {
                 );
             }
             await db.run(
-                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR)',
+                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR, is_active BOOLEAN)',
             );
             await db.run(
                 'CREATE TABLE lightdash_agents (org_id VARCHAR, agent_id VARCHAR, name VARCHAR)',
@@ -1346,6 +1407,382 @@ describe('library chart options', () => {
                     ),
                 ).toBe(false);
         });
+    });
+});
+
+describe('Tokens by feature and model', () => {
+    it('lists models provider by provider, the provider and the model with the most tokens first', async () => {
+        const all = analyticsContentAsCode.flatMap((bundle) => bundle.charts);
+        const { charts: drawn } = withLibraryCharts(
+            all,
+            analyticsLibraryChartBindings,
+            installedTypes(),
+        );
+        const heatmap = drawn.find(({ slug }) =>
+            slug.endsWith('-ai-tokens-by-feature-and-model'),
+        )!;
+        const instance = await DuckDBInstance.create(':memory:', {
+            threads: '1',
+            memory_limit: '128MB',
+        });
+        const db = await instance.connect();
+        try {
+            await db.run(
+                `CREATE TABLE ai_usage (${compactedStreamSchemas.ai_usage.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
+            );
+            await db.run(`INSERT INTO ai_usage (org_id, event_id, event_ts, feature, model, provider, total_tokens) VALUES
+                ('org','1',CURRENT_TIMESTAMP,'agent','gpt-small','openai',10),
+                ('org','2',CURRENT_TIMESTAMP,'agent','gpt-big','openai',50),
+                ('org','3',CURRENT_TIMESTAMP,'agent','claude-a','anthropic',40),
+                ('org','4',CURRENT_TIMESTAMP,'data-app','us.anthropic.claude-b','bedrock',70),
+                ('org','5',CURRENT_TIMESTAMP,'agent','gemini-x','google',5),
+                ('org','6',CURRENT_TIMESTAMP,'agent','my-deployment','azure',3)`);
+            const rows = (
+                await db.runAndReadAll(sqlOf(heatmap))
+            ).getRowObjectsJS();
+            // The heatmap keeps its columns in the order the rows arrive
+            // Grouped by the provider in the model's name, so Claude through Bedrock sits with Anthropic
+            expect([...new Set(rows.map((row) => row.ai_usage_model))]).toEqual(
+                [
+                    'us.anthropic.claude-b',
+                    'claude-a',
+                    'gpt-big',
+                    'gpt-small',
+                    'gemini-x',
+                    'my-deployment',
+                ],
+            );
+            expect([
+                ...new Set(rows.map((row) => row.ai_usage_model_provider)),
+            ]).toEqual(['Anthropic', 'OpenAI', 'Google', 'Other']);
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
+    });
+});
+
+describe('names of people who have left', () => {
+    it('keeps a deactivated member by name, marked, and tells an unknown ID from no ID', async () => {
+        const all = analyticsContentAsCode.flatMap((bundle) => bundle.charts);
+        const { charts: drawn } = withLibraryCharts(
+            all,
+            analyticsLibraryChartBindings,
+            installedTypes(),
+        );
+        const slug = 'lightdash-analytics-home-most-active-people';
+        const instance = await DuckDBInstance.create(':memory:', {
+            threads: '1',
+            memory_limit: '128MB',
+        });
+        const db = await instance.connect();
+        try {
+            const { userActivityColumns } =
+                await import('../eventStream/userActivity');
+            const { usageDimensionSchemas } =
+                await import('../eventStream/usageDimensions');
+            await db.run(
+                `CREATE TABLE user_activity (${userActivityColumns.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
+            );
+            await db.run(
+                `CREATE TABLE lightdash_users (${usageDimensionSchemas.users.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
+            );
+            await db.run(`INSERT INTO lightdash_users (org_id,user_id,name,email,is_active) VALUES
+                ('org','active','Alex Active','alex@example.com',true),
+                ('org','left','Dana Whitcombe','dana@example.com',false),
+                ('org','old-snapshot','Sam Before','sam@example.com',NULL)`);
+            await db.run(`INSERT INTO user_activity (org_id,project_id,user_id,activity_date,event_count,stream) VALUES
+                ('org','project','active',CURRENT_DATE - 2,5,'query_events'),
+                ('org','project','left',CURRENT_DATE - 2,4,'query_events'),
+                ('org','project','old-snapshot',CURRENT_DATE - 2,3,'query_events'),
+                ('org','project','not-a-member',CURRENT_DATE - 2,2,'query_events'),
+                ('org','project',NULL,CURRENT_DATE - 2,1,'query_events')`);
+            // The ranked table as the library chart reads it: one row per name
+            const ranked = (
+                await db.runAndReadAll(
+                    sqlOf(drawn.find((chart) => chart.slug === slug)!),
+                )
+            ).getRowObjectsJS();
+            expect(
+                ranked.map((row) => [
+                    row.user_activity_user_name,
+                    Number(row.user_activity_total_events),
+                ]),
+            ).toEqual([
+                ['Alex Active', 5],
+                ['Dana Whitcombe (deactivated)', 4],
+                // A snapshot written before the column existed says nothing either way
+                ['Sam Before', 3],
+                ['Unknown user', 2],
+                // Activity with no person recorded is not ranked as a person
+            ]);
+            // The plain table shows the same names in its person column
+            const plain = (
+                await db.runAndReadAll(
+                    sqlOf(all.find((chart) => chart.slug === slug)!),
+                )
+            ).getRowObjectsJS();
+            expect(
+                plain.map((row) => [
+                    row.user_activity_user_id,
+                    row.user_display_name,
+                ]),
+            ).toEqual([
+                ['active', 'Alex Active'],
+                ['left', 'Dana Whitcombe (deactivated)'],
+                ['old-snapshot', 'Sam Before'],
+                ['not-a-member', 'User not-a-member'],
+            ]);
+            // A count of people is a count: no marker, nobody dropped
+            const card = all.find(
+                (chart) =>
+                    chart.slug === 'lightdash-analytics-home-active-people',
+            )!;
+            const [latest] = (
+                await db.runAndReadAll(sqlOf(card))
+            ).getRowObjectsJS();
+            expect(Number(latest.user_activity_unique_users)).toBe(4);
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
+    });
+});
+
+describe('who ran a query, by the kind of actor recorded', () => {
+    it('names service accounts, embedded viewers and anonymous use, and keeps Unknown user for an unmatched person', async () => {
+        const chart = {
+            ...analyticsContentAsCode
+                .flatMap((bundle) => bundle.charts)
+                .find(({ slug }) =>
+                    slug.endsWith('-tools-google-sheets-queries-by-person'),
+                )!,
+        };
+        // The same person table, over every query instead of only Google Sheets ones
+        chart.metricQuery = { ...chart.metricQuery, filters: {}, limit: 500 };
+        const instance = await DuckDBInstance.create(':memory:', {
+            threads: '1',
+            memory_limit: '128MB',
+        });
+        const db = await instance.connect();
+        try {
+            const { usageDimensionSchemas } =
+                await import('../eventStream/usageDimensions');
+            await db.run(
+                `CREATE TABLE query_events (${compactedStreamSchemas.query_events.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
+            );
+            await db.run(
+                `CREATE TABLE lightdash_users (${usageDimensionSchemas.users.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
+            );
+            await db.run(`INSERT INTO lightdash_users (org_id,user_id,name,is_active) VALUES
+                ('org','member','Alex Active',true),
+                ('org','left','Dana Whitcombe',false),
+                ('org','named-account','Reporting bot',true)`);
+            const row = (
+                id: string,
+                user: string | null,
+                actor: string | null,
+                context: string,
+                externalUser: string | null = null,
+            ) =>
+                `('org','${id}',${user ? `'${user}'` : 'NULL'},${actor ? `'${actor}'` : 'NULL'},'${context}',${externalUser ? `'${externalUser}'` : 'NULL'},CURRENT_TIMESTAMP,'success')`;
+            await db.run(`INSERT INTO query_events (org_id,query_id,user_id,initiating_actor_type,context,external_user_id,event_ts,status) VALUES
+                ${[
+                    row('1', 'member', 'registered_user', 'dashboardView'),
+                    row('2', 'left', 'registered_user', 'dashboardView'),
+                    row('3', 'gone', 'registered_user', 'dashboardView'),
+                    row('4', 'abcdef12-3456', 'service_account', 'api'),
+                    row('5', 'named-account', 'service_account', 'api'),
+                    row('6', null, 'anonymous', 'embed', 'viewer-9'),
+                    row('7', null, 'anonymous', 'api'),
+                    // Older rows with no actor type recorded
+                    row('8', null, null, 'embed'),
+                    row('9', null, null, 'dashboardView'),
+                    row('10', 'member', null, 'dashboardView'),
+                ].join(',')}`);
+            const rows = (
+                await db.runAndReadAll(sqlOf(chart))
+            ).getRowObjectsJS();
+            expect(
+                rows
+                    .map((line) => [
+                        line.user_display_name,
+                        Number(line.query_events_total_queries),
+                    ])
+                    .sort(),
+            ).toEqual(
+                [
+                    ['Alex Active', 2],
+                    ['Dana Whitcombe (deactivated)', 1],
+                    // A signed-in person whose ID matches no member: the only Unknown user. The plain
+                    // table shows the ID so two of them stay apart.
+                    ['User gone', 1],
+                    ['Service account abcdef12', 1],
+                    ['Service account Reporting bot', 1],
+                    ['Embedded viewer', 2],
+                    ['Anonymous', 1],
+                    ['No user recorded', 1],
+                ].sort(),
+            );
+            expect(
+                rows.find((line) => line.query_events_user_id === 'gone')!
+                    .query_events_user_name,
+            ).toBe('Unknown user');
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
+    });
+});
+
+describe('MCP tool calls by person and tool', () => {
+    it('lists each service account by itself, not together under Unknown user', async () => {
+        const chart = analyticsContentAsCode
+            .flatMap((bundle) => bundle.charts)
+            .find(({ slug }) =>
+                slug.endsWith('-mcp-users-clients-tools-and-error-rates'),
+            )!;
+        const instance = await DuckDBInstance.create(':memory:', {
+            threads: '1',
+            memory_limit: '128MB',
+        });
+        const db = await instance.connect();
+        try {
+            for (const stream of ['mcp_tool_calls', 'agent_steps'] as const) {
+                await db.run(
+                    `CREATE TABLE ${stream} (${compactedStreamSchemas[stream].map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
+                );
+            }
+            await db.run(
+                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR, is_active BOOLEAN)',
+            );
+            await db.run(
+                'CREATE TABLE lightdash_agents (org_id VARCHAR, agent_id VARCHAR, name VARCHAR)',
+            );
+            await db.run(
+                "INSERT INTO lightdash_users (org_id,user_id,name) VALUES ('org','person-1','Alex')",
+            );
+            await db.run(`INSERT INTO mcp_tool_calls (org_id, user_id, actor_id, actor_type, tool_name, tool_call_id, status, event_ts) VALUES
+                ('org','person-1','person-1','user','run_sql','1','success',CURRENT_TIMESTAMP),
+                ('org',NULL,'aaaaaaaa-1111','service_account','run_sql','2','success',CURRENT_TIMESTAMP),
+                ('org',NULL,'aaaaaaaa-1111','service_account','run_sql','3','error',CURRENT_TIMESTAMP),
+                ('org',NULL,'bbbbbbbb-2222','service_account','run_sql','4','success',CURRENT_TIMESTAMP)`);
+            const rows = (
+                await db.runAndReadAll(sqlOf(chart))
+            ).getRowObjectsJS();
+            expect(
+                rows
+                    .map((row) => [
+                        row.tool_activity_actor_name,
+                        Number(row.tool_activity_total_calls),
+                    ])
+                    .sort(),
+            ).toEqual([
+                ['Alex', 1],
+                ['Service account aaaaaaaa', 2],
+                ['Service account bbbbbbbb', 1],
+            ]);
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
+    });
+});
+
+describe('new content adoption', () => {
+    it('counts first-week viewers and who came back, and leaves it blank for content under a week old', async () => {
+        const chart = analyticsContentAsCode
+            .flatMap((bundle) => bundle.charts)
+            .find(({ slug }) =>
+                slug.endsWith('-new-content-adoption-creation-week-proxy'),
+            )!;
+        const instance = await DuckDBInstance.create(':memory:', {
+            threads: '1',
+            memory_limit: '128MB',
+        });
+        const db = await instance.connect();
+        try {
+            await db.run(
+                `CREATE TABLE content_views (${compactedStreamSchemas.content_views.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
+            );
+            const { contentInventoryColumns } =
+                await import('../eventStream/contentInventory');
+            await db.run(
+                `CREATE TABLE lightdash_content (${contentInventoryColumns.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
+            );
+            // The inventory is where an item's creation date comes from. A view event carries a date of
+            // its own, which can differ: here every event claims the item was created the day it was
+            // first viewed.
+            const item = (content: string, createdDaysAgo: number) =>
+                `('org','project','dashboard','${content}','${content}',CURRENT_DATE - INTERVAL ${createdDaysAgo} DAY)`;
+            await db.run(`INSERT INTO lightdash_content (org_id,project_id,content_type,content_id,content_name,created_at) VALUES
+                ${[item('old', 20), item('new', 3), item('ancient', 400), item('misdated', 30)].join(',')}`);
+            const view = (
+                content: string,
+                eventSaysCreatedDaysAgo: number,
+                user: string,
+                viewedDaysAgo: number,
+            ) =>
+                `('org','project','dashboard','${content}','${content}','${user}','user',true,CURRENT_DATE - INTERVAL ${eventSaysCreatedDaysAgo} DAY,CURRENT_DATE - INTERVAL ${viewedDaysAgo} DAY + INTERVAL 1 HOUR,'${content}-${user}-${viewedDaysAgo}')`;
+            await db.run(`INSERT INTO content_views (org_id,project_id,content_type,content_id,content_name,user_id,actor_type,is_qualifying,content_created_at,event_ts,event_id) VALUES
+                ${[
+                    // Twenty days old: a and b viewed it in the first week, only a came back
+                    view('old', 20, 'a', 19),
+                    view('old', 20, 'b', 18),
+                    view('old', 20, 'a', 5),
+                    // c first saw it after the first week, so is neither
+                    view('old', 20, 'c', 4),
+                    // Three days old: its first week is still running
+                    view('new', 3, 'a', 2),
+                    // Created long before anything was recorded
+                    view('ancient', 400, 'a', 6),
+                    // Thirty days old in the inventory, but its events say it was created ten days ago,
+                    // when it was first viewed. By the inventory nobody saw it in its first week.
+                    view('misdated', 10, 'a', 10),
+                    view('misdated', 10, 'a', 2),
+                ].join(',')}`);
+            const rows = (
+                await db.runAndReadAll(sqlOf(chart))
+            ).getRowObjectsJS();
+            const day = (value: unknown) =>
+                new Date(value as Date).toISOString().slice(0, 10);
+            const daysAgo = (days: number) =>
+                new Date(Date.now() - days * 86400000)
+                    .toISOString()
+                    .slice(0, 10);
+            expect(
+                rows.map((row) => [
+                    row.content_reach_content_name,
+                    Number(row.content_reach_new_content_first_week_viewers),
+                    row.came_back_later === null
+                        ? null
+                        : Number(row.came_back_later),
+                    row.came_back_share === null
+                        ? null
+                        : Math.round(100 * Number(row.came_back_share)),
+                ]),
+            ).toEqual(
+                expect.arrayContaining([
+                    ['old', 2, 1, 50],
+                    ['new', 1, null, null],
+                    ['ancient', 0, 0, null],
+                    ['misdated', 0, 0, null],
+                ]),
+            );
+            expect(rows).toHaveLength(4);
+            expect(rows[0].content_reach_content_name).toBe('old');
+            // The Created column is the inventory's date, not the one on the events
+            expect(
+                day(
+                    rows.find(
+                        (row) => row.content_reach_content_name === 'misdated',
+                    )!.content_reach_created_at_day,
+                ),
+            ).toBe(daysAgo(30));
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
     });
 });
 
@@ -1485,12 +1922,12 @@ describe('top categories', () => {
                 `CREATE TABLE user_activity (${userActivityColumns.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
             );
             await db.run(
-                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR)',
+                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR, is_active BOOLEAN)',
             );
             // Twenty people; person n has n activities on each of two days
             for (let n = 1; n <= 20; n += 1) {
                 await db.run(
-                    `INSERT INTO lightdash_users VALUES ('org','u${n}','Person ${n}',NULL)`,
+                    `INSERT INTO lightdash_users (org_id,user_id,name) VALUES ('org','u${n}','Person ${n}')`,
                 );
                 await db.run(`INSERT INTO user_activity (org_id,project_id,user_id,activity_date,event_count,stream) VALUES
                     ('org','project','u${n}',CURRENT_DATE - 3,${n},'query_events'),
@@ -1510,5 +1947,266 @@ describe('top categories', () => {
             instance.closeSync();
         }
         expect(compactedStreamSchemas).toBeDefined();
+    });
+});
+
+describe('totals of a table grouped by two names', () => {
+    it('asks for whole groups, largest first, so a short row limit never leaves a group short', async () => {
+        const all = analyticsContentAsCode.flatMap((bundle) => bundle.charts);
+        const { charts: drawn } = withLibraryCharts(
+            all,
+            analyticsLibraryChartBindings,
+            installedTypes(),
+        );
+        const chart = drawn.find(
+            ({ slug }) =>
+                slug ===
+                'lightdash-analytics-adoption-adoption-app-reader-detail',
+        )!;
+        expect(chart.metricQuery.sorts.map(({ fieldId }) => fieldId)).toEqual([
+            'group_total',
+            'data_app_reach_app_name',
+            'data_app_reach_total_loads',
+        ]);
+        const instance = await DuckDBInstance.create(':memory:', {
+            threads: '1',
+            memory_limit: '128MB',
+        });
+        const db = await instance.connect();
+        try {
+            const { usageDimensionSchemas } =
+                await import('../eventStream/usageDimensions');
+            const { contentInventoryColumns } =
+                await import('../eventStream/contentInventory');
+            await db.run(
+                `CREATE TABLE data_app_events (${compactedStreamSchemas.data_app_events.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
+            );
+            await db.run(
+                `CREATE TABLE lightdash_users (${usageDimensionSchemas.users.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
+            );
+            await db.run(
+                `CREATE TABLE lightdash_content (${contentInventoryColumns.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
+            );
+            // Small has one busy person; Big has four people with fewer loads each but more in all
+            const loads: [string, string, number][] = [
+                ['small', 'zed', 5],
+                ['big', 'ann', 4],
+                ['big', 'bob', 3],
+                ['big', 'cat', 2],
+                ['big', 'dan', 1],
+            ];
+            for (const [, person] of loads)
+                await db.run(
+                    `INSERT INTO lightdash_users (org_id,user_id,name) VALUES ('org','${person}','${person}')`,
+                );
+            for (const [app, person, count] of loads)
+                for (let load = 0; load < count; load += 1)
+                    await db.run(
+                        `INSERT INTO data_app_events (org_id,project_id,app_id,user_id,event_name,view_context,event_ts)
+                         VALUES ('org','project','${app}','${person}','data_app.view','standalone',CURRENT_TIMESTAMP)`,
+                    );
+            // Four rows fit: by loads alone that would be Small and three of Big's four people
+            const rows = (
+                await db.runAndReadAll(
+                    sqlOf({
+                        ...chart,
+                        metricQuery: { ...chart.metricQuery, limit: 4 },
+                    }),
+                )
+            ).getRowObjectsJS();
+            expect(
+                rows.map((row) => [
+                    row.data_app_reach_app_name,
+                    Number(row.data_app_reach_total_loads),
+                ]),
+            ).toEqual([
+                ['big', 4],
+                ['big', 3],
+                ['big', 2],
+                ['big', 1],
+            ]);
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
+    });
+});
+
+describe('options of the newest chart versions', () => {
+    const optionsOf = (slug: string) =>
+        analyticsLibraryChartBindings.get(slug)!.optionValues;
+
+    it('draws passed green and failed orange, and counts runs in whole numbers', () => {
+        expect(
+            optionsOf(
+                'lightdash-analytics-agent-evaluations-assessment-volume-by-day',
+            ),
+        ).toMatchObject({
+            m1Color: '#34D399',
+            m2Color: '#FB923C',
+            yIntegerTicks: true,
+        });
+        expect(
+            optionsOf(
+                'lightdash-analytics-agent-evaluations-assessment-pass-rate-by-day',
+            ),
+        ).toMatchObject({ yIntegerTicks: true });
+    });
+
+    it('gives every card one number size and format, and every word cloud one colour', () => {
+        const bindings = [...analyticsLibraryChartBindings.values()];
+        const cards = bindings.filter(
+            ({ slug, optionValues }) =>
+                slug === 'big-number-with-sparkline-trend' &&
+                'reserveComparisonSpace' in optionValues,
+        );
+        expect(cards.length).toBeGreaterThan(10);
+        cards.forEach(({ optionValues }) =>
+            expect(optionValues).toMatchObject({
+                sizeMode: 'preset',
+                bigNumberSize: 6,
+                reserveComparisonSpace: false,
+            }),
+        );
+        const clouds = bindings.filter(({ slug }) => slug === 'word-cloud');
+        expect(clouds).toHaveLength(2);
+        clouds.forEach(({ optionValues }) =>
+            expect(optionValues).toMatchObject({
+                colorMode: 'shade',
+                rotationMode: 'none',
+                showCaption: false,
+            }),
+        );
+    });
+});
+
+describe('columns of plain tables', () => {
+    const tables = analyticsContentAsCode
+        .flatMap(({ charts }) => charts)
+        .flatMap((chart) =>
+            chart.chartConfig.type === ChartType.TABLE
+                ? [{ chart, columns: chart.chartConfig.config?.columns ?? {} }]
+                : [],
+        );
+    const shown = (
+        chart: ChartAsCode,
+        columns: Record<string, { visible?: boolean; name?: string }>,
+    ) =>
+        [
+            ...chart.metricQuery.dimensions,
+            ...chart.metricQuery.metrics,
+            ...chart.metricQuery.tableCalculations.map(({ name }) => name),
+        ].filter((field) => columns[field]?.visible !== false);
+
+    const byKeyOfSpec = (key: string) =>
+        tables.find(({ chart }) => chart.slug.endsWith(`-${key}`))!
+            .columns as Record<string, { visible?: boolean }>;
+
+    it('never show a field beside the plain-name field made from it', () => {
+        expect(
+            tables.flatMap(({ chart, columns }) => {
+                const fields = shown(chart, columns);
+                return fields
+                    .filter((field) => fields.includes(`${field}_name`))
+                    .map((field) => `${chart.slug}: ${field}`);
+            }),
+        ).toEqual([]);
+    });
+
+    it('never show two columns with the same header', () => {
+        expect(
+            tables.flatMap(({ chart, columns }) => {
+                const headers = shown(chart, columns)
+                    .map((field) => columns[field]?.name)
+                    .filter((name): name is string => Boolean(name));
+                return headers
+                    .filter((name, index) => headers.indexOf(name) !== index)
+                    .map((name) => `${chart.slug}: ${name}`);
+            }),
+        ).toEqual([]);
+    });
+
+    it('hide every ID and every column a chart asks to hide', () => {
+        const run = byKeyOfSpec('recent-evaluation-runs');
+        expect(run.agent_evaluation_runs_event_ts_raw).toMatchObject({
+            visible: false,
+        });
+        const fieldUse = byKeyOfSpec('content-using-fields');
+        [
+            'semantic_usage_chart_name',
+            'semantic_usage_dashboard_name',
+            'semantic_usage_app_name',
+            'semantic_usage_chart_id',
+        ].forEach((field) =>
+            expect(fieldUse[field]).toMatchObject({ visible: false }),
+        );
+        const lastUsed = byKeyOfSpec('people-without-activity-30d-detail');
+        expect(
+            lastUsed.people_adoption_last_observed_activity_at_day,
+        ).toMatchObject({ visible: false });
+    });
+});
+
+describe("Lightdash's own analytics content", () => {
+    it('is filtered out of every tile about viewed content and out of Slow dashboards', () => {
+        const charts = analyticsContentAsCode.flatMap(
+            (bundle) => bundle.charts,
+        );
+        const reach = charts.filter(
+            ({ tableName }) => tableName === 'content_reach',
+        );
+        expect(reach.length).toBeGreaterThan(5);
+        [
+            ...reach,
+            charts.find(({ slug }) =>
+                slug.endsWith('-slow-dashboards-tail-latency-and-demand'),
+            )!,
+        ].forEach((chart) =>
+            expect(JSON.stringify(chart.metricQuery.filters)).toMatch(
+                /"fieldId":"(content_reach|query_events)_in_analytics_project"\},"operator":"equals","values":\[false\]/,
+            ),
+        );
+        // Counts of people and queries keep that activity: it is real use
+        charts
+            .filter(({ tableName }) => tableName === 'user_activity')
+            .forEach((chart) =>
+                expect(JSON.stringify(chart.metricQuery.filters)).not.toContain(
+                    'in_analytics_project',
+                ),
+            );
+    });
+});
+
+describe('SQL the query engine will accept', () => {
+    // The engine refuses a query that reads a file: a file function, or FROM or JOIN followed by a
+    // quoted string. A comparison written IS DISTINCT FROM 'x' matches the second rule and every tile
+    // on it fails live, so every managed chart goes through the engine's own check here.
+    it('passes the file-access check for every managed chart, plain and library', () => {
+        const all = analyticsContentAsCode.flatMap((bundle) => bundle.charts);
+        const { charts: drawn } = withLibraryCharts(
+            all,
+            analyticsLibraryChartBindings,
+            installedTypes(),
+        );
+        const refused = [...all, ...drawn].flatMap((chart) => {
+            if (!explores.some(({ name }) => name === chart.tableName))
+                return [`${chart.slug}: no explore`];
+            try {
+                DuckdbWarehouseClient.validateUserSqlFileAccess(sqlOf(chart));
+                return [];
+            } catch (error) {
+                return [`${chart.slug}: ${(error as Error).message}`];
+            }
+        });
+        expect(refused).toEqual([]);
+        expect(all.length).toBeGreaterThan(100);
+    });
+
+    it('would have caught a comparison written IS DISTINCT FROM a string', () => {
+        expect(() =>
+            DuckdbWarehouseClient.validateUserSqlFileAccess(
+                "SELECT 1 FROM t WHERE a IS DISTINCT FROM 'ANALYTICS'",
+            ),
+        ).toThrow('file table paths are not allowed');
     });
 });

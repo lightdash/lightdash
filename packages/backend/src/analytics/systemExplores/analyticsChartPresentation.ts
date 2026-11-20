@@ -15,10 +15,18 @@ import { monthLabel } from './monthlyQueryComparisonCharts';
 // Series take the Analytics palette, so built-in charts match library charts.
 const colors = analyticsColorPalette.colors.slice(0, 5);
 // Meaning-bearing colours stay fixed whatever the palette.
-// Good and not-good share one pair everywhere: a cache hit and a success are green, a cache miss and
-// anything short of a success are orange. Red is for errors only.
+// Good and not-good share one pair everywhere: a cache hit, a pass and a success are green, a cache
+// miss, a fail and an error are orange. Waiting is amber and unknown is grey. Red marks error counts in
+// table cells only.
 export const positive = '#34D399';
 export const caution = '#FB923C';
+export const waiting = '#FBBF24';
+// A measure that is itself an outcome keeps the outcome's colour, whatever its place in the chart
+const outcomeColor = (field: string): string | undefined => {
+    if (/_passed_/.test(field)) return positive;
+    if (/_failed_/.test(field)) return caution;
+    return undefined;
+};
 const warning = '#C92A2A';
 const positiveTint = '#D1FAE5';
 const cautionTint = '#FFEDD5';
@@ -40,8 +48,9 @@ const styleTable = (chart: ChartAsCode): ChartAsCode => {
     if (chart.chartConfig.type !== ChartType.TABLE) return chart;
     const { config } = chart.chartConfig;
     const columns = { ...config?.columns };
+    // Narrow enough for five measures beside a name without the last one being cut off
     for (const field of chart.metricQuery.metrics) {
-        columns[field] = { ...columns[field], width: 180 };
+        columns[field] = { ...columns[field], width: 140 };
     }
     for (const field of chart.metricQuery.dimensions) {
         if (field.endsWith('_name'))
@@ -89,7 +98,11 @@ const styleTable = (chart: ChartAsCode): ChartAsCode => {
     ];
     for (const field of chart.metricQuery.metrics) {
         if (/error|failure|negative_feedback/.test(field)) {
-            rules.push(numberRule(field, FilterOperator.GREATER_THAN, warning));
+            // A light tint with dark text: a solid colour made one failure look like an outage
+            rules.push({
+                ...numberRule(field, FilterOperator.GREATER_THAN, cautionTint),
+                textStyle: undefined,
+            });
         }
     }
     for (const field of chart.metricQuery.dimensions) {
@@ -163,16 +176,14 @@ const monthlyComparison = (chart: ChartAsCode): ChartAsCode => {
             config: {
                 layout: {
                     xField: monthLabel,
-                    yField: [total, 'monthly_change_percent'],
+                    yField: [total],
                     connectNulls: false,
                 },
                 eChartsConfig: {
                     xAxis: [{ name: 'Month (UTC)' }],
-                    // The change axis stops at 200%, so one very large change does not flatten the rest
-                    yAxis: [
-                        { name: 'Queries', min: '0' },
-                        { name: 'Change (%)', max: '2' },
-                    ],
+                    // Bars only. The change is in the table beside the chart: as a line it ran off
+                    // the top whenever a month doubled.
+                    yAxis: [{ name: 'Queries', min: '0' }],
                     series: [
                         {
                             type: CartesianSeriesType.BAR,
@@ -182,18 +193,6 @@ const monthlyComparison = (chart: ChartAsCode): ChartAsCode => {
                             encode: {
                                 xRef: { field: monthLabel },
                                 yRef: { field: total },
-                            },
-                        },
-                        {
-                            type: CartesianSeriesType.LINE,
-                            name: 'Change vs previous month (%)',
-                            color: colors[1],
-                            showSymbol: true,
-                            smooth: false,
-                            yAxisIndex: 1,
-                            encode: {
-                                xRef: { field: monthLabel },
-                                yRef: { field: 'monthly_change_percent' },
                             },
                         },
                     ],
@@ -213,23 +212,17 @@ export const withAnalyticsChartPresentation = (
             chartConfig: {
                 type: ChartType.PIE,
                 config: {
-                    groupFieldIds: ['content_health_owner_status'],
+                    groupFieldIds: ['content_health_owner_status_name'],
                     metricId: 'content_health_total_content',
                     isDonut: true,
                     showLegend: true,
-                    groupLabelOverrides: {
-                        'Active organization member': 'Active member',
-                        'Not an organization member': 'Not a member',
-                        'Unknown user': 'Unknown owner',
-                        Unassigned: 'No owner',
-                    },
+                    // The slices are named by the plain-name field
                     groupColorOverrides: {
-                        'Active organization member': positive,
+                        'Active member': positive,
                         Deactivated: caution,
-                        Unassigned: colors[0],
-                        'Not an organization member': colors[2],
-                        'Unknown user': '#868E96',
-                        'Not recorded': '#ADB5BD',
+                        'No owner': colors[0],
+                        'Not a member': colors[2],
+                        'Unknown owner': '#868E96',
                     },
                 },
             },
@@ -268,7 +261,8 @@ export const withAnalyticsChartPresentation = (
                     ...chart.chartConfig.config,
                     showValue: false,
                     showPercentage: true,
-                    valueLabel: 'hidden',
+                    // The share beside each slice: a donut with no numbers only shows which is bigger
+                    valueLabel: 'outside',
                     legendPosition: 'horizontal',
                     legendMaxItemLength: 28,
                     // Outcomes are recorded in lower case
@@ -285,16 +279,18 @@ export const withAnalyticsChartPresentation = (
                         ...chart.chartConfig.config?.groupColorOverrides,
                         // Plain names of the same outcomes
                         Success: positive,
-                        Error: warning,
+                        Error: caution,
+                        Cancelled: '#868E96',
+                        Pending: waiting,
                         'Cache hit': positive,
                         'Cache miss': caution,
                         'Not recorded': '#868E96',
                         completed: positive,
                         complete: positive,
                         success: positive,
-                        failed: warning,
-                        error: warning,
-                        pending: caution,
+                        failed: caution,
+                        error: caution,
+                        pending: waiting,
                         unknown: '#868E96',
                     },
                 },
@@ -339,7 +335,9 @@ export const withAnalyticsChartPresentation = (
                     },
                     series: series.map((item, index) => ({
                         ...item,
-                        color: colors[index % colors.length],
+                        color:
+                            outcomeColor(item.encode.yRef.field) ??
+                            colors[index % colors.length],
                         // A single observed period must remain visible even
                         // when there is no second point to draw a line to.
                         showSymbol:

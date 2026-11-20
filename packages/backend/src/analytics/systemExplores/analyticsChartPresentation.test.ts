@@ -138,7 +138,7 @@ describe('analytics chart presentation', () => {
         const spec = getTokenSpec('feature-daily');
         expect(spec.transform).toContainEqual({
             calculate:
-                "utcFormat(toDate(datum.ai_usage_event_ts_day), '%d %b %Y')",
+                "utcFormat(toDate(datum.ai_usage_event_ts_day), '%b %-d, %Y')",
             as: 'utc_day_label',
         });
         expect(spec.layer[0].encoding.tooltip).toContainEqual({
@@ -161,7 +161,8 @@ describe('analytics chart presentation', () => {
         });
         expect(spec.layer[0].encoding.y?.axis).toMatchObject({
             labelOpacity: { expr: "length(domain('color')) ? 1 : 0" },
-            labelExpr: "length(domain('color')) ? datum.label : ''",
+            labelExpr:
+                "length(domain('color')) ? replace(replace(datum.label, 'k', 'K'), 'G', 'B') : ''",
             titleOpacity: { expr: "length(domain('color')) ? 1 : 0" },
             gridOpacity: { expr: "length(domain('color')) ? 0.18 : 0" },
         });
@@ -196,7 +197,14 @@ describe('analytics chart presentation', () => {
 describe('built-in chart colours', () => {
     const managed = analyticsColorPalette.colors.slice(0, 5);
     // Fixed colours that carry meaning: outcomes, change direction and greys.
-    const semantic = ['#34D399', '#FB923C', '#C92A2A', '#868E96', '#ADB5BD'];
+    const semantic = [
+        '#34D399',
+        '#FB923C',
+        '#FBBF24',
+        '#C92A2A',
+        '#868E96',
+        '#ADB5BD',
+    ];
 
     it('draws every cartesian series in the Analytics palette, in order', () => {
         const series = analyticsContentAsCode.flatMap(({ charts }) =>
@@ -209,9 +217,26 @@ describe('built-in chart colours', () => {
         expect(series.length).toBeGreaterThan(0);
         for (const items of series) {
             expect(items.map(({ color }) => color)).toEqual(
-                items.map((_, index) => managed[index % managed.length]),
+                items.map(({ encode }, index) => {
+                    // A measure that is an outcome keeps the outcome's colour
+                    if (/_passed_/.test(encode.yRef.field)) return '#34D399';
+                    if (/_failed_/.test(encode.yRef.field)) return '#FB923C';
+                    return managed[index % managed.length];
+                }),
             );
         }
+    });
+
+    it('draws passed assessments green and failed assessments orange', () => {
+        const chart = analyticsContentAsCode
+            .flatMap(({ charts }) => charts)
+            .find(({ slug }) => slug.endsWith('-assessment-volume-by-day'))!;
+        if (chart.chartConfig.type !== ChartType.CARTESIAN) throw new Error();
+        expect(
+            chart.chartConfig.config?.eChartsConfig?.series?.map(
+                ({ color }) => color,
+            ),
+        ).toEqual(['#34D399', '#FB923C']);
     });
 
     it('colours pie slices from the palette or a fixed semantic colour', () => {

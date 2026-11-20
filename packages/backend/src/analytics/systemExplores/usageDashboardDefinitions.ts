@@ -26,7 +26,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Requests by agent',
                         caption: true,
-                        description: 'Requests by agent and day.',
+                        description: 'Which agents are used most, day by day.',
                         charts: ['agent-requests-by-agent-and-day'],
                         layout: 'row',
                         rowHeight: 7,
@@ -44,7 +44,8 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Requests by person',
                         caption: true,
-                        description: 'Requests by person and agent.',
+                        description:
+                            'Who is asking, and which agents they use.',
                         charts: ['agent-adoption-by-week'],
                     },
                 ],
@@ -119,7 +120,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'How is query usage changing?',
                         description:
-                            'Last 12 completed calendar months (UTC), each compared with the month before. The date filter does not change these two tiles.',
+                            'Up to the last 12 completed calendar months (UTC), each compared with the month before. The date filter does not change these two tiles.',
                         charts: [
                             'querying-users-month-over-month',
                             'queries-run-month-over-month',
@@ -128,7 +129,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         // with its rows, so this height shows about nine and scrolls for the rest
                         layout: 'row',
                         widths: [16, 20],
-                        rowHeight: 6,
+                        rowHeight: 7,
                     },
                 ],
             },
@@ -185,14 +186,17 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'People and content',
                         description:
-                            'See who uses each field, and which charts, dashboards or data apps the queries came from. Rows with no name or no linked content are still shown.',
+                            'See who uses each field, and which charts, dashboards or data apps the queries came from. Queries with no linked content are left out of the content table.',
                         charts: ['people-using-fields', 'content-using-fields'],
                     },
                     {
                         title: 'How complete these numbers are',
                         description:
-                            'For each query, Lightdash keeps a list of the metrics and dimensions it used, and the tiles above count only what is on those lists. A low share here means the tiles above undercount how much each field is used, because SQL queries and older queries have no list.',
+                            'The tiles above count only queries with a recorded list of fields, so a low share here means they undercount. SQL queries and older queries have no list.',
                         charts: ['field-capture-coverage'],
+                        // One number: a short tile, not a tall empty one
+                        layout: 'row',
+                        rowHeight: 3,
                     },
                 ],
             },

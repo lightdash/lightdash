@@ -65,7 +65,7 @@ describe('built-in usage dashboards', () => {
                     /_(chart|dashboard|content)_name$/.test(field),
                 ),
         );
-        expect(linked.map(({ slug }) => slug)).toHaveLength(9);
+        expect(linked.map(({ slug }) => slug)).toHaveLength(10);
         expect(
             linked.some(({ slug }) =>
                 slug.endsWith('-adoption-dashboard-audience'),
@@ -261,16 +261,16 @@ describe('built-in usage dashboards', () => {
             expect(rows).toEqual(
                 expect.arrayContaining(
                     [
-                        ['named', 'web', 'Alex'],
-                        ['unnamed', 'web', 'primary@example.com'],
-                        ['no-email', 'web', 'User no-email'],
-                        ['unmatched', 'web', 'User unmatched'],
-                        ['named', 'embed', 'Embedded viewers'],
-                        [null, 'web', 'No user recorded'],
+                        ['named', 'Web app', 'Alex'],
+                        ['unnamed', 'Web app', 'primary@example.com'],
+                        ['no-email', 'Web app', 'User no-email'],
+                        ['unmatched', 'Web app', 'User unmatched'],
+                        ['named', 'Embed', 'Embedded viewers'],
+                        [null, 'Web app', 'No user recorded'],
                     ].map(([id, channel, label]) =>
                         expect.objectContaining({
                             ai_usage_user_id: id,
-                            ai_usage_channel: channel,
+                            ai_usage_channel_name: channel,
                             user_display_name: label,
                         }),
                     ),
@@ -348,9 +348,9 @@ describe('built-in usage dashboards', () => {
                 `CREATE TABLE user_activity (${userActivityColumns.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
             );
             await db.run(
-                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR)',
+                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR, is_active BOOLEAN)',
             );
-            await db.run(`INSERT INTO lightdash_users VALUES
+            await db.run(`INSERT INTO lightdash_users (org_id,user_id,name,email) VALUES
                 ('org','named-a','Alex','shared@example.com'), ('org','named-b','Alex','shared@example.com'),
                 ('org','unnamed-a',NULL,'unnamed@example.com'), ('org','unnamed-b','  ','  '),
                 ('org','empty-name','',' trimmed@example.com '), ('other','missing-name','Other tenant','other@example.com')`);
@@ -418,16 +418,14 @@ describe('built-in usage dashboards', () => {
                     (sum, row) => sum + Number(row.user_activity_total_events),
                     0,
                 ),
-            ).toBe(129);
+            ).toBe(83);
+            // A ranking of people leaves out the activity with no person recorded
             expect(
                 rows.find(
                     ({ user_activity_user_id }) =>
                         user_activity_user_id === null,
                 ),
-            ).toMatchObject({
-                user_activity_activity_origin: 'AI, Query',
-                user_activity_total_events: 46n,
-            });
+            ).toBeUndefined();
             expect(
                 rows.filter(
                     ({ user_display_name }) => user_display_name === 'Alex',
@@ -468,9 +466,15 @@ describe('built-in usage dashboards', () => {
                 filtered.map(
                     ({ user_activity_user_id }) => user_activity_user_id,
                 ),
-            ).toEqual(
-                expect.arrayContaining(['missing-name', null, '', '   ']),
-            );
+            )
+                // An ID that matches no member, or a member with no name. Activity with no ID is "No
+                // user recorded" and is not part of this group.
+                .toEqual(expect.arrayContaining(['missing-name', 'unnamed-a']));
+            expect(
+                filtered.map(
+                    ({ user_activity_user_id }) => user_activity_user_id,
+                ),
+            ).not.toEqual(expect.arrayContaining([null]));
             expect(
                 filtered.some(
                     ({ user_display_name }) => user_display_name === 'Alex',
@@ -482,7 +486,7 @@ describe('built-in usage dashboards', () => {
         }
     });
 
-    it('shows captured embed origin without splitting a viewer row or inventing an identity', async () => {
+    it('names embedded viewers apart from loads with no user, without inventing an identity', async () => {
         const instance = await DuckDBInstance.create(':memory:', {
             threads: '1',
             memory_limit: '128MB',
@@ -493,7 +497,7 @@ describe('built-in usage dashboards', () => {
                 `CREATE TABLE data_app_events (${compactedStreamSchemas.data_app_events.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
             );
             await db.run(
-                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR)',
+                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR, is_active BOOLEAN)',
             );
             await db.run(`INSERT INTO data_app_events (org_id,project_id,user_id,app_id,event_name,view_context) VALUES
                 ('org','project',NULL,'app','data_app.view','embed'),
@@ -505,12 +509,22 @@ describe('built-in usage dashboards', () => {
             const rows = (
                 await db.runAndReadAll(compile(chart).query)
             ).getRowObjects();
-            expect(rows).toHaveLength(1);
-            expect(rows[0]).toMatchObject({
-                user_display_name: 'No user recorded',
-                data_app_events_activity_origin: 'App, Embed',
-                data_app_events_total_views: 3n,
-            });
+            // Two kinds of nobody: loads through an embed, and loads with no user at all
+            expect(rows).toHaveLength(2);
+            expect(rows).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        user_display_name: 'Embedded viewer',
+                        data_app_events_activity_origin: 'Embed',
+                        data_app_events_total_views: 2n,
+                    }),
+                    expect.objectContaining({
+                        user_display_name: 'No user recorded',
+                        data_app_events_activity_origin: 'App',
+                        data_app_events_total_views: 1n,
+                    }),
+                ]),
+            );
         } finally {
             db.closeSync();
             instance.closeSync();
@@ -820,15 +834,16 @@ describe('built-in usage dashboards', () => {
                 tile.type === DashboardTileTypes.SAVED_CHART,
         )!;
         expect([firstNote.y, firstChart.y]).toEqual([0, 1]);
-        const adoption = dashboardBySlug('lightdash-analytics-adoption');
-        const [heading] = adoption.tiles.filter(
+        // Other dashboards put the section title in bold on the line above a one-line description
+        const content = dashboardBySlug('lightdash-analytics-content');
+        const [heading] = content.tiles.filter(
             (tile) =>
-                tile.tabSlug === 'app-outcomes' &&
+                tile.tabSlug === 'ownership' &&
                 tile.type === DashboardTileTypes.MARKDOWN,
         );
-        expect(heading.h).toBe(2);
+        expect(heading.h).toBe(1);
         expect((heading.properties as { content: string }).content).toMatch(
-            /^### /,
+            /^\*\*Current ownership\*\* {2}\n/,
         );
     });
 
@@ -1037,9 +1052,9 @@ describe('built-in usage dashboards', () => {
             .filter((tile) => tile.tabSlug === 'app-outcomes')
             .map((tile) => [tile.x, tile.y, tile.w, tile.h]);
         expect(geometry).toEqual([
-            [0, 0, 36, 2],
-            [0, 2, 36, 7],
-            [0, 9, 36, 7],
+            [0, 0, 36, 1],
+            [0, 1, 36, 7],
+            [0, 8, 36, 7],
         ]);
     });
 
@@ -1365,25 +1380,21 @@ describe('built-in usage dashboards', () => {
                 expect.arrayContaining([
                     expect.objectContaining({
                         data_app_outcomes_app_name: 'Sales',
-                        data_app_outcomes_view_context: 'standalone',
+                        data_app_outcomes_view_context_name: 'Standalone page',
                         data_app_outcomes_html_loaded: 1n,
-                        data_app_outcomes_sdk_started: 1n,
                         data_app_outcomes_runtime_error: 1n,
-                        data_app_outcomes_total_signals: 4n,
                     }),
                     expect.objectContaining({
-                        data_app_outcomes_view_context: 'builder',
+                        data_app_outcomes_view_context_name: 'Builder preview',
                         data_app_outcomes_html_loaded: 1n,
-                        data_app_outcomes_sdk_started: 1n,
                     }),
                     expect.objectContaining({
-                        data_app_outcomes_view_context: 'embed',
+                        data_app_outcomes_view_context_name: 'Embed',
                         data_app_outcomes_html_error: 1n,
                     }),
                     expect.objectContaining({
-                        data_app_outcomes_view_context: 'unknown',
+                        data_app_outcomes_view_context_name: 'Unknown',
                         data_app_outcomes_runtime_error: 0n,
-                        data_app_outcomes_total_signals: 1n,
                     }),
                 ]),
             );
@@ -1442,17 +1453,17 @@ describe('built-in usage dashboards', () => {
             expect(surfaces).toEqual(
                 expect.arrayContaining([
                     expect.objectContaining({
-                        data_app_reach_view_context: 'embed',
+                        data_app_reach_view_context_name: 'Embed',
                         data_app_reach_total_loads: 1n,
                         data_app_reach_distinct_viewers: 0n,
                     }),
                     expect.objectContaining({
-                        data_app_reach_view_context: 'unknown',
+                        data_app_reach_view_context_name: 'Unknown',
                         data_app_reach_total_loads: 1n,
                         data_app_reach_distinct_viewers: 1n,
                     }),
                     expect.objectContaining({
-                        data_app_reach_view_context: 'builder',
+                        data_app_reach_view_context_name: 'Builder preview',
                         data_app_reach_total_loads: 1n,
                     }),
                 ]),
@@ -1574,7 +1585,7 @@ describe('built-in usage dashboards', () => {
             expect(semanticRows.get(`${prefix}people-using-fields`)).toEqual(
                 expect.arrayContaining([
                     expect.objectContaining({
-                        semantic_usage_user_name: 'Unknown user',
+                        semantic_usage_user_name: 'No user recorded',
                         semantic_usage_user_id: null,
                         semantic_usage_total_queries: 1n,
                     }),
@@ -1660,18 +1671,11 @@ describe('built-in usage dashboards', () => {
                     ),
             );
             expect(loadCharts.length).toBeGreaterThanOrEqual(6);
+            // Either by leaving out chart tiles, or by naming the surfaces a person views one on
             loadCharts.forEach(({ metricQuery }) =>
-                expect(metricQuery.filters.dimensions).toMatchObject({
-                    and: expect.arrayContaining([
-                        expect.objectContaining({
-                            target: {
-                                fieldId: 'data_app_events_view_context',
-                            },
-                            operator: FilterOperator.NOT_EQUALS,
-                            values: ['chart'],
-                        }),
-                    ]),
-                }),
+                expect(JSON.stringify(metricQuery.filters.dimensions)).toMatch(
+                    /"data_app_events_view_context"\},"operator":"notEquals","values":\["chart"\]|"data_app_events_view_context"\},"operator":"equals","values":\["standalone","dashboard"\]/,
+                ),
             );
             await db.run('DELETE FROM lightdash_content');
             const withoutInventory = (
@@ -1802,9 +1806,16 @@ describe('display fixes', () => {
                 .map((field) => metricQuery.metricOverrides?.[field]),
         );
         expect(rated.length).toBeGreaterThan(0);
+        // No decimal on a chart axis, one in a table
         rated.forEach((override) =>
-            expect(override).toEqual({
-                formatOptions: { type: 'percent', round: 1 },
+            expect([0, 1]).toContain(
+                (override as { formatOptions: { type: string; round: number } })
+                    .formatOptions.round,
+            ),
+        );
+        rated.forEach((override) =>
+            expect(override).toMatchObject({
+                formatOptions: { type: 'percent' },
             }),
         );
     });
@@ -1836,8 +1847,9 @@ describe('display fixes', () => {
         expect(
             analyticsLibraryChartBindings.get(slow.slug)?.optionValues,
         ).toMatchObject({
-            yName: 'Queries',
-            yRightName: 'P95 response time (s)',
+            // Ranked bars on one axis, so twenty long names are not written at an angle
+            orientation: 'horizontal',
+            m1Name: 'P95 response time (s)',
         });
         ['avg-execution-time', 'p90-execution-time'].forEach((key) => {
             const [metric] = bySuffix(key).metricQuery.metrics;
@@ -1866,7 +1878,7 @@ describe('display fixes', () => {
             ),
         ).toEqual([
             ['rated_requests', 'Rated'],
-            ['share_rated_percent', 'Share rated (%)'],
+            ['share_rated_percent', 'Share rated'],
             ['negative_ratings', 'Negative'],
         ]);
         expect(feedback.metricQuery.sorts).toEqual([
@@ -1875,7 +1887,7 @@ describe('display fixes', () => {
         const binding = analyticsLibraryChartBindings.get(feedback.slug)!;
         expect(binding).toMatchObject({
             slug: 'sortable-pivot-table',
-            minVersion: '0.14.0',
+            minVersion: '0.14.2',
             fieldMapping: {
                 rowDimension: 'agent_requests_agent_name',
                 metric: [
@@ -1888,7 +1900,9 @@ describe('display fixes', () => {
             optionValues: {
                 initialSort: 'firstValue',
                 rowHeaderName: 'Agent',
-                valueNames: 'Requests,Rated,Share rated (%),Negative',
+                valueNames: 'Requests,Rated,Share rated,Negative',
+                // The share is a fraction with a percent format: the table writes 43%
+                useFieldFormats: true,
                 density: 'compact',
                 decimalPlaces: 0,
                 showTotalsRow: false,
@@ -1954,7 +1968,7 @@ describe('display fixes', () => {
                     row.rated_requests === null
                         ? null
                         : Number(row.rated_requests),
-                    Number(row.share_rated_percent),
+                    Math.round(100 * Number(row.share_rated_percent)),
                     Number(row.negative_ratings),
                 ]),
             ).toEqual([

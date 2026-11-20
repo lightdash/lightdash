@@ -31,6 +31,7 @@ describe('createAnalyticsExplores', () => {
             'content_reach',
             'content_health',
             'content_inventory',
+            'content_created',
         ]) {
             const explore = explores.find((item) => item.name === name)!;
             const table = explore.tables[explore.baseTable];
@@ -83,9 +84,21 @@ describe('createAnalyticsExplores', () => {
                     label: 'User email',
                     hidden: false,
                 });
-                expect(explore.tables.lightdash_users.dimensions.name.sql).toBe(
+                // No ID is nobody; an ID that matches no member is unknown; a deactivated member
+                // keeps their name, marked
+                const nameSql =
+                    explore.tables.lightdash_users.dimensions.name.sql;
+                expect(nameSql).toContain("'No user recorded'");
+                expect(nameSql).toContain(
                     "COALESCE(${TABLE}.name, 'Unknown user')",
                 );
+                expect(nameSql).toContain(
+                    "${TABLE}.is_active = false AND ${TABLE}.name IS NOT NULL THEN ' (deactivated)'",
+                );
+                // Whether a member is active is read through the name, not offered as a field
+                expect(
+                    explore.tables[explore.baseTable].dimensions.user_is_active,
+                ).toBeUndefined();
             }
             if (explore.name === 'people_adoption') {
                 expect(
@@ -292,6 +305,8 @@ describe('createAnalyticsExplores', () => {
             'content_reach',
             'content_health',
             'content_inventory',
+            // The inventory with a row for every day, for content created by day
+            'content_created',
             'agent_requests',
             'agent_request_starts',
             'agent_request_events',
