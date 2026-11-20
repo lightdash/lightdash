@@ -215,3 +215,130 @@ describe('query execution', () => {
         ).not.toHaveProperty('metrics');
     });
 });
+
+describe('result pagination', () => {
+    const TOTAL = 6200;
+    const allRows = Array.from({ length: TOTAL }, (_, i) => ({
+        orders_id: { value: { raw: i, formatted: String(i) } },
+    }));
+
+    const createPagedAdapter = ({
+        maxPageSize = 2500,
+        failPage,
+    }: { maxPageSize?: number; failPage?: number } = {}) => {
+        const pageCalls: Array<{ page: number; pageSize: number }> = [];
+        let inFlight = 0;
+        let maxInFlight = 0;
+        const adapter: FetchAdapter = async <T>(
+            method: string,
+            path: string,
+        ): Promise<T> => {
+            if (method === 'POST') {
+                return { queryUuid: 'q-1', metricQuery: {}, fields: {} } as T;
+            }
+            const params = new URLSearchParams(path.split('?')[1]);
+            const page = Number(params.get('page'));
+            const pageSize = Number(params.get('pageSize'));
+            pageCalls.push({ page, pageSize });
+            inFlight += 1;
+            maxInFlight = Math.max(maxInFlight, inFlight);
+            // Later pages settle first, so ordering can't come from timing.
+            await new Promise((resolve) => {
+                setTimeout(resolve, 20 - page);
+            });
+            inFlight -= 1;
+            if (pageSize > maxPageSize) {
+                throw new Error(
+                    `page size is too large, max is ${maxPageSize}`,
+                );
+            }
+            if (page === failPage && pageSize !== 500) {
+                throw new Error('page failed');
+            }
+            const pageCount = Math.ceil(TOTAL / pageSize);
+            return {
+                status: 'ready',
+                queryUuid: 'q-1',
+                columns: {},
+                rows: allRows.slice((page - 1) * pageSize, page * pageSize),
+                totalResults: TOTAL,
+                nextPage: page < pageCount ? page + 1 : undefined,
+            } as T;
+        };
+        return {
+            adapter,
+            pageCalls,
+            getMaxInFlight: () => maxInFlight,
+        };
+    };
+
+    const run = (adapter: FetchAdapter) =>
+        createApiTransport(
+            { apiKey: '', baseUrl: '', projectUuid: 'p-1' },
+            adapter,
+        ).executeQuery(query('orders').dimensions(['id']).limit(TOTAL).build());
+
+    it('loads the remaining rows in large pages, in order', async () => {
+        const { adapter, pageCalls } = createPagedAdapter();
+
+        const result = await run(adapter);
+
+        expect(result.rows.map((row) => row.id)).toEqual(
+            allRows.map((_, i) => i),
+        );
+        expect(pageCalls).toEqual([
+            { page: 1, pageSize: 500 },
+            { page: 1, pageSize: 2500 },
+            { page: 2, pageSize: 2500 },
+            { page: 3, pageSize: 2500 },
+        ]);
+    });
+
+    it('falls back to default pages, a few at a time, when the host caps page size lower', async () => {
+        const { adapter, pageCalls, getMaxInFlight } = createPagedAdapter({
+            maxPageSize: 500,
+        });
+
+        const result = await run(adapter);
+
+        expect(result.rows.map((row) => row.id)).toEqual(
+            allRows.map((_, i) => i),
+        );
+        expect(pageCalls.filter((call) => call.pageSize === 500)).toHaveLength(
+            13,
+        );
+        expect(getMaxInFlight()).toBe(4);
+    });
+
+    it('rejects when a page fails', async () => {
+        const { adapter } = createPagedAdapter({ failPage: 2 });
+
+        await expect(run(adapter)).rejects.toThrow('page failed');
+    });
+
+    it('makes no extra request when the first page holds every row', async () => {
+        const calls: string[] = [];
+        const adapter: FetchAdapter = async <T>(
+            method: string,
+            path: string,
+        ): Promise<T> => {
+            calls.push(`${method} ${path}`);
+            if (method === 'POST') {
+                return { queryUuid: 'q-1', metricQuery: {}, fields: {} } as T;
+            }
+            return {
+                status: 'ready',
+                queryUuid: 'q-1',
+                columns: {},
+                rows: allRows.slice(0, 500),
+                totalResults: 500,
+                nextPage: undefined,
+            } as T;
+        };
+
+        const result = await run(adapter);
+
+        expect(result.rows).toHaveLength(500);
+        expect(calls).toHaveLength(2);
+    });
+});
