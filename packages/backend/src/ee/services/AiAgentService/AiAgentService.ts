@@ -745,6 +745,7 @@ import {
 import type { AiWritebackSource } from '../AiWritebackService/types';
 import { createWritebackAgentDeliveryGuard } from '../AiWritebackService/writebackAgentWork';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
+import { getAnalyticsProjectAgentInstructions } from '../AnalyticsProjectService/analyticsAgent';
 import type { AppGenerateService } from '../AppGenerateService/AppGenerateService';
 import { resolveRenderableDataAppVizVersion } from '../AppGenerateService/dataAppVizRender';
 import { type ExternalConnectionService } from '../ExternalConnectionService/ExternalConnectionService';
@@ -17590,7 +17591,24 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             );
 
         const { organizationUuid } = user;
-        const agentSettings = await this.getAgentSettings(user, prompt);
+        const [agent, promptProject] = await Promise.all([
+            this.getAgentSettings(user, prompt),
+            this.projectModel.get(prompt.projectUuid),
+        ]);
+        const agentSettings =
+            promptProject.provisioningSource === 'analytics'
+                ? {
+                      ...agent,
+                      instruction: [
+                          agent.instruction,
+                          getAnalyticsProjectAgentInstructions(
+                              promptProject.projectUuid,
+                          ),
+                      ]
+                          .filter(Boolean)
+                          .join('\n\n'),
+                  }
+                : agent;
         const slackInstallation = isSlackPrompt(prompt)
             ? await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
                   user.organizationUuid,
@@ -18072,10 +18090,6 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                         (await this.isSlackChannelServiceAccountPrompt(prompt));
                     slackLinksOnly = !!slackSettings?.aiLinksOnly;
                 }
-                const promptProject = await this.projectModel.get(
-                    prompt.projectUuid,
-                );
-
                 // The preflight snapshot is an upper bound, not a lasting grant. Read
                 // the org policy again when the queued run actually builds its tools,
                 // so disabling raw SQL before execution takes effect immediately.
