@@ -179,83 +179,107 @@ describe('EmbedService', () => {
     });
 
     describe('embedded merged tile filters', () => {
-        test("keeps a filter on an added source's field for the merge to push down", async () => {
-            const otherSourceRule: DashboardFilterRule = {
-                id: 'payments-filter',
-                target: { fieldId: 'payments_status', tableName: 'payments' },
-                operator: FilterOperator.EQUALS,
-                values: ['paid'],
-                label: undefined,
-            };
-            const dashboard = {
-                uuid: 'dashboard-uuid',
-                filters: {
-                    dimensions: [otherSourceRule],
-                    metrics: [],
-                    tableCalculations: [],
-                },
-                tiles: [{ uuid: 'tile-uuid' }],
-                tabs: [],
-            } as unknown as DashboardDAO;
-            const account = {
-                ...mockAccountWithPermission,
-                embed: {
-                    dashboardUuids: ['dashboard-uuid'],
-                    allowAllDashboards: false,
-                },
-                access: { content: { dashboardUuid: 'dashboard-uuid' } },
-            } as unknown as AnonymousAccount;
-            const internals = service as AnyType;
-            vi.spyOn(
-                internals,
-                '_getChartFromDashboardTiles',
-            ).mockResolvedValue({
-                uuid: 'chart-uuid',
-                organizationUuid: 'org-uuid',
-                tableName: validExplore.name,
-                merge: { queries: {} },
-            });
-            vi.spyOn(internals, 'isFeatureEnabled').mockResolvedValue(
-                undefined,
-            );
-            vi.spyOn(
-                internals,
-                '_permissionsGetChartAndResults',
-            ).mockResolvedValue(undefined);
-            internals.dashboardModel.getByIdOrSlug = vi
-                .fn()
-                .mockResolvedValue(dashboard);
-            internals.projectModel.getExploreFromCache = vi
-                .fn()
-                .mockResolvedValue(validExplore);
-            internals.projectService.isTimezoneSupportEnabled = vi
-                .fn()
-                .mockResolvedValue(false);
-            internals.projectService.projectParametersModel = {
-                find: vi.fn().mockResolvedValue([]),
-            };
-            internals.analytics = { trackAccount: vi.fn() };
-            const execute = vi.fn().mockResolvedValue({});
-            internals.asyncQueryService.executeAsyncDashboardChartQuery =
-                execute;
-            internals.asyncQueryService.redactFieldsSqlForResponse = vi.fn(
-                (_account, _projectUuid, results) => results,
-            );
+        const addedSourceRule: DashboardFilterRule = {
+            id: 'payments-filter',
+            target: { fieldId: 'payments_status', tableName: 'payments' },
+            operator: FilterOperator.EQUALS,
+            values: ['paid'],
+            label: undefined,
+        };
+        const filters: DashboardFilters = {
+            dimensions: [addedSourceRule],
+            metrics: [],
+            tableCalculations: [],
+        };
 
-            await service.executeAsyncDashboardTileQuery({
-                account,
-                projectUuid: 'project-uuid',
-                tileUuid: 'tile-uuid',
-                dashboardFilters: dashboard.filters,
-                dashboardSorts: [],
-            });
+        test.each([
+            ['merged', { queries: {} }, filters],
+            ['plain', null, { ...filters, dimensions: [] }],
+        ])(
+            "a %s tile gets a filter on a field outside the chart's explore",
+            async (_, merge, expected) => {
+                const execute = vi.fn().mockResolvedValue({});
+                const embedService = new EmbedService({
+                    ...EmbedServiceArgumentsMock,
+                    analytics: { trackAccount: vi.fn() },
+                    dashboardModel: {
+                        getByIdOrSlug: vi.fn().mockResolvedValue({
+                            uuid: 'dashboard-uuid',
+                            filters,
+                            tabs: [],
+                            tiles: [
+                                {
+                                    uuid: 'tile-uuid',
+                                    type: DashboardTileTypes.SAVED_CHART,
+                                    properties: {
+                                        savedChartUuid: 'chart-uuid',
+                                    },
+                                },
+                            ],
+                        }),
+                    },
+                    savedChartModel: {
+                        get: vi.fn().mockResolvedValue({
+                            uuid: 'chart-uuid',
+                            organizationUuid: 'org-uuid',
+                            tableName: validExplore.name,
+                            merge,
+                        }),
+                    },
+                    projectModel: {
+                        getExploreFromCache: vi
+                            .fn()
+                            .mockResolvedValue(validExplore),
+                    },
+                    projectService: {
+                        isTimezoneSupportEnabled: vi
+                            .fn()
+                            .mockResolvedValue(false),
+                        projectParametersModel: {
+                            find: vi.fn().mockResolvedValue([]),
+                        },
+                    },
+                    asyncQueryService: {
+                        executeAsyncDashboardChartQuery: execute,
+                        redactFieldsSqlForResponse: (
+                            _account: unknown,
+                            _projectUuid: string,
+                            results: unknown,
+                        ) => results,
+                    },
+                } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+                // Access gates are covered elsewhere
+                const gates = embedService as AnyType;
+                vi.spyOn(gates, 'isFeatureEnabled').mockResolvedValue(
+                    undefined,
+                );
+                vi.spyOn(
+                    gates,
+                    '_permissionsGetChartAndResults',
+                ).mockResolvedValue(undefined);
 
-            expect(execute.mock.calls[0][0].dashboardFilters).toEqual({
-                dimensions: [otherSourceRule],
-                metrics: [],
-                tableCalculations: [],
-            });
-        });
+                await embedService.executeAsyncDashboardTileQuery({
+                    account: {
+                        ...mockAccountWithPermission,
+                        embed: {
+                            dashboardUuids: ['dashboard-uuid'],
+                            allowAllDashboards: false,
+                        },
+                        access: {
+                            content: { dashboardUuid: 'dashboard-uuid' },
+                        },
+                    } as unknown as AnonymousAccount,
+                    projectUuid: 'project-uuid',
+                    tileUuid: 'tile-uuid',
+                    dashboardFilters: filters,
+                    dashboardSorts: [],
+                });
+
+                expect(execute.mock.calls[0][0].dashboardFilters).toEqual(
+                    expected,
+                );
+            },
+        );
     });
 
     describe('embedded dashboard SQL chart filters', () => {

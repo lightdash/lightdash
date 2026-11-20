@@ -38,7 +38,6 @@ import {
     formatRows,
     getColumnTimezone,
     getDashboardFilterableFieldKey,
-    getDashboardFiltersForTile,
     getDashboardFiltersForTileAndTables,
     getDimensionMapFromTables,
     getEmbedExcludedParameterKeys,
@@ -1575,16 +1574,13 @@ export class EmbedService extends BaseService {
             );
         }
 
-        // A merged tile pushes each filter into the sources that have its field
+        // A merged tile resolves each filter against every source's explore, not only the chart's
         const appliedDashboardFilters = chart.merge
-            ? getDashboardFiltersForTile(
+            ? this._getEffectiveDashboardFilters(
+                  account,
+                  dashboard,
                   tileUuid,
-                  this._getEffectiveDashboardFilters(
-                      account,
-                      dashboard,
-                      tileUuid,
-                      dashboardFilters,
-                  ),
+                  dashboardFilters,
               )
             : await this._getAppliedDashboardFilters(
                   account,

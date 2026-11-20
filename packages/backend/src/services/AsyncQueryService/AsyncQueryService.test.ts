@@ -20503,7 +20503,10 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
             query: { queryUuid: 'merge-query-uuid' },
         });
         expect(compiledLegs()).toHaveLength(2);
-        compiledLegs().forEach(({ sql }) => expect(sql).toContain('base'));
+        const viewerRegion = 'base';
+        compiledLegs().forEach(({ sql }) =>
+            expect(sql).toContain(viewerRegion),
+        );
         await drainMergeEvents(trackAccount, 1);
     });
 
