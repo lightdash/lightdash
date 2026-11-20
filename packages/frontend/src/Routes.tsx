@@ -41,6 +41,16 @@ const PUBLIC_ROUTES: RouteObject[] = [
     },
     ...AUTH_ROUTES,
     {
+        path: '/icon-lab',
+        lazy: async () => {
+            const IconLab = await loadLazyRouteDefault(
+                './pages/IconLab',
+                () => import('./pages/IconLab'),
+            );
+            return { Component: IconLab };
+        },
+    },
+    {
         path: '/register',
         lazy: async () => {
             const Register = await loadLazyRouteDefault(
