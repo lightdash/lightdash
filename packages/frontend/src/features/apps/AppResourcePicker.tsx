@@ -34,12 +34,10 @@ import {
     IconArrowLeft,
     IconCamera,
     IconMicrophone,
-    IconChartBar,
     IconCheck,
     IconDatabase,
     IconDatabasePlus,
     IconFileDescription,
-    IconLayoutDashboard,
     IconLink,
     IconPhoto,
     IconPlugConnected,
@@ -73,6 +71,7 @@ import scrollAreaClasses from '../../styles/ScrollArea.module.css';
 import { useAppExternalConnections } from '../externalConnections/hooks/useAppExternalConnections';
 import { useExternalConnections } from '../externalConnections/hooks/useExternalConnections';
 import { useUnlinkAppExternalConnection } from '../externalConnections/hooks/useUnlinkAppExternalConnection';
+import { IconChartBar, IconLayoutDashboard } from '../iconLab/switchableIcons';
 import classes from './AppResourcePicker.module.css';
 import {
     useAttachResourceLink,

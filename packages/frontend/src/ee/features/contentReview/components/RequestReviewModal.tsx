@@ -6,12 +6,13 @@ import {
 } from '@lightdash/common';
 import { Button, Group, Stack, Text, Textarea } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconArrowRight, IconFolder, IconSend } from '@tabler/icons-react';
+import { IconArrowRight, IconSend } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { IconBox } from '../../../../components/common/ResourceIcon';
 import SpaceSelector from '../../../../components/common/SpaceSelector/SpaceSelector';
+import { IconFolder } from '../../../../features/iconLab/switchableIcons';
 import {
     usePersonalSpace,
     useSpaceSummaries,

@@ -15,7 +15,7 @@ import {
     Text,
     Title,
 } from '@mantine/core';
-import { IconFolder, IconInbox, IconSettings } from '@tabler/icons-react';
+import { IconInbox, IconSettings } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router';
 import {
@@ -26,6 +26,7 @@ import {
 import MantineIcon from '../../../../components/common/MantineIcon';
 import Page from '../../../../components/common/Page/Page';
 import { IconBox } from '../../../../components/common/ResourceIcon';
+import { IconFolder } from '../../../../features/iconLab/switchableIcons';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
 import useApp from '../../../../providers/App/useApp';

@@ -15,12 +15,13 @@ import {
     TextInput,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import { IconAppWindow, IconSearch } from '@tabler/icons-react';
+import { IconSearch } from '@tabler/icons-react';
 import { useMemo, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { ResourceIcon } from '../../../../components/common/ResourceIcon';
 import { dataAppHref } from '../../../../features/apps/utils/appUrls';
+import { IconAppWindow } from '../../../../features/iconLab/switchableIcons';
 import { useInfiniteContent } from '../../../../hooks/useContent';
 import classes from './blockStyles.module.css';
 

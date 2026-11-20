@@ -46,7 +46,6 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
-    IconFolder,
     IconLayoutGrid,
     IconPin,
     IconPlus,
@@ -61,6 +60,7 @@ import {
     ResourceIcon,
 } from '../../../../components/common/ResourceIcon';
 import SpaceSelector from '../../../../components/common/SpaceSelector/SpaceSelector';
+import { IconFolder } from '../../../../features/iconLab/switchableIcons';
 import {
     usePinnedItems,
     useReorder,

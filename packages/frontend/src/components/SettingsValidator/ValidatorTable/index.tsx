@@ -18,13 +18,13 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
+import { IconX } from '@tabler/icons-react';
+import { useCallback, useMemo, useRef, type FC } from 'react';
 import {
     IconAppWindow,
     IconLayoutDashboard,
     IconTable,
-    IconX,
-} from '@tabler/icons-react';
-import { useCallback, useMemo, useRef, type FC } from 'react';
+} from '../../../features/iconLab/switchableIcons';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { useDeleteValidation } from '../../../hooks/validation/useValidation';
 import {

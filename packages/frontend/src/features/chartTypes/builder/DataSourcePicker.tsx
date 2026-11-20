@@ -21,7 +21,6 @@ import {
     IconFlask,
     IconSearch,
     IconSparkles,
-    IconTable,
 } from '@tabler/icons-react';
 import { uniqBy } from 'es-toolkit/compat';
 import {
@@ -45,6 +44,7 @@ import { useExplores } from '../../../hooks/useExplores';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import scrollAreaClasses from '../../../styles/ScrollArea.module.css';
 import { useAttachResourceLink } from '../../apps/hooks/useAttachResourceLink';
+import { IconTable } from '../../iconLab/switchableIcons';
 import classes from './DataSourcePicker.module.css';
 import { type ExploreSourceControls } from './exploreSource';
 import { type SavedChartSourceControls } from './savedChartSource';

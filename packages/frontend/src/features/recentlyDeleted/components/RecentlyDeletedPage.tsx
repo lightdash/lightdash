@@ -20,12 +20,8 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
-    IconAppWindow,
     IconCalendar,
     IconClock,
-    IconFolder,
-    IconFileText,
-    IconLayoutDashboard,
     IconPuzzle,
     IconRefresh,
     IconSearch,
@@ -46,6 +42,12 @@ import { ChartIcon, IconBox } from '../../../components/common/ResourceIcon';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
+import {
+    IconAppWindow,
+    IconFolder,
+    IconFileText,
+    IconLayoutDashboard,
+} from '../../iconLab/switchableIcons';
 import {
     useInfiniteDeletedContent,
     usePermanentlyDeleteContent,
