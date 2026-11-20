@@ -89,12 +89,12 @@ export const SEARCH_CONSOLE_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
         dimension(
             'query',
             'Query',
-            'What people searched for. Google hides rare queries for privacy, so query totals are lower than site totals.',
+            'What people searched for. Google hides rare queries for privacy, so splitting or filtering by query leaves them out and totals come out lower than the site total.',
         ),
         dimension(
             'page',
             'Page',
-            'Splitting or filtering by page counts impressions per page, so a result showing two of your pages counts twice.',
+            'The page shown in results. Splitting or filtering by page counts per page, so a result showing two of your pages counts twice and totals come out higher than the site total.',
         ),
         dimension('country', 'Country', 'Three-letter country code.'),
         dimension('device', 'Device', 'DESKTOP, MOBILE or TABLET.'),

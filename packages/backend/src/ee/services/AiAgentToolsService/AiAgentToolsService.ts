@@ -6179,6 +6179,9 @@ export class AiAgentToolsService extends BaseService {
                     rowCount: status.totalRowCount,
                     columns: status.columns,
                     sample: null,
+                    ...(status.liveResultNotices?.length
+                        ? { liveResultNotices: status.liveResultNotices }
+                        : {}),
                 },
             ];
         });

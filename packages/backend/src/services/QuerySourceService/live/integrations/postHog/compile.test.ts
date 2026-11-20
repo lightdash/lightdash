@@ -113,6 +113,15 @@ describe('compilePostHogQuery', () => {
                 c3: field('event_count'),
             },
             localSorts: [],
+            notices: [
+                {
+                    type: 'defaultDateWindow',
+                    fieldId: field('date'),
+                    days: 30,
+                    message:
+                        'No Event date filter, so this shows the last 30 full days. Filter on Event date to choose the dates.',
+                },
+            ],
         });
     });
 

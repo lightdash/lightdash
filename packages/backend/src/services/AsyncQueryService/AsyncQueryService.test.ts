@@ -2112,7 +2112,11 @@ describe('AsyncQueryService', () => {
                 context: QueryExecutionContext.AI,
                 connectionUuid: 'connection-uuid',
                 source: {
-                    integration: { connector: 'posthog' },
+                    integration: {
+                        connector: 'posthog',
+                        label: 'PostHog',
+                        limits: { maxRows: 10_000 },
+                    },
                     cache: sharedLiveCache,
                     usage: () => ({
                         apiCalls: 0,
@@ -2247,7 +2251,11 @@ describe('AsyncQueryService', () => {
                 context: QueryExecutionContext.AI,
                 connectionUuid: 'connection-uuid',
                 source: {
-                    integration: { connector: 'posthog' },
+                    integration: {
+                        connector: 'posthog',
+                        label: 'PostHog',
+                        limits: { maxRows: 10_000 },
+                    },
                     cache: sharedLiveCache,
                     usage: () => ({
                         apiCalls: 0,
@@ -2303,7 +2311,12 @@ describe('AsyncQueryService', () => {
             const source = {
                 integration: {
                     connector: 'posthog',
-                    limits: { timeoutMs: 1_000, callsPerQuery: 1 },
+                    label: 'PostHog',
+                    limits: {
+                        timeoutMs: 1_000,
+                        callsPerQuery: 1,
+                        maxRows: 10_000,
+                    },
                 },
                 cache,
                 usage: () => ({
@@ -2592,7 +2605,11 @@ describe('AsyncQueryService', () => {
                 projectUuid,
                 organizationUuid: 'org-uuid',
                 source: {
-                    integration: { connector: 'ga4' },
+                    integration: {
+                        connector: 'ga4',
+                        label: 'GA4',
+                        limits: { maxRows: 10_000 },
+                    },
                     cache: sharedLiveCache,
                 },
                 payload: { kind: 'query', query: '{}' },
@@ -25392,7 +25409,11 @@ describe('fresh stored result read boundary', () => {
             context: QueryExecutionContext.AI,
             connectionUuid: 'connection-uuid',
             source: {
-                integration: { connector: 'posthog' },
+                integration: {
+                    connector: 'posthog',
+                    label: 'PostHog',
+                    limits: { maxRows: 10_000 },
+                },
                 cache: sharedLiveCache,
                 usage: () => ({
                     apiCalls: 0,

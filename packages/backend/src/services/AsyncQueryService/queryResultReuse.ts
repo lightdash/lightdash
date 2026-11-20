@@ -1,5 +1,6 @@
 import {
     QueryHistoryStatus,
+    type LiveResultNotice,
     type ParametersValuesMap,
     type QueryHistory,
     type ResultColumns,
@@ -78,6 +79,7 @@ export type StoredLiveResult = {
     resultsUpdatedAt: Date | null;
     resultsExpiresAt: Date | null;
     columns: ResultColumns | null;
+    liveResultNotices: LiveResultNotice[] | null;
 };
 
 /** The rows of a live query's result, when they are fresh enough to reuse. */
@@ -92,6 +94,7 @@ export const toStoredLiveResult = (
         | 'resultsUpdatedAt'
         | 'resultsExpiresAt'
         | 'columns'
+        | 'liveResultNotices'
     >,
     policy: LiveReusePolicy,
     now: number = Date.now(),
@@ -112,5 +115,6 @@ export const toStoredLiveResult = (
         resultsUpdatedAt: result.resultsUpdatedAt,
         resultsExpiresAt: result.resultsExpiresAt,
         columns: result.columns,
+        liveResultNotices: result.liveResultNotices ?? null,
     };
 };

@@ -278,6 +278,81 @@ describe('compileSearchConsoleQuery', () => {
     );
 });
 
+describe('Search Console result notices', () => {
+    const lastWeek = {
+        dimensions: {
+            id: 'root',
+            and: [
+                {
+                    ...rule('date', FilterOperator.IN_THE_PAST, [7]),
+                    settings: { unitOfTime: 'days' },
+                },
+            ],
+        },
+    };
+
+    test('notes the default 28 days when the date is not filtered', () => {
+        const { notices } = compileLive(
+            query({ dimensions: [field('country')] }),
+        );
+        expect(notices).toEqual([
+            {
+                type: 'defaultDateWindow',
+                fieldId: field('date'),
+                days: 28,
+                message:
+                    'No Date filter, so this shows the last 28 full days. Filter on Date to choose the dates.',
+            },
+        ]);
+    });
+
+    test('notes nothing for a dated query without page or query', () => {
+        const { notices } = compileLive(
+            query({ dimensions: [field('country')], filters: lastWeek }),
+        );
+        expect(notices).toEqual([]);
+    });
+
+    test('notes per-page counting when splitting by page', () => {
+        const { notices } = compileLive(
+            query({ dimensions: [field('page')], filters: lastWeek }),
+        );
+        expect(notices).toEqual([
+            expect.objectContaining({
+                type: 'providerCounting',
+                fieldIds: [field('page')],
+            }),
+        ]);
+        expect(notices[0].message).toContain('counts twice');
+    });
+
+    test('notes hidden queries when filtering by query, once per field', () => {
+        const { notices } = compileLive(
+            query({
+                dimensions: [field('query')],
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            ...(lastWeek.dimensions.and ?? []),
+                            rule('query', FilterOperator.INCLUDE, [
+                                'lightdash',
+                            ]),
+                        ],
+                    },
+                },
+            }),
+        );
+        expect(notices).toEqual([
+            expect.objectContaining({
+                type: 'providerCounting',
+                fieldIds: [field('query')],
+            }),
+        ]);
+        expect(notices[0].message).toContain('less than the site total');
+    });
+});
+
 describe('getSearchConsoleEarliestDate', () => {
     test('goes back 16 months', () => {
         expect(getSearchConsoleEarliestDate('2026-11-04')).toBe('2025-07-04');

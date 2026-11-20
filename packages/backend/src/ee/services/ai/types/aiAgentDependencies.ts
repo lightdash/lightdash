@@ -33,6 +33,7 @@ import {
     Filters,
     ItemsMap,
     KnexPaginateArgs,
+    LiveResultNotice,
     McpDocumentAsCode,
     McpDocumentEdit,
     McpDocumentRead,
@@ -576,6 +577,8 @@ export type RunAsyncQueryFn = (
     cacheMetadata: CacheMetadata;
     fields: ItemsMap;
     executionStats: WarehouseExecutionStats | null;
+    /** What a live data source result leaves out; absent for other queries. */
+    liveResultNotices?: LiveResultNotice[];
 }>;
 
 export type RunSavedChartQueryFn = (args: {
@@ -841,6 +844,8 @@ export type ComposerNodeStatus = {
     columns: ResultColumns | null;
     /** First rows of a node asked to be sampled; null otherwise or when the read fails. */
     sample: Record<string, AnyType>[] | null;
+    /** Notes a live data source node's result carries, such as more rows existing. */
+    liveResultNotices?: LiveResultNotice[];
 };
 
 /** Every submitted node's status, read once after the terminal node settles. */

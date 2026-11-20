@@ -17,6 +17,7 @@ import {
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { createHash } from 'crypto';
 import { isPlainObject, memoize } from 'es-toolkit/compat';
+import { getDefaultDateWindowNotice } from '../query/notices';
 import { tooManyRowsError } from '../query/rows';
 import { getLiveIntegration } from '../registry';
 import { type LiveCapabilities, type LiveScanResult } from '../types';
@@ -327,12 +328,14 @@ export const compileLiveMetricQuery = ({
     const {
         query,
         localSorts = [],
+        notices = [],
         fieldIdsByColumn = Object.fromEntries(
             [...metricQuery.dimensions, ...metricQuery.metrics].map(
                 (fieldId) => [getApiName(apiSource, fieldId), fieldId],
             ),
         ),
     } = compile({ explore, metricQuery, timezone, now });
+    const defaultDateWindow = getDefaultDateWindowNotice(explore, metricQuery);
     const getPeriodColumns = (formats: typeof periodFormats & object) => {
         const columnByFieldId = new Map(
             Object.entries(fieldIdsByColumn).map(([column, fieldId]) => [
@@ -363,6 +366,7 @@ export const compileLiveMetricQuery = ({
         limit: metricQuery.limit,
         fieldIdsByColumn,
         localSorts,
+        notices: defaultDateWindow ? [defaultDateWindow, ...notices] : notices,
         ...(periodFormats
             ? { periodColumns: getPeriodColumns(periodFormats) }
             : {}),

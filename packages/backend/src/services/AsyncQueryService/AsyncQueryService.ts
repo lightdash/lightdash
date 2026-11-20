@@ -187,6 +187,7 @@ import {
     type FieldValueSearchResult,
     type Filters,
     type InvalidateExploresResultsCache,
+    type LiveResultNotice,
     type LiveSourceInternalErrorCode,
     type LiveSourceUpstreamErrorCode,
     type MergeQueryChart,
@@ -407,6 +408,7 @@ import {
     toLiveResult,
 } from '../QuerySourceService/live/explores/build';
 import { toLiveQueryError } from '../QuerySourceService/live/explores/definition';
+import { getTruncatedNotice } from '../QuerySourceService/live/query/notices';
 import {
     getLiveQueryOutcome,
     getLiveSourceQueryErrorCode,
@@ -764,6 +766,8 @@ type ExecuteAsyncQueryArgs = Pick<
 type ApiResultShaper = (result: LiveQueryResult) => {
     rows: Record<string, unknown>[];
     columns: ResultColumns;
+    /** Known from the request; the run adds `truncated` itself. */
+    notices?: LiveResultNotice[];
 };
 
 type PreparedAsyncQueryArgs = Omit<
@@ -3028,6 +3032,9 @@ export class AsyncQueryService extends ProjectService {
                               queryHistory.preAggregateFallbackReason,
                       }
                     : null,
+                ...(queryHistory.liveResultNotices
+                    ? { liveResultNotices: queryHistory.liveResultNotices }
+                    : {}),
             },
             status,
             pivotDetails:
@@ -12771,8 +12778,12 @@ export class AsyncQueryService extends ProjectService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
-        const { maxLimit, defaultLimit } = this.lightdashConfig.query;
-        const effectiveLimit = limit ?? defaultLimit;
+        const { maxLimit } = this.lightdashConfig.query;
+        // Unset, a node reads as many rows as one query can return (the
+        // lower of the integration's and the instance's cap); a cap it hits
+        // is reported as a truncated notice, never silently
+        const effectiveLimit =
+            limit ?? Math.min(source.integration.limits.maxRows, maxLimit);
         if (!Number.isInteger(effectiveLimit) || effectiveLimit < 1) {
             throw new ParameterError('limit must be a positive integer');
         }
@@ -13015,11 +13026,14 @@ export class AsyncQueryService extends ProjectService {
                     label,
                     maxRows,
                 });
-                return toLiveResult({
-                    compiled,
-                    rows: result.rows,
-                    fields,
-                });
+                return {
+                    ...toLiveResult({
+                        compiled,
+                        rows: result.rows,
+                        fields,
+                    }),
+                    notices: compiled.notices,
+                };
             },
         });
         return {
@@ -13248,6 +13262,7 @@ export class AsyncQueryService extends ProjectService {
                 results_expires_at: stored.resultsExpiresAt,
                 columns: stored.columns,
                 fields: fields ?? pythonColumnsToFields(stored.columns ?? {}),
+                live_result_notices: stored.liveResultNotices,
             },
             account,
         );
@@ -13386,6 +13401,21 @@ export class AsyncQueryService extends ProjectService {
                     });
 
                     const shaped = toResult(result);
+                    const notices = [
+                        ...(result.hasMoreRows
+                            ? [
+                                  getTruncatedNotice({
+                                      label: source.integration.label,
+                                      rowCount: shaped.rows.length,
+                                      maxRows: Math.min(
+                                          source.integration.limits.maxRows,
+                                          this.lightdashConfig.query.maxLimit,
+                                      ),
+                                  }),
+                              ]
+                            : []),
+                        ...(shaped.notices ?? []),
+                    ];
                     const resultsStorageClient =
                         this.getResultsStorageClientForContext(context);
                     if (!resultsStorageClient.isEnabled) {
@@ -13437,6 +13467,8 @@ export class AsyncQueryService extends ProjectService {
                             ),
                             columns,
                             fields: fields ?? pythonColumnsToFields(columns),
+                            live_result_notices:
+                                notices.length > 0 ? notices : null,
                         },
                         account,
                     );
@@ -17068,6 +17100,8 @@ export class AsyncQueryService extends ProjectService {
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         displayTimezone: string | null;
         executionStats: WarehouseExecutionStats | null;
+        /** What a live data source result leaves out; empty for other queries. */
+        liveResultNotices: LiveResultNotice[];
     }> {
         const { account, projectUuid } = args;
         const abortSignal = pollingOptions?.abortSignal;
@@ -17211,6 +17245,8 @@ export class AsyncQueryService extends ProjectService {
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         displayTimezone: string | null;
         executionStats: WarehouseExecutionStats | null;
+        /** What a live data source result leaves out; empty for other queries. */
+        liveResultNotices: LiveResultNotice[];
     }> {
         const { account, projectUuid } = args;
 
@@ -17257,6 +17293,8 @@ export class AsyncQueryService extends ProjectService {
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         displayTimezone: string | null;
         executionStats: WarehouseExecutionStats | null;
+        /** What a live data source result leaves out; empty for other queries. */
+        liveResultNotices: LiveResultNotice[];
     }> {
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
@@ -17305,6 +17343,7 @@ export class AsyncQueryService extends ProjectService {
                 AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory),
             displayTimezone,
             executionStats: queryHistory.warehouseExecutionStats,
+            liveResultNotices: queryHistory.liveResultNotices ?? [],
         };
     }
 
@@ -17566,6 +17605,8 @@ export class AsyncQueryService extends ProjectService {
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         displayTimezone: string | null;
         executionStats: WarehouseExecutionStats | null;
+        /** What a live data source result leaves out; empty for other queries. */
+        liveResultNotices: LiveResultNotice[];
     }> {
         const { account, projectUuid } = args;
 
@@ -17694,6 +17735,8 @@ export class AsyncQueryService extends ProjectService {
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         displayTimezone: string | null;
         executionStats: WarehouseExecutionStats | null;
+        /** What a live data source result leaves out; empty for other queries. */
+        liveResultNotices: LiveResultNotice[];
     }> {
         const { account, projectUuid } = args;
 

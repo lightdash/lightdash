@@ -19,6 +19,7 @@ import {
     type FilterGroup,
     type FilterOperator,
     type FilterRule,
+    type LiveResultNotice,
     type LiveSourceErrorData,
     type Metric,
     type MetricQuery,
@@ -261,6 +262,8 @@ export type LiveCompiledRequest = {
     localSorts?: SortField[];
     /** The field each response column answers; defaults to the fields' API names. */
     fieldIdsByColumn?: Record<string, FieldId>;
+    /** What the API counts its own way for this request, e.g. per page. */
+    notices?: LiveResultNotice[];
 };
 
 /** A metric query compiled into one integration request, plus what to do with its rows. */
@@ -279,6 +282,8 @@ export type CompiledLiveQuery = {
      * YYYY), turned into the period's first day so they read as dates.
      */
     periodColumns?: Record<string, LivePeriodFormat>;
+    /** What the result leaves out or counts its own way, known before it runs. */
+    notices: LiveResultNotice[];
 };
 
 /** Rows a query reads: all it may, when its rows are sorted here. */

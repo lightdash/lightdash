@@ -307,29 +307,37 @@ export const toNodeSummary = (
     node: ComposerPipelineNode,
     status: ComposerNodeStatus | undefined,
     showColumns: boolean,
-): ComposerNodeSummary => ({
-    nodeId: node.nodeId,
-    title: node.title ?? null,
-    sourceType: node.sourceType,
-    rowCount: status?.rowCount ?? null,
-    limit: getSourceQueryLimit(node),
-    columns:
-        showColumns && status?.columns
-            ? toComposerNodeColumns(status.columns)
-            : null,
-    sample: status?.sample ?? null,
-});
+): ComposerNodeSummary => {
+    const notices = (status?.liveResultNotices ?? []).map(
+        ({ message }) => message,
+    );
+    return {
+        nodeId: node.nodeId,
+        title: node.title ?? null,
+        sourceType: node.sourceType,
+        rowCount: status?.rowCount ?? null,
+        limit:
+            node.sourceType === QuerySourceType.API && node.limit === undefined
+                ? null
+                : getSourceQueryLimit(node),
+        ...(notices.length > 0 ? { notices } : {}),
+        columns:
+            showColumns && status?.columns
+                ? toComposerNodeColumns(status.columns)
+                : null,
+        sample: status?.sample ?? null,
+    };
+};
 
-const describeCappedRows = (
-    node: ComposerNodeSummary,
-    maxQueryLimit: number,
-): string => {
-    const max = node.limit < maxQueryLimit ? ` (max ${maxQueryLimit})` : '';
-    return ` Reached its limit of ${node.limit}, so more rows may exist${max}.`;
+const describeCappedRows = (limit: number, maxQueryLimit: number): string => {
+    const max = limit < maxQueryLimit ? ` (max ${maxQueryLimit})` : '';
+    return ` Reached its limit of ${limit}, so more rows may exist${max}.`;
 };
 
 export const hasReachedLimit = (node: ComposerNodeSummary) =>
-    node.rowCount !== null && hasReachedSourceQueryLimit(node, node.rowCount);
+    node.rowCount !== null &&
+    node.limit !== null &&
+    hasReachedSourceQueryLimit({ limit: node.limit }, node.rowCount);
 
 const renderNodeDetails = ({
     columns,
@@ -392,13 +400,19 @@ export const renderComposerNodeListing = ({
     );
     const getOutcome = (node: ComposerNodeSummary): string => {
         if (node.rowCount !== null) {
-            const capped = reachedLimit.has(node.nodeId)
-                ? describeCappedRows(node, maxQueryLimit)
-                : '';
+            const capped =
+                node.limit !== null && reachedLimit.has(node.nodeId)
+                    ? describeCappedRows(node.limit, maxQueryLimit)
+                    : '';
             const reused = submittedNodeIds.has(node.nodeId)
                 ? ''
                 : ' Reused from an earlier call.';
-            return `${node.rowCount} rows, limit ${node.limit}.${capped}${reused}`;
+            const limit =
+                node.limit === null ? 'no limit' : `limit ${node.limit}`;
+            const notices = (node.notices ?? [])
+                .map((message) => ` ${message}`)
+                .join('');
+            return `${node.rowCount} rows, ${limit}.${capped}${notices}${reused}`;
         }
         const query = queries.find(({ nodeId }) => nodeId === node.nodeId);
         const status = nodeStatuses.find(

@@ -332,6 +332,7 @@ import type {
     LinearProject,
     LinearTeam,
 } from './linear';
+import { type LiveResultNotice } from './liveResultNotices';
 import {
     type ApiCompiledMergeQueryResults,
     type MergeFieldOrigins,
@@ -1279,6 +1280,11 @@ export type QueryResultsPreAggregate = {
 export type QueryResultsMetadata = {
     performance: QueryResultsPerformance;
     preAggregate: QueryResultsPreAggregate | null;
+    /**
+     * What a live data source result leaves out or counts its own way,
+     * such as rows past the integration's cap; absent for other queries.
+     */
+    liveResultNotices?: LiveResultNotice[];
 };
 
 export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {

@@ -32,7 +32,10 @@ import type {
     ValidateContentFn,
 } from '../types/aiAgentDependencies';
 import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
-import { getContextTruncationNote } from '../utils/queryResultSummary';
+import {
+    getContextTruncationNote,
+    getLiveResultNoticesNote,
+} from '../utils/queryResultSummary';
 import { serializeData } from '../utils/serializeData';
 import {
     findSqlScopeViolations,
@@ -758,7 +761,9 @@ export const getRunContentQuery = ({
                           )
                         : NO_RESULTS_RETRY_PROMPT;
                     return {
-                        result,
+                        result: `${result}${getLiveResultNoticesNote(
+                            queryResults.liveResultNotices,
+                        )}`,
                         metadata: {
                             status: 'success' as const,
                             queryCacheHit:
@@ -780,7 +785,9 @@ export const getRunContentQuery = ({
                     result: `${truncationNote}${serializeData(
                         convertQueryResultsToCsv(queryResults, maxContextRows),
                         'csv',
-                    )}${review}`,
+                    )}${review}${getLiveResultNoticesNote(
+                        queryResults.liveResultNotices,
+                    )}`,
                     metadata: {
                         status: 'success' as const,
                         queryCacheHit:

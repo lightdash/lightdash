@@ -1058,8 +1058,15 @@ const composerQueryNodeSummarySchema = z.object({
         .number()
         .int()
         .positive()
+        .nullable()
         .describe(
-            'Row limit this node ran with. A rowCount equal to it means the node reached its limit, so more rows may exist.',
+            'Row limit this node ran with. A rowCount equal to it means the node reached its limit, so more rows may exist. Null for a live data source node with no limit, which reads as many rows as its integration allows.',
+        ),
+    notices: z
+        .array(z.string())
+        .optional()
+        .describe(
+            "Live data source notes about this node's rows (more rows exist, a default date window applied, or how the provider counts); tell the user.",
         ),
     columns: z
         .array(composerQueryColumnSchema)

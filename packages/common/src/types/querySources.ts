@@ -8,6 +8,7 @@ import {
     type FieldId,
     type TableCalculation,
 } from './field';
+import { type LiveResultNotice } from './liveResultNotices';
 import {
     type MergeJoinKeyPart,
     type MergeJoinType,
@@ -297,7 +298,7 @@ export type ApiSourceQuery = {
     /** The project connection that runs the payload, such as a PostHog connection. */
     connectionUuid: string;
     payload: ApiSourcePayload;
-    /** Max rows to keep. Defaults to the standard query row limit. */
+    /** Max rows to keep. Defaults to as many as one query of its integration can return. */
     limit?: number;
     /** Api queries refuse a pivot; pivot in a referencing duckdb query. */
     pivotConfiguration?: PivotConfiguration;
@@ -423,6 +424,8 @@ export type SourceQueryStatus = {
     warehouseExecutionTimeMs: number | null;
     /** Result columns; null until the query is ready. */
     columns: ResultColumns | null;
+    /** What a ready live data source result leaves out, e.g. rows past its cap. */
+    liveResultNotices?: LiveResultNotice[];
 };
 
 export type ApiGetSourceQueryStatusResults = {
@@ -442,11 +445,20 @@ export const MAX_SOURCE_QUERIES_PER_SUBMISSION = 25;
 export const getSourceQueryLimit = (query: { limit?: number }): number =>
     query.limit ?? DEFAULT_SOURCE_QUERY_LIMIT;
 
-/** A node that returned at least its limit of rows reached it, so more rows may exist. */
+/**
+ * A node that returned at least its limit of rows reached it, so more rows
+ * may exist. An api node without a limit reads all one query can, so only
+ * its truncated notice says it stopped short.
+ */
 export const hasReachedSourceQueryLimit = (
-    query: { limit?: number },
+    query: { sourceType?: QuerySourceType; limit?: number },
     rowCount: number,
-): boolean => rowCount >= getSourceQueryLimit(query);
+    liveResultNotices: LiveResultNotice[] = [],
+): boolean =>
+    liveResultNotices.some(({ type }) => type === 'truncated') ||
+    (query.sourceType === QuerySourceType.API && query.limit === undefined
+        ? false
+        : rowCount >= getSourceQueryLimit(query));
 
 /** The metric query a semanticLayer node runs; unset fields take the empty-query defaults. */
 export const metricQueryOfSemanticNode = (

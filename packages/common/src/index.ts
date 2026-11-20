@@ -146,6 +146,7 @@ export * from './types/api/success';
 export * from './types/api/uuid';
 export * from './types/apiSourceExplore';
 export * from './types/liveSourceErrors';
+export * from './types/liveResultNotices';
 export * from './types/auth';
 export * from './types/bigQuerySSO';
 export * from './types/billing';
