@@ -73,6 +73,8 @@ type Hold = {
     current: Stroke | null;
     /** Cursor: one pick per hold. */
     picked: boolean;
+    /** The last element picked in this hold, so one click is one mark. */
+    lastPick: string | null;
     /** Used when the hold opens a bubble from the page. */
     newBubbleId: string;
     /** The mic this hold started for a new bubble, with its first stroke or pick. */
@@ -596,6 +598,7 @@ export const useDesignMode = (
             strokes: [],
             current: null,
             picked: false,
+            lastPick: null,
             newBubbleId: uuidv4(),
             voice: null,
         };
@@ -664,7 +667,6 @@ export const useDesignMode = (
             const hold = holdRef.current;
             if (!hold) return;
             if (hold.tool === 'cursor') {
-                if (hold.picked) return;
                 const hit = surfaceRef.current?.pickAt?.(
                     holdPoint(hold, point),
                 );
@@ -693,13 +695,19 @@ export const useDesignMode = (
     const framePick = useCallback(
         (at: { x: number; y: number }) => {
             const hold = holdRef.current;
-            if (!hold || hold.tool !== 'cursor' || hold.picked) return;
+            if (!hold || hold.tool !== 'cursor') return;
             const hit = surfaceRef.current?.pickAt?.(at);
             if (!hit) return;
+            const pickKey = `${hit.target.kind}:${hit.target.id}`;
+            if (hold.lastPick === pickKey) return;
+            hold.lastPick = pickKey;
             hold.picked = true;
             setHover(null);
             startHoldVoice(hold);
-            commit(hold, {
+            // Each click of one hold is its own mark, timed from the last.
+            const pick = { ...hold };
+            hold.startAbs = performance.now();
+            commit(pick, {
                 kind: 'pick',
                 target: hit.target,
                 rect: hit.rect,

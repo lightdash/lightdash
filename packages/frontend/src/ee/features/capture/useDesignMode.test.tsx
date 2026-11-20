@@ -654,10 +654,11 @@ describe('useDesignMode', () => {
         expect(api.session.bubbles).toHaveLength(1);
     });
 
-    it('a Control hold picks the element under the pointer, once', async () => {
+    it('a Control hold picks an element with each click', async () => {
         const target = { kind: 'tile', id: 't1', label: 'Revenue' };
-        surface.pickAt = () => ({
-            target,
+        const other = { kind: 'tile', id: 't2', label: 'Orders' };
+        surface.pickAt = (point) => ({
+            target: point.x < 23 ? target : other,
             rect: new DOMRect(10, 20, 30, 40),
         });
         try {
@@ -674,7 +675,12 @@ describe('useDesignMode', () => {
             fireEvent.mouseDown(holdLayer(), { clientX: 20, clientY: 30 });
             fireEvent.mouseDown(holdLayer(), { clientX: 25, clientY: 35 });
             await keyUp({ key: 'Control' });
-            await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+            await waitFor(() =>
+                expect(
+                    api.session.bubbles[0]?.collection?.capture,
+                ).toMatchObject({ marks: [{ number: 1 }, { number: 2 }] }),
+            );
+            expect(api.session.bubbles).toHaveLength(1);
             const capture = api.session.bubbles[0].collection?.capture;
             expect(capture).toMatchObject({
                 marks: [
@@ -689,9 +695,9 @@ describe('useDesignMode', () => {
                             height: expect.closeTo(0.4),
                         },
                     },
+                    { shape: 'pick', tool: 'cursor', target: other },
                 ],
             });
-            expect(grabDomFrame).toHaveBeenCalledTimes(1);
         } finally {
             surface.pickAt = null;
         }
