@@ -3,6 +3,7 @@ import {
     MODEL_FRAGMENT_ACTIONS,
     MODEL_FRAGMENT_REFUSAL_REASONS,
 } from '../../../../lightdash/applyModelFragment';
+import { parseModelPartPath } from '../../../../lightdash/diffModelDocuments';
 import { type SemanticLayerDraftItemResult } from '../../../../types/semanticStudio';
 import {
     baseOutputMetadataSchema,
@@ -23,6 +24,12 @@ export const TOOL_PROPOSE_SEMANTIC_LAYER_CHANGE_DESCRIPTION = [
     'A `ready` model passed its checks and joined the draft, and a `note` on it says what was only estimated and needs the person to confirm; `unchanged` means the entry changes nothing; `failed` carries the error or the `refusals` to fix before proposing again. A model joins the draft whole or not at all, so every entry for a failed model stays out of the draft: propose the whole change to that model again.',
 ].join(' ');
 
+// A path that names no whole field or join would only come back as not found.
+const isRemovablePath = (path: string): boolean => {
+    const part = parseModelPartPath(path);
+    return part?.part === 'entry' && part.key === null;
+};
+
 export const toolProposeSemanticLayerChangeArgsSchema = z.object({
     models: z
         .array(
@@ -39,7 +46,14 @@ export const toolProposeSemanticLayerChangeArgsSchema = z.object({
                         'YAML mapping of what to add or change on this model, without `name` or `type`; null when the entry only removes.',
                     ),
                 remove: z
-                    .array(z.string())
+                    .array(
+                        z
+                            .string()
+                            .refine(
+                                isRemovablePath,
+                                'Write a path to delete as dimensions.<name>, dimensions.<name>.metrics.<name>, dimensions.<name>.additional_dimensions.<name>, metrics.<name> or joins.<name>.',
+                            ),
+                    )
                     .describe('Paths on this model to delete; empty for none.'),
                 removeModel: z
                     .boolean()
