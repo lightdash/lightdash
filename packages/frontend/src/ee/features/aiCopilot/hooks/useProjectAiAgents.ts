@@ -1361,7 +1361,7 @@ export const useCreateAgentThreadMutation = (
                     ],
                 }),
                 queryClient.invalidateQueries({
-                    queryKey: [AI_AGENTS_KEY, projectUuid, PROJECT_THREADS_KEY],
+                    queryKey: getProjectThreadsQueryKey(projectUuid),
                 }),
             ]);
 
