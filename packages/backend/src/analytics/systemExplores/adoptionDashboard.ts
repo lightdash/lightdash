@@ -252,6 +252,12 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
                 field: 'data_app_events_event_name',
                 values: ['data_app.created'],
             },
+            // The same data apps as the running total beside it: no custom chart types, and none of
+            // Lightdash's own analytics apps
+            {
+                field: 'data_app_events_is_organization_data_app',
+                values: [true],
+            },
         ],
         limit: 100,
         fieldLabels: {

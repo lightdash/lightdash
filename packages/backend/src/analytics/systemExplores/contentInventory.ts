@@ -5,7 +5,9 @@ import type { SystemMetricDefinition } from './systemStreamMetrics';
 // inventory snapshot marks it with the project type ANALYTICS, and every model of the customer's content
 // reads the inventory through this, so it is never listed, counted or put up for review.
 export const analyticsProjectType = 'ANALYTICS';
-export const customerContentSql = `(SELECT * FROM lightdash_content WHERE project_type IS DISTINCT FROM '${analyticsProjectType}')`;
+// Written with <> and IS NULL: the query engine refuses any SQL where FROM is followed by a quoted
+// string, which it reads as a file path, and IS DISTINCT FROM 'ANALYTICS' is exactly that.
+export const customerContentSql = `(SELECT * FROM lightdash_content WHERE (project_type IS NULL OR project_type <> '${analyticsProjectType}'))`;
 
 // The inventory with one extra row for every day, for each project and type of content that exists.
 // The extra rows have no content, so they count as zero, and a chart of content created by day gets a
