@@ -288,7 +288,6 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
         const isInline = variant === 'inline';
         const contentRef = useRef<HTMLDivElement>(null);
         const [editorHeight, setEditorHeight] = useState<number | null>(null);
-        // Reported to assistive tech on the keyboard resize handle.
         const [heightRange, setHeightRange] =
             useState<EditorHeightRange | null>(null);
         const resizeTo = (height: number, content: HTMLElement) =>
@@ -297,12 +296,15 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
         const syncHeightRange = useCallback(() => {
             const content = contentRef.current;
             if (!hasResizeHandle || !content) return;
-            setHeightRange(
-                measureEditorHeight(
-                    editorHeight ?? content.clientHeight,
-                    content,
-                ),
+            const range = measureEditorHeight(
+                editorHeight ?? content.clientHeight,
+                content,
             );
+            setHeightRange(range);
+            // A smaller dock since the last resize clamps the editor itself, not just the value.
+            if (editorHeight !== null && range.now !== editorHeight) {
+                setEditorHeight(range.now);
+            }
         }, [hasResizeHandle, editorHeight]);
         useLayoutEffect(syncHeightRange, [syncHeightRange]);
         const dragStartHeightRef = useRef<number | null>(null);
