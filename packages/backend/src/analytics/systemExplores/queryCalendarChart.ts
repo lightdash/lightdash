@@ -10,6 +10,8 @@ import { analyticsColorPalette } from './analyticsColorPalette';
 
 const day = 'query_calendar_day';
 const queries = 'query_events_total_queries';
+// The day's queries as a number
+const count = 'query_count';
 const ink = '#868E96';
 
 // The calendar always shows the same window, so it fills its tile whatever the dashboard's date range.
@@ -63,7 +65,9 @@ export const queryCalendarSpec: Record<string, unknown> = {
             calculate: `utcParse(substring(toString(datum.${day}), 0, 10), '%Y-%m-%d')`,
             as: 'day',
         },
-        { filter: `isValid(datum.day) && isValid(datum.${queries})` },
+        // The count can arrive as text, and text sorts "890" above "5000"
+        { calculate: `toNumber(datum.${queries})`, as: count },
+        { filter: `isValid(datum.day) && isFinite(datum.${count})` },
         { joinaggregate: [{ op: 'max', field: 'day', as: 'last_day' }] },
         // The window ends on the latest day with data and starts 26 weeks before it
         {
@@ -76,23 +80,24 @@ export const queryCalendarSpec: Record<string, unknown> = {
             as: 'start_monday',
         },
         // The colours stop at about the 95th percentile of the daily values, so one very busy day takes
-        // the darkest colour without turning every other day pale
+        // the darkest colour without turning every other day pale. The cut-off is the smallest of the
+        // busiest 5% of days, ranked on the count as a number.
+        { joinaggregate: [{ op: 'count', as: 'day_count' }] },
         {
-            window: [{ op: 'cume_dist', as: 'share_at_or_below' }],
-            sort: [{ field: queries, order: 'ascending' }],
+            window: [{ op: 'row_number', as: 'busiest_rank' }],
+            sort: [{ field: count, order: 'descending' }],
         },
         {
-            calculate: `datum.share_at_or_below <= 0.95 ? datum.${queries} : null`,
-            as: 'typical_value',
+            calculate: `datum.busiest_rank <= max(1, ceil(datum.day_count * 0.05)) ? datum.${count} : null`,
+            as: 'busiest_value',
         },
         {
             joinaggregate: [
-                { op: 'max', field: 'typical_value', as: 'typical_max' },
-                { op: 'max', field: queries, as: 'overall_max' },
+                { op: 'min', field: 'busiest_value', as: 'colour_top' },
             ],
         },
         {
-            calculate: `min(datum.${queries}, isValid(datum.typical_max) && datum.typical_max > 0 ? datum.typical_max : datum.overall_max)`,
+            calculate: `min(datum.${count}, datum.colour_top)`,
             as: 'colour_value',
         },
         { calculate: '(utcday(datum.day) + 6) % 7', as: 'weekday' },
@@ -138,7 +143,7 @@ const calendarPosition = {
 };
 const tooltip = [
     { field: 'date_label', type: 'nominal', title: 'Day' },
-    { field: queries, type: 'quantitative', title: 'Queries', format: ',.0f' },
+    { field: count, type: 'quantitative', title: 'Queries', format: ',.0f' },
 ];
 const firstRow = { filter: 'datum.row === 1' };
 

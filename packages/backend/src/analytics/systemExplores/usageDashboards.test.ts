@@ -961,7 +961,14 @@ describe('built-in usage dashboards', () => {
         expect(spec).toContain('(width / 27)');
         expect(spec).not.toContain('64)');
         // One very busy day does not turn the rest pale: colours stop at the 95th percentile
-        expect(spec).toContain('cume_dist');
+        // on the count as a number: as text, 890 would sort above 5000
+        expect(spec).toContain(
+            '{"calculate":"toNumber(datum.query_events_total_queries)","as":"query_count"}',
+        );
+        expect(spec).toContain(
+            '"sort":[{"field":"query_count","order":"descending"}]',
+        );
+        expect(spec).toContain('ceil(datum.day_count * 0.05)');
         expect(spec).toContain('"field":"colour_value"');
         expect(spec).not.toContain('column_offset');
         // The ramp ends on the first palette colour, and the legend reads 9.3K, top right
