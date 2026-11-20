@@ -231,7 +231,8 @@ export const contentChartSpecs: UsageChartSpec[] = [
                 stack: 'normal',
                 splitSort: 'total',
                 xAxisType: 'time',
-                xTimeFormat: '{MMM} {yyyy}',
+                // The day as well as the month: a tick for each week would repeat the month's name
+                xTimeFormat: '{MMM} {d}',
                 xName: 'Week',
                 yName: 'Content',
             },

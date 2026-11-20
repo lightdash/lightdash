@@ -26,7 +26,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Requests by agent',
                         caption: true,
-                        description: 'Requests by agent and day.',
+                        description: 'Which agents are used most, day by day.',
                         charts: ['agent-requests-by-agent-and-day'],
                         layout: 'row',
                         rowHeight: 7,
@@ -44,7 +44,8 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Requests by person',
                         caption: true,
-                        description: 'Requests by person and agent.',
+                        description:
+                            'Who is asking, and which agents they use.',
                         charts: ['agent-adoption-by-week'],
                     },
                 ],
