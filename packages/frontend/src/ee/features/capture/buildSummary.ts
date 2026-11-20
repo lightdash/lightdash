@@ -49,6 +49,10 @@ const describeMark = (mark: CaptureMark): string => {
             const to = mark.arrowTo?.label ?? describePosition(mark.arrow.to);
             return `arrow from ${from} to ${to}`;
         }
+        case 'pick':
+            return mark.target
+                ? `picked "${mark.target.label}"`
+                : `picked, ${describePosition(centre)}`;
         default:
             return assertUnreachable(mark.shape, 'Unknown mark shape');
     }
@@ -114,6 +118,8 @@ export const buildSummary = (input: {
     ];
     entries.sort((a, b) => a.atMs - b.atMs);
 
+    const tabs = new Set(input.marks.map((mark) => mark.tabName));
+    const spansTabs = tabs.size > 1;
     const lines = [header(input.durationMs, input.imageCount)];
     let currentImage = -1;
     for (const entry of entries) {
@@ -130,13 +136,15 @@ export const buildSummary = (input: {
                 );
             }
             const target =
-                mark.target && mark.shape !== 'arrow'
+                mark.target && mark.shape !== 'arrow' && mark.shape !== 'pick'
                     ? ` on ${mark.target.label}`
                     : '';
+            const tab =
+                spansTabs && mark.tabName ? `, on tab "${mark.tabName}"` : '';
             const speech =
                 entry.speech.length > 0 ? `: "${entry.speech.join(' ')}"` : '';
             lines.push(
-                `- ${markNumber(mark.number)} (${formatClock(mark.startMs)}) ${describeMark(mark)}${target}${speech}`,
+                `- ${markNumber(mark.number)} (${formatClock(mark.startMs)}) ${describeMark(mark)}${target}${tab}${speech}`,
             );
         }
     }

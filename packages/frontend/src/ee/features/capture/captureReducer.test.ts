@@ -30,7 +30,12 @@ const hold = (
     atMs: number,
     isNewScreen: boolean,
 ): CaptureState => {
-    let s = captureReducer(state, { type: 'shiftDown', atMs, isNewScreen });
+    let s = captureReducer(state, {
+        type: 'shiftDown',
+        atMs,
+        isNewScreen,
+        tool: 'stylus',
+    });
     s = captureReducer(s, { type: 'strokeAdded', stroke });
     return captureReducer(s, {
         type: 'shiftUp',
@@ -39,6 +44,8 @@ const hold = (
         arrowTo: null,
         trail: [],
         covers: [],
+        tabName: null,
+        box: null,
     });
 };
 
@@ -98,6 +105,7 @@ describe('captureReducer', () => {
             type: 'shiftDown',
             atMs: 0,
             isNewScreen: true,
+            tool: 'stylus',
         });
         s = captureReducer(s, { type: 'strokeAdded', stroke });
         s = captureReducer(s, {
@@ -110,6 +118,8 @@ describe('captureReducer', () => {
                 { kind: 'tile', id: 'abc', label: 'Revenue tile' },
                 { kind: 'tile', id: 'def', label: 'Orders tile' },
             ],
+            tabName: null,
+            box: null,
         });
         expect(s).toMatchObject({
             marks: [
@@ -127,6 +137,7 @@ describe('captureReducer', () => {
             type: 'shiftDown',
             atMs: 1000,
             isNewScreen: true,
+            tool: 'stylus',
         });
         s = captureReducer(s, {
             type: 'shiftUp',
@@ -135,6 +146,8 @@ describe('captureReducer', () => {
             arrowTo: null,
             trail: [],
             covers: [],
+            tabName: null,
+            box: null,
         });
         expect(s).toMatchObject({ marks: [], imageCount: 0, drawing: null });
     });
@@ -145,6 +158,7 @@ describe('captureReducer', () => {
                 type: 'shiftDown',
                 atMs: 1,
                 isNewScreen: true,
+                tool: 'stylus',
             }),
         ).toMatchObject({ drawing: null, atImageLimit: true, imageCount: 5 });
     });
@@ -155,8 +169,43 @@ describe('captureReducer', () => {
                 type: 'shiftDown',
                 atMs: 1,
                 isNewScreen: false,
+                tool: 'stylus',
             }),
         ).toMatchObject({ drawing: { imageIndex: 4 }, atImageLimit: false });
+    });
+
+    it('a cursor pick becomes a mark with no strokes', () => {
+        const T = { kind: 'tile', id: 't1', label: 'Revenue by month' };
+        const box = { x: 0.2, y: 0.2, width: 0.3, height: 0.3 };
+        let s = captureReducer(rec(), {
+            type: 'shiftDown',
+            atMs: 1000,
+            isNewScreen: true,
+            tool: 'cursor',
+        });
+        s = captureReducer(s, {
+            type: 'shiftUp',
+            atMs: 1200,
+            target: T,
+            arrowTo: null,
+            trail: [],
+            covers: [],
+            tabName: 'Marketing',
+            box,
+        });
+        expect(s).toMatchObject({
+            imageCount: 1,
+            marks: [
+                {
+                    shape: 'pick',
+                    tool: 'cursor',
+                    strokes: [],
+                    target: T,
+                    box,
+                    tabName: 'Marketing',
+                },
+            ],
+        });
     });
 
     it('ignores strokes and Shift-up when not drawing', () => {
@@ -170,6 +219,8 @@ describe('captureReducer', () => {
                 arrowTo: null,
                 trail: [],
                 covers: [],
+                tabName: null,
+                box: null,
             }),
         ).toEqual(s);
     });

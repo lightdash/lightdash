@@ -2,7 +2,8 @@
 export type Point = { x: number; y: number };
 export type Box = { x: number; y: number; width: number; height: number };
 export type Stroke = { points: Point[] };
-export type MarkShape = 'circle' | 'underline' | 'arrow' | 'scribble';
+export type MarkShape = 'circle' | 'underline' | 'arrow' | 'scribble' | 'pick';
+export type DesignTool = 'stylus' | 'cursor';
 export type CaptureTarget = { kind: string; id: string; label: string };
 
 /** A target under a mark and the share (0 to 1) of the mark's area on it. */
@@ -15,6 +16,9 @@ export type CaptureMark = {
     endMs: number;
     strokes: Stroke[];
     shape: MarkShape;
+    tool: DesignTool;
+    /** The dashboard tab the mark was made on; null when there are no tabs. */
+    tabName: string | null;
     box: Box;
     arrow: { from: Point; to: Point } | null;
     /** What the mark is on; for an arrow, what it starts on. */

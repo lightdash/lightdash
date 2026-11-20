@@ -236,6 +236,7 @@ export const useCapture = (
                 type: 'shiftDown',
                 atMs: hold.startMs,
                 isNewScreen,
+                tool: 'stylus',
             });
             if (drawing.status !== 'recording' || !drawing.drawing) {
                 frame?.bitmap.close();
@@ -295,6 +296,8 @@ export const useCapture = (
                 target,
                 arrowTo,
                 trail,
+                tabName: null,
+                box: null,
                 covers: resolveTarget
                     ? coveredTargets(box, (point) =>
                           resolveTarget(toViewport(point)),

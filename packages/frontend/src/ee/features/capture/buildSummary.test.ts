@@ -11,6 +11,8 @@ const mark = (
     imageIndex: 0,
     strokes: [],
     shape: 'circle',
+    tool: 'stylus',
+    tabName: null,
     box: { x: 0.7, y: 0.05, width: 0.2, height: 0.2 },
     arrow: null,
     target: null,
@@ -197,5 +199,43 @@ describe('buildSummary', () => {
             ],
         });
         expect(out).toContain('- ① (0:00) arrow from Top customers to Revenue');
+    });
+
+    it('names the tab only when marks span tabs', () => {
+        const pick = (number: number, tabName: string, label: string) =>
+            mark({
+                number,
+                startMs: number * 4000,
+                endMs: number * 4000 + 200,
+                shape: 'pick',
+                tool: 'cursor',
+                tabName,
+                target: { kind: 'tile', id: label, label },
+            });
+        const span = buildSummary({
+            durationMs: 9000,
+            imageCount: 1,
+            marks: [
+                pick(1, 'Sales', 'Pipeline'),
+                pick(2, 'Marketing', 'Revenue by month'),
+            ],
+            transcript: [],
+        });
+        expect(span).toContain(
+            '- \u2460 (0:04) picked "Pipeline", on tab "Sales"',
+        );
+        expect(span).toContain(
+            '- \u2461 (0:08) picked "Revenue by month", on tab "Marketing"',
+        );
+        const same = buildSummary({
+            durationMs: 9000,
+            imageCount: 1,
+            marks: [
+                pick(1, 'Sales', 'Pipeline'),
+                pick(2, 'Sales', 'Revenue by month'),
+            ],
+            transcript: [],
+        });
+        expect(same).not.toContain('on tab');
     });
 });

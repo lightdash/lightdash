@@ -14,6 +14,8 @@ const mark = (
     imageIndex: 0,
     strokes: [],
     shape: 'circle',
+    tool: 'stylus',
+    tabName: null,
     box: { x: 0, y: 0, width: 0.1, height: 0.1 },
     arrow: null,
     target: null,

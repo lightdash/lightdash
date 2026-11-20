@@ -36,6 +36,19 @@ export const composeImage = async ({
         }
     }
 
+    for (const mark of marks) {
+        if (mark.shape !== 'pick') continue;
+        context.beginPath();
+        context.roundRect(
+            mark.box.x * frame.width,
+            mark.box.y * frame.height,
+            mark.box.width * frame.width,
+            mark.box.height * frame.height,
+            lineWidth * 2,
+        );
+        context.stroke();
+    }
+
     const radius = Math.max(12, frame.width / 90);
     context.font = `bold ${Math.round(radius * 1.2)}px sans-serif`;
     context.textAlign = 'center';
