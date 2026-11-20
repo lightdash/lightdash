@@ -579,7 +579,8 @@ export const previewHandler = async (
             );
         }
 
-        const { explores, isProjectComplete } = await compileProject(options);
+        const { explores, isProjectComplete, fusionEmptyMeta } =
+            await compileProject(options);
         await deploy(explores, {
             ...options,
             projectUuid: project.projectUuid,
@@ -590,6 +591,7 @@ export const previewHandler = async (
                 config.context?.project,
             )),
             complete: isProjectComplete,
+            fusionEmptyMeta,
         });
 
         await setPreviewProject(project.projectUuid, name);
@@ -668,6 +670,7 @@ export const previewHandler = async (
                                 config.context?.project,
                             )),
                             complete: compileResult.isProjectComplete,
+                            fusionEmptyMeta: compileResult.fusionEmptyMeta,
                         });
                     }
 
@@ -797,7 +800,8 @@ export const startPreviewHandler = async (
         );
         options.disableTimestampConversion =
             previewSettings.disableTimestampConversion;
-        const { explores, isProjectComplete } = await compileProject(options);
+        const { explores, isProjectComplete, fusionEmptyMeta } =
+            await compileProject(options);
         await deploy(explores, {
             ...options,
             projectUuid: previewProject.projectUuid,
@@ -811,6 +815,7 @@ export const startPreviewHandler = async (
                 config.context?.project,
             )),
             complete: isProjectComplete,
+            fusionEmptyMeta,
         });
         const url = await projectUrl(previewProject);
         console.error(`Project updated on ${url}`);
@@ -948,7 +953,8 @@ export const startPreviewHandler = async (
             );
         }
 
-        const { explores, isProjectComplete } = await compileProject(options);
+        const { explores, isProjectComplete, fusionEmptyMeta } =
+            await compileProject(options);
         await deploy(explores, {
             ...options,
             projectUuid: project.projectUuid,
@@ -959,6 +965,7 @@ export const startPreviewHandler = async (
                 config.context?.project,
             )),
             complete: isProjectComplete,
+            fusionEmptyMeta,
         });
         const url = await projectUrl(project);
 

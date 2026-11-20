@@ -47,6 +47,7 @@ import { detectProjectType } from '../lightdash/projectType';
 import * as styles from '../styles';
 import { lightdashRawApi, readRawApiJson } from './dbt/apiClient';
 import { DbtCompileOptions, maybeCompileModelsAndJoins } from './dbt/compile';
+import { getFusionEmptyMeta, type FusionEmptyMeta } from './dbt/fusionMeta';
 import { tryGetDbtVersion } from './dbt/getDbtVersion';
 import getWarehouseClient from './dbt/getWarehouseClient';
 
@@ -70,6 +71,7 @@ export type CompileProjectResult = {
     dbtModelNames?: string[];
     explores: (Explore | ExploreError)[];
     isProjectComplete: boolean;
+    fusionEmptyMeta: FusionEmptyMeta | null;
 };
 
 export const hasBlockingCompileError = (
@@ -437,6 +439,7 @@ export const compileProject = async (
     let dbtMetrics: DbtManifest['metrics'] | null = null;
     let isProjectComplete = true;
     let dbtModelNames: string[] | undefined;
+    let fusionEmptyMeta: FusionEmptyMeta | null = null;
 
     explores = await getExploresFromLightdashYmlProject({
         projectDir: absoluteProjectPath,
@@ -633,6 +636,11 @@ export const compileProject = async (
         }
         const manifestVersion = getDbtManifestVersion(manifest);
         const manifestModels = getModelsFromManifest(manifest);
+        fusionEmptyMeta = getFusionEmptyMeta({
+            dbtVersion: manifest.metadata.dbt_version,
+            skipDbtCompile: !!options.skipDbtCompile,
+            models: manifestModels,
+        });
         const compiledModels = getCompiledModels(
             manifestModels,
             effectiveCompiledModelIds,
@@ -859,7 +867,7 @@ export const compileProject = async (
             durationMs: Date.now() - startTime,
         },
     });
-    return { explores, isProjectComplete, dbtModelNames };
+    return { explores, isProjectComplete, dbtModelNames, fusionEmptyMeta };
 };
 
 export const compile = async (
